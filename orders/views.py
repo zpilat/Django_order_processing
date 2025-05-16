@@ -50,15 +50,24 @@ class BednyListView(LoginRequiredMixin, ListView):
             ('poznamka', 'Poznámka'),
         ]
 
-        stav_choices = [("", "VŠE")] + StavBednyChoice.choices
+        stav_choices = [("", "VŠE")] + list(StavBednyChoice.choices)
+        zakaznik_choices = [("", "VŠE")] + [(zakaznik.zkratka, zakaznik.zkratka) for zakaznik in Zakaznik.objects.all()]
+        typ_hlavy_choices = [("", "VŠE")] + list(TypHlavyChoice.choices)
 
         context.update({
             'db_table': 'bedny',
             'sort': self.request.GET.get('sort', 'id'),
             'order': self.request.GET.get('order', 'up'),
             'query': self.request.GET.get('query', ''),
-            'stav_filter': self.request.GET.get('stav_filter', 'VŠE'),     
-            'stav_choices': stav_choices,       
+            'stav_filter': self.request.GET.get('stav_filter', 'VŠE'),
+            'stav_choices': stav_choices,
+            'zakaznik_filter': self.request.GET.get('zakaznik_filter', 'VŠE'),
+            'zakaznik_choices': zakaznik_choices,
+            'typ_hlavy_filter': self.request.GET.get('typ_hlavy_filter', 'VŠE'),
+            'typ_hlavy_choices': typ_hlavy_choices,
+            'zakazka_komplet': self.request.GET.get('zakazka_komplet', ''),
+            'tryskat': self.request.GET.get('tryskat', ''),
+            'rovnat': self.request.GET.get('rovnat', ''),
             'columns': columns,
         })
         return context
@@ -72,15 +81,32 @@ class BednyListView(LoginRequiredMixin, ListView):
         - queryset: Filtrovaný a seřazený seznam beden.
         """
         queryset = Bedna.objects.all()
+
         query = self.request.GET.get('query', '')
         sort = self.request.GET.get('sort', 'id')
         order = self.request.GET.get('order', 'up')
-        stav_filter = self.request.GET.get('stav_filter','VŠE')        
+        stav_filter = self.request.GET.get('stav_filter','VŠE')      
+        zakaznik_filter = self.request.GET.get('zakaznik_filter', 'VŠE')
+        typ_hlavy_filter = self.request.GET.get('typ_hlavy_filter', 'VŠE')  
+        filters = {'tryskat': self.request.GET.get('tryskat', ''),
+                   'rovnat': self.request.GET.get('rovnat', ''),
+                   'zakazka_id__komplet': self.request.GET.get('zakazka_komplet', '')}
+
 
         queryset = queryset.exclude(stav_bedny='EX')  
 
         if stav_filter and stav_filter != 'VŠE':
             queryset = queryset.filter(stav_bedny=stav_filter)
+
+        if zakaznik_filter and zakaznik_filter != 'VŠE':
+            queryset = queryset.filter(zakazka_id__kamion_id__zakaznik_id__zkratka=zakaznik_filter)
+
+        if typ_hlavy_filter and typ_hlavy_filter != 'VŠE':
+            queryset = queryset.filter(zakazka_id__typ_hlavy=typ_hlavy_filter)
+
+        for field, value in filters.items():
+            if value == 'on':
+                queryset = queryset.filter(**{field: True})
 
         if query:
             queryset = queryset.filter(
@@ -93,4 +119,11 @@ class BednyListView(LoginRequiredMixin, ListView):
         queryset = queryset.order_by(sort)
 
         return queryset
+    
+    def render_to_response(self, context, **response_kwargs):
+        if self.request.headers.get('Hx-Request') == 'true':
+            return render(self.request, "orders/partials/listview_table.html", context)
+        else:
+            return super().render_to_response(context, **response_kwargs)
+
    

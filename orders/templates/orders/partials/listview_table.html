@@ -1,0 +1,33 @@
+{% load custom_filters %}
+
+<div class="container-fluid">
+    <table class="table table-sm table-hover table-striped table-bordered">
+        <thead class="table-dark">
+            <tr>
+                {% with request.GET.urlencode as querystring %}
+                    {% for field, label in columns %}
+                        <th>
+                            <a href="?sort={{ field }}&order={% if sort == field and order == 'up' %}down{% else %}up{% endif %}&{{ querystring|url_remove_param:'sort,order' }}">
+                                {{ label }}
+                                {% if sort == field %}
+                                    <i class="fas fa-sort-{{ order }}"></i>
+                                {% elif not sort and forloop.first %}
+                                    <i class="fas fa-sort-down"></i>
+                                {% endif %}
+                            </a>
+                        </th>
+                    {% endfor %}
+                {% endwith %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in object_list %}
+                <tr>  
+                    {% for field, label in columns %}
+                        <td>{{ item|attr_chain:field }}</td>        
+                    {% endfor %}       
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>  

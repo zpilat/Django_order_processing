@@ -14,6 +14,9 @@ db.sqlite3
 # Tajné klíče a konfigurace
 .env
 
+# Soubory Libreoffice Calc
+*.ods
+
 # IDE a systémové soubory
 .idea/
 .vscode/

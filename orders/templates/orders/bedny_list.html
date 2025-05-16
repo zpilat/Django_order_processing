@@ -3,54 +3,73 @@
 {% load custom_filters %}
 
 {% block content %}
-<form method="GET" action="" class="d-flex flex-wrap justify-content-center align-items-center small my-2 gap-2">  
-    <div class="mb-2 d-flex align-items-center">
-        <label for="stav_filter" class="me-2 mb-0">Stav:</label>
-        <select name="stav_filter" class="form-select form-select-sm me-2" id="stav_filter">
+<form 
+    method="GET"
+    hx-get="."
+    hx-target="#listview-table"
+    hx-push-url="true"
+    hx-trigger="change, keyup delay:400ms from:input, submit"
+    class="row justify-content-center align-items-start small my-1 g-2"
+>
+    {# Select stav filtr: #}
+    <div class="col-auto my-0">
+        <label for="stav_filter" class="me-2 my-0 form-label small">Stav:</label>
+        <select name="stav_filter" class="form-select form-select-sm" id="stav_filter">
             {% for value, label in stav_choices %}
             <option value="{{ value }}" {% if request.GET.stav_filter == value %}selected{% endif %}>{{ label }}</option>
             {% endfor %}
         </select>
     </div>
-    <div class="mb-2">
-        <input class="form-control form-control-sm me-2" type="text" name="query" placeholder="Vyhledat bednu / datum" value="{{ request.GET.query }}">
+    {# Select zakaznik filtr: #}
+    <div class="col-auto my-0">
+        <label for="zakaznik_filter" class="me-2 my-0 form-label small">Zakazník:</label>
+        <select name="zakaznik_filter" class="form-select form-select-sm me-2" id="zakaznik_filter">
+            {% for value, label in zakaznik_choices %}
+            <option value="{{ value }}" {% if request.GET.zakaznik_filter == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
     </div>
-    <div class="mb-2">
-        <button class="btn btn-outline-dark btn-sm rounded-pill" type="submit">Filtrovat</button>
+    {# Select typ_hlavy filtr: #}
+    <div class="col-auto my-0">
+        <label for="typ_hlavy_filter" class="me-2 my-0 form-label small">Typ hlavy:</label>
+        <select name="typ_hlavy_filter" class="form-select form-select-sm me-2" id="typ_hlavy_filter">
+            {% for value, label in typ_hlavy_choices %}
+            <option value="{{ value }}" {% if request.GET.typ_hlavy_filter == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
     </div>
-    <input type="hidden" name="sort" value="{% if request.GET.sort %}{{ request.GET.sort }}{% else %}id{% endif %}">
-    <input type="hidden" name="order" value="{% if request.GET.order %}{{ request.GET.order }}{% else %}down{% endif %}">
+    {# Search filtr: #}
+    <div class="col-auto my-0">
+        <label for="query" class="me-2 my-0 form-label small">Vyhledat:</label>
+        <input class="form-control form-control-sm me-2" type="text" name="query" placeholder="Vyhledat č.bedny / datum" value="{{ request.GET.query }}">
+    </div>
+    {# Checkbox zakazka_komplet filtr: #}
+    <div class="col-auto d-flex flex-column align-items-center my-0">
+        <label for="zakazka_komplet" class="form-check-label small">Kompletní?</label>           
+        <input type="checkbox" id="zakazka_komplet" name="zakazka_komplet" value="on"
+            class="form-check-input"
+            {% if request.GET.zakazka_komplet == 'on' %}checked{% endif %}>        
+    </div>
+    {# Checkbox tryskat filtr: #}
+    <div class="col-auto d-flex flex-column align-items-center my-0">
+        <label for="tryskat" class="form-check-label small">Tryskat?</label>
+        <input type="checkbox" id="tryskat" name="tryskat" value="on"
+            class="form-check-input"
+            {% if request.GET.tryskat == 'on' %}checked{% endif %}>
+    </div>
+    {# Checkbox rovnat filtr: #}
+    <div class="col-auto d-flex flex-column align-items-center my-0">
+        <label for="rovnat" class="form-check-label small">Rovnat?</label>
+        <input type="checkbox" id="rovnat" name="rovnat" value="on"
+            class="form-check-input"
+            {% if request.GET.rovnat == 'on' %}checked{% endif %}>
+    </div>
+    {# Sort: #}
+    <input type="hidden" name="sort" value="{{ sort }}">
+    <input type="hidden" name="order" value="{{ order }}">
 </form>
 
-<div class="container-fluid">
-    <table class="table table-sm table-hover table-striped table-bordered">
-        <thead class="table-dark">
-            <tr>
-                {% with request.GET.urlencode as querystring %}
-                    {% for field, label in columns %}
-                        <th>
-                            <a href="?sort={{ field }}&order={% if sort == field and order == 'up' %}down{% else %}up{% endif %}&{{ querystring|url_remove_param:'sort,order' }}">
-                                {{ label }}
-                                {% if sort == field %}
-                                    <i class="fas fa-sort-{{ order }}"></i>
-                                {% elif not sort and forloop.first %}
-                                    <i class="fas fa-sort-down"></i>
-                                {% endif %}
-                            </a>
-                        </th>
-                    {% endfor %}
-                {% endwith %}
-            </tr>
-        </thead>
-        <tbody>
-            {% for item in object_list %}
-                <tr>  
-                    {% for field, label in columns %}
-                        <td>{{ item|attr_chain:field }}</td>        
-                    {% endfor %}       
-                </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>  
+<div id="listview-table">
+    {% include "orders/partials/listview_table.html" %}
+</div>
 {% endblock %}
