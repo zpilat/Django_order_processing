@@ -1,0 +1,69 @@
+/* Formuláře */
+form .form-group {
+    margin-bottom: 5px; /* Zmenšení rozestupů mezi poli */
+}
+
+/* Kontejner pro formulář */
+.form-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 10px; /* Mezery mezi řádky */
+}
+
+/* Nastavení šířek sloupců a mezer mezi nimi */
+.form-row {
+    display: flex;
+    justify-content: space-between;
+}
+
+.flex-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+/* Tabulky */
+table {
+    font-size: 0.8rem; /* Zmenšení písma */
+}
+
+.width-nowrap {
+    white-space: nowrap;
+}
+
+.table-sm th a {
+    color: inherit; /* zachovat barvu textu */
+    text-decoration: none; /* odstranit podtržení */
+    display: inline-flex;
+    align-items: center;
+}
+
+.table-sm th a .fa-sort-up,
+.table-sm th a .fa-sort-down {
+    margin-left: 5px;
+}
+
+.show-pointer {
+    cursor: pointer;
+}
+
+.pod-minimem-row {
+    color: #FF5C5C !important;
+}
+
+.btn-xs {
+    font-size: 0.8rem !important; /* Zmenšení písma */
+    padding: 3px 10px !important; /* Přizpůsobení vnitřních okrajů */
+}
+
+.page-link {
+    color: #17a2b8 !important; /* Barva z btn-info */
+}
+
+.page-link i {
+    color: #17a2b8; /* Barva z btn-info */
+}
+.page-item.disabled .page-link i {
+    color: #6c757d; /* Barva pro disabled */
+}
+

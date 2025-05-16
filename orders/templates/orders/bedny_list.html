@@ -1,0 +1,56 @@
+{% extends "orders/base.html" %}
+{% load static %}
+{% load custom_filters %}
+
+{% block content %}
+<form method="GET" action="" class="d-flex flex-wrap justify-content-center align-items-center small my-2 gap-2">  
+    <div class="mb-2 d-flex align-items-center">
+        <label for="stav_filter" class="me-2 mb-0">Stav:</label>
+        <select name="stav_filter" class="form-select form-select-sm me-2" id="stav_filter">
+            {% for value, label in stav_choices %}
+            <option value="{{ value }}" {% if request.GET.stav_filter == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="mb-2">
+        <input class="form-control form-control-sm me-2" type="text" name="query" placeholder="Vyhledat bednu / datum" value="{{ request.GET.query }}">
+    </div>
+    <div class="mb-2">
+        <button class="btn btn-outline-dark btn-sm rounded-pill" type="submit">Filtrovat</button>
+    </div>
+    <input type="hidden" name="sort" value="{% if request.GET.sort %}{{ request.GET.sort }}{% else %}id{% endif %}">
+    <input type="hidden" name="order" value="{% if request.GET.order %}{{ request.GET.order }}{% else %}down{% endif %}">
+</form>
+
+<div class="container-fluid">
+    <table class="table table-sm table-hover table-striped table-bordered">
+        <thead class="table-dark">
+            <tr>
+                {% with request.GET.urlencode as querystring %}
+                    {% for field, label in columns %}
+                        <th>
+                            <a href="?sort={{ field }}&order={% if sort == field and order == 'up' %}down{% else %}up{% endif %}&{{ querystring|url_remove_param:'sort,order' }}">
+                                {{ label }}
+                                {% if sort == field %}
+                                    <i class="fas fa-sort-{{ order }}"></i>
+                                {% elif not sort and forloop.first %}
+                                    <i class="fas fa-sort-down"></i>
+                                {% endif %}
+                            </a>
+                        </th>
+                    {% endfor %}
+                {% endwith %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in object_list %}
+                <tr>  
+                    {% for field, label in columns %}
+                        <td>{{ item|attr_chain:field }}</td>        
+                    {% endfor %}       
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>  
+{% endblock %}

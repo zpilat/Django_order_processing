@@ -1,0 +1,23 @@
+# Obecné Python soubory
+*.pyc
+__pycache__/
+
+# Virtuální prostředí
+venv/
+
+# Statické soubory generované collectstatic
+/staticfiles/
+
+# Lokální databáze
+db.sqlite3
+
+# Tajné klíče a konfigurace
+.env
+
+# IDE a systémové soubory
+.idea/
+.vscode/
+*.log
+*.bak
+.DS_Store
+Thumbs.db
