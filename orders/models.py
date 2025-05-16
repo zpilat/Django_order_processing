@@ -51,6 +51,7 @@ class Zakazka(models.Model):
     predpis = models.CharField(max_length=100, verbose_name='Předpis')
     typ_hlavy = models.CharField(choices=TypHlavyChoice.choices, max_length=3, verbose_name='Typ hlavy')
     nazev = models.CharField(max_length=100, verbose_name='Název')
+    hmotnost_zakazky = models.DecimalField(max_digits=6, decimal_places=1, verbose_name='Hmotnost zakázky')
     komplet = models.BooleanField(default=False, verbose_name='Kompletní?')
 
     class Meta:
@@ -64,6 +65,7 @@ class Zakazka(models.Model):
 class Bedna(models.Model):
     zakazka_id = models.ForeignKey(Zakazka, on_delete=models.CASCADE, related_name='bedny')
     cislo_bedny = models.CharField(max_length=50, verbose_name='Číslo bedny')
+    hmotnost = models.DecimalField(max_digits=5, decimal_places=1, verbose_name='Hmotnost')
     material = models.CharField(max_length=50, verbose_name='Materiál')
     sarze = models.CharField(max_length=50, verbose_name='Šarže')
     tryskat = models.BooleanField(default=False, verbose_name='K tryskání')

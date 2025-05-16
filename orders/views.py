@@ -42,6 +42,7 @@ class BednyListView(LoginRequiredMixin, ListView):
             ('cislo_bedny', 'Č. bedny'),
             ('zakazka_id__prumer', 'Průměr'),
             ('zakazka_id__delka', 'Délka'),
+            ('hmotnost', 'Hmotnost'),
             ('stav_bedny', 'Stav bedny'),
             ('zakazka_id__typ_hlavy', 'Typ hlavy'),
             ('tryskat', 'K tryskání'),
