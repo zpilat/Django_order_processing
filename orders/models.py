@@ -1,4 +1,5 @@
 from django.db import models
+from simple_history.models import HistoricalRecords
 
 # Create your models here.
 class TypHlavyChoice(models.TextChoices):
@@ -22,6 +23,7 @@ class StavBednyChoice(models.TextChoices):
 class Zakaznik(models.Model):
     nazev = models.CharField(max_length=100)
     zkratka = models.CharField(max_length=3, verbose_name='Zkratka')
+    history = HistoricalRecords()
 
     class Meta:
         verbose_name = 'Zákazník'
@@ -34,6 +36,7 @@ class Zakaznik(models.Model):
 class Kamion(models.Model):
     zakaznik_id = models.ForeignKey(Zakaznik, on_delete=models.CASCADE, related_name='kamiony')
     datum = models.DateField(verbose_name='Datum')
+    history = HistoricalRecords()
 
     class Meta:
         verbose_name = 'Kamión'
@@ -52,6 +55,7 @@ class Zakazka(models.Model):
     typ_hlavy = models.CharField(choices=TypHlavyChoice.choices, max_length=3, verbose_name='Typ hlavy')
     nazev = models.CharField(max_length=100, verbose_name='Název')
     komplet = models.BooleanField(default=False, verbose_name='Kompletní?')
+    history = HistoricalRecords()
 
     class Meta:
         verbose_name = 'Zakázka'
@@ -71,6 +75,7 @@ class Bedna(models.Model):
     rovnat = models.BooleanField(default=False, verbose_name='K rovnání')
     poznamka = models.CharField(max_length=100, null=True, blank=True, verbose_name='Poznámka')
     stav_bedny = models.CharField(choices=StavBednyChoice.choices, max_length=2, verbose_name='Stav bedny')
+    history = HistoricalRecords()
 
     class Meta:
         verbose_name = 'Bedna'

@@ -37,8 +37,10 @@ class BednyListView(LoginRequiredMixin, ListView):
         columns = [
             # (atribut v querysetu, popisek v tabulce)
             ('id', 'ID'),
-            ('zakazka_id__kamion_id__zakaznik_id__zkratka', 'Dodavatel'),
-            ('zakazka_id', 'Zakázka'),
+            ('zakazka_id__kamion_id__zakaznik_id__zkratka', 'Zákazník'),
+            ('zakazka_id__kamion_id__datum', 'Datum'),
+            ('zakazka_id__kamion_id', 'Kamion'),   
+            ('zakazka_id__artikl', 'Artikl'),
             ('cislo_bedny', 'Č. bedny'),
             ('zakazka_id__prumer', 'Průměr'),
             ('zakazka_id__delka', 'Délka'),
