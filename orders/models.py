@@ -51,7 +51,6 @@ class Zakazka(models.Model):
     predpis = models.CharField(max_length=100, verbose_name='Předpis')
     typ_hlavy = models.CharField(choices=TypHlavyChoice.choices, max_length=3, verbose_name='Typ hlavy')
     nazev = models.CharField(max_length=100, verbose_name='Název')
-    hmotnost_zakazky = models.DecimalField(max_digits=6, decimal_places=1, verbose_name='Hmotnost zakázky')
     komplet = models.BooleanField(default=False, verbose_name='Kompletní?')
 
     class Meta:
