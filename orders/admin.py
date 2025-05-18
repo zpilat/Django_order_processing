@@ -45,7 +45,7 @@ class ZakazkaAdmin(admin.ModelAdmin):
 
 @admin.register(Bedna)
 class BednaAdmin(admin.ModelAdmin):
-    list_display = ('id', 'zakazka_id', 'cislo_bedny', 'stav_bedny', 'zakazka_id__typ_hlavy', 'tryskat', 'rovnat', 'poznamka')
+    list_display = ('id', 'cislo_bedny', 'zakazka_id', 'stav_bedny', 'zakazka_id__typ_hlavy', 'tryskat', 'rovnat', 'poznamka')
     list_editable = ('stav_bedny', 'tryskat', 'rovnat', 'poznamka')
     search_fields = ('cislo_bedny',)
     list_filter = ('zakazka_id__kamion_id__zakaznik_id', 'zakazka_id__kamion_id__datum', 'stav_bedny', 'zakazka_id__typ_hlavy')

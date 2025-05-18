@@ -20,6 +20,11 @@ class StavBednyChoice(models.TextChoices):
     K_EXPEDICI = 'KE', 'K expedici'
     EXPEDOVANO = 'EX', 'Expedováno'
 
+class PrioritaChoice(models.TextChoices):
+    STANDARDNI = 'STAN', 'Standardní'
+    STREDNI = 'P2', 'Priorita P2'
+    VYSOKA = 'P1', 'Priorita P1'
+
 class Zakaznik(models.Model):
     nazev = models.CharField(max_length=100)
     zkratka = models.CharField(max_length=3, verbose_name='Zkratka')
@@ -48,13 +53,13 @@ class Kamion(models.Model):
     class Meta:
         verbose_name = 'Kamión'
         verbose_name_plural = 'Kamióny'
-        ordering = ['-datum']
+        ordering = ['id']
 
     def __str__(self):
         return f'{self.id} - {self.zakaznik_id.zkratka}'
     
 class Zakazka(models.Model):
-    kamion_id = models.ForeignKey(Kamion, on_delete=models.CASCADE, related_name='zakazky')
+    kamion_id = models.ForeignKey(Kamion, on_delete=models.CASCADE, related_name='zakazky', verbose_name='Kamión')
     artikl = models.CharField(max_length=100, verbose_name='Artikl')
     prumer = models.DecimalField(max_digits=4, decimal_places=1, verbose_name='Průměr')
     delka = models.DecimalField(max_digits=6, decimal_places=1, verbose_name='Délka')
@@ -62,12 +67,13 @@ class Zakazka(models.Model):
     typ_hlavy = models.CharField(choices=TypHlavyChoice.choices, max_length=3, verbose_name='Typ hlavy')
     nazev = models.CharField(max_length=100, verbose_name='Název')
     komplet = models.BooleanField(default=False, verbose_name='Kompletní?')
+    priorita = models.CharField(choices=PrioritaChoice.choices, max_length=5, verbose_name='Priorita')
     history = HistoricalRecords()
 
     class Meta:
         verbose_name = 'Zakázka'
         verbose_name_plural = 'Zakázky'
-        ordering = ['-kamion_id__id']
+        ordering = ['id']
 
     def __str__(self):
         return f'{self.kamion_id.id} {self.kamion_id.zakaznik_id.zkratka} - {self.kamion_id.datum} - {self.artikl} - {self.prumer}x{self.delka}'

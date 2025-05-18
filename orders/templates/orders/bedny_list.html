@@ -11,21 +11,21 @@
     hx-trigger="change, keyup delay:400ms from:input, submit"
     class="row justify-content-center align-items-start small my-1 g-2"
 >
-    {# Select stav filtr: #}
-    <div class="col-auto my-0">
-        <label for="stav_filter" class="me-2 my-0 form-label small">Stav:</label>
-        <select name="stav_filter" class="form-select form-select-sm" id="stav_filter">
-            {% for value, label in stav_choices %}
-            <option value="{{ value }}" {% if request.GET.stav_filter == value %}selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-        </select>
-    </div>
     {# Select zakaznik filtr: #}
     <div class="col-auto my-0">
         <label for="zakaznik_filter" class="me-2 my-0 form-label small">Zakazník:</label>
         <select name="zakaznik_filter" class="form-select form-select-sm me-2" id="zakaznik_filter">
             {% for value, label in zakaznik_choices %}
             <option value="{{ value }}" {% if request.GET.zakaznik_filter == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    {# Select stav filtr: #}
+    <div class="col-auto my-0">
+        <label for="stav_filter" class="me-2 my-0 form-label small">Stav:</label>
+        <select name="stav_filter" class="form-select form-select-sm" id="stav_filter">
+            {% for value, label in stav_choices %}
+            <option value="{{ value }}" {% if request.GET.stav_filter == value %}selected{% endif %}>{{ label }}</option>
             {% endfor %}
         </select>
     </div>

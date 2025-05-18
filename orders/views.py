@@ -39,10 +39,12 @@ class BednyListView(LoginRequiredMixin, ListView):
         """
         context = super().get_context_data(**kwargs)
 
-        columns_fields = ['id', 'zakazka_id__kamion_id__zakaznik_id__zkratka', 'zakazka_id__kamion_id__datum',
-                          'zakazka_id__kamion_id', 'zakazka_id__artikl', 'cislo_bedny', 'zakazka_id__prumer',
-                          'zakazka_id__delka', 'hmotnost', 'stav_bedny', 'zakazka_id__typ_hlavy', 'tryskat',
-                          'rovnat', 'zakazka_id__komplet', 'poznamka',]
+        columns_fields = [
+            'cislo_bedny', 'zakazka_id__kamion_id__zakaznik_id__zkratka', 'zakazka_id__kamion_id__datum',
+            'zakazka_id__kamion_id', 'zakazka_id__artikl', 'zakazka_id__prumer', 'zakazka_id__delka', 'hmotnost',
+            'stav_bedny', 'zakazka_id__typ_hlavy', 'tryskat', 'rovnat', 'zakazka_id__komplet', 'poznamka',
+        ]
+        # Získání názvů sloupců pro zobrazení v tabulce - slovník {pole: názvy sloupců}
         columns = {field: get_verbose_name_for_column(Bedna, field) for field in columns_fields}
         columns['zakazka_id__kamion_id__zakaznik_id__zkratka'] = 'Zákazník'
         stav_choices = [("", "VŠE")] + list(StavBednyChoice.choices)
