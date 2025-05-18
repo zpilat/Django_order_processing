@@ -68,6 +68,7 @@ class Zakazka(models.Model):
     nazev = models.CharField(max_length=100, verbose_name='Název')
     komplet = models.BooleanField(default=False, verbose_name='Kompletní?')
     priorita = models.CharField(choices=PrioritaChoice.choices, max_length=5, verbose_name='Priorita')
+    expedovano = models.BooleanField(default=False, verbose_name='Expedováno')
     history = HistoricalRecords()
 
     class Meta:

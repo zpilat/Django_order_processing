@@ -31,10 +31,10 @@ class KamionAdmin(admin.ModelAdmin):
 
 @admin.register(Zakazka)
 class ZakazkaAdmin(admin.ModelAdmin):
-    list_display = ('id', 'kamion_id', 'artikl', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'nazev', 'priorita', 'komplet')
+    list_display = ('id', 'kamion_id', 'artikl', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'nazev', 'priorita', 'komplet', 'expedovano')
     list_editable = ('artikl', 'prumer', 'delka','nazev', 'priorita')
     search_fields = ('kamion_id__zakaznik_id__nazev',)
-    list_filter = ('kamion_id__zakaznik_id','kamion_id__datum', 'typ_hlavy', 'priorita')
+    list_filter = ('kamion_id__zakaznik_id','kamion_id__datum', 'typ_hlavy', 'priorita', 'expedovano')
     ordering = ('id',)
     list_per_page = 14
 
