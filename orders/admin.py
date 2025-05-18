@@ -31,14 +31,14 @@ class KamionAdmin(admin.ModelAdmin):
 
 @admin.register(Zakazka)
 class ZakazkaAdmin(admin.ModelAdmin):
-    list_display = ('id', 'kamion_id', 'artikl', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'nazev', 'komplet')
-    list_editable = ('artikl', 'prumer', 'delka','nazev',)
+    list_display = ('id', 'kamion_id', 'artikl', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'nazev', 'priorita', 'komplet')
+    list_editable = ('artikl', 'prumer', 'delka','nazev', 'priorita')
     search_fields = ('kamion_id__zakaznik_id__nazev',)
-    list_filter = ('kamion_id__zakaznik_id','kamion_id__datum', 'typ_hlavy')
+    list_filter = ('kamion_id__zakaznik_id','kamion_id__datum', 'typ_hlavy', 'priorita')
     ordering = ('id',)
     list_per_page = 14
 
-    history_list_display = ["id", "kamion_id", "artikl", "prumer", "delka", "predpis", "typ_hlavy", "nazev", "komplet"]
+    history_list_display = ["id", "kamion_id", "artikl", "prumer", "delka", "predpis", "typ_hlavy", "nazev", "priorita", "komplet"]
     history_search_fields = ["kamion_id__zakaznik_id__nazev", "artikl", "prumer", "delka", "predpis", "typ_hlavy", "nazev"]
     history_list_filter = ["kamion_id__zakaznik_id", "kamion_id__datum", "typ_hlavy"]
     history_list_per_page = 14

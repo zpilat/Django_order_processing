@@ -23,9 +23,18 @@
     {# Select stav filtr: #}
     <div class="col-auto my-0">
         <label for="stav_filter" class="me-2 my-0 form-label small">Stav:</label>
-        <select name="stav_filter" class="form-select form-select-sm" id="stav_filter">
+        <select name="stav_filter" class="form-select form-select-sm me-2" id="stav_filter">
             {% for value, label in stav_choices %}
             <option value="{{ value }}" {% if request.GET.stav_filter == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    {# select priorita filtr: #}
+    <div class="col-auto my-0">
+        <label for="priorita_filter" class="me-2 my-0 form-label small">Priorita:</label>
+        <select name="priorita_filter" class="form-select form-select-sm me-2" id="priorita_filter">
+            {% for value, label in priorita_choices %}
+            <option value="{{ value }}" {% if request.GET.priorita_filter == value %}selected{% endif %}>{{ label }}</option>
             {% endfor %}
         </select>
     </div>

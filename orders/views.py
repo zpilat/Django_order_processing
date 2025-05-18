@@ -9,7 +9,7 @@ from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 
 from .utils import get_verbose_name_for_column
-from .models import Bedna, Zakazka, Kamion, Zakaznik, StavBednyChoice, TypHlavyChoice
+from .models import Bedna, Zakazka, Kamion, Zakaznik, StavBednyChoice, TypHlavyChoice, PrioritaChoice
 
 import logging
 logger = logging.getLogger('orders')
@@ -28,7 +28,7 @@ class BednyListView(LoginRequiredMixin, ListView):
     """
     model = Bedna
     template_name = 'orders/bedny_list.html'
-    ordering = ['-zakazka_id__id']
+    ordering = ['id']
 
     def get_context_data(self, **kwargs):
         """
@@ -40,7 +40,7 @@ class BednyListView(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
 
         columns_fields = [
-            'cislo_bedny', 'zakazka_id__kamion_id__zakaznik_id__zkratka', 'zakazka_id__kamion_id__datum',
+            'cislo_bedny', 'zakazka_id__priorita', 'zakazka_id__kamion_id__zakaznik_id__zkratka', 'zakazka_id__kamion_id__datum',
             'zakazka_id__kamion_id', 'zakazka_id__artikl', 'zakazka_id__prumer', 'zakazka_id__delka', 'hmotnost',
             'stav_bedny', 'zakazka_id__typ_hlavy', 'tryskat', 'rovnat', 'zakazka_id__komplet', 'poznamka',
         ]
@@ -50,6 +50,7 @@ class BednyListView(LoginRequiredMixin, ListView):
         stav_choices = [("", "VŠE")] + list(StavBednyChoice.choices)
         zakaznik_choices = [("", "VŠE")] + [(zakaznik.zkratka, zakaznik.zkratka) for zakaznik in Zakaznik.objects.all()]
         typ_hlavy_choices = [("", "VŠE")] + list(TypHlavyChoice.choices)
+        priorita_choices = [("", "VŠE")] + list(PrioritaChoice.choices)
 
         context.update({
             'db_table': 'bedny',
@@ -58,6 +59,8 @@ class BednyListView(LoginRequiredMixin, ListView):
             'query': self.request.GET.get('query', ''),
             'stav_filter': self.request.GET.get('stav_filter', 'VŠE'),
             'stav_choices': stav_choices,
+            'priorita_filter': self.request.GET.get('priorita_filter', 'VŠE'),
+            'priorita_choices': priorita_choices,
             'zakaznik_filter': self.request.GET.get('zakaznik_filter', 'VŠE'),
             'zakaznik_choices': zakaznik_choices,
             'typ_hlavy_filter': self.request.GET.get('typ_hlavy_filter', 'VŠE'),
@@ -85,6 +88,8 @@ class BednyListView(LoginRequiredMixin, ListView):
         stav_filter = self.request.GET.get('stav_filter','VŠE')      
         zakaznik_filter = self.request.GET.get('zakaznik_filter', 'VŠE')
         typ_hlavy_filter = self.request.GET.get('typ_hlavy_filter', 'VŠE')  
+        priorita_filter = self.request.GET.get('priorita_filter', 'VŠE')
+        # Filtrování podle checkboxů
         filters = {'tryskat': self.request.GET.get('tryskat', ''),
                    'rovnat': self.request.GET.get('rovnat', ''),
                    'zakazka_id__komplet': self.request.GET.get('zakazka_komplet', '')}
@@ -100,6 +105,9 @@ class BednyListView(LoginRequiredMixin, ListView):
 
         if typ_hlavy_filter and typ_hlavy_filter != 'VŠE':
             queryset = queryset.filter(zakazka_id__typ_hlavy=typ_hlavy_filter)
+
+        if priorita_filter and priorita_filter != 'VŠE':
+            queryset = queryset.filter(zakazka_id__priorita=priorita_filter)
 
         for field, value in filters.items():
             if value == 'on':

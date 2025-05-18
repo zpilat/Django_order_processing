@@ -21,9 +21,9 @@ class StavBednyChoice(models.TextChoices):
     EXPEDOVANO = 'EX', 'Expedováno'
 
 class PrioritaChoice(models.TextChoices):
-    STANDARDNI = 'STAN', 'Standardní'
-    STREDNI = 'P2', 'Priorita P2'
-    VYSOKA = 'P1', 'Priorita P1'
+    NIZKA = '-', 'Nízká'
+    STREDNI = 'P2', 'Střední P2'
+    VYSOKA = 'P1', 'Vysoká P1'
 
 class Zakaznik(models.Model):
     nazev = models.CharField(max_length=100)
