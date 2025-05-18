@@ -5,7 +5,7 @@
         <thead class="table-dark">
             <tr>
                 {% with request.GET.urlencode as querystring %}
-                    {% for field, label in columns %}
+                    {% for field, label in columns.items %}
                         <th>
                             <a href="?sort={{ field }}&order={% if sort == field and order == 'up' %}down{% else %}up{% endif %}&{{ querystring|url_remove_param:'sort,order' }}">
                                 {{ label }}
@@ -23,7 +23,7 @@
         <tbody>
             {% for item in object_list %}
                 <tr>  
-                    {% for field, label in columns %}
+                    {% for field, label in columns.items %}
                         <td>{{ item|attr_chain:field }}</td>        
                     {% endfor %}       
                 </tr>

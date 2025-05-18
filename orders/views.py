@@ -43,7 +43,8 @@ class BednyListView(LoginRequiredMixin, ListView):
                           'zakazka_id__kamion_id', 'zakazka_id__artikl', 'cislo_bedny', 'zakazka_id__prumer',
                           'zakazka_id__delka', 'hmotnost', 'stav_bedny', 'zakazka_id__typ_hlavy', 'tryskat',
                           'rovnat', 'zakazka_id__komplet', 'poznamka',]
-        columns = [(field, get_verbose_name_for_column(Bedna, field)) for field in columns_fields]
+        columns = {field: get_verbose_name_for_column(Bedna, field) for field in columns_fields}
+        columns['zakazka_id__kamion_id__zakaznik_id__zkratka'] = 'Zákazník'
         stav_choices = [("", "VŠE")] + list(StavBednyChoice.choices)
         zakaznik_choices = [("", "VŠE")] + [(zakaznik.zkratka, zakaznik.zkratka) for zakaznik in Zakaznik.objects.all()]
         typ_hlavy_choices = [("", "VŠE")] + list(TypHlavyChoice.choices)

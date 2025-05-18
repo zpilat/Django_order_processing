@@ -44,7 +44,7 @@ class Kamion(models.Model):
         ordering = ['-datum']
 
     def __str__(self):
-        return f'{self.id} - {self.zakaznik_id.zkratka} - {self.datum}'
+        return f'{self.id} - {self.zakaznik_id.zkratka}'
     
 class Zakazka(models.Model):
     kamion_id = models.ForeignKey(Kamion, on_delete=models.CASCADE, related_name='zakazky')
