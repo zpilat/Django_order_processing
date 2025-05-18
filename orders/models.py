@@ -23,6 +23,12 @@ class StavBednyChoice(models.TextChoices):
 class Zakaznik(models.Model):
     nazev = models.CharField(max_length=100)
     zkratka = models.CharField(max_length=3, verbose_name='Zkratka')
+    adresa = models.CharField(max_length=100, blank=True, null=True, verbose_name='Adresa')
+    mesto = models.CharField(max_length=50, blank=True, null=True, verbose_name='Město')
+    stat = models.CharField(max_length=50, blank=True, null=True, verbose_name='Stát')
+    kontaktni_osoba = models.CharField(max_length=50, blank=True, null=True, verbose_name='Kontaktní osoba')
+    telefon = models.CharField(max_length=50, blank=True, null=True, verbose_name='Telefon')
+    email = models.EmailField(max_length=100, blank=True, null=True, verbose_name='E-mail')
     history = HistoricalRecords()
 
     class Meta:
@@ -36,6 +42,7 @@ class Zakaznik(models.Model):
 class Kamion(models.Model):
     zakaznik_id = models.ForeignKey(Zakaznik, on_delete=models.CASCADE, related_name='kamiony')
     datum = models.DateField(verbose_name='Datum')
+    cislo_dl = models.CharField(max_length=50, verbose_name='Číslo DL')
     history = HistoricalRecords()
 
     class Meta:
@@ -80,7 +87,7 @@ class Bedna(models.Model):
     class Meta:
         verbose_name = 'Bedna'
         verbose_name_plural = 'Bedny'
-        ordering = ['zakazka_id__id']
+        ordering = ['id']
 
     def __str__(self):
         return f'{self.zakazka_id.kamion_id.zakaznik_id.zkratka} - {self.zakazka_id.kamion_id.datum} - {self.zakazka_id.artikl} - \
