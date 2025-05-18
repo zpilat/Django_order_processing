@@ -34,8 +34,8 @@ ALLOWED_HOSTS = os.getenv('DJANGO_ALLOWED_HOSTS', '').split(',')
 
 LOGIN_URL = 'login'
 LOGOUT_URL = 'logout'
-LOGIN_REDIRECT_URL = 'home'
-LOGOUT_REDIRECT_URL = 'home'
+# LOGIN_REDIRECT_URL = 'home'
+# LOGOUT_REDIRECT_URL = 'home'
 
 
 # Application definition
@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'orders',  # Custom app for order processing
+    'simple_history',  # For tracking changes in models
 ]
 
 MIDDLEWARE = [
@@ -148,7 +149,7 @@ if DEBUG:
             },
         },
         'loggers': {
-            'hpm_sklad': {
+            'orders': {
                 'handlers': ['console'],
                 'level': 'DEBUG',
                 'propagate': False,
@@ -168,12 +169,12 @@ else:
         'handlers': {
             'file': {
                 'class': 'logging.FileHandler',
-                'filename': BASE_DIR / 'hpm_sklad/hpm_sklad.log',
+                'filename': BASE_DIR / 'orders/orders.log',
                 'formatter': 'verbose',
             },
         },
         'loggers': {
-            'hpm_sklad': {
+            'orders': {
                 'handlers': ['file'],
                 'level': 'DEBUG',
                 'propagate': True,

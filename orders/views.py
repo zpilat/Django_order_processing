@@ -6,8 +6,13 @@ from django.views.generic.edit import CreateView, UpdateView, DeleteView
 from django.views.generic.detail import DetailView
 from django.urls import reverse_lazy
 from django.db.models import Q
+from django.utils.translation import gettext_lazy as _
 
+from .utils import get_verbose_name_for_column
 from .models import Bedna, Zakazka, Kamion, Zakaznik, StavBednyChoice, TypHlavyChoice
+
+import logging
+logger = logging.getLogger('orders')
 
 # Create your views here.
 
@@ -34,25 +39,11 @@ class BednyListView(LoginRequiredMixin, ListView):
         """
         context = super().get_context_data(**kwargs)
 
-        columns = [
-            # (atribut v querysetu, popisek v tabulce)
-            ('id', 'ID'),
-            ('zakazka_id__kamion_id__zakaznik_id__zkratka', 'Zákazník'),
-            ('zakazka_id__kamion_id__datum', 'Datum'),
-            ('zakazka_id__kamion_id', 'Kamion'),   
-            ('zakazka_id__artikl', 'Artikl'),
-            ('cislo_bedny', 'Č. bedny'),
-            ('zakazka_id__prumer', 'Průměr'),
-            ('zakazka_id__delka', 'Délka'),
-            ('hmotnost', 'Hmotnost'),
-            ('stav_bedny', 'Stav bedny'),
-            ('zakazka_id__typ_hlavy', 'Typ hlavy'),
-            ('tryskat', 'K tryskání'),
-            ('rovnat', 'K rovnání'),
-            ('zakazka_id__komplet', 'Kompletní?'),
-            ('poznamka', 'Poznámka'),
-        ]
-
+        columns_fields = ['id', 'zakazka_id__kamion_id__zakaznik_id__zkratka', 'zakazka_id__kamion_id__datum',
+                          'zakazka_id__kamion_id', 'zakazka_id__artikl', 'cislo_bedny', 'zakazka_id__prumer',
+                          'zakazka_id__delka', 'hmotnost', 'stav_bedny', 'zakazka_id__typ_hlavy', 'tryskat',
+                          'rovnat', 'zakazka_id__komplet', 'poznamka',]
+        columns = [(field, get_verbose_name_for_column(Bedna, field)) for field in columns_fields]
         stav_choices = [("", "VŠE")] + list(StavBednyChoice.choices)
         zakaznik_choices = [("", "VŠE")] + [(zakaznik.zkratka, zakaznik.zkratka) for zakaznik in Zakaznik.objects.all()]
         typ_hlavy_choices = [("", "VŠE")] + list(TypHlavyChoice.choices)
