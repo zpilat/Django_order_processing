@@ -1,6 +1,8 @@
 from django.contrib import admin
 from .models import Zakaznik, Kamion, Zakazka, Bedna, TypHlavyChoice, StavBednyChoice
 from simple_history.admin import SimpleHistoryAdmin
+from django.db import models
+from django.forms import TextInput
 
 # Register your models here.
 @admin.register(Zakaznik)
@@ -16,12 +18,23 @@ class ZakaznikAdmin(admin.ModelAdmin):
     history_list_filter = ["nazev", "zkratka",]
     history_list_per_page = 14
 
+class ZakazkaInline(admin.TabularInline):
+    model = Zakazka
+    extra = 1
+    exclude = ('komplet', 'expedovano',)
+    formfield_overrides = {
+        models.CharField: {'widget': TextInput(attrs={ 'size': '20'})},
+        models.DecimalField: {'widget': TextInput(attrs={ 'size': '10'})},
+    }
+
 @admin.register(Kamion)
 class KamionAdmin(admin.ModelAdmin):
     list_display = ('id', 'zakaznik_id__nazev', 'datum', 'cislo_dl')
     search_fields = ('zakaznik_id__nazev',)
     list_filter = ('datum',)
     ordering = ('id',)
+    date_hierarchy = 'datum'
+    inlines = [ZakazkaInline]
     list_per_page = 14
 
     history_list_display = ["id", "zakaznik_id", "datum"]
@@ -29,17 +42,29 @@ class KamionAdmin(admin.ModelAdmin):
     history_list_filter = ["zakaznik_id", "datum"]
     history_list_per_page = 14
 
+class BednaInline(admin.TabularInline):
+    model = Bedna
+    extra = 3
+    exclude = ('tryskat', 'rovnat', 'stav_bedny',)
+    formfield_overrides = {
+        models.CharField: {'widget': TextInput(attrs={ 'size': '20'})},
+        models.DecimalField: {'widget': TextInput(attrs={ 'size': '10'})},
+    }
+
+
 @admin.register(Zakazka)
 class ZakazkaAdmin(admin.ModelAdmin):
-    list_display = ('id', 'kamion_id', 'artikl', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'nazev', 'priorita', 'komplet', 'expedovano')
-    list_editable = ('artikl', 'prumer', 'delka','nazev', 'priorita')
+    list_display = ('id', 'kamion_id', 'artikl', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'popis', 'priorita', 'komplet', 'expedovano')
+    list_editable = ('artikl', 'prumer', 'delka','popis', 'priorita')
     search_fields = ('kamion_id__zakaznik_id__nazev',)
     list_filter = ('kamion_id__zakaznik_id','kamion_id__datum', 'typ_hlavy', 'priorita', 'expedovano')
     ordering = ('id',)
+    exclude = ('komplet', 'expedovano',)
+    inlines = [BednaInline]
     list_per_page = 14
 
-    history_list_display = ["id", "kamion_id", "artikl", "prumer", "delka", "predpis", "typ_hlavy", "nazev", "priorita", "komplet"]
-    history_search_fields = ["kamion_id__zakaznik_id__nazev", "artikl", "prumer", "delka", "predpis", "typ_hlavy", "nazev"]
+    history_list_display = ["id", "kamion_id", "artikl", "prumer", "delka", "predpis", "typ_hlavy", "popis", "priorita", "komplet"]
+    history_search_fields = ["kamion_id__zakaznik_id__nazev", "artikl", "prumer", "delka", "predpis", "typ_hlavy", "popis"]
     history_list_filter = ["kamion_id__zakaznik_id", "kamion_id__datum", "typ_hlavy"]
     history_list_per_page = 14
 
