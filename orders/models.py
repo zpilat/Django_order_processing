@@ -69,7 +69,7 @@ class Zakazka(models.Model):
     prubeh = models.IntegerField(null=True, blank=True, verbose_name='Vorgang')
     vrstva = models.CharField(max_length=20, null=True, blank=True, verbose_name='Vrstva')
     povrch = models.CharField(max_length=20, null=True, blank=True, verbose_name='Povrch')
-    priorita = models.CharField(choices=PrioritaChoice.choices, max_length=5, verbose_name='Priorita')
+    priorita = models.CharField(choices=PrioritaChoice.choices, max_length=5, default=PrioritaChoice.NIZKA, verbose_name='Priorita')
     komplet = models.BooleanField(default=False, verbose_name='Kompletní')
     expedovano = models.BooleanField(default=False, verbose_name='Expedováno')
     history = HistoricalRecords()
@@ -95,7 +95,7 @@ class Bedna(models.Model):
     tryskat = models.BooleanField(default=False, verbose_name='K tryskání')
     rovnat = models.BooleanField(default=False, verbose_name='K rovnání')
     poznamka = models.CharField(max_length=100, null=True, blank=True, verbose_name='Poznámka')
-    stav_bedny = models.CharField(choices=StavBednyChoice.choices, max_length=2, verbose_name='Stav bedny')
+    stav_bedny = models.CharField(choices=StavBednyChoice.choices, max_length=2, default=StavBednyChoice.PRIJATO, verbose_name='Stav bedny')
     history = HistoricalRecords()
 
     class Meta:
