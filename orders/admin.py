@@ -101,6 +101,7 @@ class BednaAdmin(admin.ModelAdmin):
     list_display = ('id', 'cislo_bedny', 'zakazka_id', 'stav_bedny', 'zakazka_id__typ_hlavy', 'tryskat', 'rovnat', 'poznamka')
     list_editable = ('stav_bedny', 'tryskat', 'rovnat', 'poznamka')
     search_fields = ('cislo_bedny',)
+    readonly_fields = ('datum_expedice',)
     list_filter = ('zakazka_id__kamion_id__zakaznik_id', StavBednyFilter, 'zakazka_id__typ_hlavy')
     ordering = ('id',)
     date_hierarchy = 'zakazka_id__kamion_id__datum'

@@ -27,7 +27,7 @@ class PrioritaChoice(models.TextChoices):
 
 class Zakaznik(models.Model):
     nazev = models.CharField(max_length=100)
-    zkratka = models.CharField(max_length=3, verbose_name='Zkratka')
+    zkratka = models.CharField(max_length=3, verbose_name='Zkratka', unique=True)
     adresa = models.CharField(max_length=100, blank=True, null=True, verbose_name='Adresa')
     mesto = models.CharField(max_length=50, blank=True, null=True, verbose_name='Město')
     stat = models.CharField(max_length=50, blank=True, null=True, verbose_name='Stát')
@@ -38,7 +38,7 @@ class Zakaznik(models.Model):
 
     class Meta:
         verbose_name = 'Zákazník'
-        verbose_name_plural = 'Zákazníci'
+        verbose_name_plural = 'zákazníci(-ků)'
         ordering = ['nazev']
 
     def __str__(self):
@@ -52,7 +52,7 @@ class Kamion(models.Model):
 
     class Meta:
         verbose_name = 'Kamión'
-        verbose_name_plural = 'Kamióny'
+        verbose_name_plural = 'kamióny/-ů'
         ordering = ['id']
 
     def __str__(self):
@@ -76,7 +76,7 @@ class Zakazka(models.Model):
 
     class Meta:
         verbose_name = 'Zakázka'
-        verbose_name_plural = 'Zakázky'
+        verbose_name_plural = 'zakázky/-ek'
         ordering = ['id']
 
     def __str__(self):
@@ -96,11 +96,12 @@ class Bedna(models.Model):
     rovnat = models.BooleanField(default=False, verbose_name='K rovnání')
     poznamka = models.CharField(max_length=100, null=True, blank=True, verbose_name='Poznámka')
     stav_bedny = models.CharField(choices=StavBednyChoice.choices, max_length=2, default=StavBednyChoice.PRIJATO, verbose_name='Stav bedny')
+    datum_expedice = models.DateField(null=True, blank=True, verbose_name='Datum expedice')
     history = HistoricalRecords()
 
     class Meta:
         verbose_name = 'Bedna'
-        verbose_name_plural = 'Bedny'
+        verbose_name_plural = 'bedny/-en'
         ordering = ['id']
 
     def __str__(self):
