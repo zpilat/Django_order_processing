@@ -40,14 +40,15 @@ class BednyListView(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
 
         columns_fields = [
-            'cislo_bedny', 'zakazka_id__priorita', 'zakazka_id__kamion_id__zakaznik_id__zkratka', 'zakazka_id__kamion_id__datum',
-            'zakazka_id__kamion_id', 'zakazka_id__artikl', 'zakazka_id__prumer', 'zakazka_id__delka', 'hmotnost',
-            'stav_bedny', 'zakazka_id__typ_hlavy', 'tryskat', 'rovnat', 'zakazka_id__komplet', 'poznamka',
+            'id', 'cislo_bedny', 'zakazka_id__priorita', 'zakazka_id__kamion_id__zakaznik_id__zkratka',
+            'zakazka_id__kamion_id__datum', 'zakazka_id__kamion_id', 'zakazka_id__artikl', 'zakazka_id__prumer',
+            'zakazka_id__delka', 'hmotnost', 'stav_bedny', 'zakazka_id__typ_hlavy', 'tryskat', 'rovnat',
+            'zakazka_id__komplet', 'poznamka',
         ]
         # Získání názvů sloupců pro zobrazení v tabulce - slovník {pole: názvy sloupců}
         columns = {field: get_verbose_name_for_column(Bedna, field) for field in columns_fields}
         columns['zakazka_id__kamion_id__zakaznik_id__zkratka'] = 'Zákazník'
-        stav_choices = [("", "VŠE")] + list(StavBednyChoice.choices)
+        stav_choices = [("SKLAD", "SKLADEM"), ("", "VŠE")] + list(StavBednyChoice.choices)
         zakaznik_choices = [("", "VŠE")] + [(zakaznik.zkratka, zakaznik.zkratka) for zakaznik in Zakaznik.objects.all()]
         typ_hlavy_choices = [("", "VŠE")] + list(TypHlavyChoice.choices)
         priorita_choices = [("", "VŠE")] + list(PrioritaChoice.choices)
@@ -85,7 +86,7 @@ class BednyListView(LoginRequiredMixin, ListView):
         query = self.request.GET.get('query', '')
         sort = self.request.GET.get('sort', 'id')
         order = self.request.GET.get('order', 'up')
-        stav_filter = self.request.GET.get('stav_filter','VŠE')      
+        stav_filter = self.request.GET.get('stav_filter','SKLAD')      
         zakaznik_filter = self.request.GET.get('zakaznik_filter', 'VŠE')
         typ_hlavy_filter = self.request.GET.get('typ_hlavy_filter', 'VŠE')  
         priorita_filter = self.request.GET.get('priorita_filter', 'VŠE')
@@ -94,11 +95,11 @@ class BednyListView(LoginRequiredMixin, ListView):
                    'rovnat': self.request.GET.get('rovnat', ''),
                    'zakazka_id__komplet': self.request.GET.get('zakazka_komplet', '')}
 
-
-        queryset = queryset.exclude(stav_bedny='EX')  
-
         if stav_filter and stav_filter != 'VŠE':
-            queryset = queryset.filter(stav_bedny=stav_filter)
+            if stav_filter == 'SKLAD':
+                queryset = queryset.exclude(stav_bedny='EX')
+            else:
+                queryset = queryset.filter(stav_bedny=stav_filter)
 
         if zakaznik_filter and zakaznik_filter != 'VŠE':
             queryset = queryset.filter(zakazka_id__kamion_id__zakaznik_id__zkratka=zakaznik_filter)

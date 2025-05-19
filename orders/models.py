@@ -86,7 +86,7 @@ class Bedna(models.Model):
     zakazka_id = models.ForeignKey(Zakazka, on_delete=models.CASCADE, related_name='bedny')
     cislo_bedny = models.CharField(max_length=20, verbose_name='Číslo bedny')
     hmotnost = models.DecimalField(max_digits=5, decimal_places=1, verbose_name='Hm. netto')
-    tara = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True, verbose_name='Tára')
+    tara = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True, default=65.0, verbose_name='Tára')
     material = models.CharField(max_length=20, verbose_name='Materiál')
     sarze = models.CharField(max_length=20, verbose_name='Šarže')
     dodavatel_materialu = models.CharField(max_length=10, null=True, blank=True, verbose_name='Dod.mat.')

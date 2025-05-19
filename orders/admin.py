@@ -1,8 +1,15 @@
-from django.contrib import admin
+from django.contrib import admin, messages
 from .models import Zakaznik, Kamion, Zakazka, Bedna, TypHlavyChoice, StavBednyChoice
 from simple_history.admin import SimpleHistoryAdmin
 from django.db import models
 from django.forms import TextInput
+
+@admin.action(description="Zobrazit celkovou hmotnost beden")
+def zobrazit_celkovou_hmotnost_zakazek(modeladmin, request, queryset):
+    celkem = 0
+    for zakazka in queryset:
+        celkem += sum(bedna.hmotnost or 0 for bedna in zakazka.bedny.all())
+    messages.info(request, f"Celková hmotnost beden ve vybraných zakázkách: {celkem} kg")
 
 class StavBednyFilter(admin.SimpleListFilter):
     title = "Stav bedny"
@@ -60,17 +67,24 @@ class KamionAdmin(admin.ModelAdmin):
     history_list_per_page = 14
 
 class BednaInline(admin.TabularInline):
+    """
+    Inline pro správu beden v rámci zakázky.
+    """
     model = Bedna
     extra = 3
-    exclude = ('tryskat', 'rovnat', 'stav_bedny',)
+    exclude = ('tryskat', 'rovnat', 'stav_bedny', 'datum_expedice',)
     formfield_overrides = {
-        models.CharField: {'widget': TextInput(attrs={ 'size': '30'})},
+        models.CharField: {'widget': TextInput(attrs={ 'size': '25'})},
         models.DecimalField: {'widget': TextInput(attrs={ 'size': '8'})},
     }
 
 @admin.register(Zakazka)
 class ZakazkaAdmin(admin.ModelAdmin):
-    list_display = ('id', 'kamion_id', 'artikl', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'popis', 'priorita', 'komplet', 'expedovano')
+    """
+    Správa zakázek v administraci.
+    """
+    actions = [zobrazit_celkovou_hmotnost_zakazek,]
+    list_display = ('id', 'kamion_id', 'artikl', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'popis', 'priorita', 'hmotnost_celkem', 'komplet',)
     list_editable = ('artikl', 'prumer', 'delka','popis', 'priorita')
     search_fields = ('kamion_id__zakaznik_id__nazev',)
     list_filter = ('kamion_id__zakaznik_id','kamion_id__datum', 'typ_hlavy', 'priorita', 'expedovano')
@@ -95,6 +109,12 @@ class ZakazkaAdmin(admin.ModelAdmin):
     history_search_fields = ["kamion_id__zakaznik_id__nazev", "artikl", "prumer", "delka", "predpis", "typ_hlavy", "popis"]
     history_list_filter = ["kamion_id__zakaznik_id", "kamion_id__datum", "typ_hlavy"]
     history_list_per_page = 14
+
+    def hmotnost_celkem(self, obj):
+        """
+        Vypočítá celkovou hmotnost beden v zakázce.
+        """
+        return sum(bedna.hmotnost for bedna in obj.bedny.all())
 
 @admin.register(Bedna)
 class BednaAdmin(admin.ModelAdmin):
