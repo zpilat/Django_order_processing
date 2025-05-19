@@ -16,7 +16,8 @@ class StavBednyFilter(admin.SimpleListFilter):
     parameter_name = "stav_bedny_vlastni"
 
     def lookups(self, request, model_admin):
-        # všechny hodnoty z choices + Skladem
+        # všechny hodnoty z choices (+ Nezpracováno)
+        #result = [('NEZPRACOVANO', "Nezpracováno")]
         result = []
         for value, label in StavBednyChoice.choices:
             result.append((value, label))
@@ -26,6 +27,8 @@ class StavBednyFilter(admin.SimpleListFilter):
         value = self.value()
         if value is None:
             return queryset.exclude(stav_bedny=StavBednyChoice.EXPEDOVANO)
+        # elif value == 'NEZPRACOVANO':
+        #     return queryset.filter(stav_bedny__in=[StavBednyChoice.PRIJATO, StavBednyChoice.NAVEZENO, StavBednyChoice.DO_ZPRACOVANI])
         else:
             return queryset.filter(stav_bedny=value)
 
@@ -33,8 +36,6 @@ class StavBednyFilter(admin.SimpleListFilter):
 @admin.register(Zakaznik)
 class ZakaznikAdmin(admin.ModelAdmin):
     list_display = ('nazev', 'zkratka', 'adresa', 'mesto', 'stat', 'kontaktni_osoba', 'telefon', 'email')
-    search_fields = ('nazev',)
-    list_filter = ('nazev',)
     ordering = ('nazev',)
     list_per_page = 14
 
@@ -55,7 +56,7 @@ class ZakazkaInline(admin.TabularInline):
 @admin.register(Kamion)
 class KamionAdmin(admin.ModelAdmin):
     list_display = ('id', 'zakaznik_id__nazev', 'datum', 'cislo_dl')
-    search_fields = ('zakaznik_id__nazev',)
+    list_filter = ('zakaznik_id__nazev',)
     ordering = ('-id',)
     date_hierarchy = 'datum'
     inlines = [ZakazkaInline]
@@ -86,10 +87,12 @@ class ZakazkaAdmin(admin.ModelAdmin):
     actions = [zobrazit_celkovou_hmotnost_zakazek,]
     list_display = ('id', 'kamion_id', 'artikl', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'popis', 'priorita', 'hmotnost_celkem', 'komplet',)
     list_editable = ('artikl', 'prumer', 'delka','popis', 'priorita')
-    search_fields = ('kamion_id__zakaznik_id__nazev',)
-    list_filter = ('kamion_id__zakaznik_id','kamion_id__datum', 'typ_hlavy', 'priorita', 'expedovano')
+    search_fields = ('artikl',)
+    search_help_text = "Hledat podle artiklu"
+    list_filter = ('kamion_id__zakaznik_id', 'typ_hlavy', 'priorita', 'komplet', 'expedovano')
     ordering = ('id',)
     exclude = ('komplet', 'expedovano',)
+    date_hierarchy = 'kamion_id__datum'
     fieldsets = (
         (None, {'fields': ['kamion_id', 'artikl', 'typ_hlavy', 'prumer', 'delka', 'predpis', 'priorita', 'popis']}), 
         ('Pouze pro Eurotec:', {
@@ -120,7 +123,8 @@ class ZakazkaAdmin(admin.ModelAdmin):
 class BednaAdmin(admin.ModelAdmin):
     list_display = ('id', 'cislo_bedny', 'zakazka_id', 'stav_bedny', 'zakazka_id__typ_hlavy', 'tryskat', 'rovnat', 'poznamka')
     list_editable = ('stav_bedny', 'tryskat', 'rovnat', 'poznamka')
-    search_fields = ('cislo_bedny',)
+    search_fields = ('cislo_bedny', 'zakazka_id__artikl',)
+    search_help_text = "Hledat podle čísla bedny nebo artiklu"
     readonly_fields = ('datum_expedice',)
     list_filter = ('zakazka_id__kamion_id__zakaznik_id', StavBednyFilter, 'zakazka_id__typ_hlavy')
     ordering = ('id',)

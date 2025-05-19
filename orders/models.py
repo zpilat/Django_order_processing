@@ -38,7 +38,7 @@ class Zakaznik(models.Model):
 
     class Meta:
         verbose_name = 'Zákazník'
-        verbose_name_plural = 'zákazníci(-ků)'
+        verbose_name_plural = 'zákazníci'
         ordering = ['nazev']
 
     def __str__(self):
@@ -52,7 +52,7 @@ class Kamion(models.Model):
 
     class Meta:
         verbose_name = 'Kamión'
-        verbose_name_plural = 'kamióny/-ů'
+        verbose_name_plural = 'kamióny'
         ordering = ['id']
 
     def __str__(self):
@@ -76,7 +76,7 @@ class Zakazka(models.Model):
 
     class Meta:
         verbose_name = 'Zakázka'
-        verbose_name_plural = 'zakázky/-ek'
+        verbose_name_plural = 'zakázky'
         ordering = ['id']
 
     def __str__(self):
@@ -101,7 +101,7 @@ class Bedna(models.Model):
 
     class Meta:
         verbose_name = 'Bedna'
-        verbose_name_plural = 'bedny/-en'
+        verbose_name_plural = 'bedny'
         ordering = ['id']
 
     def __str__(self):
