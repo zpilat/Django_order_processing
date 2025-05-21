@@ -25,6 +25,11 @@ class PrioritaChoice(models.TextChoices):
     STREDNI = 'P2', 'Střední P2'
     VYSOKA = 'P1', 'Vysoká P1'
 
+class ZinkovnaChoice(models.TextChoices):
+    HUBER = 'HUBER', 'Huber'
+    STIEFLER = 'STIEFLER', 'Stiefler'
+    SULZ = 'SULZ', 'Sulz'
+
 class Zakaznik(models.Model):
     nazev = models.CharField(max_length=100)
     zkratka = models.CharField(max_length=3, verbose_name='Zkratka', unique=True)
@@ -60,7 +65,7 @@ class Kamion(models.Model):
     
 class Zakazka(models.Model):
     kamion_id = models.ForeignKey(Kamion, on_delete=models.CASCADE, related_name='zakazky', verbose_name='Kamión')
-    artikl = models.CharField(max_length=50, verbose_name='Artikl')
+    artikl = models.CharField(max_length=50, verbose_name='Artikl / Zakázka (Charge)')
     prumer = models.DecimalField(max_digits=4, decimal_places=1, verbose_name='Průměr')
     delka = models.DecimalField(max_digits=6, decimal_places=1, verbose_name='Délka')
     predpis = models.CharField(max_length=30, verbose_name='Předpis/výkres')
@@ -70,6 +75,7 @@ class Zakazka(models.Model):
     vrstva = models.CharField(max_length=20, null=True, blank=True, verbose_name='Beschichtung')
     povrch = models.CharField(max_length=20, null=True, blank=True, verbose_name='Oberfläche')
     priorita = models.CharField(choices=PrioritaChoice.choices, max_length=5, default=PrioritaChoice.NIZKA, verbose_name='Priorita')
+    zinkovna = models.CharField(choices=ZinkovnaChoice.choices, max_length=10, null=True, blank=True, verbose_name='Zinkovna')
     komplet = models.BooleanField(default=False, verbose_name='Kompletní')
     expedovano = models.BooleanField(default=False, verbose_name='Expedováno')
     history = HistoricalRecords()
@@ -85,12 +91,12 @@ class Zakazka(models.Model):
 class Bedna(models.Model):
     zakazka_id = models.ForeignKey(Zakazka, on_delete=models.CASCADE, related_name='bedny')
     cislo_bedny = models.CharField(max_length=20, verbose_name='Číslo bedny')
-    hmotnost = models.DecimalField(max_digits=5, decimal_places=1, verbose_name='Hm. netto')
-    tara = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True, default=65.0, verbose_name='Tára')
-    material = models.CharField(max_length=20, verbose_name='Materiál')
-    sarze = models.CharField(max_length=20, verbose_name='Šarže')
-    dodavatel_materialu = models.CharField(max_length=10, null=True, blank=True, verbose_name='Dod.mat.')
-    vyrobni_zakazka = models.CharField(max_length=20, null=True, blank=True, verbose_name='Fert.-auf. Nr.')
+    hmotnost = models.DecimalField(max_digits=5, decimal_places=1, blank=True, verbose_name='Hm. netto')
+    tara = models.DecimalField(max_digits=5, decimal_places=1, default=65.0, verbose_name='Tára')
+    material = models.CharField(max_length=20, null=True, blank=True, verbose_name='Materiál')
+    sarze = models.CharField(max_length=20, null=True, blank=True, verbose_name='Šarže materiálu')
+    dodavatel_materialu = models.CharField(max_length=10, null=True, blank=True, verbose_name='Lief.')
+    vyrobni_zakazka = models.CharField(max_length=20, null=True, blank=True, verbose_name='Fertigungs-auftrags Nr.')
     operator = models.CharField(max_length=20, null=True, blank=True, verbose_name='Bediener')
     tryskat = models.BooleanField(default=False, verbose_name='K tryskání')
     rovnat = models.BooleanField(default=False, verbose_name='K rovnání')

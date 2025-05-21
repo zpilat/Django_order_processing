@@ -1,8 +1,12 @@
 from django.contrib import admin, messages
-from .models import Zakaznik, Kamion, Zakazka, Bedna, TypHlavyChoice, StavBednyChoice
-from simple_history.admin import SimpleHistoryAdmin
 from django.db import models
 from django.forms import TextInput
+
+from simple_history.admin import SimpleHistoryAdmin
+from decimal import Decimal, ROUND_HALF_UP
+
+from .models import Zakaznik, Kamion, Zakazka, Bedna, TypHlavyChoice, StavBednyChoice
+from .forms import ZakazkaForm
 
 @admin.action(description="Zobrazit celkovou hmotnost beden")
 def zobrazit_celkovou_hmotnost_zakazek(modeladmin, request, queryset):
@@ -10,6 +14,7 @@ def zobrazit_celkovou_hmotnost_zakazek(modeladmin, request, queryset):
     for zakazka in queryset:
         celkem += sum(bedna.hmotnost or 0 for bedna in zakazka.bedny.all())
     messages.info(request, f"Celková hmotnost beden ve vybraných zakázkách: {celkem} kg")
+
 
 class StavBednyFilter(admin.SimpleListFilter):
     title = "Stav bedny"
@@ -32,6 +37,7 @@ class StavBednyFilter(admin.SimpleListFilter):
         else:
             return queryset.filter(stav_bedny=value)
 
+
 # Register your models here.
 @admin.register(Zakaznik)
 class ZakaznikAdmin(admin.ModelAdmin):
@@ -44,14 +50,6 @@ class ZakaznikAdmin(admin.ModelAdmin):
     history_list_filter = ["nazev", "zkratka",]
     history_list_per_page = 14
 
-class ZakazkaInline(admin.TabularInline):
-    model = Zakazka
-    extra = 1
-    exclude = ('komplet', 'expedovano',)
-    formfield_overrides = {
-        models.CharField: {'widget': TextInput(attrs={ 'size': '20'})},
-        models.DecimalField: {'widget': TextInput(attrs={ 'size': '10'})},
-    }
 
 @admin.register(Kamion)
 class KamionAdmin(admin.ModelAdmin):
@@ -59,13 +57,13 @@ class KamionAdmin(admin.ModelAdmin):
     list_filter = ('zakaznik_id__nazev',)
     ordering = ('-id',)
     date_hierarchy = 'datum'
-    inlines = [ZakazkaInline]
     list_per_page = 14
 
     history_list_display = ["id", "zakaznik_id", "datum"]
     history_search_fields = ["zakaznik_id__nazev", "datum"]
     history_list_filter = ["zakaznik_id", "datum"]
     history_list_per_page = 14
+
 
 class BednaInline(admin.TabularInline):
     """
@@ -79,13 +77,16 @@ class BednaInline(admin.TabularInline):
         models.DecimalField: {'widget': TextInput(attrs={ 'size': '8'})},
     }
 
+
 @admin.register(Zakazka)
 class ZakazkaAdmin(admin.ModelAdmin):
     """
     Správa zakázek v administraci.
     """
+    inlines = [BednaInline]
+    form = ZakazkaForm
     actions = [zobrazit_celkovou_hmotnost_zakazek,]
-    list_display = ('id', 'kamion_id', 'artikl', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'popis', 'priorita', 'hmotnost_celkem', 'komplet',)
+    list_display = ('id', 'kamion_id', 'artikl', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'popis', 'priorita', 'hmotnost_zakazky', 'komplet',)
     list_editable = ('artikl', 'prumer', 'delka','popis', 'priorita')
     search_fields = ('artikl',)
     search_help_text = "Hledat podle artiklu"
@@ -93,31 +94,114 @@ class ZakazkaAdmin(admin.ModelAdmin):
     ordering = ('id',)
     exclude = ('komplet', 'expedovano',)
     date_hierarchy = 'kamion_id__datum'
-    fieldsets = (
-        (None, {'fields': ['kamion_id', 'artikl', 'typ_hlavy', 'prumer', 'delka', 'predpis', 'priorita', 'popis']}), 
-        ('Pouze pro Eurotec:', {
-            'fields': ['prubeh', 'vrstva', 'povrch'],
-            'classes': ['collapse'],
-            }),                        
-    )
+    list_per_page = 14
     formfield_overrides = {
         models.CharField: {'widget': TextInput(attrs={ 'size': '30'})},
         models.DecimalField: {'widget': TextInput(attrs={ 'size': '8'})},
     }
-            
-    inlines = [BednaInline]
-    list_per_page = 14
 
     history_list_display = ["id", "kamion_id", "artikl", "prumer", "delka", "predpis", "typ_hlavy", "popis", "priorita", "komplet"]
     history_search_fields = ["kamion_id__zakaznik_id__nazev", "artikl", "prumer", "delka", "predpis", "typ_hlavy", "popis"]
     history_list_filter = ["kamion_id__zakaznik_id", "kamion_id__datum", "typ_hlavy"]
     history_list_per_page = 14
 
-    def hmotnost_celkem(self, obj):
+    @admin.display(description='Hm. zakázky')
+    def hmotnost_zakazky(self, obj):
         """
         Vypočítá celkovou hmotnost beden v zakázce.
         """
-        return sum(bedna.hmotnost for bedna in obj.bedny.all())
+        return sum(bedna.hmotnost or 0 for bedna in obj.bedny.all())
+    
+    def save_formset(self, request, form, formset, change):
+        """
+        Uložení formsetu pro bedny: rozdělení celkové hmotnosti zakázky 
+        na jednotlivé bedny a uložení hmotnosti, materiálu, šarže,
+        dodavatele materiálu, výrobní zakázky a poznámky do jednotlivých beden,
+        pokud jsou tyto hodnoty ve formuláři zadané.
+        """
+        # Nejprve běžný save všech beden do proměnné
+        instances = formset.save(commit=False)
+
+        # Získání hodnot z formuláře zakázky a uložení do slovníku data_ze_zakazky
+        celkova_hmotnost = form.cleaned_data.get('celkova_hmotnost')
+        data_ze_zakazky = {
+            'material': form.cleaned_data.get('material'),
+            'sarze': form.cleaned_data.get('sarze'),
+            'dodavatel_materialu': form.cleaned_data.get('dodavatel_materialu'),
+            'vyrobni_zakazka': form.cleaned_data.get('vyrobni_zakazka'),
+            'poznamka': form.cleaned_data.get('poznamka'),
+        }
+
+        # Rozpočtení hmotnosti na jednotlivé bedny, převedení na decimal s jedním desetinným místem
+        if celkova_hmotnost and len(instances) > 0:
+            hmotnost_bedny = Decimal(celkova_hmotnost) / len(instances)
+            hmotnost_bedny = hmotnost_bedny.quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)
+            for instance in instances:
+                instance.hmotnost = hmotnost_bedny
+
+        # Přepsání pouze prázdných polí pro jednotlivé bedny, pokud je zadána hodnota v zakázce
+        for field, hodnota in data_ze_zakazky.items():
+            if hodnota:
+                for instance in instances:
+                    value = getattr(instance, field)
+                    if value in (None, ''):
+                        setattr(instance, field, hodnota)
+
+        # Najdi všechny bedny, které nemají hmotnost
+        chybi_hmotnost = [
+            instance.cislo_bedny
+            for instance in instances
+            if instance.hmotnost in (None, '', 0)
+        ]
+
+        if chybi_hmotnost:
+            messages.error(
+                request,
+                f"Hmotnost není zadána u těchto beden: {', '.join(str(c) for c in chybi_hmotnost)}"
+            )
+            return  # Zastaví ukládání
+
+        # Uložení formsetu včetně vymazání beden určených k odstranění
+        formset.save()
+
+    def get_fieldsets(self, request, obj=None):
+        """
+        Vytváří pole pro zobrazení v administraci na základě toho, zda se jedná o editaci nebo přidání.
+        """
+        if obj:  # editace stávajícího záznamu
+            my_fieldsets = [(None, {'fields': ['kamion_id', 'artikl', 'typ_hlavy', 'prumer', 'delka', 'predpis', 'priorita', 'popis', 'zinkovna',]}),]
+            # Pokud je zákazník Eurotec, přidej speciální pole pro zobrazení
+            if obj.kamion_id.zakaznik_id.zkratka == 'EUR':
+                my_fieldsets.append(                  
+                    ('Pouze pro Eurotec:', {
+                        'fields': ['prubeh', 'vrstva', 'povrch'],
+                        'description': 'Pro Eurotec musí být vyplněno: Průběh zakázky, tloušťka vrstvy a povrchová úprava.',
+                    }),  
+                )
+            return my_fieldsets
+        
+        else:  # přidání nového záznamu
+            return [
+                ('Příjem zakázek na sklad:', {
+                    'fields': ['kamion_id', 'artikl', 'typ_hlavy', 'prumer', 'delka', 'predpis', 'priorita', 'popis', 'zinkovna',],
+                    'description': 'Přijímání zakázek z kamiónu na sklad, pokud ještě není kamión v systému, vytvořte ho pomocí ikony "+" u položky Kamión.',
+                }), 
+                ('Pouze pro Eurotec:', {
+                    'fields': ['prubeh', 'vrstva', 'povrch'],
+                    'classes': ['collapse'],
+                    'description': 'Pro Eurotec musí být vyplněno: Průběh zakázky, tloušťka vrstvy a povrchová úprava.',
+                }),  
+                ('Celková hmotnost zakázky pro rozpočtení na jednotlivé bedny:', {
+                    'fields': ['celkova_hmotnost'],
+                    'classes': ['collapse'],
+                    'description': 'Pro případ, že je v DL celková hmotnost zakázky, bude rozpočítána na jednotlivé bedny, případné zadané hmotnosti u beden budou přespány.',
+                }),                      
+                ('Zadejte v případě, že jsou hodnoty polí Tára, Materiál, Šarže materiálu, Lief., Fertigungs-auftrags Nr. nebo Poznámka pro celou zakázku stejné:', {
+                    'fields': ['tara', 'material', 'sarze', 'dodavatel_materialu', 'vyrobni_zakazka', 'poznamka'],
+                    'classes': ['collapse'],
+                    'description': 'Pokud jsou hodnoty polí pro celou zakázku stejné, zadejte je sem. Jinak je nechte prázdné a vyplňte je u jednotlivých beden. Případné zadané hodnoty u beden zůstanou zachovány.',}),
+            ]
+
 
 @admin.register(Bedna)
 class BednaAdmin(admin.ModelAdmin):
