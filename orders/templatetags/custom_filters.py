@@ -4,6 +4,9 @@ register = template.Library()
 
 @register.filter
 def url_remove_param(querystring, params):
+    """
+    Odstraní parametry z query stringu.
+    """
     params = params.split(',')
     new_querystring = '&'.join(
         f"{key}={value}"
@@ -17,6 +20,8 @@ def attr_chain(obj, attr_chain):
     """
     Projde objekt podle řetězce atributů oddělených __ a vrátí hodnotu.
     Např. item|attr_chain:"zakazka_id__typ_hlavy"
+    Pokud je objekt None nebo atribut neexistuje, vrátí prázdný řetězec.
+    Pokud je atribut typu bool, vrátí "ANO" nebo "NE".
     """
     attrs = attr_chain.split('__')
     for attr in attrs:
