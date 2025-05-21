@@ -1,0 +1,12 @@
+<div class="mb-3">
+    {% if field.label %}
+      <label for="{{ field.attrs.id }}" class="form-label">{{ field.label }}</label>
+    {% endif %}
+    {{ field }}
+    {% if field.help_text %}
+      <div class="form-text">{{ field.help_text }}</div>
+    {% endif %}
+    {% for error in field.errors %}
+      <div class="invalid-feedback d-block">{{ error }}</div>
+    {% endfor %}
+  </div>  
