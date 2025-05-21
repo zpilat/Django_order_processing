@@ -8,17 +8,17 @@
                         id="dropdownMenuButton1"
                         data-bs-toggle="dropdown"
                         aria-expanded="false">
-                    {% if db_table == 'bedny' %}BEDNY
-                    {% elif db_table == 'zakazky' %}ZAKÁZKY
+                    {% if db_table == 'bedny' %}PŘEHLED BEDEN
+                    {% elif db_table == 'zakazky' %}PŘEHLED ZAKÁZEK
                     {% else %}Výběr modulu
                     {% endif %}
                 </button>
                 <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
                     {% if db_table != 'bedny' %}
-                        <li><a class="dropdown-item small" href="{% url 'bedny_list' %}">Bedny</a></li>
+                        <li><a class="dropdown-item small" href="{% url 'bedny_list' %}">Přehled beden</a></li>
                     {% endif %}
                     {% if db_table != 'zakazky' %}
-                        <li><a class="dropdown-item small" href="{% url 'zakazky_list' %}">Zakázky</a></li>
+                        <li><a class="dropdown-item small" href="{% url 'zakazky_list' %}">Přehled zakázek</a></li>
                     {% endif %}
                 </ul>
             </div>
