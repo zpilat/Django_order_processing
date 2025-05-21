@@ -16,7 +16,7 @@
         <div class="row p-1 border">
             <div class="col-12 p-1 border border-secondary">
                 <header>
-                    {% block header %}{% endblock %}
+                    {% block header %}{% include "orders/navbar.html" %}{% endblock %}
                 </header>
                 {% block content %}{% endblock %}
             </div>

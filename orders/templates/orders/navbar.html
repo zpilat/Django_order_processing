@@ -1,0 +1,72 @@
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark py-2">
+    <div class="container-fluid d-flex flex-wrap align-items-center justify-content-between">
+        <div class="d-flex align-items-center gap-2">
+            <!-- Dropdown: Výběr modulu -->
+            <div class="btn-group btn-group-sm dropdown my-1 me-2">
+                <button class="btn btn-info dropdown-toggle"
+                        type="button"
+                        id="dropdownMenuButton1"
+                        data-bs-toggle="dropdown"
+                        aria-expanded="false">
+                    {% if db_table == 'bedny' %}BEDNY
+                    {% elif db_table == 'zakazky' %}ZAKÁZKY
+                    {% else %}Výběr modulu
+                    {% endif %}
+                </button>
+                <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
+                    {% if db_table != 'bedny' %}
+                        <li><a class="dropdown-item small" href="{% url 'bedny_list' %}">Bedny</a></li>
+                    {% endif %}
+                    {% if db_table != 'zakazky' %}
+                        <li><a class="dropdown-item small" href="{% url 'zakazky_list' %}">Zakázky</a></li>
+                    {% endif %}
+                </ul>
+            </div>
+            <!-- Dropdown: Export -->
+            {% if db_table == 'sklad' or db_table == 'audit_log' or db_table == 'dodavatele' %}
+            <div class="btn-group btn-group-sm dropdown my-1 me-2">
+                <button class="btn btn-light dropdown-toggle"
+                        type="button"
+                        id="dropdownMenuButton2"
+                        data-bs-toggle="dropdown"
+                        aria-expanded="false">
+                    Export
+                </button>
+                {% if object_list %}
+                <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton2">
+                    {% if db_table == 'audit_log' %}
+                        <li><a class="dropdown-item small" href="{% url 'audit_log_export_csv' %}?{{ request.GET.urlencode }}">Export do CSV</a></li>
+                    {% elif db_table == 'sklad' %}
+                        <li><a class="dropdown-item small" href="{% url 'sklad_export_csv' %}?{{ request.GET.urlencode }}">Export do CSV</a></li>
+                    {% elif db_table == 'dodavatele' %}
+                        <li><a class="dropdown-item small" href="{% url 'dodavatele_export_csv' %}?{{ request.GET.urlencode }}">Export do CSV</a></li>
+                    {% endif %}
+                </ul>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+        <!-- Uživatelská sekce -->
+        <div class="d-flex align-items-center gap-2">
+            {% if user.is_authenticated %}
+                <div class="text-end me-2">
+                    <p class="h6 small text-white mb-0">Přihlášený uživatel:</p>
+                    <p class="h6 small text-center text-white mb-0">{{ user.first_name }} {{ user.last_name }}</p>
+                </div>
+                {% if db_table == 'home' %}
+                    <a class="btn btn-light btn-sm me-2" href="{% url 'password_change' %}">Změnit heslo</a>
+                {% endif %}
+                <form id="logout-form" method="post" action="{% url 'logout' %}" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-light btn-sm">Odhlásit se</button>
+                </form>
+            {% else %}
+                <a class="btn btn-light btn-sm" href="{% url 'admin:login' %}">Přihlásit se</a>
+            {% endif %}
+        </div>
+    </div>
+</nav>
+
+
+
+

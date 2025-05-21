@@ -16,6 +16,21 @@ logger = logging.getLogger('orders')
 
 # Create your views here.
 
+def home_view(request):
+    """
+    Zobrazuje úvodní stránku aplikace.
+    
+    Parameters:
+    - request: HTTP request objekt.
+
+    Vrací:
+    - render: HTML stránku `home.html` s aktuálním přihlášeným uživatelem v kontextu.
+    """
+    context = {'db_table': 'home'}
+    logger.debug(f'Zahájena view home_view s uživatelem: {request.user}')
+    return render(request, "orders/home.html", context)
+
+
 class BednyListView(LoginRequiredMixin, ListView):
     """
     Zobrazuje seznam beden.
@@ -132,4 +147,17 @@ class BednyListView(LoginRequiredMixin, ListView):
         else:
             return super().render_to_response(context, **response_kwargs)
 
-   
+
+class ZakazkyListView(LoginRequiredMixin, ListView):
+    """
+    Zobrazuje seznam zakázek.
+
+    Template:
+    - `zakazky_list.html`
+
+    Kontext:
+    - Seznam zakázek a možnosti filtrování.
+    """
+    model = Zakazka
+    template_name = 'orders/zakazky_list.html'
+    ordering = ['id']
