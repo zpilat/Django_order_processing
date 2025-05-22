@@ -1,0 +1,23 @@
+{% extends "orders/base.html" %}
+{% load static %}
+
+{% block title %}Přihlášení - Správa zakázek HPM HEAT SK{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-center align-items-center my-4">
+  <div class="card w-100" style="max-width: 400px;">
+    <div class="card-body">
+      <h3 class="card-title text-center mb-4">Přihlášení</h3>
+      <form method="post">
+        {% csrf_token %}
+        {{ form }}
+        <div class="d-grid mt-4">
+          <button type="submit" class="btn btn-outline-dark">
+            Přihlásit se
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
