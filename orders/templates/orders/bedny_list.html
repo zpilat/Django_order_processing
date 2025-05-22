@@ -16,7 +16,7 @@
         <label for="zakaznik_filter" class="me-2 my-0 form-label small">Zakazník:</label>
         <select name="zakaznik_filter" class="form-select form-select-sm me-2" id="zakaznik_filter">
             {% for value, label in zakaznik_choices %}
-            <option value="{{ value }}" {% if request.GET.zakaznik_filter == value %}selected{% endif %}>{{ label }}</option>
+            <option value="{{ value }}" {% if zakaznik_filter == value %}selected{% endif %}>{{ label }}</option>
             {% endfor %}
         </select>
     </div>
@@ -25,7 +25,7 @@
         <label for="stav_filter" class="me-2 my-0 form-label small">Stav:</label>
         <select name="stav_filter" class="form-select form-select-sm me-2" id="stav_filter">
             {% for value, label in stav_choices %}
-            <option value="{{ value }}" {% if request.GET.stav_filter == value %}selected{% endif %}>{{ label }}</option>
+            <option value="{{ value }}" {% if stav_filter == value %}selected{% endif %}>{{ label }}</option>
             {% endfor %}
         </select>
     </div>
@@ -34,7 +34,7 @@
         <label for="priorita_filter" class="me-2 my-0 form-label small">Priorita:</label>
         <select name="priorita_filter" class="form-select form-select-sm me-2" id="priorita_filter">
             {% for value, label in priorita_choices %}
-            <option value="{{ value }}" {% if request.GET.priorita_filter == value %}selected{% endif %}>{{ label }}</option>
+            <option value="{{ value }}" {% if priorita_filter == value %}selected{% endif %}>{{ label }}</option>
             {% endfor %}
         </select>
     </div>
@@ -43,35 +43,35 @@
         <label for="typ_hlavy_filter" class="me-2 my-0 form-label small">Typ hlavy:</label>
         <select name="typ_hlavy_filter" class="form-select form-select-sm me-2" id="typ_hlavy_filter">
             {% for value, label in typ_hlavy_choices %}
-            <option value="{{ value }}" {% if request.GET.typ_hlavy_filter == value %}selected{% endif %}>{{ label }}</option>
+            <option value="{{ value }}" {% if typ_hlavy_filter == value %}selected{% endif %}>{{ label }}</option>
             {% endfor %}
         </select>
     </div>
     {# Search filtr: #}
     <div class="col-auto my-0">
         <label for="query" class="me-2 my-0 form-label small">Vyhledat:</label>
-        <input class="form-control form-control-sm me-2" type="text" name="query" placeholder="Vyhledat č.bedny / datum" value="{{ request.GET.query }}">
+        <input class="form-control form-control-sm me-2" type="text" name="query" placeholder="Vyhledat č.bedny / datum" value="{{ query }}">
     </div>
     {# Checkbox zakazka_komplet filtr: #}
     <div class="col-auto d-flex flex-column align-items-center my-0">
         <label for="zakazka_komplet" class="form-check-label small">Kompletní?</label>           
         <input type="checkbox" id="zakazka_komplet" name="zakazka_komplet" value="on"
             class="form-check-input"
-            {% if request.GET.zakazka_komplet == 'on' %}checked{% endif %}>        
+            {% if zakazka_komplet == 'on' %}checked{% endif %}>
     </div>
     {# Checkbox tryskat filtr: #}
     <div class="col-auto d-flex flex-column align-items-center my-0">
         <label for="tryskat" class="form-check-label small">Tryskat?</label>
         <input type="checkbox" id="tryskat" name="tryskat" value="on"
             class="form-check-input"
-            {% if request.GET.tryskat == 'on' %}checked{% endif %}>
+            {% if tryskat == 'on' %}checked{% endif %}>
     </div>
     {# Checkbox rovnat filtr: #}
     <div class="col-auto d-flex flex-column align-items-center my-0">
         <label for="rovnat" class="form-check-label small">Rovnat?</label>
         <input type="checkbox" id="rovnat" name="rovnat" value="on"
             class="form-check-input"
-            {% if request.GET.rovnat == 'on' %}checked{% endif %}>
+            {% if rovnat == 'on' %}checked{% endif %}>
     </div>
     {# Sort: #}
     <input type="hidden" name="sort" value="{{ sort }}">
