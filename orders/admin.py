@@ -134,10 +134,10 @@ class ZakazkaAdmin(admin.ModelAdmin):
 
             # Pokud nejsou žádné bedny ručně zadané a je vyplněn počet beden, tak se vytvoří nové bedny 
             # a naplní se z daty ze zakázky a celkovou hmotností
+            nove_bedny = []
             if len(instances) == 0 and pocet_beden:
-                nove_bedny = []
                 for i in range(pocet_beden):
-                    bedna = Bedna(zakazka=zakazka)
+                    bedna = Bedna(zakazka_id=zakazka)
                     nove_bedny.append(bedna)
                 instances = nove_bedny
 
@@ -170,13 +170,12 @@ class ZakazkaAdmin(admin.ModelAdmin):
                 for index, instance in enumerate(instances):
                     instance.cislo_bedny = nove_cislo_bedny + index
 
-            # Ulož všechny instance
-            for instance in instances:
-                instance.save()
-            formset.save_m2m()
-            formset.delete_existing()
-        else: # editace existujících beden
-            formset.save()
+            # Ulož všechny instance, pokud jsou to nove_bedny automaticky přidané
+            if nove_bedny:
+                for instance in instances:
+                    instance.save()
+
+        formset.save()
 
     def get_fieldsets(self, request, obj=None):
         """
@@ -220,7 +219,7 @@ class ZakazkaAdmin(admin.ModelAdmin):
 
 @admin.register(Bedna)
 class BednaAdmin(admin.ModelAdmin):
-    list_display = ('id', 'cislo_bedny', 'zakazka_id', 'tryskat', 'rovnat', 'stav_bedny', 'zakazka_id__typ_hlavy', 'poznamka')
+    list_display = ('id', 'cislo_bedny', 'zakazka_id', 'rovnat', 'tryskat', 'stav_bedny', 'zakazka_id__typ_hlavy', 'poznamka')
     list_editable = ('stav_bedny', 'tryskat', 'rovnat', 'poznamka')
     search_fields = ('cislo_bedny', 'zakazka_id__artikl',)
     search_help_text = "Hledat podle čísla bedny nebo artiklu"

@@ -3,7 +3,7 @@ from .models import Zakazka
 
 class ZakazkaForm(forms.ModelForm):
     celkova_hmotnost = forms.DecimalField(required=False, min_value=1.0, label="Celková hmotnost zakázky")
-    pocet_beden = forms.IntegerField(required=False, min_value=1, label="Celkový počet beden v zakázce (automatické vytvoření)")   
+    pocet_beden = forms.IntegerField(required=False, min_value=1, label="Celkový počet beden v zakázce")   
     tara = forms.DecimalField(required=False, min_value=20.0, initial=65.0, label="Tára")
     material = forms.CharField(required=False, label="Materiál")
     sarze = forms.CharField(required=False, label="Šarže materiálu")
