@@ -31,7 +31,7 @@ class ZinkovnaChoice(models.TextChoices):
     SULZ = 'SULZ', 'Sulz'
 
 class Zakaznik(models.Model):
-    nazev = models.CharField(max_length=100)
+    nazev = models.CharField(max_length=100, verbose_name='Název zákazníka', unique=True)
     zkratka = models.CharField(max_length=3, verbose_name='Zkratka', unique=True)
     adresa = models.CharField(max_length=100, blank=True, null=True, verbose_name='Adresa')
     mesto = models.CharField(max_length=50, blank=True, null=True, verbose_name='Město')
@@ -52,7 +52,7 @@ class Zakaznik(models.Model):
         return self.nazev
 
 class Kamion(models.Model):
-    zakaznik_id = models.ForeignKey(Zakaznik, on_delete=models.CASCADE, related_name='kamiony')
+    zakaznik_id = models.ForeignKey(Zakaznik, on_delete=models.CASCADE, related_name='kamiony', verbose_name='Zákazník')
     datum = models.DateField(verbose_name='Datum')
     cislo_dl = models.CharField(max_length=50, verbose_name='Číslo DL')
     history = HistoricalRecords()
@@ -91,7 +91,7 @@ class Zakazka(models.Model):
         return f'{self.kamion_id.id} {self.kamion_id.zakaznik_id.zkratka} - {self.kamion_id.datum} - {self.artikl} - {self.prumer}x{self.delka}'
     
 class Bedna(models.Model):
-    zakazka_id = models.ForeignKey(Zakazka, on_delete=models.CASCADE, related_name='bedny')
+    zakazka_id = models.ForeignKey(Zakazka, on_delete=models.CASCADE, related_name='bedny', verbose_name='Zakázka')
     cislo_bedny = models.PositiveIntegerField(blank=True, verbose_name='Číslo bedny')
     hmotnost = models.DecimalField(max_digits=5, decimal_places=1, blank=True, verbose_name='Hm. netto')
     tara = models.DecimalField(max_digits=5, blank=True, decimal_places=1, verbose_name='Tára')

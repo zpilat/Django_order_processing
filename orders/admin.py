@@ -219,21 +219,45 @@ class ZakazkaAdmin(admin.ModelAdmin):
 
 @admin.register(Bedna)
 class BednaAdmin(admin.ModelAdmin):
-    list_display = ('id', 'cislo_bedny', 'zakazka_id', 'rovnat', 'tryskat', 'stav_bedny', 'zakazka_id__typ_hlavy', 'poznamka')
-    list_editable = ('stav_bedny', 'tryskat', 'rovnat', 'poznamka')
+    list_display = ('id', 'cislo_bedny', 'zakazka_id', 'rovnat', 'tryskat', 'stav_bedny', 'typ_hlavy', 'priorita', 'poznamka')
+    list_editable = ('stav_bedny', 'poznamka',)
     search_fields = ('cislo_bedny', 'zakazka_id__artikl',)
     search_help_text = "Hledat podle čísla bedny nebo artiklu"
     readonly_fields = ('datum_expedice',)
-    list_filter = ('zakazka_id__kamion_id__zakaznik_id', StavBednyFilter, 'zakazka_id__typ_hlavy')
+    list_filter = ('zakazka_id__kamion_id__zakaznik_id__nazev', StavBednyFilter, 'zakazka_id__typ_hlavy', 'zakazka_id__priorita',)
     ordering = ('id',)
     date_hierarchy = 'zakazka_id__kamion_id__datum'
-    list_per_page = 14
+    list_per_page = 13
     formfield_overrides = {
         models.CharField: {'widget': TextInput(attrs={ 'size': '30'})},
         models.DecimalField: {'widget': TextInput(attrs={ 'size': '8'})},
     }
 
-    history_list_display = ["id", "zakazka_id", "cislo_bedny", "stav_bedny", "zakazka_id__typ_hlavy", "poznamka"]
+    history_list_display = ["id", "zakazka_id", "cislo_bedny", "stav_bedny", "typ_hlavy", "poznamka"]
     history_search_fields = ["zakazka_id__kamion_id__zakaznik_id__nazev", "cislo_bedny", "stav_bedny", "zakazka_id__typ_hlavy", "poznamka"]
-    history_list_filter = ["zakazka_id__kamion_id__zakaznik_id", "zakazka_id__kamion_id__datum", "stav_bedny"]
+    history_list_filter = ["zakazka_id__kamion_id__zakaznik_id__nazev", "zakazka_id__kamion_id__datum", "stav_bedny"]
     history_list_per_page = 14
+
+    def typ_hlavy(self, obj):
+        """
+        Zobrazí typ hlavy zakázky.
+        """
+        return obj.zakazka_id.typ_hlavy
+    typ_hlavy.short_description = 'Typ hlavy'
+
+    def priorita(self, obj):
+        """
+        Zobrazí prioritu zakázky.
+        """
+        return obj.zakazka_id.priorita
+    priorita.short_description = 'Priorita'
+
+    def save_model(self, request, obj, form, change):
+        """
+        Uložení modelu Bedna. 
+        """
+        if obj.stav_bedny == StavBednyChoice.KRIVA or obj.stav_bedny == StavBednyChoice.VYROVNANA:
+            obj.rovnat = True
+        if obj.stav_bedny == StavBednyChoice.TRYSKAT or obj.stav_bedny == StavBednyChoice.OTRYSKANA:
+            obj.tryskat = True
+        super().save_model(request, obj, form, change)
