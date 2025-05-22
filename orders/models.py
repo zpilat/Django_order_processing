@@ -39,6 +39,8 @@ class Zakaznik(models.Model):
     kontaktni_osoba = models.CharField(max_length=50, blank=True, null=True, verbose_name='Kontaktní osoba')
     telefon = models.CharField(max_length=50, blank=True, null=True, verbose_name='Telefon')
     email = models.EmailField(max_length=100, blank=True, null=True, verbose_name='E-mail')
+    vse_tryskat = models.BooleanField(default=False, verbose_name='Všechny bedny tryskat')
+    cisla_beden_auto = models.BooleanField(default=False, verbose_name='Č. beden automaticky')
     history = HistoricalRecords()
 
     class Meta:
