@@ -40,7 +40,7 @@ class Zakaznik(models.Model):
     telefon = models.CharField(max_length=50, blank=True, null=True, verbose_name='Telefon')
     email = models.EmailField(max_length=100, blank=True, null=True, verbose_name='E-mail')
     vse_tryskat = models.BooleanField(default=False, verbose_name='Všechny bedny tryskat')
-    cisla_beden_auto = models.BooleanField(default=False, verbose_name='Č. beden automaticky')
+    cisla_beden_auto = models.BooleanField(default=False, verbose_name='Čísla beden automaticky')
     history = HistoricalRecords()
 
     class Meta:
@@ -92,7 +92,7 @@ class Zakazka(models.Model):
     
 class Bedna(models.Model):
     zakazka_id = models.ForeignKey(Zakazka, on_delete=models.CASCADE, related_name='bedny')
-    cislo_bedny = models.CharField(max_length=20, verbose_name='Číslo bedny')
+    cislo_bedny = models.PositiveIntegerField(verbose_name='Číslo bedny')
     hmotnost = models.DecimalField(max_digits=5, decimal_places=1, blank=True, verbose_name='Hm. netto')
     tara = models.DecimalField(max_digits=5, decimal_places=1, default=65.0, verbose_name='Tára')
     material = models.CharField(max_length=20, null=True, blank=True, verbose_name='Materiál')

@@ -147,6 +147,23 @@ class ZakazkaAdmin(admin.ModelAdmin):
                     if value in (None, ''):
                         setattr(instance, field, hodnota)
 
+        # Načtení zákazníka
+        zakaznik = form.instance.kamion_id.zakaznik_id
+        
+        # Uložení K tryskání pro bedny, jejichž zákazník má nastaveno vse_tryskat=True
+        if zakaznik.vse_tryskat:
+            for instance in instances:
+                instance.tryskat = True
+
+        # Automatické vytvoření čísla bedny u zákazníka, který má nastaveno cisla_beden_auto=True
+        if zakaznik.cisla_beden_auto:
+            # Pokud není číslo bedny vyplněno ve formuláři, nastaví se automaticky
+            if not form.cleaned_data.get('cislo_bedny') or len(form.cleaned_data.get('cislo_bedny')) < 3:
+                # Najde nejvyšší číslo bedny zákazníka a přidá k němu 1
+                nove_cislo_bedny = Bedna.objects.filter(zakazka_id__kamion_id__zakaznik_id=zakaznik).order_by('-cislo_bedny').first() + 1
+                for index, instance in enumerate(instances):
+                    instance.cislo_bedny = nove_cislo_bedny + index
+
         # Najdi všechny bedny, které nemají hmotnost
         chybi_hmotnost = [
             instance.cislo_bedny
