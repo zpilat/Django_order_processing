@@ -17,13 +17,13 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!box) {
             box = document.createElement('div');
             box.id = 'hmotnost-sum-box';
-            box.className = 'alert alert-info shadow-sm';
+            box.className = 'alert alert-light small shadow-sm';
             // Přidej box těsně před tabulku!
             resultsTable.parentNode.insertBefore(box, resultsTable);
             // Box je nyní v normálním toku stránky
             box.style = 'margin-bottom: 1em; font-size:1rem;font-family:inherit;';
         } else {
-            box.className = 'alert alert-info shadow-sm';
+            box.className = 'alert alert-light small shadow-sm';
         }
         box.innerHTML = `<i class="fas fa-balance-scale" style="margin-right:0.5em;color:#0174c6;"></i> Hmotnost označených zakázek:<strong><span style="margin-left:0.5em;">${sum.toFixed(1)} kg</span></strong>`;
     }

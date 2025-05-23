@@ -5,6 +5,8 @@ from django.utils.safestring import mark_safe
 
 from simple_history.admin import SimpleHistoryAdmin
 from decimal import Decimal, ROUND_HALF_UP
+import datetime
+from django.utils.translation import gettext_lazy as _
 
 from .models import Zakaznik, Kamion, Zakazka, Bedna, TypHlavyChoice, StavBednyChoice
 from .forms import ZakazkaForm, BednaChangeListForm
@@ -15,6 +17,13 @@ def expedice_zakazek(modeladmin, request, queryset):
     Expeduje vybrané zakázky.
     """
     for zakazka in queryset:
+        bedny = Bedna.objects.filter(zakazka_id=zakazka)
+        # Nastav stav bedny, které jsou označeny K_expedici, na Expedováno
+        for bedna in bedny:
+            if bedna.stav_bedny == StavBednyChoice.K_EXPEDICI:
+                bedna.stav_bedny = StavBednyChoice.EXPEDOVANO
+                bedna.datum_expedice = datetime.date.today()
+                bedna.save()
         zakazka.expedovano = True
         zakazka.save()
     messages.success(request, "Zakázky byly expedovány.")
@@ -139,9 +148,6 @@ class ZakazkaAdmin(admin.ModelAdmin):
     history_list_per_page = 14
 
     class Media:
-        css = {
-            'all': ('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css',)
-        }
         js = ('admin/js/zakazky_hmotnost_sum.js',)
 
 
