@@ -138,6 +138,9 @@ class ZakazkaAdmin(admin.ModelAdmin):
     history_list_filter = ["kamion_id__zakaznik_id", "kamion_id__datum", "typ_hlavy"]
     history_list_per_page = 14
 
+    class Media:
+        js = ('admin/js/zakazky_hmotnost_sum.js',)
+
     @admin.display(description='Hm. zakázky')
     def hmotnost_zakazky(self, obj):
         """
