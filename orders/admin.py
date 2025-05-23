@@ -35,8 +35,25 @@ class StavBednyFilter(admin.SimpleListFilter):
             return queryset.exclude(stav_bedny=StavBednyChoice.EXPEDOVANO)
         # elif value == 'NEZPRACOVANO':
         #     return queryset.filter(stav_bedny__in=[StavBednyChoice.PRIJATO, StavBednyChoice.NAVEZENO, StavBednyChoice.DO_ZPRACOVANI])
-        else:
-            return queryset.filter(stav_bedny=value)
+        return queryset.filter(stav_bedny=value)
+        
+
+class ExpedovanaZakazkaFilter(admin.SimpleListFilter):
+    title = "Expedováno"
+    parameter_name = "expedovano"
+
+    def lookups(self, request, model_admin):
+        return (
+            ('ANO', 'ANO'),
+        )
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if value is None:
+            return queryset.filter(expedovano=False)
+        elif value == 'ANO':
+            return queryset.filter(expedovano=True)
+        return queryset
 
 
 # Register your models here.
@@ -91,7 +108,7 @@ class ZakazkaAdmin(admin.ModelAdmin):
     list_editable = ('artikl', 'prumer', 'delka','popis', 'priorita')
     search_fields = ('artikl',)
     search_help_text = "Hledat podle artiklu"
-    list_filter = ('kamion_id__zakaznik_id', 'typ_hlavy', 'priorita', 'komplet', 'expedovano')
+    list_filter = ('kamion_id__zakaznik_id', 'typ_hlavy', 'priorita', 'komplet', ExpedovanaZakazkaFilter)
     ordering = ('id',)
     exclude = ('komplet', 'expedovano',)
     date_hierarchy = 'kamion_id__datum'
