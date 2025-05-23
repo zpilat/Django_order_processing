@@ -7,10 +7,13 @@ from simple_history.admin import SimpleHistoryAdmin
 from decimal import Decimal, ROUND_HALF_UP
 
 from .models import Zakaznik, Kamion, Zakazka, Bedna, TypHlavyChoice, StavBednyChoice
-from .forms import ZakazkaForm
+from .forms import ZakazkaForm, BednaChangeListForm
 
 @admin.action(description="Zobrazit celkovou hmotnost beden")
 def zobrazit_celkovou_hmotnost_zakazek(modeladmin, request, queryset):
+    """
+    Zobrazí celkovou hmotnost beden ve vybraných zakázkách.
+    """
     celkem = 0
     for zakazka in queryset:
         celkem += sum(bedna.hmotnost or 0 for bedna in zakazka.bedny.all())
@@ -18,6 +21,9 @@ def zobrazit_celkovou_hmotnost_zakazek(modeladmin, request, queryset):
 
 
 class StavBednyFilter(admin.SimpleListFilter):
+    """
+    Filtrovat bedny podle stavu.
+    """
     title = "Stav bedny"
     parameter_name = "stav_bedny_vlastni"
 
@@ -39,6 +45,9 @@ class StavBednyFilter(admin.SimpleListFilter):
         
 
 class ExpedovanaZakazkaFilter(admin.SimpleListFilter):
+    """
+    Filtrovat zakázky podle stavu expedice.
+    """
     title = "Expedováno"
     parameter_name = "expedovano"
 
@@ -59,6 +68,9 @@ class ExpedovanaZakazkaFilter(admin.SimpleListFilter):
 # Register your models here.
 @admin.register(Zakaznik)
 class ZakaznikAdmin(admin.ModelAdmin):
+    """
+    Správa zákazníků v administraci.
+    """
     list_display = ('nazev', 'zkratka', 'adresa', 'mesto', 'stat', 'kontaktni_osoba', 'telefon', 'email')
     ordering = ('nazev',)
     list_per_page = 14
@@ -71,6 +83,9 @@ class ZakaznikAdmin(admin.ModelAdmin):
 
 @admin.register(Kamion)
 class KamionAdmin(admin.ModelAdmin):
+    """
+    Správa kamionů v administraci.
+    """
     list_display = ('id', 'zakaznik_id__nazev', 'datum', 'cislo_dl')
     list_filter = ('zakaznik_id__nazev',)
     ordering = ('-id',)
@@ -236,6 +251,9 @@ class ZakazkaAdmin(admin.ModelAdmin):
 
 @admin.register(Bedna)
 class BednaAdmin(admin.ModelAdmin):
+    """
+    Správa beden v administraci.
+    """
     list_display = ('id', 'cislo_bedny', 'zakazka_id', 'rovnat', 'tryskat', 'stav_bedny', 'typ_hlavy', 'priorita', 'poznamka')
     list_editable = ('stav_bedny', 'poznamka',)
     search_fields = ('cislo_bedny', 'zakazka_id__artikl',)
@@ -269,12 +287,33 @@ class BednaAdmin(admin.ModelAdmin):
         return obj.zakazka_id.priorita
     priorita.short_description = 'Priorita'
 
+    def get_changelist_form(self, request, **kwargs):
+        """
+        Formulář pro zobrazení v administraci beze stavu bedny expedováno.
+        """
+        return BednaChangeListForm
+
     def save_model(self, request, obj, form, change):
         """
         Uložení modelu Bedna. 
+        Pokud je stav bedny Křivá nebo Vyrovnaná, nastaví se atribut rovnat na True.
+        Pokud je stav bedny Tryskat nebo Otryskána, nastaví se atribut tryskat na True.
+        Pokud je stav bedny "K expedici", zkontroluje se, zda jsou všechny bedny v zakázce k expedici nebo expedovány,
+        pokud ano, nastaví se atribut zakázky komplet na True.
         """
-        if obj.stav_bedny == StavBednyChoice.KRIVA or obj.stav_bedny == StavBednyChoice.VYROVNANA:
+        if obj.stav_bedny in {StavBednyChoice.KRIVA, StavBednyChoice.VYROVNANA}:
             obj.rovnat = True
-        if obj.stav_bedny == StavBednyChoice.TRYSKAT or obj.stav_bedny == StavBednyChoice.OTRYSKANA:
+
+        if obj.stav_bedny in {StavBednyChoice.TRYSKAT, StavBednyChoice.OTRYSKANA}:
             obj.tryskat = True
+
+        if obj.stav_bedny == StavBednyChoice.K_EXPEDICI:
+            bedny = list(Bedna.objects.filter(zakazka_id=obj.zakazka_id).exclude(id=obj.id))
+            zakazka_komplet = all(
+                bedna.stav_bedny in {StavBednyChoice.K_EXPEDICI, StavBednyChoice.EXPEDOVANO}
+                for bedna in bedny
+            )
+            obj.zakazka_id.komplet = zakazka_komplet
+            obj.zakazka_id.save()
+
         super().save_model(request, obj, form, change)

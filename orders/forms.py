@@ -1,5 +1,5 @@
 from django import forms
-from .models import Zakazka
+from .models import Zakazka, Bedna, StavBednyChoice
 
 class ZakazkaForm(forms.ModelForm):
     celkova_hmotnost = forms.DecimalField(required=False, min_value=1.0, label="Celková hmotnost zakázky")
@@ -14,3 +14,20 @@ class ZakazkaForm(forms.ModelForm):
     class Meta:
         model = Zakazka
         fields = '__all__'
+
+
+class BednaChangeListForm(forms.ModelForm):
+    """
+    Formulář pro changelist bedny, který neumožní výběr možnosti EXPEDOVANO pro stav_bedny.
+    """
+    class Meta:
+        model = Bedna
+        fields = '__all__'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Zrušena volba pro stav_bedny = EXPEDOVANO
+        self.fields['stav_bedny'].choices = [
+            (value, label) for (value, label) in StavBednyChoice.choices if value != 'EX'
+        ]
+
