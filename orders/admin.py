@@ -120,7 +120,7 @@ class ZakazkaAdmin(admin.ModelAdmin):
     form = ZakazkaForm
     actions = [zobrazit_celkovou_hmotnost_zakazek,]
     list_display = ('id', 'kamion_id', 'artikl', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'popis', 'priorita', 'hmotnost_zakazky', 'komplet',)
-    list_editable = ('artikl', 'prumer', 'delka','popis', 'priorita')
+    list_editable = ('priorita',)
     search_fields = ('artikl',)
     search_help_text = "Hledat podle artiklu"
     list_filter = ('kamion_id__zakaznik_id', 'typ_hlavy', 'priorita', 'komplet', ExpedovanaZakazkaFilter)

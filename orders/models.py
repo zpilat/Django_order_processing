@@ -67,7 +67,7 @@ class Kamion(models.Model):
     
 class Zakazka(models.Model):
     kamion_id = models.ForeignKey(Kamion, on_delete=models.CASCADE, related_name='zakazky', verbose_name='Kamión')
-    artikl = models.CharField(max_length=50, verbose_name='Artikl / Zakázka (Charge)')
+    artikl = models.CharField(max_length=50, verbose_name='Artikl / Zakázka')
     prumer = models.DecimalField(max_digits=4, decimal_places=1, verbose_name='Průměr')
     delka = models.DecimalField(max_digits=6, decimal_places=1, verbose_name='Délka')
     predpis = models.CharField(max_length=30, verbose_name='Předpis/výkres')
