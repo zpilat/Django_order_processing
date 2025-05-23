@@ -1,4 +1,8 @@
 document.addEventListener('DOMContentLoaded', function() {
+    // Box zobrazuj jen, pokud je ve stránce tabulka s id 'result_list'
+    const resultsTable = document.getElementById('result_list');
+    if (!resultsTable) return;
+
     function updateSum() {
         let sum = 0;
         document.querySelectorAll('input.action-select:checked').forEach(function(checkbox) {
@@ -14,31 +18,24 @@ document.addEventListener('DOMContentLoaded', function() {
             box = document.createElement('div');
             box.id = 'hmotnost-sum-box';
             box.className = 'alert alert-info shadow-sm';
-            box.style = 'position:fixed;top:100px;right:300px;z-index:1000;min-width:260px;max-width:350px;padding:.75rem 1.25rem;display:flex;align-items:center;font-size:1rem;font-family:inherit;';
-            document.body.appendChild(box);
+            // Přidej box těsně před tabulku!
+            resultsTable.parentNode.insertBefore(box, resultsTable);
+            // Box je nyní v normálním toku stránky
+            box.style = 'margin-bottom: 1em; font-size:1rem;font-family:inherit;';
         } else {
-            box.className = 'alert alert-info shadow-sm'; // jistota správné třídy
+            box.className = 'alert alert-info shadow-sm';
         }
         box.innerHTML = `<i class="fas fa-balance-scale" style="margin-right:0.5em;color:#0174c6;"></i> Hmotnost označených zakázek:<strong><span style="margin-left:0.5em;">${sum.toFixed(1)} kg</span></strong>`;
     }
 
-    // Na všechny jednotlivé checkboxy
     document.querySelectorAll('input.action-select').forEach(function(checkbox) {
         checkbox.addEventListener('change', updateSum);
     });
 
-    // **Na hlavní (select all) checkbox**
     let selectAll = document.getElementById('action-toggle');
     if (selectAll) {
-        selectAll.addEventListener('change', function() {
-            // Všechni checkboxy se zaškrtnou/odškrtnou, ale 'change' event na jednotlivých se nevyvolá!
-            // Proto se ručně zavolá updateSum (a případně simuluje změna na všech)
-            updateSum();
-        });
+        selectAll.addEventListener('change', updateSum);
     }
 
-    // Spustit na načtení stránky
     updateSum();
 });
-
-

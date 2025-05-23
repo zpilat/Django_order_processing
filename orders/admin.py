@@ -9,16 +9,16 @@ from decimal import Decimal, ROUND_HALF_UP
 from .models import Zakaznik, Kamion, Zakazka, Bedna, TypHlavyChoice, StavBednyChoice
 from .forms import ZakazkaForm, BednaChangeListForm
 
-@admin.action(description="Zobrazit celkovou hmotnost beden")
-def zobrazit_celkovou_hmotnost_zakazek(modeladmin, request, queryset):
+@admin.action(description="Expedovat zakázky")
+def expedice_zakazek(modeladmin, request, queryset):
     """
-    Zobrazí celkovou hmotnost beden ve vybraných zakázkách.
+    Expeduje vybrané zakázky.
     """
-    celkem = 0
     for zakazka in queryset:
-        celkem += sum(bedna.hmotnost or 0 for bedna in zakazka.bedny.all())
-    messages.info(request, f"Celková hmotnost beden ve vybraných zakázkách: {celkem} kg")
-
+        zakazka.expedovano = True
+        zakazka.save()
+    messages.success(request, "Zakázky byly expedovány.")
+    return queryset
 
 class StavBednyFilter(admin.SimpleListFilter):
     """
@@ -118,7 +118,7 @@ class ZakazkaAdmin(admin.ModelAdmin):
     """
     inlines = [BednaInline]
     form = ZakazkaForm
-    actions = [zobrazit_celkovou_hmotnost_zakazek,]
+    actions = [expedice_zakazek,]
     list_display = ('id', 'kamion_id', 'artikl', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'popis', 'priorita', 'hmotnost_zakazky', 'komplet',)
     list_editable = ('priorita',)
     search_fields = ('artikl',)
