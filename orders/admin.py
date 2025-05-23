@@ -139,8 +139,11 @@ class ZakazkaAdmin(admin.ModelAdmin):
     history_list_per_page = 14
 
     class Media:
+        css = {
+            'all': ('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css',)
+        }
         js = ('admin/js/zakazky_hmotnost_sum.js',)
-        css = ('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css',)
+
 
     @admin.display(description='Hm. zakázky')
     def hmotnost_zakazky(self, obj):
