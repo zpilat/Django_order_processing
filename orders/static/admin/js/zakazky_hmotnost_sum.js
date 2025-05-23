@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Přidej box těsně před tabulku!
             resultsTable.parentNode.insertBefore(box, resultsTable);
             // Box je nyní v normálním toku stránky
-            box.style = 'margin-bottom: 1em; font-size:1rem;font-family:inherit;';
+            box.style = 'margin-bottom: 1em; font-size:0.8rem;font-family:inherit;';
         } else {
             box.className = 'alert alert-light small shadow-sm';
         }
