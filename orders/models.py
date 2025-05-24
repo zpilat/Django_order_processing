@@ -30,6 +30,10 @@ class ZinkovnaChoice(models.TextChoices):
     STIEFLER = 'STIEFLER', 'Stiefler'
     SULZ = 'SULZ', 'Sulz'
 
+class KamionChoice(models.TextChoices):
+    PRIJEM = 'P', 'Přijem'
+    VYDEJ = 'V', 'Výdej'
+
 class Zakaznik(models.Model):
     nazev = models.CharField(max_length=100, verbose_name='Název zákazníka', unique=True)
     zkratka = models.CharField(max_length=3, verbose_name='Zkratka', unique=True)
@@ -39,8 +43,8 @@ class Zakaznik(models.Model):
     kontaktni_osoba = models.CharField(max_length=50, blank=True, null=True, verbose_name='Kontaktní osoba')
     telefon = models.CharField(max_length=50, blank=True, null=True, verbose_name='Telefon')
     email = models.EmailField(max_length=100, blank=True, null=True, verbose_name='E-mail')
-    vse_tryskat = models.BooleanField(default=False, verbose_name='Všechny bedny tryskat')
-    cisla_beden_auto = models.BooleanField(default=False, verbose_name='Čísla beden automaticky')
+    vse_tryskat = models.BooleanField(default=False, verbose_name='Vše tryskat')
+    cisla_beden_auto = models.BooleanField(default=False, verbose_name='Č. beden automaticky')
     history = HistoricalRecords()
 
     class Meta:
@@ -55,6 +59,7 @@ class Kamion(models.Model):
     zakaznik_id = models.ForeignKey(Zakaznik, on_delete=models.CASCADE, related_name='kamiony', verbose_name='Zákazník')
     datum = models.DateField(verbose_name='Datum')
     cislo_dl = models.CharField(max_length=50, verbose_name='Číslo DL')
+    prijem_vydej = models.CharField(choices=KamionChoice.choices, max_length=1, verbose_name='Přijem/Výdej')
     history = HistoricalRecords()
 
     class Meta:
@@ -66,7 +71,8 @@ class Kamion(models.Model):
         return f'{self.id} {self.zakaznik_id.zkratka} - {self.datum}'
     
 class Zakazka(models.Model):
-    kamion_id = models.ForeignKey(Kamion, on_delete=models.CASCADE, related_name='zakazky', verbose_name='Kamión')
+    kamion_prijem_id = models.ForeignKey(Kamion, on_delete=models.CASCADE, related_name='zakazky_prijem', verbose_name='Kamión příjem', null=True)
+    kamion_vydej_id = models.ForeignKey(Kamion, on_delete=models.CASCADE, related_name='zakazky_vydej', verbose_name='Kamión výdej', null=True, blank=True)
     artikl = models.CharField(max_length=50, verbose_name='Artikl / Zakázka')
     prumer = models.DecimalField(max_digits=4, decimal_places=1, verbose_name='Průměr')
     delka = models.DecimalField(max_digits=6, decimal_places=1, verbose_name='Délka')
@@ -88,7 +94,7 @@ class Zakazka(models.Model):
         ordering = ['id']
 
     def __str__(self):
-        return f'{self.kamion_id.id} {self.kamion_id.zakaznik_id.zkratka} - {self.kamion_id.datum} - {self.artikl} - {self.prumer}x{self.delka}'
+        return f'{self.kamion_prijem_id.id} {self.kamion_prijem_id.zakaznik_id.zkratka} - {self.kamion_prijem_id.datum} - {self.artikl} - {self.prumer}x{self.delka}'
     
 class Bedna(models.Model):
     zakazka_id = models.ForeignKey(Zakazka, on_delete=models.CASCADE, related_name='bedny', verbose_name='Zakázka')
@@ -104,7 +110,6 @@ class Bedna(models.Model):
     rovnat = models.BooleanField(default=False, verbose_name='K rovnání')
     poznamka = models.CharField(max_length=100, null=True, blank=True, verbose_name='Poznámka')
     stav_bedny = models.CharField(choices=StavBednyChoice.choices, max_length=2, default=StavBednyChoice.PRIJATO, verbose_name='Stav bedny')
-    datum_expedice = models.DateField(null=True, blank=True, verbose_name='Datum expedice')
     history = HistoricalRecords()
 
     class Meta:
@@ -113,4 +118,4 @@ class Bedna(models.Model):
         ordering = ['id']
 
     def __str__(self):
-        return f'{self.zakazka_id.kamion_id.zakaznik_id.zkratka} - {self.zakazka_id.kamion_id.datum} - {self.zakazka_id.artikl} - {self.zakazka_id.delka}x{self.zakazka_id.prumer} - {self.cislo_bedny}'
+        return f'{self.zakazka_id.kamion_prijem_id.zakaznik_id.zkratka} - {self.zakazka_id.kamion_prijem_id.datum} - {self.zakazka_id.artikl} - {self.zakazka_id.delka}x{self.zakazka_id.prumer} - {self.cislo_bedny}'

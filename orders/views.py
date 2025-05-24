@@ -55,14 +55,14 @@ class BednyListView(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
 
         columns_fields = [
-            'id', 'cislo_bedny', 'zakazka_id__priorita', 'zakazka_id__kamion_id__zakaznik_id__zkratka',
-            'zakazka_id__kamion_id__datum', 'zakazka_id__kamion_id', 'zakazka_id__artikl', 'zakazka_id__prumer',
+            'id', 'cislo_bedny', 'zakazka_id__priorita', 'zakazka_id__kamion_prijem_id__zakaznik_id__zkratka',
+            'zakazka_id__kamion_prijem_id__datum', 'zakazka_id__kamion_prijem_id', 'zakazka_id__artikl', 'zakazka_id__prumer',
             'zakazka_id__delka', 'hmotnost', 'stav_bedny', 'zakazka_id__typ_hlavy', 'tryskat', 'rovnat',
             'zakazka_id__komplet', 'poznamka',
         ]
         # Získání názvů sloupců pro zobrazení v tabulce - slovník {pole: názvy sloupců}
         columns = {field: get_verbose_name_for_column(Bedna, field) for field in columns_fields}
-        columns['zakazka_id__kamion_id__zakaznik_id__zkratka'] = 'Zákazník'
+        columns['zakazka_id__kamion_prijem_id__zakaznik_id__zkratka'] = 'Zákazník'
         stav_choices = [("SKLAD", "SKLADEM"), ("", "VŠE")] + list(StavBednyChoice.choices)
         zakaznik_choices = [("", "VŠE")] + [(zakaznik.zkratka, zakaznik.zkratka) for zakaznik in Zakaznik.objects.all()]
         typ_hlavy_choices = [("", "VŠE")] + list(TypHlavyChoice.choices)
@@ -117,7 +117,7 @@ class BednyListView(LoginRequiredMixin, ListView):
                 queryset = queryset.filter(stav_bedny=stav_filter)
 
         if zakaznik_filter and zakaznik_filter != 'VŠE':
-            queryset = queryset.filter(zakazka_id__kamion_id__zakaznik_id__zkratka=zakaznik_filter)
+            queryset = queryset.filter(zakazka_id__kamion_prijem_id__zakaznik_id__zkratka=zakaznik_filter)
 
         if typ_hlavy_filter and typ_hlavy_filter != 'VŠE':
             queryset = queryset.filter(zakazka_id__typ_hlavy=typ_hlavy_filter)
@@ -131,7 +131,7 @@ class BednyListView(LoginRequiredMixin, ListView):
 
         if query:
             queryset = queryset.filter(
-                Q(cislo_bedny__icontains=query) | Q(zakazka_id__kamion_id__datum__icontains=query)
+                Q(cislo_bedny__icontains=query) | Q(zakazka_id__kamion_prijem_id__datum__icontains=query)
             )
 
         if order == 'down':

@@ -2,11 +2,12 @@ from django.contrib import admin, messages
 from django.db import models
 from django.forms import TextInput
 from django.utils.safestring import mark_safe
+from django.utils.translation import gettext_lazy as _
+from django.contrib.admin.views.main import ChangeList
 
 from simple_history.admin import SimpleHistoryAdmin
 from decimal import Decimal, ROUND_HALF_UP
 import datetime
-from django.utils.translation import gettext_lazy as _
 
 from .models import Zakaznik, Kamion, Zakazka, Bedna, TypHlavyChoice, StavBednyChoice
 from .forms import ZakazkaForm, BednaChangeListForm
@@ -74,20 +75,38 @@ class ExpedovanaZakazkaFilter(admin.SimpleListFilter):
         return queryset
 
 
+class CustomPaginationChangeList(ChangeList):
+    """
+    Vlastní ChangeList pro administraci s nastavením počtu položek na stránku.
+    Pokud má uživatel oprávnění ke změně daného modelu,
+    kvůli větší výšce editovatelných řádků se nastaví menší počet položek na stránku.
+    """
+    def get_results(self, request):
+        # Název modelu v lowercase, např. 'bedna', 'zakazka'
+        model_name = self.model._meta.model_name
+        perm_codename = f"orders.change_{model_name}"
+
+        if request.user.has_perm(perm_codename):
+            self.list_per_page = 13
+        else:
+            self.list_per_page = 23
+        super().get_results(request)
+
+
 # Register your models here.
 @admin.register(Zakaznik)
 class ZakaznikAdmin(admin.ModelAdmin):
     """
     Správa zákazníků v administraci.
     """
-    list_display = ('nazev', 'zkratka', 'adresa', 'mesto', 'stat', 'kontaktni_osoba', 'telefon', 'email')
+    list_display = ('nazev', 'zkratka', 'adresa', 'mesto', 'stat', 'kontaktni_osoba', 'telefon', 'email', 'vse_tryskat', 'cisla_beden_auto',)
     ordering = ('nazev',)
-    list_per_page = 14
+    list_per_page = 20
 
     history_list_display = ["id", "nazev", "zkratka",]
     history_search_fields = ["nazev", "zkratka",]    
     history_list_filter = ["nazev", "zkratka",]
-    history_list_per_page = 14
+    history_list_per_page = 20
 
 
 @admin.register(Kamion)
@@ -99,12 +118,12 @@ class KamionAdmin(admin.ModelAdmin):
     list_filter = ('zakaznik_id__nazev',)
     ordering = ('-id',)
     date_hierarchy = 'datum'
-    list_per_page = 14
+    list_per_page = 20
 
     history_list_display = ["id", "zakaznik_id", "datum"]
     history_search_fields = ["zakaznik_id__nazev", "datum"]
     history_list_filter = ["zakaznik_id", "datum"]
-    history_list_per_page = 14
+    history_list_per_page = 20
 
 
 class BednaInline(admin.TabularInline):
@@ -128,24 +147,22 @@ class ZakazkaAdmin(admin.ModelAdmin):
     inlines = [BednaInline]
     form = ZakazkaForm
     actions = [expedice_zakazek,]
-    list_display = ('id', 'kamion_id', 'artikl', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'popis', 'priorita', 'hmotnost_zakazky', 'komplet',)
+    list_display = ('id', 'kamion_prijem_id', 'artikl', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'popis', 'priorita', 'hmotnost_zakazky', 'komplet',)
     list_editable = ('priorita',)
     search_fields = ('artikl',)
     search_help_text = "Hledat podle artiklu"
-    list_filter = ('kamion_id__zakaznik_id', 'typ_hlavy', 'priorita', 'komplet', ExpedovanaZakazkaFilter)
+    list_filter = ('kamion_prijem_id__zakaznik_id', 'typ_hlavy', 'priorita', 'komplet', ExpedovanaZakazkaFilter,)
     ordering = ('id',)
-    exclude = ('komplet', 'expedovano',)
-    date_hierarchy = 'kamion_id__datum'
-    list_per_page = 14
+    date_hierarchy = 'kamion_prijem_id__datum'
     formfield_overrides = {
         models.CharField: {'widget': TextInput(attrs={ 'size': '30'})},
         models.DecimalField: {'widget': TextInput(attrs={ 'size': '8'})},
     }
 
-    history_list_display = ["id", "kamion_id", "artikl", "prumer", "delka", "predpis", "typ_hlavy", "popis", "priorita", "komplet"]
-    history_search_fields = ["kamion_id__zakaznik_id__nazev", "artikl", "prumer", "delka", "predpis", "typ_hlavy", "popis"]
-    history_list_filter = ["kamion_id__zakaznik_id", "kamion_id__datum", "typ_hlavy"]
-    history_list_per_page = 14
+    history_list_display = ["id", "kamion_prijem_id", "artikl", "prumer", "delka", "predpis", "typ_hlavy", "popis", "priorita", "komplet"]
+    history_search_fields = ["kamion_prijem_id__zakaznik_id__nazev", "artikl", "prumer", "delka", "predpis", "typ_hlavy", "popis"]
+    history_list_filter = ["kamion_prijem_id__zakaznik_id", "kamion_prijem_id__datum", "typ_hlavy"]
+    history_list_per_page = 20
 
     class Media:
         js = ('admin/js/zakazky_hmotnost_sum.js',)
@@ -204,13 +221,13 @@ class ZakazkaAdmin(admin.ModelAdmin):
                             setattr(instance, field, hodnota)
 
             # Další logika (tryskání, čísla beden atd.)
-            zakaznik = zakazka.kamion_id.zakaznik_id
+            zakaznik = zakazka.kamion_prijem_id.zakaznik_id
             if zakaznik.vse_tryskat:
                 for instance in instances:
                     instance.tryskat = True
 
             if zakaznik.cisla_beden_auto:
-                posledni_bedna = Bedna.objects.filter(zakazka_id__kamion_id__zakaznik_id=zakaznik).order_by('-cislo_bedny').first()
+                posledni_bedna = Bedna.objects.filter(zakazka_id__kamion_prijem_id__zakaznik_id=zakaznik).order_by('-cislo_bedny').first()
                 nove_cislo_bedny = (posledni_bedna.cislo_bedny + 1) if posledni_bedna else 1000001
                 for index, instance in enumerate(instances):
                     instance.cislo_bedny = nove_cislo_bedny + index
@@ -227,9 +244,9 @@ class ZakazkaAdmin(admin.ModelAdmin):
         Vytváří pole pro zobrazení v administraci na základě toho, zda se jedná o editaci nebo přidání.
         """
         if obj:  # editace stávajícího záznamu
-            my_fieldsets = [(None, {'fields': ['kamion_id', 'artikl', 'typ_hlavy', 'prumer', 'delka', 'predpis', 'priorita', 'popis', 'zinkovna',]}),]
+            my_fieldsets = [(None, {'fields': ['kamion_prijem_id', 'artikl', 'typ_hlavy', 'prumer', 'delka', 'predpis', 'priorita', 'popis', 'zinkovna', 'komplet']}),]
             # Pokud je zákazník Eurotec, přidej speciální pole pro zobrazení
-            if obj.kamion_id.zakaznik_id.zkratka == 'EUR':
+            if obj.kamion_prijem_id.zakaznik_id.zkratka == 'EUR':
                 my_fieldsets.append(                  
                     ('Pouze pro Eurotec:', {
                         'fields': ['prubeh', 'vrstva', 'povrch'],
@@ -241,8 +258,8 @@ class ZakazkaAdmin(admin.ModelAdmin):
         else:  # přidání nového záznamu
             return [
                 ('Příjem zakázek na sklad:', {
-                    'fields': ['kamion_id', 'artikl', 'typ_hlavy', 'prumer', 'delka', 'predpis', 'priorita', 'popis', 'zinkovna',],
-                    'description': 'Přijímání zakázek z kamiónu na sklad, pokud ještě není kamión v systému, vytvořte ho pomocí ikony "+" u položky Kamión.',
+                    'fields': ['kamion_prijem_id', 'artikl', 'typ_hlavy', 'prumer', 'delka', 'predpis', 'priorita', 'popis', 'zinkovna',],
+                    'description': 'Přijímání zakázek z kamiónu na sklad, pokud ještě není kamión v systému, vytvořte ho pomocí ikony ➕ u položky Kamión.',
                 }), 
                 ('Pouze pro Eurotec:', {
                     'fields': ['prubeh', 'vrstva', 'povrch'],
@@ -260,6 +277,9 @@ class ZakazkaAdmin(admin.ModelAdmin):
                     'classes': ['collapse'],
                     'description': 'Pokud jsou hodnoty polí pro celou zakázku stejné, zadejte je sem. Jinak je nechte prázdné a vyplňte je u jednotlivých beden. Případné zadané hodnoty u beden zůstanou zachovány.',}),
             ]         
+        
+    def get_changelist(self, request, **kwargs):
+        return CustomPaginationChangeList    
 
 
 @admin.register(Bedna)
@@ -271,20 +291,18 @@ class BednaAdmin(admin.ModelAdmin):
     list_editable = ('stav_bedny', 'poznamka',)
     search_fields = ('cislo_bedny', 'zakazka_id__artikl',)
     search_help_text = "Hledat podle čísla bedny nebo artiklu"
-    readonly_fields = ('datum_expedice',)
-    list_filter = ('zakazka_id__kamion_id__zakaznik_id__nazev', StavBednyFilter, 'zakazka_id__typ_hlavy', 'zakazka_id__priorita',)
+    list_filter = ('zakazka_id__kamion_prijem_id__zakaznik_id__nazev', StavBednyFilter, 'zakazka_id__typ_hlavy', 'zakazka_id__priorita',)
     ordering = ('id',)
-    date_hierarchy = 'zakazka_id__kamion_id__datum'
-    list_per_page = 13
+    date_hierarchy = 'zakazka_id__kamion_prijem_id__datum'
     formfield_overrides = {
         models.CharField: {'widget': TextInput(attrs={ 'size': '30'})},
         models.DecimalField: {'widget': TextInput(attrs={ 'size': '8'})},
     }
 
     history_list_display = ["id", "zakazka_id", "cislo_bedny", "stav_bedny", "typ_hlavy", "poznamka"]
-    history_search_fields = ["zakazka_id__kamion_id__zakaznik_id__nazev", "cislo_bedny", "stav_bedny", "zakazka_id__typ_hlavy", "poznamka"]
-    history_list_filter = ["zakazka_id__kamion_id__zakaznik_id__nazev", "zakazka_id__kamion_id__datum", "stav_bedny"]
-    history_list_per_page = 14
+    history_search_fields = ["zakazka_id__kamion_prijem_id__zakaznik_id__nazev", "cislo_bedny", "stav_bedny", "zakazka_id__typ_hlavy", "poznamka"]
+    history_list_filter = ["zakazka_id__kamion_prijem_id__zakaznik_id__nazev", "zakazka_id__kamion_prijem_id__datum", "stav_bedny"]
+    history_list_per_page = 20
 
     def typ_hlavy(self, obj):
         """
@@ -330,3 +348,6 @@ class BednaAdmin(admin.ModelAdmin):
             obj.zakazka_id.save()
 
         super().save_model(request, obj, form, change)
+    
+    def get_changelist(self, request, **kwargs):
+        return CustomPaginationChangeList
