@@ -12,23 +12,84 @@ import datetime
 from .models import Zakaznik, Kamion, Zakazka, Bedna, TypHlavyChoice, StavBednyChoice
 from .forms import ZakazkaForm, BednaChangeListForm
 
-@admin.action(description="Expedovat zakázky")
+from django.contrib import admin, messages
+from .models import Zakaznik, Kamion, Bedna, StavBednyChoice
+import datetime
+
+@admin.action(description="Expedice vybraných zakázek")
 def expedice_zakazek(modeladmin, request, queryset):
     """
-    Expeduje vybrané zakázky.
+    Expeduje vybrané zakázky a jejich bedny.
+
+    Podmínky:
+    - Zakázky musí být označeny jako kompletní (`komplet=True`).
+    - Všechny bedny v těchto zakázkách musí mít stav `K_EXPEDICI`.
+
+    Průběh:
+    1. Pro každého zákazníka v querysetu:
+       - Vytvoří se nový objekt `Kamion`:
+         - `prijem_vydej='V'` (výdej)
+         - `datum` dnešní datum
+         - `zakaznik_id` nastavený na aktuálního zákazníka
+         - `cislo_dl` s prefixem zkratky zákazníka a dnešním datem
+    2. Pro každou zakázku daného zákazníka:
+       - Převede všechny bedny na stav `EXPEDOVANO`.
+       - Nastaví pole `kamion_vydej_id` na právě vytvořený kamion.
+       - Označí `zakazka.expedovano = True`.
+    3. Po úspěšném průběhu odešle `messages.success`.
+
+    V případě nesplnění podmínek vrátí chybu pomocí `messages.error` a akce se přeruší.
     """
-    for zakazka in queryset:
-        bedny = Bedna.objects.filter(zakazka_id=zakazka)
-        # Nastav stav bedny, které jsou označeny K_expedici, na Expedováno
-        for bedna in bedny:
-            if bedna.stav_bedny == StavBednyChoice.K_EXPEDICI:
+    # 1) Kontrola kompletivity zakázek
+    if not all(z.komplet for z in queryset):
+        messages.error(
+            request,
+            "Všechny vybrané zakázky musí být kompletní (komplet=True)."
+        )
+        return
+
+    # 2) Kontrola stavu beden
+    all_bedny_ready = all(
+        bedna.stav_bedny == StavBednyChoice.K_EXPEDICI
+        for z in queryset
+        for bedna in z.bedny.all()
+    )
+    if not all_bedny_ready:
+        messages.error(
+            request,
+            "Všechny bedny ve vybraných zakázkách musí být ve stavu K_EXPEDICI."
+        )
+        return
+
+    # 3) Vlastní expedice
+    zakaznici = Zakaznik.objects.filter(kamiony__zakazky_prijem__in=queryset).distinct()
+    today_str = datetime.date.today().strftime("%Y-%m-%d")
+
+    for zakaznik in zakaznici:
+        kamion = Kamion.objects.create(
+            zakaznik_id=zakaznik,
+            cislo_dl=f"{zakaznik.zkratka} - {today_str}",
+            datum=datetime.date.today(),
+            prijem_vydej='V',
+        )
+
+        zakazky_zakaznika = queryset.filter(
+            kamion_prijem_id__zakaznik_id=zakaznik
+        )
+
+        for zakazka in zakazky_zakaznika:
+            # Expedice beden
+            for bedna in Bedna.objects.filter(zakazka_id=zakazka):
                 bedna.stav_bedny = StavBednyChoice.EXPEDOVANO
-                bedna.datum_expedice = datetime.date.today()
                 bedna.save()
-        zakazka.expedovano = True
-        zakazka.save()
-    messages.success(request, "Zakázky byly expedovány.")
-    return queryset
+
+            # Expedice zakázky
+            zakazka.kamion_vydej_id = kamion
+            zakazka.expedovano = True
+            zakazka.save()
+
+    messages.success(request, "Zakázky byly úspěšně expedovány.")
+
 
 class StavBednyFilter(admin.SimpleListFilter):
     """
@@ -114,8 +175,8 @@ class KamionAdmin(admin.ModelAdmin):
     """
     Správa kamionů v administraci.
     """
-    list_display = ('id', 'zakaznik_id__nazev', 'datum', 'cislo_dl')
-    list_filter = ('zakaznik_id__nazev',)
+    list_display = ('id', 'zakaznik_id__nazev', 'datum', 'cislo_dl', 'prijem_vydej',)
+    list_filter = ('zakaznik_id__nazev', 'prijem_vydej',)
     ordering = ('-id',)
     date_hierarchy = 'datum'
     list_per_page = 20
@@ -147,7 +208,7 @@ class ZakazkaAdmin(admin.ModelAdmin):
     inlines = [BednaInline]
     form = ZakazkaForm
     actions = [expedice_zakazek,]
-    list_display = ('id', 'kamion_prijem_id', 'artikl', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'popis', 'priorita', 'hmotnost_zakazky', 'komplet',)
+    list_display = ('id', 'kamion_prijem_id', 'kamion_vydej_id', 'artikl', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'popis', 'priorita', 'hmotnost_zakazky', 'komplet',)
     list_editable = ('priorita',)
     search_fields = ('artikl',)
     search_help_text = "Hledat podle artiklu"
@@ -249,7 +310,7 @@ class ZakazkaAdmin(admin.ModelAdmin):
         Vytváří pole pro zobrazení v administraci na základě toho, zda se jedná o editaci nebo přidání.
         """
         if obj:  # editace stávajícího záznamu
-            my_fieldsets = [(None, {'fields': ['kamion_prijem_id', 'artikl', 'typ_hlavy', 'prumer', 'delka', 'predpis', 'priorita', 'popis', 'zinkovna', 'komplet']}),]
+            my_fieldsets = [(None, {'fields': ['kamion_prijem_id', 'artikl', 'typ_hlavy', 'prumer', 'delka', 'predpis', 'priorita', 'popis', 'zinkovna',]}),]
             # Pokud je zákazník Eurotec, přidej speciální pole pro zobrazení
             if obj.kamion_prijem_id.zakaznik_id.zkratka == 'EUR':
                 my_fieldsets.append(                  
@@ -352,6 +413,7 @@ class BednaAdmin(admin.ModelAdmin):
         Uložení modelu Bedna. 
         Pokud je stav bedny Křivá nebo Vyrovnaná, nastaví se atribut rovnat na True.
         Pokud je stav bedny Tryskat nebo Otryskána, nastaví se atribut tryskat na True.
+        Pokud není stav bedny "K expedici", zkontroluje se, zda je zakázka označena jako kompletní, pokud ano, nastaví se atribut zakázky komplet na False.
         Pokud je stav bedny "K expedici", zkontroluje se, zda jsou všechny bedny v zakázce k expedici nebo expedovány,
         pokud ano, nastaví se atribut zakázky komplet na True.
         """
@@ -360,6 +422,12 @@ class BednaAdmin(admin.ModelAdmin):
 
         if obj.stav_bedny in {StavBednyChoice.TRYSKAT, StavBednyChoice.OTRYSKANA}:
             obj.tryskat = True
+
+        if obj.stav_bedny not in {StavBednyChoice.K_EXPEDICI, StavBednyChoice.EXPEDOVANO}:
+            # Pokud je stav bedny jiný než K expedici, zkontroluj, zda je zakázka kompletní
+            if obj.zakazka_id.komplet:
+                obj.zakazka_id.komplet = False
+                obj.zakazka_id.save()
 
         if obj.stav_bedny == StavBednyChoice.K_EXPEDICI:
             bedny = list(Bedna.objects.filter(zakazka_id=obj.zakazka_id).exclude(id=obj.id))
