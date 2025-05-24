@@ -25,7 +25,7 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             box.className = 'alert alert-light small shadow-sm';
         }
-        box.innerHTML = `<i class="fas fa-balance-scale" style="margin-right:0.5em;color:#0174c6;"></i> Hmotnost označených zakázek:<strong><span style="margin-left:0.5em;">${sum.toFixed(1)} kg</span></strong>`;
+        box.innerHTML = `<i class="fas fa-balance-scale" style="margin-right:0.5em;color:#0174c6;"></i> Brutto hmotnost označených zakázek:<strong><span style="margin-left:0.5em;">${sum.toFixed(1)} kg</span></strong>`;
     }
 
     document.querySelectorAll('input.action-select').forEach(function(checkbox) {

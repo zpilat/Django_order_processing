@@ -168,13 +168,18 @@ class ZakazkaAdmin(admin.ModelAdmin):
         js = ('admin/js/zakazky_hmotnost_sum.js',)
 
 
-    @admin.display(description='Hm. zakázky')
+    @admin.display(description='Brutto hm.')
     def hmotnost_zakazky(self, obj):
         """
-        Vypočítá celkovou hmotnost beden v zakázce.
+        Vypočítá celkovou brutto hmotnost beden v zakázce.
         """
-        return sum(bedna.hmotnost or 0 for bedna in obj.bedny.all())
-    
+        bedny = list(obj.bedny.all())
+        netto = sum(bedna.hmotnost or 0 for bedna in bedny)
+        brutto = netto + sum(bedna.tara or 0 for bedna in bedny)
+        if brutto:
+            return brutto.quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)
+        return Decimal('0.0')
+
     def save_formset(self, request, form, formset, change):
         """
         Uložení formsetu pro bedny. Pokud je vyplněn počet beden, vytvoří se nové instance. 
@@ -287,11 +292,11 @@ class BednaAdmin(admin.ModelAdmin):
     """
     Správa beden v administraci.
     """
-    list_display = ('id', 'cislo_bedny', 'zakazka_id', 'rovnat', 'tryskat', 'stav_bedny', 'typ_hlavy', 'priorita', 'poznamka')
+    list_display = ('id', 'cislo_bedny', 'zakazka_id', 'prumer', 'delka', 'rovnat', 'tryskat', 'stav_bedny', 'typ_hlavy', 'priorita', 'poznamka')
     list_editable = ('stav_bedny', 'poznamka',)
-    search_fields = ('cislo_bedny', 'zakazka_id__artikl',)
-    search_help_text = "Hledat podle čísla bedny nebo artiklu"
-    list_filter = ('zakazka_id__kamion_prijem_id__zakaznik_id__nazev', StavBednyFilter, 'zakazka_id__typ_hlavy', 'zakazka_id__priorita',)
+    search_fields = ('cislo_bedny', 'zakazka_id__artikl', 'zakazka_id__delka',)
+    search_help_text = "Hledat podle čísla bedny, artiklu nebo delky vrutu"
+    list_filter = ('zakazka_id__kamion_prijem_id__zakaznik_id__nazev', StavBednyFilter, 'zakazka_id__typ_hlavy', 'zakazka_id__priorita')
     ordering = ('id',)
     date_hierarchy = 'zakazka_id__kamion_prijem_id__datum'
     formfield_overrides = {
@@ -317,6 +322,20 @@ class BednaAdmin(admin.ModelAdmin):
         """
         return obj.zakazka_id.priorita
     priorita.short_description = 'Priorita'
+
+    def prumer(self, obj):
+        """
+        Zobrazí průměr zakázky.
+        """
+        return obj.zakazka_id.prumer
+    prumer.short_description = 'Průměr'
+
+    def delka(self, obj):
+        """
+        Zobrazí délku zakázky.
+        """
+        return obj.zakazka_id.delka
+    delka.short_description = 'Délka'
 
     def get_changelist_form(self, request, **kwargs):
         """
