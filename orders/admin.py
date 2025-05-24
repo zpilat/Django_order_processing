@@ -58,19 +58,19 @@ class ExpedovanaZakazkaFilter(admin.SimpleListFilter):
     """
     Filtrovat zakázky podle stavu expedice.
     """
-    title = "Expedováno"
-    parameter_name = "expedovano"
+    title = "Skladem"
+    parameter_name = "skladem"
 
     def lookups(self, request, model_admin):
         return (
-            ('ANO', 'ANO'),
+            ('Expedováno', 'Expedováno'),
         )
 
     def queryset(self, request, queryset):
         value = self.value()
         if value is None:
             return queryset.filter(expedovano=False)
-        elif value == 'ANO':
+        elif value == 'Expedováno':
             return queryset.filter(expedovano=True)
         return queryset
 
@@ -152,7 +152,7 @@ class ZakazkaAdmin(admin.ModelAdmin):
     search_fields = ('artikl',)
     search_help_text = "Hledat podle artiklu"
     list_filter = ('kamion_prijem_id__zakaznik_id', 'typ_hlavy', 'priorita', 'komplet', ExpedovanaZakazkaFilter,)
-    ordering = ('id',)
+    ordering = ('-id',)
     date_hierarchy = 'kamion_prijem_id__datum'
     formfield_overrides = {
         models.CharField: {'widget': TextInput(attrs={ 'size': '30'})},
@@ -292,11 +292,11 @@ class BednaAdmin(admin.ModelAdmin):
     """
     Správa beden v administraci.
     """
-    list_display = ('id', 'cislo_bedny', 'zakazka_id', 'prumer', 'delka', 'rovnat', 'tryskat', 'stav_bedny', 'typ_hlavy', 'priorita', 'poznamka')
+    list_display = ('id', 'cislo_bedny', 'zakazka_id', 'get_prumer', 'get_delka', 'rovnat', 'tryskat', 'stav_bedny', 'get_typ_hlavy', 'get_priorita', 'poznamka')
     list_editable = ('stav_bedny', 'poznamka',)
     search_fields = ('cislo_bedny', 'zakazka_id__artikl', 'zakazka_id__delka',)
-    search_help_text = "Hledat podle čísla bedny, artiklu nebo delky vrutu"
-    list_filter = ('zakazka_id__kamion_prijem_id__zakaznik_id__nazev', StavBednyFilter, 'zakazka_id__typ_hlavy', 'zakazka_id__priorita')
+    search_help_text = "Hledat podle čísla bedny, artiklu nebo délky vrutu"
+    list_filter = ('zakazka_id__kamion_prijem_id__zakaznik_id__nazev', StavBednyFilter, 'zakazka_id__typ_hlavy', 'zakazka_id__priorita', )
     ordering = ('id',)
     date_hierarchy = 'zakazka_id__kamion_prijem_id__datum'
     formfield_overrides = {
@@ -309,33 +309,37 @@ class BednaAdmin(admin.ModelAdmin):
     history_list_filter = ["zakazka_id__kamion_prijem_id__zakaznik_id__nazev", "zakazka_id__kamion_prijem_id__datum", "stav_bedny"]
     history_list_per_page = 20
 
-    def typ_hlavy(self, obj):
+    def get_typ_hlavy(self, obj):
         """
-        Zobrazí typ hlavy zakázky.
+        Zobrazí typ hlavy zakázky a umožní třídění podle hlavičky pole.
         """
         return obj.zakazka_id.typ_hlavy
-    typ_hlavy.short_description = 'Typ hlavy'
+    get_typ_hlavy.admin_order_field = 'zakazka_id__typ_hlavy'
+    get_typ_hlavy.short_description = 'Typ hlavy'
 
-    def priorita(self, obj):
+    def get_priorita(self, obj):
         """
-        Zobrazí prioritu zakázky.
+        Zobrazí prioritu zakázky a umožní třídění podle hlavičky pole.
         """
         return obj.zakazka_id.priorita
-    priorita.short_description = 'Priorita'
+    get_priorita.admin_order_field = 'zakazka_id__priorita'
+    get_priorita.short_description = 'Priorita'
 
-    def prumer(self, obj):
+    def get_prumer(self, obj):
         """
-        Zobrazí průměr zakázky.
+        Zobrazí průměr zakázky a umožní třídění podle hlavičky pole.
         """
         return obj.zakazka_id.prumer
-    prumer.short_description = 'Průměr'
+    get_prumer.admin_order_field = 'zakazka_id__prumer'
+    get_prumer.short_description = 'Průměr'
 
-    def delka(self, obj):
+    def get_delka(self, obj):
         """
-        Zobrazí délku zakázky.
+        Zobrazí délku zakázky a umožní třídění podle hlavičky pole.
         """
         return obj.zakazka_id.delka
-    delka.short_description = 'Délka'
+    get_delka.admin_order_field = 'zakazka_id__delka'
+    get_delka.short_description = 'Délka'
 
     def get_changelist_form(self, request, **kwargs):
         """
