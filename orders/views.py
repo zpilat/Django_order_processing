@@ -5,7 +5,7 @@ from django.views.generic import ListView
 from django.views.generic.edit import CreateView, UpdateView, DeleteView
 from django.views.generic.detail import DetailView
 from django.urls import reverse_lazy
-from django.db.models import Q
+from django.db.models import Q, Sum, Count
 from django.utils.translation import gettext_lazy as _
 
 from .utils import get_verbose_name_for_column
@@ -161,3 +161,23 @@ class ZakazkyListView(LoginRequiredMixin, ListView):
     model = Zakazka
     template_name = 'orders/zakazky_list.html'
     ordering = ['id']
+
+
+def dashboard_view(request):
+    '''
+    Zobrazení přehledu stavu beden jednotlivých zákazníků,
+    pro každého zákazníka zobrazí pro jednotlivé stavy celkovou hmotnost.
+    '''
+    prehled_beden_zakaznika = {}
+    for zakaznik in Zakaznik.objects.all():
+        bedny_zakaznika = Bedna.objects.filter(zakazka_id__kamion_prijem_id__zakaznik_id=zakaznik)
+        prehled_beden_zakaznika[zakaznik.nazev] = bedny_zakaznika.values('stav_bedny').annotate(
+            pocet=Count('id'),
+            hmotnost=Sum('hmotnost')
+        )
+    context = {
+        'prehled_beden_zakaznika': prehled_beden_zakaznika,
+        'stav_bedny_choices': StavBednyChoice.choices,
+        'db_table': 'dashboard',
+        }
+    return render(request, 'orders/dashboard.html', context)

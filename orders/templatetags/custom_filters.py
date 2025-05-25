@@ -31,3 +31,13 @@ def attr_chain(obj, attr_chain):
         if isinstance(obj, bool):
             return "✔️" if obj else "✖️"        
     return obj
+
+@register.filter
+def get_bedna_by_stav(bedny_stavy, stav_value):
+    """
+    Vrátí dict s daty pro daný stav bedny, pokud existuje; jinak None.
+    """
+    for row in bedny_stavy:
+        if row['stav_bedny'] == stav_value:
+            return row
+    return None
