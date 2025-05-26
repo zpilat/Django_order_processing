@@ -32,7 +32,7 @@ DEBUG = os.getenv('DJANGO_DEBUG') == 'True'
 ALLOWED_HOSTS = os.getenv('DJANGO_ALLOWED_HOSTS', '').split(',')
 
 
-LOGIN_URL = 'login'
+LOGIN_URL = 'admin:login'
 LOGOUT_URL = 'logout'
 #LOGIN_REDIRECT_URL = 'home'
 #LOGOUT_REDIRECT_URL = 'home'

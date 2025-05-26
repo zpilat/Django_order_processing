@@ -92,6 +92,9 @@ class Zakazka(models.Model):
         verbose_name = 'Zakázka'
         verbose_name_plural = 'zakázky'
         ordering = ['id']
+        permissions = [
+            ('change_expedovana_zakazka', 'Může měnit expedované zakázky'),
+        ]
 
     def __str__(self):
         return f'{self.kamion_prijem_id.id} {self.kamion_prijem_id.zakaznik_id.zkratka} - {self.kamion_prijem_id.datum} - {self.artikl} - {self.prumer}x{self.delka}'

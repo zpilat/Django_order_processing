@@ -4,6 +4,7 @@ from django.forms import TextInput
 from django.utils.safestring import mark_safe
 from django.utils.translation import gettext_lazy as _
 from django.contrib.admin.views.main import ChangeList
+from django.contrib import admin, messages
 
 from simple_history.admin import SimpleHistoryAdmin
 from decimal import Decimal, ROUND_HALF_UP
@@ -12,7 +13,6 @@ import datetime
 from .models import Zakaznik, Kamion, Zakazka, Bedna, TypHlavyChoice, StavBednyChoice
 from .forms import ZakazkaForm, BednaChangeListForm
 
-from django.contrib import admin, messages
 from .models import Zakaznik, Kamion, Bedna, StavBednyChoice
 import datetime
 
@@ -170,6 +170,52 @@ class ZakaznikAdmin(admin.ModelAdmin):
     history_list_per_page = 20
 
 
+class ZakazkaPrijemInline(admin.TabularInline):
+    """
+    Inline pro správu zakázek v rámci kamionu.
+    """
+    model = Zakazka
+    fk_name = 'kamion_prijem_id'
+    verbose_name = 'Zakázka - příjem'
+    verbose_name_plural = 'Zakázky - příjem'
+    extra = 0
+    fields = ('id', 'artikl', 'kamion_vydej_id', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'popis', 'priorita', 'komplet','expedovano',)
+    readonly_fields = ('id', 'komplet', 'expedovano',)
+    formfield_overrides = {
+        models.CharField: {'widget': TextInput(attrs={ 'size': '30'})},
+        models.DecimalField: {'widget': TextInput(attrs={ 'size': '8'})},
+    }
+
+class ZakazkaVydejInline(admin.TabularInline):
+    """
+    Inline pro správu zakázek v rámci kamionu pro výdej.
+    """
+    model = Zakazka
+    fk_name = 'kamion_vydej_id'
+    verbose_name = "Zakázka - výdej"
+    verbose_name_plural = "Zakázky - výdej"
+    extra = 0
+    fields = ('id', 'artikl', 'kamion_prijem_id', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'popis', 'priorita',)
+    readonly_fields = ('id',)
+    formfield_overrides = {
+        models.CharField: {'widget': TextInput(attrs={ 'size': '30'})},
+        models.DecimalField: {'widget': TextInput(attrs={ 'size': '8'})},
+    }
+ 
+    def has_change_permission(self, request, obj=None):
+        """
+        Kontrola oprávnění pro změnu expedované zakázky.
+        """
+        base_permission = super().has_change_permission(request, obj)
+        if not base_permission:
+            return False
+        if not request.user.has_perm('orders.change_expedovana_zakazka'):
+            return False
+        return True
+
+
+
+
 @admin.register(Kamion)
 class KamionAdmin(admin.ModelAdmin):
     """
@@ -185,6 +231,16 @@ class KamionAdmin(admin.ModelAdmin):
     history_search_fields = ["zakaznik_id__nazev", "datum"]
     history_list_filter = ["zakaznik_id", "datum"]
     history_list_per_page = 20
+
+    def get_inlines(self, request, obj):
+        """
+        Vrací inliny pro správu zakázek kamionu v závislosti na tom, zda se jedná o kamion pro příjem nebo výdej a jestli jde o přidání nebo editaci.
+        """
+        if obj and obj.prijem_vydej == 'P':
+            return [ZakazkaPrijemInline]
+        elif obj and obj.prijem_vydej == 'V':
+            return [ZakazkaVydejInline]
+        return []
 
 
 class BednaInline(admin.TabularInline):
