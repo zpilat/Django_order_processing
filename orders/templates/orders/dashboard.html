@@ -1,8 +1,10 @@
 {% extends "orders/base.html" %}
 {% load custom_filters %}
 
+{% block header %}{% endblock%}
+
 {% block content %}
-<div class="alert alert-dark mt-3 h3" role="alert">Přehled stavu beden podle zákazníků</div>
+<div class="alert alert-dark" role="alert"><h3>Přehled stavu beden podle zákazníků</h3><h6>Naposledy aktualizováno {{ current_time|date:"d.m.Y H:i" }}</h6></div>
 
 <div class="row flex-nowrap overflow-auto">
   {% for zakaznik, bedny_stavy in prehled_beden_zakaznika.items %}

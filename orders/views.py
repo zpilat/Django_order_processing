@@ -8,6 +8,7 @@ from django.views.generic.detail import DetailView
 from django.urls import reverse_lazy
 from django.db.models import Q, Sum, Count
 from django.utils.translation import gettext_lazy as _
+import django.utils.timezone as timezone
 
 from .utils import get_verbose_name_for_column
 from .models import Bedna, Zakazka, Kamion, Zakaznik, StavBednyChoice, TypHlavyChoice, PrioritaChoice
@@ -180,5 +181,6 @@ def dashboard_view(request):
         'prehled_beden_zakaznika': prehled_beden_zakaznika,
         'stav_bedny_choices': StavBednyChoice.choices,
         'db_table': 'dashboard',
+        'current_time': timezone.now(),
         }
     return render(request, 'orders/dashboard.html', context)
