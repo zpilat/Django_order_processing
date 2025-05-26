@@ -4,7 +4,7 @@
       {{ field.label }}
     </label>
   {% endif %}
-  {{ field.as_widget(attrs={"class": "form-control"}) }}
+  {{ field }}
   {% if field.help_text %}
     <div class="form-text">{{ field.help_text }}</div>
   {% endif %}
