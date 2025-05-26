@@ -177,10 +177,14 @@ def dashboard_view(request):
             pocet=Count('id'),
             hmotnost=Sum('hmotnost')
         )
+    
     context = {
         'prehled_beden_zakaznika': prehled_beden_zakaznika,
         'stav_bedny_choices': StavBednyChoice.choices,
         'db_table': 'dashboard',
         'current_time': timezone.now(),
         }
+    
+    if request.htmx:
+        return render(request, "orders/partials/dashboard_content.html", context)
     return render(request, 'orders/dashboard.html', context)
