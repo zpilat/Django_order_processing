@@ -48,11 +48,9 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django.forms',
-    'orders.apps.OrdersConfig',  # Custom app for order processing
+    'orders',  # Custom app for order processing
     'simple_history',  # For tracking changes in models
 ]
-
-FORM_RENDERER = 'django.forms.renderers.TemplatesSetting'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
