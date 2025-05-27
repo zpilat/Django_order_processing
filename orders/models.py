@@ -10,6 +10,7 @@ class TypHlavyChoice(models.TextChoices):
 
 class StavBednyChoice(models.TextChoices):
     PRIJATO = 'PR', 'Přijato'
+    K_NAVEZENI = 'KN', 'K navezení'
     NAVEZENO = 'NA', 'Navezeno'
     DO_ZPRACOVANI = 'DZ', 'Do zpracování'
     ZAKALENO = 'ZA', 'Zakaleno'
