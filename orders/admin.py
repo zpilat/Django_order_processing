@@ -286,7 +286,7 @@ class BednaAdmin(admin.ModelAdmin):
     Správa beden v administraci.
     """
     list_display = ('id', 'cislo_bedny', 'zakazka_id', 'get_prumer', 'get_delka', 'rovnat', 'tryskat', 'stav_bedny', 'get_typ_hlavy', 'get_priorita', 'poznamka')
-    list_editable = ('stav_bedny', 'poznamka',)
+    list_editable = ('stav_bedny', 'rovnat', 'tryskat', 'poznamka',)
     search_fields = ('cislo_bedny', 'zakazka_id__artikl', 'zakazka_id__delka',)
     search_help_text = "Hledat podle čísla bedny, artiklu nebo délky vrutu"
     list_filter = ('zakazka_id__kamion_prijem_id__zakaznik_id__nazev', StavBednyFilter, 'zakazka_id__typ_hlavy', 'zakazka_id__priorita', )
@@ -343,18 +343,10 @@ class BednaAdmin(admin.ModelAdmin):
     def save_model(self, request, obj, form, change):
         """
         Uložení modelu Bedna. 
-        Pokud je stav bedny Křivá nebo Vyrovnaná, nastaví se atribut rovnat na True.
-        Pokud je stav bedny Tryskat nebo Otryskána, nastaví se atribut tryskat na True.
         Pokud není stav bedny "K expedici", zkontroluje se, zda je zakázka označena jako kompletní, pokud ano, nastaví se atribut zakázky komplet na False.
         Pokud je stav bedny "K expedici", zkontroluje se, zda jsou všechny bedny v zakázce k expedici nebo expedovány,
         pokud ano, nastaví se atribut zakázky komplet na True.
         """
-        if obj.stav_bedny in {StavBednyChoice.KRIVA, StavBednyChoice.VYROVNANA}:
-            obj.rovnat = True
-
-        if obj.stav_bedny in {StavBednyChoice.TRYSKAT, StavBednyChoice.OTRYSKANA}:
-            obj.tryskat = True
-
         if obj.stav_bedny not in {StavBednyChoice.K_EXPEDICI, StavBednyChoice.EXPEDOVANO}:
             # Pokud je stav bedny jiný než K expedici, zkontroluj, zda je zakázka kompletní
             if obj.zakazka_id.komplet:
