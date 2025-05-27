@@ -366,7 +366,7 @@ class ZakazkaAdmin(admin.ModelAdmin):
         Vytváří pole pro zobrazení v administraci na základě toho, zda se jedná o editaci nebo přidání.
         """
         if obj:  # editace stávajícího záznamu
-            my_fieldsets = [(None, {'fields': ['kamion_prijem_id', 'artikl', 'typ_hlavy', 'prumer', 'delka', 'predpis', 'priorita', 'popis', 'zinkovna',]}),]
+            my_fieldsets = [(None, {'fields': ['kamion_prijem_id', 'kamion_vydej_id', 'artikl', 'typ_hlavy', 'prumer', 'delka', 'predpis', 'priorita', 'popis', 'zinkovna',]}),]
             # Pokud je zákazník Eurotec, přidej speciální pole pro zobrazení
             if obj.kamion_prijem_id.zakaznik_id.zkratka == 'EUR':
                 my_fieldsets.append(                  

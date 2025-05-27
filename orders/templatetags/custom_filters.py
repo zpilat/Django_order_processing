@@ -21,7 +21,7 @@ def attr_chain(obj, attr_chain):
     Projde objekt podle řetězce atributů oddělených __ a vrátí hodnotu.
     Např. item|attr_chain:"zakazka_id__typ_hlavy"
     Pokud je objekt None nebo atribut neexistuje, vrátí prázdný řetězec.
-    Pokud je atribut typu bool, vrátí ikonu ✔️ nebo ✖️.
+    Pokud je atribut typu bool, vrátí ikonu ✔️ nebo ❌.
     """
     attrs = attr_chain.split('__')
     for attr in attrs:
@@ -29,7 +29,7 @@ def attr_chain(obj, attr_chain):
         if obj is None:
             return ''
         if isinstance(obj, bool):
-            return "✔️" if obj else "✖️"        
+            return "✔️" if obj else "❌"        
     return obj
 
 @register.filter
