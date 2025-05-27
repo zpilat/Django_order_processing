@@ -8,9 +8,8 @@
 {% endblock %}
 
 {% block branding %}
-<div id="site-name"><a href="{% url 'admin:index' %}">Django správa zakázek HPM HEAT SK</a></div>
+<div id="site-name"><a href="{% url 'admin:index' %}">Správa zakázek HPM HEAT SK</a></div>
 {% if user.is_anonymous %}
   {% include "admin/color_theme_toggle.html" %}
 {% endif %}
-<span style="margin-left: 20px;margin-top: 8px;"><a href="{% url 'dashboard' %}" target="_blank">📊 Dashboard</a></span>
 {% endblock %}
