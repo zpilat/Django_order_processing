@@ -1,140 +1,17 @@
-from django.contrib import admin, messages
+from django.contrib import admin
 from django.db import models
 from django.forms import TextInput
 from django.utils.safestring import mark_safe
 from django.utils.translation import gettext_lazy as _
 from django.contrib.admin.views.main import ChangeList
-from django.contrib import admin, messages
 
 from simple_history.admin import SimpleHistoryAdmin
 from decimal import Decimal, ROUND_HALF_UP
-import datetime
 
 from .models import Zakaznik, Kamion, Zakazka, Bedna, TypHlavyChoice, StavBednyChoice
 from .forms import ZakazkaForm, BednaChangeListForm
-
-from .models import Zakaznik, Kamion, Bedna, StavBednyChoice
-import datetime
-
-@admin.action(description="Expedice vybraných zakázek")
-def expedice_zakazek(modeladmin, request, queryset):
-    """
-    Expeduje vybrané zakázky a jejich bedny.
-
-    Podmínky:
-    - Zakázky musí být označeny jako kompletní (`komplet=True`).
-    - Všechny bedny v těchto zakázkách musí mít stav `K_EXPEDICI`.
-
-    Průběh:
-    1. Pro každého zákazníka v querysetu:
-       - Vytvoří se nový objekt `Kamion`:
-         - `prijem_vydej='V'` (výdej)
-         - `datum` dnešní datum
-         - `zakaznik_id` nastavený na aktuálního zákazníka
-         - `cislo_dl` s prefixem zkratky zákazníka a dnešním datem
-    2. Pro každou zakázku daného zákazníka:
-       - Převede všechny bedny na stav `EXPEDOVANO`.
-       - Nastaví pole `kamion_vydej_id` na právě vytvořený kamion.
-       - Označí `zakazka.expedovano = True`.
-    3. Po úspěšném průběhu odešle `messages.success`.
-
-    V případě nesplnění podmínek vrátí chybu pomocí `messages.error` a akce se přeruší.
-    """
-    # 1) Kontrola kompletivity zakázek
-    if not all(z.komplet for z in queryset):
-        messages.error(
-            request,
-            "Všechny vybrané zakázky musí být kompletní (komplet=True)."
-        )
-        return
-
-    # 2) Kontrola stavu beden
-    all_bedny_ready = all(
-        bedna.stav_bedny == StavBednyChoice.K_EXPEDICI
-        for z in queryset
-        for bedna in z.bedny.all()
-    )
-    if not all_bedny_ready:
-        messages.error(
-            request,
-            "Všechny bedny ve vybraných zakázkách musí být ve stavu K_EXPEDICI."
-        )
-        return
-
-    # 3) Vlastní expedice
-    zakaznici = Zakaznik.objects.filter(kamiony__zakazky_prijem__in=queryset).distinct()
-    today_str = datetime.date.today().strftime("%Y-%m-%d")
-
-    for zakaznik in zakaznici:
-        kamion = Kamion.objects.create(
-            zakaznik_id=zakaznik,
-            cislo_dl=f"{zakaznik.zkratka} - {today_str}",
-            datum=datetime.date.today(),
-            prijem_vydej='V',
-        )
-
-        zakazky_zakaznika = queryset.filter(
-            kamion_prijem_id__zakaznik_id=zakaznik
-        )
-
-        for zakazka in zakazky_zakaznika:
-            # Expedice beden
-            for bedna in Bedna.objects.filter(zakazka_id=zakazka):
-                bedna.stav_bedny = StavBednyChoice.EXPEDOVANO
-                bedna.save()
-
-            # Expedice zakázky
-            zakazka.kamion_vydej_id = kamion
-            zakazka.expedovano = True
-            zakazka.save()
-
-    messages.success(request, "Zakázky byly úspěšně expedovány.")
-
-
-class StavBednyFilter(admin.SimpleListFilter):
-    """
-    Filtrovat bedny podle stavu.
-    """
-    title = "Stav bedny"
-    parameter_name = "stav_bedny_vlastni"
-
-    def lookups(self, request, model_admin):
-        # všechny hodnoty z choices (+ Nezpracováno)
-        #result = [('NEZPRACOVANO', "Nezpracováno")]
-        result = []
-        for value, label in StavBednyChoice.choices:
-            result.append((value, label))
-        return result
-
-    def queryset(self, request, queryset):
-        value = self.value()
-        if value is None:
-            return queryset.exclude(stav_bedny=StavBednyChoice.EXPEDOVANO)
-        # elif value == 'NEZPRACOVANO':
-        #     return queryset.filter(stav_bedny__in=[StavBednyChoice.PRIJATO, StavBednyChoice.NAVEZENO, StavBednyChoice.DO_ZPRACOVANI])
-        return queryset.filter(stav_bedny=value)
-        
-
-class ExpedovanaZakazkaFilter(admin.SimpleListFilter):
-    """
-    Filtrovat zakázky podle stavu expedice.
-    """
-    title = "Skladem"
-    parameter_name = "skladem"
-
-    def lookups(self, request, model_admin):
-        return (
-            ('Expedováno', 'Expedováno'),
-        )
-
-    def queryset(self, request, queryset):
-        value = self.value()
-        if value is None:
-            return queryset.filter(expedovano=False)
-        elif value == 'Expedováno':
-            return queryset.filter(expedovano=True)
-        return queryset
-
+from .actions import expedice_zakazek
+from .filters import ExpedovanaZakazkaFilter, StavBednyFilter
 
 class CustomPaginationChangeList(ChangeList):
     """
@@ -152,7 +29,6 @@ class CustomPaginationChangeList(ChangeList):
         else:
             self.list_per_page = 23
         super().get_results(request)
-
 
 # Register your models here.
 @admin.register(Zakaznik)
