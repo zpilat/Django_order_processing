@@ -1,5 +1,6 @@
 from django.db import models
 from simple_history.models import HistoricalRecords
+from django.utils.translation import gettext_lazy as _
 
 # Create your models here.
 class TypHlavyChoice(models.TextChoices):
@@ -13,12 +14,18 @@ class StavBednyChoice(models.TextChoices):
     DO_ZPRACOVANI = 'DZ', 'Do zpracování'
     ZAKALENO = 'ZA', 'Zakaleno'
     ZKONTROLOVANO = 'ZK', 'Zkontrolováno'
-    KRIVA = 'KR', 'Křivá'
-    VYROVNANA = 'VY', 'Vyrovnaná'
-    TRYSKAT = 'TR', 'K tryskání'
-    OTRYSKANA = 'OT', 'Otryskaná'
     K_EXPEDICI = 'KE', 'K expedici'
     EXPEDOVANO = 'EX', 'Expedováno'
+
+class RovnaniChoice(models.TextChoices):
+    ROVNA = 'RO', 'Rovná'
+    KRIVA = 'KR', 'Křivá'
+    VYROVNANA = 'VY', 'Vyrovnaná'
+
+class TryskaniChoice(models.TextChoices):
+    CISTA = 'CI', 'Čistá'
+    SPINAVA = 'SP', 'Špinavá'
+    OTRYSKANA = 'OT', 'Otryskaná'
 
 class PrioritaChoice(models.TextChoices):
     NIZKA = '-', 'Nízká'
@@ -109,10 +116,10 @@ class Bedna(models.Model):
     dodavatel_materialu = models.CharField(max_length=10, null=True, blank=True, verbose_name='Lief.')
     vyrobni_zakazka = models.CharField(max_length=20, null=True, blank=True, verbose_name='Fertigungs-auftrags Nr.')
     operator = models.CharField(max_length=20, null=True, blank=True, verbose_name='Bediener')
-    tryskat = models.BooleanField(default=False, verbose_name='K tryskání')
-    rovnat = models.BooleanField(default=False, verbose_name='K rovnání')
+    tryskat = models.CharField(choices=TryskaniChoice.choices, max_length=5, null=True, blank=True, default=None, verbose_name='Tryskání')
+    rovnat = models.CharField(choices=RovnaniChoice.choices, max_length=5, null=True, blank=True, default=None, verbose_name='Rovnání')
+    stav_bedny = models.CharField(choices=StavBednyChoice.choices, max_length=2, default=StavBednyChoice.PRIJATO, verbose_name='Stav bedny')    
     poznamka = models.CharField(max_length=100, null=True, blank=True, verbose_name='Poznámka')
-    stav_bedny = models.CharField(choices=StavBednyChoice.choices, max_length=2, default=StavBednyChoice.PRIJATO, verbose_name='Stav bedny')
     history = HistoricalRecords()
 
     class Meta:
