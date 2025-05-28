@@ -131,13 +131,13 @@ class BednaInline(admin.TabularInline):
     extra = 0
     #exclude = ('tryskat', 'rovnat', 'stav_bedny',)
     formfield_overrides = {
-        models.CharField: {'widget': TextInput(attrs={'size': '20'})},  # default
+        models.CharField: {'widget': TextInput(attrs={'size': '18'})},  # default
         models.DecimalField: {'widget': TextInput(attrs={'size': '6'})},
     }
 
     def formfield_for_dbfield(self, db_field, request, **kwargs):
         if db_field.name == 'poznamka':
-            kwargs['widget'] = TextInput(attrs={'size': '30'})
+            kwargs['widget'] = TextInput(attrs={'size': '30'})  # Změna velikosti pole pro poznámku
         return super().formfield_for_dbfield(db_field, request, **kwargs)
     
 
@@ -251,7 +251,15 @@ class ZakazkaAdmin(admin.ModelAdmin):
         Vytváří pole pro zobrazení v administraci na základě toho, zda se jedná o editaci nebo přidání.
         """
         if obj:  # editace stávajícího záznamu
-            my_fieldsets = [(None, {'fields': ['kamion_prijem_id', 'kamion_vydej_id', 'artikl', 'typ_hlavy', 'prumer', 'delka', 'predpis', 'priorita', 'popis', 'zinkovna',]}),]
+            my_fieldsets = [
+                (None, {
+                    'fields': ['kamion_prijem_id', 'kamion_vydej_id', 'artikl', 'typ_hlavy', 'prumer', 'delka', 'predpis', 'priorita', 'popis', 'zinkovna',]
+                    }),
+                    ('Změna stavu všech beden v zakázce:', {
+                        'fields': ['zmena_stavu'],
+                        'description': 'Zde můžete změnit stav všech beden v zakázce najednou, ale bedny musí mít všechny stejný stav.',
+                    }),                    
+                ]
             # Pokud je zákazník Eurotec, přidej speciální pole pro zobrazení
             if obj.kamion_prijem_id.zakaznik_id.zkratka == 'EUR':
                 my_fieldsets.append(                  
@@ -261,7 +269,7 @@ class ZakazkaAdmin(admin.ModelAdmin):
                     }),  
                 )
             return my_fieldsets
-        
+
         else:  # přidání nového záznamu
             return [
                 ('Příjem zakázek na sklad:', {
