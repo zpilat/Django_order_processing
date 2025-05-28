@@ -43,7 +43,13 @@ class Kamion(models.Model):
         ordering = ['id']
 
     def __str__(self):
-        return f'{self.id} {self.zakaznik_id.zkratka} - {self.datum}'
+        return f'{self.id}. {self.zakaznik_id.zkratka} {self.datum}'
+    
+    def get_admin_url(self):
+        """
+        Vrací URL pro zobrazení detailu kamionu v administraci.
+        """
+        return reverse("admin:orders_kamion_change", args=[self.pk])    
     
 class Zakazka(models.Model):
     kamion_prijem_id = models.ForeignKey(Kamion, on_delete=models.CASCADE, related_name='zakazky_prijem', verbose_name='Kamión příjem', null=True)
@@ -72,7 +78,7 @@ class Zakazka(models.Model):
         ]
 
     def __str__(self):
-        return f'{self.kamion_prijem_id.id} {self.kamion_prijem_id.zakaznik_id.zkratka} - {self.kamion_prijem_id.datum} - {self.artikl} - {self.prumer}x{self.delka}'
+        return f'{self.kamion_prijem_id.id}. {self.kamion_prijem_id.zakaznik_id.zkratka} {self.kamion_prijem_id.datum} - {self.artikl} - {self.prumer}x{self.delka}'
     
     def get_admin_url(self):
         """
@@ -103,4 +109,10 @@ class Bedna(models.Model):
         ordering = ['id']
 
     def __str__(self):
-        return f'{self.zakazka_id.kamion_prijem_id.zakaznik_id.zkratka} - {self.zakazka_id.kamion_prijem_id.datum} - {self.zakazka_id.artikl} - {self.zakazka_id.delka}x{self.zakazka_id.prumer} - {self.cislo_bedny}'
+        return f'{self.zakazka_id.kamion_prijem_id.zakaznik_id.zkratka} {self.zakazka_id.kamion_prijem_id.datum} - {self.zakazka_id.artikl} - {self.zakazka_id.delka}x{self.zakazka_id.prumer} - {self.cislo_bedny}'
+    
+    def get_admin_url(self):
+        """
+        Vrací URL pro zobrazení detailu bedny v administraci.
+        """
+        return reverse("admin:orders_bedna_change", args=[self.pk])

@@ -11,7 +11,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from .models import Zakaznik, Kamion, Zakazka, Bedna
 from .actions import expedice_zakazek
 from .filters import ExpedovanaZakazkaFilter, StavBednyFilter
-from .forms import ZakazkaForm, BednaChangeListForm
+from .forms import ZakazkaForm
 from .choices import (
     TypHlavyChoice, StavBednyChoice, RovnaniChoice, TryskaniChoice,
     PrioritaChoice, ZinkovnaChoice, KamionChoice
@@ -101,8 +101,9 @@ class KamionAdmin(admin.ModelAdmin):
     """
     Správa kamionů v administraci.
     """
-    list_display = ('id', 'zakaznik_id__nazev', 'datum', 'cislo_dl', 'prijem_vydej', 'misto_expedice',)
+    list_display = ('get_kamion_str', 'zakaznik_id__nazev', 'datum', 'cislo_dl', 'prijem_vydej', 'misto_expedice',)
     list_filter = ('zakaznik_id__nazev', 'prijem_vydej',)
+    list_display_links = ('get_kamion_str',)
     ordering = ('-id',)
     date_hierarchy = 'datum'
     list_per_page = 20
@@ -121,7 +122,14 @@ class KamionAdmin(admin.ModelAdmin):
         elif obj and obj.prijem_vydej == 'V':
             return [ZakazkaVydejInline]
         return []
-
+    
+    @admin.display(description='Kamion')
+    def get_kamion_str(self, obj):
+        '''
+        Zobrazí stringový popis kamionu a umožní třídění podle hlavičky pole.     
+        '''
+        return obj.__str__()
+    get_kamion_str.admin_order_field = 'id'
 
 class BednaInline(admin.TabularInline):
     """
@@ -149,8 +157,9 @@ class ZakazkaAdmin(admin.ModelAdmin):
     inlines = [BednaInline]
     form = ZakazkaForm
     actions = [expedice_zakazek,]
-    list_display = ('id', 'kamion_prijem_id', 'kamion_vydej_id', 'artikl', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'popis', 'priorita', 'hmotnost_zakazky', 'komplet',)
+    list_display = ('artikl', 'kamion_prijem_link', 'kamion_vydej_link', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'popis', 'priorita', 'hmotnost_zakazky', 'komplet',)
     list_editable = ('priorita',)
+    list_display_links = ('artikl',)
     search_fields = ('artikl',)
     search_help_text = "Hledat podle artiklu"
     list_filter = ('kamion_prijem_id__zakaznik_id', 'typ_hlavy', 'priorita', 'komplet', ExpedovanaZakazkaFilter,)
@@ -161,7 +170,7 @@ class ZakazkaAdmin(admin.ModelAdmin):
         models.DecimalField: {'widget': TextInput(attrs={ 'size': '8'})},
     }
 
-    history_list_display = ["id", "kamion_prijem_id", "artikl", "prumer", "delka", "predpis", "typ_hlavy", "popis", "priorita", "komplet"]
+    history_list_display = ["id", "kamion_prijem_id", "kamion_vydej_id", "artikl", "prumer", "delka", "predpis", "typ_hlavy", "popis", "priorita", "komplet"]
     history_search_fields = ["kamion_prijem_id__zakaznik_id__nazev", "artikl", "prumer", "delka", "predpis", "typ_hlavy", "popis"]
     history_list_filter = ["kamion_prijem_id__zakaznik_id", "kamion_prijem_id__datum", "typ_hlavy"]
     history_list_per_page = 20
@@ -169,11 +178,10 @@ class ZakazkaAdmin(admin.ModelAdmin):
     class Media:
         js = ('admin/js/zakazky_hmotnost_sum.js',)
 
-
     @admin.display(description='Brutto hm.')
     def hmotnost_zakazky(self, obj):
         """
-        Vypočítá celkovou brutto hmotnost beden v zakázce.
+        Vypočítá celkovou brutto hmotnost beden v zakázce a umožní třídění podle hlavičky pole.
         """
         bedny = list(obj.bedny.all())
         netto = sum(bedna.hmotnost or 0 for bedna in bedny)
@@ -181,6 +189,26 @@ class ZakazkaAdmin(admin.ModelAdmin):
         if brutto:
             return brutto.quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)
         return Decimal('0.0')
+
+    @admin.display(description='Kamion příjem')
+    def kamion_prijem_link(self, obj):
+        """
+        Vytvoří odkaz na detail kamionu příjmu, ke kterému zakázka patří a umožní třídění podle hlavičky pole.
+        """
+        if obj.kamion_prijem_id:
+            return mark_safe(f'<a href="{obj.kamion_prijem_id.get_admin_url()}">{obj.kamion_prijem_id}</a>')
+        return '-'
+    kamion_prijem_link.admin_order_field = 'kamion_prijem_id__id'
+
+    @admin.display(description='Kamion výdej')
+    def kamion_vydej_link(self, obj):
+        """
+        Vytvoří odkaz na detail kamionu výdeje, ke kterému zakázka patří a umožní třídění podle hlavičky pole.
+        """
+        if obj.kamion_vydej_id:
+            return mark_safe(f'<a href="{obj.kamion_vydej_id.get_admin_url()}">{obj.kamion_vydej_id}</a>')
+        return '-'
+    kamion_vydej_link.admin_order_field = 'kamion_vydej_id__id'
 
     def save_formset(self, request, form, formset, change):
         """
@@ -210,7 +238,7 @@ class ZakazkaAdmin(admin.ModelAdmin):
                     nove_bedny.append(bedna)
                 instances = nove_bedny
 
-            # Tady dál pokračuje stejná logika bez ohledu na způsob vzniku beden:
+            # Společná logika bez ohledu na způsob vzniku beden:
 
             # Rozpočítání hmotnosti
             if celkova_hmotnost and len(instances) > 0:
@@ -256,8 +284,8 @@ class ZakazkaAdmin(admin.ModelAdmin):
                     'fields': ['kamion_prijem_id', 'kamion_vydej_id', 'artikl', 'typ_hlavy', 'prumer', 'delka', 'predpis', 'priorita', 'popis', 'zinkovna',]
                     }),
                     ('Změna stavu všech beden v zakázce:', {
-                        'fields': ['zmena_stavu'],
-                        'description': 'Zde můžete změnit stav všech beden v zakázce najednou, ale bedny musí mít všechny stejný stav.',
+                        'fields': ['tryskat', 'rovnat', 'zmena_stavu'],
+                        'description': 'Zde můžete změnit stav všech beden v zakázce najednou, ale bedny musí mít pro měněnou položku všechny stejnou hodnotu.',
                     }),                    
                 ]
             # Pokud je zákazník Eurotec, přidej speciální pole pro zobrazení
@@ -320,53 +348,47 @@ class BednaAdmin(admin.ModelAdmin):
     history_list_filter = ["zakazka_id__kamion_prijem_id__zakaznik_id__nazev", "zakazka_id__kamion_prijem_id__datum", "stav_bedny"]
     history_list_per_page = 20
 
+    @admin.display(description='Zakázka')
     def zakazka_link(self, obj):
         """
-        Vytvoří odkaz na detail zakázky, ke které bedna patří.
+        Vytvoří odkaz na detail zakázky, ke které bedna patří a umožní třídění podle hlavičky pole.
         """
         if obj.zakazka_id:
             return mark_safe(f'<a href="{obj.zakazka_id.get_admin_url()}">{obj.zakazka_id}</a>')
         return '-'
-    zakazka_link.admin_order_field = 'zakazka_id__id'    
-    zakazka_link.short_description = 'Zakázka'
-    
+    zakazka_link.admin_order_field = 'zakazka_id__id'
+
+    @admin.display(description='Typ hlavy')
     def get_typ_hlavy(self, obj):
         """
         Zobrazí typ hlavy zakázky a umožní třídění podle hlavičky pole.
         """
         return obj.zakazka_id.typ_hlavy
     get_typ_hlavy.admin_order_field = 'zakazka_id__typ_hlavy'
-    get_typ_hlavy.short_description = 'Typ hlavy'
 
+    @admin.display(description='Priorita')
     def get_priorita(self, obj):
         """
         Zobrazí prioritu zakázky a umožní třídění podle hlavičky pole.
         """
         return obj.zakazka_id.priorita
     get_priorita.admin_order_field = 'zakazka_id__priorita'
-    get_priorita.short_description = 'Priorita'
 
+    @admin.display(description='Průměr')
     def get_prumer(self, obj):
         """
         Zobrazí průměr zakázky a umožní třídění podle hlavičky pole.
         """
         return obj.zakazka_id.prumer
     get_prumer.admin_order_field = 'zakazka_id__prumer'
-    get_prumer.short_description = 'Průměr'
 
+    @admin.display(description='Délka')
     def get_delka(self, obj):
         """
         Zobrazí délku zakázky a umožní třídění podle hlavičky pole.
         """
         return obj.zakazka_id.delka
     get_delka.admin_order_field = 'zakazka_id__delka'
-    get_delka.short_description = 'Délka'
-
-    def get_changelist_form(self, request, **kwargs):
-        """
-        Formulář pro zobrazení v administraci beze stavu bedny expedováno.
-        """
-        return BednaChangeListForm
 
     def save_model(self, request, obj, form, change):
         """
