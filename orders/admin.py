@@ -60,8 +60,8 @@ class ZakazkaPrijemInline(admin.TabularInline):
     verbose_name = 'Zakázka - příjem'
     verbose_name_plural = 'Zakázky - příjem'
     extra = 0
-    fields = ('id', 'artikl', 'kamion_vydej_id', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'popis', 'priorita', 'komplet','expedovano',)
-    readonly_fields = ('id', 'komplet', 'expedovano',)
+    fields = ('artikl', 'kamion_vydej_id', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'popis', 'priorita', 'komplet','expedovano',)
+    readonly_fields = ('komplet', 'expedovano',)
     formfield_overrides = {
         models.CharField: {'widget': TextInput(attrs={ 'size': '30'})},
         models.DecimalField: {'widget': TextInput(attrs={ 'size': '8'})},
@@ -77,8 +77,7 @@ class ZakazkaVydejInline(admin.TabularInline):
     verbose_name = "Zakázka - výdej"
     verbose_name_plural = "Zakázky - výdej"
     extra = 0
-    fields = ('id', 'artikl', 'kamion_prijem_id', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'popis', 'priorita',)
-    readonly_fields = ('id',)
+    fields = ('artikl', 'kamion_prijem_id', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'popis', 'priorita',)
     formfield_overrides = {
         models.CharField: {'widget': TextInput(attrs={ 'size': '30'})},
         models.DecimalField: {'widget': TextInput(attrs={ 'size': '8'})},
@@ -138,16 +137,34 @@ class BednaInline(admin.TabularInline):
     model = Bedna
     form = BednaAdminForm
     extra = 0
-    #exclude = ('tryskat', 'rovnat', 'stav_bedny',)
     formfield_overrides = {
         models.CharField: {'widget': TextInput(attrs={'size': '18'})},  # default
         models.DecimalField: {'widget': TextInput(attrs={'size': '6'})},
     }
 
     def formfield_for_dbfield(self, db_field, request, **kwargs):
+        """
+        Přizpůsobení widgetů pro pole v administraci.
+        """
         if db_field.name == 'poznamka':
             kwargs['widget'] = TextInput(attrs={'size': '30'})  # Změna velikosti pole pro poznámku
         return super().formfield_for_dbfield(db_field, request, **kwargs)
+
+    def get_exclude(self, request, obj=None):
+        """
+        Vrací seznam polí, která se mají vyloučit z formuláře Bedna při editaci.
+
+        - Pokud není obj (tj. add_view), použije se základní exclude z super().  
+        - Pokud obj existuje a zákazník zakázky není 'EUR' (Eurotec),
+          přidají se do vyloučených polí dodavatel_materialu, vyrobni_zakazka a operator.
+        """
+        excluded = list(super().get_exclude(request, obj) or [])
+
+        if obj and obj.kamion_prijem_id.zakaznik_id.zkratka != 'EUR':
+            excluded += ['dodavatel_materialu', 'vyrobni_zakazka', 'operator']
+
+        return excluded
+    
     
 
 @admin.register(Zakazka)
@@ -248,7 +265,7 @@ class ZakazkaAdmin(admin.ModelAdmin):
                 for instance in instances:
                     instance.hmotnost = hmotnost_bedny
 
-            # Doplň prázdná pole ze zakázky (když už nebyla nastavena výše)
+            # Doplň prázdná pole ze zakázky (pokud už nebyla nastavena výše)
             for field, hodnota in data_ze_zakazky.items():
                 if hodnota:
                     for instance in instances:
@@ -260,7 +277,7 @@ class ZakazkaAdmin(admin.ModelAdmin):
             zakaznik = zakazka.kamion_prijem_id.zakaznik_id
             if zakaznik.vse_tryskat:
                 for instance in instances:
-                    instance.tryskat = True
+                    instance.tryskat = TryskaniChoice.SPINAVA
 
             if zakaznik.cisla_beden_auto:
                 posledni_bedna = Bedna.objects.filter(zakazka_id__kamion_prijem_id__zakaznik_id=zakaznik).order_by('-cislo_bedny').first()
@@ -329,7 +346,11 @@ class ZakazkaAdmin(admin.ModelAdmin):
 @admin.register(Bedna)
 class BednaAdmin(admin.ModelAdmin):
     """
-    Správa beden v administraci.
+    Admin pro model Bedna:
+    
+    - Detail/inline: BednaAdminForm (omezuje stavové volby dle instance).
+    - Seznam (change_list): list_editable pro `stav_bedny`.
+    - Pro každý řádek dropdown omezí na povolené volby podle stejné logiky.
     """
     form = BednaAdminForm
     list_display = ('cislo_bedny', 'zakazka_link', 'get_prumer', 'get_delka', 'rovnat', 'tryskat', 'stav_bedny', 'get_typ_hlavy', 'get_priorita', 'poznamka')
@@ -391,6 +412,21 @@ class BednaAdmin(admin.ModelAdmin):
         """
         return obj.zakazka_id.delka
     get_delka.admin_order_field = 'zakazka_id__delka'
+    
+    def get_exclude(self, request, obj=None):
+        """
+        Vrací seznam polí, která se mají vyloučit z formuláře Bedna při editaci.
+
+        - Pokud není obj (tj. add_view), použije se základní exclude z super().  
+        - Pokud obj existuje a zákazník zakázky není 'EUR' (Eurotec),
+          přidají se do vyloučených polí dodavatel_materialu, vyrobni_zakazka a operator.
+        """
+        excluded = list(super().get_exclude(request, obj) or [])
+
+        if obj and obj.zakazka_id.kamion_prijem_id.zakaznik_id.zkratka != 'EUR':
+            excluded += ['dodavatel_materialu', 'vyrobni_zakazka', 'operator']
+
+        return excluded
 
     def save_model(self, request, obj, form, change):
         """
@@ -424,4 +460,52 @@ class BednaAdmin(admin.ModelAdmin):
         super().save_model(request, obj, form, change)
     
     def get_changelist(self, request, **kwargs):
+        """
+        Vytvoří vlastní ChangeList s nastavením počtu položek na stránku.
+        Pokud má uživatel oprávnění ke změně modelu Bedna, nastaví se menší počet položek na stránku.
+        """
         return CustomPaginationChangeList
+    
+    def get_changelist_formset(self, request, **kwargs):
+        """
+        Vrátí vlastní FormSet pro change_list, kde každý řádek dostane
+        pro `stav_bedny` jen ty volby podle BednaAdminForm.__init__ logiky.
+        """
+        FormSet = super().get_changelist_formset(request, **kwargs)
+        choices = list(StavBednyChoice.choices)
+
+        class RestrictedStateFormSet(FormSet):
+            def __init__(self, *args, **fs_kwargs):
+                super().__init__(*args, **fs_kwargs)
+                for form in self.forms:
+                    inst = getattr(form, 'instance', None)
+                    if not inst or not inst.pk:
+                        continue
+
+                    try:
+                        idx = next(i for i, (val, _) in enumerate(choices)
+                                   if val == inst.stav_bedny)
+                    except StopIteration:
+                        continue
+
+                    curr = inst.stav_bedny
+                    if curr == StavBednyChoice.EXPEDOVANO:
+                        allowed = [choices[idx]]
+                    elif curr == StavBednyChoice.K_EXPEDICI:
+                        allowed = [choices[idx - 1], choices[idx]]
+                    elif curr == StavBednyChoice.ZKONTROLOVANO:
+                        allowed = [choices[idx - 1], choices[idx]]
+                        if inst.tryskat in (TryskaniChoice.CISTA, TryskaniChoice.OTRYSKANA) and \
+                           inst.rovnat in (RovnaniChoice.ROVNA, RovnaniChoice.VYROVNANA):
+                            allowed.append(choices[idx + 1])
+                    elif curr == StavBednyChoice.PRIJATO:
+                        allowed = [choices[idx], choices[idx + 1]]
+                    else:
+                        before = [choices[idx - 1]] if idx > 0 else []
+                        after  = [choices[idx + 1]] if idx < len(choices) - 1 else []
+                        allowed = before + [choices[idx]] + after
+
+                    form.fields['stav_bedny'].choices = allowed
+                    form.fields['stav_bedny'].initial = curr
+
+        return RestrictedStateFormSet

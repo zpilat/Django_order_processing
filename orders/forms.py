@@ -29,34 +29,72 @@ class ZakazkaAdminForm(forms.ModelForm):
         fields = "__all__"
 
 
-class BednaAdminForm(forms.ModelForm):        
+class BednaAdminForm(forms.ModelForm):
+    """
+    Formulář pro model Bedna v Django Adminu.
+
+    Omezuje výběr stavu bedny v poli `stav_bedny` podle následujících pravidel:
+
+    1. NOVÁ instance (bez PK):
+       - Nabídne pouze první stav `PRIJATO` jako jedinou volbu.
+       - Nastaví `initial` na hodnotu `PRIJATO`.
+
+    2. EXISTUJÍCÍ instance:
+       - Získá seznam všech voleb z `StavBednyChoice.choices` a určí index aktuálního stavu.
+       - Pokud je stav `EXPEDOVANO`, nabídne pouze tento stav.
+       - Pokud je stav `K_EXPEDICI`, nabídne předchozí stav a aktuální stav.
+       - Pokud je stav `ZKONTROLOVANO`, nabídne předchozí stav a aktuální stav, 
+         a pokud zároveň `tryskat` ∈ {CISTA, OTRYSKANA} a 
+         `rovnat` ∈ {ROVNA, VYROVNANA}, doplní i následující stav.
+       - Pokud je stav `PRIJATO`, nabídne tento stav a následující stav.
+       - Ve všech ostatních stavech nabídne předchozí, aktuální a následující stav.
+       - Nastaví `initial` na aktuální stav.
+    """
     class Meta:
         model = Bedna
-        fields = '__all__'
+        fields = "__all__"
 
     def __init__(self, *args, **kwargs):
-        """
-        Inicializuje BednaAdminForm a omezuje výběr stavů pro pole `stav_bedny`:
-
-        - Pokud je instance nová (bez primárního klíče):
-            * Nabídne pouze výchozí stav (PRIJATO) jako jedinou volbu.
-            * Nastaví ho jako výchozí (`initial`).
-        - Pokud je instance existující:
-            * Najde aktuální index stavu v `StavBednyChoice.choices`.
-            * Pokud existuje následující stav, zobrazí jen tu jedinou volbu.
-            * Pokud je instance v posledním stavu, deaktivuje pole (`disabled`).
-        """        
         super().__init__(*args, **kwargs)
+        choices = list(StavBednyChoice.choices)
+        field = self.fields["stav_bedny"]
+        inst = getattr(self, "instance", None)
 
-        # úprava existující bedny
-        if self.instance and self.instance.pk:
-            choices = list(StavBednyChoice.choices)
-            # index aktuálního stavu bedny
-            current_index = next((i for i, (val, _) in enumerate(choices)
-                                  if val == self.instance.stav_bedny), None)
-            # povolená možnost - následující stav_bedny, kromě možnosti expedováno
-            if current_index and current_index + 1 < len(choices) - 1:
-                next_choice = choices[current_index + 1]
-                self.fields['stav_bedny'].choices = [next_choice]
-            else:
-                self.fields['stav_bedny'].widget.attrs['disabled'] = True
+        # 1) NOVÁ instance → pouze PRIJATO
+        if not inst or not inst.pk:
+            first = choices[0]
+            field.choices = [first]
+            field.initial = first[0]
+            return
+
+        # 2) EXISTUJÍCÍ instance
+        curr = inst.stav_bedny
+        try:
+            idx = next(i for i, (val, _) in enumerate(choices) if val == curr)
+        except StopIteration:
+            return  # neplatná hodnota
+
+        # sestavíme základní allowed podle stavu
+        if curr == StavBednyChoice.EXPEDOVANO:
+            allowed = [choices[idx]]
+
+        elif curr == StavBednyChoice.K_EXPEDICI:
+            allowed = [choices[idx - 1], choices[idx]]
+
+        elif curr == StavBednyChoice.ZKONTROLOVANO:
+            allowed = [choices[idx - 1], choices[idx]]
+            # přidat další, jen pokud try sk a rov mají správné hodnoty
+            if inst.tryskat in (TryskaniChoice.CISTA, TryskaniChoice.OTRYSKANA) and \
+               inst.rovnat in (RovnaniChoice.ROVNA, RovnaniChoice.VYROVNANA):
+                allowed.append(choices[idx + 1])
+
+        elif curr == StavBednyChoice.PRIJATO:
+            allowed = [choices[idx], choices[idx + 1]]
+
+        else:
+            before = [choices[idx - 1]] if idx > 0 else []
+            after  = [choices[idx + 1]] if idx < len(choices) - 1 else []
+            allowed = before + [choices[idx]] + after
+
+        field.choices = allowed
+        field.initial = curr
