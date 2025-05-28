@@ -1,4 +1,4 @@
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.db import models
 from django.forms import TextInput
 from django.utils.safestring import mark_safe
@@ -11,7 +11,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from .models import Zakaznik, Kamion, Zakazka, Bedna
 from .actions import expedice_zakazek
 from .filters import ExpedovanaZakazkaFilter, StavBednyFilter
-from .forms import ZakazkaForm
+from .forms import ZakazkaAdminForm, BednaAdminForm
 from .choices import (
     TypHlavyChoice, StavBednyChoice, RovnaniChoice, TryskaniChoice,
     PrioritaChoice, ZinkovnaChoice, KamionChoice
@@ -136,6 +136,7 @@ class BednaInline(admin.TabularInline):
     Inline pro správu beden v rámci zakázky.
     """
     model = Bedna
+    form = BednaAdminForm
     extra = 0
     #exclude = ('tryskat', 'rovnat', 'stav_bedny',)
     formfield_overrides = {
@@ -155,7 +156,7 @@ class ZakazkaAdmin(admin.ModelAdmin):
     Správa zakázek v administraci.
     """
     inlines = [BednaInline]
-    form = ZakazkaForm
+    form = ZakazkaAdminForm
     actions = [expedice_zakazek,]
     list_display = ('artikl', 'kamion_prijem_link', 'kamion_vydej_link', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'popis', 'priorita', 'hmotnost_zakazky', 'komplet',)
     list_editable = ('priorita',)
@@ -330,6 +331,7 @@ class BednaAdmin(admin.ModelAdmin):
     """
     Správa beden v administraci.
     """
+    form = BednaAdminForm
     list_display = ('cislo_bedny', 'zakazka_link', 'get_prumer', 'get_delka', 'rovnat', 'tryskat', 'stav_bedny', 'get_typ_hlavy', 'get_priorita', 'poznamka')
     list_editable = ('stav_bedny', 'rovnat', 'tryskat', 'poznamka',)
     list_display_links = ('cislo_bedny', )
@@ -392,17 +394,19 @@ class BednaAdmin(admin.ModelAdmin):
 
     def save_model(self, request, obj, form, change):
         """
-        Uložení modelu Bedna. 
-        Pokud není stav bedny "K expedici", zkontroluje se, zda je zakázka označena jako kompletní, pokud ano, nastaví se atribut zakázky komplet na False.
+        Uložení modelu Bedna.
+        Pokud je ve formuláři zadán stav bedny Expedováno, neuloží se a vytvoří zprávu.
         Pokud je stav bedny "K expedici", zkontroluje se, zda jsou všechny bedny v zakázce k expedici nebo expedovány,
         pokud ano, nastaví se atribut zakázky komplet na True.
+        Pokud není stav bedny "K expedici", zkontroluje se, zda je jeho zakázka označena jako kompletní, pokud ano, nastaví se atribut zakázky komplet na False.
         """
-        if obj.stav_bedny not in {StavBednyChoice.K_EXPEDICI, StavBednyChoice.EXPEDOVANO}:
-            # Pokud je stav bedny jiný než K expedici, zkontroluj, zda je zakázka kompletní
-            if obj.zakazka_id.komplet:
-                obj.zakazka_id.komplet = False
-                obj.zakazka_id.save()
-
+        if obj.stav_bedny == StavBednyChoice.EXPEDOVANO:
+            messages.error(
+                request,
+                "Nejde změnit stav bedny na expedováno ručně, pouze pomocí akce expedice zakázky!"
+            )            
+            return
+        
         if obj.stav_bedny == StavBednyChoice.K_EXPEDICI:
             bedny = list(Bedna.objects.filter(zakazka_id=obj.zakazka_id).exclude(id=obj.id))
             zakazka_komplet = all(
@@ -411,6 +415,11 @@ class BednaAdmin(admin.ModelAdmin):
             )
             obj.zakazka_id.komplet = zakazka_komplet
             obj.zakazka_id.save()
+
+        else:
+            if obj.zakazka_id.komplet:
+                obj.zakazka_id.komplet = False
+                obj.zakazka_id.save()
 
         super().save_model(request, obj, form, change)
     
