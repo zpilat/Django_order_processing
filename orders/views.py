@@ -11,7 +11,11 @@ from django.utils.translation import gettext_lazy as _
 import django.utils.timezone as timezone
 
 from .utils import get_verbose_name_for_column
-from .models import Bedna, Zakazka, Kamion, Zakaznik, StavBednyChoice, TypHlavyChoice, PrioritaChoice
+from .models import Bedna, Zakazka, Kamion, Zakaznik
+from .choices import (
+    TypHlavyChoice, StavBednyChoice, RovnaniChoice, TryskaniChoice,
+    PrioritaChoice, ZinkovnaChoice, KamionChoice
+)
 
 import logging
 logger = logging.getLogger('orders')

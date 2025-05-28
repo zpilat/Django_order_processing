@@ -8,10 +8,14 @@ from django.contrib.admin.views.main import ChangeList
 from simple_history.admin import SimpleHistoryAdmin
 from decimal import Decimal, ROUND_HALF_UP
 
-from .models import Zakaznik, Kamion, Zakazka, Bedna, TypHlavyChoice, StavBednyChoice
-from .forms import ZakazkaForm, BednaChangeListForm
+from .models import Zakaznik, Kamion, Zakazka, Bedna
 from .actions import expedice_zakazek
 from .filters import ExpedovanaZakazkaFilter, StavBednyFilter
+from .forms import ZakazkaForm, BednaChangeListForm
+from .choices import (
+    TypHlavyChoice, StavBednyChoice, RovnaniChoice, TryskaniChoice,
+    PrioritaChoice, ZinkovnaChoice, KamionChoice
+)
 
 class CustomPaginationChangeList(ChangeList):
     """
