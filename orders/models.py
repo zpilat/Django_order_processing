@@ -116,3 +116,28 @@ class Bedna(models.Model):
         Vrací URL pro zobrazení detailu bedny v administraci.
         """
         return reverse("admin:orders_bedna_change", args=[self.pk])
+    
+    def save(self, *args, **kwargs):
+        """
+        Uloží instanci Bedna a po aktualizaci přepočítá příznak `komplet` 
+        na související Zakázce.
+
+        - Pokud se jedná o novou instanci (bez PK), pouze uloží model.
+        - Při změně existující Bedny:
+            * Pokud je stav `K_EXPEDICI`, ověří, zda všechny ostatní bedny
+            ve stejné zakázce jsou ve stavu `K_EXPEDICI`,
+            a podle toho nastaví `zakazka.komplet` na True/False.
+            * V ostatních případech (ne `K_EXPEDICI`) vždy nastaví
+            `zakazka.komplet` na False.
+        """
+        is_update = bool(self.pk)
+        super().save(*args, **kwargs)
+
+        if is_update:            
+            zak = self.zakazka_id
+            siblings = Bedna.objects.filter(zakazka_id=zak).exclude(pk=self.pk)
+            if self.stav_bedny == StavBednyChoice.K_EXPEDICI:
+                zak.komplet = all(b.stav_bedny == StavBednyChoice.K_EXPEDICI for b in siblings)
+            else:
+                zak.komplet = False
+            zak.save()

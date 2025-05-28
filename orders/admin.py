@@ -164,8 +164,7 @@ class BednaInline(admin.TabularInline):
             excluded += ['dodavatel_materialu', 'vyrobni_zakazka', 'operator']
 
         return excluded
-    
-    
+        
 
 @admin.register(Zakazka)
 class ZakazkaAdmin(admin.ModelAdmin):
@@ -428,38 +427,7 @@ class BednaAdmin(admin.ModelAdmin):
             excluded += ['dodavatel_materialu', 'vyrobni_zakazka', 'operator']
 
         return excluded
-
-    def save_model(self, request, obj, form, change):
-        """
-        Uložení modelu Bedna.
-        Pokud je ve formuláři zadán stav bedny Expedováno, neuloží se a vytvoří zprávu.
-        Pokud je stav bedny "K expedici", zkontroluje se, zda jsou všechny bedny v zakázce k expedici nebo expedovány,
-        pokud ano, nastaví se atribut zakázky komplet na True.
-        Pokud není stav bedny "K expedici", zkontroluje se, zda je jeho zakázka označena jako kompletní, pokud ano, nastaví se atribut zakázky komplet na False.
-        """
-        if obj.stav_bedny == StavBednyChoice.EXPEDOVANO:
-            messages.error(
-                request,
-                "Nejde změnit stav bedny na expedováno ručně, pouze pomocí akce expedice zakázky!"
-            )            
-            return
-        
-        if obj.stav_bedny == StavBednyChoice.K_EXPEDICI:
-            bedny = list(Bedna.objects.filter(zakazka_id=obj.zakazka_id).exclude(id=obj.id))
-            zakazka_komplet = all(
-                bedna.stav_bedny in {StavBednyChoice.K_EXPEDICI, StavBednyChoice.EXPEDOVANO}
-                for bedna in bedny
-            )
-            obj.zakazka_id.komplet = zakazka_komplet
-            obj.zakazka_id.save()
-
-        else:
-            if obj.zakazka_id.komplet:
-                obj.zakazka_id.komplet = False
-                obj.zakazka_id.save()
-
-        super().save_model(request, obj, form, change)
-    
+   
     def get_changelist(self, request, **kwargs):
         """
         Vytvoří vlastní ChangeList s nastavením počtu položek na stránku.
