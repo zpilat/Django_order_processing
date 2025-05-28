@@ -1,6 +1,7 @@
 from django.db import models
 from simple_history.models import HistoricalRecords
 from django.utils.translation import gettext_lazy as _
+from django.urls import reverse
 
 # Create your models here.
 class TypHlavyChoice(models.TextChoices):
@@ -68,6 +69,7 @@ class Kamion(models.Model):
     datum = models.DateField(verbose_name='Datum')
     cislo_dl = models.CharField(max_length=50, verbose_name='Číslo DL', blank=True, null=True)
     prijem_vydej = models.CharField(choices=KamionChoice.choices, max_length=1, verbose_name='Přijem/Výdej')
+    misto_expedice = models.CharField(max_length=100, verbose_name='Místo expedice', blank=True, null=True)
     history = HistoricalRecords()
 
     class Meta:
@@ -107,6 +109,13 @@ class Zakazka(models.Model):
     def __str__(self):
         return f'{self.kamion_prijem_id.id} {self.kamion_prijem_id.zakaznik_id.zkratka} - {self.kamion_prijem_id.datum} - {self.artikl} - {self.prumer}x{self.delka}'
     
+    def get_admin_url(self):
+        """
+        Vrací URL pro zobrazení detailu zakázky v administraci.
+        """
+        return reverse("admin:orders_zakazka_change", args=[self.pk])
+    
+
 class Bedna(models.Model):
     zakazka_id = models.ForeignKey(Zakazka, on_delete=models.CASCADE, related_name='bedny', verbose_name='Zakázka')
     cislo_bedny = models.PositiveIntegerField(blank=True, verbose_name='Číslo bedny')

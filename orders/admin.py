@@ -30,6 +30,7 @@ class CustomPaginationChangeList(ChangeList):
             self.list_per_page = 23
         super().get_results(request)
 
+
 # Register your models here.
 @admin.register(Zakaznik)
 class ZakaznikAdmin(admin.ModelAdmin):
@@ -62,6 +63,7 @@ class ZakazkaPrijemInline(admin.TabularInline):
         models.DecimalField: {'widget': TextInput(attrs={ 'size': '8'})},
     }
 
+
 class ZakazkaVydejInline(admin.TabularInline):
     """
     Inline pro správu zakázek v rámci kamionu pro výdej.
@@ -78,18 +80,16 @@ class ZakazkaVydejInline(admin.TabularInline):
         models.DecimalField: {'widget': TextInput(attrs={ 'size': '8'})},
     }
  
-    def has_change_permission(self, request, obj=None):
-        """
-        Kontrola oprávnění pro změnu expedované zakázky.
-        """
-        base_permission = super().has_change_permission(request, obj)
-        if not base_permission:
-            return False
-        if not request.user.has_perm('orders.change_expedovana_zakazka'):
-            return False
-        return True
-
-
+    # def has_change_permission(self, request, obj=None):
+    #     """
+    #     Kontrola oprávnění pro změnu expedované zakázky.
+    #     """
+    #     base_permission = super().has_change_permission(request, obj)
+    #     if not base_permission:
+    #         return False
+    #     if not request.user.has_perm('orders.change_expedovana_zakazka'):
+    #         return False
+    #     return True
 
 
 @admin.register(Kamion)
@@ -97,7 +97,7 @@ class KamionAdmin(admin.ModelAdmin):
     """
     Správa kamionů v administraci.
     """
-    list_display = ('id', 'zakaznik_id__nazev', 'datum', 'cislo_dl', 'prijem_vydej',)
+    list_display = ('id', 'zakaznik_id__nazev', 'datum', 'cislo_dl', 'prijem_vydej', 'misto_expedice',)
     list_filter = ('zakaznik_id__nazev', 'prijem_vydej',)
     ordering = ('-id',)
     date_hierarchy = 'datum'
@@ -125,12 +125,17 @@ class BednaInline(admin.TabularInline):
     """
     model = Bedna
     extra = 0
-    exclude = ('tryskat', 'rovnat', 'stav_bedny', 'datum_expedice',)
+    #exclude = ('tryskat', 'rovnat', 'stav_bedny',)
     formfield_overrides = {
-        models.CharField: {'widget': TextInput(attrs={ 'size': '25'})},
-        models.DecimalField: {'widget': TextInput(attrs={ 'size': '8'})},
+        models.CharField: {'widget': TextInput(attrs={'size': '20'})},  # default
+        models.DecimalField: {'widget': TextInput(attrs={'size': '6'})},
     }
 
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
+        if db_field.name == 'poznamka':
+            kwargs['widget'] = TextInput(attrs={'size': '30'})
+        return super().formfield_for_dbfield(db_field, request, **kwargs)
+    
 
 @admin.register(Zakazka)
 class ZakazkaAdmin(admin.ModelAdmin):
@@ -275,7 +280,7 @@ class ZakazkaAdmin(admin.ModelAdmin):
                     'classes': ['collapse'],
                     'description': 'Pokud jsou hodnoty polí pro celou zakázku stejné, zadejte je sem. Jinak je nechte prázdné a vyplňte je u jednotlivých beden. Případné zadané hodnoty u beden zůstanou zachovány.',}),
             ]         
-        
+           
     def get_changelist(self, request, **kwargs):
         return CustomPaginationChangeList    
 
@@ -285,8 +290,9 @@ class BednaAdmin(admin.ModelAdmin):
     """
     Správa beden v administraci.
     """
-    list_display = ('id', 'cislo_bedny', 'zakazka_id', 'get_prumer', 'get_delka', 'rovnat', 'tryskat', 'stav_bedny', 'get_typ_hlavy', 'get_priorita', 'poznamka')
+    list_display = ('cislo_bedny', 'zakazka_link', 'get_prumer', 'get_delka', 'rovnat', 'tryskat', 'stav_bedny', 'get_typ_hlavy', 'get_priorita', 'poznamka')
     list_editable = ('stav_bedny', 'rovnat', 'tryskat', 'poznamka',)
+    list_display_links = ('cislo_bedny', )
     search_fields = ('cislo_bedny', 'zakazka_id__artikl', 'zakazka_id__delka',)
     search_help_text = "Hledat podle čísla bedny, artiklu nebo délky vrutu"
     list_filter = ('zakazka_id__kamion_prijem_id__zakaznik_id__nazev', StavBednyFilter, 'zakazka_id__typ_hlavy', 'zakazka_id__priorita', )
@@ -302,6 +308,16 @@ class BednaAdmin(admin.ModelAdmin):
     history_list_filter = ["zakazka_id__kamion_prijem_id__zakaznik_id__nazev", "zakazka_id__kamion_prijem_id__datum", "stav_bedny"]
     history_list_per_page = 20
 
+    def zakazka_link(self, obj):
+        """
+        Vytvoří odkaz na detail zakázky, ke které bedna patří.
+        """
+        if obj.zakazka_id:
+            return mark_safe(f'<a href="{obj.zakazka_id.get_admin_url()}">{obj.zakazka_id}</a>')
+        return '-'
+    zakazka_link.admin_order_field = 'zakazka_id__id'    
+    zakazka_link.short_description = 'Zakázka'
+    
     def get_typ_hlavy(self, obj):
         """
         Zobrazí typ hlavy zakázky a umožní třídění podle hlavičky pole.
