@@ -175,6 +175,7 @@ class ZakazkaAdmin(admin.ModelAdmin):
     inlines = [BednaInline]
     form = ZakazkaAdminForm
     actions = [expedice_zakazek,]
+    readonly_fields = ('komplet', 'expedovano')
     list_display = ('artikl', 'kamion_prijem_link', 'kamion_vydej_link', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'popis', 'priorita', 'hmotnost_zakazky', 'komplet',)
     list_editable = ('priorita',)
     list_display_links = ('artikl',)
@@ -299,7 +300,7 @@ class ZakazkaAdmin(admin.ModelAdmin):
         if obj:  # editace stávajícího záznamu
             my_fieldsets = [
                 (None, {
-                    'fields': ['kamion_prijem_id', 'kamion_vydej_id', 'artikl', 'typ_hlavy', 'prumer', 'delka', 'predpis', 'priorita', 'popis', 'zinkovna',]
+                    'fields': ['kamion_prijem_id', 'kamion_vydej_id', 'artikl', 'typ_hlavy', 'prumer', 'delka', 'predpis', 'priorita', 'popis', 'zinkovna', 'komplet', 'expedovano'],
                     }),
                     ('Změna stavu všech beden v zakázce:', {
                         'fields': ['tryskat', 'rovnat', 'zmena_stavu'],
