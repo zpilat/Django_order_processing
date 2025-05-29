@@ -77,7 +77,8 @@ class ZakazkaVydejInline(admin.TabularInline):
     verbose_name = "Zakázka - výdej"
     verbose_name_plural = "Zakázky - výdej"
     extra = 0
-    fields = ('artikl', 'kamion_prijem_id', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'popis', 'priorita',)
+    fields = ('artikl', 'kamion_prijem_id', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'popis', 'priorita', 'komplet', 'expedovano',)
+    readonly_fields = ('komplet', 'expedovano',)
     formfield_overrides = {
         models.CharField: {'widget': TextInput(attrs={ 'size': '30'})},
         models.DecimalField: {'widget': TextInput(attrs={ 'size': '8'})},
@@ -100,6 +101,7 @@ class KamionAdmin(admin.ModelAdmin):
     """
     Správa kamionů v administraci.
     """
+    exclude = ('misto_expedice',)
     list_display = ('get_kamion_str', 'zakaznik_id__nazev', 'datum', 'cislo_dl', 'prijem_vydej', 'misto_expedice',)
     list_filter = ('zakaznik_id__nazev', 'prijem_vydej',)
     list_display_links = ('get_kamion_str',)
@@ -129,6 +131,21 @@ class KamionAdmin(admin.ModelAdmin):
         '''
         return obj.__str__()
     get_kamion_str.admin_order_field = 'id'
+
+    def get_exclude(self, request, obj=None):
+        """
+        Vrací seznam polí, která se mají vyloučit z formuláře Kamion při editaci.
+
+        - Pokud není obj (tj. add_view) a pokud je kamion příjem, použije se základní exclude z super().
+        - Pokud je obj a kamion je pro výdej, zruší se vyloučení pole `misto_expedice`.
+
+        """
+        excluded = list(super().get_exclude(request, obj) or [])
+
+        if obj and obj.prijem_vydej == 'V':
+            excluded = []
+
+        return excluded
 
 class BednaInline(admin.TabularInline):
     """
