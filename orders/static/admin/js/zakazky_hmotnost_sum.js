@@ -1,41 +1,61 @@
 document.addEventListener('DOMContentLoaded', function() {
-    // Box zobrazuj jen, pokud je ve stránce tabulka s id 'result_list'
+    // Box zobrazuj jen, pokud je na stránce tabulka s id 'result_list'
     const resultsTable = document.getElementById('result_list');
     if (!resultsTable) return;
 
-    function updateSum() {
-        let sum = 0;
+    function updateSummary() {
+        let weightSum = 0;
+        let boxCountSum = 0;
+
         document.querySelectorAll('input.action-select:checked').forEach(function(checkbox) {
             const row = checkbox.closest('tr');
+
+            // Brutto hmotnost
             const hmotnostCell = row.querySelector('td.field-hmotnost_zakazky');
             if (hmotnostCell) {
                 let val = parseFloat(hmotnostCell.textContent.replace(',', '.'));
-                if (!isNaN(val)) sum += val;
+                if (!isNaN(val)) weightSum += val;
+            }
+
+            // Počet beden
+            const pocetCell = row.querySelector('td.field-pocet_beden');
+            if (pocetCell) {
+                let cnt = parseInt(pocetCell.textContent, 10);
+                if (!isNaN(cnt)) boxCountSum += cnt;
             }
         });
-        let box = document.getElementById('hmotnost-sum-box');
+
+        let box = document.getElementById('hmotnost-summary');
         if (!box) {
             box = document.createElement('div');
-            box.id = 'hmotnost-sum-box';
-            box.className = 'alert alert-light small shadow-sm';
-            // Přidej box těsně před tabulku!
+            box.id = 'hmotnost-summary';
+            // místo <ul class="messagelist"> použijeme čistý <div> s admin-class 'info'
+            box.className = 'info';
+            // vložíme před tabulku
             resultsTable.parentNode.insertBefore(box, resultsTable);
-            // Box je nyní v normálním toku stránky
-            box.style = 'margin-bottom: 1em; font-size:0.8rem;font-family:inherit;';
-        } else {
-            box.className = 'alert alert-light small shadow-sm';
+            // styl pro admin-info
+            box.style.marginBottom = '1em';
+            box.style.padding = '0.5em';
+            box.style.backgroundColor = '#f8f9fa';  // světle šedá
+            box.style.fontSize = '0.8rem';
+            box.style.fontFamily = 'inherit';
         }
-        box.innerHTML = `<i class="fas fa-balance-scale" style="margin-right:0.5em;color:#0174c6;"></i> Brutto hmotnost označených zakázek:<strong><span style="margin-left:0.5em;">${sum.toFixed(1)} kg</span></strong>`;
+
+        // jednorádkový obsah
+        box.innerHTML = `
+            <i class="fas fa-boxes" style="margin-right:0.5em;"></i>
+            Celkový počet beden v označených zakázkách: <strong>${boxCountSum}</strong>        
+            &nbsp;|&nbsp;
+            <i class="fas fa-balance-scale" style="margin-right:0.5em;"></i>
+            Celková brutto hmotnost v označených zakázkách: <strong>${weightSum.toFixed(1)} kg</strong>
+        `;
     }
 
     document.querySelectorAll('input.action-select').forEach(function(checkbox) {
-        checkbox.addEventListener('change', updateSum);
+        checkbox.addEventListener('change', updateSummary);
     });
+    const selectAll = document.getElementById('action-toggle');
+    if (selectAll) selectAll.addEventListener('change', updateSummary);
 
-    let selectAll = document.getElementById('action-toggle');
-    if (selectAll) {
-        selectAll.addEventListener('change', updateSum);
-    }
-
-    updateSum();
+    updateSummary();
 });

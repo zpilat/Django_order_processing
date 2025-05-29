@@ -192,7 +192,7 @@ class ZakazkaAdmin(admin.ModelAdmin):
     form = ZakazkaAdminForm
     actions = [expedice_zakazek,]
     readonly_fields = ('komplet', 'expedovano')
-    list_display = ('artikl', 'kamion_prijem_link', 'kamion_vydej_link', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'popis', 'priorita', 'hmotnost_zakazky', 'komplet',)
+    list_display = ('artikl', 'kamion_prijem_link', 'kamion_vydej_link', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'popis', 'priorita', 'hmotnost_zakazky', 'pocet_beden', 'komplet',)
     list_editable = ('priorita',)
     list_display_links = ('artikl',)
     search_fields = ('artikl',)
@@ -224,6 +224,14 @@ class ZakazkaAdmin(admin.ModelAdmin):
         if brutto:
             return brutto.quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)
         return Decimal('0.0')
+
+    @admin.display(description='Počet beden')
+    def pocet_beden(self, obj):
+        """
+        Vrací počet beden v zakázce a umožní třídění podle hlavičky pole.
+        """
+        return obj.bedny.count() if obj.bedny.exists() else 0
+    pocet_beden.admin_order_field = 'bedny__count'
 
     @admin.display(description='Kamion příjem')
     def kamion_prijem_link(self, obj):
