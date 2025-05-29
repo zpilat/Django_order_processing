@@ -247,10 +247,39 @@ class ZakazkaAdmin(admin.ModelAdmin):
 
     def save_formset(self, request, form, formset, change):
         """
-        Uložení formsetu pro bedny. Pokud je vyplněn počet beden, vytvoří se nové instance. 
-        Pokud je vyplněna celková hmotnost, rozpočítá se na jednotlivé bedny.
+        Uložení formsetu pro bedny. 
+        Při vytváření nové zakázky:
+        - Pokud je vyplněn počet beden, vytvoří se nové instance. 
+        - Pokud je vyplněna celková hmotnost, rozpočítá se na jednotlivé bedny.
+        Při editaci zakázky:
+        - Pokud se mění stav bedny, tryskat nebo rovnat, provede se logika pro změnu stavu všech beden v zakázce.
         """
-        if not change:
+        if change:
+            # Pokud se jedná o editaci, zkontroluje, zda se mění pole stav bedny, tryskat nebo rovnat ve formuláři zakázek.
+            # Pokud ano, tak se provede logika pro změnu stavu všech beden v zakázce pro změněné pole.
+            if any(f in form.changed_data for f in ('stav_bedny','tryskat','rovnat')):
+                zakazka = form.instance
+                instances = list(formset.queryset)
+                if not instances:
+                    messages.error(request, "Zakázka neobsahuje žádné bedny.")
+                    return
+                
+                # Získání hodnot z formuláře
+                new_stav_bedny = form.cleaned_data.get('stav_bedny', None)
+                new_tryskat = form.cleaned_data.get('tryskat', None)
+                new_rovnat = form.cleaned_data.get('rovnat', None)
+
+                for bedna in instances:
+                    # Pokud se mění stav bedny, tryskat nebo rovnat, nastaví se nové hodnoty
+                    if new_stav_bedny:
+                        bedna.stav_bedny = new_stav_bedny
+                    if new_tryskat:
+                        bedna.tryskat = new_tryskat
+                    if new_rovnat:
+                        bedna.rovnat = new_rovnat
+                    bedna.save()
+
+        else: # Přidání nové zakázky s bednami
             instances = formset.save(commit=False)
             zakazka = form.instance
             celkova_hmotnost = form.cleaned_data.get('celkova_hmotnost')
