@@ -68,9 +68,15 @@ class BednaAdminForm(forms.ModelForm):
     class Meta:
         model = Bedna
         fields = "__all__"
-
+        
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        # Pokud je stav_bedny EXPEDOVANO, zobrazí se v detailu kvůli has_change_permission v adminu bedny ne jako formulář, ale pouze čistý text
+        # Objekt pak nemá fields, takže není potřeba ho inicializovat
+        if not self.fields:
+            return
+
         choices = list(StavBednyChoice.choices)
         field = self.fields["stav_bedny"]
         inst = getattr(self, "instance", None)
