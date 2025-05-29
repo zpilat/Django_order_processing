@@ -197,7 +197,7 @@ class ZakazkaAdmin(admin.ModelAdmin):
     form = ZakazkaAdminForm
     actions = [expedice_zakazek,]
     readonly_fields = ('komplet', 'expedovano')
-    list_display = ('artikl', 'kamion_prijem_link', 'kamion_vydej_link', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'popis', 'priorita', 'hmotnost_zakazky', 'pocet_beden', 'komplet', 'expedovano',)
+    list_display = ('artikl', 'kamion_prijem_link', 'kamion_vydej_link', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'popis', 'priorita', 'hmotnost_zakazky_netto', 'hmotnost_zakazky_brutto', 'pocet_beden', 'komplet', 'expedovano',)
     list_editable = ('priorita',)
     list_display_links = ('artikl',)
     search_fields = ('artikl',)
@@ -218,8 +218,8 @@ class ZakazkaAdmin(admin.ModelAdmin):
     class Media:
         js = ('admin/js/zakazky_hmotnost_sum.js',)
 
-    @admin.display(description='Brutto hm.')
-    def hmotnost_zakazky(self, obj):
+    @admin.display(description='Brutto')
+    def hmotnost_zakazky_brutto(self, obj):
         """
         Vypočítá celkovou brutto hmotnost beden v zakázce a umožní třídění podle hlavičky pole.
         """
@@ -228,6 +228,16 @@ class ZakazkaAdmin(admin.ModelAdmin):
         brutto = netto + sum(bedna.tara or 0 for bedna in bedny)
         if brutto:
             return brutto.quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)
+        return Decimal('0.0')
+    
+
+    @admin.display(description='Netto')
+    def hmotnost_zakazky_netto(self, obj):
+        """
+        Vypočítá celkovou netto hmotnost beden v zakázce a umožní třídění podle hlavičky pole.
+        """
+        if obj.bedny.exists():
+            return sum(bedna.hmotnost or 0 for bedna in obj.bedny.all()).quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)
         return Decimal('0.0')
 
     @admin.display(description='Počet beden')
@@ -429,7 +439,7 @@ class BednaAdmin(admin.ModelAdmin):
     - Pro každý řádek dropdown omezí na povolené volby podle stejné logiky.
     """
     form = BednaAdminForm
-    list_display = ('cislo_bedny', 'zakazka_link', 'get_prumer', 'get_delka', 'rovnat', 'tryskat', 'stav_bedny', 'get_typ_hlavy', 'hmotnost', 'tara', 'get_priorita', 'poznamka')
+    list_display = ('cislo_bedny', 'zakazka_link', 'kamion_prijem_link', 'get_prumer', 'get_delka', 'rovnat', 'tryskat', 'stav_bedny', 'get_typ_hlavy', 'hmotnost', 'tara', 'get_priorita', 'poznamka')
     list_editable = ('stav_bedny', 'rovnat', 'tryskat', 'poznamka',)
     list_display_links = ('cislo_bedny', )
     search_fields = ('cislo_bedny', 'zakazka_id__artikl', 'zakazka_id__delka',)
@@ -453,9 +463,19 @@ class BednaAdmin(admin.ModelAdmin):
         Vytvoří odkaz na detail zakázky, ke které bedna patří a umožní třídění podle hlavičky pole.
         """
         if obj.zakazka_id:
-            return mark_safe(f'<a href="{obj.zakazka_id.get_admin_url()}">{obj.zakazka_id}</a>')
+            return mark_safe(f'<a href="{obj.zakazka_id.get_admin_url()}">{obj.zakazka_id.artikl}</a>')
         return '-'
     zakazka_link.admin_order_field = 'zakazka_id__id'
+
+    @admin.display(description='Kamion příjem')
+    def kamion_prijem_link(self, obj):
+        """
+        Vytvoří odkaz na detail kamionu příjmu, ke kterému bedna patří a umožní třídění podle hlavičky pole.
+        """
+        if obj.zakazka_id and obj.zakazka_id.kamion_prijem_id:
+            return mark_safe(f'<a href="{obj.zakazka_id.kamion_prijem_id.get_admin_url()}">{obj.zakazka_id.kamion_prijem_id}</a>')
+        return '-'
+    kamion_prijem_link.admin_order_field = 'zakazka_id__kamion_prijem_id__id'
 
     @admin.display(description='Typ hlavy')
     def get_typ_hlavy(self, obj):

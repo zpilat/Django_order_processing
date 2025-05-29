@@ -78,7 +78,7 @@ class Zakazka(models.Model):
         ]
 
     def __str__(self):
-        return f'{self.kamion_prijem_id.id}. {self.kamion_prijem_id.zakaznik_id.zkratka} {self.kamion_prijem_id.datum} - {self.artikl} - {self.prumer}x{self.delka}'
+        return f'{self.kamion_prijem_id.id}. {self.kamion_prijem_id.zakaznik_id.zkratka} {self.kamion_prijem_id.datum} - {self.artikl}'
     
     def get_admin_url(self):
         """

@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const row = checkbox.closest('tr');
 
             // Brutto hmotnost
-            const hmotnostCell = row.querySelector('td.field-hmotnost_zakazky');
+            const hmotnostCell = row.querySelector('td.field-hmotnost_zakazky_brutto');
             if (hmotnostCell) {
                 let val = parseFloat(hmotnostCell.textContent.replace(',', '.'));
                 if (!isNaN(val)) weightSum += val;
