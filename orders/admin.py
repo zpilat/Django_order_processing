@@ -62,6 +62,7 @@ class ZakazkaPrijemInline(admin.TabularInline):
     extra = 0
     fields = ('artikl', 'kamion_vydej_id', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'popis', 'priorita', 'komplet','expedovano',)
     readonly_fields = ('komplet', 'expedovano',)
+    show_change_link = True
     formfield_overrides = {
         models.CharField: {'widget': TextInput(attrs={ 'size': '30'})},
         models.DecimalField: {'widget': TextInput(attrs={ 'size': '8'})},
@@ -78,7 +79,8 @@ class ZakazkaVydejInline(admin.TabularInline):
     verbose_name_plural = "Zakázky - výdej"
     extra = 0
     fields = ('artikl', 'kamion_prijem_id', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'popis', 'priorita', 'komplet', 'expedovano',)
-    readonly_fields = ('komplet', 'expedovano',)
+    readonly_fields = ('artikl', 'kamion_prijem_id', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'priorita', 'komplet', 'expedovano',)
+    show_change_link = True
     formfield_overrides = {
         models.CharField: {'widget': TextInput(attrs={ 'size': '30'})},
         models.DecimalField: {'widget': TextInput(attrs={ 'size': '8'})},
@@ -154,6 +156,9 @@ class BednaInline(admin.TabularInline):
     model = Bedna
     form = BednaAdminForm
     extra = 0
+    fields = ('cislo_bedny', 'hmotnost', 'tara', 'material', 'sarze', 'tryskat', 'rovnat', 'stav_bedny', 'poznamka',)
+    readonly_fields = ('cislo_bedny',)
+    show_change_link = True
     formfield_overrides = {
         models.CharField: {'widget': TextInput(attrs={'size': '18'})},  # default
         models.DecimalField: {'widget': TextInput(attrs={'size': '6'})},
@@ -192,7 +197,7 @@ class ZakazkaAdmin(admin.ModelAdmin):
     form = ZakazkaAdminForm
     actions = [expedice_zakazek,]
     readonly_fields = ('komplet', 'expedovano')
-    list_display = ('artikl', 'kamion_prijem_link', 'kamion_vydej_link', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'popis', 'priorita', 'hmotnost_zakazky', 'pocet_beden', 'komplet',)
+    list_display = ('artikl', 'kamion_prijem_link', 'kamion_vydej_link', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'popis', 'priorita', 'hmotnost_zakazky', 'pocet_beden', 'komplet', 'expedovano',)
     list_editable = ('priorita',)
     list_display_links = ('artikl',)
     search_fields = ('artikl',)
@@ -231,7 +236,6 @@ class ZakazkaAdmin(admin.ModelAdmin):
         Vrací počet beden v zakázce a umožní třídění podle hlavičky pole.
         """
         return obj.bedny.count() if obj.bedny.exists() else 0
-    pocet_beden.admin_order_field = 'bedny__count'
 
     @admin.display(description='Kamion příjem')
     def kamion_prijem_link(self, obj):
@@ -256,7 +260,7 @@ class ZakazkaAdmin(admin.ModelAdmin):
     def save_formset(self, request, form, formset, change):
         """
         Uložení formsetu pro bedny. 
-        Při vytváření nové zakázky:
+        Při vytváření nové zakázky - příjem zboží na sklad:
         - Pokud je vyplněn počet beden, vytvoří se nové instance. 
         - Pokud je vyplněna celková hmotnost, rozpočítá se na jednotlivé bedny.
         Při editaci zakázky:
@@ -421,11 +425,11 @@ class BednaAdmin(admin.ModelAdmin):
     Admin pro model Bedna:
     
     - Detail/inline: BednaAdminForm (omezuje stavové volby dle instance).
-    - Seznam (change_list): list_editable pro `stav_bedny`.
+    - Seznam (change_list): list_editable pro stav_bedny, tryskat, rovnat a poznamka.
     - Pro každý řádek dropdown omezí na povolené volby podle stejné logiky.
     """
     form = BednaAdminForm
-    list_display = ('cislo_bedny', 'zakazka_link', 'get_prumer', 'get_delka', 'rovnat', 'tryskat', 'stav_bedny', 'get_typ_hlavy', 'get_priorita', 'poznamka')
+    list_display = ('cislo_bedny', 'zakazka_link', 'get_prumer', 'get_delka', 'rovnat', 'tryskat', 'stav_bedny', 'get_typ_hlavy', 'hmotnost', 'tara', 'get_priorita', 'poznamka')
     list_editable = ('stav_bedny', 'rovnat', 'tryskat', 'poznamka',)
     list_display_links = ('cislo_bedny', )
     search_fields = ('cislo_bedny', 'zakazka_id__artikl', 'zakazka_id__delka',)
