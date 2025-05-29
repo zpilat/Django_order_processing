@@ -22,26 +22,26 @@ class ZakazkaAdminForm(forms.ModelForm):
         model = Zakazka
         fields = "__all__"
 
-"""     def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         inst = getattr(self, "instance", None)
 
         # Pole stav_bedny, tryskat a rovnat se u tvorby nové zakázky nezobrazují,
-        # při editaci se zobrazí enabled pouze v případě, že všechny bedny v zakázce mají stejný stav,
-        # stejnou hodnotu tryskat a/nebo rovnat. V tomto případě se zobrazí s nabídkou stávající hodnoty
-        # jako initial a s možností změny na přechozí nebo následující stav pro všechny bedny v zakázce.
+        # při editaci se zobrazí pouze v případě, že všechny bedny v zakázce mají stejný stav a/nebo
+        # hodnotu tryskat a/nebo rovnat. Zobrazení je zajištěno podmínkou v fieldsetu v modeladminu.
+        # V tomto případě se zobrazí s nabídkou stávající hodnoty jako initial, tryskat a rovnat všechny hodnoty,
+        # stav_bedny s možností změny na přechozí nebo následující stav bedny pro všechny bedny v zakázce.
 
         if inst and inst.pk:
             # Existující instance
             stav_bedny = inst.bedny.first().stav_bedny if inst.bedny.exists() else StavBednyChoice.PRIJATO
-            tryskat = inst.bedny.first().tryskat if inst.bedny.exists() else TryskaniChoice.CISTA
-            rovnat = inst.bedny.first().rovnat if inst.bedny.exists() else RovnaniChoice.ROVNA
+            tryskat = inst.bedny.first().tryskat if inst.bedny.exists() else TryskaniChoice.NEZADANO
+            rovnat = inst.bedny.first().rovnat if inst.bedny.exists() else RovnaniChoice.NEZADANO
 
             # Nastavíme initial hodnoty pro pole stav_bedny, tryskat a rovnat
             self.fields['stav_bedny'].initial = stav_bedny
             self.fields['tryskat'].initial = tryskat
-            self.fields['rovnat'].initial = rovnat """
-
+            self.fields['rovnat'].initial = rovnat
 
 
 class BednaAdminForm(forms.ModelForm):

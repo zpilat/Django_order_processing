@@ -341,12 +341,13 @@ class ZakazkaAdmin(admin.ModelAdmin):
                     fields += ['rovnat']
                 if all(bedna.stav_bedny == stav_bedny for bedna in obj.bedny.all()):
                     fields += ['stav_bedny']
-                my_fieldsets.append(
-                    ('Změna stavu všech beden v zakázce:', {
-                        'fields': fields,
-                        'description': 'Zde můžete změnit stav všech beden v zakázce najednou, ale bedny musí mít pro měněnou položku všechny stejnou hodnotu.',
-                    }),
-                )
+                if fields:
+                    my_fieldsets.append(
+                        ('Změna stavu všech beden v zakázce:', {
+                            'fields': fields,
+                            'description': 'Zde můžete změnit stav všech beden v zakázce najednou, ale bedny musí mít pro měněnou položku všechny stejnou hodnotu.',
+                        }),
+                    )
 
             return my_fieldsets
 
