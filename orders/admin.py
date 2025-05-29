@@ -60,7 +60,7 @@ class ZakazkaPrijemInline(admin.TabularInline):
     verbose_name = 'Zakázka - příjem'
     verbose_name_plural = 'Zakázky - příjem'
     extra = 0
-    fields = ('artikl', 'kamion_vydej_id', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'popis', 'priorita', 'komplet','expedovano',)
+    fields = ('artikl', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'popis', 'priorita', 'komplet','expedovano',)
     readonly_fields = ('komplet', 'expedovano',)
     show_change_link = True
     formfield_overrides = {
@@ -79,23 +79,12 @@ class ZakazkaVydejInline(admin.TabularInline):
     verbose_name_plural = "Zakázky - výdej"
     extra = 0
     fields = ('artikl', 'kamion_prijem_id', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'popis', 'priorita', 'komplet', 'expedovano',)
-    readonly_fields = ('artikl', 'kamion_prijem_id', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'priorita', 'komplet', 'expedovano',)
+    readonly_fields = ('artikl', 'kamion_prijem_id', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'popis', 'priorita', 'komplet', 'expedovano',)
     show_change_link = True
     formfield_overrides = {
         models.CharField: {'widget': TextInput(attrs={ 'size': '30'})},
         models.DecimalField: {'widget': TextInput(attrs={ 'size': '8'})},
     }
- 
-    # def has_change_permission(self, request, obj=None):
-    #     """
-    #     Kontrola oprávnění pro změnu expedované zakázky.
-    #     """
-    #     base_permission = super().has_change_permission(request, obj)
-    #     if not base_permission:
-    #         return False
-    #     if not request.user.has_perm('orders.change_expedovana_zakazka'):
-    #         return False
-    #     return True
 
 
 @admin.register(Kamion)
@@ -103,7 +92,8 @@ class KamionAdmin(admin.ModelAdmin):
     """
     Správa kamionů v administraci.
     """
-    exclude = ('misto_expedice',)
+    fields = ('zakaznik_id', 'datum', 'cislo_dl', 'prijem_vydej', 'misto_expedice',)
+    readonly_fields = ('zakaznik_id', 'prijem_vydej',)
     list_display = ('get_kamion_str', 'zakaznik_id__nazev', 'datum', 'cislo_dl', 'prijem_vydej', 'misto_expedice',)
     list_filter = ('zakaznik_id__nazev', 'prijem_vydej',)
     list_display_links = ('get_kamion_str',)
@@ -134,20 +124,20 @@ class KamionAdmin(admin.ModelAdmin):
         return obj.__str__()
     get_kamion_str.admin_order_field = 'id'
 
-    def get_exclude(self, request, obj=None):
+    def get_fields(self, request, obj=None):
         """
-        Vrací seznam polí, která se mají vyloučit z formuláře Kamion při editaci.
+        Vrací seznam polí, která se mají zobrazit ve formuláře Kamion při editaci.
 
-        - Pokud není obj (tj. add_view) a pokud je kamion příjem, použije se základní exclude z super().
-        - Pokud je obj a kamion je pro výdej, zruší se vyloučení pole `misto_expedice`.
+        - Pokud není obj (tj. add_view) a pokud je kamion příjem, použije se základní fields ze super().
+        - Pokud je obj a kamion je pro příjem, zruší se zobrazení pole `misto_expedice`.
 
         """
-        excluded = list(super().get_exclude(request, obj) or [])
+        fields = list(super().get_fields(request, obj) or [])
 
-        if obj and obj.prijem_vydej == 'V':
-            excluded = []
+        if obj and obj.prijem_vydej == 'P':
+            fields.remove('misto_expedice')
 
-        return excluded
+        return fields
 
 class BednaInline(admin.TabularInline):
     """
@@ -198,7 +188,7 @@ class ZakazkaAdmin(admin.ModelAdmin):
     actions = [expedice_zakazek,]
     readonly_fields = ('komplet', 'expedovano')
     list_display = ('artikl', 'kamion_prijem_link', 'kamion_vydej_link', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'popis', 'priorita', 'hmotnost_zakazky_netto', 'hmotnost_zakazky_brutto', 'pocet_beden', 'komplet', 'expedovano',)
-    list_editable = ('priorita',)
+    #list_editable = je nastaveno pro různé stavy filtru Skladem v metodě changelist_view
     list_display_links = ('artikl',)
     search_fields = ('artikl',)
     search_help_text = "Hledat podle artiklu"
@@ -267,6 +257,14 @@ class ZakazkaAdmin(admin.ModelAdmin):
         return '-'
     kamion_vydej_link.admin_order_field = 'kamion_vydej_id__id'
 
+    def has_change_permission(self, request, obj=None):
+        """
+        Kontrola oprávnění pro změnu zakázky, v případě expedované zakázky nelze měnit.
+        """
+        if obj and obj.expedovano:
+            return False
+        return super().has_change_permission(request, obj)  
+       
     def save_formset(self, request, form, formset, change):
         """
         Uložení formsetu pro bedny. 
@@ -426,7 +424,15 @@ class ZakazkaAdmin(admin.ModelAdmin):
             ]         
            
     def get_changelist(self, request, **kwargs):
-        return CustomPaginationChangeList    
+        return CustomPaginationChangeList
+    
+    def changelist_view(self, request, extra_context=None):
+        # když je aktivní filtr "skladem=Expedováno", zakáže se inline-editace
+        if request.GET.get('skladem'):
+            self.list_editable = ()      # žádné editovatelné sloupce
+        else:
+            self.list_editable = ('priorita',)
+        return super().changelist_view(request, extra_context)    
 
 
 @admin.register(Bedna)
@@ -440,7 +446,7 @@ class BednaAdmin(admin.ModelAdmin):
     """
     form = BednaAdminForm
     list_display = ('cislo_bedny', 'zakazka_link', 'kamion_prijem_link', 'get_prumer', 'get_delka', 'rovnat', 'tryskat', 'stav_bedny', 'get_typ_hlavy', 'hmotnost', 'tara', 'get_priorita', 'poznamka')
-    list_editable = ('stav_bedny', 'rovnat', 'tryskat', 'poznamka',)
+    # list_editable - je nastaveno pro různé stavy filtru Skladem v metodě changelist_view
     list_display_links = ('cislo_bedny', )
     search_fields = ('cislo_bedny', 'zakazka_id__artikl', 'zakazka_id__delka',)
     search_help_text = "Hledat podle čísla bedny, artiklu nebo délky vrutu"
@@ -574,3 +580,19 @@ class BednaAdmin(admin.ModelAdmin):
                     form.fields['stav_bedny'].initial = curr
 
         return RestrictedStateFormSet
+    
+    def has_change_permission(self, request, obj=None):
+        """
+        Kontrola oprávnění pro změnu bedny, v případě expedované bedny nelze měnit.
+        """
+        if obj and obj.stav_bedny == StavBednyChoice.EXPEDOVANO:
+            return False
+        return super().has_change_permission(request, obj)  
+    
+    def changelist_view(self, request, extra_context=None):
+        # když je aktivní filtr Stav bedny vlastni = EX (expedováno), zakáže se inline-editace
+        if request.GET.get('stav_bedny_vlastni') == 'EX':
+            self.list_editable = ()      # žádné editovatelné sloupce
+        else:
+            self.list_editable = ('stav_bedny', 'rovnat', 'tryskat', 'poznamka',)
+        return super().changelist_view(request, extra_context)        
