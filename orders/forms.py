@@ -5,12 +5,6 @@ from .choices import (
     PrioritaChoice, ZinkovnaChoice, KamionChoice
 )
 
-def add_empty_choice(choices, label="---------"):
-    '''
-    Přidá prázdnou volbu do choices jako defaultní ve formuláři.
-    '''
-    return [('', label)] + list(choices)
-
 class ZakazkaAdminForm(forms.ModelForm):
     celkova_hmotnost = forms.DecimalField(required=False, min_value=1.0, label="Celková hmotnost zakázky")
     pocet_beden = forms.IntegerField(required=False, min_value=1, label="Celkový počet beden v zakázce")   
@@ -20,13 +14,34 @@ class ZakazkaAdminForm(forms.ModelForm):
     dodavatel_materialu = forms.CharField(required=False, label="Lief.")
     vyrobni_zakazka = forms.CharField(required=False, label="Fertigungs-auftrags Nr.")
     poznamka = forms.CharField(required=False, label="Poznámka")
-    tryskat = forms.ChoiceField(choices=add_empty_choice(TryskaniChoice.choices), required=False, label="Tryskání")
-    rovnat = forms.ChoiceField(choices=add_empty_choice(RovnaniChoice.choices), required=False, label="Rovnání")
-    zmena_stavu = forms.ChoiceField(choices=add_empty_choice(StavBednyChoice.choices[:-1]), required=False, label="Změna stavu")
+    tryskat = forms.ChoiceField(choices=TryskaniChoice.choices, required=False, label="Změna stavu tryskání")
+    rovnat = forms.ChoiceField(choices=RovnaniChoice.choices, required=False, label="Změna stavu rovnání")
+    stav_bedny = forms.ChoiceField(choices=StavBednyChoice.choices[:-1], required=False, label="Změna stavu bedny")
 
     class Meta:
         model = Zakazka
         fields = "__all__"
+
+"""     def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        inst = getattr(self, "instance", None)
+
+        # Pole stav_bedny, tryskat a rovnat se u tvorby nové zakázky nezobrazují,
+        # při editaci se zobrazí enabled pouze v případě, že všechny bedny v zakázce mají stejný stav,
+        # stejnou hodnotu tryskat a/nebo rovnat. V tomto případě se zobrazí s nabídkou stávající hodnoty
+        # jako initial a s možností změny na přechozí nebo následující stav pro všechny bedny v zakázce.
+
+        if inst and inst.pk:
+            # Existující instance
+            stav_bedny = inst.bedny.first().stav_bedny if inst.bedny.exists() else StavBednyChoice.PRIJATO
+            tryskat = inst.bedny.first().tryskat if inst.bedny.exists() else TryskaniChoice.CISTA
+            rovnat = inst.bedny.first().rovnat if inst.bedny.exists() else RovnaniChoice.ROVNA
+
+            # Nastavíme initial hodnoty pro pole stav_bedny, tryskat a rovnat
+            self.fields['stav_bedny'].initial = stav_bedny
+            self.fields['tryskat'].initial = tryskat
+            self.fields['rovnat'].initial = rovnat """
+
 
 
 class BednaAdminForm(forms.ModelForm):

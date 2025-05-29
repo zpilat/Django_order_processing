@@ -318,11 +318,8 @@ class ZakazkaAdmin(admin.ModelAdmin):
                 (None, {
                     'fields': ['kamion_prijem_id', 'kamion_vydej_id', 'artikl', 'typ_hlavy', 'prumer', 'delka', 'predpis', 'priorita', 'popis', 'zinkovna', 'komplet', 'expedovano'],
                     }),
-                    ('Změna stavu všech beden v zakázce:', {
-                        'fields': ['tryskat', 'rovnat', 'zmena_stavu'],
-                        'description': 'Zde můžete změnit stav všech beden v zakázce najednou, ale bedny musí mít pro měněnou položku všechny stejnou hodnotu.',
-                    }),                    
-                ]
+            ]
+               
             # Pokud je zákazník Eurotec, přidej speciální pole pro zobrazení
             if obj.kamion_prijem_id.zakaznik_id.zkratka == 'EUR':
                 my_fieldsets.append(                  
@@ -331,6 +328,26 @@ class ZakazkaAdmin(admin.ModelAdmin):
                         'description': 'Pro Eurotec musí být vyplněno: Průběh zakázky, tloušťka vrstvy a povrchová úprava.',
                     }),  
                 )
+
+            # Pokud jsou pro stav_bedny, tryskat a rovnat stejné hodnoty pro všechny bedny v zakázce, přidej pole pro změnu stavu těchto položek pro všechny bedny
+            if obj.bedny.exists():
+                stav_bedny = obj.bedny.first().stav_bedny
+                tryskat = obj.bedny.first().tryskat
+                rovnat = obj.bedny.first().rovnat
+                fields = []
+                if all(bedna.tryskat == tryskat for bedna in obj.bedny.all()):
+                    fields += ['tryskat']
+                if all(bedna.rovnat == rovnat for bedna in obj.bedny.all()):
+                    fields += ['rovnat']
+                if all(bedna.stav_bedny == stav_bedny for bedna in obj.bedny.all()):
+                    fields += ['stav_bedny']
+                my_fieldsets.append(
+                    ('Změna stavu všech beden v zakázce:', {
+                        'fields': fields,
+                        'description': 'Zde můžete změnit stav všech beden v zakázce najednou, ale bedny musí mít pro měněnou položku všechny stejnou hodnotu.',
+                    }),
+                )
+
             return my_fieldsets
 
         else:  # přidání nového záznamu

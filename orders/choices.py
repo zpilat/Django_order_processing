@@ -17,11 +17,13 @@ class StavBednyChoice(models.TextChoices):
     EXPEDOVANO = 'EX', 'Expedováno'
 
 class RovnaniChoice(models.TextChoices):
+    NEZADANO = '', '--------'
     ROVNA = 'RO', 'Rovná'
     KRIVA = 'KR', 'Křivá'
     VYROVNANA = 'VY', 'Vyrovnaná'
 
 class TryskaniChoice(models.TextChoices):
+    NEZADANO = '', '--------'
     CISTA = 'CI', 'Čistá'
     SPINAVA = 'SP', 'Špinavá'
     OTRYSKANA = 'OT', 'Otryskaná'
