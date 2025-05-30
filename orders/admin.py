@@ -68,6 +68,14 @@ class ZakazkaPrijemInline(admin.TabularInline):
         models.DecimalField: {'widget': TextInput(attrs={ 'size': '8'})},
     }
 
+    def get_queryset(self, request):
+        """
+        Přizpůsobení querysetu pro inline zakázek příjmu.
+        Zobrazí pouze zakázky, které nejsou expedované.
+        """
+        qs = super().get_queryset(request)
+        return qs.filter(expedovano=False)
+
 
 class ZakazkaVydejInline(admin.TabularInline):
     """
