@@ -453,7 +453,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     - Pro každý řádek dropdown omezí na povolené volby podle stejné logiky.
     """
     form = BednaAdminForm
-    list_display = ('cislo_bedny', 'zakazka_link', 'kamion_prijem_link', 'get_prumer', 'get_delka', 'rovnat', 'tryskat', 'stav_bedny', 'get_typ_hlavy', 'hmotnost', 'tara', 'get_priorita', 'poznamka')
+    list_display = ('cislo_bedny', 'zakazka_link', 'kamion_prijem_link', 'kamion_vydej_link', 'get_prumer', 'get_delka', 'rovnat', 'tryskat', 'stav_bedny', 'get_typ_hlavy', 'hmotnost', 'tara', 'get_priorita', 'poznamka')
     # list_editable - je nastaveno pro různé stavy filtru Skladem v metodě changelist_view
     list_display_links = ('cislo_bedny', )
     search_fields = ('cislo_bedny', 'zakazka_id__artikl', 'zakazka_id__delka',)
@@ -490,6 +490,16 @@ class BednaAdmin(SimpleHistoryAdmin):
             return mark_safe(f'<a href="{obj.zakazka_id.kamion_prijem_id.get_admin_url()}">{obj.zakazka_id.kamion_prijem_id}</a>')
         return '-'
     kamion_prijem_link.admin_order_field = 'zakazka_id__kamion_prijem_id__id'
+
+    @admin.display(description='Kamion výdej')
+    def kamion_vydej_link(self, obj):
+        """
+        Vytvoří odkaz na detail kamionu výdeje, ke kterému bedna patří a umožní třídění podle hlavičky pole.
+        """
+        if obj.zakazka_id and obj.zakazka_id.kamion_vydej_id:
+            return mark_safe(f'<a href="{obj.zakazka_id.kamion_vydej_id.get_admin_url()}">{obj.zakazka_id.kamion_vydej_id}</a>')
+        return '-'
+    kamion_vydej_link.admin_order_field = 'zakazka_id__kamion_vydej_id__id'
 
     @admin.display(description='Typ hlavy')
     def get_typ_hlavy(self, obj):
@@ -604,3 +614,13 @@ class BednaAdmin(SimpleHistoryAdmin):
         else:
             self.list_editable = ('stav_bedny', 'rovnat', 'tryskat', 'poznamka',)
         return super().changelist_view(request, extra_context)        
+    
+    def get_list_display(self, request):
+        """
+        Přizpůsobení zobrazení sloupců v seznamu Bedna.
+        Pokud není aktivní filtr Expedováno, vyloučí se zobrazení sloupce kamion_vydej_link.
+        """
+        list_display = list(super().get_list_display(request))
+        if request.GET.get('stav_bedny_vlastni') != 'EX':
+            list_display.remove('kamion_vydej_link')
+        return list_display
