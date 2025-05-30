@@ -37,7 +37,7 @@ class CustomPaginationChangeList(ChangeList):
 
 # Register your models here.
 @admin.register(Zakaznik)
-class ZakaznikAdmin(admin.ModelAdmin):
+class ZakaznikAdmin(SimpleHistoryAdmin):
     """
     Správa zákazníků v administraci.
     """
@@ -96,7 +96,7 @@ class ZakazkaVydejInline(admin.TabularInline):
 
 
 @admin.register(Kamion)
-class KamionAdmin(admin.ModelAdmin):
+class KamionAdmin(SimpleHistoryAdmin):
     """
     Správa kamionů v administraci.
     """
@@ -187,7 +187,7 @@ class BednaInline(admin.TabularInline):
         
 
 @admin.register(Zakazka)
-class ZakazkaAdmin(admin.ModelAdmin):
+class ZakazkaAdmin(SimpleHistoryAdmin):
     """
     Správa zakázek v administraci.
     """
@@ -444,7 +444,7 @@ class ZakazkaAdmin(admin.ModelAdmin):
 
 
 @admin.register(Bedna)
-class BednaAdmin(admin.ModelAdmin):
+class BednaAdmin(SimpleHistoryAdmin):
     """
     Admin pro model Bedna:
     
