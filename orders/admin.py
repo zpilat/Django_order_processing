@@ -458,7 +458,7 @@ class BednaAdmin(admin.ModelAdmin):
     list_display_links = ('cislo_bedny', )
     search_fields = ('cislo_bedny', 'zakazka_id__artikl', 'zakazka_id__delka',)
     search_help_text = "Hledat podle čísla bedny, artiklu nebo délky vrutu"
-    list_filter = ('zakazka_id__kamion_prijem_id__zakaznik_id__nazev', StavBednyFilter, 'zakazka_id__typ_hlavy', 'zakazka_id__priorita', )
+    list_filter = ('zakazka_id__kamion_prijem_id__zakaznik_id__nazev', StavBednyFilter, 'rovnat', 'tryskat', 'zakazka_id__priorita', )
     ordering = ('id',)
     date_hierarchy = 'zakazka_id__kamion_prijem_id__datum'
     formfield_overrides = {
