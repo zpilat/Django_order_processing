@@ -307,6 +307,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
         - Pokud je vyplněn počet beden, vytvoří se nové instance. 
         - Pokud je vyplněna celková hmotnost, rozpočítá se na jednotlivé bedny.
         Při editaci zakázky:
+        - Pokud je zakázka expedovaná, nelze upravovat.
         - Pokud se mění stav bedny, tryskat nebo rovnat, provede se logika pro změnu stavu všech beden v zakázce.
         """
         if change:
@@ -397,7 +398,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
 
     def get_fieldsets(self, request, obj=None):
         """
-        Vytváří pole pro zobrazení v administraci na základě toho, zda se jedná o editaci nebo přidání.
+        Vytváří pole pro zobrazení v administraci na základě toho, zda se jedná o editaci nebo přidání, případně zda je zakázka expedovaná.
         """
         if obj:  # editace stávajícího záznamu
             my_fieldsets = [
@@ -416,7 +417,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
                 )
 
             # Pokud jsou pro stav_bedny, tryskat a rovnat stejné hodnoty pro všechny bedny v zakázce, přidej pole pro změnu stavu těchto položek pro všechny bedny
-            if obj.bedny.exists():
+            if obj.bedny.exists() and obj.expedovano is False:
                 stav_bedny = obj.bedny.first().stav_bedny
                 tryskat = obj.bedny.first().tryskat
                 rovnat = obj.bedny.first().rovnat
