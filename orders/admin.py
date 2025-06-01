@@ -479,6 +479,29 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
         if not request.GET.get('skladem'):
             ld.remove('kamion_vydej_link')
         return ld
+
+    def get_form(self, request, obj=None, **kwargs):
+        """
+        Vrací ModelForm pro Zakázku, ale upraví 'choices' 
+        u polí hromadné změny podle stavu první bedny.
+        """
+        FormClass = super().get_form(request, obj, **kwargs)
+        
+        class PatchedForm(FormClass):
+            def __init__(self_inner, *args, **inner_kwargs):
+                super().__init__(*args, **inner_kwargs)
+
+                # Pokud upravujeme existující Zakázku a má bedny:
+                if obj and obj.pk and obj.bedny.exists():
+                    prvni_bedna = obj.bedny.first()
+                    
+                    # Omezení choices pro stav_bedny
+                    if 'stav_bedny' in self_inner.fields:
+                        allowed = prvni_bedna.get_allowed_stav_bedny_choices()
+                        self_inner.fields['stav_bedny'].choices = allowed
+                        self_inner.fields['stav_bedny'].initial = prvni_bedna.stav_bedny
+        
+        return PatchedForm
     
 
 @admin.register(Bedna)
@@ -606,50 +629,12 @@ class BednaAdmin(SimpleHistoryAdmin):
         """
         return CustomPaginationChangeList
     
-    def get_changelist_formset(self, request, **kwargs):
+    def get_changelist_form(self, request, **kwargs):
         """
-        Vrátí vlastní FormSet pro change_list, kde každý řádek dostane
-        pro `stav_bedny` jen ty volby podle BednaAdminForm.__init__ logiky.
+        Vytvoří vlastní formulář pro ChangeList s omezenými volbami pro `stav_bedny`.
         """
-        FormSet = super().get_changelist_formset(request, **kwargs)
-        choices = list(StavBednyChoice.choices)
+        return BednaAdminForm
 
-        class RestrictedStateFormSet(FormSet):
-            def __init__(self, *args, **fs_kwargs):
-                super().__init__(*args, **fs_kwargs)
-                for form in self.forms:
-                    inst = getattr(form, 'instance', None)
-                    if not inst or not inst.pk:
-                        continue
-
-                    try:
-                        idx = next(i for i, (val, _) in enumerate(choices)
-                                   if val == inst.stav_bedny)
-                    except StopIteration:
-                        continue
-
-                    curr = inst.stav_bedny
-                    if curr == StavBednyChoice.EXPEDOVANO:
-                        allowed = [choices[idx]]
-                    elif curr == StavBednyChoice.K_EXPEDICI:
-                        allowed = [choices[idx - 1], choices[idx]]
-                    elif curr == StavBednyChoice.ZKONTROLOVANO:
-                        allowed = [choices[idx - 1], choices[idx]]
-                        if inst.tryskat in (TryskaniChoice.CISTA, TryskaniChoice.OTRYSKANA) and \
-                           inst.rovnat in (RovnaniChoice.ROVNA, RovnaniChoice.VYROVNANA):
-                            allowed.append(choices[idx + 1])
-                    elif curr == StavBednyChoice.PRIJATO:
-                        allowed = [choices[idx], choices[idx + 1]]
-                    else:
-                        before = [choices[idx - 1]] if idx > 0 else []
-                        after  = [choices[idx + 1]] if idx < len(choices) - 1 else []
-                        allowed = before + [choices[idx]] + after
-
-                    form.fields['stav_bedny'].choices = allowed
-                    form.fields['stav_bedny'].initial = curr
-
-        return RestrictedStateFormSet
-    
     def has_change_permission(self, request, obj=None):
         """
         Kontrola oprávnění pro změnu bedny, v případě expedované bedny nelze měnit.

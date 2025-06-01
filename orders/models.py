@@ -182,3 +182,42 @@ class Bedna(models.Model):
             else:
                 zak.komplet = False
             zak.save()
+
+    def get_allowed_stav_bedny_choices(self):
+        """
+        Vrátí seznam tuple (value,label) pro pole `stav_bedny`
+        podle aktuálního stavu a hodnot `tryskat`/`rovnat`.
+        """
+        choices = list(StavBednyChoice.choices)
+        curr = self.stav_bedny
+
+        # najdi index
+        try:
+            idx = next(i for i, (val, _) in enumerate(choices) if val == curr)
+        except StopIteration:
+            return choices  # fallback: všechno
+
+        # EXPEDOVANO
+        if curr == StavBednyChoice.EXPEDOVANO:
+            return [choices[idx]]
+
+        # K_EXPEDICI
+        if curr == StavBednyChoice.K_EXPEDICI:
+            return [choices[idx - 1], choices[idx]]
+
+        # ZKONTROLOVANO
+        if curr == StavBednyChoice.ZKONTROLOVANO:
+            allowed = [choices[idx - 1], choices[idx]]
+            if (self.tryskat in (TryskaniChoice.CISTA, TryskaniChoice.OTRYSKANA)
+             and self.rovnat in (RovnaniChoice.ROVNA, RovnaniChoice.VYROVNANA)):
+                allowed.append(choices[idx + 1])
+            return allowed
+
+        # PRIJATO
+        if curr == StavBednyChoice.PRIJATO:
+            return [choices[idx], choices[idx + 1]]
+
+        # ostatní
+        before = [choices[idx - 1]] if idx > 0 else []
+        after  = [choices[idx + 1]] if idx < len(choices) - 1 else []
+        return before + [choices[idx]] + after

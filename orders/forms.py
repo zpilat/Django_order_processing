@@ -24,23 +24,25 @@ class ZakazkaAdminForm(forms.ModelForm):
         fields = "__all__"
 
     def __init__(self, *args, **kwargs):
+        """
+        Inicializace formuláře ZakazkaAdminForm.
+        Pole stav_bedny, tryskat a rovnat se u tvorby nové zakázky nezobrazují,
+        při editaci se zobrazí pouze v případě, že všechny bedny v zakázce mají stejný stav a/nebo
+        hodnotu tryskat a/nebo rovnat. Zobrazení je zajištěno podmínkou v fieldsetu v modeladminu.
+        V tomto případě se zobrazí s nabídkou stávající hodnoty jako initial, tryskat a rovnat všechny hodnoty,
+        stav_bedny s možností změny na přechozí nebo následující stav bedny pro všechny bedny v zakázce.
+        Stav bedny se nastaví podle první bedny v zakázce, pokud existuje 
+        a to ve třídě Patchedform v metodě get_form v modelu Bedna.
+        """
         super().__init__(*args, **kwargs)
         inst = getattr(self, "instance", None)
 
-        # Pole stav_bedny, tryskat a rovnat se u tvorby nové zakázky nezobrazují,
-        # při editaci se zobrazí pouze v případě, že všechny bedny v zakázce mají stejný stav a/nebo
-        # hodnotu tryskat a/nebo rovnat. Zobrazení je zajištěno podmínkou v fieldsetu v modeladminu.
-        # V tomto případě se zobrazí s nabídkou stávající hodnoty jako initial, tryskat a rovnat všechny hodnoty,
-        # stav_bedny s možností změny na přechozí nebo následující stav bedny pro všechny bedny v zakázce.
-
         if inst and inst.pk:
             # Existující instance
-            stav_bedny = inst.bedny.first().stav_bedny if inst.bedny.exists() else StavBednyChoice.PRIJATO
             tryskat = inst.bedny.first().tryskat if inst.bedny.exists() else TryskaniChoice.NEZADANO
             rovnat = inst.bedny.first().rovnat if inst.bedny.exists() else RovnaniChoice.NEZADANO
 
             # Nastavíme initial hodnoty pro pole stav_bedny, tryskat a rovnat
-            self.fields['stav_bedny'].initial = stav_bedny
             self.fields['tryskat'].initial = tryskat
             self.fields['rovnat'].initial = rovnat
 
@@ -49,7 +51,8 @@ class BednaAdminForm(forms.ModelForm):
     """
     Formulář pro model Bedna v Django Adminu.
 
-    Omezuje výběr stavu bedny v poli `stav_bedny` podle následujících pravidel:
+    Omezuje výběr stavu bedny v poli `stav_bedny` podle následujících pravidel
+    (nově definováno v modelu Bedna v metodě `get_allowed_stav_bedny_choices`):
 
     1. NOVÁ instance (bez PK):
        - Nabídne pouze první stav `PRIJATO` jako jedinou volbu.
@@ -78,45 +81,16 @@ class BednaAdminForm(forms.ModelForm):
         if not self.fields:
             return
 
-        choices = list(StavBednyChoice.choices)
         field = self.fields["stav_bedny"]
-        inst = getattr(self, "instance", None)
 
-        # 1) NOVÁ instance → pouze PRIJATO
-        if not inst or not inst.pk:
-            first = choices[0]
+        # nová bedna → jen PRIJATO
+        if not self.instance or not self.instance.pk:
+            first = list(StavBednyChoice.choices)[0]
             field.choices = [first]
             field.initial = first[0]
             return
 
-        # 2) EXISTUJÍCÍ instance
-        curr = inst.stav_bedny
-        try:
-            idx = next(i for i, (val, _) in enumerate(choices) if val == curr)
-        except StopIteration:
-            return  # neplatná hodnota
-
-        # sestavíme základní allowed podle stavu
-        if curr == StavBednyChoice.EXPEDOVANO:
-            allowed = [choices[idx]]
-
-        elif curr == StavBednyChoice.K_EXPEDICI:
-            allowed = [choices[idx - 1], choices[idx]]
-
-        elif curr == StavBednyChoice.ZKONTROLOVANO:
-            allowed = [choices[idx - 1], choices[idx]]
-            # přidat další, jen pokud try sk a rov mají správné hodnoty
-            if inst.tryskat in (TryskaniChoice.CISTA, TryskaniChoice.OTRYSKANA) and \
-               inst.rovnat in (RovnaniChoice.ROVNA, RovnaniChoice.VYROVNANA):
-                allowed.append(choices[idx + 1])
-
-        elif curr == StavBednyChoice.PRIJATO:
-            allowed = [choices[idx], choices[idx + 1]]
-
-        else:
-            before = [choices[idx - 1]] if idx > 0 else []
-            after  = [choices[idx + 1]] if idx < len(choices) - 1 else []
-            allowed = before + [choices[idx]] + after
-
+        # jinak vrať logiku z modelu
+        allowed = self.instance.get_allowed_stav_bedny_choices()
         field.choices = allowed
-        field.initial = curr
+        field.initial = self.instance.stav_bedny
