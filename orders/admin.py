@@ -134,22 +134,22 @@ class KamionAdmin(SimpleHistoryAdmin):
 
     def get_fields(self, request, obj=None):
         """
-        Vrací seznam polí, která se mají zobrazit ve formuláře Kamion při editaci.
+        Vrací seznam polí, která se mají zobrazit ve formuláře Kamion při přidání nového a při editaci.
 
         - Pokud není obj (tj. add_view), zruší se zobrazení pole `prijem_vydej`.
         - Pokud je obj a kamion je pro příjem, zruší se zobrazení pole `misto_expedice`.
 
         """
-        fields = list(super().get_fields(request, obj) or [])
+        fields = list(super().get_fields(request, obj))
 
         if not obj:  # Pokud se jedná o přidání nového kamionu
-            fields.remove('prijem_vydej')
+            fields.remove('prijem_vydej', 'misto_expedice')
         if obj and obj.prijem_vydej == 'P':
             fields.remove('misto_expedice')
 
         return fields
-    
-    def get_readonly_fields(self, request, obj = None):
+
+    def get_readonly_fields(self, request, obj=None):
         """
         Vrací seznam readonly polí pro inline Kamion, pokud se jedná o editaci existujícího kamionu,
         přidá do stávajících readonly_fields pole 'zakaznik_id'.
