@@ -143,7 +143,8 @@ class KamionAdmin(SimpleHistoryAdmin):
         fields = list(super().get_fields(request, obj))
 
         if not obj:  # Pokud se jedná o přidání nového kamionu
-            fields.remove('prijem_vydej', 'misto_expedice')
+            fields.remove('prijem_vydej')
+            fields.remove('misto_expedice')
         if obj and obj.prijem_vydej == 'P':
             fields.remove('misto_expedice')
 
