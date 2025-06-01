@@ -319,18 +319,15 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
                     return
                 
                 # Získání hodnot z formuláře
-                new_stav_bedny = form.cleaned_data.get('stav_bedny', None)
-                new_tryskat = form.cleaned_data.get('tryskat', None)
-                new_rovnat = form.cleaned_data.get('rovnat', None)
+                new_stav_bedny = form.cleaned_data['stav_bedny'] if 'stav_bedny' in form.changed_data else None
+                new_tryskat = form.cleaned_data['tryskat'] if 'tryskat' in form.changed_data else None
+                new_rovnat = form.cleaned_data['rovnat'] if 'rovnat' in form.changed_data else None
 
                 for bedna in instances:
                     # Pokud se mění stav bedny, tryskat nebo rovnat, nastaví se nové hodnoty
-                    if new_stav_bedny:
-                        bedna.stav_bedny = new_stav_bedny
-                    if new_tryskat:
-                        bedna.tryskat = new_tryskat
-                    if new_rovnat:
-                        bedna.rovnat = new_rovnat
+                    for field, new_value in [('stav_bedny', new_stav_bedny), ('tryskat', new_tryskat), ('rovnat', new_rovnat)]:
+                        if new_value:
+                            setattr(bedna, field, new_value)
                     bedna.save()
 
         else: # Přidání nové zakázky s bednami
@@ -492,8 +489,16 @@ class BednaAdmin(SimpleHistoryAdmin):
     - Detail/inline: BednaAdminForm (omezuje stavové volby dle instance).
     - Seznam (change_list): list_editable pro stav_bedny, tryskat, rovnat a poznamka.
     - Pro každý řádek dropdown omezí na povolené volby podle stejné logiky.
+    - Číslo bedny se generuje automaticky a je readonly
     """
     form = BednaAdminForm
+
+    # Parametry pro zobrazení detailu v administraci
+    fields = ('zakazka_id', 'cislo_bedny', 'hmotnost', 'tara', 'material', 'sarze', 'behalter_nr', 'dodatecne_info', 
+              'dodavatel_materialu', 'vyrobni_zakazka', 'operator', 'tryskat', 'rovnat', 'stav_bedny', 'poznamka')
+    readonly_fields = ('cislo_bedny',)
+
+    # Parametry pro zobrazení seznamu v administraci
     list_display = ('cislo_bedny', 'zakazka_link', 'kamion_prijem_link', 'kamion_vydej_link', 'get_prumer', 'get_delka',
                     'rovnat', 'tryskat', 'stav_bedny', 'get_typ_hlavy', 'hmotnost', 'tara', 'get_priorita', 'poznamka')
     # list_editable - je nastaveno pro různé stavy filtru Skladem v metodě changelist_view
@@ -508,6 +513,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         models.DecimalField: {'widget': TextInput(attrs={ 'size': '8'})},
     }
 
+    # Parametry pro historii změn
     history_list_display = ["id", "zakazka_id", "cislo_bedny", "stav_bedny", "typ_hlavy", "poznamka"]
     history_search_fields = ["zakazka_id__kamion_prijem_id__zakaznik_id__nazev", "cislo_bedny", "stav_bedny", "zakazka_id__typ_hlavy", "poznamka"]
     history_list_filter = ["zakazka_id__kamion_prijem_id__zakaznik_id__nazev", "zakazka_id__kamion_prijem_id__datum", "stav_bedny"]
@@ -574,22 +580,25 @@ class BednaAdmin(SimpleHistoryAdmin):
         """
         return obj.zakazka_id.delka
     get_delka.admin_order_field = 'zakazka_id__delka'
-    
-    def get_exclude(self, request, obj=None):
-        """
-        Vrací seznam polí, která se mají vyloučit z formuláře Bedna při editaci.
 
-        - Pokud není obj (tj. add_view), použije se základní exclude z super().  
-        - Pokud obj existuje a zákazník zakázky není 'EUR' (Eurotec),
-          přidají se do vyloučených polí dodavatel_materialu, vyrobni_zakazka a operator.
+    def get_fields(self, request, obj=None):
         """
-        excluded = list(super().get_exclude(request, obj) or [])
+        Vrací seznam polí, která se mají zobrazit z formuláře Bedna při editaci.
+
+        - Pokud není obj (tj. add_view), použije se základní fields ze super().  
+        - Pokud obj existuje a zákazník zakázky není 'EUR' (Eurotec),
+          odeberou se ze zobrazených polí behalter_nr, dodatecne_info, dodavatel_materialu, vyrobni_zakazka a operator.
+        """
+        fields = list(super().get_fields(request, obj) or [])
 
         if obj and obj.zakazka_id.kamion_prijem_id.zakaznik_id.zkratka != 'EUR':
-            excluded += ['dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka', 'operator']
+            fields_to_remove = ['behalter_nr', 'dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka', 'operator']
+            for field in fields_to_remove:
+                if field in fields:
+                    fields.remove(field)
 
-        return excluded
-   
+        return fields
+
     def get_changelist(self, request, **kwargs):
         """
         Vytvoří vlastní ChangeList s nastavením počtu položek na stránku.

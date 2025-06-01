@@ -115,7 +115,7 @@ class Bedna(models.Model):
         ordering = ['id']
 
     def __str__(self):
-        return f'{self.zakazka_id.kamion_prijem_id.zakaznik_id.zkratka} {self.zakazka_id.kamion_prijem_id.datum} - {self.zakazka_id.artikl} - {self.zakazka_id.delka}x{self.zakazka_id.prumer} - {self.cislo_bedny}'
+        return f'{self.zakazka_id.kamion_prijem_id.zakaznik_id.zkratka} {self.zakazka_id.kamion_prijem_id.datum} - {self.zakazka_id.artikl} - {self.zakazka_id.prumer}x{self.zakazka_id.delka} - {self.cislo_bedny}'
     
     def get_admin_url(self):
         """
