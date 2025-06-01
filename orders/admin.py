@@ -100,7 +100,7 @@ class KamionAdmin(SimpleHistoryAdmin):
     """
     Správa kamionů v administraci.
     """
-    fields = ('zakaznik_id', 'datum', 'cislo_dl', 'prijem_vydej', 'misto_expedice',)
+    fields = ('zakaznik_id', 'datum', 'cislo_dl', 'prijem_vydej', 'misto_expedice',) 
     readonly_fields = ('prijem_vydej',)
     list_display = ('get_kamion_str', 'zakaznik_id__nazev', 'datum', 'cislo_dl', 'prijem_vydej', 'misto_expedice',)
     list_filter = ('zakaznik_id__nazev', 'prijem_vydej',)
@@ -167,11 +167,12 @@ class BednaInline(admin.TabularInline):
     model = Bedna
     form = BednaAdminForm
     extra = 0
-    fields = ('cislo_bedny', 'hmotnost', 'tara', 'material', 'sarze', 'dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka', 'operator', 'tryskat', 'rovnat', 'stav_bedny', 'poznamka')
-    #readonly_fields - definováno v get_readonly_fields
+    # další úprava zobrazovaných polí podle různých podmínek je v get_fields
+    fields = ('cislo_bedny', 'hmotnost', 'tara', 'material', 'sarze', 'behalter_nr', 'dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka', 'operator', 'tryskat', 'rovnat', 'stav_bedny', 'poznamka')
+    readonly_fields = ('cislo_bedny',)
     show_change_link = True
     formfield_overrides = {
-        models.CharField: {'widget': TextInput(attrs={'size': '14'})},  # default
+        models.CharField: {'widget': TextInput(attrs={'size': '12'})},  # default
         models.DecimalField: {'widget': TextInput(attrs={'size': '6'})},
     }
 
@@ -195,27 +196,21 @@ class BednaInline(admin.TabularInline):
         - Pokud obj existuje a zákazník zakázky není 'EUR' (Eurotec),
           vyloučí se pole dodatecne_info, dodavatel_materialu, vyrobni_zakazka a operator.
         """
-        fields = list(super().get_fields(request, obj) or [])
-        exclude_fields = ['dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka', 'operator']
+        fields = list(super().get_fields(request, obj))
 
-        if obj and obj.kamion_prijem_id.zakaznik_id.zkratka != 'EUR':
-            # Pokud je zakázka přiřazena k zákazníkovi, který není Eurotec, vyloučíme některá pole
-            for field in exclude_fields:
-                if field in fields:
-                    fields.remove(field)
+        if obj:
+            if obj.kamion_prijem_id.zakaznik_id.zkratka != 'EUR':
+                # Pokud je zakázka přiřazena k zákazníkovi, který není Eurotec, vyloučíme některá pole
+                exclude_fields = ['behalter_nr', 'dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka', 'operator']
+                for field in exclude_fields:
+                    if field in fields:
+                        fields.remove(field)
+        else:
+            # Při přidáno nové bedny se vyloučí pole `cislo_bedny`, protože se generuje automaticky.
+            fields.remove('cislo_bedny')
 
         return fields
     
-    def get_readonly_fields(self, request, obj=None):
-        """
-        Vrací seznam readonly polí pro inline Bedna.
-        - Pokud se jedná o editaci existující Bedny, pole `cislo_bedny` je readonly.
-        - Při přidání nové Bedny jsou všechna pole editovatelná.
-        """
-        if obj:
-            return ['cislo_bedny']
-        return []
-        
 
 @admin.register(Zakazka)
 class ZakazkaAdmin(SimpleHistoryAdmin):
@@ -409,7 +404,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
         if obj:  # editace stávajícího záznamu
             my_fieldsets = [
                 (None, {
-                    'fields': ['kamion_prijem_id', 'kamion_vydej_id', 'artikl', 'typ_hlavy', 'prumer', 'delka', 'predpis', 'priorita', 'popis', 'zinkovna', 'komplet', 'expedovano'],
+                    'fields': ['kamion_prijem_id', 'artikl', 'typ_hlavy', 'prumer', 'delka', 'predpis', 'priorita', 'popis', 'zinkovna', 'komplet', 'expedovano'],
                     }),
             ]
                
@@ -458,10 +453,10 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
                 ('Celková hmotnost zakázky a počet beden pro rozpočtení hmotnosti na jednotlivé bedny:', {
                     'fields': ['celkova_hmotnost', 'pocet_beden',],
                     'classes': ['collapse'],
-                    'description': 'Celková hmotnost zakázky z DL bude rozpočítána na jednotlivé bedny, případné zadané hmotnosti u beden budou přespány. \
+                    'description': 'Celková hmotnost zakázky z DL bude rozpočítána na jednotlivé bedny, případné zadané hmotnosti u beden budou přepsány. \
                         Počet beden zadejte pouze v případě, že jednotlivé bedny nebudete níže zadávat ručně.',
                 }),                      
-                ('Zadejte v případě, že jsou hodnoty těchto polí pro celou zakázku stejné: Tára, Materiál, Šarže materiálu, Sonder/Zusatz info, Lief., Fertigungs-auftrags Nr. nebo Poznámka HPM:', {
+                ('Zadejte v případě, že jsou hodnoty těchto polí pro celou zakázku stejné: Tára, Materiál, Šarže mat./Charge, Sonder/Zusatz info, Lief., Fertigungs-auftrags Nr. nebo Poznámka HPM:', {
                     'fields': ['tara', 'material', 'sarze', 'dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka', 'poznamka'],
                     'classes': ['collapse'],
                     'description': 'Pokud jsou hodnoty polí pro celou zakázku stejné, zadejte je sem. Jinak je nechte prázdné a vyplňte je u jednotlivých beden. Případné zadané hodnoty u beden zůstanou zachovány.',}),
@@ -477,7 +472,17 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
         else:
             self.list_editable = ('priorita',)
         return super().changelist_view(request, extra_context)    
-
+    
+    def get_list_display(self, request):
+        """
+        Přizpůsobení zobrazení sloupců v seznamu zakázek podle aktivního filtru.
+        Pokud není aktivní filtr "skladem=Expedováno", odebere se sloupec kamion_vydej_id.
+        """
+        ld = list(super().get_list_display(request))
+        if not request.GET.get('skladem'):
+            ld.remove('kamion_vydej_link')
+        return ld
+    
 
 @admin.register(Bedna)
 class BednaAdmin(SimpleHistoryAdmin):

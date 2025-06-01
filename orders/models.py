@@ -93,11 +93,11 @@ class Zakazka(models.Model):
 
 class Bedna(models.Model):
     zakazka_id = models.ForeignKey(Zakazka, on_delete=models.CASCADE, related_name='bedny', verbose_name='Zakázka')
-    cislo_bedny = models.PositiveIntegerField(blank=True, verbose_name='Číslo bedny')
+    cislo_bedny = models.PositiveIntegerField(blank=True, verbose_name='Číslo bedny', unique=True,)
     hmotnost = models.DecimalField(max_digits=5, decimal_places=1, blank=True, verbose_name='Hm. netto')
     tara = models.DecimalField(max_digits=5, blank=True, decimal_places=1, verbose_name='Tára')
     material = models.CharField(max_length=20, null=True, blank=True, verbose_name='Materiál')
-    sarze = models.CharField(max_length=20, null=True, blank=True, verbose_name='Šarže materiálu')
+    sarze = models.CharField(max_length=20, null=True, blank=True, verbose_name='Šarže mat. / Charge')
     behalter_nr = models.CharField(max_length=20, null=True, blank=True, verbose_name='Behälter-Nr.')
     dodatecne_info = models.CharField(max_length=100, null=True, blank=True, verbose_name='Sonder / Zusatzinfo')
     dodavatel_materialu = models.CharField(max_length=10, null=True, blank=True, verbose_name='Lief.')
