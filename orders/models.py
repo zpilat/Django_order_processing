@@ -2,6 +2,8 @@ from django.db import models
 from simple_history.models import HistoricalRecords
 from django.utils.translation import gettext_lazy as _
 from django.urls import reverse
+from django.core.exceptions import ValidationError
+
 from .choices import (
     TypHlavyChoice, StavBednyChoice, RovnaniChoice, TryskaniChoice,
     PrioritaChoice, ZinkovnaChoice, KamionChoice
@@ -18,7 +20,8 @@ class Zakaznik(models.Model):
     telefon = models.CharField(max_length=50, blank=True, null=True, verbose_name='Telefon')
     email = models.EmailField(max_length=100, blank=True, null=True, verbose_name='E-mail')
     vse_tryskat = models.BooleanField(default=False, verbose_name='Vše tryskat')
-    cisla_beden_auto = models.BooleanField(default=False, verbose_name='Č. beden automaticky')
+    ciselna_rada = models.PositiveIntegerField(verbose_name='Číselná řada', default=100000, unique=True,
+                                               help_text='Číselná řada pro automatické číslování beden - např. 100000, 200000, 300000 atd.')
     history = HistoricalRecords()
 
     class Meta:
@@ -28,12 +31,13 @@ class Zakaznik(models.Model):
 
     def __str__(self):
         return self.nazev
+    
 
 class Kamion(models.Model):
     zakaznik_id = models.ForeignKey(Zakaznik, on_delete=models.CASCADE, related_name='kamiony', verbose_name='Zákazník')
     datum = models.DateField(verbose_name='Datum')
     cislo_dl = models.CharField(max_length=50, verbose_name='Číslo DL', blank=True, null=True)
-    prijem_vydej = models.CharField(choices=KamionChoice.choices, max_length=1, verbose_name='Přijem/Výdej')
+    prijem_vydej = models.CharField(choices=KamionChoice.choices, max_length=1, verbose_name='Přijem/Výdej', default=KamionChoice.PRIJEM)
     misto_expedice = models.CharField(max_length=100, verbose_name='Místo expedice', blank=True, null=True)
     history = HistoricalRecords()
 
@@ -94,6 +98,7 @@ class Bedna(models.Model):
     tara = models.DecimalField(max_digits=5, blank=True, decimal_places=1, verbose_name='Tára')
     material = models.CharField(max_length=20, null=True, blank=True, verbose_name='Materiál')
     sarze = models.CharField(max_length=20, null=True, blank=True, verbose_name='Šarže materiálu')
+    behalter_nr = models.CharField(max_length=20, null=True, blank=True, verbose_name='Behälter-Nr.')
     dodatecne_info = models.CharField(max_length=100, null=True, blank=True, verbose_name='Sonder / Zusatzinfo')
     dodavatel_materialu = models.CharField(max_length=10, null=True, blank=True, verbose_name='Lief.')
     vyrobni_zakazka = models.CharField(max_length=20, null=True, blank=True, verbose_name='Fertigungs-auftrags Nr.')
@@ -118,11 +123,45 @@ class Bedna(models.Model):
         """
         return reverse("admin:orders_bedna_change", args=[self.pk])
     
+    # def clean(self):
+    #     """
+    #     Validace před uložením Bedny:
+    #     - Pokud je související zákazník Eurotec (zkratka 'EUR'), musí být před uložením vyplněna všechna pole:
+    #         material, sarze, behalter_nr, dodavatel_materialu, vyrobni_zakazka, operator.
+    #     """
+    #     super().clean()
+    #     zak = self.zakazka_id
+    #     if not zak or not zak.kamion_prijem_id:
+    #         return  # není úplná vazba na zakázku, neověřujeme
+
+    #     zakaznik = zak.kamion_prijem_id.zakaznik_id
+    #     if zakaznik.zkratka == 'EUR':
+    #         mandatory_fields = {
+    #             'material':             self.material,
+    #             'sarze':                self.sarze,
+    #             'behalter_nr':          self.behalter_nr,
+    #             'dodavatel_materialu':  self.dodavatel_materialu,
+    #             'vyrobni_zakazka':      self.vyrobni_zakazka,
+    #             'operator':             self.operator,
+    #         }
+    #         errors = []
+    #         for field_name, value in mandatory_fields.items():
+    #             if value in (None, ''):
+    #                 errors.append(
+    #                     ValidationError(
+    #                         f"Pole '{self._meta.get_field(field_name).verbose_name}' je povinné pro zákazníka Eurotec.",
+    #                         code='required'
+    #                     )
+    #                 )
+    #         if errors:
+    #             # vyhodí jednu ValidationError obsahující všechny chybové zprávy
+    #             raise ValidationError(errors)
+
     def save(self, *args, **kwargs):
         """
         Uloží instanci Bedna a po aktualizaci přepočítá příznak `komplet` 
         na související Zakázce.
-
+        - Před uložením provede full_clean(), aby se spustila validace v clean().
         - Pokud se jedná o novou instanci (bez PK), pouze uloží model.
         - Při změně existující Bedny:
             * Pokud je stav `K_EXPEDICI`, ověří, zda všechny ostatní bedny
@@ -132,6 +171,7 @@ class Bedna(models.Model):
             `zakazka.komplet` na False.
         """
         is_update = bool(self.pk)
+        self.full_clean()  # spustí clean() a případně vyhodí ValidationError        
         super().save(*args, **kwargs)
 
         if is_update:            

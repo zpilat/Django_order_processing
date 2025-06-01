@@ -41,7 +41,7 @@ class ZakaznikAdmin(SimpleHistoryAdmin):
     """
     Správa zákazníků v administraci.
     """
-    list_display = ('nazev', 'zkratka', 'adresa', 'mesto', 'stat', 'kontaktni_osoba', 'telefon', 'email', 'vse_tryskat', 'cisla_beden_auto',)
+    list_display = ('nazev', 'zkratka', 'adresa', 'mesto', 'stat', 'kontaktni_osoba', 'telefon', 'email', 'vse_tryskat', 'ciselna_rada',)
     ordering = ('nazev',)
     list_per_page = 20
 
@@ -101,7 +101,7 @@ class KamionAdmin(SimpleHistoryAdmin):
     Správa kamionů v administraci.
     """
     fields = ('zakaznik_id', 'datum', 'cislo_dl', 'prijem_vydej', 'misto_expedice',)
-    readonly_fields = ('zakaznik_id', 'prijem_vydej',)
+    readonly_fields = ('prijem_vydej',)
     list_display = ('get_kamion_str', 'zakaznik_id__nazev', 'datum', 'cislo_dl', 'prijem_vydej', 'misto_expedice',)
     list_filter = ('zakaznik_id__nazev', 'prijem_vydej',)
     list_display_links = ('get_kamion_str',)
@@ -136,16 +136,29 @@ class KamionAdmin(SimpleHistoryAdmin):
         """
         Vrací seznam polí, která se mají zobrazit ve formuláře Kamion při editaci.
 
-        - Pokud není obj (tj. add_view) a pokud je kamion příjem, použije se základní fields ze super().
+        - Pokud není obj (tj. add_view), zruší se zobrazení pole `prijem_vydej`.
         - Pokud je obj a kamion je pro příjem, zruší se zobrazení pole `misto_expedice`.
 
         """
         fields = list(super().get_fields(request, obj) or [])
 
+        if not obj:  # Pokud se jedná o přidání nového kamionu
+            fields.remove('prijem_vydej')
         if obj and obj.prijem_vydej == 'P':
             fields.remove('misto_expedice')
 
         return fields
+    
+    def get_readonly_fields(self, request, obj = None):
+        """
+        Vrací seznam readonly polí pro inline Kamion, pokud se jedná o editaci existujícího kamionu,
+        přidá do stávajících readonly_fields pole 'zakaznik_id'.
+        """
+        rof = list(super().get_readonly_fields(request, obj)) or []
+        if obj:
+            rof.append('zakaznik_id')
+        return rof
+
 
 class BednaInline(admin.TabularInline):
     """
@@ -366,17 +379,21 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
                         if value in (None, ''):
                             setattr(instance, field, hodnota)
 
-            # Další logika (tryskání, čísla beden atd.)
+            # Další logika dle zákazníka (tryskání ...)
             zakaznik = zakazka.kamion_prijem_id.zakaznik_id
             if zakaznik.vse_tryskat:
                 for instance in instances:
                     instance.tryskat = TryskaniChoice.SPINAVA
 
-            if zakaznik.cisla_beden_auto:
-                posledni_bedna = Bedna.objects.filter(zakazka_id__kamion_prijem_id__zakaznik_id=zakaznik).order_by('-cislo_bedny').first()
-                nove_cislo_bedny = (posledni_bedna.cislo_bedny + 1) if posledni_bedna else 1000001
-                for index, instance in enumerate(instances):
-                    instance.cislo_bedny = nove_cislo_bedny + index
+            # Přiřadíme cislo_bedny nově vzniklým instancím
+            # Najdeme poslední bednu pro daného zákazníka:
+            posledni_bedna = Bedna.objects.filter(
+                zakazka_id__kamion_prijem_id__zakaznik_id=zakaznik
+            ).order_by('-cislo_bedny').first()
+            # Pokud neexistuje žádná bedna daného zákazníka, začneme s číslem dle číselné řady zákazníka
+            nove_cislo_bedny = (posledni_bedna.cislo_bedny + 1) if posledni_bedna else zakaznik.ciselna_rada + 1
+            for index, instance in enumerate(instances):
+                instance.cislo_bedny = nove_cislo_bedny + index
 
             # Ulož všechny instance, pokud jsou to nove_bedny automaticky přidané
             if nove_bedny:
