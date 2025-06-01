@@ -168,13 +168,16 @@ class ZakazkyListView(LoginRequiredMixin, ListView):
     template_name = 'orders/zakazky_list.html'
     ordering = ['id']
 
+
 @login_required
 def dashboard_view(request):
     '''
     Zobrazení přehledu stavu beden jednotlivých zákazníků,
-    pro každého zákazníka zobrazí pro jednotlivé stavy celkovou hmotnost.
+    pro každého zákazníka a pro všechny dohromady zobrazí pro jednotlivé stavy celkovou hmotnost.
     '''
     prehled_beden_zakaznika = {}
+    
+    # Získání přehledu beden pro každého zákazníka
     for zakaznik in Zakaznik.objects.all():
         bedny_zakaznika = Bedna.objects.filter(zakazka_id__kamion_prijem_id__zakaznik_id=zakaznik)
         prehled_beden_zakaznika[zakaznik.nazev] = bedny_zakaznika.values('stav_bedny').annotate(
@@ -182,6 +185,12 @@ def dashboard_view(request):
             hmotnost=Sum('hmotnost')
         )
     
+    # Přidání celkového přehledu pro všechny zákazníky
+    prehled_beden_zakaznika['CELKEM'] = Bedna.objects.values('stav_bedny').annotate(
+        pocet=Count('id'),
+        hmotnost=Sum('hmotnost')
+    )
+
     context = {
         'prehled_beden_zakaznika': prehled_beden_zakaznika,
         'stav_bedny_choices': StavBednyChoice.choices,
