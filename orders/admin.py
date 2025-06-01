@@ -154,11 +154,11 @@ class BednaInline(admin.TabularInline):
     model = Bedna
     form = BednaAdminForm
     extra = 0
-    fields = ('cislo_bedny', 'hmotnost', 'tara', 'material', 'sarze', 'tryskat', 'rovnat', 'stav_bedny', 'poznamka',)
-    readonly_fields = ('cislo_bedny',)
+    fields = ('cislo_bedny', 'hmotnost', 'tara', 'material', 'sarze', 'dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka', 'operator', 'tryskat', 'rovnat', 'stav_bedny', 'poznamka')
+    #readonly_fields - definováno v get_readonly_fields
     show_change_link = True
     formfield_overrides = {
-        models.CharField: {'widget': TextInput(attrs={'size': '18'})},  # default
+        models.CharField: {'widget': TextInput(attrs={'size': '14'})},  # default
         models.DecimalField: {'widget': TextInput(attrs={'size': '6'})},
     }
 
@@ -166,24 +166,42 @@ class BednaInline(admin.TabularInline):
         """
         Přizpůsobení widgetů pro pole v administraci.
         """
-        if db_field.name == 'poznamka':
-            kwargs['widget'] = TextInput(attrs={'size': '30'})  # Změna velikosti pole pro poznámku
+        if db_field.name == 'dodatecne_info':
+            kwargs['widget'] = TextInput(attrs={'size': '28'})  # Změna velikosti pole pro dodatečné info
+        elif db_field.name == 'poznamka':
+            kwargs['widget'] = TextInput(attrs={'size': '22'}) # Změna velikosti pole pro poznámku HPM
+        elif db_field.name == 'dodavatel_materialu':
+            kwargs['widget'] = TextInput(attrs={'size': '8'})  # Změna velikosti pole pro dodavatele materiálu
         return super().formfield_for_dbfield(db_field, request, **kwargs)
 
-    def get_exclude(self, request, obj=None):
+    def get_fields(self, request, obj=None):
         """
-        Vrací seznam polí, která se mají vyloučit z formuláře Bedna při editaci.
+        Vrací seznam polí, která se mají zobrazit ve formuláři Bedna při editaci.
 
-        - Pokud není obj (tj. add_view), použije se základní exclude z super().  
+        - Pokud není obj (tj. add_view), použije se základní fields z super().  
         - Pokud obj existuje a zákazník zakázky není 'EUR' (Eurotec),
-          přidají se do vyloučených polí dodavatel_materialu, vyrobni_zakazka a operator.
+          vyloučí se pole dodatecne_info, dodavatel_materialu, vyrobni_zakazka a operator.
         """
-        excluded = list(super().get_exclude(request, obj) or [])
+        fields = list(super().get_fields(request, obj) or [])
+        exclude_fields = ['dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka', 'operator']
 
         if obj and obj.kamion_prijem_id.zakaznik_id.zkratka != 'EUR':
-            excluded += ['dodavatel_materialu', 'vyrobni_zakazka', 'operator']
+            # Pokud je zakázka přiřazena k zákazníkovi, který není Eurotec, vyloučíme některá pole
+            for field in exclude_fields:
+                if field in fields:
+                    fields.remove(field)
 
-        return excluded
+        return fields
+    
+    def get_readonly_fields(self, request, obj=None):
+        """
+        Vrací seznam readonly polí pro inline Bedna.
+        - Pokud se jedná o editaci existující Bedny, pole `cislo_bedny` je readonly.
+        - Při přidání nové Bedny jsou všechna pole editovatelná.
+        """
+        if obj:
+            return ['cislo_bedny']
+        return []
         
 
 @admin.register(Zakazka)
@@ -316,6 +334,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
                 'tara': form.cleaned_data.get('tara'),
                 'material': form.cleaned_data.get('material'),
                 'sarze': form.cleaned_data.get('sarze'),
+                'dodatecne_info': form.cleaned_data.get('dodatecne_info'),
                 'dodavatel_materialu': form.cleaned_data.get('dodavatel_materialu'),
                 'vyrobni_zakazka': form.cleaned_data.get('vyrobni_zakazka'),
                 'poznamka': form.cleaned_data.get('poznamka'),
@@ -417,7 +436,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
                 ('Pouze pro Eurotec:', {
                     'fields': ['prubeh', 'vrstva', 'povrch'],
                     'classes': ['collapse'],
-                    'description': 'Pro Eurotec musí být vyplněno: Průběh zakázky, tloušťka vrstvy a povrchová úprava.',
+                    'description': 'Pro Eurotec musí být vyplněno: Průběh zakázky, Tloušťka vrstvy a Povrchová úprava.',
                 }),  
                 ('Celková hmotnost zakázky a počet beden pro rozpočtení hmotnosti na jednotlivé bedny:', {
                     'fields': ['celkova_hmotnost', 'pocet_beden',],
@@ -425,8 +444,8 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
                     'description': 'Celková hmotnost zakázky z DL bude rozpočítána na jednotlivé bedny, případné zadané hmotnosti u beden budou přespány. \
                         Počet beden zadejte pouze v případě, že jednotlivé bedny nebudete níže zadávat ručně.',
                 }),                      
-                ('Zadejte v případě, že jsou hodnoty těchto polí pro celou zakázku stejné: Tára, Materiál, Šarže materiálu, Lief., Fertigungs-auftrags Nr. nebo Poznámka:', {
-                    'fields': ['tara', 'material', 'sarze', 'dodavatel_materialu', 'vyrobni_zakazka', 'poznamka'],
+                ('Zadejte v případě, že jsou hodnoty těchto polí pro celou zakázku stejné: Tára, Materiál, Šarže materiálu, Sonder/Zusatz info, Lief., Fertigungs-auftrags Nr. nebo Poznámka HPM:', {
+                    'fields': ['tara', 'material', 'sarze', 'dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka', 'poznamka'],
                     'classes': ['collapse'],
                     'description': 'Pokud jsou hodnoty polí pro celou zakázku stejné, zadejte je sem. Jinak je nechte prázdné a vyplňte je u jednotlivých beden. Případné zadané hodnoty u beden zůstanou zachovány.',}),
             ]         
@@ -453,7 +472,8 @@ class BednaAdmin(SimpleHistoryAdmin):
     - Pro každý řádek dropdown omezí na povolené volby podle stejné logiky.
     """
     form = BednaAdminForm
-    list_display = ('cislo_bedny', 'zakazka_link', 'kamion_prijem_link', 'kamion_vydej_link', 'get_prumer', 'get_delka', 'rovnat', 'tryskat', 'stav_bedny', 'get_typ_hlavy', 'hmotnost', 'tara', 'get_priorita', 'poznamka')
+    list_display = ('cislo_bedny', 'zakazka_link', 'kamion_prijem_link', 'kamion_vydej_link', 'get_prumer', 'get_delka',
+                    'rovnat', 'tryskat', 'stav_bedny', 'get_typ_hlavy', 'hmotnost', 'tara', 'get_priorita', 'poznamka')
     # list_editable - je nastaveno pro různé stavy filtru Skladem v metodě changelist_view
     list_display_links = ('cislo_bedny', )
     search_fields = ('cislo_bedny', 'zakazka_id__artikl', 'zakazka_id__delka',)
@@ -544,7 +564,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         excluded = list(super().get_exclude(request, obj) or [])
 
         if obj and obj.zakazka_id.kamion_prijem_id.zakaznik_id.zkratka != 'EUR':
-            excluded += ['dodavatel_materialu', 'vyrobni_zakazka', 'operator']
+            excluded += ['dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka', 'operator']
 
         return excluded
    
