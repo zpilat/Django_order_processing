@@ -431,7 +431,8 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
                     my_fieldsets.append(
                         ('Změna stavu všech beden v zakázce:', {
                             'fields': fields,
-                            'description': 'Zde můžete změnit stav všech beden v zakázce najednou, ale bedny musí mít pro měněnou položku všechny stejnou hodnotu.',
+                            'description': 'Zde můžete změnit stav všech beden v zakázce najednou, ale bedny musí mít pro měněnou položku všechny stejnou hodnotu. \
+                                Přepíše případné změněné hodnoty u jednotlivých beden.',
                         }),
                     )
 
