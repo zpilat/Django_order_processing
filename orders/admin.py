@@ -503,6 +503,18 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
                         allowed = prvni_bedna.get_allowed_stav_bedny_choices()
                         self_inner.fields['stav_bedny'].choices = allowed
                         self_inner.fields['stav_bedny'].initial = prvni_bedna.stav_bedny
+
+                    # Omezení choices pro tryskat
+                    if 'tryskat' in self_inner.fields:
+                        allowed = prvni_bedna.get_allowed_tryskat_choices()
+                        self_inner.fields['tryskat'].choices = allowed
+                        self_inner.fields['tryskat'].initial = prvni_bedna.tryskat
+
+                    # Omezení choices pro rovnat
+                    if 'rovnat' in self_inner.fields:
+                        allowed = prvni_bedna.get_allowed_rovnat_choices()
+                        self_inner.fields['rovnat'].choices = allowed
+                        self_inner.fields['rovnat'].initial = prvni_bedna.rovnat
         
         return PatchedForm
     

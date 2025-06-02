@@ -51,23 +51,17 @@ class BednaAdminForm(forms.ModelForm):
     """
     Formulář pro model Bedna v Django Adminu.
 
-    Omezuje výběr stavu bedny v poli `stav_bedny` podle následujících pravidel
-    (nově definováno v modelu Bedna v metodě `get_allowed_stav_bedny_choices`):
+    Omezuje výběr stavu bedny polí stav_bedny, tryskani a rovnani podle pravidel
+    v modelu Bedna v metodách `get_allowed_xxxxx_choices`):
 
     1. NOVÁ instance (bez PK):
-       - Nabídne pouze první stav `PRIJATO` jako jedinou volbu.
-       - Nastaví `initial` na hodnotu `PRIJATO`.
+       - Pro stav_bedny Nabídne pouze první stav `PRIJATO` jako jedinou volbu a nastaví `initial` na hodnotu `PRIJATO`.
+       - Pro tryskat nabídne hodnoty `NEZADANO`, `SPINAVA`, `CISTA` a nastaví `initial` na hodnotu `NEZADANO`.
+       - Pro rovnat nabídne hodnoty `NEZADANO`, `KRIVA`, `ROVNA` a nastaví `initial` na hodnotu `NEZADANO`.
 
     2. EXISTUJÍCÍ instance:
-       - Získá seznam všech voleb z `StavBednyChoice.choices` a určí index aktuálního stavu.
-       - Pokud je stav `EXPEDOVANO`, nabídne pouze tento stav.
-       - Pokud je stav `K_EXPEDICI`, nabídne předchozí stav a aktuální stav.
-       - Pokud je stav `ZKONTROLOVANO`, nabídne předchozí stav a aktuální stav, 
-         a pokud zároveň `tryskat` ∈ {CISTA, OTRYSKANA} a 
-         `rovnat` ∈ {ROVNA, VYROVNANA}, doplní i následující stav.
-       - Pokud je stav `PRIJATO`, nabídne tento stav a následující stav.
-       - Ve všech ostatních stavech nabídne předchozí, aktuální a následující stav.
-       - Nastaví `initial` na aktuální stav.
+       - Pro stav_bedny nabídne všechny možné stavy, které jsou povoleny pro danou bednu a nastaví `initial` na aktuální stav.
+       - Pro tryskat a rovnat nabídne všechny možné stavy, které jsou povoleny pro danou bednu a nastaví `initial` na aktuální stav.
     """
     class Meta:
         model = Bedna
@@ -76,21 +70,40 @@ class BednaAdminForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # Pokud je stav_bedny EXPEDOVANO, zobrazí se v detailu kvůli has_change_permission v adminu bedny ne jako formulář, ale pouze čistý text
-        # Objekt pak nemá fields, takže není potřeba ho inicializovat
+        # Pokud je stav_bedny EXPEDOVANO, zobrazí se v detailu kvůli has_change_permission v adminu bedny ne jako formulář, ale pouze čistý text.
+        # Objekt pak nemá fields ve formuláři, takže není potřeba ho inicializovat.
         if not self.fields:
             return
 
-        field = self.fields["stav_bedny"]
+        field_stav_bedny = self.fields["stav_bedny"]
+        field_tryskat = self.fields["tryskat"]
+        field_rovnat = self.fields["rovnat"]
 
-        # nová bedna → jen PRIJATO
+        # nová bedna
         if not self.instance or not self.instance.pk:
-            first = list(StavBednyChoice.choices)[0]
-            field.choices = [first]
-            field.initial = first[0]
+            first_stav_bedny = list(StavBednyChoice.choices)[0]
+            field_stav_bedny.choices = [first_stav_bedny]
+            field_stav_bedny.initial = first_stav_bedny[0]
+
+            AllowedTryskaniChoices = [choice for choice in TryskaniChoice.choices if choice[0] != TryskaniChoice.OTRYSKANA]
+            field_tryskat.choices = AllowedTryskaniChoices
+            field_tryskat.initial = TryskaniChoice.NEZADANO
+
+            AllowedRovnaniChoices = [choice for choice in RovnaniChoice.choices if choice[0] != RovnaniChoice.VYROVNANA]
+            field_rovnat.choices = AllowedRovnaniChoices
+            field_rovnat.initial = RovnaniChoice.NEZADANO
+           
             return
 
-        # jinak vrať logiku z modelu
-        allowed = self.instance.get_allowed_stav_bedny_choices()
-        field.choices = allowed
-        field.initial = self.instance.stav_bedny
+        # editace: vrátí dle logiky v modelu
+        allowed_stav_bedny = self.instance.get_allowed_stav_bedny_choices()
+        field_stav_bedny.choices = allowed_stav_bedny
+        field_stav_bedny.initial = self.instance.stav_bedny
+
+        allowed_tryskat = self.instance.get_allowed_tryskat_choices()
+        field_tryskat.choices = allowed_tryskat
+        field_tryskat.initial = self.instance.tryskat
+
+        allowed_rovnat = self.instance.get_allowed_rovnat_choices()
+        field_rovnat.choices = allowed_rovnat
+        field_rovnat.initial = self.instance.rovnat

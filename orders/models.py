@@ -187,6 +187,14 @@ class Bedna(models.Model):
         """
         Vrátí seznam tuple (value,label) pro pole `stav_bedny`
         podle aktuálního stavu a hodnot `tryskat`/`rovnat`.
+        Pravidla pro výběr:
+        - Pokud je stav `EXPEDOVANO`, nabídne pouze tento stav.
+        - Pokud je stav `K_EXPEDICI`, nabídne předchozí stav a aktuální stav.
+        - Pokud je stav `ZKONTROLOVANO`, nabídne předchozí stav a aktuální stav,    
+            a pokud zároveň `tryskat` ∈ {CISTA, OTRYSKANA} a 
+            `rovnat` ∈ {ROVNA, VYROVNANA}, doplní i následující stav.
+        - Pokud je stav `PRIJATO`, nabídne tento stav a následující stav.
+        - Ve všech ostatních stavech nabídne předchozí, aktuální a následující stav.
         """
         choices = list(StavBednyChoice.choices)
         curr = self.stav_bedny
@@ -221,3 +229,65 @@ class Bedna(models.Model):
         before = [choices[idx - 1]] if idx > 0 else []
         after  = [choices[idx + 1]] if idx < len(choices) - 1 else []
         return before + [choices[idx]] + after
+    
+    def get_allowed_tryskat_choices(self):
+        """
+        Vrátí seznam tuple (value,label) pro pole `tryskat`
+        podle aktuálního stavu.
+        Pravidla pro výběr:
+        - Pokud je tryskání nezadáno ('-------'), nabídne možnosti špinavá a čistá.
+        - Pokud je tryskání špinavá, nabídne nezadáno, špinavá a otryskaná.
+        - Pokud je tryskání čistá, nabídne nezadáno a čistá.
+        - Pokud je tryskání otryskaná, nabídne špinavá a otryskaná.
+        """
+        curr = self.tryskat
+       
+        # NEZADANO
+        if curr == TryskaniChoice.NEZADANO:
+            return [choice for choice in TryskaniChoice.choices if choice[0] != TryskaniChoice.OTRYSKANA]
+        
+        # SPINAVA
+        if curr == TryskaniChoice.SPINAVA:
+            return [choice for choice in TryskaniChoice.choices if choice[0] != TryskaniChoice.CISTA]
+
+        # CISTA
+        if curr == TryskaniChoice.CISTA:
+            return [choice for choice in TryskaniChoice.choices if choice[0] not in (TryskaniChoice.SPINAVA, TryskaniChoice.OTRYSKANA)]
+
+        # OTRYSKANA
+        if curr == TryskaniChoice.OTRYSKANA:
+            return [choice for choice in TryskaniChoice.choices if choice[0] not in (TryskaniChoice.CISTA, TryskaniChoice.NEZADANO)]
+
+        # fallback: všechno
+        return list(TryskaniChoice.choices)
+
+    def get_allowed_rovnat_choices(self):
+        """
+        Vrátí seznam tuple (value,label) pro pole `rovnat`
+        podle aktuálního stavu.
+        Pravidla pro výběr:
+        - Pokud je rovnat nezadáno ('--------'), nabídne možnosti nezadáno, rovná a křivá.
+        - Pokud je rovnat křivá, nabídne nezadáno, křivá a vyrovnaná.
+        - Pokud je rovnat rovná, nabídne nezadáno a rovná.
+        - Pokud je rovnat vyrovnaná, nabídne křivá a vyrovnaná.
+        """
+        curr = self.rovnat
+        
+        # NEZADANO
+        if curr == RovnaniChoice.NEZADANO:
+            return [choice for choice in RovnaniChoice.choices if choice[0] != RovnaniChoice.VYROVNANA]
+
+        # KRIVA
+        if curr == RovnaniChoice.KRIVA:
+            return [choice for choice in RovnaniChoice.choices if choice[0] != RovnaniChoice.ROVNA]
+
+        # ROVNA
+        if curr == RovnaniChoice.ROVNA:
+            return [choice for choice in RovnaniChoice.choices if choice[0] not in (RovnaniChoice.KRIVA, RovnaniChoice.VYROVNANA)]
+
+        # VYROVNANA
+        if curr == RovnaniChoice.VYROVNANA:
+            return [choice for choice in RovnaniChoice.choices if choice[0] not in (RovnaniChoice.ROVNA, RovnaniChoice.NEZADANO)]
+
+        # fallback: všechno
+        return list(RovnaniChoice.choices)
