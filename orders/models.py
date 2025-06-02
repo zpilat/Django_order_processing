@@ -235,13 +235,19 @@ class Bedna(models.Model):
         Vrátí seznam tuple (value,label) pro pole `tryskat`
         podle aktuálního stavu.
         Pravidla pro výběr:
+        - Pokud je stav_bedny K_EXPEDICI, nabídne pouze aktuální stav, stav tryskání už nejde měnit.
         - Pokud je tryskání nezadáno ('-------'), nabídne možnosti špinavá a čistá.
         - Pokud je tryskání špinavá, nabídne nezadáno, špinavá a otryskaná.
         - Pokud je tryskání čistá, nabídne nezadáno a čistá.
         - Pokud je tryskání otryskaná, nabídne špinavá a otryskaná.
         """
         curr = self.tryskat
-       
+        curr_choice = (curr, dict(TryskaniChoice.choices).get(curr,     'Neznámý stav'))
+
+        # stav bedny K_EXPEDICI
+        if self.stav_bedny == StavBednyChoice.K_EXPEDICI:
+            return [curr_choice]
+
         # NEZADANO
         if curr == TryskaniChoice.NEZADANO:
             return [choice for choice in TryskaniChoice.choices if choice[0] != TryskaniChoice.OTRYSKANA]
@@ -266,12 +272,18 @@ class Bedna(models.Model):
         Vrátí seznam tuple (value,label) pro pole `rovnat`
         podle aktuálního stavu.
         Pravidla pro výběr:
+        - Pokud je stav_bedny K_EXPEDICI, nabídne pouze aktuální stav, stav rovnání už nejde měnit.
         - Pokud je rovnat nezadáno ('--------'), nabídne možnosti nezadáno, rovná a křivá.
         - Pokud je rovnat křivá, nabídne nezadáno, křivá a vyrovnaná.
         - Pokud je rovnat rovná, nabídne nezadáno a rovná.
         - Pokud je rovnat vyrovnaná, nabídne křivá a vyrovnaná.
         """
         curr = self.rovnat
+        curr_choice = (curr, dict(RovnaniChoice.choices).get(curr, 'Neznámý stav'))
+
+        # stav bedny K_EXPEDICI
+        if self.stav_bedny == StavBednyChoice.K_EXPEDICI:
+            return [curr_choice]
         
         # NEZADANO
         if curr == RovnaniChoice.NEZADANO:
