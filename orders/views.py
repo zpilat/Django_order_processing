@@ -177,6 +177,12 @@ def dashboard_view(request):
     '''
     prehled_beden_zakaznika = {}
     
+    # Přidání celkového přehledu pro všechny zákazníky
+    prehled_beden_zakaznika['CELKEM'] = Bedna.objects.values('stav_bedny').annotate(
+        pocet=Count('id'),
+        hmotnost=Sum('hmotnost')
+    )
+    
     # Získání přehledu beden pro každého zákazníka
     for zakaznik in Zakaznik.objects.all():
         bedny_zakaznika = Bedna.objects.filter(zakazka_id__kamion_prijem_id__zakaznik_id=zakaznik)
@@ -185,12 +191,6 @@ def dashboard_view(request):
             hmotnost=Sum('hmotnost')
         )
     
-    # Přidání celkového přehledu pro všechny zákazníky
-    prehled_beden_zakaznika['CELKEM'] = Bedna.objects.values('stav_bedny').annotate(
-        pocet=Count('id'),
-        hmotnost=Sum('hmotnost')
-    )
-
     context = {
         'prehled_beden_zakaznika': prehled_beden_zakaznika,
         'stav_bedny_choices': StavBednyChoice.choices,
