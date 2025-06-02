@@ -15,8 +15,12 @@ def get_verbose_name_for_column(model, field_chain):
         current_model = field.remote_field.model
     return field_chain  # fallback
 
-def import_dodaci_list_eurotec(csv_file, zakaznik, datum_prijmu, cislo_dl):
-    dataset = Dataset().load(csv_file.read().decode('utf-8'), format='csv')
+def import_dodaci_list_eurotec(xlsx_file, zakaznik, datum_prijmu, cislo_dl):
+    """
+    Importuje data z XLSX souboru do modelu Kamion a Bedna pomocí Django Import Export.
+    :param xlsx_file: XLSX soubor s daty.
+    """
+    dataset = Dataset().load(xlsx_file.read().decode('utf-8'), format='xlsx')
 
     kamion = Kamion.objects.create(
         zakaznik=zakaznik,
