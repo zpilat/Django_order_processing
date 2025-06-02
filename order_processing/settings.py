@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     'django.forms',
     'django_htmx',  # For HTMX support
     'orders',  # Custom app for order processing
+    'import_export',  # For data import/export functionality
     'simple_history',  # For tracking changes in models
 ]
 

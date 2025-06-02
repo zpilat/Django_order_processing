@@ -6,6 +6,7 @@ from django.utils.translation import gettext_lazy as _
 from django.contrib.admin.views.main import ChangeList
 
 from simple_history.admin import SimpleHistoryAdmin
+from import_export.admin import ImportExportModelAdmin
 from decimal import Decimal, ROUND_HALF_UP
 
 from .models import Zakaznik, Kamion, Zakazka, Bedna
@@ -16,6 +17,14 @@ from .choices import (
     TypHlavyChoice, StavBednyChoice, RovnaniChoice, TryskaniChoice,
     PrioritaChoice, ZinkovnaChoice, KamionChoice
 )
+
+
+class ImportExportHistoryModelAdmin(ImportExportModelAdmin, SimpleHistoryAdmin):
+    """
+    Kombinovaná třída adminu pro podporu jak import/exportu,
+    tak verzování pomocí django-simple-history.
+    """
+    pass
 
 class CustomPaginationChangeList(ChangeList):
     """
@@ -520,7 +529,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     
 
 @admin.register(Bedna)
-class BednaAdmin(SimpleHistoryAdmin):
+class BednaAdmin(ImportExportHistoryModelAdmin):
     """
     Admin pro model Bedna:
     
