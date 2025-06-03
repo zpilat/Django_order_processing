@@ -12,9 +12,10 @@ from import_export.admin import ImportExportModelAdmin
 from import_export.formats.base_formats import XLSX, CSV
 from tablib import Dataset
 from decimal import Decimal, ROUND_HALF_UP
+import pandas as pd
 
 from .models import Zakaznik, Kamion, Zakazka, Bedna
-from .actions import expedice_zakazek
+from .actions import expedice_zakazek, import_zakazek_beden_action
 from .filters import ExpedovanaZakazkaFilter, StavBednyFilter
 from .forms import ZakazkaAdminForm, BednaAdminForm, ImportZakazekForm
 from .resources import BednaResourceEurotec
@@ -115,6 +116,8 @@ class KamionAdmin(SimpleHistoryAdmin):
     """
     Správa kamionů v administraci.
     """
+    actions = [import_zakazek_beden_action]
+
     fields = ('zakaznik', 'datum', 'cislo_dl', 'prijem_vydej', 'misto_expedice',) 
     readonly_fields = ('prijem_vydej',)
     list_display = ('get_kamion_str', 'zakaznik__nazev', 'datum', 'cislo_dl', 'prijem_vydej', 'misto_expedice',)
@@ -123,7 +126,6 @@ class KamionAdmin(SimpleHistoryAdmin):
     ordering = ('-id',)
     date_hierarchy = 'datum'
     list_per_page = 20
-    actions = ['import_zakazek_beden_action']
 
     history_list_display = ["id", "zakaznik", "datum"]
     history_search_fields = ["zakaznik__nazev", "datum"]
@@ -134,7 +136,7 @@ class KamionAdmin(SimpleHistoryAdmin):
         """
         Vrací inliny pro správu zakázek kamionu v závislosti na tom, zda se jedná o kamion pro příjem nebo výdej a jestli jde o přidání nebo editaci.
         """
-        if obj and obj.prijem_vydej == 'P': # and obj.zakaznik.zkratka != 'EUR':
+        if obj and obj.prijem_vydej == 'P':
             return [ZakazkaPrijemInline]
         elif obj and obj.prijem_vydej == 'V':
             return [ZakazkaVydejInline]
@@ -183,70 +185,134 @@ class KamionAdmin(SimpleHistoryAdmin):
         ]
         return custom_urls + urls
 
-    def import_zakazek_beden_action(self, request, queryset):
-        if queryset.count() != 1:
-            self.message_user(request, "Vyber pouze jeden kamion.", level=messages.ERROR)
-            return
-        kamion = queryset.first()
-        return redirect(f'./import-zakazek/?kamion={kamion.pk}')
-    import_zakazek_beden_action.short_description = "Importovat dodací list pro vybraný kamion"
-
     def import_view(self, request):
         kamion_id = request.GET.get("kamion")
         kamion = Kamion.objects.get(pk=kamion_id) if kamion_id else None
         errors = []
+        preview = []
 
         if request.method == 'POST':
             form = ImportZakazekForm(request.POST, request.FILES)
             if form.is_valid():
                 file = form.cleaned_data['file']
-                dataset = self._load_dataset(file)
-
-                zakaznik = kamion.zakaznik
-
-                # Vyber správný resource podle zákazníka
-                if zakaznik.zkratka == "EUR":
-                    resource = BednaResourceEurotec(kamion=kamion)
-                else:
-                    self.message_user(
-                        request, f"Není definován import pro zákazníka {zakaznik}.", messages.ERROR
-                    )
-                    return redirect("..")
-
                 try:
-                    result = resource.import_data(dataset, dry_run=True)
+                    # Načti prvních 200 řádků (rychlejší + kontrola rozsahu)
+                    df = pd.read_excel(file, nrows=200, engine="openpyxl")
 
-                    if result.has_errors():
-                        for i, row in enumerate(result.rows):
-                            for e in row.errors:
-                                errors.append(f"Řádek {i + 1}: {e.error}")
-                        self.message_user(
-                            request, "Při importu došlo k chybám v některých řádcích.", messages.WARNING
+                    # Najdi první úplně prázdný řádek
+                    first_empty_index = df[df.isnull().all(axis=1)].index.min()
+                    if pd.notna(first_empty_index):
+                        df = df.loc[:first_empty_index - 1]
+
+                    # Odstraň prázdné sloupce
+                    df.dropna(axis=1, how='all', inplace=True)
+
+                    # Přehledné přejmenování sloupců
+                    df.rename(columns={
+                        "Unnamed: 6": "Kopf",
+                        "Unnamed: 7": "Abmessung",
+                    }, inplace=True)
+
+                    # Přidání prumer a delka
+                    def rozdel_rozmer(row):
+                        try:
+                            prumer_str, delka_str = row['Abmessung'].replace(',', '.').split('x')
+                            return Decimal(prumer_str.strip()), Decimal(delka_str.strip())
+                        except Exception:
+                            return None, None
+
+                    df[['prumer', 'delka']] = df.apply(
+                        lambda row: pd.Series(rozdel_rozmer(row)), axis=1
+                    )
+
+                    # Odstranit nepotřebné sloupce
+                    df.drop(columns=[
+                        'Unnamed: 0', 'Abmessung', 'Gew + Tara', 'VPE', 'Box',
+                        'Anzahl Boxen pro Behälter', 'Gew.', 'Härterei',
+                        'von Härterei \nnach Galvanik', 'Galvanik', 'vom Galvanik nach Eurotec'
+                    ], inplace=True, errors='ignore')
+
+                    # Mapování názvů sloupců
+                    column_mapping = {
+                        'Abhol- datum': 'datum',
+                        'Prod. Datum': 'datum_vyroby',
+                        'Material- charge': 'sarze',
+                        'Vorgang+': 'prubeh',
+                        'Artikel- nummer': 'artikl',
+                        'Kopf': 'typ_hlavy',
+                        'Be-schich-tung': 'vrstva',
+                        'Bezeichnung': 'popis',
+                        'n. Zg. / \nas drg': 'predpis',
+                        'Material': 'material',
+                        'Ober- fläche': 'povrch',
+                        'Gewicht in kg': 'hmotnost',
+                        'Tara kg': 'tara',
+                        'Menge       ': 'mnozstvi',
+                        'Behälter-Nr.:': 'behalter_nr',
+                        'Sonder / Zusatzinfo': 'dodatecne_info',
+                        'Lief.': 'dodavatel_materialu',
+                        'Fertigungs- auftrags Nr.': 'vyrobni_zakazka'
+                    }
+
+                    df.rename(columns=column_mapping, inplace=True)
+
+                    # Ukázka náhledu
+                    preview = df.head(5).to_dict(orient='records')
+
+                    # Uložení záznamů
+                    zakazky_cache = {}
+                    for _, row in df.iterrows():
+                        if pd.isna(row.get('artikl')):
+                            break
+
+                        artikl = row['artikl']
+                        prumer = row['prumer']
+                        delka = row['delka']
+
+                        if artikl not in zakazky_cache:
+                            zakazka = Zakazka.objects.create(
+                                kamion_prijem=kamion,
+                                artikl=artikl,
+                                prumer=prumer,
+                                delka=delka,
+                                predpis=row.get('predpis'),
+                                typ_hlavy=row.get('typ_hlavy'),
+                                popis=row.get('popis'),
+                                prubeh=row.get('prubeh'),
+                                vrstva=row.get('vrstva'),
+                                povrch=row.get('povrch')
+                            )
+                            zakazky_cache[artikl] = zakazka
+
+                        Bedna.objects.create(
+                            zakazka=zakazky_cache[artikl],
+                            hmotnost=row.get('hmotnost'),
+                            tara=row.get('tara'),
+                            material=row.get('material'),
+                            sarze=row.get('sarze'),
+                            behalter_nr=row.get('behalter_nr'),
+                            dodatecne_info=row.get('dodatecne_info'),
+                            dodavatel_materialu=row.get('dodavatel_materialu'),
+                            vyrobni_zakazka=row.get('vyrobni_zakazka')
                         )
-                    else:
-                        self.message_user(request, "Import proběhl úspěšně.", messages.SUCCESS)
-                        return redirect("..")
+
+                    self.message_user(request, "Import proběhl úspěšně.", messages.SUCCESS)
+                    return redirect("..")
 
                 except Exception as e:
-                    self.message_user(
-                        request, f"Import selhal: {str(e)}", level=messages.ERROR
-                    )
+                    self.message_user(request, f"Chyba při importu: {e}", messages.ERROR)
                     return redirect("..")
+
         else:
             form = ImportZakazekForm()
 
         return render(request, 'admin/import_zakazky.html', {
             'form': form,
             'kamion': kamion,
+            'preview': preview,
             'errors': errors,
+            'title': f"Import zakázek pro kamion {kamion}",
         })
-
-    def _load_dataset(self, uploaded_file):
-        content = uploaded_file.read()
-        if uploaded_file.name.endswith(".csv"):
-            return Dataset().load(content.decode("utf-8"), format="csv")
-        else:
-            return Dataset().load(content, format="xlsx")    
 
 
 class BednaInline(admin.TabularInline):

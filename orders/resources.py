@@ -47,7 +47,7 @@ class BednaResourceEurotec(resources.ModelResource):
             'Artikel- nummer', 'Abmessung', 'n. Zg. / as drg', 'Kopf', 'Bezeichnung',
             'Vorgang+', 'Be-schich-tung', 'Ober- fläche',
             'Gewicht in kg', 'Tara kg', 'Material', 'Material- charge',
-            'Behälter-Nr.:', 'Sonder / Zusatzinfo', 'Lief.', 'Fertigungs-auftrags Nr.'
+            'Behälter-Nr.:', 'Sonder / Zusatzinfo', 'Lief.', 'Fertigungs- auftrags Nr.'
         ]
 
         cleaned_rows = []

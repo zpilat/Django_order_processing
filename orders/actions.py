@@ -77,3 +77,12 @@ def expedice_zakazek(modeladmin, request, queryset):
             zakazka.save()
 
     messages.success(request, f"Zakázky byly úspěšně expedovány, byl vytvořen nový kamion výdeje {kamion.cislo_dl}.")
+
+
+@admin.action(description="Importovat dodací list pro vybraný kamion")
+def import_zakazek_beden_action(modeladmin, request, queryset):
+    if queryset.count() != 1:
+        modeladmin.message_user(request, "Vyber pouze jeden kamion.", level=messages.ERROR)
+        return
+    kamion = queryset.first()
+    return redirect(f'./import-zakazek/?kamion={kamion.pk}')

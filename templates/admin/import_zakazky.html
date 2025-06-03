@@ -1,18 +1,32 @@
 {% extends "admin/base_site.html" %}
+{% load custom_filters%}
+
 {% block content %}
-<h1>Import zakázek a beden pro kamion {{ kamion }}</h1>
-<form method="post" enctype="multipart/form-data">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit" class="default">Importovat</button>
-</form>
-{% if errors %}
-    <div class="messages error">
-        <ul>
-            {% for err in errors %}
-                <li>{{ err }}</li>
-            {% endfor %}
-        </ul>
-    </div>
-{% endif %}
+<div id="content" class="flex">
+  {% if errors %}
+    <ul class="errorlist">
+      {% for err in errors %}
+        <li>{{ err }}</li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+
+  <form method="post" enctype="multipart/form-data" novalidate>
+  {% csrf_token %}
+  <div class="module aligned">
+      <fieldset class="module aligned">
+      <div class="form-row">
+          {{ form.file.errors }}
+          <label for="{{ form.file.id_for_label }}">{{ form.file.label }}</label>
+          {{ form.file|add_class:"vTextField" }}
+      </div>
+      </fieldset>
+  </div>
+
+  <div class="submit-row">
+      <input type="submit" value="Importovat" class="default">
+  </div>
+  </form>
+</div>
 {% endblock %}
+
