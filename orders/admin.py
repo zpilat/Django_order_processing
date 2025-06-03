@@ -4,15 +4,20 @@ from django.forms import TextInput
 from django.utils.safestring import mark_safe
 from django.utils.translation import gettext_lazy as _
 from django.contrib.admin.views.main import ChangeList
+from django.urls import path
+from django.shortcuts import redirect, render
 
 from simple_history.admin import SimpleHistoryAdmin
 from import_export.admin import ImportExportModelAdmin
+from import_export.formats.base_formats import XLSX, CSV
+from tablib import Dataset
 from decimal import Decimal, ROUND_HALF_UP
 
 from .models import Zakaznik, Kamion, Zakazka, Bedna
 from .actions import expedice_zakazek
 from .filters import ExpedovanaZakazkaFilter, StavBednyFilter
-from .forms import ZakazkaAdminForm, BednaAdminForm
+from .forms import ZakazkaAdminForm, BednaAdminForm, ImportZakazekForm
+from .resources import BednaResourceEurotec
 from .choices import (
     TypHlavyChoice, StavBednyChoice, RovnaniChoice, TryskaniChoice,
     PrioritaChoice, ZinkovnaChoice, KamionChoice
@@ -25,6 +30,7 @@ class ImportExportHistoryModelAdmin(ImportExportModelAdmin, SimpleHistoryAdmin):
     tak verzování pomocí django-simple-history.
     """
     pass
+
 
 class CustomPaginationChangeList(ChangeList):
     """
@@ -65,7 +71,7 @@ class ZakazkaPrijemInline(admin.TabularInline):
     Inline pro správu zakázek v rámci kamionu.
     """
     model = Zakazka
-    fk_name = 'kamion_prijem_id'
+    fk_name = 'kamion_prijem'
     verbose_name = 'Zakázka - příjem'
     verbose_name_plural = 'Zakázky - příjem'
     extra = 0
@@ -91,12 +97,12 @@ class ZakazkaVydejInline(admin.TabularInline):
     Inline pro správu zakázek v rámci kamionu pro výdej.
     """
     model = Zakazka
-    fk_name = 'kamion_vydej_id'
+    fk_name = 'kamion_vydej'
     verbose_name = "Zakázka - výdej"
     verbose_name_plural = "Zakázky - výdej"
     extra = 0
-    fields = ('artikl', 'kamion_prijem_id', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'popis', 'priorita', 'komplet', 'expedovano',)
-    readonly_fields = ('artikl', 'kamion_prijem_id', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'popis', 'priorita', 'komplet', 'expedovano',)
+    fields = ('artikl', 'kamion_prijem', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'popis', 'priorita', 'komplet', 'expedovano',)
+    readonly_fields = ('artikl', 'kamion_prijem', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'popis', 'priorita', 'komplet', 'expedovano',)
     show_change_link = True
     formfield_overrides = {
         models.CharField: {'widget': TextInput(attrs={ 'size': '30'})},
@@ -109,25 +115,26 @@ class KamionAdmin(SimpleHistoryAdmin):
     """
     Správa kamionů v administraci.
     """
-    fields = ('zakaznik_id', 'datum', 'cislo_dl', 'prijem_vydej', 'misto_expedice',) 
+    fields = ('zakaznik', 'datum', 'cislo_dl', 'prijem_vydej', 'misto_expedice',) 
     readonly_fields = ('prijem_vydej',)
-    list_display = ('get_kamion_str', 'zakaznik_id__nazev', 'datum', 'cislo_dl', 'prijem_vydej', 'misto_expedice',)
-    list_filter = ('zakaznik_id__nazev', 'prijem_vydej',)
+    list_display = ('get_kamion_str', 'zakaznik__nazev', 'datum', 'cislo_dl', 'prijem_vydej', 'misto_expedice',)
+    list_filter = ('zakaznik__nazev', 'prijem_vydej',)
     list_display_links = ('get_kamion_str',)
     ordering = ('-id',)
     date_hierarchy = 'datum'
     list_per_page = 20
+    actions = ['import_zakazek_beden_action']
 
-    history_list_display = ["id", "zakaznik_id", "datum"]
-    history_search_fields = ["zakaznik_id__nazev", "datum"]
-    history_list_filter = ["zakaznik_id", "datum"]
+    history_list_display = ["id", "zakaznik", "datum"]
+    history_search_fields = ["zakaznik__nazev", "datum"]
+    history_list_filter = ["zakaznik", "datum"]
     history_list_per_page = 20
 
     def get_inlines(self, request, obj):
         """
         Vrací inliny pro správu zakázek kamionu v závislosti na tom, zda se jedná o kamion pro příjem nebo výdej a jestli jde o přidání nebo editaci.
         """
-        if obj and obj.prijem_vydej == 'P':
+        if obj and obj.prijem_vydej == 'P': # and obj.zakaznik.zkratka != 'EUR':
             return [ZakazkaPrijemInline]
         elif obj and obj.prijem_vydej == 'V':
             return [ZakazkaVydejInline]
@@ -162,12 +169,84 @@ class KamionAdmin(SimpleHistoryAdmin):
     def get_readonly_fields(self, request, obj=None):
         """
         Vrací seznam readonly polí pro inline Kamion, pokud se jedná o editaci existujícího kamionu,
-        přidá do stávajících readonly_fields pole 'zakaznik_id'.
+        přidá do stávajících readonly_fields pole 'zakaznik'.
         """
         rof = list(super().get_readonly_fields(request, obj)) or []
         if obj:
-            rof.append('zakaznik_id')
+            rof.append('zakaznik')
         return rof
+    
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path('import-zakazek/', self.admin_site.admin_view(self.import_view), name='import_zakazek_beden'),
+        ]
+        return custom_urls + urls
+
+    def import_zakazek_beden_action(self, request, queryset):
+        if queryset.count() != 1:
+            self.message_user(request, "Vyber pouze jeden kamion.", level=messages.ERROR)
+            return
+        kamion = queryset.first()
+        return redirect(f'./import-zakazek/?kamion={kamion.pk}')
+    import_zakazek_beden_action.short_description = "Importovat dodací list pro vybraný kamion"
+
+    def import_view(self, request):
+        kamion_id = request.GET.get("kamion")
+        kamion = Kamion.objects.get(pk=kamion_id) if kamion_id else None
+        errors = []
+
+        if request.method == 'POST':
+            form = ImportZakazekForm(request.POST, request.FILES)
+            if form.is_valid():
+                file = form.cleaned_data['file']
+                dataset = self._load_dataset(file)
+
+                zakaznik = kamion.zakaznik
+
+                # Vyber správný resource podle zákazníka
+                if zakaznik.zkratka == "EUR":
+                    resource = BednaResourceEurotec(kamion=kamion)
+                else:
+                    self.message_user(
+                        request, f"Není definován import pro zákazníka {zakaznik}.", messages.ERROR
+                    )
+                    return redirect("..")
+
+                try:
+                    result = resource.import_data(dataset, dry_run=True)
+
+                    if result.has_errors():
+                        for i, row in enumerate(result.rows):
+                            for e in row.errors:
+                                errors.append(f"Řádek {i + 1}: {e.error}")
+                        self.message_user(
+                            request, "Při importu došlo k chybám v některých řádcích.", messages.WARNING
+                        )
+                    else:
+                        self.message_user(request, "Import proběhl úspěšně.", messages.SUCCESS)
+                        return redirect("..")
+
+                except Exception as e:
+                    self.message_user(
+                        request, f"Import selhal: {str(e)}", level=messages.ERROR
+                    )
+                    return redirect("..")
+        else:
+            form = ImportZakazekForm()
+
+        return render(request, 'admin/import_zakazky.html', {
+            'form': form,
+            'kamion': kamion,
+            'errors': errors,
+        })
+
+    def _load_dataset(self, uploaded_file):
+        content = uploaded_file.read()
+        if uploaded_file.name.endswith(".csv"):
+            return Dataset().load(content.decode("utf-8"), format="csv")
+        else:
+            return Dataset().load(content, format="xlsx")    
 
 
 class BednaInline(admin.TabularInline):
@@ -178,7 +257,7 @@ class BednaInline(admin.TabularInline):
     form = BednaAdminForm
     extra = 0
     # další úprava zobrazovaných polí podle různých podmínek je v get_fields
-    fields = ('cislo_bedny', 'hmotnost', 'tara', 'material', 'sarze', 'behalter_nr', 'dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka', 'operator', 'tryskat', 'rovnat', 'stav_bedny', 'poznamka')
+    fields = ('cislo_bedny', 'hmotnost', 'tara', 'material', 'sarze', 'behalter_nr', 'dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka', 'tryskat', 'rovnat', 'stav_bedny', 'poznamka')
     readonly_fields = ('cislo_bedny',)
     show_change_link = True
     formfield_overrides = {
@@ -204,14 +283,14 @@ class BednaInline(admin.TabularInline):
 
         - Pokud není obj (tj. add_view), použije se základní fields z super().  
         - Pokud obj existuje a zákazník zakázky není 'EUR' (Eurotec),
-          vyloučí se pole dodatecne_info, dodavatel_materialu, vyrobni_zakazka a operator.
+          vyloučí se pole dodatecne_info, dodavatel_materialu a vyrobni_zakazka.
         """
         fields = list(super().get_fields(request, obj))
 
         if obj:
-            if obj.kamion_prijem_id.zakaznik_id.zkratka != 'EUR':
+            if obj.kamion_prijem.zakaznik.zkratka != 'EUR':
                 # Pokud je zakázka přiřazena k zákazníkovi, který není Eurotec, vyloučíme některá pole
-                exclude_fields = ['behalter_nr', 'dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka', 'operator']
+                exclude_fields = ['behalter_nr', 'dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka']
                 for field in exclude_fields:
                     if field in fields:
                         fields.remove(field)
@@ -236,17 +315,17 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     list_display_links = ('artikl',)
     search_fields = ('artikl',)
     search_help_text = "Hledat podle artiklu"
-    list_filter = ('kamion_prijem_id__zakaznik_id', 'typ_hlavy', 'priorita', 'komplet', ExpedovanaZakazkaFilter,)
+    list_filter = ('kamion_prijem__zakaznik', 'typ_hlavy', 'priorita', 'komplet', ExpedovanaZakazkaFilter,)
     ordering = ('-id',)
-    date_hierarchy = 'kamion_prijem_id__datum'
+    date_hierarchy = 'kamion_prijem__datum'
     formfield_overrides = {
         models.CharField: {'widget': TextInput(attrs={ 'size': '30'})},
         models.DecimalField: {'widget': TextInput(attrs={ 'size': '8'})},
     }
 
-    history_list_display = ["id", "kamion_prijem_id", "kamion_vydej_id", "artikl", "prumer", "delka", "predpis", "typ_hlavy", "popis", "priorita", "komplet"]
-    history_search_fields = ["kamion_prijem_id__zakaznik_id__nazev", "artikl", "prumer", "delka", "predpis", "typ_hlavy", "popis"]
-    history_list_filter = ["kamion_prijem_id__zakaznik_id", "kamion_prijem_id__datum", "typ_hlavy"]
+    history_list_display = ["id", "kamion_prijem", "kamion_vydej", "artikl", "prumer", "delka", "predpis", "typ_hlavy", "popis", "priorita", "komplet"]
+    history_search_fields = ["kamion_prijem__zakaznik__nazev", "artikl", "prumer", "delka", "predpis", "typ_hlavy", "popis"]
+    history_list_filter = ["kamion_prijem__zakaznik", "kamion_prijem__datum", "typ_hlavy"]
     history_list_per_page = 20
 
     class Media:
@@ -286,20 +365,20 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
         """
         Vytvoří odkaz na detail kamionu příjmu, ke kterému zakázka patří a umožní třídění podle hlavičky pole.
         """
-        if obj.kamion_prijem_id:
-            return mark_safe(f'<a href="{obj.kamion_prijem_id.get_admin_url()}">{obj.kamion_prijem_id}</a>')
+        if obj.kamion_prijem:
+            return mark_safe(f'<a href="{obj.kamion_prijem.get_admin_url()}">{obj.kamion_prijem}</a>')
         return '-'
-    kamion_prijem_link.admin_order_field = 'kamion_prijem_id__id'
+    kamion_prijem_link.admin_order_field = 'kamion_prijem__id'
 
     @admin.display(description='Kamion výdej')
     def kamion_vydej_link(self, obj):
         """
         Vytvoří odkaz na detail kamionu výdeje, ke kterému zakázka patří a umožní třídění podle hlavičky pole.
         """
-        if obj.kamion_vydej_id:
-            return mark_safe(f'<a href="{obj.kamion_vydej_id.get_admin_url()}">{obj.kamion_vydej_id}</a>')
+        if obj.kamion_vydej:
+            return mark_safe(f'<a href="{obj.kamion_vydej.get_admin_url()}">{obj.kamion_vydej}</a>')
         return '-'
-    kamion_vydej_link.admin_order_field = 'kamion_vydej_id__id'
+    kamion_vydej_link.admin_order_field = 'kamion_vydej__id'
 
     def has_change_permission(self, request, obj=None):
         """
@@ -361,7 +440,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
             nove_bedny = []
             if len(instances) == 0 and pocet_beden:
                 for i in range(pocet_beden):
-                    bedna = Bedna(zakazka_id=zakazka)
+                    bedna = Bedna(zakazka=zakazka)
                     nove_bedny.append(bedna)
                 instances = nove_bedny
 
@@ -383,7 +462,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
                             setattr(instance, field, hodnota)
 
             # Další logika dle zákazníka (tryskání ...)
-            zakaznik = zakazka.kamion_prijem_id.zakaznik_id
+            zakaznik = zakazka.kamion_prijem.zakaznik
             if zakaznik.vse_tryskat:
                 for instance in instances:
                     instance.tryskat = TryskaniChoice.SPINAVA
@@ -391,7 +470,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
             # Přiřadíme cislo_bedny nově vzniklým instancím
             # Najdeme poslední bednu pro daného zákazníka:
             posledni_bedna = Bedna.objects.filter(
-                zakazka_id__kamion_prijem_id__zakaznik_id=zakaznik
+                zakazka__kamion_prijem__zakaznik=zakaznik
             ).order_by('-cislo_bedny').first()
             # Pokud neexistuje žádná bedna daného zákazníka, začneme s číslem dle číselné řady zákazníka
             nove_cislo_bedny = (posledni_bedna.cislo_bedny + 1) if posledni_bedna else zakaznik.ciselna_rada + 1
@@ -412,12 +491,12 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
         if obj:  # editace stávajícího záznamu
             my_fieldsets = [
                 (None, {
-                    'fields': ['kamion_prijem_id', 'artikl', 'typ_hlavy', 'prumer', 'delka', 'predpis', 'priorita', 'popis', 'zinkovna', 'komplet', 'expedovano'],
+                    'fields': ['kamion_prijem', 'artikl', 'typ_hlavy', 'prumer', 'delka', 'predpis', 'priorita', 'popis', 'zinkovna', 'komplet', 'expedovano'],
                     }),
             ]
                
             # Pokud je zákazník Eurotec, přidej speciální pole pro zobrazení
-            if obj.kamion_prijem_id.zakaznik_id.zkratka == 'EUR':
+            if obj.kamion_prijem.zakaznik.zkratka == 'EUR':
                 my_fieldsets.append(                  
                     ('Pouze pro Eurotec:', {
                         'fields': ['prubeh', 'vrstva', 'povrch'],
@@ -451,7 +530,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
         else:  # přidání nového záznamu
             return [
                 ('Příjem zakázek na sklad:', {
-                    'fields': ['kamion_prijem_id', 'artikl', 'typ_hlavy', 'prumer', 'delka', 'predpis', 'priorita', 'popis', 'zinkovna',],
+                    'fields': ['kamion_prijem', 'artikl', 'typ_hlavy', 'prumer', 'delka', 'predpis', 'priorita', 'popis', 'zinkovna',],
                     'description': 'Přijímání zakázek z kamiónu na sklad, pokud ještě není kamión v systému, vytvořte ho pomocí ikony ➕ u položky Kamión.',
                 }), 
                 ('Pouze pro Eurotec:', {
@@ -485,7 +564,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     def get_list_display(self, request):
         """
         Přizpůsobení zobrazení sloupců v seznamu zakázek podle aktivního filtru.
-        Pokud není aktivní filtr "skladem=Expedováno", odebere se sloupec kamion_vydej_id.
+        Pokud není aktivní filtr "skladem=Expedováno", odebere se sloupec kamion_vydej.
         """
         ld = list(super().get_list_display(request))
         if not request.GET.get('skladem'):
@@ -541,8 +620,8 @@ class BednaAdmin(ImportExportHistoryModelAdmin):
     form = BednaAdminForm
 
     # Parametry pro zobrazení detailu v administraci
-    fields = ('zakazka_id', 'cislo_bedny', 'hmotnost', 'tara', 'material', 'sarze', 'behalter_nr', 'dodatecne_info', 
-              'dodavatel_materialu', 'vyrobni_zakazka', 'operator', 'tryskat', 'rovnat', 'stav_bedny', 'poznamka')
+    fields = ('zakazka', 'cislo_bedny', 'hmotnost', 'tara', 'material', 'sarze', 'behalter_nr', 'dodatecne_info', 
+              'dodavatel_materialu', 'vyrobni_zakazka', 'tryskat', 'rovnat', 'stav_bedny', 'poznamka')
     readonly_fields = ('cislo_bedny',)
 
     # Parametry pro zobrazení seznamu v administraci
@@ -550,20 +629,20 @@ class BednaAdmin(ImportExportHistoryModelAdmin):
                     'rovnat', 'tryskat', 'stav_bedny', 'get_typ_hlavy', 'hmotnost', 'tara', 'get_priorita', 'poznamka')
     # list_editable - je nastaveno pro různé stavy filtru Skladem v metodě changelist_view
     list_display_links = ('cislo_bedny', )
-    search_fields = ('cislo_bedny', 'zakazka_id__artikl', 'zakazka_id__delka',)
+    search_fields = ('cislo_bedny', 'zakazka__artikl', 'zakazka__delka',)
     search_help_text = "Hledat podle čísla bedny, artiklu nebo délky vrutu"
-    list_filter = ('zakazka_id__kamion_prijem_id__zakaznik_id__nazev', StavBednyFilter, 'rovnat', 'tryskat', 'zakazka_id__priorita', )
+    list_filter = ('zakazka__kamion_prijem__zakaznik__nazev', StavBednyFilter, 'rovnat', 'tryskat', 'zakazka__priorita', )
     ordering = ('id',)
-    date_hierarchy = 'zakazka_id__kamion_prijem_id__datum'
+    date_hierarchy = 'zakazka__kamion_prijem__datum'
     formfield_overrides = {
         models.CharField: {'widget': TextInput(attrs={ 'size': '30'})},
         models.DecimalField: {'widget': TextInput(attrs={ 'size': '8'})},
     }
 
     # Parametry pro historii změn
-    history_list_display = ["id", "zakazka_id", "cislo_bedny", "stav_bedny", "typ_hlavy", "poznamka"]
-    history_search_fields = ["zakazka_id__kamion_prijem_id__zakaznik_id__nazev", "cislo_bedny", "stav_bedny", "zakazka_id__typ_hlavy", "poznamka"]
-    history_list_filter = ["zakazka_id__kamion_prijem_id__zakaznik_id__nazev", "zakazka_id__kamion_prijem_id__datum", "stav_bedny"]
+    history_list_display = ["id", "zakazka", "cislo_bedny", "stav_bedny", "typ_hlavy", "poznamka"]
+    history_search_fields = ["zakazka__kamion_prijem__zakaznik__nazev", "cislo_bedny", "stav_bedny", "zakazka__typ_hlavy", "poznamka"]
+    history_list_filter = ["zakazka__kamion_prijem__zakaznik__nazev", "zakazka__kamion_prijem__datum", "stav_bedny"]
     history_list_per_page = 20
 
     @admin.display(description='Zakázka')
@@ -571,62 +650,62 @@ class BednaAdmin(ImportExportHistoryModelAdmin):
         """
         Vytvoří odkaz na detail zakázky, ke které bedna patří a umožní třídění podle hlavičky pole.
         """
-        if obj.zakazka_id:
-            return mark_safe(f'<a href="{obj.zakazka_id.get_admin_url()}">{obj.zakazka_id.artikl}</a>')
+        if obj.zakazka:
+            return mark_safe(f'<a href="{obj.zakazka.get_admin_url()}">{obj.zakazka.artikl}</a>')
         return '-'
-    zakazka_link.admin_order_field = 'zakazka_id__id'
+    zakazka_link.admin_order_field = 'zakazka__id'
 
     @admin.display(description='Kamion příjem')
     def kamion_prijem_link(self, obj):
         """
         Vytvoří odkaz na detail kamionu příjmu, ke kterému bedna patří a umožní třídění podle hlavičky pole.
         """
-        if obj.zakazka_id and obj.zakazka_id.kamion_prijem_id:
-            return mark_safe(f'<a href="{obj.zakazka_id.kamion_prijem_id.get_admin_url()}">{obj.zakazka_id.kamion_prijem_id}</a>')
+        if obj.zakazka and obj.zakazka.kamion_prijem:
+            return mark_safe(f'<a href="{obj.zakazka.kamion_prijem.get_admin_url()}">{obj.zakazka.kamion_prijem}</a>')
         return '-'
-    kamion_prijem_link.admin_order_field = 'zakazka_id__kamion_prijem_id__id'
+    kamion_prijem_link.admin_order_field = 'zakazka__kamion_prijem__id'
 
     @admin.display(description='Kamion výdej')
     def kamion_vydej_link(self, obj):
         """
         Vytvoří odkaz na detail kamionu výdeje, ke kterému bedna patří a umožní třídění podle hlavičky pole.
         """
-        if obj.zakazka_id and obj.zakazka_id.kamion_vydej_id:
-            return mark_safe(f'<a href="{obj.zakazka_id.kamion_vydej_id.get_admin_url()}">{obj.zakazka_id.kamion_vydej_id}</a>')
+        if obj.zakazka and obj.zakazka.kamion_vydej:
+            return mark_safe(f'<a href="{obj.zakazka.kamion_vydej.get_admin_url()}">{obj.zakazka.kamion_vydej}</a>')
         return '-'
-    kamion_vydej_link.admin_order_field = 'zakazka_id__kamion_vydej_id__id'
+    kamion_vydej_link.admin_order_field = 'zakazka__kamion_vydej__id'
 
     @admin.display(description='Typ hlavy')
     def get_typ_hlavy(self, obj):
         """
         Zobrazí typ hlavy zakázky a umožní třídění podle hlavičky pole.
         """
-        return obj.zakazka_id.typ_hlavy
-    get_typ_hlavy.admin_order_field = 'zakazka_id__typ_hlavy'
+        return obj.zakazka.typ_hlavy
+    get_typ_hlavy.admin_order_field = 'zakazka__typ_hlavy'
 
     @admin.display(description='Priorita')
     def get_priorita(self, obj):
         """
         Zobrazí prioritu zakázky a umožní třídění podle hlavičky pole.
         """
-        return obj.zakazka_id.priorita
-    get_priorita.admin_order_field = 'zakazka_id__priorita'
+        return obj.zakazka.priorita
+    get_priorita.admin_order_field = 'zakazka__priorita'
 
     @admin.display(description='Průměr')
     def get_prumer(self, obj):
         """
         Zobrazí průměr zakázky a umožní třídění podle hlavičky pole.
         """
-        return obj.zakazka_id.prumer
-    get_prumer.admin_order_field = 'zakazka_id__prumer'
+        return obj.zakazka.prumer
+    get_prumer.admin_order_field = 'zakazka__prumer'
 
     @admin.display(description='Délka')
     def get_delka(self, obj):
         """
         Zobrazí délku zakázky a umožní třídění podle hlavičky pole.
         """
-        return obj.zakazka_id.delka
-    get_delka.admin_order_field = 'zakazka_id__delka'
+        return obj.zakazka.delka
+    get_delka.admin_order_field = 'zakazka__delka'
 
     def get_fields(self, request, obj=None):
         """
@@ -634,12 +713,12 @@ class BednaAdmin(ImportExportHistoryModelAdmin):
 
         - Pokud není obj (tj. add_view), použije se základní fields ze super().  
         - Pokud obj existuje a zákazník zakázky není 'EUR' (Eurotec),
-          odeberou se ze zobrazených polí behalter_nr, dodatecne_info, dodavatel_materialu, vyrobni_zakazka a operator.
+          odeberou se ze zobrazených polí behalter_nr, dodatecne_info, dodavatel_materialu a vyrobni_zakazka.
         """
         fields = list(super().get_fields(request, obj) or [])
 
-        if obj and obj.zakazka_id.kamion_prijem_id.zakaznik_id.zkratka != 'EUR':
-            fields_to_remove = ['behalter_nr', 'dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka', 'operator']
+        if obj and obj.zakazka.kamion_prijem.zakaznik.zkratka != 'EUR':
+            fields_to_remove = ['behalter_nr', 'dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka']
             for field in fields_to_remove:
                 if field in fields:
                     fields.remove(field)

@@ -61,14 +61,14 @@ class BednyListView(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
 
         columns_fields = [
-            'id', 'cislo_bedny', 'zakazka_id__priorita', 'zakazka_id__kamion_prijem_id__zakaznik_id__zkratka',
-            'zakazka_id__kamion_prijem_id__datum', 'zakazka_id__kamion_prijem_id', 'zakazka_id__artikl', 'zakazka_id__prumer',
-            'zakazka_id__delka', 'hmotnost', 'stav_bedny', 'zakazka_id__typ_hlavy', 'tryskat', 'rovnat',
-            'zakazka_id__komplet', 'poznamka',
+            'id', 'cislo_bedny', 'zakazka__priorita', 'zakazka__kamion_prijem__zakaznik__zkratka',
+            'zakazka__kamion_prijem__datum', 'zakazka__kamion_prijem', 'zakazka__artikl', 'zakazka__prumer',
+            'zakazka__delka', 'hmotnost', 'stav_bedny', 'zakazka__typ_hlavy', 'tryskat', 'rovnat',
+            'zakazka__komplet', 'poznamka',
         ]
         # Získání názvů sloupců pro zobrazení v tabulce - slovník {pole: názvy sloupců}
         columns = {field: get_verbose_name_for_column(Bedna, field) for field in columns_fields}
-        columns['zakazka_id__kamion_prijem_id__zakaznik_id__zkratka'] = 'Zákazník'
+        columns['zakazka__kamion_prijem__zakaznik__zkratka'] = 'Zákazník'
         stav_choices = [("SKLAD", "SKLADEM"), ("", "VŠE")] + list(StavBednyChoice.choices)
         zakaznik_choices = [("", "VŠE")] + [(zakaznik.zkratka, zakaznik.zkratka) for zakaznik in Zakaznik.objects.all()]
         typ_hlavy_choices = [("", "VŠE")] + list(TypHlavyChoice.choices)
@@ -114,7 +114,7 @@ class BednyListView(LoginRequiredMixin, ListView):
         # Filtrování podle checkboxů
         filters = {'tryskat': self.request.GET.get('tryskat', ''),
                    'rovnat': self.request.GET.get('rovnat', ''),
-                   'zakazka_id__komplet': self.request.GET.get('zakazka_komplet', '')}
+                   'zakazka__komplet': self.request.GET.get('zakazka_komplet', '')}
 
         if stav_filter and stav_filter != 'VŠE':
             if stav_filter == 'SKLAD':
@@ -123,13 +123,13 @@ class BednyListView(LoginRequiredMixin, ListView):
                 queryset = queryset.filter(stav_bedny=stav_filter)
 
         if zakaznik_filter and zakaznik_filter != 'VŠE':
-            queryset = queryset.filter(zakazka_id__kamion_prijem_id__zakaznik_id__zkratka=zakaznik_filter)
+            queryset = queryset.filter(zakazka__kamion_prijem__zakaznik__zkratka=zakaznik_filter)
 
         if typ_hlavy_filter and typ_hlavy_filter != 'VŠE':
-            queryset = queryset.filter(zakazka_id__typ_hlavy=typ_hlavy_filter)
+            queryset = queryset.filter(zakazka__typ_hlavy=typ_hlavy_filter)
 
         if priorita_filter and priorita_filter != 'VŠE':
-            queryset = queryset.filter(zakazka_id__priorita=priorita_filter)
+            queryset = queryset.filter(zakazka__priorita=priorita_filter)
 
         for field, value in filters.items():
             if value == 'on':
@@ -137,7 +137,7 @@ class BednyListView(LoginRequiredMixin, ListView):
 
         if query:
             queryset = queryset.filter(
-                Q(cislo_bedny__icontains=query) | Q(zakazka_id__kamion_prijem_id__datum__icontains=query)
+                Q(cislo_bedny__icontains=query) | Q(zakazka__kamion_prijem__datum__icontains=query)
             )
 
         if order == 'down':
@@ -185,7 +185,7 @@ def dashboard_view(request):
     
     # Získání přehledu beden pro každého zákazníka
     for zakaznik in Zakaznik.objects.all():
-        bedny_zakaznika = Bedna.objects.filter(zakazka_id__kamion_prijem_id__zakaznik_id=zakaznik)
+        bedny_zakaznika = Bedna.objects.filter(zakazka__kamion_prijem__zakaznik=zakaznik)
         prehled_beden_zakaznika[zakaznik.nazev] = bedny_zakaznika.values('stav_bedny').annotate(
             pocet=Count('id'),
             hmotnost=Sum('hmotnost')

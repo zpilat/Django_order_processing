@@ -34,7 +34,7 @@ class Zakaznik(models.Model):
     
 
 class Kamion(models.Model):
-    zakaznik_id = models.ForeignKey(Zakaznik, on_delete=models.CASCADE, related_name='kamiony', verbose_name='Zákazník')
+    zakaznik = models.ForeignKey(Zakaznik, on_delete=models.CASCADE, related_name='kamiony', verbose_name='Zákazník')
     datum = models.DateField(verbose_name='Datum')
     cislo_dl = models.CharField(max_length=50, verbose_name='Číslo DL', blank=True, null=True)
     prijem_vydej = models.CharField(choices=KamionChoice.choices, max_length=1, verbose_name='Přijem/Výdej', default=KamionChoice.PRIJEM)
@@ -47,7 +47,7 @@ class Kamion(models.Model):
         ordering = ['id']
 
     def __str__(self):
-        return f'{self.id}. {self.zakaznik_id.zkratka} {self.datum}'
+        return f'{self.id}. {self.zakaznik.zkratka} {self.datum}'
     
     def get_admin_url(self):
         """
@@ -56,8 +56,8 @@ class Kamion(models.Model):
         return reverse("admin:orders_kamion_change", args=[self.pk])    
     
 class Zakazka(models.Model):
-    kamion_prijem_id = models.ForeignKey(Kamion, on_delete=models.CASCADE, related_name='zakazky_prijem', verbose_name='Kamión příjem', null=True)
-    kamion_vydej_id = models.ForeignKey(Kamion, on_delete=models.CASCADE, related_name='zakazky_vydej', verbose_name='Kamión výdej', null=True, blank=True)
+    kamion_prijem = models.ForeignKey(Kamion, on_delete=models.CASCADE, related_name='zakazky_prijem', verbose_name='Kamión příjem', null=True)
+    kamion_vydej = models.ForeignKey(Kamion, on_delete=models.CASCADE, related_name='zakazky_vydej', verbose_name='Kamión výdej', null=True, blank=True)
     artikl = models.CharField(max_length=50, verbose_name='Artikl / Zakázka')
     prumer = models.DecimalField(max_digits=4, decimal_places=1, verbose_name='Průměr')
     delka = models.DecimalField(max_digits=6, decimal_places=1, verbose_name='Délka')
@@ -82,7 +82,7 @@ class Zakazka(models.Model):
         ]
 
     def __str__(self):
-        return f'{self.kamion_prijem_id.id}. {self.kamion_prijem_id.zakaznik_id.zkratka} {self.kamion_prijem_id.datum} - {self.artikl}'
+        return f'{self.kamion_prijem.id}. {self.kamion_prijem.zakaznik.zkratka} {self.kamion_prijem.datum} - {self.artikl}'
     
     def get_admin_url(self):
         """
@@ -92,7 +92,7 @@ class Zakazka(models.Model):
     
 
 class Bedna(models.Model):
-    zakazka_id = models.ForeignKey(Zakazka, on_delete=models.CASCADE, related_name='bedny', verbose_name='Zakázka')
+    zakazka = models.ForeignKey(Zakazka, on_delete=models.CASCADE, related_name='bedny', verbose_name='Zakázka')
     cislo_bedny = models.PositiveIntegerField(blank=True, verbose_name='Číslo bedny', unique=True,)
     hmotnost = models.DecimalField(max_digits=5, decimal_places=1, blank=True, verbose_name='Hm. netto')
     tara = models.DecimalField(max_digits=5, blank=True, decimal_places=1, verbose_name='Tára')
@@ -102,7 +102,6 @@ class Bedna(models.Model):
     dodatecne_info = models.CharField(max_length=100, null=True, blank=True, verbose_name='Sonder / Zusatzinfo')
     dodavatel_materialu = models.CharField(max_length=10, null=True, blank=True, verbose_name='Lief.')
     vyrobni_zakazka = models.CharField(max_length=20, null=True, blank=True, verbose_name='Fertigungs-auftrags Nr.')
-    operator = models.CharField(max_length=20, null=True, blank=True, verbose_name='Bediener')
     tryskat = models.CharField(choices=TryskaniChoice.choices, max_length=5, default=TryskaniChoice.NEZADANO, verbose_name='Tryskání')
     rovnat = models.CharField(choices=RovnaniChoice.choices, max_length=5, default=RovnaniChoice.NEZADANO, verbose_name='Rovnání')
     stav_bedny = models.CharField(choices=StavBednyChoice.choices, max_length=2, default=StavBednyChoice.PRIJATO, verbose_name='Stav bedny')    
@@ -115,7 +114,7 @@ class Bedna(models.Model):
         ordering = ['id']
 
     def __str__(self):
-        return f'{self.zakazka_id.kamion_prijem_id.zakaznik_id.zkratka} {self.zakazka_id.kamion_prijem_id.datum} - {self.zakazka_id.artikl} - {self.zakazka_id.prumer}x{self.zakazka_id.delka} - {self.cislo_bedny}'
+        return f'{self.zakazka.kamion_prijem.zakaznik.zkratka} {self.zakazka.kamion_prijem.datum} - {self.zakazka.artikl} - {self.zakazka.prumer}x{self.zakazka.delka} - {self.cislo_bedny}'
     
     def get_admin_url(self):
         """
@@ -127,14 +126,14 @@ class Bedna(models.Model):
     #     """
     #     Validace před uložením Bedny:
     #     - Pokud je související zákazník Eurotec (zkratka 'EUR'), musí být před uložením vyplněna všechna pole:
-    #         material, sarze, behalter_nr, dodavatel_materialu, vyrobni_zakazka, operator.
+    #         material, sarze, behalter_nr, dodavatel_materialu, vyrobni_zakazka.
     #     """
     #     super().clean()
-    #     zak = self.zakazka_id
-    #     if not zak or not zak.kamion_prijem_id:
+    #     zak = self.zakazka
+    #     if not zak or not zak.kamion_prijem:
     #         return  # není úplná vazba na zakázku, neověřujeme
 
-    #     zakaznik = zak.kamion_prijem_id.zakaznik_id
+    #     zakaznik = zak.kamion_prijem.zakaznik
     #     if zakaznik.zkratka == 'EUR':
     #         mandatory_fields = {
     #             'material':             self.material,
@@ -142,7 +141,6 @@ class Bedna(models.Model):
     #             'behalter_nr':          self.behalter_nr,
     #             'dodavatel_materialu':  self.dodavatel_materialu,
     #             'vyrobni_zakazka':      self.vyrobni_zakazka,
-    #             'operator':             self.operator,
     #         }
     #         errors = []
     #         for field_name, value in mandatory_fields.items():
@@ -175,8 +173,8 @@ class Bedna(models.Model):
         super().save(*args, **kwargs)
 
         if is_update:            
-            zak = self.zakazka_id
-            siblings = Bedna.objects.filter(zakazka_id=zak).exclude(pk=self.pk)
+            zak = self.zakazka
+            siblings = Bedna.objects.filter(zakazka=zak).exclude(pk=self.pk)
             if self.stav_bedny == StavBednyChoice.K_EXPEDICI:
                 zak.komplet = all(b.stav_bedny == StavBednyChoice.K_EXPEDICI for b in siblings)
             else:

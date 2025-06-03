@@ -5,6 +5,9 @@ from .choices import (
     PrioritaChoice, ZinkovnaChoice, KamionChoice
 )
 
+class ImportZakazekForm(forms.Form):
+    file = forms.FileField(label="Soubor (XLSX nebo CSV)")
+
 class ZakazkaAdminForm(forms.ModelForm):
     celkova_hmotnost = forms.DecimalField(required=False, min_value=1.0, label="Celková hmotnost zakázky")
     pocet_beden = forms.IntegerField(required=False, min_value=1, label="Celkový počet beden v zakázce")   

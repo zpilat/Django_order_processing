@@ -1,4 +1,5 @@
 from django.contrib import admin, messages
+from django.shortcuts import redirect
 import datetime
 from .models import Zakazka, Bedna, Kamion, Zakaznik, StavBednyChoice
 
@@ -17,11 +18,11 @@ def expedice_zakazek(modeladmin, request, queryset):
        - Vytvoří se nový objekt `Kamion`:
          - `prijem_vydej='V'` (výdej)
          - `datum` dnešní datum
-         - `zakaznik_id` nastavený na aktuálního zákazníka
+         - `zakazka` nastavený na aktuálního zákazníka
          - `cislo_dl` s prefixem zkratky zákazníka a dnešním datem
     2. Pro každou zakázku daného zákazníka:
        - Převede všechny bedny na stav `EXPEDOVANO`.
-       - Nastaví pole `kamion_vydej_id` na právě vytvořený kamion.
+       - Nastaví pole `kamion_vydej` na právě vytvořený kamion.
        - Označí `zakazka.expedovano = True`.
     3. Po úspěšném průběhu odešle `messages.success`.
 
@@ -54,25 +55,25 @@ def expedice_zakazek(modeladmin, request, queryset):
 
     for zakaznik in zakaznici:
         kamion = Kamion.objects.create(
-            zakaznik_id=zakaznik,
+            zakazka=zakaznik,
             cislo_dl=f"{zakaznik.zkratka} - {today_str}",
             datum=datetime.date.today(),
             prijem_vydej='V',
         )
 
         zakazky_zakaznika = queryset.filter(
-            kamion_prijem_id__zakaznik_id=zakaznik
+            kamion_prijem__zakazka=zakaznik
         )
 
         for zakazka in zakazky_zakaznika:
             # Expedice beden
-            for bedna in Bedna.objects.filter(zakazka_id=zakazka):
+            for bedna in Bedna.objects.filter(zakazka=zakazka):
                 bedna.stav_bedny = StavBednyChoice.EXPEDOVANO
                 bedna.save()
 
             # Expedice zakázky
-            zakazka.kamion_vydej_id = kamion
+            zakazka.kamion_vydej = kamion
             zakazka.expedovano = True
             zakazka.save()
 
-    messages.success(request, "Zakázky byly úspěšně expedovány.")
+    messages.success(request, f"Zakázky byly úspěšně expedovány, byl vytvořen nový kamion výdeje {kamion.cislo_dl}.")
