@@ -8,7 +8,6 @@ from django.urls import path
 from django.shortcuts import redirect, render
 
 from simple_history.admin import SimpleHistoryAdmin
-from tablib import Dataset
 from decimal import Decimal, ROUND_HALF_UP
 import pandas as pd
 
