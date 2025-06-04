@@ -228,14 +228,13 @@ class KamionAdmin(SimpleHistoryAdmin):
                     # Odstranit nepotřebné sloupce
                     df.drop(columns=[
                         'Unnamed: 0', 'Abmessung', 'Gew + Tara', 'VPE', 'Box',
-                        'Anzahl Boxen pro Behälter', 'Gew.', 'Härterei',
-                        'von Härterei \nnach Galvanik', 'Galvanik', 'vom Galvanik nach Eurotec'
+                        'Anzahl Boxen pro Behälter', 'Gew.', 'Härterei', 'Prod. Datum',
+                        'von Härterei \nnach Galvanik', 'Galvanik', 'vom Galvanik nach Eurotec',
                     ], inplace=True, errors='ignore')
 
                     # Mapování názvů sloupců
                     column_mapping = {
                         'Abhol- datum': 'datum',
-                        'Prod. Datum': 'datum_vyroby',
                         'Material- charge': 'sarze',
                         'Vorgang+': 'prubeh',
                         'Artikel- nummer': 'artikl',
@@ -533,15 +532,15 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
                 for instance in instances:
                     instance.tryskat = TryskaniChoice.SPINAVA
 
-            # Přiřadíme cislo_bedny nově vzniklým instancím
-            # Najdeme poslední bednu pro daného zákazníka:
-            posledni_bedna = Bedna.objects.filter(
-                zakazka__kamion_prijem__zakaznik=zakaznik
-            ).order_by('-cislo_bedny').first()
-            # Pokud neexistuje žádná bedna daného zákazníka, začneme s číslem dle číselné řady zákazníka
-            nove_cislo_bedny = (posledni_bedna.cislo_bedny + 1) if posledni_bedna else zakaznik.ciselna_rada + 1
-            for index, instance in enumerate(instances):
-                instance.cislo_bedny = nove_cislo_bedny + index
+            # # Přiřadíme cislo_bedny nově vzniklým instancím
+            # # Najdeme poslední bednu pro daného zákazníka:
+            # posledni_bedna = Bedna.objects.filter(
+            #     zakazka__kamion_prijem__zakaznik=zakaznik
+            # ).order_by('-cislo_bedny').first()
+            # # Pokud neexistuje žádná bedna daného zákazníka, začneme s číslem dle číselné řady zákazníka
+            # nove_cislo_bedny = (posledni_bedna.cislo_bedny + 1) if posledni_bedna else zakaznik.ciselna_rada + 1
+            # for index, instance in enumerate(instances):
+            #     instance.cislo_bedny = nove_cislo_bedny + index
 
             # Ulož všechny instance, pokud jsou to nove_bedny automaticky přidané
             if nove_bedny:

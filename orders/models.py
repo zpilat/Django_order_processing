@@ -169,6 +169,17 @@ class Bedna(models.Model):
             `zakazka.komplet` na False.
         """
         is_update = bool(self.pk)
+
+        if not is_update and not self.cislo_bedny:
+                    zakaznik = self.zakazka.kamion_prijem.zakaznik
+                    posledni = (
+                        self.__class__.objects
+                        .filter(zakazka__kamion_prijem__zakaznik=zakaznik)
+                        .order_by("-cislo_bedny")
+                        .first()
+                    )
+                    self.cislo_bedny = ((posledni.cislo_bedny + 1) if posledni else zakaznik.ciselna_rada + 1)
+
         self.full_clean()  # spustí clean() a případně vyhodí ValidationError        
         super().save(*args, **kwargs)
 

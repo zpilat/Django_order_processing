@@ -18,7 +18,7 @@ def expedice_zakazek(modeladmin, request, queryset):
        - Vytvoří se nový objekt `Kamion`:
          - `prijem_vydej='V'` (výdej)
          - `datum` dnešní datum
-         - `zakazka` nastavený na aktuálního zákazníka
+         - `zakaznik` nastavený na aktuálního zákazníka
          - `cislo_dl` s prefixem zkratky zákazníka a dnešním datem
     2. Pro každou zakázku daného zákazníka:
        - Převede všechny bedny na stav `EXPEDOVANO`.
