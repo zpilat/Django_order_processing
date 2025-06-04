@@ -192,6 +192,11 @@ class KamionAdmin(SimpleHistoryAdmin):
                     if pd.notna(first_empty_index):
                         df = df.loc[:first_empty_index - 1]
 
+                    # Zkontroluje, jsou všechny datumy ve sloupci 'Abhol- datum' stejné a shodné s datumem kamionu
+                    if not df['Abhol- datum'].isnull().all():
+                        if not df['Abhol- datum'].eq(kamion.datum).all():
+                            errors.append("Nesouhlasí datumy v sloupci 'Abhol- datum' s datem kamionu.")
+
                     # Odstraň prázdné sloupce
                     df.dropna(axis=1, how='all', inplace=True)
 
