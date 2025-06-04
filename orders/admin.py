@@ -241,7 +241,8 @@ class KamionAdmin(SimpleHistoryAdmin):
                         'Sonder / Zusatzinfo': 'dodatecne_info',
                         'Lief.': 'dodavatel_materialu',
                         'Fertigungs- auftrags Nr.': 'vyrobni_zakazka'
-                    }
+                    }                  
+                    df.rename(columns=column_mapping, inplace=True)
 
                     # Uložení záznamů
                     zakazky_cache = {}
