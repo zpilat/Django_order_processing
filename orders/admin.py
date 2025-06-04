@@ -215,9 +215,9 @@ class KamionAdmin(SimpleHistoryAdmin):
                         lambda row: pd.Series(rozdel_rozmer(row)), axis=1
                     )
 
-                    # Odstranit nepotřebné sloupce
+                    # Odstranění nepotřebných sloupců
                     df.drop(columns=[
-                        'Unnamed: 0', 'Abmessung', 'Gew + Tara', 'VPE', 'Box',
+                        'Unnamed: 0', 'Abmessung', 'Gew + Tara', 'VPE', 'Box', 'Vorgang+',
                         'Anzahl Boxen pro Behälter', 'Gew.', 'Härterei', 'Prod. Datum',
                         'von Härterei \nnach Galvanik', 'Galvanik', 'vom Galvanik nach Eurotec',
                     ], inplace=True, errors='ignore')
@@ -226,7 +226,6 @@ class KamionAdmin(SimpleHistoryAdmin):
                     column_mapping = {
                         'Abhol- datum': 'datum',
                         'Material- charge': 'sarze',
-                        'Vorgang+': 'prubeh',
                         'Artikel- nummer': 'artikl',
                         'Kopf': 'typ_hlavy',
                         'Be-schich-tung': 'vrstva',
@@ -258,10 +257,9 @@ class KamionAdmin(SimpleHistoryAdmin):
                                 artikl=artikl,
                                 prumer=row.get('prumer'),
                                 delka=row.get('delka'),
-                                predpis=row.get('predpis'),
+                                predpis=int(row.get('predpis')),
                                 typ_hlavy=row.get('typ_hlavy'),
                                 popis=row.get('popis'),
-                                prubeh=row.get('prubeh'),
                                 vrstva=row.get('vrstva'),
                                 povrch=row.get('povrch')
                             )
@@ -273,7 +271,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                             tara=row.get('tara'),
                             material=row.get('material'),
                             sarze=row.get('sarze'),
-                            mnozstvi=row.get('mnozstvi'),
+                            # mnozstvi=row.get('mnozstvi'), není vždy vyplněno v DL, zatím se nepoužije
                             behalter_nr=row.get('behalter_nr'),
                             dodatecne_info=row.get('dodatecne_info'),
                             dodavatel_materialu=row.get('dodavatel_materialu'),
@@ -556,9 +554,9 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
             if obj.kamion_prijem.zakaznik.zkratka == 'EUR':
                 my_fieldsets.append(                  
                     ('Pouze pro Eurotec:', {
-                        'fields': ['prubeh', 'vrstva', 'povrch'],
-                        'description': 'Pro Eurotec musí být vyplněno: Průběh zakázky, tloušťka vrstvy a povrchová úprava.',
-                    }),  
+                        'fields': ['vrstva', 'povrch'],
+                        'description': 'Pro Eurotec musí být vyplněno: Tloušťka vrstvy a povrchová úprava.',
+                    }),
                 )
 
             # Pokud jsou pro stav_bedny, tryskat a rovnat stejné hodnoty pro všechny bedny v zakázce, přidej pole pro změnu stavu těchto položek pro všechny bedny
@@ -591,9 +589,9 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
                     'description': 'Přijímání zakázek z kamiónu na sklad, pokud ještě není kamión v systému, vytvořte ho pomocí ikony ➕ u položky Kamión.',
                 }), 
                 ('Pouze pro Eurotec:', {
-                    'fields': ['prubeh', 'vrstva', 'povrch'],
+                    'fields': ['vrstva', 'povrch'],
                     'classes': ['collapse'],
-                    'description': 'Pro Eurotec musí být vyplněno: Průběh zakázky, Tloušťka vrstvy a Povrchová úprava.',
+                    'description': 'Pro Eurotec musí být vyplněno: Tloušťka vrstvy a Povrchová úprava.',
                 }),  
                 ('Celková hmotnost zakázky, celkové množství a počet beden pro rozpočtení na jednotlivé bedny:', {
                     'fields': ['celkova_hmotnost', 'celkove_mnozstvi', 'pocet_beden',],
