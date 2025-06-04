@@ -8,8 +8,6 @@ from django.urls import path
 from django.shortcuts import redirect, render
 
 from simple_history.admin import SimpleHistoryAdmin
-from import_export.admin import ImportExportModelAdmin
-from import_export.formats.base_formats import XLSX, CSV
 from tablib import Dataset
 from decimal import Decimal, ROUND_HALF_UP
 import pandas as pd
@@ -18,19 +16,10 @@ from .models import Zakaznik, Kamion, Zakazka, Bedna
 from .actions import expedice_zakazek, import_zakazek_beden_action
 from .filters import ExpedovanaZakazkaFilter, StavBednyFilter
 from .forms import ZakazkaAdminForm, BednaAdminForm, ImportZakazekForm
-from .resources import BednaResourceEurotec
 from .choices import (
     TypHlavyChoice, StavBednyChoice, RovnaniChoice, TryskaniChoice,
     PrioritaChoice, ZinkovnaChoice, KamionChoice
 )
-
-
-class ImportExportHistoryModelAdmin(ImportExportModelAdmin, SimpleHistoryAdmin):
-    """
-    Kombinovaná třída adminu pro podporu jak import/exportu,
-    tak verzování pomocí django-simple-history.
-    """
-    pass
 
 
 class CustomPaginationChangeList(ChangeList):
@@ -673,7 +662,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     
 
 @admin.register(Bedna)
-class BednaAdmin(ImportExportHistoryModelAdmin):
+class BednaAdmin(SimpleHistoryAdmin):
     """
     Admin pro model Bedna:
     
