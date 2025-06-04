@@ -184,7 +184,7 @@ class KamionAdmin(SimpleHistoryAdmin):
             if form.is_valid():
                 file = form.cleaned_data['file']
                 try:
-                    # Načti prvních 200 řádků (rychlejší + kontrola rozsahu)
+                    # Načti prvních 200 řádků (jinak načítá celý soubor - přes 100000 řádků)
                     df = pd.read_excel(file, nrows=200, engine="openpyxl")
 
                     # Najdi první úplně prázdný řádek
@@ -197,8 +197,10 @@ class KamionAdmin(SimpleHistoryAdmin):
 
                     # Přehledné přejmenování sloupců
                     df.rename(columns={
-                        "Unnamed: 6": "Kopf",
-                        "Unnamed: 7": "Abmessung",
+                        'Unnamed: 6': 'Kopf',
+                        'Unnamed: 7': 'Abmessung',
+                        'Menge       ': 'Menge',
+                        'n. Zg. / \nas drg': 'n. Zg. / as drg',
                     }, inplace=True)
 
                     # Přidání prumer a delka
@@ -229,22 +231,17 @@ class KamionAdmin(SimpleHistoryAdmin):
                         'Kopf': 'typ_hlavy',
                         'Be-schich-tung': 'vrstva',
                         'Bezeichnung': 'popis',
-                        'n. Zg. / \nas drg': 'predpis',
+                        'n. Zg. / as drg': 'predpis',
                         'Material': 'material',
                         'Ober- fläche': 'povrch',
                         'Gewicht in kg': 'hmotnost',
                         'Tara kg': 'tara',
-                        'Menge       ': 'mnozstvi',
+                        'Menge': 'mnozstvi',
                         'Behälter-Nr.:': 'behalter_nr',
                         'Sonder / Zusatzinfo': 'dodatecne_info',
                         'Lief.': 'dodavatel_materialu',
                         'Fertigungs- auftrags Nr.': 'vyrobni_zakazka'
                     }
-
-                    df.rename(columns=column_mapping, inplace=True)
-
-                    # Ukázka náhledu
-                    preview = df.head(5).to_dict(orient='records')
 
                     # Uložení záznamů
                     zakazky_cache = {}
@@ -253,15 +250,13 @@ class KamionAdmin(SimpleHistoryAdmin):
                             break
 
                         artikl = row['artikl']
-                        prumer = row['prumer']
-                        delka = row['delka']
 
                         if artikl not in zakazky_cache:
                             zakazka = Zakazka.objects.create(
                                 kamion_prijem=kamion,
                                 artikl=artikl,
-                                prumer=prumer,
-                                delka=delka,
+                                prumer=row.get('prumer'),
+                                delka=row.get('delka'),
                                 predpis=row.get('predpis'),
                                 typ_hlavy=row.get('typ_hlavy'),
                                 popis=row.get('popis'),
@@ -277,6 +272,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                             tara=row.get('tara'),
                             material=row.get('material'),
                             sarze=row.get('sarze'),
+                            mnozstvi=row.get('mnozstvi'),
                             behalter_nr=row.get('behalter_nr'),
                             dodatecne_info=row.get('dodatecne_info'),
                             dodavatel_materialu=row.get('dodavatel_materialu'),
@@ -310,7 +306,7 @@ class BednaInline(admin.TabularInline):
     form = BednaAdminForm
     extra = 0
     # další úprava zobrazovaných polí podle různých podmínek je v get_fields
-    fields = ('cislo_bedny', 'hmotnost', 'tara', 'material', 'sarze', 'behalter_nr', 'dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka', 'tryskat', 'rovnat', 'stav_bedny', 'poznamka')
+    fields = ('cislo_bedny', 'hmotnost', 'tara', 'mnozstvi', 'material', 'sarze', 'behalter_nr', 'dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka', 'tryskat', 'rovnat', 'stav_bedny', 'poznamka')
     readonly_fields = ('cislo_bedny',)
     show_change_link = True
     formfield_overrides = {
@@ -477,6 +473,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
             instances = formset.save(commit=False)
             zakazka = form.instance
             celkova_hmotnost = form.cleaned_data.get('celkova_hmotnost')
+            celkove_mnozstvi = form.cleaned_data.get('celkove_mnozstvi')
             pocet_beden = form.cleaned_data.get('pocet_beden')
             data_ze_zakazky = {
                 'tara': form.cleaned_data.get('tara'),
@@ -489,7 +486,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
             }
 
             # Pokud nejsou žádné bedny ručně zadané a je vyplněn počet beden, tak se vytvoří nové bedny 
-            # a naplní se z daty ze zakázky a celkovou hmotností
+            # a naplní se z daty ze zakázky a rozpočítá se hmotnost a množství na jednotlivé bedny.
             nove_bedny = []
             if len(instances) == 0 and pocet_beden:
                 for i in range(pocet_beden):
@@ -505,6 +502,12 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
                 hmotnost_bedny = hmotnost_bedny.quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)
                 for instance in instances:
                     instance.hmotnost = hmotnost_bedny
+
+            # Rozpočítání množství
+            if celkove_mnozstvi and len(instances) > 0:
+                mnozstvi_bedny = int(celkove_mnozstvi) // len(instances)
+                for instance in instances:
+                    instance.mnozstvi = mnozstvi_bedny
 
             # Doplň prázdná pole ze zakázky (pokud už nebyla nastavena výše)
             for field, hodnota in data_ze_zakazky.items():
@@ -591,11 +594,11 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
                     'classes': ['collapse'],
                     'description': 'Pro Eurotec musí být vyplněno: Průběh zakázky, Tloušťka vrstvy a Povrchová úprava.',
                 }),  
-                ('Celková hmotnost zakázky a počet beden pro rozpočtení hmotnosti na jednotlivé bedny:', {
-                    'fields': ['celkova_hmotnost', 'pocet_beden',],
+                ('Celková hmotnost zakázky, celkové množství a počet beden pro rozpočtení na jednotlivé bedny:', {
+                    'fields': ['celkova_hmotnost', 'celkove_mnozstvi', 'pocet_beden',],
                     'classes': ['collapse'],
-                    'description': 'Celková hmotnost zakázky z DL bude rozpočítána na jednotlivé bedny, případné zadané hmotnosti u beden budou přepsány. \
-                        Počet beden zadejte pouze v případě, že jednotlivé bedny nebudete níže zadávat ručně.',
+                    'description': 'Celková hmotnost a množství kusů v zakázce z DL bude rozpočítáno na jednotlivé bedny, případné zadané hmotnosti / množství u beden budou přepsány. \
+                        Zadejte pouze v případě, že jednotlivé bedny nebudete níže zadávat ručně.',
                 }),                      
                 ('Zadejte v případě, že jsou hodnoty těchto polí pro celou zakázku stejné: Tára, Materiál, Šarže mat./Charge, Sonder/Zusatz info, Lief., Fertigungs-auftrags Nr. nebo Poznámka HPM:', {
                     'fields': ['tara', 'material', 'sarze', 'dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka', 'poznamka'],
@@ -673,7 +676,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     form = BednaAdminForm
 
     # Parametry pro zobrazení detailu v administraci
-    fields = ('zakazka', 'cislo_bedny', 'hmotnost', 'tara', 'material', 'sarze', 'behalter_nr', 'dodatecne_info', 
+    fields = ('zakazka', 'cislo_bedny', 'hmotnost', 'tara', 'mnozstvi', 'material', 'sarze', 'behalter_nr', 'dodatecne_info',
               'dodavatel_materialu', 'vyrobni_zakazka', 'tryskat', 'rovnat', 'stav_bedny', 'poznamka')
     readonly_fields = ('cislo_bedny',)
 

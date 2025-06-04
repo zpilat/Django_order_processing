@@ -9,7 +9,8 @@ class ImportZakazekForm(forms.Form):
     file = forms.FileField(label="Soubor (XLSX nebo CSV)")
 
 class ZakazkaAdminForm(forms.ModelForm):
-    celkova_hmotnost = forms.DecimalField(required=False, min_value=1.0, label="Celková hmotnost zakázky")
+    celkova_hmotnost = forms.DecimalField(required=False, min_value=1.0, label="Celková hmotnost kg zakázky")
+    celkove_mnozstvi = forms.IntegerField(required=False, min_value=1, label="Celkové množství ks v zakázce")
     pocet_beden = forms.IntegerField(required=False, min_value=1, label="Celkový počet beden v zakázce")   
     tara = forms.DecimalField(required=False, min_value=20.0, initial=65.0, label="Tára")
     material = forms.CharField(required=False, label="Materiál")
