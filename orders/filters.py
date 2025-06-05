@@ -44,3 +44,25 @@ class ExpedovanaZakazkaFilter(admin.SimpleListFilter):
         elif value == 'Expedováno':
             return queryset.filter(expedovano=True)
         return queryset
+    
+class KompletZakazkaFilter(admin.SimpleListFilter):
+    """
+    Filtrovat zakázky podle rozpracovanosti a kompletnosti.
+    """
+    title = "Kompletní"
+    parameter_name = "komplet"
+
+    def lookups(self, request, model_admin):
+        return (
+            ('Kompletní', 'Kompletní'),
+            ('K expedici', 'K expedici'),
+        )
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if value == 'Kompletní':
+            return queryset.filter(komplet=True)
+        elif value == 'K expedici':
+            zakazky_s_bednami_k_expedici = queryset.filter(bedny__stav_bedny=StavBednyChoice.K_EXPEDICI).distinct()
+            return zakazky_s_bednami_k_expedici
+        return queryset

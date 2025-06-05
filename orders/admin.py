@@ -13,7 +13,7 @@ import pandas as pd
 
 from .models import Zakaznik, Kamion, Zakazka, Bedna
 from .actions import expedice_zakazek, import_zakazek_beden_action
-from .filters import ExpedovanaZakazkaFilter, StavBednyFilter
+from .filters import ExpedovanaZakazkaFilter, StavBednyFilter, KompletZakazkaFilter
 from .forms import ZakazkaAdminForm, BednaAdminForm, ImportZakazekForm
 from .choices import (
     TypHlavyChoice, StavBednyChoice, RovnaniChoice, TryskaniChoice,
@@ -372,11 +372,11 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     actions = [expedice_zakazek,]
     readonly_fields = ('komplet', 'expedovano')
     list_display = ('artikl', 'kamion_prijem_link', 'kamion_vydej_link', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'popis', 'priorita',
-                    'hmotnost_zakazky_netto', 'hmotnost_zakazky_k_expedici_brutto', 'pocet_beden', 'komplet', 'expedovano',)
+                    'hmotnost_zakazky_k_expedici_brutto', 'pocet_beden', 'komplet', 'expedovano',) #'hmotnost_zakazky_netto'
     list_display_links = ('artikl',)
     search_fields = ('artikl',)
     search_help_text = "Hledat podle artiklu"
-    list_filter = ('kamion_prijem__zakaznik', 'typ_hlavy', 'priorita', 'komplet', ExpedovanaZakazkaFilter,)
+    list_filter = ('kamion_prijem__zakaznik', 'typ_hlavy', 'priorita', KompletZakazkaFilter, ExpedovanaZakazkaFilter,)
     ordering = ('-id',)
     date_hierarchy = 'kamion_prijem__datum'
     formfield_overrides = {
