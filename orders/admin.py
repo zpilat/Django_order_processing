@@ -372,7 +372,6 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     actions = [expedice_zakazek,]
     readonly_fields = ('komplet', 'expedovano')
     list_display = ('artikl', 'kamion_prijem_link', 'kamion_vydej_link', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'popis', 'priorita', 'hmotnost_zakazky_netto', 'hmotnost_zakazky_brutto', 'pocet_beden', 'komplet', 'expedovano',)
-    #list_editable = je nastaveno pro různé stavy filtru Skladem v metodě changelist_view
     list_display_links = ('artikl',)
     search_fields = ('artikl',)
     search_help_text = "Hledat podle artiklu"
@@ -578,12 +577,25 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
                 tryskat = obj.bedny.first().tryskat
                 rovnat = obj.bedny.first().rovnat
                 fields = []
-                if all(bedna.tryskat == tryskat for bedna in obj.bedny.all()):
-                    fields += ['tryskat']
-                if all(bedna.rovnat == rovnat for bedna in obj.bedny.all()):
-                    fields += ['rovnat']
+                # Pokud není pro žádnou bednu stav_bedny k_expedici:
+                if not any(bedna.stav_bedny == StavBednyChoice.K_EXPEDICI for bedna in obj.bedny.all()):
+                    # Pokud mají všechny bedny stejnou hodnotu pro tryskat, přidej pole pro změnu tryskat
+                    if all(bedna.tryskat == tryskat for bedna in obj.bedny.all()):
+                        fields += ['tryskat']
+                    # Pokud mají všechny bedny stejnou hodnotu pro rovnat, přidej pole pro změnu rovnat
+                    if all(bedna.rovnat == rovnat for bedna in obj.bedny.all()):
+                        fields += ['rovnat']
+                # Pokud mají všechny bedny stejnou hodnotu pro stav_bedny:
                 if all(bedna.stav_bedny == stav_bedny for bedna in obj.bedny.all()):
-                    fields += ['stav_bedny']
+                    # Pokud není stav_bedny zkontrolovano, přidej pole pro změnu stav_bedny
+                    if stav_bedny != StavBednyChoice.ZKONTROLOVANO:
+                        fields += ['stav_bedny']
+                    # Pokud je stav bedny k_expedici a zároveň není pro žádnou bednu tryskat in (TryskaniChoice.SPINAVA, TryskaniChoice.NEZADANO)
+                    # a zároveň není pro žádnou bednu rovnat in (RovnatChoice.NEZADANO, RovnatChoice.KRIVA), přidej pole pro změnu stavu beden
+                    else:
+                        if not any(bedna.tryskat in (TryskaniChoice.SPINAVA, TryskaniChoice.NEZADANO) for bedna in obj.bedny.all()) and \
+                           not any(bedna.rovnat in (RovnaniChoice.KRIVA, RovnaniChoice.NEZADANO) for bedna in obj.bedny.all()):
+                            fields += ['stav_bedny']
                 if fields:
                     my_fieldsets.append(
                         ('Změna stavu všech beden v zakázce:', {
@@ -621,13 +633,16 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     def get_changelist(self, request, **kwargs):
         return CustomPaginationChangeList
     
-    def changelist_view(self, request, extra_context=None):
-        # když je aktivní filtr "skladem=Expedováno", zakáže se inline-editace
-        if request.GET.get('skladem'):
-            self.list_editable = ()      # žádné editovatelné sloupce
-        else:
-            self.list_editable = ('priorita',)
-        return super().changelist_view(request, extra_context)    
+    # def changelist_view(self, request, extra_context=None):
+    #     """
+    #     Přizpůsobení zobrazení seznamu zakázek v administraci:
+    #     - Pokud je aktivní filtr "skladem=Expedováno", zakáže se inline-editace.
+    #     """
+    #     if request.GET.get('skladem'):
+    #         self.list_editable = ()
+    #     else:
+    #         self.list_editable = ('priorita',)
+    #     return super().changelist_view(request, extra_context)    
     
     def get_list_display(self, request):
         """
