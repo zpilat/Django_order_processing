@@ -371,7 +371,8 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     form = ZakazkaAdminForm
     actions = [expedice_zakazek,]
     readonly_fields = ('komplet', 'expedovano')
-    list_display = ('artikl', 'kamion_prijem_link', 'kamion_vydej_link', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'popis', 'priorita', 'hmotnost_zakazky_netto', 'hmotnost_zakazky_brutto', 'pocet_beden', 'komplet', 'expedovano',)
+    list_display = ('artikl', 'kamion_prijem_link', 'kamion_vydej_link', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'popis', 'priorita',
+                    'hmotnost_zakazky_netto', 'hmotnost_zakazky_k_expedici_brutto', 'pocet_beden', 'komplet', 'expedovano',)
     list_display_links = ('artikl',)
     search_fields = ('artikl',)
     search_help_text = "Hledat podle artiklu"
@@ -391,17 +392,17 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     class Media:
         js = ('admin/js/zakazky_hmotnost_sum.js',)
 
-    @admin.display(description='Brutto')
-    def hmotnost_zakazky_brutto(self, obj):
+    @admin.display(description='K exp. brutto')
+    def hmotnost_zakazky_k_expedici_brutto(self, obj):
         """
-        Vypočítá celkovou brutto hmotnost beden v zakázce a umožní třídění podle hlavičky pole.
+        Vrátí součet brutto hmotnosti (hmotnost + tara) všech beden se stavem 'K expedici' v dané zakázce.
+        Výsledek je zaokrouhlen na 0.1 a umožňuje třídění v Django adminu.
         """
-        bedny = list(obj.bedny.all())
-        netto = sum(bedna.hmotnost or 0 for bedna in bedny)
-        brutto = netto + sum(bedna.tara or 0 for bedna in bedny)
-        if brutto:
-            return brutto.quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)
-        return Decimal('0.0')
+        bedny = obj.bedny.filter(stav_bedny=StavBednyChoice.K_EXPEDICI)
+        brutto = sum((bedna.hmotnost or 0) + (bedna.tara or 0) for bedna in bedny)
+
+        return brutto.quantize(Decimal('0.1'), rounding=ROUND_HALF_UP) if brutto else Decimal('0.0')
+
     
 
     @admin.display(description='Netto')

@@ -41,6 +41,8 @@ class ZakazkaAdminForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         inst = getattr(self, "instance", None)
 
+        
+
         if inst and inst.pk:
             # Existující instance
             tryskat = inst.bedny.first().tryskat if inst.bedny.exists() else TryskaniChoice.NEZADANO
