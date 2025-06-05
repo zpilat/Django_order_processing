@@ -122,45 +122,12 @@ class Bedna(models.Model):
         """
         return reverse("admin:orders_bedna_change", args=[self.pk])
     
-    # def clean(self):
-    #     """
-    #     Validace před uložením Bedny:
-    #     - Pokud je související zákazník Eurotec (zkratka 'EUR'), musí být před uložením vyplněna všechna pole:
-    #         material, sarze, behalter_nr, dodavatel_materialu, vyrobni_zakazka.
-    #     """
-    #     super().clean()
-    #     zak = self.zakazka
-    #     if not zak or not zak.kamion_prijem:
-    #         return  # není úplná vazba na zakázku, neověřujeme
-
-    #     zakaznik = zak.kamion_prijem.zakaznik
-    #     if zakaznik.zkratka == 'EUR':
-    #         mandatory_fields = {
-    #             'material':             self.material,
-    #             'sarze':                self.sarze,
-    #             'behalter_nr':          self.behalter_nr,
-    #             'dodavatel_materialu':  self.dodavatel_materialu,
-    #             'vyrobni_zakazka':      self.vyrobni_zakazka,
-    #         }
-    #         errors = []
-    #         for field_name, value in mandatory_fields.items():
-    #             if value in (None, ''):
-    #                 errors.append(
-    #                     ValidationError(
-    #                         f"Pole '{self._meta.get_field(field_name).verbose_name}' je povinné pro zákazníka Eurotec.",
-    #                         code='required'
-    #                     )
-    #                 )
-    #         if errors:
-    #             # vyhodí jednu ValidationError obsahující všechny chybové zprávy
-    #             raise ValidationError(errors)
-
     def save(self, *args, **kwargs):
         """
-        Uloží instanci Bedna a po aktualizaci přepočítá příznak `komplet` 
-        na související Zakázce.
-        - Před uložením provede full_clean(), aby se spustila validace v clean().
-        - Pokud se jedná o novou instanci (bez PK), pouze uloží model.
+        Uloží instanci Bedna a při aktualizaci přepočítá příznak `komplet` na související Zakázce.
+        - Pokud se jedná o novou instanci (bez PK):
+          * Před uložením nastaví `cislo_bedny` na další číslo v řadě pro daného zákazníka, pokud není již zadáno.
+          * Pro zákazníka s příznakem `vse_tryskat` nastaví `tryskat` na `SPINAVA`.
         - Při změně existující Bedny:
             * Pokud je stav `K_EXPEDICI`, ověří, zda všechny ostatní bedny
             ve stejné zakázce jsou ve stavu `K_EXPEDICI`,
@@ -170,20 +137,27 @@ class Bedna(models.Model):
         """
         is_update = bool(self.pk)
 
-        if not is_update and not self.cislo_bedny:
-                    zakaznik = self.zakazka.kamion_prijem.zakaznik
-                    posledni = (
-                        self.__class__.objects
-                        .filter(zakazka__kamion_prijem__zakaznik=zakaznik)
-                        .order_by("-cislo_bedny")
-                        .first()
-                    )
-                    self.cislo_bedny = ((posledni.cislo_bedny + 1) if posledni else zakaznik.ciselna_rada + 1)
+        if not is_update:
+            zakaznik = self.zakazka.kamion_prijem.zakaznik
 
-        self.full_clean()  # spustí clean() a případně vyhodí ValidationError        
+            if not self.cislo_bedny:
+                # Při vytváření nové bedny nastavíme číslo bedny na další v řadě
+                posledni = (
+                    self.__class__.objects
+                    .filter(zakazka__kamion_prijem__zakaznik=zakaznik)
+                    .order_by("-cislo_bedny")
+                    .first()
+                )
+                self.cislo_bedny = ((posledni.cislo_bedny + 1) if posledni else zakaznik.ciselna_rada + 1)
+
+            if not self.tryskat:
+                # Pokud je zákazník s příznakem `vse_tryskat`, nastavíme tryskat na SPINAVA
+                if zakaznik.vse_tryskat:
+                    self.tryskat = TryskaniChoice.SPINAVA
+
         super().save(*args, **kwargs)
 
-        if is_update:            
+        if is_update:
             zak = self.zakazka
             siblings = Bedna.objects.filter(zakazka=zak).exclude(pk=self.pk)
             if self.stav_bedny == StavBednyChoice.K_EXPEDICI:
