@@ -1,6 +1,6 @@
 from django.contrib import admin, messages
 from django.db import models
-from django.forms import TextInput
+from django.forms import TextInput, RadioSelect
 from django.utils.safestring import mark_safe
 from django.utils.translation import gettext_lazy as _
 from django.contrib.admin.views.main import ChangeList
@@ -64,7 +64,7 @@ class ZakazkaPrijemInline(admin.TabularInline):
     verbose_name = 'Zakázka - příjem'
     verbose_name_plural = 'Zakázky - příjem'
     extra = 0
-    fields = ('artikl', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'popis', 'priorita', 'komplet','expedovano',)
+    fields = ('artikl', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit', 'popis', 'priorita', 'komplet','expedovano',)
     readonly_fields = ('komplet', 'expedovano',)
     show_change_link = True
     formfield_overrides = {
@@ -90,8 +90,8 @@ class ZakazkaVydejInline(admin.TabularInline):
     verbose_name = "Zakázka - výdej"
     verbose_name_plural = "Zakázky - výdej"
     extra = 0
-    fields = ('artikl', 'kamion_prijem', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'popis', 'priorita', 'komplet', 'expedovano',)
-    readonly_fields = ('artikl', 'kamion_prijem', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'popis', 'priorita', 'komplet', 'expedovano',)
+    fields = ('artikl', 'kamion_prijem', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit', 'popis', 'priorita', 'komplet', 'expedovano',)
+    readonly_fields = ('artikl', 'kamion_prijem', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit', 'popis', 'priorita', 'komplet', 'expedovano',)
     show_change_link = True
     formfield_overrides = {
         models.CharField: {'widget': TextInput(attrs={ 'size': '30'})},
@@ -370,20 +370,27 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     inlines = [BednaInline]
     form = ZakazkaAdminForm
     actions = [expedice_zakazek,]
+
+    # Parametry pro zobrazení detailu v administraci
     readonly_fields = ('komplet', 'expedovano')
-    list_display = ('artikl', 'kamion_prijem_link', 'kamion_vydej_link', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'popis', 'priorita',
-                    'hmotnost_zakazky_k_expedici_brutto', 'pocet_beden_k_expedici', 'komplet', 'expedovano',) #'hmotnost_zakazky_netto', 'celkovy_pocet_beden')
+    
+    # Parametry pro zobrazení seznamu v administraci
+    list_display = ('artikl', 'kamion_prijem_link', 'kamion_vydej_link', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit', 'popis', 'priorita',
+                    'hmotnost_zakazky_k_expedici_brutto', 'pocet_beden_k_expedici', 'celkovy_pocet_beden', 'komplet',)
     list_display_links = ('artikl',)
     search_fields = ('artikl',)
     search_help_text = "Hledat podle artiklu"
-    list_filter = ('kamion_prijem__zakaznik', 'typ_hlavy', 'priorita', KompletZakazkaFilter, ExpedovanaZakazkaFilter,)
+    list_filter = ('kamion_prijem__zakaznik', 'typ_hlavy', 'celozavit', 'priorita', KompletZakazkaFilter, ExpedovanaZakazkaFilter,)
     ordering = ('-id',)
     date_hierarchy = 'kamion_prijem__datum'
+    list_per_page = 25
     formfield_overrides = {
         models.CharField: {'widget': TextInput(attrs={ 'size': '30'})},
         models.DecimalField: {'widget': TextInput(attrs={ 'size': '8'})},
+        models.BooleanField: {'widget': RadioSelect(choices=[(True, 'Ano'), (False, 'Ne')])}
     }
 
+    # Parametry pro zobrazení historie v administraci
     history_list_display = ["id", "kamion_prijem", "kamion_vydej", "artikl", "prumer", "delka", "predpis", "typ_hlavy", "popis", "priorita", "komplet"]
     history_search_fields = ["kamion_prijem__zakaznik__nazev", "artikl", "prumer", "delka", "predpis", "typ_hlavy", "popis"]
     history_list_filter = ["kamion_prijem__zakaznik", "kamion_prijem__datum", "typ_hlavy"]
@@ -403,16 +410,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
 
         return brutto.quantize(Decimal('0.1'), rounding=ROUND_HALF_UP) if brutto else Decimal('0.0')
 
-    # @admin.display(description='Netto')
-    # def hmotnost_zakazky_netto(self, obj):
-    #     """
-    #     Vypočítá celkovou netto hmotnost beden v zakázce a umožní třídění podle hlavičky pole.
-    #     """
-    #     if obj.bedny.exists():
-    #         return sum(bedna.hmotnost or 0 for bedna in obj.bedny.all()).quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)
-    #     return Decimal('0.0')
-
-    @admin.display(description='Celkem beden')
+    @admin.display(description='Beden')
     def celkovy_pocet_beden(self, obj):
         """
         Vrací počet beden v zakázce a umožní třídění podle hlavičky pole.
@@ -548,7 +546,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
         if obj:  # editace stávajícího záznamu
             my_fieldsets = [
                 (None, {
-                    'fields': ['kamion_prijem', 'artikl', 'typ_hlavy', 'prumer', 'delka', 'predpis', 'priorita', 'popis', 'zinkovna', 'komplet', 'expedovano'],
+                    'fields': ['kamion_prijem', 'artikl', 'typ_hlavy', 'celozavit', 'prumer', 'delka', 'predpis', 'priorita', 'popis', 'zinkovna', 'komplet', 'expedovano'],
                     }),
             ]
                
@@ -600,7 +598,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
         else:  # přidání nového záznamu
             return [
                 ('Příjem zakázek na sklad:', {
-                    'fields': ['kamion_prijem', 'artikl', 'typ_hlavy', 'prumer', 'delka', 'predpis', 'priorita', 'popis', 'zinkovna',],
+                    'fields': ['kamion_prijem', 'artikl', 'typ_hlavy', 'celozavit','prumer', 'delka', 'predpis', 'priorita', 'popis', 'zinkovna',],
                     'description': 'Přijímání zakázek z kamiónu na sklad, pokud ještě není kamión v systému, vytvořte ho pomocí ikony ➕ u položky Kamión.',
                 }), 
                 ('Pouze pro Eurotec:', {
@@ -618,22 +616,8 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
                     'fields': ['tara', 'material', 'sarze', 'dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka', 'poznamka'],
                     'classes': ['collapse'],
                     'description': 'Pokud jsou hodnoty polí pro celou zakázku stejné, zadejte je sem. Jinak je nechte prázdné a vyplňte je u jednotlivých beden. Případné zadané hodnoty u beden zůstanou zachovány.',}),
-            ]         
-           
-    def get_changelist(self, request, **kwargs):
-        return CustomPaginationChangeList
-    
-    # def changelist_view(self, request, extra_context=None):
-    #     """
-    #     Přizpůsobení zobrazení seznamu zakázek v administraci:
-    #     - Pokud je aktivní filtr "skladem=Expedováno", zakáže se inline-editace.
-    #     """
-    #     if request.GET.get('skladem'):
-    #         self.list_editable = ()
-    #     else:
-    #         self.list_editable = ('priorita',)
-    #     return super().changelist_view(request, extra_context)    
-    
+            ]                    
+   
     def get_list_display(self, request):
         """
         Přizpůsobení zobrazení sloupců v seznamu zakázek podle aktivního filtru.
