@@ -19,7 +19,10 @@ class Zakaznik(models.Model):
     kontaktni_osoba = models.CharField(max_length=50, blank=True, null=True, verbose_name='Kontaktní osoba')
     telefon = models.CharField(max_length=50, blank=True, null=True, verbose_name='Telefon')
     email = models.EmailField(max_length=100, blank=True, null=True, verbose_name='E-mail')
-    vse_tryskat = models.BooleanField(default=False, verbose_name='Vše tryskat')
+    vse_tryskat = models.BooleanField(default=False, verbose_name='Vše tryskat',
+                                        help_text='Zákazník požaduje všechny bedny tryskat')
+    pouze_komplet = models.BooleanField(default=False, verbose_name='Pouze kompletní zakázky',
+                                        help_text='Zákazník může expedovat pouze kompletní zakázky, které mají všechny bedny ve stavu K_EXPEDICI.')
     ciselna_rada = models.PositiveIntegerField(verbose_name='Číselná řada', default=100000, unique=True,
                                                help_text='Číselná řada pro automatické číslování beden - např. 100000, 200000, 300000 atd.')
     history = HistoricalRecords()

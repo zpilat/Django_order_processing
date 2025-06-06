@@ -9,56 +9,82 @@ def expedice_zakazek(modeladmin, request, queryset):
     """
     Expeduje vybrané zakázky a jejich bedny.
 
-    Podmínky:
-    - Všechny bedny v těchto zakázkách musí mít stav `K_EXPEDICI`.
-
     Průběh:
-    1. Pro každého zákazníka v querysetu:
-       - Vytvoří se nový objekt `Kamion`:
-         - `prijem_vydej='V'` (výdej)
-         - `datum` dnešní datum
-         - `zakaznik` nastavený na aktuálního zákazníka
-         - `cislo_dl` s prefixem zkratky zákazníka a dnešním datem
-    2. Pro každou zakázku daného zákazníka:
-       - Převede všechny bedny na stav `EXPEDOVANO`.
-       - Nastaví pole `kamion_vydej` na právě vytvořený kamion.
-       - Označí `zakazka.expedovano = True`.
-    3. Po úspěšném průběhu odešle `messages.success`.
-
-    V případě nesplnění podmínek vrátí chybu pomocí `messages.error` a akce se přeruší.
+    1. Zkontroluje se, zda v každé zakázce aspoň jedna bedna ve vybraných zakázkách má stav `K_EXPEDICI`.
+        - V opačném případě se vrátí chyba pomocí `messages.error` a akce se přeruší.
+        - Pro zákazníka s příznakem pouze_komplet mohou být expedovány pouze kompletní zakázky, které mají všechny bedny ve stavu `K_EXPEDICI`.       
+    2. Pro každého zákazníka v querysetu:
+        - Vytvoří se nový objekt `Kamion`:
+            - `prijem_vydej='V'` (výdej)
+            - `datum` dnešní datum
+            - `zakaznik` nastavený na aktuálního zákazníka
+            - `cislo_dl` s prefixem zkratky zákazníka a dnešním datem
+    3. Pro každou zakázku daného zákazníka:
+        - Zkontroluje se, zda všechny bedny v zakázce mají stav `K_EXPEDICI`.
+        - Pokud ano:
+            - Převede všechny bedny na stav `EXPEDOVANO`.
+            - Nastaví pole `kamion_vydej` na právě vytvořený kamion.
+            - Označí `zakazka.expedovano = True`.
+        - Pokud ne:
+            - Vytvoří novou zakázku se stejnými daty jako původní a převede do ní bedny, které nejsou ve stavu `K_EXPEDICI`.
+            - Původní zakázku vyexpeduje dle předchozího postupu.
+            
+    4. Po úspěšném průběhu odešle `messages.success`. V případě nesplnění podmínek vrátí chybu pomocí `messages.error` a akce se přeruší.
     """
-    # Kontrola stavu beden
-    all_bedny_ready = all(
-        bedna.stav_bedny == StavBednyChoice.K_EXPEDICI
-        for z in queryset
-        for bedna in z.bedny.all()
-    )
-    if not all_bedny_ready:
-        messages.error(
-            request,
-            "Všechny bedny ve vybraných zakázkách musí být ve stavu K_EXPEDICI."
-        )
-        return
+    #1
+    for zakazka in queryset:
+        if not zakazka.bedny.exists():
+            messages.error(request, f"Zakázka {zakazka} nemá žádné bedny.")
+            return
 
-    # Vlastní expedice
+        if not any(bedna.stav_bedny == StavBednyChoice.K_EXPEDICI for bedna in zakazka.bedny.all()):
+            messages.error(request, f"Zakázka {zakazka} nemá žádné bedny ve stavu K_EXPEDICI.")
+            return
+    
+        if zakazka.kamion_prijem.zakaznik.pouze_komplet:
+            if not all(bedna.stav_bedny == StavBednyChoice.K_EXPEDICI for bedna in zakazka.bedny.all()):
+                messages.error(request, f"Zakázka {zakazka} pro zákazníka s nastaveným příznakem 'Pouze kompletní zakázky' musí mít všechny bedny ve stavu K_EXPEDICI.")
+                return
+
+    #2
     zakaznici = Zakaznik.objects.filter(kamiony__zakazky_prijem__in=queryset).distinct()
     today_str = datetime.date.today().strftime("%Y-%m-%d")
-
     for zakaznik in zakaznici:
         kamion = Kamion.objects.create(
-            zakazka=zakaznik,
+            zakaznik=zakaznik,
             cislo_dl=f"{zakaznik.zkratka} - {today_str}",
             datum=datetime.date.today(),
             prijem_vydej='V',
         )
 
-        zakazky_zakaznika = queryset.filter(
-            kamion_prijem__zakazka=zakaznik
-        )
-
+        #3
+        zakazky_zakaznika = queryset.filter(kamion_prijem__zakaznik=zakaznik)
         for zakazka in zakazky_zakaznika:
-            # Expedice beden
-            for bedna in Bedna.objects.filter(zakazka=zakazka):
+            if not all(bedna.stav_bedny == StavBednyChoice.K_EXPEDICI for bedna in zakazka.bedny.all()):
+                # Pokud nejsou všechny bedny K_EXPEDICI, vytvoří novou zakázku s původními daty a tyto bedny do ní převede do ní bedny
+                nova_zakazka = Zakazka.objects.create(
+                    kamion_prijem=zakazka.kamion_prijem,
+                    artikl=zakazka.artikl,
+                    prumer=zakazka.prumer,
+                    delka=zakazka.delka,
+                    predpis=zakazka.predpis,
+                    typ_hlavy=zakazka.typ_hlavy,
+                    celozavit=zakazka.celozavit,
+                    popis=zakazka.popis,
+                    vrstva=zakazka.vrstva,
+                    povrch=zakazka.povrch,
+                    priorita=zakazka.priorita,
+                    zinkovna=zakazka.zinkovna,
+                    expedovano=False,
+                )
+
+                # Převede bedny, které nejsou v K_EXPEDICI do nové zakázky
+                for bedna in zakazka.bedny.exclude(stav_bedny=StavBednyChoice.K_EXPEDICI):
+                    bedna.zakazka = nova_zakazka
+                    bedna.save()
+        
+            for bedna in zakazka.bedny.filter(stav_bedny=StavBednyChoice.K_EXPEDICI):
+                # Převede bedny na stav EXPEDOVANO
                 bedna.stav_bedny = StavBednyChoice.EXPEDOVANO
                 bedna.save()
 
@@ -67,6 +93,7 @@ def expedice_zakazek(modeladmin, request, queryset):
             zakazka.expedovano = True
             zakazka.save()
 
+    #4
     messages.success(request, f"Zakázky byly úspěšně expedovány, byl vytvořen nový kamion výdeje {kamion.cislo_dl}.")
 
 
