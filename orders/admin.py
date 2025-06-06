@@ -64,7 +64,7 @@ class ZakazkaPrijemInline(admin.TabularInline):
     verbose_name = 'Zakázka - příjem'
     verbose_name_plural = 'Zakázky - příjem'
     extra = 0
-    fields = ('artikl', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit', 'popis', 'priorita', 'komplet','expedovano',)
+    fields = ('artikl', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit', 'popis', 'priorita', 'komplet',)
     readonly_fields = ('komplet', 'expedovano',)
     show_change_link = True
     formfield_overrides = {
@@ -90,8 +90,8 @@ class ZakazkaVydejInline(admin.TabularInline):
     verbose_name = "Zakázka - výdej"
     verbose_name_plural = "Zakázky - výdej"
     extra = 0
-    fields = ('artikl', 'kamion_prijem', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit', 'popis', 'priorita', 'komplet', 'expedovano',)
-    readonly_fields = ('artikl', 'kamion_prijem', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit', 'popis', 'priorita', 'komplet', 'expedovano',)
+    fields = ('artikl', 'kamion_prijem', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit', 'popis', 'priorita',)
+    readonly_fields = ('artikl', 'kamion_prijem', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit', 'popis', 'priorita',)
     show_change_link = True
     formfield_overrides = {
         models.CharField: {'widget': TextInput(attrs={ 'size': '30'})},
@@ -375,7 +375,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     readonly_fields = ('komplet', 'expedovano')
     
     # Parametry pro zobrazení seznamu v administraci
-    list_display = ('artikl', 'kamion_prijem_link', 'kamion_vydej_link', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit', 'popis', 'priorita',
+    list_display = ('artikl', 'zakaznik', 'kamion_prijem_link', 'kamion_vydej_link', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit', 'popis', 'priorita',
                     'hmotnost_zakazky_k_expedici_brutto', 'pocet_beden_k_expedici', 'celkovy_pocet_beden', 'komplet',)
     list_display_links = ('artikl',)
     search_fields = ('artikl',)
@@ -417,7 +417,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
         """
         return obj.bedny.count() if obj.bedny.exists() else 0
     
-    @admin.display(description='Beden k exp.')
+    @admin.display(description='B. k exp.')
     def pocet_beden_k_expedici(self, obj):
         """
         Vrátí počet beden se stavem 'K expedici' v dané zakázce a umožní třídění podle hlavičky pole.
@@ -443,6 +443,17 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
             return mark_safe(f'<a href="{obj.kamion_vydej.get_admin_url()}">{obj.kamion_vydej}</a>')
         return '-'
     kamion_vydej_link.admin_order_field = 'kamion_vydej__id'
+
+    @admin.display(description='Zák.')
+    def zakaznik(self, obj):
+        """
+        Vrací zkratku zákazníka, ke kterému kamion příjmu patří a umožní třídění podle hlavičky pole.
+        Umožňuje třídění podle hlavičky pole.
+        """
+        if obj.kamion_prijem and obj.kamion_prijem.zakaznik:
+            return obj.kamion_prijem.zakaznik.zkratka
+        return '-'
+    zakaznik.admin_order_field = 'kamion_prijem__zakaznik__zkratka'
 
     def has_change_permission(self, request, obj=None):
         """

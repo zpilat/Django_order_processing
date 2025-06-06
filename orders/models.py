@@ -63,7 +63,7 @@ class Zakazka(models.Model):
     delka = models.DecimalField(max_digits=6, decimal_places=1, verbose_name='Délka')
     predpis = models.CharField(max_length=30, verbose_name='Předpis / Výkres')
     typ_hlavy = models.CharField(choices=TypHlavyChoice.choices, max_length=3, verbose_name='Typ hlavy')
-    celozavit = models.BooleanField(default=False, verbose_name='Celozávit VG')
+    celozavit = models.BooleanField(default=False, verbose_name='Celozávit')
     popis = models.CharField(max_length=100, verbose_name='Popis')
     vrstva = models.CharField(max_length=20, null=True, blank=True, verbose_name='Beschichtung')
     povrch = models.CharField(max_length=20, null=True, blank=True, verbose_name='Oberfläche')
