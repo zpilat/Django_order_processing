@@ -34,14 +34,14 @@ class ExpedovanaZakazkaFilter(admin.SimpleListFilter):
 
     def lookups(self, request, model_admin):
         return (
-            ('Expedováno', 'Expedováno'),
+            ('expedovano', 'Expedováno'),
         )
 
     def queryset(self, request, queryset):
         value = self.value()
         if value is None:
             return queryset.filter(expedovano=False)
-        elif value == 'Expedováno':
+        elif value == 'expedovano':
             return queryset.filter(expedovano=True)
         return queryset
     
@@ -54,15 +54,19 @@ class KompletZakazkaFilter(admin.SimpleListFilter):
 
     def lookups(self, request, model_admin):
         return (
-            ('Kompletní', 'Kompletní'),
-            ('K expedici', 'K expedici'),
+            ('kompletni', 'Kompletní'),
+            ('k_expedici', 'K expedici'),
         )
 
     def queryset(self, request, queryset):
         value = self.value()
-        if value == 'Kompletní':
-            return queryset.filter(komplet=True)
-        elif value == 'K expedici':
-            zakazky_s_bednami_k_expedici = queryset.filter(bedny__stav_bedny=StavBednyChoice.K_EXPEDICI).distinct()
-            return zakazky_s_bednami_k_expedici
+        if value == 'kompletni':
+            # Vrátí zakázky, jejichž všechny bedny jsou ve stavu K expedici
+            for zakazka in queryset:
+                # Zkontroluje, zda všechny bedny v zakázce jsou ve stavu K expedici
+                if not all(bedna.stav_bedny == StavBednyChoice.K_EXPEDICI for bedna in zakazka.bedny.all()):
+                    queryset = queryset.exclude(id=zakazka.id)
+        elif value == 'k_expedici':
+            # Vrátí zakázky, které mají alespoň jednu bednu ve stavu K expedici
+            queryset = queryset.filter(bedny__stav_bedny=StavBednyChoice.K_EXPEDICI).distinct()
         return queryset

@@ -64,13 +64,26 @@ class ZakazkaPrijemInline(admin.TabularInline):
     verbose_name = 'Zakázka - příjem'
     verbose_name_plural = 'Zakázky - příjem'
     extra = 0
-    fields = ('artikl', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit', 'popis', 'priorita', 'komplet',)
-    readonly_fields = ('komplet', 'expedovano',)
+    fields = ('artikl', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit', 'popis', 'priorita', 'get_komplet',)
+    readonly_fields = ('expedovano', 'get_komplet')
     show_change_link = True
     formfield_overrides = {
         models.CharField: {'widget': TextInput(attrs={ 'size': '30'})},
         models.DecimalField: {'widget': TextInput(attrs={ 'size': '8'})},
     }
+
+    @admin.display(description='Komplet')
+    def get_komplet(self, obj):
+        '''
+        Pokud jsou všechny bedny v zakázce k_expedici, vrátí ✔️.
+        Pokud je alespoň jedna bedna v zakázce k expedici, vrátí ⏳.
+        Pokud není žádná bedna v zakázce k expedici, vrátí ❌.
+        '''
+        if all(bedna.stav_bedny == StavBednyChoice.K_EXPEDICI for bedna in obj.bedny.all()):
+            return "✔️"
+        elif any(bedna.stav_bedny == StavBednyChoice.K_EXPEDICI for bedna in obj.bedny.all()):
+            return "⏳"
+        return "❌"
 
     def get_queryset(self, request):
         """
@@ -372,11 +385,11 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     actions = [expedice_zakazek,]
 
     # Parametry pro zobrazení detailu v administraci
-    readonly_fields = ('komplet', 'expedovano')
+    readonly_fields = ('expedovano', 'get_komplet')
     
     # Parametry pro zobrazení seznamu v administraci
     list_display = ('artikl', 'zakaznik', 'kamion_prijem_link', 'kamion_vydej_link', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit', 'popis', 'priorita',
-                    'hmotnost_zakazky_k_expedici_brutto', 'pocet_beden_k_expedici', 'celkovy_pocet_beden', 'komplet',)
+                    'hmotnost_zakazky_k_expedici_brutto', 'pocet_beden_k_expedici', 'celkovy_pocet_beden', 'get_komplet',)
     list_display_links = ('artikl',)
     search_fields = ('artikl',)
     search_help_text = "Hledat podle artiklu"
@@ -391,7 +404,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     }
 
     # Parametry pro zobrazení historie v administraci
-    history_list_display = ["id", "kamion_prijem", "kamion_vydej", "artikl", "prumer", "delka", "predpis", "typ_hlavy", "popis", "priorita", "komplet"]
+    history_list_display = ["id", "kamion_prijem", "kamion_vydej", "artikl", "prumer", "delka", "predpis", "typ_hlavy", "popis", "priorita",]
     history_search_fields = ["kamion_prijem__zakaznik__nazev", "artikl", "prumer", "delka", "predpis", "typ_hlavy", "popis"]
     history_list_filter = ["kamion_prijem__zakaznik", "kamion_prijem__datum", "typ_hlavy"]
     history_list_per_page = 20
@@ -417,7 +430,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
         """
         return obj.bedny.count() if obj.bedny.exists() else 0
     
-    @admin.display(description='B. k exp.')
+    @admin.display(description='K exp.')
     def pocet_beden_k_expedici(self, obj):
         """
         Vrátí počet beden se stavem 'K expedici' v dané zakázce a umožní třídění podle hlavičky pole.
@@ -454,6 +467,14 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
             return obj.kamion_prijem.zakaznik.zkratka
         return '-'
     zakaznik.admin_order_field = 'kamion_prijem__zakaznik__zkratka'
+
+    def get_komplet(self, obj):
+        if all(bedna.stav_bedny == StavBednyChoice.K_EXPEDICI for bedna in obj.bedny.all()):
+            return "✔️"
+        elif any(bedna.stav_bedny == StavBednyChoice.K_EXPEDICI for bedna in obj.bedny.all()):
+            return "⏳"
+        return "❌"
+    get_komplet.short_description = "Komplet"
 
     def has_change_permission(self, request, obj=None):
         """
@@ -559,14 +580,14 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
                 # Pokud je zakázka expedovaná, kvůli has_permission v modelu ZakazkaAdmin nelze měnit, zobrazí i kamion výdej
                 my_fieldsets = [
                     ('Expedovaná zakázka:', {
-                        'fields': ['kamion_prijem', 'kamion_vydej', 'artikl', 'typ_hlavy', 'celozavit', 'prumer', 'delka', 'predpis', 'priorita', 'popis', 'zinkovna',],
+                        'fields': ['kamion_prijem', 'kamion_vydej', 'artikl', 'typ_hlavy', 'celozavit', 'prumer', 'delka', 'predpis', 'priorita', 'popis', 'zinkovna', 'get_komplet',],
                         'description': 'Zakázka je expedovaná a nelze ji měnit.',
                     }),
                 ]
             else:  # Pokud zakázka není expedovaná, zobrazí se základní pole pro editaci
                 my_fieldsets = [
                     ('Zakázka skladem:', {
-                        'fields': ['kamion_prijem', 'artikl', 'typ_hlavy', 'celozavit', 'prumer', 'delka', 'predpis', 'priorita', 'popis', 'zinkovna', 'komplet',],
+                        'fields': ['kamion_prijem', 'artikl', 'typ_hlavy', 'celozavit', 'prumer', 'delka', 'predpis', 'priorita', 'popis', 'zinkovna', 'get_komplet',],
                     }),
                 ]
                
@@ -618,7 +639,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
         else:  # přidání nového záznamu
             return [
                 ('Příjem zakázky na sklad:', {
-                    'fields': ['kamion_prijem', 'artikl', 'typ_hlavy', 'celozavit','prumer', 'delka', 'predpis', 'priorita', 'popis', 'zinkovna',],
+                    'fields': ['kamion_prijem', 'artikl', 'typ_hlavy', 'celozavit','prumer', 'delka', 'predpis', 'priorita', 'popis', 'zinkovna', 'get_komplet',],
                     'description': 'Přijímání zakázky z kamiónu na sklad, pokud ještě není kamión v systému, vytvořte ho pomocí ikony ➕ u položky Kamión.',
                 }), 
                 ('Pouze pro Eurotec:', {

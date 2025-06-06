@@ -64,7 +64,7 @@ class BednyListView(LoginRequiredMixin, ListView):
             'id', 'cislo_bedny', 'zakazka__priorita', 'zakazka__kamion_prijem__zakaznik__zkratka',
             'zakazka__kamion_prijem__datum', 'zakazka__kamion_prijem', 'zakazka__artikl', 'zakazka__prumer',
             'zakazka__delka', 'hmotnost', 'stav_bedny', 'zakazka__typ_hlavy', 'tryskat', 'rovnat',
-            'zakazka__komplet', 'poznamka',
+            'poznamka',
         ]
         # Získání názvů sloupců pro zobrazení v tabulce - slovník {pole: názvy sloupců}
         columns = {field: get_verbose_name_for_column(Bedna, field) for field in columns_fields}
@@ -87,7 +87,6 @@ class BednyListView(LoginRequiredMixin, ListView):
             'zakaznik_choices': zakaznik_choices,
             'typ_hlavy_filter': self.request.GET.get('typ_hlavy_filter', 'VŠE'),
             'typ_hlavy_choices': typ_hlavy_choices,
-            'zakazka_komplet': self.request.GET.get('zakazka_komplet', ''),
             'tryskat': self.request.GET.get('tryskat', ''),
             'rovnat': self.request.GET.get('rovnat', ''),
             'columns': columns,
@@ -113,8 +112,7 @@ class BednyListView(LoginRequiredMixin, ListView):
         priorita_filter = self.request.GET.get('priorita_filter', 'VŠE')
         # Filtrování podle checkboxů
         filters = {'tryskat': self.request.GET.get('tryskat', ''),
-                   'rovnat': self.request.GET.get('rovnat', ''),
-                   'zakazka__komplet': self.request.GET.get('zakazka_komplet', '')}
+                   'rovnat': self.request.GET.get('rovnat', '')}
 
         if stav_filter and stav_filter != 'VŠE':
             if stav_filter == 'SKLAD':

@@ -69,7 +69,6 @@ class Zakazka(models.Model):
     povrch = models.CharField(max_length=20, null=True, blank=True, verbose_name='Oberfläche')
     priorita = models.CharField(choices=PrioritaChoice.choices, max_length=5, default=PrioritaChoice.NIZKA, verbose_name='Priorita')
     zinkovna = models.CharField(choices=ZinkovnaChoice.choices, max_length=10, null=True, blank=True, verbose_name='Zinkovna')
-    komplet = models.BooleanField(default=False, verbose_name='Kompletní')
     expedovano = models.BooleanField(default=False, verbose_name='Expedováno')
     history = HistoricalRecords()
 
@@ -125,16 +124,10 @@ class Bedna(models.Model):
     
     def save(self, *args, **kwargs):
         """
-        Uloží instanci Bedna a při aktualizaci přepočítá příznak `komplet` na související Zakázce.
+        Uloží instanci Bedna.
         - Pokud se jedná o novou instanci (bez PK):
           * Před uložením nastaví `cislo_bedny` na další číslo v řadě pro daného zákazníka, pokud není již zadáno.
           * Pro zákazníka s příznakem `vse_tryskat` nastaví `tryskat` na `SPINAVA`.
-        - Při změně existující Bedny:
-            * Pokud je stav `K_EXPEDICI`, ověří, zda všechny ostatní bedny
-            ve stejné zakázce jsou ve stavu `K_EXPEDICI`,
-            a podle toho nastaví `zakazka.komplet` na True/False.
-            * V ostatních případech (ne `K_EXPEDICI`) vždy nastaví
-            `zakazka.komplet` na False.
         """
         is_update = bool(self.pk)
 
@@ -157,15 +150,6 @@ class Bedna(models.Model):
                     self.tryskat = TryskaniChoice.SPINAVA
 
         super().save(*args, **kwargs)
-
-        if is_update:
-            zak = self.zakazka
-            siblings = Bedna.objects.filter(zakazka=zak).exclude(pk=self.pk)
-            if self.stav_bedny == StavBednyChoice.K_EXPEDICI:
-                zak.komplet = all(b.stav_bedny == StavBednyChoice.K_EXPEDICI for b in siblings)
-            else:
-                zak.komplet = False
-            zak.save()
 
     def get_allowed_stav_bedny_choices(self):
         """

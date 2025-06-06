@@ -10,7 +10,6 @@ def expedice_zakazek(modeladmin, request, queryset):
     Expeduje vybrané zakázky a jejich bedny.
 
     Podmínky:
-    - Zakázky musí být označeny jako kompletní (`komplet=True`).
     - Všechny bedny v těchto zakázkách musí mít stav `K_EXPEDICI`.
 
     Průběh:
@@ -28,15 +27,7 @@ def expedice_zakazek(modeladmin, request, queryset):
 
     V případě nesplnění podmínek vrátí chybu pomocí `messages.error` a akce se přeruší.
     """
-    # 1) Kontrola kompletivity zakázek
-    if not all(z.komplet for z in queryset):
-        messages.error(
-            request,
-            "Všechny vybrané zakázky musí být kompletní (komplet=True)."
-        )
-        return
-
-    # 2) Kontrola stavu beden
+    # Kontrola stavu beden
     all_bedny_ready = all(
         bedna.stav_bedny == StavBednyChoice.K_EXPEDICI
         for z in queryset
@@ -49,7 +40,7 @@ def expedice_zakazek(modeladmin, request, queryset):
         )
         return
 
-    # 3) Vlastní expedice
+    # Vlastní expedice
     zakaznici = Zakaznik.objects.filter(kamiony__zakazky_prijem__in=queryset).distinct()
     today_str = datetime.date.today().strftime("%Y-%m-%d")
 

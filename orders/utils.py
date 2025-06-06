@@ -1,7 +1,7 @@
 
 def get_verbose_name_for_column(model, field_chain):
     """
-    Vrátí verbose_name (popisek) i pro zanořené (řetězené) pole včetně FK (např. 'zakazka__komplet').
+    Vrátí verbose_name (popisek) i pro zanořené (řetězené) pole včetně FK (např. 'zakazka__celozavit').
     """
     fields = field_chain.split('__')
     current_model = model

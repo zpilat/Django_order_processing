@@ -52,13 +52,6 @@
         <label for="query" class="me-2 my-0 form-label small">Vyhledat:</label>
         <input class="form-control form-control-sm me-2" type="text" name="query" placeholder="Vyhledat č.bedny / datum" value="{{ query }}">
     </div>
-    {# Checkbox zakazka_komplet filtr: #}
-    <div class="col-auto d-flex flex-column align-items-center my-0">
-        <label for="zakazka_komplet" class="form-check-label small">Kompletní?</label>           
-        <input type="checkbox" id="zakazka_komplet" name="zakazka_komplet" value="on"
-            class="form-check-input"
-            {% if zakazka_komplet == 'on' %}checked{% endif %}>
-    </div>
     {# Checkbox tryskat filtr: #}
     <div class="col-auto d-flex flex-column align-items-center my-0">
         <label for="tryskat" class="form-check-label small">Tryskat?</label>
