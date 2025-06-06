@@ -555,13 +555,22 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
         Vytváří pole pro zobrazení v administraci na základě toho, zda se jedná o editaci nebo přidání, případně zda je zakázka expedovaná.
         """
         if obj:  # editace stávajícího záznamu
-            my_fieldsets = [
-                (None, {
-                    'fields': ['kamion_prijem', 'artikl', 'typ_hlavy', 'celozavit', 'prumer', 'delka', 'predpis', 'priorita', 'popis', 'zinkovna', 'komplet', 'expedovano'],
+            if obj.expedovano:
+                # Pokud je zakázka expedovaná, zobrazí se pouze readonly pole
+                my_fieldsets = [
+                    ('Expedovaná zakázka:', {
+                        'fields': ['kamion_prijem', 'artikl', 'typ_hlavy', 'celozavit', 'prumer', 'delka', 'predpis', 'priorita', 'popis', 'zinkovna',],
+                        'description': 'Zakázka je expedovaná a nelze ji měnit.',
                     }),
-            ]
+                ]
+            else:  # Pokud zakázka není expedovaná, zobrazí se pole pro editaci
+                my_fieldsets = [
+                    ('Zakázka skladem:', {
+                        'fields': ['kamion_prijem', 'artikl', 'typ_hlavy', 'celozavit', 'prumer', 'delka', 'predpis', 'priorita', 'popis', 'zinkovna', 'komplet',],
+                    }),
+                ]
                
-            # Pokud je zákazník Eurotec, přidej speciální pole pro zobrazení
+            # Pokud je zákazník Eurotec, přidá speciální pole pro zobrazení
             if obj.kamion_prijem.zakaznik.zkratka == 'EUR':
                 my_fieldsets.append(                  
                     ('Pouze pro Eurotec:', {
@@ -570,7 +579,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
                     }),
                 )
 
-            # Pokud jsou pro stav_bedny, tryskat a rovnat stejné hodnoty pro všechny bedny v zakázce, přidej pole pro změnu stavu těchto položek pro všechny bedny
+            # Pokud jsou pro stav_bedny, tryskat a rovnat stejné hodnoty pro všechny bedny v zakázce, přidá pole pro změnu stavu těchto položek pro všechny bedny
             if obj.bedny.exists() and obj.expedovano is False:
                 stav_bedny = obj.bedny.first().stav_bedny
                 tryskat = obj.bedny.first().tryskat
@@ -578,15 +587,15 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
                 fields = []
                 # Pokud není pro žádnou bednu stav_bedny k_expedici:
                 if not any(bedna.stav_bedny == StavBednyChoice.K_EXPEDICI for bedna in obj.bedny.all()):
-                    # Pokud mají všechny bedny stejnou hodnotu pro tryskat, přidej pole pro změnu tryskat
+                    # Pokud mají všechny bedny stejnou hodnotu pro tryskat, přidá pole pro změnu tryskat
                     if all(bedna.tryskat == tryskat for bedna in obj.bedny.all()):
                         fields += ['tryskat']
-                    # Pokud mají všechny bedny stejnou hodnotu pro rovnat, přidej pole pro změnu rovnat
+                    # Pokud mají všechny bedny stejnou hodnotu pro rovnat, přidá pole pro změnu rovnat
                     if all(bedna.rovnat == rovnat for bedna in obj.bedny.all()):
                         fields += ['rovnat']
                 # Pokud mají všechny bedny stejnou hodnotu pro stav_bedny:
                 if all(bedna.stav_bedny == stav_bedny for bedna in obj.bedny.all()):
-                    # Pokud není stav_bedny zkontrolovano, přidej pole pro změnu stav_bedny
+                    # Pokud není stav_bedny zkontrolovano, přidá pole pro změnu stav_bedny
                     if stav_bedny != StavBednyChoice.ZKONTROLOVANO:
                         fields += ['stav_bedny']
                     # Pokud je stav bedny k_expedici a zároveň není pro žádnou bednu tryskat in (TryskaniChoice.SPINAVA, TryskaniChoice.NEZADANO)
@@ -608,9 +617,9 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
 
         else:  # přidání nového záznamu
             return [
-                ('Příjem zakázek na sklad:', {
+                ('Příjem zakázky na sklad:', {
                     'fields': ['kamion_prijem', 'artikl', 'typ_hlavy', 'celozavit','prumer', 'delka', 'predpis', 'priorita', 'popis', 'zinkovna',],
-                    'description': 'Přijímání zakázek z kamiónu na sklad, pokud ještě není kamión v systému, vytvořte ho pomocí ikony ➕ u položky Kamión.',
+                    'description': 'Přijímání zakázky z kamiónu na sklad, pokud ještě není kamión v systému, vytvořte ho pomocí ikony ➕ u položky Kamión.',
                 }), 
                 ('Pouze pro Eurotec:', {
                     'fields': ['vrstva', 'povrch'],
