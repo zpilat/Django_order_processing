@@ -657,6 +657,12 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
                     'fields': ['tara', 'material', 'sarze', 'dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka', 'poznamka'],
                     'classes': ['collapse'],
                     'description': 'Pokud jsou hodnoty polí pro celou zakázku stejné, zadejte je sem. Jinak je nechte prázdné a vyplňte je u jednotlivých beden. Případné zadané hodnoty u beden zůstanou zachovány.',}),
+                ('Nastavení nestandardního stavu beden v zakázce:', {
+                    'fields': ['tryskat', 'rovnat', 'stav_bedny'],
+                    'classes': ['collapse'],
+                    'description': 'Zde můžete ve speciálních případech nastavit při příjmu stav beden v zakázce. Např. reklamované bedny, bedny pouze k tryskání \
+                        nebo rovnání, případně pouze k přeposlání do zinkovny ...',
+                }),                    
             ]                    
    
     def get_list_display(self, request):
