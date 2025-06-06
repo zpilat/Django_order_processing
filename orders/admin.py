@@ -556,14 +556,14 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
         """
         if obj:  # editace stávajícího záznamu
             if obj.expedovano:
-                # Pokud je zakázka expedovaná, zobrazí se pouze readonly pole
+                # Pokud je zakázka expedovaná, kvůli has_permission v modelu ZakazkaAdmin nelze měnit, zobrazí i kamion výdej
                 my_fieldsets = [
                     ('Expedovaná zakázka:', {
-                        'fields': ['kamion_prijem', 'artikl', 'typ_hlavy', 'celozavit', 'prumer', 'delka', 'predpis', 'priorita', 'popis', 'zinkovna',],
+                        'fields': ['kamion_prijem', 'kamion_vydej', 'artikl', 'typ_hlavy', 'celozavit', 'prumer', 'delka', 'predpis', 'priorita', 'popis', 'zinkovna',],
                         'description': 'Zakázka je expedovaná a nelze ji měnit.',
                     }),
                 ]
-            else:  # Pokud zakázka není expedovaná, zobrazí se pole pro editaci
+            else:  # Pokud zakázka není expedovaná, zobrazí se základní pole pro editaci
                 my_fieldsets = [
                     ('Zakázka skladem:', {
                         'fields': ['kamion_prijem', 'artikl', 'typ_hlavy', 'celozavit', 'prumer', 'delka', 'predpis', 'priorita', 'popis', 'zinkovna', 'komplet',],
@@ -626,10 +626,10 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
                     'classes': ['collapse'],
                     'description': 'Pro Eurotec musí být vyplněno: Tloušťka vrstvy a Povrchová úprava.',
                 }),  
-                ('Celková hmotnost zakázky, celkové množství a počet beden pro rozpočtení na jednotlivé bedny:', {
-                    'fields': ['celkova_hmotnost', 'celkove_mnozstvi', 'pocet_beden',],
+                ('Celková hmotnost zakázky a počet beden pro rozpočtení na jednotlivé bedny:', {
+                    'fields': ['celkova_hmotnost', 'pocet_beden',],
                     'classes': ['collapse'],
-                    'description': 'Celková hmotnost a množství kusů v zakázce z DL bude rozpočítáno na jednotlivé bedny, případné zadané hmotnosti / množství u beden budou přepsány. \
+                    'description': 'Celková hmotnost v zakázce z DL bude rozpočítána na jednotlivé bedny, případné zadané hmotnosti u beden budou přepsány. \
                         Zadejte pouze v případě, že jednotlivé bedny nebudete níže zadávat ručně.',
                 }),                      
                 ('Zadejte v případě, že jsou hodnoty těchto polí pro celou zakázku stejné: Tára, Materiál, Šarže mat./Charge, Sonder/Zusatz info, Lief., Fertigungs-auftrags Nr. nebo Poznámka HPM:', {
