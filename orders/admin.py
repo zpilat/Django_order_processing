@@ -372,7 +372,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     actions = [expedice_zakazek,]
     readonly_fields = ('komplet', 'expedovano')
     list_display = ('artikl', 'kamion_prijem_link', 'kamion_vydej_link', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'popis', 'priorita',
-                    'hmotnost_zakazky_k_expedici_brutto', 'pocet_beden', 'komplet', 'expedovano',) #'hmotnost_zakazky_netto'
+                    'hmotnost_zakazky_k_expedici_brutto', 'pocet_beden_k_expedici', 'komplet', 'expedovano',) #'hmotnost_zakazky_netto', 'celkovy_pocet_beden')
     list_display_links = ('artikl',)
     search_fields = ('artikl',)
     search_help_text = "Hledat podle artiklu"
@@ -392,7 +392,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     class Media:
         js = ('admin/js/zakazky_hmotnost_sum.js',)
 
-    @admin.display(description='K exp. brutto')
+    @admin.display(description='Brutto k exp.')
     def hmotnost_zakazky_k_expedici_brutto(self, obj):
         """
         Vrátí součet brutto hmotnosti (hmotnost + tara) všech beden se stavem 'K expedici' v dané zakázce.
@@ -403,23 +403,28 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
 
         return brutto.quantize(Decimal('0.1'), rounding=ROUND_HALF_UP) if brutto else Decimal('0.0')
 
-    
+    # @admin.display(description='Netto')
+    # def hmotnost_zakazky_netto(self, obj):
+    #     """
+    #     Vypočítá celkovou netto hmotnost beden v zakázce a umožní třídění podle hlavičky pole.
+    #     """
+    #     if obj.bedny.exists():
+    #         return sum(bedna.hmotnost or 0 for bedna in obj.bedny.all()).quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)
+    #     return Decimal('0.0')
 
-    @admin.display(description='Netto')
-    def hmotnost_zakazky_netto(self, obj):
-        """
-        Vypočítá celkovou netto hmotnost beden v zakázce a umožní třídění podle hlavičky pole.
-        """
-        if obj.bedny.exists():
-            return sum(bedna.hmotnost or 0 for bedna in obj.bedny.all()).quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)
-        return Decimal('0.0')
-
-    @admin.display(description='Počet beden')
-    def pocet_beden(self, obj):
+    @admin.display(description='Celkem beden')
+    def celkovy_pocet_beden(self, obj):
         """
         Vrací počet beden v zakázce a umožní třídění podle hlavičky pole.
         """
         return obj.bedny.count() if obj.bedny.exists() else 0
+    
+    @admin.display(description='Beden k exp.')
+    def pocet_beden_k_expedici(self, obj):
+        """
+        Vrátí počet beden se stavem 'K expedici' v dané zakázce a umožní třídění podle hlavičky pole.
+        """
+        return obj.bedny.filter(stav_bedny=StavBednyChoice.K_EXPEDICI).count() if obj.bedny.exists() else 0
 
     @admin.display(description='Kamion příjem')
     def kamion_prijem_link(self, obj):

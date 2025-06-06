@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             // Počet beden
-            const pocetCell = row.querySelector('td.field-pocet_beden');
+            const pocetCell = row.querySelector('td.field-pocet_beden_k_expedici');
             if (pocetCell) {
                 let cnt = parseInt(pocetCell.textContent, 10);
                 if (!isNaN(cnt)) boxCountSum += cnt;
