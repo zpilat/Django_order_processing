@@ -64,8 +64,8 @@ class ZakazkaPrijemInline(admin.TabularInline):
     verbose_name = 'Zakázka - příjem'
     verbose_name_plural = 'Zakázky - příjem'
     extra = 0
-    fields = ('artikl', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit', 'popis', 'priorita', 'get_komplet',)
-    readonly_fields = ('expedovano', 'get_komplet')
+    fields = ('artikl', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit', 'popis', 'priorita', 'celkovy_pocet_beden', 'get_komplet',)
+    readonly_fields = ('expedovano', 'get_komplet', 'celkovy_pocet_beden')
     show_change_link = True
     formfield_overrides = {
         models.CharField: {'widget': TextInput(attrs={ 'size': '30'})},
@@ -88,6 +88,16 @@ class ZakazkaPrijemInline(admin.TabularInline):
         elif any(bedna.stav_bedny == StavBednyChoice.K_EXPEDICI for bedna in obj.bedny.all()):
             return "⏳"
         return "❌"
+    
+    @admin.display(description='Beden')
+    def celkovy_pocet_beden(self, obj):
+        """
+        Vrací počet beden v zakázce a umožní třídění podle hlavičky pole.
+        """
+        if not obj.pk:
+            return 0
+        return obj.bedny.count() if obj.bedny.exists() else 0
+    celkovy_pocet_beden.admin_order_field = 'bedny__count'
 
     def get_queryset(self, request):
         """
