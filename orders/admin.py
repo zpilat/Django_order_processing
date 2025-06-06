@@ -534,22 +534,6 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
                         if value in (None, ''):
                             setattr(instance, field, hodnota)
 
-            # Další logika dle zákazníka (tryskání ...)
-            zakaznik = zakazka.kamion_prijem.zakaznik
-            if zakaznik.vse_tryskat:
-                for instance in instances:
-                    instance.tryskat = TryskaniChoice.SPINAVA
-
-            # # Přiřadíme cislo_bedny nově vzniklým instancím
-            # # Najdeme poslední bednu pro daného zákazníka:
-            # posledni_bedna = Bedna.objects.filter(
-            #     zakazka__kamion_prijem__zakaznik=zakaznik
-            # ).order_by('-cislo_bedny').first()
-            # # Pokud neexistuje žádná bedna daného zákazníka, začneme s číslem dle číselné řady zákazníka
-            # nove_cislo_bedny = (posledni_bedna.cislo_bedny + 1) if posledni_bedna else zakaznik.ciselna_rada + 1
-            # for index, instance in enumerate(instances):
-            #     instance.cislo_bedny = nove_cislo_bedny + index
-
             # Ulož všechny instance, pokud jsou to nove_bedny automaticky přidané
             if nove_bedny:
                 for instance in instances:
