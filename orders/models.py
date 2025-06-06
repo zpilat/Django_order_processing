@@ -187,15 +187,12 @@ class Bedna(models.Model):
             idx = next(i for i, (val, _) in enumerate(choices) if val == curr)
         except StopIteration:
             return choices  # fallback: všechno
-
         # EXPEDOVANO
         if curr == StavBednyChoice.EXPEDOVANO:
             return [choices[idx]]
-
         # K_EXPEDICI
         if curr == StavBednyChoice.K_EXPEDICI:
             return [choices[idx - 1], choices[idx]]
-
         # ZKONTROLOVANO
         if curr == StavBednyChoice.ZKONTROLOVANO:
             allowed = [choices[idx - 1], choices[idx]]
@@ -203,11 +200,9 @@ class Bedna(models.Model):
              and self.rovnat in (RovnaniChoice.ROVNA, RovnaniChoice.VYROVNANA)):
                 allowed.append(choices[idx + 1])
             return allowed
-
         # PRIJATO
         if curr == StavBednyChoice.PRIJATO:
             return [choices[idx], choices[idx + 1]]
-
         # ostatní
         before = [choices[idx - 1]] if idx > 0 else []
         after  = [choices[idx + 1]] if idx < len(choices) - 1 else []
@@ -215,38 +210,32 @@ class Bedna(models.Model):
     
     def get_allowed_tryskat_choices(self):
         """
-        Vrátí seznam tuple (value,label) pro pole `tryskat`
-        podle aktuálního stavu.
+        Vrátí seznam tuple (value,label) pro pole `tryskat` podle aktuálního stavu.
         Pravidla pro výběr:
         - Pokud je stav_bedny K_EXPEDICI, nabídne pouze aktuální stav, stav tryskání už nejde měnit.
-        - Pokud je tryskání nezadáno ('-------'), nabídne možnosti špinavá a čistá.
+        - Pokud je tryskání nezadáno ('-------'), nabídne všechny možnosti (může přijít z výroby rovnou otryskaná).
         - Pokud je tryskání špinavá, nabídne nezadáno, špinavá a otryskaná.
         - Pokud je tryskání čistá, nabídne nezadáno a čistá.
         - Pokud je tryskání otryskaná, nabídne špinavá a otryskaná.
         """
         curr = self.tryskat
-        curr_choice = (curr, dict(TryskaniChoice.choices).get(curr,     'Neznámý stav'))
+        curr_choice = (curr, dict(TryskaniChoice.choices).get(curr, 'Neznámý stav'))
 
         # stav bedny K_EXPEDICI
         if self.stav_bedny == StavBednyChoice.K_EXPEDICI:
             return [curr_choice]
-
         # NEZADANO
         if curr == TryskaniChoice.NEZADANO:
-            return [choice for choice in TryskaniChoice.choices if choice[0] != TryskaniChoice.OTRYSKANA]
-        
+            return TryskaniChoice.choices    
         # SPINAVA
         if curr == TryskaniChoice.SPINAVA:
             return [choice for choice in TryskaniChoice.choices if choice[0] != TryskaniChoice.CISTA]
-
         # CISTA
         if curr == TryskaniChoice.CISTA:
             return [choice for choice in TryskaniChoice.choices if choice[0] not in (TryskaniChoice.SPINAVA, TryskaniChoice.OTRYSKANA)]
-
         # OTRYSKANA
         if curr == TryskaniChoice.OTRYSKANA:
             return [choice for choice in TryskaniChoice.choices if choice[0] not in (TryskaniChoice.CISTA, TryskaniChoice.NEZADANO)]
-
         # fallback: všechno
         return list(TryskaniChoice.choices)
 
@@ -266,23 +255,18 @@ class Bedna(models.Model):
 
         # stav bedny K_EXPEDICI
         if self.stav_bedny == StavBednyChoice.K_EXPEDICI:
-            return [curr_choice]
-        
+            return [curr_choice]        
         # NEZADANO
         if curr == RovnaniChoice.NEZADANO:
             return [choice for choice in RovnaniChoice.choices if choice[0] != RovnaniChoice.VYROVNANA]
-
         # KRIVA
         if curr == RovnaniChoice.KRIVA:
             return [choice for choice in RovnaniChoice.choices if choice[0] != RovnaniChoice.ROVNA]
-
         # ROVNA
         if curr == RovnaniChoice.ROVNA:
             return [choice for choice in RovnaniChoice.choices if choice[0] not in (RovnaniChoice.KRIVA, RovnaniChoice.VYROVNANA)]
-
         # VYROVNANA
         if curr == RovnaniChoice.VYROVNANA:
             return [choice for choice in RovnaniChoice.choices if choice[0] not in (RovnaniChoice.ROVNA, RovnaniChoice.NEZADANO)]
-
         # fallback: všechno
         return list(RovnaniChoice.choices)
