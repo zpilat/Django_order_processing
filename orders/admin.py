@@ -75,10 +75,14 @@ class ZakazkaPrijemInline(admin.TabularInline):
     @admin.display(description='Komplet')
     def get_komplet(self, obj):
         '''
+        Pokud není objekt (zakázka) uložen, vrátí '-'.
         Pokud jsou všechny bedny v zakázce k_expedici, vrátí ✔️.
         Pokud je alespoň jedna bedna v zakázce k expedici, vrátí ⏳.
         Pokud není žádná bedna v zakázce k expedici, vrátí ❌.
         '''
+        if not obj.pk:
+            return '-'
+            
         if all(bedna.stav_bedny == StavBednyChoice.K_EXPEDICI for bedna in obj.bedny.all()):
             return "✔️"
         elif any(bedna.stav_bedny == StavBednyChoice.K_EXPEDICI for bedna in obj.bedny.all()):
@@ -244,7 +248,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                     # Odstranění nepotřebných sloupců
                     df.drop(columns=[
                         'Unnamed: 0', 'Abmessung', 'Gew + Tara', 'VPE', 'Box', 'Vorgang+',
-                        'Anzahl Boxen pro Behälter', 'Gew.', 'Härterei', 'Prod. Datum',
+                        'Anzahl Boxen pro Behälter', 'Gew.', 'Härterei', 'Prod. Datum', 'Menge',
                         'von Härterei \nnach Galvanik', 'Galvanik', 'vom Galvanik nach Eurotec',
                     ], inplace=True, errors='ignore')
 
@@ -261,7 +265,6 @@ class KamionAdmin(SimpleHistoryAdmin):
                         'Ober- fläche': 'povrch',
                         'Gewicht in kg': 'hmotnost',
                         'Tara kg': 'tara',
-                        'Menge': 'mnozstvi',
                         'Behälter-Nr.:': 'behalter_nr',
                         'Sonder / Zusatzinfo': 'dodatecne_info',
                         'Lief.': 'dodavatel_materialu',
@@ -297,7 +300,6 @@ class KamionAdmin(SimpleHistoryAdmin):
                             tara=row.get('tara'),
                             material=row.get('material'),
                             sarze=row.get('sarze'),
-                            # mnozstvi=row.get('mnozstvi'), není vždy vyplněno v DL, zatím se nepoužije
                             behalter_nr=row.get('behalter_nr'),
                             dodatecne_info=row.get('dodatecne_info'),
                             dodavatel_materialu=row.get('dodavatel_materialu'),
@@ -729,7 +731,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     readonly_fields = ('cislo_bedny',)
 
     # Parametry pro zobrazení seznamu v administraci
-    list_display = ('cislo_bedny', 'zakazka_link', 'kamion_prijem_link', 'kamion_vydej_link', 'get_prumer', 'get_delka',
+    list_display = ('cislo_bedny', 'behalter_nr', 'zakazka_link', 'kamion_prijem_link', 'kamion_vydej_link', 'get_prumer', 'get_delka',
                     'rovnat', 'tryskat', 'stav_bedny', 'get_typ_hlavy', 'hmotnost', 'tara', 'get_priorita', 'poznamka')
     # list_editable - je nastaveno pro různé stavy filtru Skladem v metodě changelist_view
     list_display_links = ('cislo_bedny', )

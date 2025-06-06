@@ -100,7 +100,7 @@ class Bedna(models.Model):
     tara = models.DecimalField(max_digits=5, blank=True, decimal_places=1, verbose_name='Tára')
     material = models.CharField(max_length=20, null=True, blank=True, verbose_name='Materiál')
     sarze = models.CharField(max_length=20, null=True, blank=True, verbose_name='Šarže mat. / Charge')
-    behalter_nr = models.PositiveIntegerField(null=True, blank=True, verbose_name='Behälter-Nr.')
+    behalter_nr = models.PositiveIntegerField(null=True, blank=True, verbose_name='Č.bed. zák.')
     dodatecne_info = models.CharField(max_length=100, null=True, blank=True, verbose_name='Sonder / Zusatzinfo')
     dodavatel_materialu = models.CharField(max_length=10, null=True, blank=True, verbose_name='Lief.')
     vyrobni_zakazka = models.CharField(max_length=20, null=True, blank=True, verbose_name='Fertigungs-auftrags Nr.')
