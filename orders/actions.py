@@ -1,7 +1,12 @@
 from django.contrib import admin, messages
 from django.shortcuts import redirect
+from django.http import HttpResponse
+from django.template.loader import render_to_string
 from django.forms.models import model_to_dict
+
 import datetime
+from weasyprint import HTML
+
 from .models import Zakazka, Bedna, Kamion, Zakaznik, StavBednyChoice
 
 
@@ -94,3 +99,35 @@ def import_zakazek_beden_action(modeladmin, request, queryset):
         return
     kamion = queryset.first()
     return redirect(f'./import-zakazek/?kamion={kamion.pk}')
+
+
+@admin.action(description="Vytisknout kartu/ky bedny do PDF")
+def tisk_karet_beden(modeladmin, request, queryset):
+    """
+    Vytvoří PDF s kartou bedny nebo více označených beden.
+    """
+    if queryset.count() == 1:
+        bedna = queryset.first()
+        context = {"bedna": bedna}
+        html_string = render_to_string("orders/karta_bedny_eur.html", context)
+        pdf_file = HTML(string=html_string).write_pdf()
+        response = HttpResponse(pdf_file, content_type="application/pdf")
+        response['Content-Disposition'] = f'inline; filename="karta_bedny_{bedna.cislo_bedny}.pdf"'
+        return response
+    # Pokud je více beden, udělej hromadné PDF (každá bedna nová stránka)
+    elif queryset.count() > 1:
+        from io import BytesIO
+        pdf_buffer = BytesIO()
+        all_html = ""
+        for bedna in queryset:
+            context = {"bedna": bedna}
+            html = render_to_string("orders/karta_bedny_eur.html", context)
+            all_html += html + '<p style="page-break-after: always"></p>'  # Odděl stránky
+
+        pdf_file = HTML(string=all_html).write_pdf()
+        response = HttpResponse(pdf_file, content_type="application/pdf")
+        response['Content-Disposition'] = f'inline; filename="karty_beden.pdf"'
+        return response
+    else:
+        messages.error(request, "Neoznačili jste žádnou bednu.")
+        return None

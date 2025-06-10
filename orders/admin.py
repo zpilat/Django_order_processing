@@ -12,7 +12,7 @@ from decimal import Decimal, ROUND_HALF_UP
 import pandas as pd
 
 from .models import Zakaznik, Kamion, Zakazka, Bedna
-from .actions import expedice_zakazek, import_zakazek_beden_action
+from .actions import expedice_zakazek, import_zakazek_beden_action, tisk_karet_beden
 from .filters import ExpedovanaZakazkaFilter, StavBednyFilter, KompletZakazkaFilter
 from .forms import ZakazkaAdminForm, BednaAdminForm, ImportZakazekForm
 from .choices import (
@@ -749,6 +749,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     - Pro každý řádek dropdown omezí na povolené volby podle stejné logiky.
     - Číslo bedny se generuje automaticky a je readonly
     """
+    actions = [tisk_karet_beden]
     form = BednaAdminForm
 
     # Parametry pro zobrazení detailu v administraci
