@@ -255,6 +255,20 @@ class KamionAdmin(SimpleHistoryAdmin):
                         lambda row: pd.Series(rozdel_rozmer(row)), axis=1
                     )
 
+                    # Vytvoří se nový sloupec 'priorita', pokud je ve sloupci 'Sonder / Zusatzinfo' obsaženo 'eilig', vyplní se hodnota 'P1' jako priorita
+                    def priorita(row):
+                        if pd.notna(row['Sonder / Zusatzinfo']) and 'eilig' in row['Sonder / Zusatzinfo'].lower():
+                            return 'P1'
+                        return '-'
+                    df['priorita'] = df.apply(priorita, axis=1)
+
+                    # Vytvoří se nový sloupec 'celozavit', pokud je ve sloupci 'Bezeichnung' obsaženo 'konstrux', vyplní se hodnota True, jinak False
+                    def celozavit(row):
+                        if pd.notna(row['Bezeichnung']) and 'konstrux' in row['Bezeichnung'].lower():
+                            return True
+                        return False
+                    df['celozavit'] = df.apply(celozavit, axis=1)                    
+
                     # Odstranění nepotřebných sloupců
                     df.drop(columns=[
                         'Unnamed: 0', 'Abmessung', 'Gew + Tara', 'VPE', 'Box', 'Vorgang+',
@@ -298,6 +312,8 @@ class KamionAdmin(SimpleHistoryAdmin):
                                 delka=row.get('delka'),
                                 predpis=int(row.get('predpis')),
                                 typ_hlavy=row.get('typ_hlavy'),
+                                celozavit=row.get('celozavit', False),
+                                priorita=row.get('priorita', PrioritaChoice.NIZKA),
                                 popis=row.get('popis'),
                                 vrstva=row.get('vrstva'),
                                 povrch=row.get('povrch')
