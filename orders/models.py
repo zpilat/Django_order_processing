@@ -59,7 +59,7 @@ class Kamion(models.Model):
         return reverse("admin:orders_kamion_change", args=[self.pk])    
     
 class Zakazka(models.Model):
-    kamion_prijem = models.ForeignKey(Kamion, on_delete=models.CASCADE, related_name='zakazky_prijem', verbose_name='Kamión příjem', null=True)
+    kamion_prijem = models.ForeignKey(Kamion, on_delete=models.CASCADE, related_name='zakazky_prijem', verbose_name='Kamión příjem', null=True, blank=True)
     kamion_vydej = models.ForeignKey(Kamion, on_delete=models.CASCADE, related_name='zakazky_vydej', verbose_name='Kamión výdej', null=True, blank=True)
     artikl = models.CharField(max_length=50, verbose_name='Artikl / Zakázka')
     prumer = models.DecimalField(max_digits=4, decimal_places=1, verbose_name='Průměr')

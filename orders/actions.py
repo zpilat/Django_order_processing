@@ -1,5 +1,6 @@
 from django.contrib import admin, messages
 from django.shortcuts import redirect
+from django.forms.models import model_to_dict
 import datetime
 from .models import Zakazka, Bedna, Kamion, Zakaznik, StavBednyChoice
 
@@ -60,23 +61,12 @@ def expedice_zakazek(modeladmin, request, queryset):
         #3
         zakazky_zakaznika = queryset.filter(kamion_prijem__zakaznik=zakaznik)
         for zakazka in zakazky_zakaznika:
+            # Pokud nejsou všechny bedny K_EXPEDICI, vytvoří novou zakázku s původními daty a převede do ní bedny, které nejsou v K_EXPEDICI           
             if not all(bedna.stav_bedny == StavBednyChoice.K_EXPEDICI for bedna in zakazka.bedny.all()):
-                # Pokud nejsou všechny bedny K_EXPEDICI, vytvoří novou zakázku s původními daty a tyto bedny do ní převede do ní bedny
-                nova_zakazka = Zakazka.objects.create(
-                    kamion_prijem=zakazka.kamion_prijem,
-                    artikl=zakazka.artikl,
-                    prumer=zakazka.prumer,
-                    delka=zakazka.delka,
-                    predpis=zakazka.predpis,
-                    typ_hlavy=zakazka.typ_hlavy,
-                    celozavit=zakazka.celozavit,
-                    popis=zakazka.popis,
-                    vrstva=zakazka.vrstva,
-                    povrch=zakazka.povrch,
-                    priorita=zakazka.priorita,
-                    zinkovna=zakazka.zinkovna,
-                    expedovano=False,
-                )
+                # Vytvoří novou zakázku s daty z původní zakázky
+                zakazka_data = model_to_dict(zakazka, exclude=['id', 'kamion_vydej', 'expedovano'])
+                zakazka_data['kamion_prijem'] = zakazka.kamion_prijem # Přidá instanci kamion_prijem místo id
+                nova_zakazka = Zakazka.objects.create(**zakazka_data)
 
                 # Převede bedny, které nejsou v K_EXPEDICI do nové zakázky
                 for bedna in zakazka.bedny.exclude(stav_bedny=StavBednyChoice.K_EXPEDICI):

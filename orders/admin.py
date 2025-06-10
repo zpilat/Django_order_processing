@@ -393,7 +393,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     list_display_links = ('artikl',)
     search_fields = ('artikl',)
     search_help_text = "Hledat podle artiklu"
-    list_filter = ('kamion_prijem__zakaznik', 'typ_hlavy', 'celozavit', 'priorita', KompletZakazkaFilter, ExpedovanaZakazkaFilter,)
+    list_filter = ('kamion_prijem__zakaznik', 'typ_hlavy', 'celozavit', 'priorita', 'povrch', KompletZakazkaFilter, ExpedovanaZakazkaFilter,)
     ordering = ('-id',)
     date_hierarchy = 'kamion_prijem__datum'
     list_per_page = 25
