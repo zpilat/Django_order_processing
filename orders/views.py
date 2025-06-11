@@ -199,3 +199,8 @@ def dashboard_view(request):
     if request.htmx:
         return render(request, "orders/partials/dashboard_content.html", context)
     return render(request, 'orders/dashboard.html', context)
+
+@login_required
+def karta_bedny_view(request, pk):
+    bedna = get_object_or_404(Bedna, pk=pk)
+    return render(request, "orders/karta_bedny_eur.html", {"bedna": bedna})

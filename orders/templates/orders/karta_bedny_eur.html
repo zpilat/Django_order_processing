@@ -19,59 +19,61 @@
             font-size: 0.9rem;
         }
         .table td, .table th {
+            padding: 0.2rem !important;
             vertical-align: middle;
         }
     </style>
 </head>
 <body>
     <div class="container-fluid">
-        <table class="table table-bordered" style="width: 100%; table-layout: fixed; font-family: 'Arial';">
+        <table class="table table-bordered border-black" style="width: 100%; table-layout: fixed; font-family: 'Arial';">
             <tbody>
                 <tr>
-                    <td colspan="2" rowspan="3" class="text-center small fs-1">Technologický předpis:</td>
-                    <td colspan="2" rowspan="3" class="text-center small fs-4 fw-bold">00360_Ø8</td>
-                    <td colspan="3" rowspan="3" class="text-center fw-bold fs-5">KARTA BEDNY</td>
-                    <td colspan="2" class="text-center small">nakládání</td>
-                    <td class="text-center small">pletivo</td>
-                    <td colspan="3" rowspan="3" class="text-center">POPOUŠTĚNÍ:</td>
-                    <td colspan="5" rowspan="3" class="text-center">200˚C/75 minut</td>
+                    <td colspan="4" rowspan="3" class="text-center small"">Technologický předpis: 00360_Ø8</td>
+                    <td colspan="4" rowspan="3" class="text-center fw-bold fs-5">KARTA BEDNY</td>
+                    <td class="text-center bg-body-secondary" style="font-size: 0.6rem;">nakládání</td>
+                    <td class="text-center bg-body-secondary" style="font-size: 0.6rem;">pletivo</td>
+                    <td colspan="3" rowspan="3" class="text-center bg-body-secondary fs-5 fw-bold">POPOUŠTĚNÍ:</td>
+                    <td colspan="5" rowspan="3" class="text-center bg-body-secondary fs-4 fw-bold">ANO</td>
                 </tr>
                 <tr>
-                    <td colspan="2" rowspan="2" class="text-center">sypat</td>
-                    <td rowspan="2" class="text-center">B</td>
+                    <td rowspan="2" class="text-center bg-body-secondary fw-bold">sypat</td>
+                    <td rowspan="2" class="text-center bg-body-secondary fs-6 fw-bold">B</td>
                 </tr>
                 <tr></tr>
 
                 <tr>
                     <td colspan="3" rowspan="7" class="text-center fw-bold fs-5">HPM HEAT SK</td>
-                    <td colspan="8" rowspan="3" class="text-center text-danger fw-bold" style="font-size: 2rem;">EUROTEC</td>
-                    <td colspan="2" rowspan="7" class="text-center fw-bold" style="font-size: 5rem;">1</td>
+                    <td colspan="8" rowspan="3" class="text-center text-danger fs-1 fw-bold">EUROTEC</td>
+                    <td colspan="2" rowspan="7" class="text-center fw-bold" style="font-size: 3.5rem;">1</td>
                     <td colspan="3" rowspan="3" class="text-center">Počet beden:</td>
-                    <td colspan="2" rowspan="3" class="text-center">1/5</td>
+                    <td colspan="2" rowspan="3" class="text-center text-danger fs-3 fw-bold">1/5</td>
                 </tr>
                 <tr></tr>
                 <tr></tr>
                 <tr>
-                    <td colspan="8" rowspan="4" class="text-center text-danger fw-bold" style="font-size: 2rem;">{{ bedna.zakazka.artikl }}</td>
+                    <td colspan="8" rowspan="4" class="text-center text-danger fs-1 fw-bold">{{ bedna.zakazka.artikl }}</td>
                     <td colspan="3" rowspan="4" class="text-center">Odfosfátování:</td>
-                    <td colspan="2" rowspan="4" class="text-center">ANO</td>
+                    <td colspan="2" rowspan="4" class="text-center text-danger fs-3 fw-bold">ANO</td>
                 </tr>
                 <tr></tr>
                 <tr></tr>
                 <tr></tr>
 
                 <tr>
-                    <td colspan="3" rowspan="4" class="text-left fs-5 fw-bold">Označení:</td>
-                    <td colspan="7" rowspan="4" class="text-center text-danger fs-5 fw-bold">{{ bedna.zakazka.popis }}</td>
-                    <td colspan="8" rowspan="4" class="text-left fs-5 fw-bold">ČÍSLO BEDNY: {{ bedna.behalter_nr }}</td>
+                    <td colspan="3" rowspan="4" class="text-start fs-5 fw-bold">Označení:</td>
+                    <td colspan="7" rowspan="4" class="text-center text-danger fs-3 fw-bold">{{ bedna.zakazka.popis }}</td>
+                    <td colspan="8" rowspan="4" class="text-start fs-3 fw-bold">ČÍSLO BEDNY: ({{ bedna.behalter_nr }})</td>
                 </tr>
                 <tr></tr>
                 <tr></tr>
                 <tr></tr>
 
                 <tr>
-                    <td colspan="3" rowspan="4" class="text-left fs-5 fw-bold">Rozměr:</td>
-                    <td colspan="7" rowspan="4" class="text-center text-danger fs-5 fw-bold">{{ bedna.zakazka.prumer }}x{{ bedna.zakazka.delka }}</td>
+                    <td colspan="3" rowspan="4" class="text-start fs-5 fw-bold">Rozměr:</td>
+                    <td colspan="7" rowspan="4" class="text-center text-danger fw-bold" style="font-size: 3rem;">
+                        {{ bedna.zakazka.prumer }}x{{ bedna.zakazka.delka }}
+                    </td>
                     <td colspan="8" rowspan="14" class="text-center text-danger fw-bold" style="font-size: 7rem;">{{ bedna.cislo_bedny }}</td>
                 </tr>
                 <tr></tr>
@@ -79,8 +81,8 @@
                 <tr></tr>
                                 
                 <tr>
-                    <td colspan="3" rowspan="4" class="text-left fs-5 fw-bold">Zakázka:</td>
-                    <td colspan="7" rowspan="4" class="text-center text-danger fs-5 fw-bold">{{ bedna.zakazka.kamion_prijem.datum }}</td>
+                    <td colspan="3" rowspan="4" class="text-start fs-5 fw-bold">Zakázka:</td>
+                    <td colspan="7" rowspan="4" class="text-center text-danger fs-3 fw-bold">{{ bedna.zakazka.kamion_prijem.datum|date:"d.m.Y" }}</td>
                 </tr>
                 <tr></tr>
                 <tr></tr>
@@ -88,25 +90,21 @@
 
                 <tr>
                     <td colspan="10" rowspan="6" style="padding: 0;">
-                        <table class="table table-secondary table-bordered mb-0" style="width: 100%; font-size: 0.8rem;">
-                            <thead class="text-center align-middle">
-                                <tr>
-                                    <th><small>Ohyb</small></th>
-                                    <th><small>Krut</small></th>
-                                    <th><small>Tvrdost povrchu<br>[1 bedna ze zak.]</small></th>
-                                    <th><small>Tvrdost jádra<br>[1 bedna ze zak.]</small></th>
-                                    <th><small>Nauhličení</small></th>
-                                </tr>
-                            </thead>
-                            <tbody class="text-center">
-                                <tr>
-                                    <td><small>min. 45°</small></td>
-                                    <td><small>min. 28,0Nm</small></td>
-                                    <td><small>410–480HV1</small></td>
-                                    <td><small>320–410HV10</small></td>
-                                    <td><small>-</small></td>
-                                </tr>
-                            </tbody>
+                        <table class="table table-secondary table-bordered text-center border-black mb-0" style="width: 100%; font-size: 0.8rem;">
+                            <tr>
+                                <td class="small">Ohyb</td>
+                                <td class="small">Krut</td>
+                                <td class="small">Tvrdost povrchu<br>[1 bedna ze zak.]</td>
+                                <td class="small">Tvrdost jádra<br>[1 bedna ze zak.]</td>
+                                <td class="small">Nauhličení</td>
+                            </tr>
+                            <tr>
+                                <td class="small fw-bold">min. 45°</td>
+                                <td class="small fw-bold">min. 28,0Nm</td>
+                                <td class="small fw-bold">410-480HV1</td>
+                                <td class="small fw-bold">320-410HV10</td>
+                                <td class="small fw-bold">-</td>
+                            </tr>
                         </table>
                     </td>
                 </tr>
@@ -117,6 +115,87 @@
                 <tr></tr>
                 <tr></tr>
 
+                <tr>
+                    <td colspan="2" rowspan="2" class="align-top text-start" style="height: 40px; font-size: 0.6rem;">vrch [%]</td>
+                    <td rowspan="2" class="text-center fs-6 fw-bold">A</td>
+                    <td colspan="2" rowspan="2" class="align-top text-start" style="font-size: 0.6rem;">vrch [%]</td>
+                    <td rowspan="2" class="text-center fs-6 fw-bold">B</td>                    
+                    <td colspan="2" rowspan="2" class="align-top text-start" style="font-size: 0.6rem;">vrch [%]</td>
+                    <td rowspan="2" class="text-center fs-6 fw-bold">C</td>
+                    <td colspan="2" rowspan="2" class="align-top text-start" style="font-size: 0.6rem;">vrch [%]</td>
+                    <td rowspan="2" class="text-center fs-6 fw-bold">D</td>
+                    <td colspan="6" rowspan="12" class="align-center text-center text-danger fw-bold" style="font-size: 5rem;">
+                        {{ bedna.hmotnost|floatformat:0 }}
+                        <span class="fs-2 fw-bold">kg</span>
+                    </td>                
+                </tr>
+                <tr></tr>
+
+                <tr>
+                    <td colspan="2" rowspan="2" class="align-top text-start" style="height: 40px; font-size: 0.6rem;">spodek [%]</td>
+                    <td rowspan="4" class="align-top text-center" style="font-size: 0.6rem;">vyložil:</td>
+                    <td colspan="2" rowspan="2" class="align-top text-start" style="font-size: 0.6rem;">spodek [%]</td>
+                    <td rowspan="4" class="align-top text-center" style="font-size: 0.6rem;">vyložil:</td>
+                    <td colspan="2" rowspan="2" class="align-top text-start" style="font-size: 0.6rem;">spodek [%]</td>
+                    <td rowspan="4" class="align-top text-center" style="font-size: 0.6rem;">vyložil:</td>
+                    <td colspan="2" rowspan="2" class="align-top text-start" style="font-size: 0.6rem;">spodek [%]</td>
+                    <td rowspan="4" class="align-top text-center" style="font-size: 0.6rem;">vyložil:</td>
+                </tr>
+                <tr></tr>
+                <tr>
+                    <td colspan="2" rowspan="2" class="align-top text-start" style="height: 40px; font-size: 0.6rem;">šarže:</td>
+                    <td colspan="2" rowspan="2" class="align-top text-start" style="font-size: 0.6rem;">šarže:</td>
+                    <td colspan="2" rowspan="2" class="align-top text-start" style="font-size: 0.6rem;">šarže:</td>
+                    <td colspan="2" rowspan="2" class="align-top text-start" style="font-size: 0.6rem;">šarže:</td>                    
+                </tr>
+                <tr></tr>
+                <tr>
+                    <td colspan="2" rowspan="2" class="align-top text-start" style="height: 40px; font-size: 0.6rem;">vrch [%]</td>
+                    <td rowspan="2" class="text-center fs-6 fw-bold">E</td>
+                    <td colspan="9" rowspan="6" style="padding: 0;">
+                        <table class="table table-bordered border-black mb-0" style="width: 100%; font-size: 0.6rem;">
+                            <tr>
+                                <td colspan="2" rowspan="6" class="align-top text-center small">Mezioperační kontrola</td>
+                                <td colspan="3" class="text-center fs-6 fw-bold">TRYSKÁNÍ</td>
+                                <td colspan="2" rowspan="6" class="align-top text-center small">Výstupní kontrola</td>
+                                <td colspan="2" rowspan="6" class="align-top text-center bg-success-subtle small">Uvolněno k expedici</td>
+                            </tr>
+                            <tr>
+                                <td>&nbsp;</td>
+                                <td>&nbsp;</td>
+                                <td>&nbsp;</td>
+                            </tr>
+                            <tr>
+                                <td class="text-center">1 2 3 4 5</td>
+                                <td class="text-center">1 2 3 4 5</td>
+                                <td class="text-center">1 2 3 4 5</td>
+                            </tr>        
+                            <tr>
+                                <td>&nbsp;</td>
+                                <td>&nbsp;</td>
+                                <td>&nbsp;</td>
+                            </tr>
+                            <tr>
+                                <td class="text-center">1 2 3 4 5</td>
+                                <td class="text-center">1 2 3 4 5</td>
+                                <td class="text-center">1 2 3 4 5</td>
+                            </tr> 
+                            <tr>
+                                <td colspan="3" style="font-size: 0.3rem;">&nbsp;</td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+                <tr></tr>
+                <tr>
+                    <td colspan="2" rowspan="2" class="align-top text-start" style="font-size: 0.6rem;">spodek [%]</td>
+                    <td rowspan="4" class="align-top text-center" style="font-size: 0.6rem;">vyložil:</td>
+                </tr>
+                <tr></tr>
+                <tr>
+                    <td colspan="2" rowspan="2" class="align-top text-start" style="font-size: 0.6rem;">šarže:</td>
+                </tr>
+                <tr></tr>  
             </tbody>
         </table>
     </div>

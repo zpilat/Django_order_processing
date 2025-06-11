@@ -5,7 +5,7 @@ from django.template.loader import render_to_string
 from django.forms.models import model_to_dict
 
 import datetime
-from weasyprint import HTML
+#from weasyprint import HTML
 
 from .models import Zakazka, Bedna, Kamion, Zakaznik, StavBednyChoice
 

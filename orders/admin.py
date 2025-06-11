@@ -4,8 +4,9 @@ from django.forms import TextInput, RadioSelect
 from django.utils.safestring import mark_safe
 from django.utils.translation import gettext_lazy as _
 from django.contrib.admin.views.main import ChangeList
-from django.urls import path
+from django.urls import path, reverse
 from django.shortcuts import redirect, render
+from django.utils.html import format_html
 
 from simple_history.admin import SimpleHistoryAdmin
 from decimal import Decimal, ROUND_HALF_UP
@@ -754,12 +755,12 @@ class BednaAdmin(SimpleHistoryAdmin):
 
     # Parametry pro zobrazení detailu v administraci
     fields = ('zakazka', 'cislo_bedny', 'hmotnost', 'tara', 'mnozstvi', 'material', 'sarze', 'behalter_nr', 'dodatecne_info',
-              'dodavatel_materialu', 'vyrobni_zakazka', 'tryskat', 'rovnat', 'stav_bedny', 'poznamka')
+              'dodavatel_materialu', 'vyrobni_zakazka', 'tryskat', 'rovnat', 'stav_bedny', 'poznamka',)
     readonly_fields = ('cislo_bedny',)
 
     # Parametry pro zobrazení seznamu v administraci
     list_display = ('cislo_bedny', 'behalter_nr', 'zakazka_link', 'kamion_prijem_link', 'kamion_vydej_link', 'get_prumer', 'get_delka',
-                    'rovnat', 'tryskat', 'stav_bedny', 'get_typ_hlavy', 'hmotnost', 'tara', 'get_priorita', 'poznamka')
+                    'rovnat', 'tryskat', 'stav_bedny', 'get_typ_hlavy', 'hmotnost', 'tara', 'get_priorita', 'poznamka', 'karta_link',)
     # list_editable - je nastaveno pro různé stavy filtru Skladem v metodě changelist_view
     list_display_links = ('cislo_bedny', )
     search_fields = ('cislo_bedny', 'zakazka__artikl', 'zakazka__delka',)
@@ -777,6 +778,11 @@ class BednaAdmin(SimpleHistoryAdmin):
     history_search_fields = ["zakazka__kamion_prijem__zakaznik__nazev", "cislo_bedny", "stav_bedny", "zakazka__typ_hlavy", "poznamka"]
     history_list_filter = ["zakazka__kamion_prijem__zakaznik__nazev", "zakazka__kamion_prijem__datum", "stav_bedny"]
     history_list_per_page = 20
+
+    @admin.display(description='Karta')
+    def karta_link(self, obj):
+        url = reverse("karta_bedny", args=[obj.pk])
+        return format_html('<a href="{}" target="_blank">Zobrazit</a>', url)
 
     @admin.display(description='Zakázka')
     def zakazka_link(self, obj):
