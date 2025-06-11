@@ -268,7 +268,10 @@ class KamionAdmin(SimpleHistoryAdmin):
                         if pd.notna(row['Bezeichnung']) and 'konstrux' in row['Bezeichnung'].lower():
                             return True
                         return False
-                    df['celozavit'] = df.apply(celozavit, axis=1)                    
+                    df['celozavit'] = df.apply(celozavit, axis=1)            
+
+                    # Odstraní ze sloupce Bezeichnung první číslo za mezerou (včetně mezery) a vše za ním
+                    df["Bezeichnung"] = df["Bezeichnung"].str.replace(r"\s+\d+.*", "", regex=True)                            
 
                     # Odstranění nepotřebných sloupců
                     df.drop(columns=[
