@@ -1,6 +1,7 @@
 from django.contrib import admin, messages
 from django.db import models
 from django.forms import TextInput, RadioSelect
+from django.forms.models import BaseInlineFormSet
 from django.utils.safestring import mark_safe
 from django.utils.translation import gettext_lazy as _
 from django.contrib.admin.views.main import ChangeList
@@ -15,7 +16,7 @@ import pandas as pd
 from .models import Zakaznik, Kamion, Zakazka, Bedna
 from .actions import expedice_zakazek, import_zakazek_beden_action, tisk_karet_beden
 from .filters import ExpedovanaZakazkaFilter, StavBednyFilter, KompletZakazkaFilter
-from .forms import ZakazkaAdminForm, BednaAdminForm, ImportZakazekForm
+from .forms import ZakazkaAdminForm, BednaAdminForm, ImportZakazekForm, ZakazkaInlineForm
 from .choices import (
     TypHlavyChoice, StavBednyChoice, RovnaniChoice, TryskaniChoice,
     PrioritaChoice, ZinkovnaChoice, KamionChoice
@@ -54,6 +55,24 @@ class ZakaznikAdmin(SimpleHistoryAdmin):
     history_search_fields = ["nazev", "zkratka",]    
     history_list_filter = ["nazev", "zkratka",]
     history_list_per_page = 20
+
+
+class ZakazkaAutomatizovanyPrijemInline(admin.TabularInline):
+    """
+    Inline pro příjem zakázek v rámci kamionu na sklad včetně automatizovaného vytvoření beden a rozpočtení hmotnosti.
+    """
+    model = Zakazka
+    form = ZakazkaInlineForm
+    fk_name = 'kamion_prijem'
+    verbose_name = 'Zakázka - automatizovaný příjem'
+    verbose_name_plural = 'Zakázky - automatizovaný příjem'
+    extra = 5
+    fields = ('artikl', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit', 'popis', 'priorita', 'pocet_beden', 'celkova_hmotnost', 'tara',)
+    show_change_link = True
+    formfield_overrides = {
+        models.CharField: {'widget': TextInput(attrs={ 'size': '30'})},
+        models.DecimalField: {'widget': TextInput(attrs={ 'size': '8'})},
+    }
 
 
 class ZakazkaPrijemInline(admin.TabularInline):
@@ -152,9 +171,11 @@ class KamionAdmin(SimpleHistoryAdmin):
         """
         Vrací inliny pro správu zakázek kamionu v závislosti na tom, zda se jedná o kamion pro příjem nebo výdej a jestli jde o přidání nebo editaci.
         """
+        if not obj:  # Pokud se jedná o přidání nového kamionu
+            return [ZakazkaAutomatizovanyPrijemInline]
         if obj and obj.prijem_vydej == 'P':
             return [ZakazkaPrijemInline]
-        elif obj and obj.prijem_vydej == 'V':
+        if obj and obj.prijem_vydej == 'V':
             return [ZakazkaVydejInline]
         return []
     
@@ -353,6 +374,36 @@ class KamionAdmin(SimpleHistoryAdmin):
             'errors': errors,
             'title': f"Import zakázek pro kamion {kamion}",
         })
+    
+    def save_formset(self, request, form, formset: BaseInlineFormSet, change):
+        """
+        Uloží inline formuláře pro zakázky kamionu a vytvoří bedny na základě zadaných dat.
+        """
+        # Uloží se inline formuláře bez okamžitého zápisu do DB
+        zakazky = formset.save(commit=False)
+
+        for inline_form, zakazka in zip(formset.forms, zakazky):
+            zakazka.kamion_prijem = form.instance  # připojení k právě vytvořenému kamionu
+            zakazka.save()
+
+            # Získání dodatečných hodnot z vlastního formuláře
+            celkova_hmotnost = inline_form.cleaned_data.get("celkova_hmotnost")
+            pocet_beden = inline_form.cleaned_data.get("pocet_beden")
+            tara = inline_form.cleaned_data.get("tara")
+
+            if celkova_hmotnost and pocet_beden:
+                hmotnost_bedny = Decimal(celkova_hmotnost) / pocet_beden
+                hmotnost_bedny = hmotnost_bedny.quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)
+
+                for i in range(pocet_beden):
+                    Bedna.objects.create(
+                        zakazka=zakazka,
+                        hmotnost=hmotnost_bedny,
+                        tara=tara
+                        # cislo_bedny se dopočítá v metodě save() modelu Bedna
+                    )
+
+        formset.save()    
 
 
 class BednaInline(admin.TabularInline):

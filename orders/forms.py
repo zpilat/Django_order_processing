@@ -41,7 +41,7 @@ class ZakazkaAdminForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         inst = getattr(self, "instance", None)
 
-        
+
 
         if inst and inst.pk:
             # Existující instance
@@ -51,6 +51,32 @@ class ZakazkaAdminForm(forms.ModelForm):
             # Nastavíme initial hodnoty pro pole stav_bedny, tryskat a rovnat
             self.fields['tryskat'].initial = tryskat
             self.fields['rovnat'].initial = rovnat
+
+
+class ZakazkaInlineForm(forms.ModelForm):
+    """
+    Inline formulář pro model Zakazka v Django Adminu.
+    """
+    celkova_hmotnost = forms.DecimalField(
+        label="Celková hmotnost",
+        min_value=1.0,
+        widget=forms.TextInput(attrs={'size': '8', 'style': 'width: 80px;'})
+    )
+    pocet_beden = forms.IntegerField(
+        label="Počet beden",
+        min_value=1,
+        widget=forms.NumberInput(attrs={'size': '5', 'style': 'width: 60px;'})
+    )
+    tara = forms.DecimalField(
+        label="Tára",
+        min_value=20.0,
+        initial=65.0,
+        widget=forms.TextInput(attrs={'size': '8', 'style': 'width: 80px;'})
+    )
+
+    class Meta:
+        model = Zakazka
+        fields = "__all__"            
 
 
 class BednaAdminForm(forms.ModelForm):
