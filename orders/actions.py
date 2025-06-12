@@ -8,6 +8,7 @@ import datetime
 from weasyprint import HTML
 
 from .models import Zakazka, Bedna, Kamion, Zakaznik, StavBednyChoice
+from .utils import utilita_tisk_karet_beden
 
 
 @admin.action(description="Expedice vybraných zakázek")
@@ -116,18 +117,22 @@ def tisk_karet_beden(modeladmin, request, queryset):
         return response
     # Pokud je více beden, udělej hromadné PDF (každá bedna nová stránka)
     elif queryset.count() > 1:
-        from io import BytesIO
-        pdf_buffer = BytesIO()
-        all_html = ""
-        for bedna in queryset:
-            context = {"bedna": bedna}
-            html = render_to_string("orders/karta_bedny_eur.html", context)
-            all_html += html + '<p style="page-break-after: always"></p>'  # Odděl stránky
-
-        pdf_file = HTML(string=all_html).write_pdf()
-        response = HttpResponse(pdf_file, content_type="application/pdf")
-        response['Content-Disposition'] = f'inline; filename="karty_beden.pdf"'
-        return response
+        return utilita_tisk_karet_beden(modeladmin, request, queryset)
     else:
         messages.error(request, "Neoznačili jste žádnou bednu.")
         return None
+    
+
+@admin.action(description="Vytisknout karty beden z vybraných zakázek v PDF")
+def tisk_karet_beden_zakazek(modeladmin, request, queryset):
+    """
+    Vytvoří PDF s kartami beden ze zvolených zakázek.
+    """
+    if not queryset.exists():
+        messages.error(request, "Neoznačili jste žádnou zakázku.")
+        return None
+    bedny = Bedna.objects.filter(zakazka__in=queryset)
+    if not bedny.exists():
+        messages.error(request, "V označených zakázkách nejsou žádné bedny.")
+        return None
+    return utilita_tisk_karet_beden(modeladmin, request, bedny)
