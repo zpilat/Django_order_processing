@@ -67,7 +67,7 @@ class ZakazkaAutomatizovanyPrijemInline(admin.TabularInline):
     verbose_name = 'Zakázka - automatizovaný příjem'
     verbose_name_plural = 'Zakázky - automatizovaný příjem'
     extra = 5
-    fields = ('artikl', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit', 'popis', 'priorita', 'pocet_beden', 'celkova_hmotnost', 'tara',)
+    fields = ('artikl', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit', 'popis', 'priorita', 'pocet_beden', 'celkova_hmotnost', 'tara', 'material',)
     show_change_link = True
     formfield_overrides = {
         models.CharField: {'widget': TextInput(attrs={ 'size': '30'})},
@@ -390,6 +390,7 @@ class KamionAdmin(SimpleHistoryAdmin):
             celkova_hmotnost = inline_form.cleaned_data.get("celkova_hmotnost")
             pocet_beden = inline_form.cleaned_data.get("pocet_beden")
             tara = inline_form.cleaned_data.get("tara")
+            material = inline_form.cleaned_data.get("material")
 
             # Rozpočítání hmotnosti, pro poslední bednu se použije zbytek hmotnosti po rozpočítání a zaokrouhlení
             if celkova_hmotnost and pocet_beden:
@@ -405,7 +406,8 @@ class KamionAdmin(SimpleHistoryAdmin):
                     Bedna.objects.create(
                         zakazka=zakazka,
                         hmotnost=hodnoty[i],
-                        tara=tara
+                        tara=tara,
+                        material=material,
                         # cislo_bedny se dopočítá v metodě save() modelu Bedna
                     )
 
