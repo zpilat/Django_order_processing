@@ -99,7 +99,9 @@ def import_zakazek_beden_action(modeladmin, request, queryset):
     Importuje dodací list pro vybraný kamion.
     Předpokládá, že je vybrán pouze jeden kamion.
     Pokud je vybráno více kamionů, zobrazí se chybová zpráva.
+    Zatím je import pouze pro zákazníka Eurotec (EUR).
     """
+    # Zkontroluje, zda je vybrán alespoň jeden kamion
     if not queryset.exists():
         modeladmin.message_user(request, "Neoznačili jste žádný kamion.", level=messages.ERROR)
         return
@@ -108,6 +110,10 @@ def import_zakazek_beden_action(modeladmin, request, queryset):
         modeladmin.message_user(request, "Vyber pouze jeden kamion.", level=messages.ERROR)
         return
     kamion = queryset.first()
+    # Zkontroluje, zda je kamion pro zákazníka Eurotec
+    if kamion.zakaznik.zkratka != "EUR":
+        modeladmin.message_user(request, "Import je zatím možný pouze pro zákazníka Eurotec.", level=messages.ERROR)
+        return
     return redirect(f'./import-zakazek/?kamion={kamion.pk}')
 
 
