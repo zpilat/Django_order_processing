@@ -47,7 +47,7 @@ class ZakaznikAdmin(SimpleHistoryAdmin):
     """
     Správa zákazníků v administraci.
     """
-    list_display = ('nazev', 'zkratka', 'adresa', 'mesto', 'stat', 'kontaktni_osoba', 'telefon', 'email', 'vse_tryskat', 'pouze_komplet', 'ciselna_rada',)
+    list_display = ('nazev', 'zkraceny_nazev', 'adresa', 'mesto', 'stat', 'kontaktni_osoba', 'telefon', 'email', 'vse_tryskat', 'pouze_komplet', 'ciselna_rada',)
     ordering = ('nazev',)
     list_per_page = 20
 
