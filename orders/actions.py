@@ -97,7 +97,7 @@ def expedice_zakazek(modeladmin, request, queryset):
 def import_zakazek_beden_action(modeladmin, request, queryset):
     """
     Importuje dodací list pro vybraný kamion.
-    Předpokládá, že je vybrán pouze jeden kamion.
+    Předpokládá, že je vybrán pouze jeden kamion a to kamion s příznakem příjem.
     Pokud je vybráno více kamionů, zobrazí se chybová zpráva.
     Zatím je import pouze pro zákazníka Eurotec (EUR).
     """
@@ -110,11 +110,46 @@ def import_zakazek_beden_action(modeladmin, request, queryset):
         modeladmin.message_user(request, "Vyber pouze jeden kamion.", level=messages.ERROR)
         return
     kamion = queryset.first()
-    # Zkontroluje, zda je kamion pro zákazníka Eurotec
-    if kamion.zakaznik.zkratka != "EUR":
+    # Zkontroluje, zda je kamion s příznakem příjem
+    if kamion.prijem_vydej != 'P':
+        modeladmin.message_user(request, "Import je možný pouze pro kamiony příjem.", level=messages.ERROR)
+        return
+    # Import pro zákazníka Eurotec
+    if kamion.zakaznik.zkratka == "EUR":
+        return redirect(f'./import-zakazek/?kamion={kamion.pk}')
+    else:
+        # Pokud není pro zákazníka zatím import umožněn, zobrazí se chybová zpráva
         modeladmin.message_user(request, "Import je zatím možný pouze pro zákazníka Eurotec.", level=messages.ERROR)
         return
-    return redirect(f'./import-zakazek/?kamion={kamion.pk}')
+
+
+@admin.action(description="Vytisknout dodací list kamionu do PDF")
+def tisk_dodaciho_listu_kamionu(modeladmin, request, queryset):
+    """
+    Vytiskne dodací list pro vybraný kamion do PDF.
+    Předpokládá, že je vybrán pouze jeden kamion a to kamion s příznakem výdej.
+    Pokud je vybráno více kamionů, zobrazí se chybová zpráva.
+    Zatím je tisk pouze pro zákazníka Eurotec (EUR).
+    """
+    if not queryset.exists():
+        modeladmin.message_user(request, "Neoznačili jste žádný kamion.", level=messages.ERROR)
+        return
+    # Pokud je vybráno více kamionů, zobrazí se chybová zpráva
+    if queryset.count() != 1:
+        modeladmin.message_user(request, "Vyberte pouze jeden kamion.", level=messages.ERROR)
+        return
+    kamion = queryset.first()
+    # Zkontroluje, zda je kamion s příznakem výdej
+    if kamion.prijem_vydej != 'V':
+        modeladmin.message_user(request, "Tisk DL je možný pouze pro kamiony výdej.", level=messages.ERROR)
+        return
+    # Zkontroluje, zda je kamion pro zákazníka Eurotec
+    if kamion.zakaznik.zkratka == "EUR":
+        return redirect(f'./tisk-dodaciho-listu/?kamion={kamion.pk}')
+    # Pokud není pro zákazníka zatím tisk DL umožněn, zobrazí se chybová zpráva
+    else:
+        modeladmin.message_user(request, "Tisk DL je zatím možný pouze pro zákazníka Eurotec.", level=messages.ERROR)
+        return
 
 
 @admin.action(description="Vytisknout kartu bedny do PDF")
