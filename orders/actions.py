@@ -95,6 +95,15 @@ def expedice_zakazek(modeladmin, request, queryset):
 
 @admin.action(description="Importovat dodací list pro vybraný kamion")
 def import_zakazek_beden_action(modeladmin, request, queryset):
+    """
+    Importuje dodací list pro vybraný kamion.
+    Předpokládá, že je vybrán pouze jeden kamion.
+    Pokud je vybráno více kamionů, zobrazí se chybová zpráva.
+    """
+    if not queryset.exists():
+        modeladmin.message_user(request, "Neoznačili jste žádný kamion.", level=messages.ERROR)
+        return
+    # Pokud je vybráno více kamionů, zobrazí se chybová zpráva
     if queryset.count() != 1:
         modeladmin.message_user(request, "Vyber pouze jeden kamion.", level=messages.ERROR)
         return
