@@ -134,25 +134,23 @@ class Bedna(models.Model):
           * Před uložením nastaví `cislo_bedny` na další číslo v řadě pro daného zákazníka, pokud není již zadáno.
           * Pro zákazníka s příznakem `vse_tryskat` nastaví `tryskat` na `SPINAVA`.
         """
-        is_update = bool(self.pk)
+        is_existing_instance = bool(self.pk)
 
-        if not is_update:
+        if not is_existing_instance:
             zakaznik = self.zakazka.kamion_prijem.zakaznik
 
-            if not self.cislo_bedny:
-                # Při vytváření nové bedny nastavíme číslo bedny na další v řadě
-                posledni = (
-                    self.__class__.objects
-                    .filter(zakazka__kamion_prijem__zakaznik=zakaznik)
-                    .order_by("-cislo_bedny")
-                    .first()
-                )
-                self.cislo_bedny = ((posledni.cislo_bedny + 1) if posledni else zakaznik.ciselna_rada + 1)
+            # Při vytváření nové bedny nastavíme číslo bedny na další v řadě
+            posledni = (
+                self.__class__.objects
+                .filter(zakazka__kamion_prijem__zakaznik=zakaznik)
+                .order_by("-cislo_bedny")
+                .first()
+            )
+            self.cislo_bedny = ((posledni.cislo_bedny + 1) if posledni else zakaznik.ciselna_rada + 1)
 
-            if not self.tryskat:
-                # Pokud je zákazník s příznakem `vse_tryskat`, nastavíme tryskat na SPINAVA
-                if zakaznik.vse_tryskat:
-                    self.tryskat = TryskaniChoice.SPINAVA
+            # Pokud je zákazník s příznakem `vse_tryskat`, nastavíme tryskat na SPINAVA
+            if zakaznik.vse_tryskat:
+                self.tryskat = TryskaniChoice.SPINAVA
 
         super().save(*args, **kwargs)
 
