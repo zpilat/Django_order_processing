@@ -55,7 +55,8 @@ class ZakazkaAdminForm(forms.ModelForm):
 
 class ZakazkaInlineForm(forms.ModelForm):
     """
-    Inline formulář pro model Zakazka v Django Adminu.
+    Inline formulář pro model Zakazka v Django Adminu, slouží pro automatické vytvoření beden pro jednotlivé zakázky.
+    Umožní rozpočítat celkovou hmotnost zakázky na jednotlivé bedny.
     """
     celkova_hmotnost = forms.DecimalField(
         label="Celková hmotnost",
