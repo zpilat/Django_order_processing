@@ -391,14 +391,20 @@ class KamionAdmin(SimpleHistoryAdmin):
             pocet_beden = inline_form.cleaned_data.get("pocet_beden")
             tara = inline_form.cleaned_data.get("tara")
 
+            # Rozpočítání hmotnosti, pro poslední bednu se použije zbytek hmotnosti po rozpočítání a zaokrouhlení
             if celkova_hmotnost and pocet_beden:
                 hmotnost_bedny = Decimal(celkova_hmotnost) / pocet_beden
                 hmotnost_bedny = hmotnost_bedny.quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)
 
+                hodnoty = [hmotnost_bedny] * (pocet_beden - 1)
+                posledni = celkova_hmotnost - sum(hodnoty)
+                posledni = posledni.quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)
+                hodnoty.append(posledni)
+
                 for i in range(pocet_beden):
                     Bedna.objects.create(
                         zakazka=zakazka,
-                        hmotnost=hmotnost_bedny,
+                        hmotnost=hodnoty[i],
                         tara=tara
                         # cislo_bedny se dopočítá v metodě save() modelu Bedna
                     )
@@ -603,7 +609,6 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
             instances = formset.save(commit=False)
             zakazka = form.instance
             celkova_hmotnost = form.cleaned_data.get('celkova_hmotnost')
-            celkove_mnozstvi = form.cleaned_data.get('celkove_mnozstvi')
             pocet_beden = form.cleaned_data.get('pocet_beden')
             data_ze_zakazky = {
                 'tara': form.cleaned_data.get('tara'),
@@ -615,8 +620,13 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
                 'poznamka': form.cleaned_data.get('poznamka'),
             }
 
-            # Pokud nejsou žádné bedny ručně zadané a je vyplněn počet beden, tak se vytvoří nové bedny 
-            # a naplní se z daty ze zakázky a rozpočítá se hmotnost a množství na jednotlivé bedny.
+            # Pokud jsou zároveň ručně zadané bedny a zadaná celková hmotnost a počet beden, tak se zkontroluje,
+            # jestli je počet beden roven počtu ručně zadaných beden, pokud ne, tak se vyhodí chyba.
+            if pocet_beden and len(instances) != pocet_beden:
+                messages.error(request, f"Počet ručně zadaných beden ({len(instances)}) se neshoduje s údajem v poli Celkový počet beden v zakázce: ({pocet_beden}).")
+                return
+
+            # Pokud nejsou žádné bedny ručně zadané a je vyplněn počet beden, tak se vytvoří automaticky nové bedny
             nove_bedny = []
             if len(instances) == 0 and pocet_beden:
                 for i in range(pocet_beden):
@@ -626,18 +636,20 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
 
             # Společná logika bez ohledu na způsob vzniku beden:
 
-            # Rozpočítání hmotnosti
+            # Pokude je vyplněna celková hmotnost a počet beden, tak se rozpočítá hmotnost na jednotlivé bedny,
+            # pro poslední bednu se použije zbytek hmotnosti po rozpočítání a zaokrouhlení
+            # Případné ručně zadané hodnoty hmotnosti u beden se přepíší vypočtenými hodnotami.           
             if celkova_hmotnost and len(instances) > 0:
                 hmotnost_bedny = Decimal(celkova_hmotnost) / len(instances)
                 hmotnost_bedny = hmotnost_bedny.quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)
-                for instance in instances:
-                    instance.hmotnost = hmotnost_bedny
 
-            # Rozpočítání množství
-            if celkove_mnozstvi and len(instances) > 0:
-                mnozstvi_bedny = int(celkove_mnozstvi) // len(instances)
-                for instance in instances:
-                    instance.mnozstvi = mnozstvi_bedny
+                hodnoty = [hmotnost_bedny] * (pocet_beden - 1)
+                posledni = celkova_hmotnost - sum(hodnoty)
+                posledni = posledni.quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)
+                hodnoty.append(posledni)
+
+                for instance, hodnota in zip(instances, hodnoty):
+                    instance.hmotnost = hodnota
 
             # Doplň prázdná pole ze zakázky (pokud už nebyla nastavena výše)
             for field, hodnota in data_ze_zakazky.items():
