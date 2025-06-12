@@ -558,6 +558,15 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     zakaznik.admin_order_field = 'kamion_prijem__zakaznik__zkratka'
 
     def get_komplet(self, obj):
+        '''
+        Pokud není objekt (zakázka) uložen, vrátí '-'.
+        Pokud jsou všechny bedny v zakázce k_expedici, vrátí ✔️.
+        Pokud je alespoň jedna bedna v zakázce k expedici, vrátí ⏳.
+        Pokud není žádná bedna v zakázce k expedici, vrátí ❌.
+        '''
+        if not obj.pk:
+            return '-'
+                    
         if all(bedna.stav_bedny == StavBednyChoice.K_EXPEDICI for bedna in obj.bedny.all()):
             return "✔️"
         elif any(bedna.stav_bedny == StavBednyChoice.K_EXPEDICI for bedna in obj.bedny.all()):
@@ -746,7 +755,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
                     'fields': ['celkova_hmotnost', 'pocet_beden',],
                     'classes': ['collapse'],
                     'description': 'Celková hmotnost v zakázce z DL bude rozpočítána na jednotlivé bedny, případné zadané hmotnosti u beden budou přepsány. \
-                        Zadejte pouze v případě, že jednotlivé bedny nebudete níže zadávat ručně.',
+                        Pokud budete jednotlivé bedny zadávat ručně a chcete rozpočítat celkovou hmotnost, musí se počet ručně zadaných beden shodovat s počtem beden v zakázce.',
                 }),                      
                 ('Zadejte v případě, že jsou hodnoty těchto polí pro celou zakázku stejné: Tára, Materiál, Šarže mat./Charge, Sonder/Zusatz info, Lief., Fertigungs-auftrags Nr. nebo Poznámka HPM:', {
                     'fields': ['tara', 'material', 'sarze', 'dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka', 'poznamka'],

@@ -101,7 +101,7 @@ def import_zakazek_beden_action(modeladmin, request, queryset):
     return redirect(f'./import-zakazek/?kamion={kamion.pk}')
 
 
-@admin.action(description="Vytisknout kartu/ky bedny do PDF")
+@admin.action(description="Vytisknout kartu bedny do PDF")
 def tisk_karet_beden(modeladmin, request, queryset):
     """
     Vytvoří PDF s kartou bedny nebo více označených beden.
