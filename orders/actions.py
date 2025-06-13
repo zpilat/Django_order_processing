@@ -188,6 +188,10 @@ def import_kamionu_action(modeladmin, request, queryset):
     if kamion.prijem_vydej != 'P':
         modeladmin.message_user(request, "Import je možný pouze pro kamiony příjem.", level=messages.ERROR)
         return
+    # Zkontroluje, zda ke kamionu ještě nejsou přiřazeny žádné zakázky
+    if kamion.zakazky_prijem.exists():
+        modeladmin.message_user(request, "Kamion již obsahuje zakázky, nelze provést import.", level=messages.ERROR)
+        return
     # Import pro zákazníka Eurotec
     if kamion.zakaznik.zkratka == "EUR":
         return redirect(f'./import-zakazek/?kamion={kamion.pk}')

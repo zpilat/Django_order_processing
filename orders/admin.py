@@ -96,13 +96,13 @@ class ZakazkaPrijemInline(admin.TabularInline):
     @admin.display(description='Komplet')
     def get_komplet(self, obj):
         '''
-        Pokud není objekt (zakázka) uložen, vrátí '-'.
+        Pokud není objekt (zakázka) uložen nebo neobsahuje bedny, vrátí '➖'.
         Pokud jsou všechny bedny v zakázce k_expedici nebo expedovano, vrátí ✔️.
         Pokud je alespoň jedna bedna v zakázce k expedici, vrátí ⏳.
         Pokud není žádná bedna v zakázce k expedici, vrátí ❌.
         '''
-        if not obj.pk:
-            return '-'
+        if not obj.pk or not obj.bedny.exists():
+            return '➖'
 
         if all(bedna.stav_bedny in (StavBednyChoice.K_EXPEDICI, StavBednyChoice.EXPEDOVANO) for bedna in obj.bedny.all()):
             return "✔️"
@@ -582,13 +582,13 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
 
     def get_komplet(self, obj):
         '''
-        Pokud není objekt (zakázka) uložen, vrátí '-'.
+        Pokud není objekt (zakázka) uložen nebo neobsahuje bedny, vrátí '➖'.
         Pokud jsou všechny bedny v zakázce k_expedici nebo expedovano, vrátí ✔️.
         Pokud je alespoň jedna bedna v zakázce k expedici, vrátí ⏳.
         Pokud není žádná bedna v zakázce k expedici, vrátí ❌.
         '''
-        if not obj.pk:
-            return '-'
+        if not obj.pk or not obj.bedny.exists():
+            return '➖'
 
         if all(bedna.stav_bedny in (StavBednyChoice.K_EXPEDICI, StavBednyChoice.EXPEDOVANO) for bedna in obj.bedny.all()):
             return "✔️"

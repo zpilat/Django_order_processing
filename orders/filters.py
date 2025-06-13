@@ -61,10 +61,11 @@ class KompletZakazkaFilter(admin.SimpleListFilter):
     def queryset(self, request, queryset):
         value = self.value()
         if value == 'kompletni':
-            # Vrátí zakázky, jejichž všechny bedny jsou ve stavu K expedici
+            # Vrátí zakázky, jejichž všechny bedny jsou ve stavu K expedici nebo Expedováno
             for zakazka in queryset:
-                # Zkontroluje, zda všechny bedny v zakázce jsou ve stavu K expedici
-                if not all(bedna.stav_bedny == StavBednyChoice.K_EXPEDICI for bedna in zakazka.bedny.all()):
+                # Zkontroluje, zda má zakázka nějaké bedny a zda všechny bedny v zakázce jsou ve stavu K expedici nebo Expedováno
+                if not zakazka.bedny.exists() or not all(bedna.stav_bedny in (StavBednyChoice.K_EXPEDICI, StavBednyChoice.EXPEDOVANO)
+                                                         for bedna in zakazka.bedny.all()):
                     queryset = queryset.exclude(id=zakazka.id)
         elif value == 'k_expedici':
             # Vrátí zakázky, které mají alespoň jednu bednu ve stavu K expedici
