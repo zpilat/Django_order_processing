@@ -14,7 +14,7 @@ from decimal import Decimal, ROUND_HALF_UP
 import pandas as pd
 
 from .models import Zakaznik, Kamion, Zakazka, Bedna
-from .actions import expedice_zakazek, import_zakazek_beden_action, tisk_karet_beden
+from .actions import expedice_zakazek, import_zakazek_beden_action, tisk_karet_beden, tisk_karet_beden_zakazek
 from .filters import ExpedovanaZakazkaFilter, StavBednyFilter, KompletZakazkaFilter
 from .forms import ZakazkaAdminForm, BednaAdminForm, ImportZakazekForm, ZakazkaInlineForm
 from .choices import (
@@ -67,7 +67,7 @@ class ZakazkaAutomatizovanyPrijemInline(admin.TabularInline):
     verbose_name = 'Zakázka - automatizovaný příjem'
     verbose_name_plural = 'Zakázky - automatizovaný příjem'
     extra = 5
-    fields = ('artikl', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit', 'popis', 'priorita', 'pocet_beden', 'celkova_hmotnost', 'tara',)
+    fields = ('artikl', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit', 'popis', 'priorita', 'pocet_beden', 'celkova_hmotnost', 'tara', 'material',)
     show_change_link = True
     formfield_overrides = {
         models.CharField: {'widget': TextInput(attrs={ 'size': '30'})},
@@ -390,6 +390,7 @@ class KamionAdmin(SimpleHistoryAdmin):
             celkova_hmotnost = inline_form.cleaned_data.get("celkova_hmotnost")
             pocet_beden = inline_form.cleaned_data.get("pocet_beden")
             tara = inline_form.cleaned_data.get("tara")
+            material = inline_form.cleaned_data.get("material")
 
             # Rozpočítání hmotnosti, pro poslední bednu se použije zbytek hmotnosti po rozpočítání a zaokrouhlení
             if celkova_hmotnost and pocet_beden:
@@ -405,7 +406,8 @@ class KamionAdmin(SimpleHistoryAdmin):
                     Bedna.objects.create(
                         zakazka=zakazka,
                         hmotnost=hodnoty[i],
-                        tara=tara
+                        tara=tara,
+                        material=material,
                         # cislo_bedny se dopočítá v metodě save() modelu Bedna
                     )
 
@@ -471,7 +473,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     """
     inlines = [BednaInline]
     form = ZakazkaAdminForm
-    actions = [expedice_zakazek,]
+    actions = [expedice_zakazek, tisk_karet_beden_zakazek,]
 
     # Parametry pro zobrazení detailu v administraci
     readonly_fields = ('expedovano', 'get_komplet')
@@ -558,6 +560,15 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     zakaznik.admin_order_field = 'kamion_prijem__zakaznik__zkratka'
 
     def get_komplet(self, obj):
+        '''
+        Pokud není objekt (zakázka) uložen, vrátí '-'.
+        Pokud jsou všechny bedny v zakázce k_expedici, vrátí ✔️.
+        Pokud je alespoň jedna bedna v zakázce k expedici, vrátí ⏳.
+        Pokud není žádná bedna v zakázce k expedici, vrátí ❌.
+        '''
+        if not obj.pk:
+            return '-'
+                    
         if all(bedna.stav_bedny == StavBednyChoice.K_EXPEDICI for bedna in obj.bedny.all()):
             return "✔️"
         elif any(bedna.stav_bedny == StavBednyChoice.K_EXPEDICI for bedna in obj.bedny.all()):
@@ -746,7 +757,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
                     'fields': ['celkova_hmotnost', 'pocet_beden',],
                     'classes': ['collapse'],
                     'description': 'Celková hmotnost v zakázce z DL bude rozpočítána na jednotlivé bedny, případné zadané hmotnosti u beden budou přepsány. \
-                        Zadejte pouze v případě, že jednotlivé bedny nebudete níže zadávat ručně.',
+                        Pokud budete jednotlivé bedny zadávat ručně a chcete rozpočítat celkovou hmotnost, musí se počet ručně zadaných beden shodovat s počtem beden v zakázce.',
                 }),                      
                 ('Zadejte v případě, že jsou hodnoty těchto polí pro celou zakázku stejné: Tára, Materiál, Šarže mat./Charge, Sonder/Zusatz info, Lief., Fertigungs-auftrags Nr. nebo Poznámka HPM:', {
                     'fields': ['tara', 'material', 'sarze', 'dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka', 'poznamka'],
