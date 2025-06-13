@@ -10,9 +10,32 @@ from weasyprint import HTML
 from .models import Zakazka, Bedna, Kamion, Zakaznik, StavBednyChoice
 from .utils import utilita_tisk_karet_beden
 
+# Akce pro bedny:
+
+@admin.action(description="Vytisknout kartu bedny do PDF")
+def tisk_karet_beden_action(modeladmin, request, queryset):
+    """
+    Vytvoří PDF s kartou bedny nebo více označených beden.
+    """
+    if queryset.count() == 1:
+        bedna = queryset.first()
+        context = {"bedna": bedna}
+        html_string = render_to_string("orders/karta_bedny_eur.html", context)
+        pdf_file = HTML(string=html_string).write_pdf()
+        response = HttpResponse(pdf_file, content_type="application/pdf")
+        response['Content-Disposition'] = f'inline; filename="karta_bedny_{bedna.cislo_bedny}.pdf"'
+        return response
+    # Pokud je více beden, udělej hromadné PDF (každá bedna nová stránka)
+    elif queryset.count() > 1:
+        return utilita_tisk_karet_beden(modeladmin, request, queryset)
+    else:
+        messages.error(request, "Neoznačili jste žádnou bednu.")
+        return None
+
+# Akce pro zakázky:
 
 @admin.action(description="Expedice vybraných zakázek")
-def expedice_zakazek(modeladmin, request, queryset):
+def expedice_zakazek_action(modeladmin, request, queryset):
     """
     Expeduje vybrané zakázky a jejich bedny.
 
@@ -91,10 +114,27 @@ def expedice_zakazek(modeladmin, request, queryset):
 
     #4
     messages.success(request, f"Zakázky byly úspěšně expedovány, byl vytvořen nový kamion výdeje {kamion.cislo_dl}.")
+    
 
+@admin.action(description="Vytisknout karty beden z vybraných zakázek v PDF")
+def tisk_karet_beden_zakazek_action(modeladmin, request, queryset):
+    """
+    Vytvoří PDF s kartami beden ze zvolených zakázek.
+    """
+    if not queryset.exists():
+        messages.error(request, "Neoznačili jste žádnou zakázku.")
+        return None
+    bedny = Bedna.objects.filter(zakazka__in=queryset)
+    if not bedny.exists():
+        messages.error(request, "V označených zakázkách nejsou žádné bedny.")
+        return None
+    return utilita_tisk_karet_beden(modeladmin, request, bedny)    
+
+
+# Akce pro kamiony:
 
 @admin.action(description="Importovat dodací list pro vybraný kamion")
-def import_zakazek_beden_action(modeladmin, request, queryset):
+def import_kamionu_action(modeladmin, request, queryset):
     """
     Importuje dodací list pro vybraný kamion.
     Předpokládá, že je vybrán pouze jeden kamion a to kamion s příznakem příjem.
@@ -124,7 +164,7 @@ def import_zakazek_beden_action(modeladmin, request, queryset):
 
 
 @admin.action(description="Vytisknout dodací list kamionu do PDF")
-def tisk_dodaciho_listu_kamionu(modeladmin, request, queryset):
+def tisk_dodaciho_listu_kamionu_action(modeladmin, request, queryset):
     """
     Vytiskne dodací list pro vybraný kamion do PDF.
     Předpokládá, že je vybrán pouze jeden kamion a to kamion s příznakem výdej.
@@ -145,50 +185,20 @@ def tisk_dodaciho_listu_kamionu(modeladmin, request, queryset):
         return
     # Zkontroluje, zda je kamion pro zákazníka Eurotec
     if kamion.zakaznik.zkratka == "EUR":
-        return redirect(f'./tisk-dodaciho-listu/?kamion={kamion.pk}')
+        context = {"kamion": kamion}
+        html_string = render_to_string("orders/dodaci_list_eur.html", context)
+        pdf_file = HTML(string=html_string).write_pdf()
+        response = HttpResponse(pdf_file, content_type="application/pdf")
+        response['Content-Disposition'] = f'inline; filename="dodaci_list_{kamion.cislo_dl}.pdf"'
+        return response
     # Pokud není pro zákazníka zatím tisk DL umožněn, zobrazí se chybová zpráva
     else:
         modeladmin.message_user(request, "Tisk DL je zatím možný pouze pro zákazníka Eurotec.", level=messages.ERROR)
         return
 
 
-@admin.action(description="Vytisknout kartu bedny do PDF")
-def tisk_karet_beden(modeladmin, request, queryset):
-    """
-    Vytvoří PDF s kartou bedny nebo více označených beden.
-    """
-    if queryset.count() == 1:
-        bedna = queryset.first()
-        context = {"bedna": bedna}
-        html_string = render_to_string("orders/karta_bedny_eur.html", context)
-        pdf_file = HTML(string=html_string).write_pdf()
-        response = HttpResponse(pdf_file, content_type="application/pdf")
-        response['Content-Disposition'] = f'inline; filename="karta_bedny_{bedna.cislo_bedny}.pdf"'
-        return response
-    # Pokud je více beden, udělej hromadné PDF (každá bedna nová stránka)
-    elif queryset.count() > 1:
-        return utilita_tisk_karet_beden(modeladmin, request, queryset)
-    else:
-        messages.error(request, "Neoznačili jste žádnou bednu.")
-        return None
-    
-
-@admin.action(description="Vytisknout karty beden z vybraných zakázek v PDF")
-def tisk_karet_beden_zakazek(modeladmin, request, queryset):
-    """
-    Vytvoří PDF s kartami beden ze zvolených zakázek.
-    """
-    if not queryset.exists():
-        messages.error(request, "Neoznačili jste žádnou zakázku.")
-        return None
-    bedny = Bedna.objects.filter(zakazka__in=queryset)
-    if not bedny.exists():
-        messages.error(request, "V označených zakázkách nejsou žádné bedny.")
-        return None
-    return utilita_tisk_karet_beden(modeladmin, request, bedny)
-
 @admin.action(description="Vytisknout karty beden z vybraného kamionu v PDF")
-def tisk_karet_beden_z_kamionu(modeladmin, request, queryset):
+def tisk_karet_beden_kamionu_action(modeladmin, request, queryset):
     """
     Vytvoří PDF s kartami beden z vybraného kamionu.
     Musí být vybrán pouze jeden kamion, jinak se zobrazí chybová zpráva.

@@ -3,6 +3,7 @@ from simple_history.models import HistoricalRecords
 from django.utils.translation import gettext_lazy as _
 from django.urls import reverse
 from django.core.exceptions import ValidationError
+from django.db.models import Sum
 
 from .choices import (
     TypHlavyChoice, StavBednyChoice, RovnaniChoice, TryskaniChoice,
@@ -54,6 +55,27 @@ class Kamion(models.Model):
     def __str__(self):
         return f'{self.id}. {self.zakaznik.zkratka} {self.datum}'
     
+    @property
+    def celkova_hmotnost_vydej_netto(self):
+        """
+        Vrací celkovou hmotnost netto všech beden ve všech zakázkách spojených s tímto kamionem pro výdej.
+        """
+        return sum(
+            zakazka.bedny.aggregate(suma=Sum('hmotnost'))['suma'] or 0
+            for zakazka in self.zakazky_vydej.all()
+        )       
+    
+    @property
+    def celkova_hmotnost_vydej_brutto(self):
+        """
+        Vrací celkovou hmotnost brutto všech beden ve všech zakázkách spojených s tímto kamionem pro výdej.
+        """
+        celkova_hmotnost_samotnych_beden = sum(
+            zakazka.bedny.aggregate(suma=Sum('tara'))['suma'] or 0
+            for zakazka in self.zakazky_vydej.all()
+        )
+        return celkova_hmotnost_samotnych_beden + self.celkova_hmotnost_vydej_netto
+
     def get_admin_url(self):
         """
         Vrací URL pro zobrazení detailu kamionu v administraci.
@@ -72,6 +94,7 @@ class Zakazka(models.Model):
     popis = models.CharField(max_length=100, verbose_name='Popis')
     vrstva = models.CharField(max_length=20, null=True, blank=True, verbose_name='Beschichtung')
     povrch = models.CharField(max_length=20, null=True, blank=True, verbose_name='Oberfläche')
+    prubeh = models.CharField(max_length=20, null=True, blank=True, verbose_name='Vorgang+')
     priorita = models.CharField(choices=PrioritaChoice.choices, max_length=5, default=PrioritaChoice.NIZKA, verbose_name='Priorita')
     zinkovna = models.CharField(choices=ZinkovnaChoice.choices, max_length=10, null=True, blank=True, verbose_name='Zinkovna')
     expedovano = models.BooleanField(default=False, verbose_name='Expedováno')
@@ -88,6 +111,10 @@ class Zakazka(models.Model):
     def __str__(self):
         return f'{self.kamion_prijem.id}. {self.kamion_prijem.zakaznik.zkratka} {self.kamion_prijem.datum} - {self.artikl}'
     
+    @property
+    def celkova_hmotnost(self):
+        return self.bedny.aggregate(suma=Sum('hmotnost'))['suma'] or 0
+
     def get_admin_url(self):
         """
         Vrací URL pro zobrazení detailu zakázky v administraci.

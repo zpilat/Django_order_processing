@@ -14,7 +14,8 @@ from decimal import Decimal, ROUND_HALF_UP
 import pandas as pd
 
 from .models import Zakaznik, Kamion, Zakazka, Bedna
-from .actions import expedice_zakazek, import_zakazek_beden_action, tisk_karet_beden, tisk_karet_beden_zakazek, tisk_karet_beden_z_kamionu
+from .actions import expedice_zakazek_action, import_kamionu_action, tisk_karet_beden_action, tisk_karet_beden_zakazek_action, tisk_karet_beden_kamionu_action, \
+    tisk_dodaciho_listu_kamionu_action
 from .filters import ExpedovanaZakazkaFilter, StavBednyFilter, KompletZakazkaFilter
 from .forms import ZakazkaAdminForm, BednaAdminForm, ImportZakazekForm, ZakazkaInlineForm
 from .choices import (
@@ -84,7 +85,7 @@ class ZakazkaPrijemInline(admin.TabularInline):
     verbose_name = 'Zakázka - příjem'
     verbose_name_plural = 'Zakázky - příjem'
     extra = 0
-    fields = ('artikl', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit', 'popis', 'priorita', 'celkovy_pocet_beden', 'get_komplet',)
+    fields = ('artikl', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit', 'popis', 'prubeh', 'priorita', 'celkovy_pocet_beden', 'get_komplet',)
     readonly_fields = ('expedovano', 'get_komplet', 'celkovy_pocet_beden')
     show_change_link = True
     formfield_overrides = {
@@ -127,6 +128,14 @@ class ZakazkaPrijemInline(admin.TabularInline):
         qs = super().get_queryset(request)
         return qs.filter(expedovano=False)
 
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
+        """
+        Přizpůsobení widgetů pro pole v administraci.
+        """
+        if db_field.name == 'prubeh':
+            kwargs['widget'] = TextInput(attrs={'size': '12'})  # Změna velikosti pole pro průběh
+        return super().formfield_for_dbfield(db_field, request, **kwargs)    
+
 
 class ZakazkaVydejInline(admin.TabularInline):
     """
@@ -137,8 +146,8 @@ class ZakazkaVydejInline(admin.TabularInline):
     verbose_name = "Zakázka - výdej"
     verbose_name_plural = "Zakázky - výdej"
     extra = 0
-    fields = ('artikl', 'kamion_prijem', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit', 'popis', 'priorita',)
-    readonly_fields = ('artikl', 'kamion_prijem', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit', 'popis', 'priorita',)
+    fields = ('artikl', 'kamion_prijem', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit', 'popis', 'prubeh', 'priorita',)
+    readonly_fields = ('artikl', 'kamion_prijem', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit', 'popis', 'prubeh', 'priorita',)
     show_change_link = True
     formfield_overrides = {
         models.CharField: {'widget': TextInput(attrs={ 'size': '30'})},
@@ -151,7 +160,7 @@ class KamionAdmin(SimpleHistoryAdmin):
     """
     Správa kamionů v administraci.
     """
-    actions = [import_zakazek_beden_action, tisk_karet_beden_z_kamionu]
+    actions = [import_kamionu_action, tisk_karet_beden_kamionu_action, tisk_dodaciho_listu_kamionu_action]
 
     fields = ('zakaznik', 'datum', 'cislo_dl', 'prijem_vydej', 'misto_expedice',) 
     readonly_fields = ('prijem_vydej',)
@@ -233,10 +242,10 @@ class KamionAdmin(SimpleHistoryAdmin):
             if form.is_valid():
                 file = form.cleaned_data['file']
                 try:
-                    # Načti prvních 200 řádků (jinak načítá celý soubor - přes 100000 řádků)
+                    # Načte prvních 200 řádků (jinak načítá celý soubor - přes 100000 řádků)
                     df = pd.read_excel(file, nrows=200, engine="openpyxl")
 
-                    # Najdi první úplně prázdný řádek
+                    # Najde první úplně prázdný řádek
                     first_empty_index = df[df.isnull().all(axis=1)].index.min()
                     if pd.notna(first_empty_index):
                         df = df.loc[:first_empty_index - 1]
@@ -254,7 +263,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                                 'title': f"Import zakázek pro kamion {kamion}",
                             })
 
-                    # Odstraň prázdné sloupce
+                    # Odstraní prázdné sloupce
                     df.dropna(axis=1, how='all', inplace=True)
 
                     # Přehledné přejmenování sloupců
@@ -296,9 +305,9 @@ class KamionAdmin(SimpleHistoryAdmin):
 
                     # Odstranění nepotřebných sloupců
                     df.drop(columns=[
-                        'Unnamed: 0', 'Abmessung', 'Gew + Tara', 'VPE', 'Box', 'Vorgang+',
-                        'Anzahl Boxen pro Behälter', 'Gew.', 'Härterei', 'Prod. Datum', 'Menge',
-                        'von Härterei \nnach Galvanik', 'Galvanik', 'vom Galvanik nach Eurotec',
+                        'Unnamed: 0', 'Abmessung', 'Gew + Tara', 'VPE', 'Box', 'Anzahl Boxen pro Behälter',
+                        'Gew.', 'Härterei', 'Prod. Datum', 'Menge', 'von Härterei \nnach Galvanik', 'Galvanik',
+                        'vom Galvanik nach Eurotec',
                     ], inplace=True, errors='ignore')
 
                     # Mapování názvů sloupců
@@ -317,7 +326,8 @@ class KamionAdmin(SimpleHistoryAdmin):
                         'Behälter-Nr.:': 'behalter_nr',
                         'Sonder / Zusatzinfo': 'dodatecne_info',
                         'Lief.': 'dodavatel_materialu',
-                        'Fertigungs- auftrags Nr.': 'vyrobni_zakazka'
+                        'Fertigungs- auftrags Nr.': 'vyrobni_zakazka',
+                        'Vorgang+': 'prubeh',
                     }                  
                     df.rename(columns=column_mapping, inplace=True)
 
@@ -341,7 +351,8 @@ class KamionAdmin(SimpleHistoryAdmin):
                                 priorita=row.get('priorita', PrioritaChoice.NIZKA),
                                 popis=row.get('popis'),
                                 vrstva=row.get('vrstva'),
-                                povrch=row.get('povrch')
+                                povrch=row.get('povrch'),
+                                prubeh=row.get('prubeh')
                             )
                             zakazky_cache[artikl] = zakazka
 
@@ -473,13 +484,13 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     """
     inlines = [BednaInline]
     form = ZakazkaAdminForm
-    actions = [expedice_zakazek, tisk_karet_beden_zakazek,]
+    actions = [expedice_zakazek_action, tisk_karet_beden_zakazek_action,]
 
     # Parametry pro zobrazení detailu v administraci
     readonly_fields = ('expedovano', 'get_komplet')
     
     # Parametry pro zobrazení seznamu v administraci
-    list_display = ('artikl', 'zakaznik', 'kamion_prijem_link', 'kamion_vydej_link', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit', 'popis', 'priorita',
+    list_display = ('artikl', 'zakaznik', 'kamion_prijem_link', 'kamion_vydej_link', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit', 'popis', 'prubeh', 'priorita',
                     'hmotnost_zakazky_k_expedici_brutto', 'pocet_beden_k_expedici', 'celkovy_pocet_beden', 'get_komplet',)
     list_display_links = ('artikl',)
     search_fields = ('artikl',)
@@ -701,8 +712,8 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
             if obj.kamion_prijem.zakaznik.zkratka == 'EUR':
                 my_fieldsets.append(                  
                     ('Pouze pro Eurotec:', {
-                        'fields': ['vrstva', 'povrch'],
-                        'description': 'Pro Eurotec musí být vyplněno: Tloušťka vrstvy a povrchová úprava.',
+                        'fields': ['vrstva', 'povrch', 'prubeh'],
+                        'description': 'Pro Eurotec musí být vyplněno: Tloušťka vrstvy, povrchová úprava a průběh.',
                     }),
                 )
 
@@ -749,9 +760,9 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
                     'description': 'Přijímání zakázky z kamiónu na sklad, pokud ještě není kamión v systému, vytvořte ho pomocí ikony ➕ u položky Kamión.',
                 }), 
                 ('Pouze pro Eurotec:', {
-                    'fields': ['vrstva', 'povrch'],
+                    'fields': ['vrstva', 'povrch', 'prubeh'],
                     'classes': ['collapse'],
-                    'description': 'Pro Eurotec musí být vyplněno: Tloušťka vrstvy a Povrchová úprava.',
+                    'description': 'Pro Eurotec musí být vyplněno: Tloušťka vrstvy, Povrchová úprava a Průběh.',
                 }),  
                 ('Celková hmotnost zakázky a počet beden pro rozpočtení na jednotlivé bedny:', {
                     'fields': ['celkova_hmotnost', 'pocet_beden',],
@@ -827,7 +838,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     - Pro každý řádek dropdown omezí na povolené volby podle stejné logiky.
     - Číslo bedny se generuje automaticky a je readonly
     """
-    actions = [tisk_karet_beden]
+    actions = [tisk_karet_beden_action]
     form = BednaAdminForm
 
     # Parametry pro zobrazení detailu v administraci
