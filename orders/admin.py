@@ -15,7 +15,7 @@ import pandas as pd
 
 from .models import Zakaznik, Kamion, Zakazka, Bedna
 from .actions import expedice_zakazek_action, import_kamionu_action, tisk_karet_beden_action, tisk_karet_beden_zakazek_action, tisk_karet_beden_kamionu_action, \
-    tisk_dodaciho_listu_kamionu_action
+    tisk_dodaciho_listu_kamionu_action, vratit_zakazky_z_expedice_action
 from .filters import ExpedovanaZakazkaFilter, StavBednyFilter, KompletZakazkaFilter
 from .forms import ZakazkaAdminForm, BednaAdminForm, ImportZakazekForm, ZakazkaInlineForm
 from .choices import (
@@ -484,7 +484,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     """
     inlines = [BednaInline]
     form = ZakazkaAdminForm
-    actions = [expedice_zakazek_action, tisk_karet_beden_zakazek_action,]
+    actions = [expedice_zakazek_action, tisk_karet_beden_zakazek_action, vratit_zakazky_z_expedice_action]
 
     # Parametry pro zobrazení detailu v administraci
     readonly_fields = ('expedovano', 'get_komplet')

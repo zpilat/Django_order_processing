@@ -131,6 +131,40 @@ def tisk_karet_beden_zakazek_action(modeladmin, request, queryset):
     return utilita_tisk_karet_beden(modeladmin, request, bedny)    
 
 
+@admin.action(description="Vrácení vybraných zakázek z expedice")
+def vratit_zakazky_z_expedice_action(modeladmin, request, queryset):
+    """
+    Vrátí vybrané zakázky z expedice.
+    
+    Průběh:
+    1. Zkontroluje se, zda je alespoň jedna zakázka vybrána.
+    2. Pro každou zakázku v querysetu:
+        - Zkontroluje se, zda má stav expedice (expedovano=True).
+        - Pokud ano, nastaví se expedovano=False a kamion_vydej=None.
+        - Všechny bedny v zakázce se převedou na stav K_EXPEDICI.
+    3. Po úspěšném průběhu odešle `messages.success`.
+    """
+    if not queryset.exists():
+        messages.error(request, "Neoznačili jste žádnou zakázku.")
+        return
+
+    for zakazka in queryset:
+        if not zakazka.expedovano:
+            messages.error(request, f"Zakázka {zakazka} není vyexpedována.")
+            continue
+        
+        zakazka.expedovano = False
+        zakazka.kamion_vydej = None
+        zakazka.save()
+
+        # Převede všechny bedny na stav K_EXPEDICI
+        for bedna in zakazka.bedny.all():
+            bedna.stav_bedny = StavBednyChoice.K_EXPEDICI
+            bedna.save()
+
+    messages.success(request, "Vybrané zakázky byly úspěšně vráceny z expedice.")
+
+
 # Akce pro kamiony:
 
 @admin.action(description="Importovat dodací list pro vybraný kamion")
