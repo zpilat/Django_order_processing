@@ -44,7 +44,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // jednorádkový obsah
         box.innerHTML = `
             <i class="fas fa-boxes" style="margin-right:0.5em;"></i>
-            Celkový počet beden v označených zakázkách: <strong>${boxCountSum}</strong>        
+            Celkový počet beden k expedici v označených zakázkách: <strong>${boxCountSum}</strong>        
             &nbsp;|&nbsp;
             <i class="fas fa-balance-scale" style="margin-right:0.5em;"></i>
             Celková brutto hmotnost beden k expedici v označených zakázkách: <strong>${weightSum.toFixed(1)} kg</strong>
