@@ -362,7 +362,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                                 popis=row.get('popis'),
                                 vrstva=row.get('vrstva'),
                                 povrch=row.get('povrch'),
-                                prubeh=row.get('prubeh')
+                                prubeh=row.get('prubeh').zfill(6) if row.get('prubeh') else None,
                             )
                             zakazky_cache[artikl] = zakazka
 
