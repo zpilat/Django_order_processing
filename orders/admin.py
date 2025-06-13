@@ -14,7 +14,7 @@ from decimal import Decimal, ROUND_HALF_UP
 import pandas as pd
 
 from .models import Zakaznik, Kamion, Zakazka, Bedna
-from .actions import expedice_zakazek, import_zakazek_beden_action, tisk_karet_beden, tisk_karet_beden_zakazek
+from .actions import expedice_zakazek, import_zakazek_beden_action, tisk_karet_beden, tisk_karet_beden_zakazek, tisk_karet_beden_z_kamionu
 from .filters import ExpedovanaZakazkaFilter, StavBednyFilter, KompletZakazkaFilter
 from .forms import ZakazkaAdminForm, BednaAdminForm, ImportZakazekForm, ZakazkaInlineForm
 from .choices import (
@@ -151,7 +151,7 @@ class KamionAdmin(SimpleHistoryAdmin):
     """
     Správa kamionů v administraci.
     """
-    actions = [import_zakazek_beden_action]
+    actions = [import_zakazek_beden_action, tisk_karet_beden_z_kamionu]
 
     fields = ('zakaznik', 'datum', 'cislo_dl', 'prijem_vydej', 'misto_expedice',) 
     readonly_fields = ('prijem_vydej',)

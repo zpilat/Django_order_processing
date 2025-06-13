@@ -30,7 +30,7 @@ def utilita_tisk_karet_beden(modeladmin, request, queryset):
         for bedna in queryset:
             context = {"bedna": bedna}
             html = render_to_string("orders/karta_bedny_eur.html", context)
-            all_html += html + '<p style="page-break-after: always"></p>'  # Odděl stránky
+            all_html += html + '<p style="page-break-after: always"></p>'  # Oddělí stránky
 
         pdf_file = HTML(string=all_html).write_pdf()
         response = HttpResponse(pdf_file, content_type="application/pdf")

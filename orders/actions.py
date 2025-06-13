@@ -186,3 +186,25 @@ def tisk_karet_beden_zakazek(modeladmin, request, queryset):
         messages.error(request, "V označených zakázkách nejsou žádné bedny.")
         return None
     return utilita_tisk_karet_beden(modeladmin, request, bedny)
+
+@admin.action(description="Vytisknout karty beden z vybraného kamionu v PDF")
+def tisk_karet_beden_z_kamionu(modeladmin, request, queryset):
+    """
+    Vytvoří PDF s kartami beden z vybraného kamionu.
+    Musí být vybrán pouze jeden kamion, jinak se zobrazí chybová zpráva.
+    Musí se jednat o kamion s příznakem příjem, jinak se zobrazí chybová zpráva.
+    """
+    if not queryset.exists():
+        messages.error(request, "Neoznačili jste žádný kamion.")
+        return None
+    if queryset.count() != 1:
+        messages.error(request, "Vyberte pouze jeden kamion.")
+        return None
+    if queryset.first().prijem_vydej != 'P':
+        messages.error(request, "Tisk karet beden je možný pouze pro kamiony příjem.")
+        return None
+    bedny = Bedna.objects.filter(zakazka__kamion_prijem__in=queryset)
+    if not bedny.exists():
+        messages.error(request, "V označeném kamionu nejsou žádné bedny.")
+        return None
+    return utilita_tisk_karet_beden(modeladmin, request, bedny)
