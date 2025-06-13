@@ -621,9 +621,6 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
             if any(f in form.changed_data for f in ('stav_bedny','tryskat','rovnat')):
                 zakazka = form.instance
                 instances = list(formset.queryset)
-                if not instances:
-                    messages.error(request, "Zakázka neobsahuje žádné bedny.")
-                    return
                 
                 # Získání hodnot z formuláře
                 new_stav_bedny = form.cleaned_data['stav_bedny'] if 'stav_bedny' in form.changed_data else None
@@ -674,12 +671,10 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
             if celkova_hmotnost and len(instances) > 0:
                 hmotnost_bedny = Decimal(celkova_hmotnost) / len(instances)
                 hmotnost_bedny = hmotnost_bedny.quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)
-
                 hodnoty = [hmotnost_bedny] * (pocet_beden - 1)
                 posledni = celkova_hmotnost - sum(hodnoty)
                 posledni = posledni.quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)
                 hodnoty.append(posledni)
-
                 for instance, hodnota in zip(instances, hodnoty):
                     instance.hmotnost = hodnota
 
@@ -687,8 +682,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
             for field, hodnota in data_ze_zakazky.items():
                 if hodnota:
                     for instance in instances:
-                        value = getattr(instance, field)
-                        if value in (None, ''):
+                        if getattr(instance, field) in (None, ''):
                             setattr(instance, field, hodnota)
 
             # Ulož všechny instance, pokud jsou to nove_bedny automaticky přidané
