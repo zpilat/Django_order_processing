@@ -174,15 +174,15 @@ class KamionAdmin(SimpleHistoryAdmin):
 
     fields = ('zakaznik', 'datum', 'cislo_dl', 'prijem_vydej', 'misto_expedice',) 
     readonly_fields = ('prijem_vydej',)
-    list_display = ('get_kamion_str', 'zakaznik__nazev', 'datum', 'cislo_dl', 'prijem_vydej', 'misto_expedice',)
-    list_filter = ('zakaznik__nazev', 'prijem_vydej',)
+    list_display = ('get_kamion_str', 'zakaznik__zkraceny_nazev', 'datum', 'cislo_dl', 'prijem_vydej', 'misto_expedice',)
+    list_filter = ('zakaznik__zkraceny_nazev', 'prijem_vydej',)
     list_display_links = ('get_kamion_str',)
     ordering = ('-id',)
     date_hierarchy = 'datum'
     list_per_page = 20
 
     history_list_display = ["id", "zakaznik", "datum"]
-    history_search_fields = ["zakaznik__nazev", "datum"]
+    history_search_fields = ["zakaznik__zkraceny_nazev", "datum"]
     history_list_filter = ["zakaznik", "datum"]
     history_list_per_page = 20
 
@@ -852,7 +852,7 @@ class BednaAdmin(SimpleHistoryAdmin):
 
     # Parametry pro zobrazení seznamu v administraci
     list_display = ('cislo_bedny', 'behalter_nr', 'zakazka_link', 'kamion_prijem_link', 'kamion_vydej_link', 'get_prumer', 'get_delka',
-                    'rovnat', 'tryskat', 'stav_bedny', 'get_typ_hlavy', 'hmotnost', 'tara', 'get_priorita', 'poznamka', 'karta_link',)
+                    'rovnat', 'tryskat', 'stav_bedny', 'get_typ_hlavy', 'hmotnost', 'tara', 'get_priorita', 'poznamka',)
     # list_editable - je nastaveno pro různé stavy filtru Skladem v metodě changelist_view
     list_display_links = ('cislo_bedny', )
     search_fields = ('cislo_bedny', 'zakazka__artikl', 'zakazka__delka',)
@@ -870,11 +870,6 @@ class BednaAdmin(SimpleHistoryAdmin):
     history_search_fields = ["zakazka__kamion_prijem__zakaznik__nazev", "cislo_bedny", "stav_bedny", "zakazka__typ_hlavy", "poznamka"]
     history_list_filter = ["zakazka__kamion_prijem__zakaznik__nazev", "zakazka__kamion_prijem__datum", "stav_bedny"]
     history_list_per_page = 20
-
-    @admin.display(description='Karta')
-    def karta_link(self, obj):
-        url = reverse("karta_bedny", args=[obj.pk])
-        return format_html('<a href="{}" target="_blank">Zobrazit</a>', url)
 
     @admin.display(description='Zakázka')
     def zakazka_link(self, obj):
