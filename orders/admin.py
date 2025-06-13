@@ -97,14 +97,14 @@ class ZakazkaPrijemInline(admin.TabularInline):
     def get_komplet(self, obj):
         '''
         Pokud není objekt (zakázka) uložen, vrátí '-'.
-        Pokud jsou všechny bedny v zakázce k_expedici, vrátí ✔️.
+        Pokud jsou všechny bedny v zakázce k_expedici nebo expedovano, vrátí ✔️.
         Pokud je alespoň jedna bedna v zakázce k expedici, vrátí ⏳.
         Pokud není žádná bedna v zakázce k expedici, vrátí ❌.
         '''
         if not obj.pk:
             return '-'
-            
-        if all(bedna.stav_bedny == StavBednyChoice.K_EXPEDICI for bedna in obj.bedny.all()):
+
+        if all(bedna.stav_bedny in (StavBednyChoice.K_EXPEDICI, StavBednyChoice.EXPEDOVANO) for bedna in obj.bedny.all()):
             return "✔️"
         elif any(bedna.stav_bedny == StavBednyChoice.K_EXPEDICI for bedna in obj.bedny.all()):
             return "⏳"
@@ -146,13 +146,23 @@ class ZakazkaVydejInline(admin.TabularInline):
     verbose_name = "Zakázka - výdej"
     verbose_name_plural = "Zakázky - výdej"
     extra = 0
-    fields = ('artikl', 'kamion_prijem', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit', 'popis', 'prubeh', 'priorita',)
-    readonly_fields = ('artikl', 'kamion_prijem', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit', 'popis', 'prubeh', 'priorita',)
+    fields = ('artikl', 'kamion_prijem', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit', 'popis', 'prubeh', 'priorita', 'celkovy_pocet_beden',)
+    readonly_fields = ('artikl', 'kamion_prijem', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit', 'popis', 'prubeh', 'priorita', 'celkovy_pocet_beden',)
     show_change_link = True
     formfield_overrides = {
         models.CharField: {'widget': TextInput(attrs={ 'size': '30'})},
         models.DecimalField: {'widget': TextInput(attrs={ 'size': '8'})},
     }
+
+    @admin.display(description='Beden')
+    def celkovy_pocet_beden(self, obj):
+        """
+        Vrací počet beden v zakázce a umožní třídění podle hlavičky pole.
+        """
+        if not obj.pk:
+            return 0
+        return obj.bedny.count() if obj.bedny.exists() else 0
+    celkovy_pocet_beden.admin_order_field = 'bedny__count'    
 
 
 @admin.register(Kamion)
@@ -573,14 +583,14 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     def get_komplet(self, obj):
         '''
         Pokud není objekt (zakázka) uložen, vrátí '-'.
-        Pokud jsou všechny bedny v zakázce k_expedici, vrátí ✔️.
+        Pokud jsou všechny bedny v zakázce k_expedici nebo expedovano, vrátí ✔️.
         Pokud je alespoň jedna bedna v zakázce k expedici, vrátí ⏳.
         Pokud není žádná bedna v zakázce k expedici, vrátí ❌.
         '''
         if not obj.pk:
             return '-'
-                    
-        if all(bedna.stav_bedny == StavBednyChoice.K_EXPEDICI for bedna in obj.bedny.all()):
+
+        if all(bedna.stav_bedny in (StavBednyChoice.K_EXPEDICI, StavBednyChoice.EXPEDOVANO) for bedna in obj.bedny.all()):
             return "✔️"
         elif any(bedna.stav_bedny == StavBednyChoice.K_EXPEDICI for bedna in obj.bedny.all()):
             return "⏳"

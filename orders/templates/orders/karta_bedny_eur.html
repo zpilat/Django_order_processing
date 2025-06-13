@@ -74,7 +74,7 @@
                 <tr>
                     <td colspan="3" rowspan="4" class="text-start fs-pdf-12 fw-bold border-end">Označení:</td>
                     <td colspan="7" rowspan="4" class="text-center text-danger fs-pdf-17 fw-bold">{{ bedna.zakazka.popis }}</td>
-                    <td colspan="8" rowspan="4" class="text-start fs-pdf-17 fw-bold">ČÍSLO BEDNY:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;({{ bedna.behalter_nr }})</td>
+                    <td colspan="8" rowspan="4" class="text-start fs-pdf-17 fw-bold">ČÍSLO BEDNY:{% if bedna.behalter_nr %}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;({{ bedna.behalter_nr }}){% endif %}</td>
                 </tr>
                 <tr></tr>
                 <tr></tr>
