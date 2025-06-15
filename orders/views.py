@@ -259,20 +259,20 @@ def dashboard_kamiony_view(request):
             'vydej': celkovy_vydej
         }
 
+    # Přidání celkových součtů dle zákazníků za celý rok
+    mesicni_pohyby['CELKEM'] = {}
+    for mesic, zakaznici_pohyby in mesicni_pohyby.items():
+        if mesic != 'CELKEM':
+            for zakaznik, pohyby in zakaznici_pohyby.items():
+                if zakaznik not in mesicni_pohyby['CELKEM']:
+                    mesicni_pohyby['CELKEM'][zakaznik] = {'prijem': 0, 'vydej': 0}
+                mesicni_pohyby['CELKEM'][zakaznik]['prijem'] += pohyby['prijem']
+                mesicni_pohyby['CELKEM'][zakaznik]['vydej'] += pohyby['vydej']
+
     # Přidání rozdílu mezi příjmy a výdeji pro každý měsíc pro každého zákazníka
     for mesic, zakaznici_pohyby in mesicni_pohyby.items():
         for zakaznik, pohyby in zakaznici_pohyby.items():
             mesicni_pohyby[mesic][zakaznik]['rozdil'] = pohyby['prijem'] - pohyby['vydej']
-
-    # Přidání celkových součtů dle zákazníků za celý rok
-    mesicni_pohyby['CELKEM'] = {}
-    for zakaznici_pohyby in mesicni_pohyby.values():
-        for zakaznik, pohyby in zakaznici_pohyby.items():
-            if zakaznik not in mesicni_pohyby['CELKEM']:
-                mesicni_pohyby['CELKEM'][zakaznik] = {'prijem': 0, 'vydej': 0, 'rozdil': 0}
-            mesicni_pohyby['CELKEM'][zakaznik]['prijem'] += pohyby['prijem']
-            mesicni_pohyby['CELKEM'][zakaznik]['vydej'] += pohyby['vydej']
-            mesicni_pohyby['CELKEM'][zakaznik]['rozdil'] += pohyby['rozdil']
 
     context = {
         'mesicni_pohyby': mesicni_pohyby,
