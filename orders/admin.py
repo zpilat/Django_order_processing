@@ -174,7 +174,7 @@ class KamionAdmin(SimpleHistoryAdmin):
 
     fields = ('zakaznik', 'datum', 'cislo_dl', 'prijem_vydej', 'misto_expedice',) 
     readonly_fields = ('prijem_vydej',)
-    list_display = ('get_kamion_str', 'zakaznik__zkraceny_nazev', 'datum', 'cislo_dl', 'prijem_vydej', 'misto_expedice',)
+    list_display = ('get_kamion_str', 'zakaznik__zkraceny_nazev', 'datum', 'cislo_dl', 'prijem_vydej', 'misto_expedice', 'get_celkova_hmotnost_netto', 'get_celkova_hmotnost_brutto',)
     list_filter = ('zakaznik__zkraceny_nazev', 'prijem_vydej',)
     list_display_links = ('get_kamion_str',)
     ordering = ('-id',)
@@ -200,11 +200,31 @@ class KamionAdmin(SimpleHistoryAdmin):
     
     @admin.display(description='Kamion')
     def get_kamion_str(self, obj):
-        '''
-        Zobrazí stringový popis kamionu a umožní třídění podle hlavičky pole.     
-        '''
+        """
+        Zobrazí stringový popis kamionu a umožní třídění podle hlavičky pole.
+        """
         return obj.__str__()
     get_kamion_str.admin_order_field = 'id'
+
+    @admin.display(description='Netto kg')
+    def get_celkova_hmotnost_netto(self, obj):
+        """
+        Vrací celkovou hmotnost netto kamionu, pokud existují zakázky.
+        Pokud neexistují žádné zakázky, vrátí 0.
+        """
+        if not obj.zakazky_prijem.exists() and not obj.zakazky_vydej.exists():
+            return 0
+        return Decimal(obj.celkova_hmotnost_netto).quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)
+    
+    @admin.display(description='Brutto kg')
+    def get_celkova_hmotnost_brutto(self, obj):
+        """
+        Vrací celkovou hmotnost brutto kamionu, pokud existují zakázky.
+        Pokud neexistují žádné zakázky, vrátí 0.
+        """
+        if not obj.zakazky_prijem.exists() and not obj.zakazky_vydej.exists():
+            return 0
+        return Decimal(obj.celkova_hmotnost_brutto).quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)
 
     def get_fields(self, request, obj=None):
         """

@@ -168,7 +168,7 @@ class ZakazkyListView(LoginRequiredMixin, ListView):
 
 
 @login_required
-def dashboard_view(request):
+def dashboard_bedny_view(request):
     '''
     Zobrazení přehledu stavu beden jednotlivých zákazníků,
     pro každého zákazníka a pro všechny dohromady zobrazí pro jednotlivé stavy celkovou hmotnost.
@@ -192,15 +192,94 @@ def dashboard_view(request):
     context = {
         'prehled_beden_zakaznika': prehled_beden_zakaznika,
         'stav_bedny_choices': StavBednyChoice.choices,
-        'db_table': 'dashboard',
+        'db_table': 'dashboard_bedny',
         'current_time': timezone.now(),
         }
     
     if request.htmx:
-        return render(request, "orders/partials/dashboard_content.html", context)
-    return render(request, 'orders/dashboard.html', context)
+        return render(request, "orders/partials/dashboard_bedny_content.html", context)
+    return render(request, 'orders/dashboard_bedny.html', context)
+
 
 @login_required
-def karta_bedny_view(request, pk):
-    bedna = get_object_or_404(Bedna, pk=pk)
-    return render(request, "orders/karta_bedny_eur.html", {"bedna": bedna})
+def dashboard_kamiony_view(request):
+    """
+    Zobrazení přehledu příjmů a výdejů kamionů za jednotlivé měsíce v roce.
+    Umožňuje filtrovat podle roku a zobrazuje celkovou hmotnost beden pro jednotlivé zákazníky.
+    V případě HTMX požadavku vrací pouze část obsahu pro aktualizaci.
+    """
+    zakaznici = Zakaznik.objects.all().order_by('zkratka')
+    rok = request.GET.get('rok', timezone.now().year)
+    kamiony_prijem_rok = Kamion.objects.filter(prijem_vydej='P', datum__year=rok)
+    kamiony_vydej_rok = Kamion.objects.filter(prijem_vydej='V', datum__year=rok)
+
+    kamiony_prijem = kamiony_prijem_rok.values(
+        'datum__month', 'zakaznik__zkraceny_nazev'
+    ).annotate(
+        celkova_hmotnost=Sum('zakazky_prijem__bedny__hmotnost')
+    )
+
+    kamiony_vydej = kamiony_vydej_rok.values(
+        'datum__month', 'zakaznik__zkraceny_nazev'
+    ).annotate(
+        celkova_hmotnost=Sum('zakazky_vydej__bedny__hmotnost')
+    )
+
+    # Inicializace slovníku pro měsíční pohyby
+    mesicni_pohyby = {}
+    # Přidání všech měsíců do slovníku, aby se zajistilo, že budou zobrazeny i prázdné měsíce
+    mesice = ('leden / január', 'únor / február', 'březen / marec',
+              'duben / apríl', 'květen / máj', 'červen / jún',
+              'červenec / júl', 'srpen / august', 'září / september',
+              'říjen / október', 'listopad / november', 'prosinec / december')
+    for mesic in range(1, 13):
+        # Inicializace prázdného slovníku pro každý měsíc
+        mesicni_pohyby[mesic] = {}
+        # Přidání všech zákazníků do každého měsíce, aby se zajistilo, že budou zobrazeny i zákazníci bez pohybu v daném měsíci
+        for zakaznik in zakaznici:
+            mesicni_pohyby[mesic][zakaznik.zkraceny_nazev] = {'prijem': 0, 'vydej': 0}
+
+    # Sčítání příjmů a výdejů pro jednotlivé měsíce a zákazníky
+    for kamion_prijem in kamiony_prijem:
+        mesic = kamion_prijem['datum__month']
+        zakaznik = kamion_prijem['zakaznik__zkraceny_nazev']
+        mesicni_pohyby[mesic][zakaznik]['prijem'] += kamion_prijem['celkova_hmotnost'] or 0
+
+    for kamion_vydej in kamiony_vydej:
+        mesic = kamion_vydej['datum__month']
+        zakaznik = kamion_vydej['zakaznik__zkraceny_nazev']
+        mesicni_pohyby[mesic][zakaznik]['vydej'] += kamion_vydej['celkova_hmotnost'] or 0
+
+    # Přidání celkových součtů pro každý měsíc
+    for mesic, zakaznici_pohyby in mesicni_pohyby.items():
+        celkovy_prijem = sum(pohyby['prijem'] for pohyby in zakaznici_pohyby.values())
+        celkovy_vydej = sum(pohyby['vydej'] for pohyby in zakaznici_pohyby.values())
+        mesicni_pohyby[mesic]['CELKEM'] = {
+            'prijem': celkovy_prijem,
+            'vydej': celkovy_vydej
+        }
+
+    # Přidání rozdílu mezi příjmy a výdeji pro každý měsíc pro každého zákazníka
+    for mesic, zakaznici_pohyby in mesicni_pohyby.items():
+        for zakaznik, pohyby in zakaznici_pohyby.items():
+            mesicni_pohyby[mesic][zakaznik]['rozdil'] = pohyby['prijem'] - pohyby['vydej']
+
+    # Přidání celkových součtů dle zákazníků za celý rok
+    mesicni_pohyby['CELKEM'] = {}
+    for mesic, zakaznici_pohyby in mesicni_pohyby.items():
+        for zakaznik, pohyby in zakaznici_pohyby.items():
+            if zakaznik not in mesicni_pohyby['CELKEM']:
+                mesicni_pohyby['CELKEM'][zakaznik] = {'prijem': 0, 'vydej': 0, 'rozdil': 0}
+            mesicni_pohyby['CELKEM'][zakaznik]['prijem'] += pohyby['prijem']
+            mesicni_pohyby['CELKEM'][zakaznik]['vydej'] += pohyby['vydej']
+            mesicni_pohyby['CELKEM'][zakaznik]['rozdil'] += pohyby['rozdil']
+
+    context = {
+        'mesicni_pohyby': mesicni_pohyby,
+        'rok': rok,
+        'current_time': timezone.now(),
+    }
+    
+    if request.htmx:
+        return render(request, "orders/partials/dashboard_kamiony_content.html", context)
+    return render(request, 'orders/dashboard_kamiony.html', context)

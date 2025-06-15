@@ -56,25 +56,41 @@ class Kamion(models.Model):
         return f'{self.id}. {self.zakaznik.zkratka} {self.datum}'
     
     @property
-    def celkova_hmotnost_vydej_netto(self):
+    def celkova_hmotnost_netto(self):
         """
-        Vrací celkovou hmotnost netto všech beden ve všech zakázkách spojených s tímto kamionem pro výdej.
+        Vrací celkovou hmotnost netto všech beden spojených s tímto kamionem.
         """
-        return sum(
-            zakazka.bedny.aggregate(suma=Sum('hmotnost'))['suma'] or 0
-            for zakazka in self.zakazky_vydej.all()
-        )       
+        # Pokud je kamion pro výdej, vrací hmotnost beden spojených s výdejem.
+        if self.prijem_vydej == KamionChoice.VYDEJ:
+            return Bedna.objects.filter(
+                zakazka__kamion_vydej=self
+            ).aggregate(suma=Sum('hmotnost'))['suma'] or 0
+        # Pokud je kamion pro příjem, vrací hmotnost beden spojených s příjmem.
+        elif self.prijem_vydej == KamionChoice.PRIJEM:
+            return Bedna.objects.filter(
+                zakazka__kamion_prijem=self
+            ).aggregate(suma=Sum('hmotnost'))['suma'] or 0
+        else:
+            raise ValidationError(_("Neplatný typ kamionu. Musí být buď 'Přijem' nebo 'Výdej'."))
     
     @property
-    def celkova_hmotnost_vydej_brutto(self):
+    def celkova_hmotnost_brutto(self):
         """
-        Vrací celkovou hmotnost brutto všech beden ve všech zakázkách spojených s tímto kamionem pro výdej.
+        Vrací celkovou hmotnost brutto všech beden ve všech zakázkách spojených s tímto kamionem.
         """
-        celkova_hmotnost_samotnych_beden = sum(
-            zakazka.bedny.aggregate(suma=Sum('tara'))['suma'] or 0
-            for zakazka in self.zakazky_vydej.all()
-        )
-        return celkova_hmotnost_samotnych_beden + self.celkova_hmotnost_vydej_netto
+        # Pokud je kamion pro výdej, vrací hmotnost beden spojených s výdejem.
+        if self.prijem_vydej == KamionChoice.VYDEJ:
+            celkova_tara = Bedna.objects.filter(
+                zakazka__kamion_vydej=self
+            ).aggregate(suma=Sum('tara'))['suma'] or 0
+        # Pokud je kamion pro příjem, vrací hmotnost beden spojených s příjmem.
+        elif self.prijem_vydej == KamionChoice.PRIJEM:
+            celkova_tara = Bedna.objects.filter(
+                zakazka__kamion_prijem=self
+            ).aggregate(suma=Sum('tara'))['suma'] or 0
+        else:
+            raise ValidationError(_("Neplatný typ kamionu. Musí být buď 'Přijem' nebo 'Výdej'."))
+        return celkova_tara + self.celkova_hmotnost_netto
 
     def get_admin_url(self):
         """

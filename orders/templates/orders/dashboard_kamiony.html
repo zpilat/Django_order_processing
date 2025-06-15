@@ -1,0 +1,14 @@
+{% extends "orders/base.html" %}
+
+{% block header %}{% endblock%}
+
+{% block content %}
+  <div id="dashboard-content"
+       hx-get="{% url 'dashboard_kamiony' %}"
+       hx-trigger="every 60m"
+       hx-swap="innerHTML">
+    {% include "orders/partials/dashboard_kamiony_content.html" %}
+  </div>
+{% endblock %}
+
+
