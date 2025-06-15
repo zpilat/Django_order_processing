@@ -266,7 +266,7 @@ def dashboard_kamiony_view(request):
 
     # Přidání celkových součtů dle zákazníků za celý rok
     mesicni_pohyby['CELKEM'] = {}
-    for mesic, zakaznici_pohyby in mesicni_pohyby.items():
+    for zakaznici_pohyby in mesicni_pohyby.values():
         for zakaznik, pohyby in zakaznici_pohyby.items():
             if zakaznik not in mesicni_pohyby['CELKEM']:
                 mesicni_pohyby['CELKEM'][zakaznik] = {'prijem': 0, 'vydej': 0, 'rozdil': 0}
