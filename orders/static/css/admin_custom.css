@@ -1,0 +1,15 @@
+/* Zmenší výšku inputů v changelistu */
+.change-list form .form-row input,
+.change-list form .form-row select,
+.change-list table td input,
+.change-list table td select {
+    padding-top: 2px !important;
+    padding-bottom: 2px !important;
+    height: 24px !important;
+    font-size: 13px;
+}
+
+/* Zmenší výšku řádků tabulky */
+.change-list-results tbody > tr {
+    height: 30px;
+}
