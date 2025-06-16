@@ -879,12 +879,12 @@ class BednaAdmin(SimpleHistoryAdmin):
 
     # Parametry pro zobrazení seznamu v administraci
     list_display = ('cislo_bedny', 'behalter_nr', 'zakazka_link', 'kamion_prijem_link', 'kamion_vydej_link', 'get_prumer', 'get_delka',
-                    'rovnat', 'tryskat', 'stav_bedny', 'get_typ_hlavy', 'hmotnost', 'tara', 'get_priorita', 'poznamka',)
+                    'rovnat', 'tryskat', 'stav_bedny', 'get_typ_hlavy', 'get_celozavit', 'hmotnost', 'tara', 'get_priorita', 'poznamka',)
     # list_editable - je nastaveno pro různé stavy filtru Skladem v metodě changelist_view
     list_display_links = ('cislo_bedny', )
     search_fields = ('cislo_bedny', 'zakazka__artikl', 'zakazka__delka',)
     search_help_text = "Hledat podle čísla bedny, artiklu nebo délky vrutu"
-    list_filter = ('zakazka__kamion_prijem__zakaznik__nazev', StavBednyFilter, 'rovnat', 'tryskat', 'zakazka__priorita', )
+    list_filter = ('zakazka__kamion_prijem__zakaznik__nazev', StavBednyFilter, 'rovnat', 'tryskat', 'zakazka__celozavit', 'zakazka__typ_hlavy', 'zakazka__priorita', )
     ordering = ('id',)
     date_hierarchy = 'zakazka__kamion_prijem__datum'
     formfield_overrides = {
@@ -898,67 +898,64 @@ class BednaAdmin(SimpleHistoryAdmin):
     history_list_filter = ["zakazka__kamion_prijem__zakaznik__nazev", "zakazka__kamion_prijem__datum", "stav_bedny"]
     history_list_per_page = 20
 
-    @admin.display(description='Zakázka')
+    @admin.display(description='Zakázka', ordering='zakazka__id', empty_value='-')
     def zakazka_link(self, obj):
         """
         Vytvoří odkaz na detail zakázky, ke které bedna patří a umožní třídění podle hlavičky pole.
         """
         if obj.zakazka:
             return mark_safe(f'<a href="{obj.zakazka.get_admin_url()}">{obj.zakazka.artikl}</a>')
-        return '-'
-    zakazka_link.admin_order_field = 'zakazka__id'
 
-    @admin.display(description='Kamion příjem')
+    @admin.display(boolean=True, description='VG', ordering='zakazka__celozavit')
+    def get_celozavit(self, obj):
+        """
+        Zobrazí boolean, jestli je vrut celozávitový a umožní třídění podle hlavičky pole.
+        """
+        return obj.zakazka.celozavit
+
+    @admin.display(description='Kamion příjem', ordering='zakazka__kamion_prijem__id', empty_value='-')
     def kamion_prijem_link(self, obj):
         """
         Vytvoří odkaz na detail kamionu příjmu, ke kterému bedna patří a umožní třídění podle hlavičky pole.
         """
         if obj.zakazka and obj.zakazka.kamion_prijem:
             return mark_safe(f'<a href="{obj.zakazka.kamion_prijem.get_admin_url()}">{obj.zakazka.kamion_prijem}</a>')
-        return '-'
-    kamion_prijem_link.admin_order_field = 'zakazka__kamion_prijem__id'
 
-    @admin.display(description='Kamion výdej')
+    @admin.display(description='Kamion výdej', ordering='zakazka__kamion_vydej__id', empty_value='-')
     def kamion_vydej_link(self, obj):
         """
         Vytvoří odkaz na detail kamionu výdeje, ke kterému bedna patří a umožní třídění podle hlavičky pole.
         """
         if obj.zakazka and obj.zakazka.kamion_vydej:
             return mark_safe(f'<a href="{obj.zakazka.kamion_vydej.get_admin_url()}">{obj.zakazka.kamion_vydej}</a>')
-        return '-'
-    kamion_vydej_link.admin_order_field = 'zakazka__kamion_vydej__id'
 
-    @admin.display(description='Typ hlavy')
+    @admin.display(description='Hlava', ordering='zakazka__typ_hlavy')
     def get_typ_hlavy(self, obj):
         """
         Zobrazí typ hlavy zakázky a umožní třídění podle hlavičky pole.
         """
         return obj.zakazka.typ_hlavy
-    get_typ_hlavy.admin_order_field = 'zakazka__typ_hlavy'
 
-    @admin.display(description='Priorita')
+    @admin.display(description='Priorita', ordering='zakazka__priorita')
     def get_priorita(self, obj):
         """
         Zobrazí prioritu zakázky a umožní třídění podle hlavičky pole.
         """
         return obj.zakazka.priorita
-    get_priorita.admin_order_field = 'zakazka__priorita'
 
-    @admin.display(description='Průměr')
+    @admin.display(description='Průměr', ordering='zakazka__prumer')
     def get_prumer(self, obj):
         """
         Zobrazí průměr zakázky a umožní třídění podle hlavičky pole.
         """
         return obj.zakazka.prumer
-    get_prumer.admin_order_field = 'zakazka__prumer'
 
-    @admin.display(description='Délka')
+    @admin.display(description='Délka', ordering='zakazka__delka')
     def get_delka(self, obj):
         """
         Zobrazí délku zakázky a umožní třídění podle hlavičky pole.
         """
         return obj.zakazka.delka
-    get_delka.admin_order_field = 'zakazka__delka'
 
     def get_fields(self, request, obj=None):
         """
