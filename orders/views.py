@@ -214,13 +214,13 @@ def dashboard_kamiony_view(request):
     kamiony_vydej_rok = Kamion.objects.filter(prijem_vydej='V', datum__year=rok)
 
     kamiony_prijem = kamiony_prijem_rok.values(
-        'datum__month', 'zakaznik__zkraceny_nazev'
+        'datum__month', 'zakaznik__zkratka'
     ).annotate(
         celkova_hmotnost=Sum('zakazky_prijem__bedny__hmotnost')
     )
 
     kamiony_vydej = kamiony_vydej_rok.values(
-        'datum__month', 'zakaznik__zkraceny_nazev'
+        'datum__month', 'zakaznik__zkratka'
     ).annotate(
         celkova_hmotnost=Sum('zakazky_vydej__bedny__hmotnost')
     )
@@ -237,17 +237,17 @@ def dashboard_kamiony_view(request):
         mesicni_pohyby[mesic] = {}
         # Přidání všech zákazníků do každého měsíce, aby se zajistilo, že budou zobrazeny i zákazníci bez pohybu v daném měsíci
         for zakaznik in zakaznici:
-            mesicni_pohyby[mesic][zakaznik.zkraceny_nazev] = {'prijem': 0, 'vydej': 0}
+            mesicni_pohyby[mesic][zakaznik.zkratka] = {'prijem': 0, 'vydej': 0}
 
     # Sčítání příjmů a výdejů pro jednotlivé měsíce a zákazníky
     for kamion_prijem in kamiony_prijem:
         mesic = kamion_prijem['datum__month']
-        zakaznik = kamion_prijem['zakaznik__zkraceny_nazev']
+        zakaznik = kamion_prijem['zakaznik__zkratka']
         mesicni_pohyby[mesic][zakaznik]['prijem'] += kamion_prijem['celkova_hmotnost'] or 0
 
     for kamion_vydej in kamiony_vydej:
         mesic = kamion_vydej['datum__month']
-        zakaznik = kamion_vydej['zakaznik__zkraceny_nazev']
+        zakaznik = kamion_vydej['zakaznik__zkratka']
         mesicni_pohyby[mesic][zakaznik]['vydej'] += kamion_vydej['celkova_hmotnost'] or 0
 
     # Přidání celkových součtů pro každý měsíc
