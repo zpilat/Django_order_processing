@@ -878,7 +878,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     readonly_fields = ('cislo_bedny',)
 
     # Parametry pro zobrazení seznamu v administraci
-    list_display = ('cislo_bedny', 'behalter_nr', 'zakazka_link', 'kamion_prijem_link', 'kamion_vydej_link', 'get_prumer', 'get_delka',
+    list_display = ('cislo_bedny', 'behalter_nr', 'zakazka_link', 'kamion_prijem_link', 'kamion_vydej_link', 'get_popis', 'get_prumer', 'get_delka',
                     'rovnat', 'tryskat', 'stav_bedny', 'get_typ_hlavy', 'get_celozavit', 'hmotnost', 'tara', 'get_priorita', 'poznamka',)
     # list_editable - je nastaveno pro různé stavy filtru Skladem v metodě changelist_view
     list_display_links = ('cislo_bedny', )
@@ -912,6 +912,13 @@ class BednaAdmin(SimpleHistoryAdmin):
         Zobrazí boolean, jestli je vrut celozávitový a umožní třídění podle hlavičky pole.
         """
         return obj.zakazka.celozavit
+    
+    @admin.display(description='Popis', ordering='zakazka__popis', empty_value='-')
+    def get_popis(self, obj):
+        """
+        Zobrazí popis zakázky a umožní třídění podle hlavičky pole.
+        """
+        return obj.zakazka.popis
 
     @admin.display(description='Kamion příjem', ordering='zakazka__kamion_prijem__id', empty_value='-')
     def kamion_prijem_link(self, obj):
