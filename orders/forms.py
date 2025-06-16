@@ -1,5 +1,5 @@
 from django import forms
-from .models import Zakazka, Bedna
+from .models import Zakaznik, Kamion, Zakazka, Bedna
 from .choices import (
     TypHlavyChoice, StavBednyChoice, RovnaniChoice, TryskaniChoice,
     PrioritaChoice, ZinkovnaChoice, KamionChoice
@@ -145,3 +145,24 @@ class BednaAdminForm(forms.ModelForm):
         allowed_rovnat = self.instance.get_allowed_rovnat_choices()
         field_rovnat.choices = allowed_rovnat
         field_rovnat.initial = self.instance.rovnat
+
+
+class VyberKamionForm(forms.Form):
+    """
+    Formulář pro výběr kamionu pro expedici zakázek.
+    Umožňuje vybrat kamion, který má stav 'V' (výdej).
+    Při inicializaci se nastaví queryset kamionů podle zadaného zákazníka.
+    """
+    kamion = forms.ModelChoiceField(
+        queryset=Kamion.objects.none(),
+        label="Vyberte kamion pro expedici",
+        required=True
+    )
+
+    def __init__(self, *args, **kwargs):
+        zakaznik = kwargs.pop('zakaznik', None)
+        super().__init__(*args, **kwargs)
+        if zakaznik:
+            self.fields['kamion'].queryset = Kamion.objects.filter(
+                prijem_vydej='V', zakaznik=zakaznik
+            )

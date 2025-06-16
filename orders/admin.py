@@ -15,7 +15,7 @@ import pandas as pd
 
 from .models import Zakaznik, Kamion, Zakazka, Bedna
 from .actions import expedice_zakazek_action, import_kamionu_action, tisk_karet_beden_action, tisk_karet_beden_zakazek_action, tisk_karet_beden_kamionu_action, \
-    tisk_dodaciho_listu_kamionu_action, vratit_zakazky_z_expedice_action
+    tisk_dodaciho_listu_kamionu_action, vratit_zakazky_z_expedice_action, expedice_zakazek_kamion_action
 from .filters import ExpedovanaZakazkaFilter, StavBednyFilter, KompletZakazkaFilter
 from .forms import ZakazkaAdminForm, BednaAdminForm, ImportZakazekForm, ZakazkaInlineForm
 from .choices import (
@@ -255,6 +255,9 @@ class KamionAdmin(SimpleHistoryAdmin):
         return rof
     
     def get_urls(self):
+        """
+        Přidá vlastní URL pro import zakázek do kamionu.
+        """
         urls = super().get_urls()
         custom_urls = [
             path('import-zakazek/', self.admin_site.admin_view(self.import_view), name='import_zakazek_beden'),
@@ -262,6 +265,10 @@ class KamionAdmin(SimpleHistoryAdmin):
         return custom_urls + urls
 
     def import_view(self, request):
+        """
+        Zobrazí formulář pro import zakázek do kamionu a zpracuje nahraný soubor.
+        Umožňuje importovat zakázky z Excel souboru a automaticky vytvoří bedny na základě dat v souboru.
+        """
         kamion_id = request.GET.get("kamion")
         kamion = Kamion.objects.get(pk=kamion_id) if kamion_id else None
         errors = []
@@ -514,7 +521,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     """
     inlines = [BednaInline]
     form = ZakazkaAdminForm
-    actions = [expedice_zakazek_action, tisk_karet_beden_zakazek_action, vratit_zakazky_z_expedice_action]
+    actions = [tisk_karet_beden_zakazek_action, expedice_zakazek_action, vratit_zakazky_z_expedice_action, expedice_zakazek_kamion_action]
 
     # Parametry pro zobrazení detailu v administraci
     readonly_fields = ('expedovano', 'get_komplet')
