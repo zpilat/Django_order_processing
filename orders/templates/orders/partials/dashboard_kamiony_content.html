@@ -26,19 +26,16 @@
               {% for zakaznik, data in mesicni_data.items %}
                 {% if zakaznik == "CELKEM" %}
                   <tr class="table-info fw-bold">
-                    <td>{{ zakaznik }}</td>
-                    <td>{{ data.prijem|floatformat:0 }}</td>
-                    <td>{{ data.vydej|floatformat:0 }}</td>
-                    <td>{{ data.rozdil|floatformat:0 }}</td>
-                  </tr>
+                {% elif forloop.counter|divisibleby:2 %}
+                  <tr class="table-light">  
                 {% else %}
                   <tr>
+                {% endif %}                
                     <td>{{ zakaznik }}</td>
                     <td>{{ data.prijem|floatformat:0 }}</td>
                     <td>{{ data.vydej|floatformat:0 }}</td>
                     <td>{{ data.rozdil|floatformat:0 }}</td>
                   </tr>
-                {% endif %}
               {% endfor %}
             </tbody>
           </table>
