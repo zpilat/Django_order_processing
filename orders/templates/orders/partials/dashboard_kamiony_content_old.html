@@ -1,0 +1,45 @@
+{% load custom_filters %}
+
+<div class="alert alert-dark" role="alert">
+  <h3>Přehled měsíčních a ročních příjmů a výdejů dle jednotlivých zákazníků.</h3>
+  <h6>Naposledy aktualizováno {{ current_time|date:"d.m.Y H:i" }}</h6>
+</div>
+
+<div class="row flex-nowrap overflow-auto">
+  <div class="col-lg-4 col-md-6 col-sm-8 mb-4">
+    <table class="table table-sm table-bordered align-middle mb-0 text-center">
+      <thead>
+        <tr class="table-dark" style="font-size: 1.2rem;">
+          <th colspan="4" class="fw-bold">Příjem a výdej (kg)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for mesic, mesicni_data in mesicni_pohyby.items %}
+          <tr class="table-dark">
+            <th colspan="4">{{ mesic }} - {{ rok }}</th>
+          </tr>
+          <tr class="table-secondary">
+            <th>Zákazník</th>
+            <th>Příjem&nbsp;(kg)</th>
+            <th>Výdej&nbsp;(kg)</th>
+            <th>Rozdíl&nbsp;(kg)</th>
+          </tr>
+            {% for zakaznik, data in mesicni_data.items %}
+              {% if forloop.last %}
+                <tr class="table-info">
+              {% elif forloop.counter|divisibleby:2 %}
+                <tr class="table-light">
+              {% else %}
+                <tr>
+              {% endif %}
+                <td>{{ zakaznik }}</td>
+                <td>{{ data.prijem|floatformat:0 }}</td>
+                <td>{{ data.vydej|floatformat:0 }}</td>
+                <td>{{ data.rozdil|floatformat:0 }}</td>
+              </tr>
+            {% endfor %}
+        {% endfor %}
+      </tbody>
+    </table>    
+  </div>
+</div>
