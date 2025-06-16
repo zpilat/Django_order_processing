@@ -13,3 +13,32 @@
 .change-list-results tbody > tr {
     height: 30px;
 }
+
+/* Platí pro textová pole v changelist tabulce */
+.change-list td input[type="text"] {
+    padding: 1px 4px !important;
+    height: 24px !important;
+    font-size: 13px;
+    line-height: 1.2;
+    box-sizing: border-box;
+}
+
+/* Pokud máš textarea (např. TextField): */
+.change-list td textarea {
+    padding: 2px 4px !important;
+    height: 36px !important;
+    font-size: 13px;
+    line-height: 1.2;
+}
+
+/* Zmenší výšku celého řádku tabulky */
+.change-list-results tbody > tr {
+    height: 28px !important;
+}
+
+/* Těsnější zarovnání uvnitř buňky */
+.change-list td {
+    padding-top: 2px !important;
+    padding-bottom: 2px !important;
+    vertical-align: middle !important;
+}
