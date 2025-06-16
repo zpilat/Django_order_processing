@@ -238,6 +238,7 @@ def tisk_karet_beden_kamionu_action(modeladmin, request, queryset):
     Vytvoří PDF s kartami beden z vybraného kamionu.
     Musí být vybrán pouze jeden kamion, jinak se zobrazí chybová zpráva.
     Musí se jednat o kamion s příznakem příjem, jinak se zobrazí chybová zpráva.
+    Tisknou se pouze karty beden, které nejsou již expedovány.
     """
     if not queryset.exists():
         messages.error(request, "Neoznačili jste žádný kamion.")
@@ -248,7 +249,7 @@ def tisk_karet_beden_kamionu_action(modeladmin, request, queryset):
     if queryset.first().prijem_vydej != 'P':
         messages.error(request, "Tisk karet beden je možný pouze pro kamiony příjem.")
         return None
-    bedny = Bedna.objects.filter(zakazka__kamion_prijem__in=queryset)
+    bedny = Bedna.objects.filter(zakazka__kamion_prijem__in=queryset).exclude(stav_bedny=StavBednyChoice.EXPEDOVANO)
     if not bedny.exists():
         messages.error(request, "V označeném kamionu nejsou žádné bedny.")
         return None
