@@ -1,0 +1,34 @@
+{% extends 'admin/base.html' %}
+
+{% block extrastyle %}{{ block.super }}
+<style>
+html[data-theme="light"], :root {
+  --primary: #214290;
+  --secondary: #132e9a;
+  --accent: #ffde17;
+  --primary-fg: #fff;
+
+  --link-fg:  var(--secondary);
+  --link-selected-fg: var(--primary);
+
+  --header-color: #ffc;
+  --header-branding-color: var(--accent);
+  --header-bg: var(--secondary);
+  --header-link-color: #ffde17;
+
+  --breadcrumbs-fg: var(--secondary);
+  --breadcrumbs-link-fg:rgb(5, 1, 36);
+  --breadcrumbs-bg: #ffde17;
+
+  --button-fg: #fff;
+  --button-bg: var(--secondary);
+  --button-hover-bg: #205067;
+  --default-button-bg: #ffde17;
+  --default-button-hover-bg: var(--secondary);
+  --close-button-bg: #747474;
+  --close-button-hover-bg: #333;
+  --delete-button-bg: #ba2121;
+  --delete-button-hover-bg: #a41515;
+}
+</style>
+{% endblock %}
