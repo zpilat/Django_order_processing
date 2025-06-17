@@ -1,6 +1,6 @@
 {% load custom_filters %}
 
-<div class="alert alert-dark" role="alert">
+<div class="alert text" role="alert" style="background-color: #214290; color: #ffde17;">
     <h3>Přehled stavu beden podle zákazníků</h3>
     <h6>Naposledy aktualizováno {{ current_time|date:"d.m.Y H:i" }}</h6>
 </div>
@@ -9,7 +9,7 @@
     {% for zakaznik, bedny_stavy in prehled_beden_zakaznika.items %}
       <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 mb-4">
         <div class="card h-100 shadow-sm">
-          <div class="card-header fw-bold text-primary">
+          <div class="card-header fw-bold" style="background-color: #ffde17;  color: #214290;">
             {{ zakaznik }}
           </div>
           <div class="card-body p-2">
