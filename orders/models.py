@@ -94,6 +94,20 @@ class Kamion(models.Model):
         else:
             raise ValidationError(_("Neplatný typ kamionu. Musí být buď 'Přijem' nebo 'Výdej'."))
         return celkova_tara + self.celkova_hmotnost_netto
+    
+    @property
+    def pocet_beden_skladem(self):
+        '''
+        Vrací celkový počet beden spojených s tímto kamionem, které nejsou ve stavu EXPEDOVANO.
+        '''
+        if self.prijem_vydej == KamionChoice.PRIJEM:
+            return Bedna.objects.filter(
+                zakazka__kamion_prijem=self
+                ).exclude(
+                stav_bedny=StavBednyChoice.EXPEDOVANO
+                ).count()
+        return 0
+
 
     def get_admin_url(self):
         """

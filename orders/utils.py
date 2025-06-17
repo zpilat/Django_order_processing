@@ -9,6 +9,7 @@ from .models import Zakazka, Bedna
 
 from weasyprint import HTML
 
+import re
 import logging
 logger = logging.getLogger('orders')
 
@@ -35,6 +36,10 @@ def utilita_tisk_karet_beden(modeladmin, request, queryset):
         pdf_buffer = BytesIO()
         all_html = ""
         for bedna in queryset:
+            # Zkrátí popis pro každou bednu do prvního slova začínajícího číslicí.
+            match = re.match(r"^(.*?)(\s+\d+.*)?$", bedna.zakazka.popis)    
+            if match:
+                bedna.zakazka.popis = match.group(1).strip()
             context = {"bedna": bedna}
             html = render_to_string("orders/karta_bedny_eur.html", context)
             all_html += html + '<p style="page-break-after: always"></p>'  # Oddělí stránky

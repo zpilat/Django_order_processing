@@ -6,6 +6,7 @@ from django.forms.models import model_to_dict
 from django.shortcuts import render
 
 import datetime
+import re
 from weasyprint import HTML
 
 from .models import Zakazka, Bedna, Kamion, Zakaznik, StavBednyChoice
@@ -19,8 +20,13 @@ def tisk_karet_beden_action(modeladmin, request, queryset):
     """
     Vytvoří PDF s kartou bedny nebo více označených beden.
     """
+    # Upraví popis zakázky na zkrácenou verzi, aby se vlezla do pole v kartě bedny.
     if queryset.count() == 1:
         bedna = queryset.first()
+        # Zkrátí popis pro každou bednu do prvního slova začínajícího číslicí.
+        match = re.match(r"^(.*?)(\s+\d+.*)?$", bedna.zakazka.popis)    
+        if match:
+            bedna.zakazka.popis = match.group(1).strip()        
         context = {"bedna": bedna}
         html_string = render_to_string("orders/karta_bedny_eur.html", context)
         pdf_file = HTML(string=html_string).write_pdf()

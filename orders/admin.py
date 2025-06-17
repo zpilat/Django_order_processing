@@ -12,6 +12,7 @@ from django.utils.html import format_html
 from simple_history.admin import SimpleHistoryAdmin
 from decimal import Decimal, ROUND_HALF_UP
 import pandas as pd
+import re
 
 from .models import Zakaznik, Kamion, Zakazka, Bedna
 from .actions import expedice_zakazek_action, import_kamionu_action, tisk_karet_beden_action, tisk_karet_beden_zakazek_action, tisk_karet_beden_kamionu_action, \
@@ -154,7 +155,8 @@ class KamionAdmin(SimpleHistoryAdmin):
 
     fields = ('zakaznik', 'datum', 'cislo_dl', 'prijem_vydej', 'misto_expedice',) 
     readonly_fields = ('prijem_vydej',)
-    list_display = ('get_kamion_str', 'get_zakaznik_zkraceny_nazev', 'get_datum', 'cislo_dl', 'prijem_vydej', 'misto_expedice', 'get_celkova_hmotnost_netto', 'get_celkova_hmotnost_brutto',)
+    list_display = ('get_kamion_str', 'get_zakaznik_zkraceny_nazev', 'get_datum', 'cislo_dl', 'prijem_vydej', 'misto_expedice',
+                    'get_pocet_beden_skladem', 'get_celkova_hmotnost_netto', 'get_celkova_hmotnost_brutto',)
     list_filter = ('zakaznik__zkraceny_nazev', 'prijem_vydej',)
     list_display_links = ('get_kamion_str',)
     ordering = ('-id',)
@@ -220,6 +222,14 @@ class KamionAdmin(SimpleHistoryAdmin):
         if not obj.zakazky_prijem.exists() and not obj.zakazky_vydej.exists():
             return 0
         return Decimal(obj.celkova_hmotnost_brutto).quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)
+    
+    @admin.display(description='Beden skladem')
+    def get_pocet_beden_skladem(self, obj):
+        """
+        Vrací počet beden skladem v kamionu příjem.
+        """
+        return obj.pocet_beden_skladem
+
 
     def get_fields(self, request, obj=None):
         """
@@ -519,7 +529,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     readonly_fields = ('expedovano', 'get_komplet')
     
     # Parametry pro zobrazení seznamu v administraci
-    list_display = ('artikl', 'kamion_prijem_link', 'kamion_vydej_link', 'prumer', 'delka', 'predpis', 'get_typ_hlavy', 'get_celozavit', 'popis', 'priorita',
+    list_display = ('artikl', 'kamion_prijem_link', 'kamion_vydej_link', 'prumer', 'delka', 'predpis', 'get_typ_hlavy', 'get_celozavit', 'zkraceny_popis', 'priorita',
                     'hmotnost_zakazky_k_expedici_brutto', 'pocet_beden_k_expedici', 'celkovy_pocet_beden', 'get_komplet',)
     list_display_links = ('artikl',)
     list_editable = ('priorita',)
@@ -557,6 +567,14 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
         Zobrazí typ hlavy a umožní třídění podle hlavičky pole.
         """
         return obj.typ_hlavy
+
+    @admin.display(description="Popis zkr.", ordering='popis')
+    def zkraceny_popis(self, obj):
+        # Vrátí vše do prvního výskytu čísla (včetně předchozí mezery)
+        match = re.match(r"^(.*?)(\s+\d+.*)?$", obj.popis)    
+        if not match:
+            return obj.popis
+        return format_html('<span title="{}">{}</span>', obj.popis, match.group(1))        
 
     @admin.display(description='Brutto k exp.')
     def hmotnost_zakazky_k_expedici_brutto(self, obj):
@@ -870,10 +888,10 @@ class BednaAdmin(SimpleHistoryAdmin):
     readonly_fields = ('cislo_bedny',)
 
     # Parametry pro zobrazení seznamu v administraci
-    list_display = ('get_cislo_bedny', 'get_behalter_nr', 'zakazka_link', 'kamion_prijem_link', 'kamion_vydej_link', 'get_popis', 'get_prumer', 'get_delka',
+    list_display = ('get_cislo_bedny', 'get_behalter_nr', 'zakazka_link', 'kamion_prijem_link', 'kamion_vydej_link', 'zkraceny_popis', 'get_prumer', 'get_delka',
                     'rovnat', 'tryskat', 'stav_bedny', 'get_typ_hlavy', 'get_celozavit', 'hmotnost', 'tara', 'get_priorita', 'poznamka',)
     # list_editable - je nastaveno pro různé stavy filtru Skladem v metodě changelist_view
-    list_display_links = ('cislo_bedny', )
+    list_display_links = ('get_cislo_bedny', )
     list_per_page = 25
     search_fields = ('cislo_bedny', 'zakazka__artikl', 'zakazka__delka',)
     search_help_text = "Hledat podle čísla bedny, artiklu nebo délky vrutu"
@@ -922,12 +940,15 @@ class BednaAdmin(SimpleHistoryAdmin):
         """
         return obj.zakazka.celozavit
     
-    @admin.display(description='Popis', ordering='zakazka__popis', empty_value='-')
-    def get_popis(self, obj):
+    @admin.display(description="Popis zkr.", ordering='zakazka__popis')
+    def zkraceny_popis(self, obj):
         """
-        Zobrazí popis zakázky a umožní třídění podle hlavičky pole.
+        Vrátí vše do prvního výskytu čísla (včetně předchozí mezery)
         """
-        return obj.zakazka.popis
+        match = re.match(r"^(.*?)(\s+\d+.*)?$", obj.zakazka.popis)    
+        if not match:
+            return obj.zakazka.popis
+        return format_html('<span title="{}">{}</span>', obj.zakazka.popis, match.group(1))        
 
     @admin.display(description='Kamion příjem', ordering='zakazka__kamion_prijem__id', empty_value='-')
     def kamion_prijem_link(self, obj):
