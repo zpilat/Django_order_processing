@@ -8,12 +8,6 @@
     height: 24px !important;
     font-size: 13px;
 }
-
-/* Zmenší výšku řádků tabulky */
-.change-list-results tbody > tr {
-    height: 30px;
-}
-
 /* Platí pro textová pole v changelist tabulce */
 .change-list td input[type="text"] {
     padding: 1px 4px !important;
@@ -23,7 +17,7 @@
     box-sizing: border-box;
 }
 
-/* Pokud máš textarea (např. TextField): */
+/* Pokud je textarea (např. TextField): */
 .change-list td textarea {
     padding: 2px 4px !important;
     height: 36px !important;
@@ -31,14 +25,26 @@
     line-height: 1.2;
 }
 
-/* Zmenší výšku celého řádku tabulky */
-.change-list-results tbody > tr {
-    height: 28px !important;
-}
-
 /* Těsnější zarovnání uvnitř buňky */
 .change-list td {
-    padding-top: 2px !important;
-    padding-bottom: 2px !important;
+    padding-top: 3px !important;
+    padding-bottom: 3px !important;
     vertical-align: middle !important;
+}
+
+/* Jednotlivá slova u hlavičky tabulky nad sebou */
+.change-list thead th {
+    font-size: 11px;
+    white-space: normal !important;
+    line-height: 1.2;
+    padding: 4px 6px;
+    text-align: left;
+    vertical-align: bottom;
+}
+
+/* Zmenší font v titulku tabulky */
+.change-list h1 {
+    font-size: 18px !important;
+    margin: 6px 0 4px;
+    line-height: 1.3;
 }

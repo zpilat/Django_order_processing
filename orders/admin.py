@@ -154,7 +154,7 @@ class KamionAdmin(SimpleHistoryAdmin):
 
     fields = ('zakaznik', 'datum', 'cislo_dl', 'prijem_vydej', 'misto_expedice',) 
     readonly_fields = ('prijem_vydej',)
-    list_display = ('get_kamion_str', 'zakaznik__zkraceny_nazev', 'datum', 'cislo_dl', 'prijem_vydej', 'misto_expedice', 'get_celkova_hmotnost_netto', 'get_celkova_hmotnost_brutto',)
+    list_display = ('get_kamion_str', 'get_zakaznik_zkraceny_nazev', 'get_datum', 'cislo_dl', 'prijem_vydej', 'misto_expedice', 'get_celkova_hmotnost_netto', 'get_celkova_hmotnost_brutto',)
     list_filter = ('zakaznik__zkraceny_nazev', 'prijem_vydej',)
     list_display_links = ('get_kamion_str',)
     ordering = ('-id',)
@@ -178,6 +178,21 @@ class KamionAdmin(SimpleHistoryAdmin):
             return [ZakazkaVydejInline]
         return []
     
+    @admin.display(description='Zákazník', ordering='zakaznik__zkraceny_nazev', empty_value='-')
+    def get_zakaznik_zkraceny_nazev(self, obj):
+        """
+        Zobrazí zkrácený název zákazníka a umožní třídění podle hlavičky pole.
+        """
+        return obj.zakaznik.zkraceny_nazev
+
+    
+    @admin.display(description='Datum', ordering='datum', empty_value='-')
+    def get_datum(self, obj):
+        """
+        Zobrazí datum kamionu ve formátu DD.MM.RRRR a umožní třídění podle hlavičky pole.
+        """
+        return obj.datum.strftime('%d.%m.%Y')
+
     @admin.display(description='Kamion')
     def get_kamion_str(self, obj):
         """
@@ -507,7 +522,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     readonly_fields = ('expedovano', 'get_komplet')
     
     # Parametry pro zobrazení seznamu v administraci
-    list_display = ('artikl', 'zakaznik', 'kamion_prijem_link', 'kamion_vydej_link', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit', 'popis', 'prubeh', 'priorita',
+    list_display = ('artikl', 'kamion_prijem_link', 'kamion_vydej_link', 'prumer', 'delka', 'predpis', 'get_typ_hlavy', 'get_celozavit', 'popis', 'priorita',
                     'hmotnost_zakazky_k_expedici_brutto', 'pocet_beden_k_expedici', 'celkovy_pocet_beden', 'get_komplet',)
     list_display_links = ('artikl',)
     list_editable = ('priorita',)
@@ -531,6 +546,20 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
 
     class Media:
         js = ('admin/js/zakazky_hmotnost_sum.js',)
+
+    @admin.display(boolean=True, description='VG', ordering='celozavit')
+    def get_celozavit(self, obj):
+        """
+        Zobrazí boolean, jestli je vrut celozávitový a umožní třídění podle hlavičky pole.
+        """
+        return obj.celozavit
+    
+    @admin.display(description='Hlava', ordering='typ_hlavy', empty_value='-')
+    def get_typ_hlavy(self, obj):
+        """
+        Zobrazí typ hlavy a umožní třídění podle hlavičky pole.
+        """
+        return obj.typ_hlavy
 
     @admin.display(description='Brutto k exp.')
     def hmotnost_zakazky_k_expedici_brutto(self, obj):
@@ -557,36 +586,21 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
         """
         return obj.bedny.filter(stav_bedny=StavBednyChoice.K_EXPEDICI).count() if obj.bedny.exists() else 0
 
-    @admin.display(description='Kamion příjem')
+    @admin.display(description='Kamion příjem', ordering='kamion_prijem__id', empty_value='-')
     def kamion_prijem_link(self, obj):
         """
         Vytvoří odkaz na detail kamionu příjmu, ke kterému zakázka patří a umožní třídění podle hlavičky pole.
         """
         if obj.kamion_prijem:
             return mark_safe(f'<a href="{obj.kamion_prijem.get_admin_url()}">{obj.kamion_prijem}</a>')
-        return '-'
-    kamion_prijem_link.admin_order_field = 'kamion_prijem__id'
 
-    @admin.display(description='Kamion výdej')
+    @admin.display(description='Kamion výdej', ordering='kamion_vydej__id', empty_value='-')
     def kamion_vydej_link(self, obj):
         """
         Vytvoří odkaz na detail kamionu výdeje, ke kterému zakázka patří a umožní třídění podle hlavičky pole.
         """
         if obj.kamion_vydej:
             return mark_safe(f'<a href="{obj.kamion_vydej.get_admin_url()}">{obj.kamion_vydej}</a>')
-        return '-'
-    kamion_vydej_link.admin_order_field = 'kamion_vydej__id'
-
-    @admin.display(description='Zák.')
-    def zakaznik(self, obj):
-        """
-        Vrací zkratku zákazníka, ke kterému kamion příjmu patří a umožní třídění podle hlavičky pole.
-        Umožňuje třídění podle hlavičky pole.
-        """
-        if obj.kamion_prijem and obj.kamion_prijem.zakaznik:
-            return obj.kamion_prijem.zakaznik.zkratka
-        return '-'
-    zakaznik.admin_order_field = 'kamion_prijem__zakaznik__zkratka'
 
     def get_komplet(self, obj):
         '''

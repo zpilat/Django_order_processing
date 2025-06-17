@@ -53,7 +53,10 @@ class Kamion(models.Model):
         ordering = ['id']
 
     def __str__(self):
-        return f'{self.id}. {self.zakaznik.zkratka} {self.datum}'
+        """
+        Vrací řetězec reprezentující kamion. Datum je upraveno do formátu YY-MM-DD.
+        """
+        return f'{self.id}-{self.zakaznik.zkratka}-{self.datum.strftime("%d.%m.%y")}'
     
     @property
     def celkova_hmotnost_netto(self):
@@ -125,8 +128,8 @@ class Zakazka(models.Model):
         ]
 
     def __str__(self):
-        return f'{self.kamion_prijem.id}. {self.kamion_prijem.zakaznik.zkratka} {self.kamion_prijem.datum} - {self.artikl}'
-    
+        return f'{self.kamion_prijem.id}-{self.kamion_prijem.zakaznik.zkratka} {self.kamion_prijem.datum.strftime("%d.%m.%y")}-{self.artikl}'
+
     @property
     def celkova_hmotnost(self):
         return self.bedny.aggregate(suma=Sum('hmotnost'))['suma'] or 0
@@ -162,7 +165,7 @@ class Bedna(models.Model):
         ordering = ['id']
 
     def __str__(self):
-        return f'{self.zakazka.kamion_prijem.zakaznik.zkratka} {self.zakazka.kamion_prijem.datum} - {self.zakazka.artikl} - {self.zakazka.prumer}x{self.zakazka.delka} - {self.cislo_bedny}'
+        return f'{self.zakazka.kamion_prijem.zakaznik.zkratka} {self.zakazka.kamion_prijem.datum.strftime("%d.%m.%y")}-{self.zakazka.artikl}-{self.zakazka.prumer}x{self.zakazka.delka}-{self.cislo_bedny}'
     
     def get_admin_url(self):
         """
