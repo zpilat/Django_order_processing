@@ -23,26 +23,6 @@ from .choices import (
     PrioritaChoice, ZinkovnaChoice, KamionChoice
 )
 
-
-class CustomPaginationChangeList(ChangeList):
-    """
-    Vlastní ChangeList pro administraci s nastavením počtu položek na stránku.
-    Pokud má uživatel oprávnění ke změně daného modelu,
-    kvůli větší výšce editovatelných řádků se nastaví menší počet položek na stránku.
-    """
-    def get_results(self, request):
-        # Název modelu v lowercase, např. 'bedna', 'zakazka'
-        model_name = self.model._meta.model_name
-        perm_codename = f"orders.change_{model_name}"
-
-        if request.user.has_perm(perm_codename):
-            self.list_per_page = 13
-        else:
-            self.list_per_page = 23
-        super().get_results(request)
-
-
-# Register your models here.
 @admin.register(Zakaznik)
 class ZakaznikAdmin(SimpleHistoryAdmin):
     """
@@ -530,6 +510,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     list_display = ('artikl', 'zakaznik', 'kamion_prijem_link', 'kamion_vydej_link', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit', 'popis', 'prubeh', 'priorita',
                     'hmotnost_zakazky_k_expedici_brutto', 'pocet_beden_k_expedici', 'celkovy_pocet_beden', 'get_komplet',)
     list_display_links = ('artikl',)
+    list_editable = ('priorita',)
     search_fields = ('artikl',)
     search_help_text = "Hledat podle artiklu"
     list_filter = ('kamion_prijem__zakaznik', 'typ_hlavy', 'celozavit', 'priorita', 'povrch', KompletZakazkaFilter, ExpedovanaZakazkaFilter,)
@@ -878,10 +859,11 @@ class BednaAdmin(SimpleHistoryAdmin):
     readonly_fields = ('cislo_bedny',)
 
     # Parametry pro zobrazení seznamu v administraci
-    list_display = ('cislo_bedny', 'behalter_nr', 'zakazka_link', 'kamion_prijem_link', 'kamion_vydej_link', 'get_popis', 'get_prumer', 'get_delka',
+    list_display = ('get_cislo_bedny', 'get_behalter_nr', 'zakazka_link', 'kamion_prijem_link', 'kamion_vydej_link', 'get_popis', 'get_prumer', 'get_delka',
                     'rovnat', 'tryskat', 'stav_bedny', 'get_typ_hlavy', 'get_celozavit', 'hmotnost', 'tara', 'get_priorita', 'poznamka',)
     # list_editable - je nastaveno pro různé stavy filtru Skladem v metodě changelist_view
     list_display_links = ('cislo_bedny', )
+    list_per_page = 25
     search_fields = ('cislo_bedny', 'zakazka__artikl', 'zakazka__delka',)
     search_help_text = "Hledat podle čísla bedny, artiklu nebo délky vrutu"
     list_filter = ('zakazka__kamion_prijem__zakaznik__nazev', StavBednyFilter, 'rovnat', 'tryskat', 'zakazka__celozavit', 'zakazka__typ_hlavy', 'zakazka__priorita', )
@@ -897,6 +879,22 @@ class BednaAdmin(SimpleHistoryAdmin):
     history_search_fields = ["zakazka__kamion_prijem__zakaznik__nazev", "cislo_bedny", "stav_bedny", "zakazka__typ_hlavy", "poznamka"]
     history_list_filter = ["zakazka__kamion_prijem__zakaznik__nazev", "zakazka__kamion_prijem__datum", "stav_bedny"]
     history_list_per_page = 20
+
+    @admin.display(description='Č. bedny', ordering='cislo_bedny')
+    def get_cislo_bedny(self, obj):
+        """
+        Zobrazí číslo bedny a umožní třídění podle hlavičky pole.
+        Číslo bedny se generuje automaticky a je readonly.
+        """
+        return obj.cislo_bedny
+    
+    @admin.display(description='Č.b. zák.', ordering='behalter_nr', empty_value='-')
+    def get_behalter_nr(self, obj):
+        """
+        Zobrazí číslo bedny zákazníka a umožní třídění podle hlavičky pole.
+        Pokud není vyplněno, zobrazí se '-'.
+        """
+        return obj.behalter_nr
 
     @admin.display(description='Zakázka', ordering='zakazka__id', empty_value='-')
     def zakazka_link(self, obj):
@@ -981,13 +979,6 @@ class BednaAdmin(SimpleHistoryAdmin):
                     fields.remove(field)
 
         return fields
-
-    def get_changelist(self, request, **kwargs):
-        """
-        Vytvoří vlastní ChangeList s nastavením počtu položek na stránku.
-        Pokud má uživatel oprávnění ke změně modelu Bedna, nastaví se menší počet položek na stránku.
-        """
-        return CustomPaginationChangeList
     
     def get_changelist_form(self, request, **kwargs):
         """
