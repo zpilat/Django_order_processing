@@ -157,6 +157,7 @@ class KamionAdmin(SimpleHistoryAdmin):
     readonly_fields = ('prijem_vydej',)
     list_display = ('get_kamion_str', 'get_zakaznik_zkraceny_nazev', 'get_datum', 'cislo_dl', 'prijem_vydej', 'misto_expedice',
                     'get_pocet_beden_skladem', 'get_celkova_hmotnost_netto', 'get_celkova_hmotnost_brutto',)
+    list_select_related = ('zakaznik',)
     list_filter = ('zakaznik__zkraceny_nazev', 'prijem_vydej',)
     list_display_links = ('get_kamion_str',)
     ordering = ('-id',)
@@ -533,6 +534,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
                     'hmotnost_zakazky_k_expedici_brutto', 'pocet_beden_k_expedici', 'celkovy_pocet_beden', 'get_komplet',)
     list_display_links = ('artikl',)
     list_editable = ('priorita',)
+    list_select_related = ("kamion_prijem", "kamion_vydej")
     search_fields = ('artikl',)
     search_help_text = "Hledat podle artiklu"
     list_filter = ('kamion_prijem__zakaznik', 'typ_hlavy', 'celozavit', 'priorita', 'povrch', KompletZakazkaFilter, ExpedovanaZakazkaFilter,)
@@ -892,6 +894,7 @@ class BednaAdmin(SimpleHistoryAdmin):
                     'rovnat', 'tryskat', 'stav_bedny', 'get_typ_hlavy', 'get_celozavit', 'hmotnost', 'tara', 'get_priorita', 'poznamka',)
     # list_editable - je nastaveno pro různé stavy filtru Skladem v metodě changelist_view
     list_display_links = ('get_cislo_bedny', )
+    list_select_related = ("zakazka", "zakazka__kamion_prijem", "zakazka__kamion_vydej")
     list_per_page = 25
     search_fields = ('cislo_bedny', 'zakazka__artikl', 'zakazka__delka',)
     search_help_text = "Hledat podle čísla bedny, artiklu nebo délky vrutu"
