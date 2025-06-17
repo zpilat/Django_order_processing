@@ -260,14 +260,15 @@ def dashboard_kamiony_view(request):
         }
 
     # Přidání celkových součtů dle zákazníků za celý rok
-    mesicni_pohyby['CELKEM'] = {}
+    rocni_pohyby = {}
     for mesic, zakaznici_pohyby in mesicni_pohyby.items():
-        if mesic != 'CELKEM':
-            for zakaznik, pohyby in zakaznici_pohyby.items():
-                if zakaznik not in mesicni_pohyby['CELKEM']:
-                    mesicni_pohyby['CELKEM'][zakaznik] = {'prijem': 0, 'vydej': 0}
-                mesicni_pohyby['CELKEM'][zakaznik]['prijem'] += pohyby['prijem']
-                mesicni_pohyby['CELKEM'][zakaznik]['vydej'] += pohyby['vydej']
+        for zakaznik, pohyby in zakaznici_pohyby.items():
+            if zakaznik not in rocni_pohyby:
+                rocni_pohyby[zakaznik] = {'prijem': 0, 'vydej': 0}
+            rocni_pohyby[zakaznik]['prijem'] += pohyby['prijem']
+            rocni_pohyby[zakaznik]['vydej'] += pohyby['vydej']
+
+    mesicni_pohyby['CELKEM'] = rocni_pohyby
 
     # Přidání rozdílu mezi příjmy a výdeji pro každý měsíc pro každého zákazníka
     for mesic, zakaznici_pohyby in mesicni_pohyby.items():
@@ -277,6 +278,7 @@ def dashboard_kamiony_view(request):
     context = {
         'mesicni_pohyby': mesicni_pohyby,
         'rok': rok,
+        'db_table': 'dashboard_kamiony',
         'current_time': timezone.now(),
     }
     
