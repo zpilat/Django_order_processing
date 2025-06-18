@@ -1,6 +1,9 @@
 from django.test import TestCase, RequestFactory
 from django.contrib.admin.sites import AdminSite
 from django.contrib.auth import get_user_model
+from django.contrib.messages.storage.fallback import FallbackStorage
+from django.core.files.uploadedfile import SimpleUploadedFile
+
 from datetime import date
 from unittest.mock import patch
 
@@ -25,8 +28,8 @@ class KamionAdminTests(AdminBase):
     def setUp(self):
         self.admin = KamionAdmin(Kamion, self.site)
 
-    def get_request(self, method='get', data=None, **extra):
-        req = getattr(self.factory, method)('/', data=data or {}, **extra)
+    def get_request(self, method='get', path='/', data=None, **extra):
+        req = getattr(self.factory, method)(path, data=data or {}, **extra)
         req.user = self.user
         return req
 
@@ -63,13 +66,14 @@ class KamionAdminTests(AdminBase):
 
     def test_import_view_valid_and_invalid(self):
         url = f'/admin/orders/kamion/import-zakazek/?kamion={self.kamion.pk}'
-        get_req = self.get_request('get', None, path=url)
+        get_req = self.get_request('get', path=url)
         resp = self.admin.import_view(get_req)
         self.assertEqual(resp.status_code, 200)
 
         post_req = self.get_request('post', data={}, path=url)
         resp = self.admin.import_view(post_req)
         self.assertEqual(resp.status_code, 200)
+
 
         df_data = {
             'Abhol- datum': ['2024-01-01'],
@@ -86,14 +90,22 @@ class KamionAdminTests(AdminBase):
             'Behälter-Nr.:': [1],
             'Lief.': ['L1'],
             'Fertigungs- aftrags Nr.': ['F1'],
+            'Typ hlavy': ['TK'],  # přidáno
         }
         import pandas as pandas_mod
         df = pandas_mod.DataFrame(df_data)
-        file_mock = type('f', (), {'name': 'f.xlsx'})
+        file_mock = SimpleUploadedFile('f.xlsx', b'fakecontent', content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
         valid_req = self.get_request('post', data={'file': file_mock}, path=url)
         valid_req.FILES['file'] = file_mock
+
+        # Mockni _messages storage
+        valid_req.session = {}
+        valid_req._messages = FallbackStorage(valid_req)
+
         with patch('orders.admin.pd.read_excel', return_value=df):
             resp = self.admin.import_view(valid_req)
+
         self.assertEqual(resp.status_code, 302)
 
     def test_save_formset_creates_bedny(self):
@@ -177,8 +189,14 @@ class BednaAdminTests(AdminBase):
             predpis='1', typ_hlavy=TypHlavyChoice.TK,
             popis='p'
         )
-        cls.bedna = Bedna.objects.create(zakazka=cls.zakazka)
-        cls.admin = BednaAdmin(Bedna, cls.site)
+        cls.bedna = Bedna.objects.create(
+            zakazka=cls.zakazka,
+            hmotnost=1,
+            tara=1,
+        )
+
+    def setUp(self):
+        self.admin = BednaAdmin(Bedna, self.site)
 
     def get_request(self, params=None):
         req = self.factory.get('/', params or {})
