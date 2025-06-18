@@ -57,7 +57,7 @@ class ZakazkaAutomatizovanyPrijemInline(admin.TabularInline):
     }
 
 
-class ZakazkaPrijemInline(admin.TabularInline):
+class ZakazkaKamionPrijemInline(admin.TabularInline):
     """
     Inline pro správu zakázek v rámci kamionu.
     """
@@ -118,7 +118,7 @@ class ZakazkaPrijemInline(admin.TabularInline):
         return super().formfield_for_dbfield(db_field, request, **kwargs)    
 
 
-class ZakazkaVydejInline(admin.TabularInline):
+class ZakazkaKamionVydejInline(admin.TabularInline):
     """
     Inline pro správu zakázek v rámci kamionu pro výdej.
     """
@@ -173,12 +173,15 @@ class KamionAdmin(SimpleHistoryAdmin):
         """
         Vrací inliny pro správu zakázek kamionu v závislosti na tom, zda se jedná o kamion pro příjem nebo výdej a jestli jde o přidání nebo editaci.
         """
-        if not obj:  # Pokud se jedná o přidání nového kamionu
+        # Pokud se jedná o přidání nového kamionu se zakázkami.
+        if not obj:
             return [ZakazkaAutomatizovanyPrijemInline]
+        # Pokud se jedná o editaci kamionu příjem.
         if obj and obj.prijem_vydej == 'P':
-            return [ZakazkaPrijemInline]
+            return [ZakazkaKamionPrijemInline]
+        # Pokud se jedná o editaci kamionu výdej.
         if obj and obj.prijem_vydej == 'V':
-            return [ZakazkaVydejInline]
+            return [ZakazkaKamionVydejInline]
         return []
     
     @admin.display(description='Zákazník', ordering='zakaznik__zkraceny_nazev', empty_value='-')

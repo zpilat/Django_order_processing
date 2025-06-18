@@ -36,11 +36,11 @@ class KamionAdminTests(AdminBase):
 
         self.kamion.prijem_vydej = 'P'
         inlines = self.admin.get_inlines(self.get_request(), self.kamion)
-        self.assertEqual(inlines[0].__name__, 'ZakazkaPrijemInline')
+        self.assertEqual(inlines[0].__name__, 'ZakazkaKamionPrijemInline')
 
         self.kamion.prijem_vydej = 'V'
         inlines = self.admin.get_inlines(self.get_request(), self.kamion)
-        self.assertEqual(inlines[0].__name__, 'ZakazkaVydejInline')
+        self.assertEqual(inlines[0].__name__, 'ZakazkaKamionVydejInline')
 
     def test_get_fields_and_readonly(self):
         fields_add = self.admin.get_fields(self.get_request(), None)
@@ -133,7 +133,11 @@ class ZakazkaAdminTests(AdminBase):
             predpis='1', typ_hlavy=TypHlavyChoice.TK,
             popis='p'
         )
-        cls.bedna = Bedna.objects.create(zakazka=cls.zakazka)
+        cls.bedna = Bedna.objects.create(
+            zakazka=cls.zakazka,
+            hmotnost=1,
+            tara=1,
+            )
 
     def setUp(self):
         self.admin = ZakazkaAdmin(Zakazka, self.site)
