@@ -659,88 +659,26 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     def save_formset(self, request, form, formset, change):
         """
         Uložení formsetu pro bedny. 
-        Při vytváření nové zakázky - příjem zboží na sklad:
-        - Pokud je vyplněn počet beden, vytvoří se nové instance. 
-        - Pokud je vyplněna celková hmotnost, rozpočítá se na jednotlivé bedny.
         Při editaci zakázky:
         - Pokud je zakázka expedovaná, nelze upravovat.
         - Pokud se mění stav bedny, tryskat nebo rovnat, provede se logika pro změnu stavu všech beden v zakázce.
         """
         if change:
-            # Pokud se jedná o editaci, zkontroluje, zda se mění pole stav bedny, tryskat nebo rovnat ve formuláři zakázek.
-            # Pokud ano, tak se provede logika pro změnu stavu všech beden v zakázce pro změněné pole.
             if any(f in form.changed_data for f in ('stav_bedny','tryskat','rovnat')):
-                zakazka = form.instance
                 instances = list(formset.queryset)
-                
+
                 # Získání hodnot z formuláře
                 new_stav_bedny = form.cleaned_data['stav_bedny'] if 'stav_bedny' in form.changed_data else None
                 new_tryskat = form.cleaned_data['tryskat'] if 'tryskat' in form.changed_data else None
                 new_rovnat = form.cleaned_data['rovnat'] if 'rovnat' in form.changed_data else None
 
-                for bedna in instances:
+                for instance in instances:
                     # Pokud se mění stav bedny, tryskat nebo rovnat, nastaví se nové hodnoty
                     for field, new_value in [('stav_bedny', new_stav_bedny), ('tryskat', new_tryskat), ('rovnat', new_rovnat)]:
                         if new_value:
-                            setattr(bedna, field, new_value)
-                    bedna.save()
-
-        else: # Přidání nové zakázky s bednami
-            instances = formset.save(commit=False)
-            zakazka = form.instance
-            celkova_hmotnost = form.cleaned_data.get('celkova_hmotnost')
-            pocet_beden = form.cleaned_data.get('pocet_beden')
-            data_ze_zakazky = {
-                'tara': form.cleaned_data.get('tara'),
-                'material': form.cleaned_data.get('material'),
-                'sarze': form.cleaned_data.get('sarze'),
-                'dodatecne_info': form.cleaned_data.get('dodatecne_info'),
-                'dodavatel_materialu': form.cleaned_data.get('dodavatel_materialu'),
-                'vyrobni_zakazka': form.cleaned_data.get('vyrobni_zakazka'),
-                'poznamka': form.cleaned_data.get('poznamka'),
-            }
-
-            # Pokud jsou zároveň ručně zadané bedny a zadaná celková hmotnost a počet beden, tak se zkontroluje,
-            # jestli je počet beden roven počtu ručně zadaných beden, pokud ne, tak se vyhodí chyba.
-            if pocet_beden and len(instances) != pocet_beden:
-                messages.error(request, f"Počet ručně zadaných beden ({len(instances)}) se neshoduje s údajem v poli Celkový počet beden v zakázce: ({pocet_beden}).")
-                return
-
-            # Pokud nejsou žádné bedny ručně zadané a je vyplněn počet beden, tak se vytvoří automaticky nové bedny
-            nove_bedny = []
-            if len(instances) == 0 and pocet_beden:
-                for i in range(pocet_beden):
-                    bedna = Bedna(zakazka=zakazka)
-                    nove_bedny.append(bedna)
-                instances = nove_bedny
-
-            # Společná logika bez ohledu na způsob vzniku beden:
-
-            # Pokude je vyplněna celková hmotnost a počet beden, tak se rozpočítá hmotnost na jednotlivé bedny,
-            # pro poslední bednu se použije zbytek hmotnosti po rozpočítání a zaokrouhlení
-            # Případné ručně zadané hodnoty hmotnosti u beden se přepíší vypočtenými hodnotami.           
-            if celkova_hmotnost and len(instances) > 0:
-                hmotnost_bedny = Decimal(celkova_hmotnost) / len(instances)
-                hmotnost_bedny = hmotnost_bedny.quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)
-                hodnoty = [hmotnost_bedny] * (pocet_beden - 1)
-                posledni = celkova_hmotnost - sum(hodnoty)
-                posledni = posledni.quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)
-                hodnoty.append(posledni)
-                for instance, hodnota in zip(instances, hodnoty):
-                    instance.hmotnost = hodnota
-
-            # Doplň prázdná pole ze zakázky (pokud už nebyla nastavena výše)
-            for field, hodnota in data_ze_zakazky.items():
-                if hodnota:
-                    for instance in instances:
-                        if getattr(instance, field) in (None, ''):
-                            setattr(instance, field, hodnota)
-
-            # Ulož všechny instance, pokud jsou to nove_bedny automaticky přidané
-            if nove_bedny:
-                for instance in instances:
+                            setattr(instance, field, new_value)
                     instance.save()
-
+                         
         formset.save()
 
     def get_fieldsets(self, request, obj=None):
@@ -818,23 +756,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
                     'fields': ['vrstva', 'povrch', 'prubeh'],
                     'classes': ['collapse'],
                     'description': 'Pro Eurotec musí být vyplněno: Tloušťka vrstvy, Povrchová úprava a Průběh.',
-                }),  
-                ('Celková hmotnost zakázky a počet beden pro rozpočtení na jednotlivé bedny:', {
-                    'fields': ['celkova_hmotnost', 'pocet_beden',],
-                    'classes': ['collapse'],
-                    'description': 'Celková hmotnost v zakázce z DL bude rozpočítána na jednotlivé bedny, případné zadané hmotnosti u beden budou přepsány. \
-                        Pokud budete jednotlivé bedny zadávat ručně a chcete rozpočítat celkovou hmotnost, musí se počet ručně zadaných beden shodovat s počtem beden v zakázce.',
-                }),                      
-                ('Zadejte v případě, že jsou hodnoty těchto polí pro celou zakázku stejné: Tára, Materiál, Šarže mat./Charge, Sonder/Zusatz info, Lief., Fertigungs-auftrags Nr. nebo Poznámka HPM:', {
-                    'fields': ['tara', 'material', 'sarze', 'dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka', 'poznamka'],
-                    'classes': ['collapse'],
-                    'description': 'Pokud jsou hodnoty polí pro celou zakázku stejné, zadejte je sem. Jinak je nechte prázdné a vyplňte je u jednotlivých beden. Případné zadané hodnoty u beden zůstanou zachovány.',}),
-                ('Nastavení nestandardního stavu beden v zakázce:', {
-                    'fields': ['tryskat', 'rovnat', 'stav_bedny'],
-                    'classes': ['collapse'],
-                    'description': 'Zde můžete ve speciálních případech nastavit při příjmu stav beden v zakázce. Např. reklamované bedny, bedny pouze k tryskání \
-                        nebo rovnání, případně pouze k přeposlání do zinkovny ...',
-                }),                    
+                }),                 
             ]                    
    
     def get_list_display(self, request):
