@@ -14,7 +14,7 @@ from decimal import Decimal, ROUND_HALF_UP
 import pandas as pd
 import re
 
-from .models import Zakaznik, Kamion, Zakazka, Bedna
+from .models import Zakaznik, Kamion, Zakazka, Bedna, Predpis
 from .actions import expedice_zakazek_action, import_kamionu_action, tisk_karet_beden_action, tisk_karet_beden_zakazek_action, tisk_karet_beden_kamionu_action, \
     tisk_dodaciho_listu_kamionu_action, vratit_zakazky_z_expedice_action, expedice_zakazek_kamion_action
 from .filters import ExpedovanaZakazkaFilter, StavBednyFilter, KompletZakazkaFilter
@@ -978,3 +978,23 @@ class BednaAdmin(SimpleHistoryAdmin):
         if request.GET.get('stav_bedny_vlastni') != 'EX':
             list_display.remove('kamion_vydej_link')
         return list_display
+
+
+@admin.register(Predpis)
+class PredpisAdmin(SimpleHistoryAdmin):
+    """
+    Správa předpisů v administraci.
+    """
+
+    fields = ('nazev', 'skupina', 'zakaznik') 
+    list_display = ('nazev', 'skupina', 'zakaznik',)
+    list_display_links = ('nazev',)
+    search_fields = ('nazev',)
+    list_filter = ('zakaznik__zkraceny_nazev',)
+    ordering = ('id',)
+    list_per_page = 25
+
+    history_list_display = ['nazev', 'skupina', 'zakaznik']
+    history_search_fields = ['nazev']
+    history_list_filter = ['zakaznik__zkraceny_nazev']
+    history_list_per_page = 20

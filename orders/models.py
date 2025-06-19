@@ -318,24 +318,21 @@ class Bedna(models.Model):
             return [choice for choice in RovnaniChoice.choices if choice[0] not in (RovnaniChoice.ROVNA, RovnaniChoice.NEZADANO)]
         # fallback: všechno
         return list(RovnaniChoice.choices)
-    
 
-class Skupina(models.Model):
-    """
-    Skupina tepelného zpracování, přiřazuje se k bednám dle předpisu / výkresu.
-    """
-    cislo = models.PositiveSmallIntegerField(verbose_name='Skupina TZ', unique=True)
-    popis = models.CharField(max_length=100, verbose_name='Popis skupiny TZ', unique=True)
-
-    def __str__(self):
-        return f'{self.cislo}'
     
 class Predpis(models.Model):
     """
-    Předpis zákazníka pro tepelné zpracování.
+    Předpis zákazníka pro tepelné zpracování pro přiřazení skupiny TZ.
     """
     nazev = models.CharField(max_length=20, verbose_name='Název předpisu', unique=True)
-    skupina = models.ForeignKey(Skupina, on_delete=models.PROTECT, related_name='predpisy', verbose_name='Skupina TZ')
+    skupina = models.PositiveSmallIntegerField(verbose_name='Skupina TZ', blank=True, null=True,)
+    zakaznik = models.ForeignKey(Zakaznik, on_delete=models.CASCADE, related_name='predpisy', verbose_name='Zákazník')
+    history = HistoricalRecords()
+
+    class Meta:
+        verbose_name = 'Předpis'
+        verbose_name_plural = 'předpisy'
+        ordering = ['id']
 
     def __str__(self):
-        return f'{self.nazev}'
+        return f'{self.nazev} (skupina {self.skupina})' if self.skupina else self.nazev
