@@ -433,39 +433,45 @@ class KamionAdmin(SimpleHistoryAdmin):
         """
         Uloží inline formuláře pro zakázky kamionu a vytvoří bedny na základě zadaných dat.
         """
-        # Uloží se inline formuláře bez okamžitého zápisu do DB
-        zakazky = formset.save(commit=False)
+        # Při úpravách stávajícího kamionu se pouze uloží všechny změny do databáze bez vytvoření beden.
+        if change:
+            formset.save()
+        # Při vytvoření nového kamionu se zpracují inline formuláře pro zakázky a vytvoří se případně automaticky bedny        
+        else:
+            # Uloží se inline formuláře bez okamžitého zápisu do DB
+            zakazky = formset.save(commit=False)
 
-        for inline_form, zakazka in zip(formset.forms, zakazky):
-            zakazka.kamion_prijem = form.instance  # připojení k právě vytvořenému kamionu
-            zakazka.save()
+            for inline_form, zakazka in zip(formset.forms, zakazky):
+                # Uloží se zakázka a připojí se k právě vytvořenému kamionu                
+                zakazka.kamion_prijem = form.instance
+                zakazka.save()
 
-            # Získání dodatečných hodnot z vlastního formuláře
-            celkova_hmotnost = inline_form.cleaned_data.get("celkova_hmotnost")
-            pocet_beden = inline_form.cleaned_data.get("pocet_beden")
-            tara = inline_form.cleaned_data.get("tara")
-            material = inline_form.cleaned_data.get("material")
+                # Získání dodatečných hodnot z vlastního formuláře zakázky
+                celkova_hmotnost = inline_form.cleaned_data.get("celkova_hmotnost")
+                pocet_beden = inline_form.cleaned_data.get("pocet_beden")
+                tara = inline_form.cleaned_data.get("tara")
+                material = inline_form.cleaned_data.get("material")
 
-            # Rozpočítání hmotnosti, pro poslední bednu se použije zbytek hmotnosti po rozpočítání a zaokrouhlení
-            if celkova_hmotnost and pocet_beden:
-                hmotnost_bedny = Decimal(celkova_hmotnost) / pocet_beden
-                hmotnost_bedny = hmotnost_bedny.quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)
+                # Rozpočítání hmotnosti, pro poslední bednu se použije zbytek hmotnosti po rozpočítání a zaokrouhlení
+                if celkova_hmotnost and pocet_beden:
+                    hmotnost_bedny = Decimal(celkova_hmotnost) / int(pocet_beden)
+                    hmotnost_bedny = hmotnost_bedny.quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)
+                    hodnoty = [hmotnost_bedny] * (pocet_beden - 1)
+                    posledni = celkova_hmotnost - sum(hodnoty)
+                    posledni = posledni.quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)
+                    hodnoty.append(posledni)
 
-                hodnoty = [hmotnost_bedny] * (pocet_beden - 1)
-                posledni = celkova_hmotnost - sum(hodnoty)
-                posledni = posledni.quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)
-                hodnoty.append(posledni)
+                    for i in range(pocet_beden):
+                        Bedna.objects.create(
+                            zakazka=zakazka,
+                            hmotnost=hodnoty[i],
+                            tara=tara,
+                            material=material,
+                            # cislo_bedny se dopočítá v metodě save() modelu Bedna
+                        )
 
-                for i in range(pocet_beden):
-                    Bedna.objects.create(
-                        zakazka=zakazka,
-                        hmotnost=hodnoty[i],
-                        tara=tara,
-                        material=material,
-                        # cislo_bedny se dopočítá v metodě save() modelu Bedna
-                    )
-
-        formset.save()    
+            # Uloží případné m2m do databáze
+            formset.save_m2m()
 
 
 class BednaInline(admin.TabularInline):
@@ -476,7 +482,7 @@ class BednaInline(admin.TabularInline):
     form = BednaAdminForm
     extra = 0
     # další úprava zobrazovaných polí podle různých podmínek je v get_fields
-    fields = ('cislo_bedny', 'hmotnost', 'tara', 'mnozstvi', 'material', 'sarze', 'behalter_nr', 'dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka', 'tryskat', 'rovnat', 'stav_bedny', 'poznamka')
+    fields = ('cislo_bedny', 'behalter_nr', 'hmotnost', 'tara', 'mnozstvi', 'material', 'sarze', 'dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka', 'tryskat', 'rovnat', 'stav_bedny', 'poznamka')
     readonly_fields = ('cislo_bedny',)
     show_change_link = True
     formfield_overrides = {
@@ -507,12 +513,15 @@ class BednaInline(admin.TabularInline):
         fields = list(super().get_fields(request, obj))
 
         if obj:
-            if obj.kamion_prijem.zakaznik.zkratka != 'EUR':
-                # Pokud je zakázka přiřazena k zákazníkovi, který není Eurotec, vyloučíme některá pole
+            # Vyloučení polí dle zákazníka
+            exclude_fields = []
+            if obj.kamion_prijem.zakaznik.zkratka == 'RTB':
+                exclude_fields = ['dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka']
+            elif obj.kamion_prijem.zakaznik.zkratka in ('SCH', 'HPM'):
                 exclude_fields = ['behalter_nr', 'dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka']
-                for field in exclude_fields:
-                    if field in fields:
-                        fields.remove(field)
+            for field in exclude_fields:
+                if field in fields:
+                    fields.remove(field)
         else:
             # Při přidáno nové bedny se vyloučí pole `cislo_bedny`, protože se generuje automaticky.
             fields.remove('cislo_bedny')
