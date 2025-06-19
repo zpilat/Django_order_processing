@@ -470,9 +470,6 @@ class KamionAdmin(SimpleHistoryAdmin):
                             # cislo_bedny se dopočítá v metodě save() modelu Bedna
                         )
 
-            # Uloží případné m2m do databáze
-            formset.save_m2m()
-
 
 class BednaInline(admin.TabularInline):
     """
