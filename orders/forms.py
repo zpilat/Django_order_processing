@@ -93,9 +93,9 @@ class BednaAdminForm(forms.ModelForm):
     v modelu Bedna v metodách `get_allowed_xxxxx_choices`):
 
     1. NOVÁ instance (bez PK):
-       - Pro stav_bedny Nabídne pouze první stav `PRIJATO` jako jedinou volbu a nastaví `initial` na hodnotu `PRIJATO`.
-       - Pro tryskat nabídne hodnoty `NEZADANO`, `SPINAVA`, `CISTA` a nastaví `initial` na hodnotu `NEZADANO`.
-       - Pro rovnat nabídne hodnoty `NEZADANO`, `KRIVA`, `ROVNA` a nastaví `initial` na hodnotu `NEZADANO`.
+       - Pro stav_bedny nabídne všechny stavy a nastaví `initial` na hodnotu `PRIJATO`.
+       - Pro tryskat nabídne všechny hodnoty a nastaví `initial` na hodnotu `NEZADANO`.
+       - Pro rovnat nabídne všechny hodnoty a nastaví `initial` na hodnotu `NEZADANO`.
 
     2. EXISTUJÍCÍ instance:
        - Pro stav_bedny nabídne všechny možné stavy, které jsou povoleny pro danou bednu a nastaví `initial` na aktuální stav.
@@ -119,32 +119,23 @@ class BednaAdminForm(forms.ModelForm):
 
         # nová bedna
         if not self.instance or not self.instance.pk:
-            first_stav_bedny = list(StavBednyChoice.choices)[0]
-            field_stav_bedny.choices = [first_stav_bedny]
-            field_stav_bedny.initial = first_stav_bedny[0]
-
-            AllowedTryskaniChoices = [choice for choice in TryskaniChoice.choices if choice[0] != TryskaniChoice.OTRYSKANA]
-            field_tryskat.choices = AllowedTryskaniChoices
+            field_stav_bedny.initial = StavBednyChoice.PRIJATO
             field_tryskat.initial = TryskaniChoice.NEZADANO
-
-            AllowedRovnaniChoices = [choice for choice in RovnaniChoice.choices if choice[0] != RovnaniChoice.VYROVNANA]
-            field_rovnat.choices = AllowedRovnaniChoices
             field_rovnat.initial = RovnaniChoice.NEZADANO
-           
-            return
 
         # editace: vrátí dle logiky v modelu
-        allowed_stav_bedny = self.instance.get_allowed_stav_bedny_choices()
-        field_stav_bedny.choices = allowed_stav_bedny
-        field_stav_bedny.initial = self.instance.stav_bedny
+        else:
+            allowed_stav_bedny = self.instance.get_allowed_stav_bedny_choices()
+            field_stav_bedny.choices = allowed_stav_bedny
+            field_stav_bedny.initial = self.instance.stav_bedny
 
-        allowed_tryskat = self.instance.get_allowed_tryskat_choices()
-        field_tryskat.choices = allowed_tryskat
-        field_tryskat.initial = self.instance.tryskat
+            allowed_tryskat = self.instance.get_allowed_tryskat_choices()
+            field_tryskat.choices = allowed_tryskat
+            field_tryskat.initial = self.instance.tryskat
 
-        allowed_rovnat = self.instance.get_allowed_rovnat_choices()
-        field_rovnat.choices = allowed_rovnat
-        field_rovnat.initial = self.instance.rovnat
+            allowed_rovnat = self.instance.get_allowed_rovnat_choices()
+            field_rovnat.choices = allowed_rovnat
+            field_rovnat.initial = self.instance.rovnat
 
 
 class VyberKamionForm(forms.Form):
