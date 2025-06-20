@@ -29,7 +29,8 @@ class ZakaznikAdmin(SimpleHistoryAdmin):
     """
     Správa zákazníků v administraci.
     """
-    list_display = ('nazev', 'zkraceny_nazev', 'adresa', 'mesto', 'stat', 'kontaktni_osoba', 'telefon', 'email', 'vse_tryskat', 'pouze_komplet', 'ciselna_rada',)
+    list_display = ('nazev', 'zkraceny_nazev', 'zkratka', 'adresa', 'mesto', 'stat', 'kontaktni_osoba', 'telefon',
+                    'email', 'vse_tryskat', 'pouze_komplet', 'ciselna_rada',)
     ordering = ('nazev',)
     list_per_page = 20
 
@@ -49,7 +50,8 @@ class ZakazkaAutomatizovanyPrijemInline(admin.TabularInline):
     verbose_name = 'Zakázka - automatizovaný příjem'
     verbose_name_plural = 'Zakázky - automatizovaný příjem'
     extra = 5
-    fields = ('artikl', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit', 'popis', 'priorita', 'pocet_beden', 'celkova_hmotnost', 'tara', 'material',)
+    fields = ('artikl', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit', 'popis',
+              'priorita', 'pocet_beden', 'celkova_hmotnost', 'tara', 'material',)
     show_change_link = True
     formfield_overrides = {
         models.CharField: {'widget': TextInput(attrs={ 'size': '30'})},
@@ -66,7 +68,8 @@ class ZakazkaKamionPrijemInline(admin.TabularInline):
     verbose_name = 'Zakázka - příjem'
     verbose_name_plural = 'Zakázky - příjem'
     extra = 0
-    fields = ('artikl', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit', 'popis', 'prubeh', 'priorita', 'celkovy_pocet_beden', 'get_komplet',)
+    fields = ('artikl', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit',
+              'popis', 'prubeh', 'priorita', 'celkovy_pocet_beden', 'get_komplet',)
     readonly_fields = ('expedovano', 'get_komplet', 'celkovy_pocet_beden')
     show_change_link = True
     formfield_overrides = {
@@ -127,8 +130,10 @@ class ZakazkaKamionVydejInline(admin.TabularInline):
     verbose_name = "Zakázka - výdej"
     verbose_name_plural = "Zakázky - výdej"
     extra = 0
-    fields = ('artikl', 'kamion_prijem', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit', 'popis', 'prubeh', 'priorita', 'celkovy_pocet_beden',)
-    readonly_fields = ('artikl', 'kamion_prijem', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit', 'popis', 'prubeh', 'priorita', 'celkovy_pocet_beden',)
+    fields = ('artikl', 'kamion_prijem', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit',
+              'popis', 'prubeh', 'priorita', 'celkovy_pocet_beden',)
+    readonly_fields = ('artikl', 'kamion_prijem', 'prumer', 'delka', 'predpis', 'typ_hlavy',
+                       'celozavit', 'popis', 'prubeh', 'priorita', 'celkovy_pocet_beden',)
     show_change_link = True
     formfield_overrides = {
         models.CharField: {'widget': TextInput(attrs={ 'size': '30'})},
@@ -822,15 +827,17 @@ class BednaAdmin(SimpleHistoryAdmin):
     readonly_fields = ('cislo_bedny',)
 
     # Parametry pro zobrazení seznamu v administraci
-    list_display = ('get_cislo_bedny', 'get_behalter_nr', 'zakazka_link', 'kamion_prijem_link', 'kamion_vydej_link', 'zkraceny_popis', 'get_prumer', 'get_delka',
+    list_display = ('get_cislo_bedny', 'get_behalter_nr', 'zakazka_link', 'kamion_prijem_link', 'kamion_vydej_link', 'get_skupina_TZ',
+                    'zkraceny_popis', 'get_prumer', 'get_delka',
                     'rovnat', 'tryskat', 'stav_bedny', 'get_typ_hlavy', 'get_celozavit', 'hmotnost', 'tara', 'get_priorita', 'poznamka',)
     # list_editable - je nastaveno pro různé stavy filtru Skladem v metodě changelist_view
     list_display_links = ('get_cislo_bedny', )
     list_select_related = ("zakazka", "zakazka__kamion_prijem", "zakazka__kamion_vydej")
-    list_per_page = 25
+    list_per_page = 50
     search_fields = ('cislo_bedny', 'zakazka__artikl', 'zakazka__delka',)
     search_help_text = "Hledat podle čísla bedny, artiklu nebo délky vrutu"
-    list_filter = ('zakazka__kamion_prijem__zakaznik__nazev', StavBednyFilter, 'rovnat', 'tryskat', 'zakazka__celozavit', 'zakazka__typ_hlavy', 'zakazka__priorita', )
+    list_filter = ('zakazka__kamion_prijem__zakaznik__nazev', StavBednyFilter, 'rovnat', 'tryskat', 'zakazka__celozavit',
+                   'zakazka__typ_hlavy', 'zakazka__priorita', 'zakazka__predpis__skupina',)
     ordering = ('id',)
     date_hierarchy = 'zakazka__kamion_prijem__datum'
     formfield_overrides = {
@@ -908,14 +915,14 @@ class BednaAdmin(SimpleHistoryAdmin):
         """
         return obj.zakazka.typ_hlavy
 
-    @admin.display(description='Priorita', ordering='zakazka__priorita')
+    @admin.display(description='Prior.', ordering='zakazka__priorita')
     def get_priorita(self, obj):
         """
         Zobrazí prioritu zakázky a umožní třídění podle hlavičky pole.
         """
         return obj.zakazka.priorita
 
-    @admin.display(description='Průměr', ordering='zakazka__prumer')
+    @admin.display(description='Ø', ordering='zakazka__prumer')
     def get_prumer(self, obj):
         """
         Zobrazí průměr zakázky a umožní třídění podle hlavičky pole.
@@ -928,6 +935,14 @@ class BednaAdmin(SimpleHistoryAdmin):
         Zobrazí délku zakázky a umožní třídění podle hlavičky pole.
         """
         return obj.zakazka.delka
+    
+    @admin.display(description='TZ', ordering='zakazka__predpis__skupina', empty_value='-')
+    def get_skupina_TZ(self, obj):
+        """
+        Zobrazí skupinu tepelného zpracování zakázky a umožní třídění podle hlavičky pole.
+        """
+        return obj.zakazka.predpis.skupina
+    
 
     def get_fields(self, request, obj=None):
         """

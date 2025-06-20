@@ -56,7 +56,7 @@ class Kamion(models.Model):
         """
         Vrací řetězec reprezentující kamion. Datum je upraveno do formátu YY-MM-DD.
         """
-        return f'{self.id}-{self.zakaznik.zkratka}-{self.datum.strftime("%d.%m.%y")}'
+        return f'{self.id}.{self.zakaznik.zkratka} {self.datum.strftime("%d.%m.%y")}'
     
     @property
     def celkova_hmotnost_netto(self):
@@ -115,13 +115,33 @@ class Kamion(models.Model):
         """
         return reverse("admin:orders_kamion_change", args=[self.pk])    
     
+
+class Predpis(models.Model):
+    """
+    Předpis zákazníka pro tepelné zpracování pro přiřazení skupiny TZ.
+    """
+    nazev = models.CharField(max_length=20, verbose_name='Název předpisu')
+    skupina = models.PositiveSmallIntegerField(verbose_name='Skupina TZ', blank=True, null=True,)
+    zakaznik = models.ForeignKey(Zakaznik, on_delete=models.CASCADE, related_name='predpisy', verbose_name='Zákazník')
+    history = HistoricalRecords()
+
+    class Meta:
+        unique_together = [['nazev', 'zakaznik'],]
+        verbose_name = 'Předpis'
+        verbose_name_plural = 'předpisy'
+        ordering = ['id']
+
+    def __str__(self):
+        return f'{self.nazev} ({self.zakaznik.zkratka})'
+
+
 class Zakazka(models.Model):
     kamion_prijem = models.ForeignKey(Kamion, on_delete=models.CASCADE, related_name='zakazky_prijem', verbose_name='Kamión příjem', null=True, blank=True)
     kamion_vydej = models.ForeignKey(Kamion, on_delete=models.CASCADE, related_name='zakazky_vydej', verbose_name='Kamión výdej', null=True, blank=True)
     artikl = models.CharField(max_length=50, verbose_name='Artikl / Zakázka')
     prumer = models.DecimalField(max_digits=4, decimal_places=1, verbose_name='Průměr')
     delka = models.DecimalField(max_digits=6, decimal_places=1, verbose_name='Délka')
-    predpis = models.CharField(max_length=30, verbose_name='Předpis / Výkres')
+    predpis = models.ForeignKey(Predpis, on_delete=models.PROTECT, related_name='zakazky', verbose_name='Předpis / Výkres', null=True, blank=True)
     typ_hlavy = models.CharField(choices=TypHlavyChoice.choices, max_length=3, verbose_name='Typ hlavy')
     celozavit = models.BooleanField(default=False, verbose_name='Celozávit')
     popis = models.CharField(max_length=100, verbose_name='Popis')
@@ -158,7 +178,7 @@ class Zakazka(models.Model):
 class Bedna(models.Model):
     zakazka = models.ForeignKey(Zakazka, on_delete=models.CASCADE, related_name='bedny', verbose_name='Zakázka')
     cislo_bedny = models.PositiveIntegerField(blank=True, verbose_name='Číslo bedny', unique=True,)
-    hmotnost = models.DecimalField(max_digits=5, decimal_places=1, blank=True, verbose_name='Hm. netto')
+    hmotnost = models.DecimalField(max_digits=5, decimal_places=1, blank=True, verbose_name='Netto')
     tara = models.DecimalField(max_digits=5, blank=True, decimal_places=1, verbose_name='Tára')
     material = models.CharField(max_length=20, null=True, blank=True, verbose_name='Materiál')
     sarze = models.CharField(max_length=20, null=True, blank=True, verbose_name='Šarže mat. / Charge')
@@ -318,21 +338,3 @@ class Bedna(models.Model):
             return [choice for choice in RovnaniChoice.choices if choice[0] not in (RovnaniChoice.ROVNA, RovnaniChoice.NEZADANO)]
         # fallback: všechno
         return list(RovnaniChoice.choices)
-
-    
-class Predpis(models.Model):
-    """
-    Předpis zákazníka pro tepelné zpracování pro přiřazení skupiny TZ.
-    """
-    nazev = models.CharField(max_length=20, verbose_name='Název předpisu', unique=True)
-    skupina = models.PositiveSmallIntegerField(verbose_name='Skupina TZ', blank=True, null=True,)
-    zakaznik = models.ForeignKey(Zakaznik, on_delete=models.CASCADE, related_name='predpisy', verbose_name='Zákazník')
-    history = HistoricalRecords()
-
-    class Meta:
-        verbose_name = 'Předpis'
-        verbose_name_plural = 'předpisy'
-        ordering = ['id']
-
-    def __str__(self):
-        return f'{self.nazev} (skupina {self.skupina})' if self.skupina else self.nazev

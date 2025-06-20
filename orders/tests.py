@@ -8,7 +8,8 @@ from datetime import date
 from unittest.mock import patch
 
 from orders.admin import KamionAdmin, ZakazkaAdmin, BednaAdmin
-from orders.models import Zakaznik, Kamion, Zakazka, Bedna, StavBednyChoice, TypHlavyChoice
+from orders.models import Zakaznik, Kamion, Zakazka, Bedna, Predpis
+from orders.choices import StavBednyChoice, TypHlavyChoice
 
 
 class AdminBase(TestCase):
@@ -22,6 +23,7 @@ class AdminBase(TestCase):
             nazev='Test', zkraceny_nazev='T', zkratka='TST', ciselna_rada=100000
         )
         cls.kamion = Kamion.objects.create(zakaznik=cls.zakaznik, datum=date.today())
+        cls.predpis = Predpis.objects.create(nazev='Test Predpis', skupina=1, zakaznik=cls.zakaznik,)
 
 
 class KamionAdminTests(AdminBase):
@@ -113,7 +115,7 @@ class KamionAdminTests(AdminBase):
 
         zak = Zakazka(
             artikl='A1', prumer=1, delka=1,
-            predpis='1', typ_hlavy=TypHlavyChoice.TK,
+            predpis=self.predpis, typ_hlavy=TypHlavyChoice.TK,
             popis='p'
         )
 
@@ -142,7 +144,7 @@ class ZakazkaAdminTests(AdminBase):
         cls.zakazka = Zakazka.objects.create(
             kamion_prijem=cls.kamion,
             artikl='A1', prumer=1, delka=1,
-            predpis='1', typ_hlavy=TypHlavyChoice.TK,
+            predpis=cls.predpis, typ_hlavy=TypHlavyChoice.TK,
             popis='p'
         )
         cls.bedna = Bedna.objects.create(
@@ -186,7 +188,7 @@ class BednaAdminTests(AdminBase):
         cls.zakazka = Zakazka.objects.create(
             kamion_prijem=cls.kamion,
             artikl='A1', prumer=1, delka=1,
-            predpis='1', typ_hlavy=TypHlavyChoice.TK,
+            predpis=cls.predpis, typ_hlavy=TypHlavyChoice.TK,
             popis='p'
         )
         cls.bedna = Bedna.objects.create(
