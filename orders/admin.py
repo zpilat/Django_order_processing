@@ -545,8 +545,9 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     readonly_fields = ('expedovano', 'get_komplet')
     
     # Parametry pro zobrazení seznamu v administraci
-    list_display = ('artikl', 'kamion_prijem_link', 'kamion_vydej_link', 'prumer', 'delka', 'predpis', 'get_typ_hlavy', 'get_celozavit', 'zkraceny_popis', 'priorita',
-                    'hmotnost_zakazky_k_expedici_brutto', 'pocet_beden_k_expedici', 'celkovy_pocet_beden', 'get_komplet',)
+    list_display = ('artikl', 'kamion_prijem_link', 'kamion_vydej_link', 'prumer', 'delka', 'predpis', 'get_typ_hlavy', 'get_skupina',
+                    'get_celozavit', 'zkraceny_popis', 'priorita', 'hmotnost_zakazky_k_expedici_brutto', 'pocet_beden_k_expedici',
+                        'celkovy_pocet_beden', 'get_komplet',)
     list_display_links = ('artikl',)
     list_editable = ('priorita',)
     list_select_related = ("kamion_prijem", "kamion_vydej")
@@ -570,6 +571,13 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
 
     class Media:
         js = ('admin/js/zakazky_hmotnost_sum.js',)
+
+    @admin.display(description='TZ', ordering='predpis__skupina', empty_value='-')
+    def get_skupina(self, obj):
+        """
+        Zobrazí skupinu tepelného zpracování zakázky a umožní třídění podle hlavičky pole.
+        """
+        return obj.predpis.skupina
 
     @admin.display(boolean=True, description='VG', ordering='celozavit')
     def get_celozavit(self, obj):

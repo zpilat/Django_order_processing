@@ -121,7 +121,23 @@ class Predpis(models.Model):
     Předpis zákazníka pro tepelné zpracování pro přiřazení skupiny TZ.
     """
     nazev = models.CharField(max_length=20, verbose_name='Název předpisu')
-    skupina = models.PositiveSmallIntegerField(verbose_name='Skupina TZ', blank=True, null=True,)
+    skupina = models.PositiveSmallIntegerField(verbose_name='Skupina TZ', blank=True, null=True)
+    ohyb = models.CharField(max_length=20, verbose_name='Ohyb', blank=True, null=True)
+    krut = models.CharField(max_length=20, verbose_name='Krut', blank=True, null=True)
+    povrch = models.CharField(max_length=20, verbose_name='Povrch', blank=True, null=True)
+    jadro = models.CharField(max_length=20, verbose_name='Jádro', blank=True, null=True)
+    vrstva = models.CharField(max_length=20, verbose_name='Vrstva', blank=True, null=True)
+    popousteni = models.CharField(max_length=20, verbose_name='Popouštění', blank=True, null=True)
+    sarzovani = models.CharField(max_length=20, verbose_name='Šaržování', blank=True, null=True)
+    pletivo = models.CharField(max_length=20, verbose_name='Pletivo', blank=True, null=True)
+    vyber_povrch = models.CharField(max_length=30, verbose_name='Povrch - výběr', blank=True, null=True)
+    vyber_jadro = models.CharField(max_length=30, verbose_name='Jádro - výběr', blank=True, null=True)
+    vrstva = models.CharField(max_length=20, verbose_name='Vrstva', blank=True, null=True)
+    vyber_ohyb = models.CharField(max_length=30, verbose_name='Ohyb - výběr', blank=True, null=True)
+    vyber_krut = models.CharField(max_length=30, verbose_name='Krut - výběr', blank=True, null=True)
+    poznamka = models.CharField(max_length=50, verbose_name='Poznámka', blank=True, null=True)
+    aktivni = models.BooleanField(default=True, verbose_name='Aktivní',
+                                   help_text='Zda je předpis aktivní a může být přiřazen k zakázce.')
     zakaznik = models.ForeignKey(Zakaznik, on_delete=models.CASCADE, related_name='predpisy', verbose_name='Zákazník')
     history = HistoricalRecords()
 
@@ -129,10 +145,10 @@ class Predpis(models.Model):
         unique_together = [['nazev', 'zakaznik'],]
         verbose_name = 'Předpis'
         verbose_name_plural = 'předpisy'
-        ordering = ['id']
+        ordering = ['zakaznik__zkratka', 'nazev']
 
     def __str__(self):
-        return f'{self.nazev} ({self.zakaznik.zkratka})'
+        return f'{self.zakaznik.zkratka}-{self.nazev}'
 
 
 class Zakazka(models.Model):
