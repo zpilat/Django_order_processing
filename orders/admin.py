@@ -1009,8 +1009,11 @@ class PredpisAdmin(SimpleHistoryAdmin):
     Správa předpisů v administraci.
     """
 
-    fields = ('nazev', 'skupina', 'zakaznik') 
-    list_display = ('nazev', 'skupina', 'zakaznik',)
+    fields = ('nazev', 'skupina', 'zakaznik', 'ohyb', 'krut', 'povrch', 'jadro', 'vrstva', 'popousteni', 'sarzovani',
+              'pletivo', 'vyber_povrch', 'vyber_jadro', 'vyber_vrstva', 'vyber_ohyb', 'vyber_krut', 'poznamka',
+              'aktivni') 
+    list_display = ('nazev', 'skupina', 'zakaznik', 'ohyb', 'krut', 'povrch', 'jadro', 'vrstva', 'popousteni',
+                    'sarzovani', 'pletivo', 'poznamka', 'aktivni')
     list_display_links = ('nazev',)
     search_fields = ('nazev',)
     list_filter = ('zakaznik__zkraceny_nazev',)

@@ -132,7 +132,7 @@ class Predpis(models.Model):
     pletivo = models.CharField(max_length=20, verbose_name='Pletivo', blank=True, null=True)
     vyber_povrch = models.CharField(max_length=30, verbose_name='Povrch - výběr', blank=True, null=True)
     vyber_jadro = models.CharField(max_length=30, verbose_name='Jádro - výběr', blank=True, null=True)
-    vrstva = models.CharField(max_length=20, verbose_name='Vrstva', blank=True, null=True)
+    vyber_vrstva = models.CharField(max_length=20, verbose_name='Vrstva - výběr', blank=True, null=True)
     vyber_ohyb = models.CharField(max_length=30, verbose_name='Ohyb - výběr', blank=True, null=True)
     vyber_krut = models.CharField(max_length=30, verbose_name='Krut - výběr', blank=True, null=True)
     poznamka = models.CharField(max_length=50, verbose_name='Poznámka', blank=True, null=True)
