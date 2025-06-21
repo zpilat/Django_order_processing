@@ -120,7 +120,7 @@ class Predpis(models.Model):
     """
     Předpis zákazníka pro tepelné zpracování pro přiřazení skupiny TZ.
     """
-    nazev = models.CharField(max_length=20, verbose_name='Název předpisu')
+    nazev = models.CharField(max_length=20, verbose_name='Název předpisu', unique=True,)
     skupina = models.PositiveSmallIntegerField(verbose_name='Skupina TZ', blank=True, null=True)
     ohyb = models.CharField(max_length=20, verbose_name='Ohyb', blank=True, null=True)
     krut = models.CharField(max_length=20, verbose_name='Krut', blank=True, null=True)
@@ -130,11 +130,11 @@ class Predpis(models.Model):
     popousteni = models.CharField(max_length=20, verbose_name='Popouštění', blank=True, null=True)
     sarzovani = models.CharField(max_length=20, verbose_name='Šaržování', blank=True, null=True)
     pletivo = models.CharField(max_length=20, verbose_name='Pletivo', blank=True, null=True)
-    vyber_povrch = models.CharField(max_length=30, verbose_name='Povrch - výběr', blank=True, null=True)
-    vyber_jadro = models.CharField(max_length=30, verbose_name='Jádro - výběr', blank=True, null=True)
-    vyber_vrstva = models.CharField(max_length=20, verbose_name='Vrstva - výběr', blank=True, null=True)
-    vyber_ohyb = models.CharField(max_length=30, verbose_name='Ohyb - výběr', blank=True, null=True)
-    vyber_krut = models.CharField(max_length=30, verbose_name='Krut - výběr', blank=True, null=True)
+    popis_povrch = models.CharField(max_length=30, verbose_name='Povrch - popis', blank=True, null=True)
+    popis_jadro = models.CharField(max_length=30, verbose_name='Jádro - popis', blank=True, null=True)
+    popis_vrstva = models.CharField(max_length=20, verbose_name='Vrstva - popis', blank=True, null=True)
+    popis_ohyb = models.CharField(max_length=30, verbose_name='Ohyb - popis', blank=True, null=True)
+    popis_krut = models.CharField(max_length=30, verbose_name='Krut - popis', blank=True, null=True)
     poznamka = models.CharField(max_length=50, verbose_name='Poznámka', blank=True, null=True)
     aktivni = models.BooleanField(default=True, verbose_name='Aktivní',
                                    help_text='Zda je předpis aktivní a může být přiřazen k zakázce.')
@@ -142,10 +142,9 @@ class Predpis(models.Model):
     history = HistoricalRecords()
 
     class Meta:
-        unique_together = [['nazev', 'zakaznik'],]
         verbose_name = 'Předpis'
         verbose_name_plural = 'předpisy'
-        ordering = ['zakaznik__zkratka', 'nazev']
+        ordering = ['-zakaznik__zkratka', 'nazev']
 
     def __str__(self):
         return f'{self.zakaznik.zkratka}-{self.nazev}'

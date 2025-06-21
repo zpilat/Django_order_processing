@@ -1010,7 +1010,7 @@ class PredpisAdmin(SimpleHistoryAdmin):
     """
 
     fields = ('nazev', 'skupina', 'zakaznik', 'ohyb', 'krut', 'povrch', 'jadro', 'vrstva', 'popousteni', 'sarzovani',
-              'pletivo', 'vyber_povrch', 'vyber_jadro', 'vyber_vrstva', 'vyber_ohyb', 'vyber_krut', 'poznamka',
+              'pletivo', 'popis_povrch', 'popis_jadro', 'popis_vrstva', 'popis_ohyb', 'popis_krut', 'poznamka',
               'aktivni') 
     list_display = ('nazev', 'skupina', 'zakaznik', 'ohyb', 'krut', 'povrch', 'jadro', 'vrstva', 'popousteni',
                     'sarzovani', 'pletivo', 'poznamka', 'aktivni')
