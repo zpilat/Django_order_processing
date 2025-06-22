@@ -1025,8 +1025,9 @@ class PredpisAdmin(SimpleHistoryAdmin):
 
     fields = ('nazev', 'skupina', 'zakaznik', 'ohyb', 'krut', 'povrch', 'jadro', 'vrstva', 'popousteni', 'sarzovani',
               'pletivo', 'popis_povrch', 'popis_jadro', 'popis_vrstva', 'popis_ohyb', 'popis_krut', 'poznamka',
-              'aktivni') 
-    list_display = ('nazev', 'skupina', 'zakaznik', 'ohyb', 'krut', 'povrch', 'jadro', 'vrstva', 'popousteni',
+              'aktivni')
+    save_as = True
+    list_display = ('nazev', 'skupina', 'zakaznik__zkraceny_nazev', 'ohyb', 'krut', 'povrch', 'jadro', 'vrstva', 'popousteni',
                     'sarzovani', 'pletivo', 'poznamka', 'aktivni')
     list_display_links = ('nazev',)
     search_fields = ('nazev',)
