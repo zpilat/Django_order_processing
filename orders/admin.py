@@ -52,6 +52,7 @@ class ZakazkaAutomatizovanyPrijemInline(admin.TabularInline):
     extra = 5
     fields = ('artikl', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit', 'popis',
               'priorita', 'pocet_beden', 'celkova_hmotnost', 'tara', 'material',)
+    autocomplete_fields = ('predpis',)
     show_change_link = True
     formfield_overrides = {
         models.CharField: {'widget': TextInput(attrs={ 'size': '30'})},
@@ -556,6 +557,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     list_filter = ('kamion_prijem__zakaznik', 'typ_hlavy', 'celozavit', 'priorita', 'povrch', KompletZakazkaFilter, ExpedovanaZakazkaFilter,)
     ordering = ('-id',)
     date_hierarchy = 'kamion_prijem__datum'
+    autocomplete_fields = ('predpis',)
     list_per_page = 25
     formfield_overrides = {
         models.CharField: {'widget': TextInput(attrs={ 'size': '30'})},
@@ -1017,7 +1019,7 @@ class PredpisAdmin(SimpleHistoryAdmin):
     list_display_links = ('nazev',)
     search_fields = ('nazev',)
     list_filter = ('zakaznik__zkraceny_nazev',)
-    ordering = ('id',)
+    ordering = ['-zakaznik__zkratka', 'nazev']
     list_per_page = 25
 
     history_list_display = ['nazev', 'skupina', 'zakaznik']

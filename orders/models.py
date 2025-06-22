@@ -147,7 +147,7 @@ class Predpis(models.Model):
         ordering = ['-zakaznik__zkratka', 'nazev']
 
     def __str__(self):
-        return f'{self.zakaznik.zkratka}-{self.nazev}'
+        return f'{self.nazev} ({self.zakaznik.zkratka})'
 
 
 class Zakazka(models.Model):
