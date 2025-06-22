@@ -148,6 +148,12 @@ class Predpis(models.Model):
 
     def __str__(self):
         return f'{self.nazev} ({self.zakaznik.zkratka})'
+    
+    def get_admin_url(self):
+        """
+        Vrací URL pro zobrazení detailu předpisu v administraci.
+        """
+        return reverse("admin:orders_predpis_change", args=[self.pk])    
 
 
 class Zakazka(models.Model):

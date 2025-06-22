@@ -71,7 +71,7 @@ class ZakazkaKamionPrijemInline(admin.TabularInline):
     extra = 0
     fields = ('artikl', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit',
               'popis', 'prubeh', 'priorita', 'celkovy_pocet_beden', 'get_komplet',)
-    readonly_fields = ('expedovano', 'get_komplet', 'celkovy_pocet_beden')
+    readonly_fields = ('expedovano', 'get_komplet', 'celkovy_pocet_beden',)
     show_change_link = True
     formfield_overrides = {
         models.CharField: {'widget': TextInput(attrs={ 'size': '30'})},
@@ -546,9 +546,9 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     readonly_fields = ('expedovano', 'get_komplet')
     
     # Parametry pro zobrazení seznamu v administraci
-    list_display = ('artikl', 'kamion_prijem_link', 'kamion_vydej_link', 'prumer', 'delka', 'predpis', 'get_typ_hlavy', 'get_skupina',
-                    'get_celozavit', 'zkraceny_popis', 'priorita', 'hmotnost_zakazky_k_expedici_brutto', 'pocet_beden_k_expedici',
-                        'celkovy_pocet_beden', 'get_komplet',)
+    list_display = ('artikl', 'kamion_prijem_link', 'kamion_vydej_link', 'prumer', 'delka', 'predpis_link', 'get_typ_hlavy',
+                    'get_skupina', 'get_celozavit', 'zkraceny_popis', 'priorita', 'hmotnost_zakazky_k_expedici_brutto',
+                    'pocet_beden_k_expedici', 'celkovy_pocet_beden', 'get_komplet',)
     list_display_links = ('artikl',)
     list_editable = ('priorita',)
     list_select_related = ("kamion_prijem", "kamion_vydej")
@@ -574,12 +574,23 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     class Media:
         js = ('admin/js/zakazky_hmotnost_sum.js',)
 
+    @admin.display(description='Předpis', ordering='predpis__id', empty_value='-')
+    def predpis_link(self, obj):
+        """
+        Zobrazí odkaz na předpis zakázky a umožní třídění podle hlavičky pole.
+        Pokud není předpis připojen, vrátí prázdný řetězec.
+        """
+        if obj.predpis:
+            return mark_safe(f'<a href="{obj.predpis.get_admin_url()}">{obj.predpis.nazev}</a>')
+
     @admin.display(description='TZ', ordering='predpis__skupina', empty_value='-')
     def get_skupina(self, obj):
         """
         Zobrazí skupinu tepelného zpracování zakázky a umožní třídění podle hlavičky pole.
         """
-        return obj.predpis.skupina
+        if obj.predpis:
+            return obj.predpis.skupina
+        return '-'
 
     @admin.display(boolean=True, description='VG', ordering='celozavit')
     def get_celozavit(self, obj):
@@ -644,6 +655,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
         if obj.kamion_vydej:
             return mark_safe(f'<a href="{obj.kamion_vydej.get_admin_url()}">{obj.kamion_vydej}</a>')
 
+    @admin.display(description='Komplet')
     def get_komplet(self, obj):
         '''
         Pokud není objekt (zakázka) uložen nebo neobsahuje bedny, vrátí '➖'.
@@ -659,7 +671,6 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
         elif any(bedna.stav_bedny == StavBednyChoice.K_EXPEDICI for bedna in obj.bedny.all()):
             return "⏳"
         return "❌"
-    get_komplet.short_description = "Komplet"
 
     def has_change_permission(self, request, obj=None):
         """
