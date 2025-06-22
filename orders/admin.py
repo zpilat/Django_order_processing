@@ -856,7 +856,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     list_select_related = ("zakazka", "zakazka__kamion_prijem", "zakazka__kamion_vydej")
     list_per_page = 50
     search_fields = ('cislo_bedny', 'zakazka__artikl', 'zakazka__delka',)
-    search_help_text = "Hledat podle čísla bedny, artiklu nebo délky vrutu"
+    search_help_text = "Hledat podle čísla bedny, zakázky nebo délky vrutu"
     list_filter = ('zakazka__kamion_prijem__zakaznik__nazev', StavBednyFilter, 'rovnat', 'tryskat', 'zakazka__celozavit',
                    'zakazka__typ_hlavy', 'zakazka__priorita', 'zakazka__predpis__skupina',)
     ordering = ('id',)
@@ -962,8 +962,9 @@ class BednaAdmin(SimpleHistoryAdmin):
         """
         Zobrazí skupinu tepelného zpracování zakázky a umožní třídění podle hlavičky pole.
         """
-        return obj.zakazka.predpis.skupina
-    
+        if obj.zakazka and obj.zakazka.predpis and obj.zakazka.predpis.skupina:
+            return obj.zakazka.predpis.skupina
+        return '-'
 
     def get_fields(self, request, obj=None):
         """
