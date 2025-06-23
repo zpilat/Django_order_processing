@@ -1,4 +1,6 @@
 <!DOCTYPE html>
+{% load static %}
+{% load i18n %}
 <html lang="cs">
 <head>
     <meta charset="UTF-8">
@@ -19,7 +21,7 @@
             font-size: 0.9rem;
         }
         .table td, .table th {
-            padding: 0.2rem !important;
+            padding: 2px !important;
             vertical-align: middle;
         }
         .fs-pdf-70 { font-size: 7rem; }
@@ -31,6 +33,7 @@
         .fs-pdf-15 { font-size: 1.5rem; }
         .fs-pdf-12 { font-size: 1.25rem; }
         .fs-pdf-10 { font-size: 1rem; }
+        .fs-pdf-08 { font-size: 0.85rem; }
         .fs-pdf-07 { font-size: 0.75rem; }
         .fs-pdf-06 { font-size: 0.625rem; }
     </style>
@@ -40,32 +43,32 @@
         <table class="table table-bordered border-black" style="width: 100%; table-layout: fixed; font-family: 'Arial';">
             <tbody  style="border-width: 2px;">
                 <tr>
-                    <td colspan="4" rowspan="3" class="text-center small"">Technologický předpis: 00360_Ø8</td>
+                    <td colspan="4" rowspan="3" class="text-center small"">Technologický předpis: {{ bedna.zakazka.predpis.nazev }}</td>
                     <td colspan="4" rowspan="3" class="text-center fw-bold fs-pdf-15">KARTA BEDNY</td>
                     <td class="text-center bg-body-secondary fs-pdf-06">nakládání</td>
                     <td class="text-center bg-body-secondary fs-pdf-06">pletivo</td>
                     <td colspan="3" rowspan="3" class="text-center bg-body-secondary fs-pdf-12 fw-bold">POPOUŠTĚNÍ:</td>
-                    <td colspan="5" rowspan="3" class="text-center bg-body-secondary fs-pdf-12 fw-bold">ANO</td>
+                    <td colspan="5" rowspan="3" class="text-center bg-body-secondary fs-pdf-12 fw-bold">{{ bedna.zakazka.predpis.popousteni }}</td>
                 </tr>
                 <tr>
-                    <td rowspan="2" class="text-center bg-body-secondary fw-bold">sypat</td>
-                    <td rowspan="2" class="text-center bg-body-secondary fs-pdf-10 fw-bold">B</td>
+                    <td rowspan="2" class="text-center bg-body-secondary fw-bold">{{ bedna.zakazka.predpis.sarzovani }}</td>
+                    <td rowspan="2" class="text-center bg-body-secondary fs-pdf-10 fw-bold">{{ bedna.zakazka.predpis.pletivo }}</td>
                 </tr>
                 <tr></tr>
 
                 <tr>
                     <td colspan="3" rowspan="7" class="text-center fw-bold fs-pdf-15">HPM HEAT SK</td>
                     <td colspan="8" rowspan="3" class="text-center text-danger fs-pdf-25 fw-bold">{{ bedna.zakazka.kamion_prijem.zakaznik.zkraceny_nazev }}</td>
-                    <td colspan="2" rowspan="7" class="text-center fw-bold fs-pdf-35">1</td>
+                    <td colspan="2" rowspan="7" class="text-center fw-bold fs-pdf-35">{{ bedna.zakazka.predpis.skupina }}</td>
                     <td colspan="3" rowspan="3" class="text-center">Počet beden:</td>
-                    <td colspan="2" rowspan="3" class="text-center text-danger fs-pdf-17 fw-bold">1/5</td>
+                    <td colspan="2" rowspan="3" class="text-center text-danger fs-pdf-17 fw-bold">{{ bedna.poradi_bedny }}/{{ bedna.zakazka.pocet_beden }}</td>
                 </tr>
                 <tr></tr>
                 <tr></tr>
                 <tr>
                     <td colspan="8" rowspan="4" class="text-center text-danger fs-pdf-25 fw-bold">{{ bedna.zakazka.artikl }}</td>
                     <td colspan="3" rowspan="4" class="text-center">Odfosfátování:</td>
-                    <td colspan="2" rowspan="4" class="text-center text-danger fs-pdf-17 fw-bold">ANO</td>
+                    <td colspan="2" rowspan="4" class="text-center text-danger fs-pdf-17 fw-bold">{% if bedna.odfosfatovat %}ANO{% else %}-{% endif %}</td>
                 </tr>
                 <tr></tr>
                 <tr></tr>
@@ -103,18 +106,18 @@
                     <td colspan="10" rowspan="6" style="padding: 0;">
                         <table class="table table-secondary table-bordered text-center border-black mb-0 fs-pdf-07" style="width: 100%;">
                             <tr>
-                                <td class="small">Ohyb</td>
-                                <td class="small">Krut</td>
-                                <td class="small">Tvrdost povrchu<br>[1 bedna ze zak.]</td>
-                                <td class="small">Tvrdost jádra<br>[1 bedna ze zak.]</td>
-                                <td class="small">Nauhličení</td>
+                                <td class="fs-pdf-08">Ohyb</td>
+                                <td class="fs-pdf-08">Krut</td>
+                                <td class="fs-pdf-08">{{ bedna.zakazka.predpis.popis_povrch|linebreaksbr }}</td>
+                                <td class="fs-pdf-08">{{ bedna.zakazka.predpis.popis_jadro|linebreaksbr }}</td>
+                                <td class="fs-pdf-08">{{ bedna.zakazka.predpis.popis_vrstva|linebreaksbr }}</td>
                             </tr>
                             <tr>
-                                <td class="small fw-bold">min. 45°</td>
-                                <td class="small fw-bold">min. 28,0Nm</td>
-                                <td class="small fw-bold">410-480HV1</td>
-                                <td class="small fw-bold">320-410HV10</td>
-                                <td class="small fw-bold">-</td>
+                                <td class="fs-pdf-08 fw-bold">{{ bedna.zakazka.predpis.ohyb }}</td>
+                                <td class="fs-pdf-08 fw-bold">{{ bedna.zakazka.predpis.krut }}</td>
+                                <td class="fs-pdf-08 fw-bold">{{ bedna.zakazka.predpis.povrch|linebreaksbr }}</td>
+                                <td class="fs-pdf-08 fw-bold">{{ bedna.zakazka.predpis.jadro|linebreaksbr }}</td>
+                                <td class="fs-pdf-08 fw-bold">{{ bedna.zakazka.predpis.vrstva|linebreaksbr }}</td>
                             </tr>
                         </table>
                     </td>

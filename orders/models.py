@@ -36,7 +36,7 @@ class Zakaznik(models.Model):
         ordering = ['nazev']
 
     def __str__(self):
-        return self.nazev
+        return self.zkraceny_nazev
     
 
 class Kamion(models.Model):
@@ -188,6 +188,15 @@ class Zakazka(models.Model):
     @property
     def celkova_hmotnost(self):
         return self.bedny.aggregate(suma=Sum('hmotnost'))['suma'] or 0
+    
+    @property
+    def pocet_beden(self):
+        """
+        Vrací počet beden spojených s touto zakázkou.
+        """
+        if not hasattr(self, 'bedny'):
+            return 0
+        return self.bedny.count()
 
     def get_admin_url(self):
         """
@@ -212,6 +221,7 @@ class Bedna(models.Model):
     stav_bedny = models.CharField(choices=StavBednyChoice.choices, max_length=2, default=StavBednyChoice.PRIJATO, verbose_name='Stav bedny')    
     mnozstvi = models.PositiveIntegerField(null=True, blank=True, verbose_name='Mn. ks')
     poznamka = models.CharField(max_length=100, null=True, blank=True, verbose_name='Poznámka HPM')
+    odfosfatovat = models.BooleanField(default=False, verbose_name='Odfos.')
     history = HistoricalRecords()
 
     class Meta:
@@ -228,6 +238,18 @@ class Bedna(models.Model):
         """
         return reverse("admin:orders_bedna_change", args=[self.pk])
     
+    @property
+    def poradi_bedny(self):
+        """
+        Vrací pořadí bedny v rámci zakázky - dle čísla bedny z celkového počtu beden v zakázce.
+        """
+        cisla_beden = self.zakazka.bedny.values_list('cislo_bedny', flat=True).order_by('cislo_bedny')
+        if len(cisla_beden) == 0:
+            return 0
+        for i, cislo in enumerate(cisla_beden, start=1):
+            if cislo == self.cislo_bedny:
+                return i 
+
     def save(self, *args, **kwargs):
         """
         Uloží instanci Bedna.

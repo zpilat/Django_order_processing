@@ -486,12 +486,13 @@ class BednaInline(admin.TabularInline):
     extra = 0
     # další úprava zobrazovaných polí podle různých podmínek je v get_fields
     fields = ('cislo_bedny', 'behalter_nr', 'hmotnost', 'tara', 'mnozstvi', 'material', 'sarze', 'dodatecne_info',
-              'dodavatel_materialu', 'vyrobni_zakazka', 'tryskat', 'rovnat', 'stav_bedny', 'poznamka')
+              'dodavatel_materialu', 'vyrobni_zakazka', 'odfosfatovat', 'tryskat', 'rovnat', 'stav_bedny', 'poznamka',)
     readonly_fields = ('cislo_bedny',)
     show_change_link = True
     formfield_overrides = {
         models.CharField: {'widget': TextInput(attrs={'size': '12'})},  # default
-        models.DecimalField: {'widget': TextInput(attrs={'size': '6'})},
+        models.DecimalField: {'widget': TextInput(attrs={'size': '5'})},
+        models.IntegerField: {'widget': TextInput(attrs={'size': '5'})},
     }
 
     def formfield_for_dbfield(self, db_field, request, **kwargs):
@@ -503,7 +504,7 @@ class BednaInline(admin.TabularInline):
         elif db_field.name == 'poznamka':
             kwargs['widget'] = TextInput(attrs={'size': '22'}) # Změna velikosti pole pro poznámku HPM
         elif db_field.name == 'dodavatel_materialu':
-            kwargs['widget'] = TextInput(attrs={'size': '8'})  # Změna velikosti pole pro dodavatele materiálu
+            kwargs['widget'] = TextInput(attrs={'size': '4'})  # Změna velikosti pole pro dodavatele materiálu
         return super().formfield_for_dbfield(db_field, request, **kwargs)
 
     def get_fields(self, request, obj=None):
@@ -844,26 +845,27 @@ class BednaAdmin(SimpleHistoryAdmin):
 
     # Parametry pro zobrazení detailu v administraci
     fields = ('zakazka', 'cislo_bedny', 'hmotnost', 'tara', 'mnozstvi', 'material', 'sarze', 'behalter_nr', 'dodatecne_info',
-              'dodavatel_materialu', 'vyrobni_zakazka', 'tryskat', 'rovnat', 'stav_bedny', 'poznamka',)
+              'dodavatel_materialu', 'vyrobni_zakazka', 'tryskat', 'rovnat', 'stav_bedny', 'poznamka', 'odfosfatovat',)
     readonly_fields = ('cislo_bedny',)
 
     # Parametry pro zobrazení seznamu v administraci
     list_display = ('get_cislo_bedny', 'get_behalter_nr', 'zakazka_link', 'kamion_prijem_link', 'kamion_vydej_link', 'get_skupina_TZ',
-                    'zkraceny_popis', 'get_prumer', 'get_delka',
-                    'rovnat', 'tryskat', 'stav_bedny', 'get_typ_hlavy', 'get_celozavit', 'hmotnost', 'tara', 'get_priorita', 'poznamka',)
+                    'zkraceny_popis', 'get_prumer', 'get_delka', 'rovnat', 'tryskat', 'stav_bedny', 'get_typ_hlavy', 'get_celozavit',
+                    'hmotnost', 'tara', 'get_priorita', 'poznamka',)
     # list_editable - je nastaveno pro různé stavy filtru Skladem v metodě changelist_view
     list_display_links = ('get_cislo_bedny', )
     list_select_related = ("zakazka", "zakazka__kamion_prijem", "zakazka__kamion_vydej")
     list_per_page = 50
     search_fields = ('cislo_bedny', 'zakazka__artikl', 'zakazka__delka',)
     search_help_text = "Hledat podle čísla bedny, zakázky nebo délky vrutu"
-    list_filter = ('zakazka__kamion_prijem__zakaznik__nazev', StavBednyFilter, 'rovnat', 'tryskat', 'zakazka__celozavit',
+    list_filter = ('zakazka__kamion_prijem__zakaznik', StavBednyFilter, 'rovnat', 'tryskat', 'zakazka__celozavit',
                    'zakazka__typ_hlavy', 'zakazka__priorita', 'zakazka__predpis__skupina',)
     ordering = ('id',)
     date_hierarchy = 'zakazka__kamion_prijem__datum'
     formfield_overrides = {
         models.CharField: {'widget': TextInput(attrs={ 'size': '30'})},
         models.DecimalField: {'widget': TextInput(attrs={ 'size': '8'})},
+        models.BooleanField: {'widget': RadioSelect(choices=[(True, 'Ano'), (False, 'Ne')])}
     }
 
     # Parametry pro historii změn
