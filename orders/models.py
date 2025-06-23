@@ -120,7 +120,7 @@ class Predpis(models.Model):
     """
     Předpis zákazníka pro tepelné zpracování pro přiřazení skupiny TZ.
     """
-    nazev = models.CharField(max_length=20, verbose_name='Název předpisu', unique=True,)
+    nazev = models.CharField(max_length=20, verbose_name='Název předpisu',)
     skupina = models.PositiveSmallIntegerField(verbose_name='Skupina TZ', blank=True, null=True)
     ohyb = models.CharField(max_length=20, verbose_name='Ohyb', blank=True, null=True)
     krut = models.CharField(max_length=20, verbose_name='Krut', blank=True, null=True)

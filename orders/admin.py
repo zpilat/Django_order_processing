@@ -1,5 +1,5 @@
 from django.contrib import admin, messages
-from django.db import models
+from django.db import models, transaction
 from django.forms import TextInput, RadioSelect
 from django.forms.models import BaseInlineFormSet
 from django.utils.safestring import mark_safe
@@ -295,6 +295,7 @@ class KamionAdmin(SimpleHistoryAdmin):
         ]
         return custom_urls + urls
 
+    @transaction.atomic
     def import_view(self, request):
         """
         Zobrazí formulář pro import zakázek do kamionu a zpracuje nahraný soubor.
@@ -400,24 +401,46 @@ class KamionAdmin(SimpleHistoryAdmin):
                     zakazky_cache = {}
                     for _, row in df.iterrows():
                         if pd.isna(row.get('artikl')):
-                            break
+                            raise ValueError("Chyba: Sloupec 'Artikel- nummer' nesmí být prázdný.")
 
                         artikl = row['artikl']
 
                         if artikl not in zakazky_cache:
+                            prumer = row.get('prumer')
+
+                            # Formátování průměru: '10.0' → '10', '7.5' → '7,5'
+                            if prumer == prumer.to_integral():
+                                retezec_prumer = str(int(prumer))
+                            else:
+                                retezec_prumer = str(prumer).replace('.', ',')
+
+                            # Sestavení názvu předpisu
+                            try:
+                                cislo_predpisu = int(row['predpis'])
+                                nazev_predpis=f"{cislo_predpisu:05d}_Ø{retezec_prumer}"                                
+                            except (ValueError, TypeError):
+                                nazev_predpis = f"{row['predpis']}_Ø{retezec_prumer}"
+
+                            # Získání předpisu, pokud existuje
+                            predpis_qs = Predpis.objects.filter(nazev=nazev_predpis, aktivni=True)
+                            predpis = predpis_qs.first() if predpis_qs.exists() else None
+
+                            if not predpis:
+                               raise ValueError(f"Předpis „{nazev_predpis}“ neexistuje nebo není aktivní.")
+
                             zakazka = Zakazka.objects.create(
                                 kamion_prijem=kamion,
                                 artikl=artikl,
-                                prumer=row.get('prumer'),
+                                prumer=prumer,
                                 delka=row.get('delka'),
-                                predpis=int(row.get('predpis')),
+                                predpis=predpis,
                                 typ_hlavy=row.get('typ_hlavy'),
                                 celozavit=row.get('celozavit', False),
                                 priorita=row.get('priorita', PrioritaChoice.NIZKA),
                                 popis=row.get('popis'),
                                 vrstva=row.get('vrstva'),
                                 povrch=row.get('povrch'),
-                                prubeh=row.get('prubeh').zfill(6) if row.get('prubeh') else None,
+                                prubeh=f"{int(row.get('prubeh')):06d}" if row.get('prubeh') else None,
                             )
                             zakazky_cache[artikl] = zakazka
 
