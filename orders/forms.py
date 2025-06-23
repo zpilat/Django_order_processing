@@ -8,7 +8,25 @@ from .choices import (
 class ImportZakazekForm(forms.Form):
     file = forms.FileField(label="Soubor (XLSX nebo CSV)")
 
-class ZakazkaAdminForm(forms.ModelForm):
+class ZakazkaPredpisValidatorMixin:
+    """
+    Mixin pro validaci předpisu v rámci zakázky.
+    Zajišťuje, že předpis patří ke stejnému zákazníkovi jako kamion,
+    ke kterému je zakázka přiřazena.
+    """
+    def clean(self):
+        cleaned_data = super().clean()
+        predpis = cleaned_data.get("predpis")
+        kamion = cleaned_data.get("kamion_prijem")
+
+        if predpis and kamion and predpis.zakaznik != kamion.zakaznik:
+            raise forms.ValidationError(
+                f"Předpis „{predpis}“ nepatří zákazníkovi „{kamion.zakaznik}“."
+            )
+        return cleaned_data
+
+
+class ZakazkaAdminForm(ZakazkaPredpisValidatorMixin, forms.ModelForm):
     celkova_hmotnost = forms.DecimalField(required=False, min_value=1.0, label="Celková hmotnost kg zakázky")
     celkove_mnozstvi = forms.IntegerField(required=False, min_value=1, label="Celkové množství ks v zakázce")
     pocet_beden = forms.IntegerField(required=False, min_value=1, label="Celkový počet beden v zakázce")   
@@ -53,7 +71,7 @@ class ZakazkaAdminForm(forms.ModelForm):
             self.fields['predpis'].queryset = Predpis.objects.filter(aktivni=True)           
 
 
-class ZakazkaInlineForm(forms.ModelForm):
+class ZakazkaInlineForm(ZakazkaPredpisValidatorMixin, forms.ModelForm):
     """
     Inline formulář pro model Zakazka v Django Adminu, slouží pro automatické vytvoření beden pro jednotlivé zakázky.
     Umožní rozpočítat celkovou hmotnost zakázky na jednotlivé bedny. Přidá všem bedná v zakázce táru a typ materiálu.
