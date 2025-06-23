@@ -79,7 +79,7 @@ class ZakazkaKamionPrijemInline(admin.TabularInline):
     Inline pro správu zakázek v rámci kamionu.
     """
     model = Zakazka
-    form = ZakazkaInlineForm
+    form = ZakazkaAdminForm
     fk_name = 'kamion_prijem'
     verbose_name = 'Zakázka - příjem'
     verbose_name_plural = 'Zakázky - příjem'
@@ -455,10 +455,10 @@ class KamionAdmin(SimpleHistoryAdmin):
         """
         Uloží inline formuláře pro zakázky kamionu a vytvoří bedny na základě zadaných dat.
         """
-        # Při úpravách stávajícího kamionu se pouze uloží všechny změny do databáze bez vytvoření beden.
-        if change:
+        # Při úpravách stávajícího kamionu, který už obsahuje zakázky, se pouze uloží všechny změny do databáze bez vytvoření beden.
+        if change and formset.instance.zakazky_prijem.exists():
             formset.save()
-        # Při vytvoření nového kamionu se zpracují inline formuláře pro zakázky a vytvoří se případně automaticky bedny        
+        # Při vytvoření nového kamionu nebo při přidání zakázek do prázdného kamionu se zpracují inline formuláře pro zakázky a vytvoří se případně automaticky bedny        
         else:
             # Uloží se inline formuláře bez okamžitého zápisu do DB
             zakazky = formset.save(commit=False)
@@ -1048,7 +1048,7 @@ class PredpisAdmin(SimpleHistoryAdmin):
                     'sarzovani', 'pletivo', 'poznamka', 'aktivni')
     list_display_links = ('nazev',)
     search_fields = ('nazev',)
-    list_filter = ('zakaznik__zkraceny_nazev',)
+    list_filter = ('zakaznik__zkraceny_nazev', 'aktivni')
     ordering = ['-zakaznik__zkratka', 'nazev']
     list_per_page = 25
 

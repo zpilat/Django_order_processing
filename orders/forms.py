@@ -1,5 +1,5 @@
 from django import forms
-from .models import Zakaznik, Kamion, Zakazka, Bedna
+from .models import Zakaznik, Kamion, Zakazka, Bedna, Predpis
 from .choices import (
     TypHlavyChoice, StavBednyChoice, RovnaniChoice, TryskaniChoice,
     PrioritaChoice, ZinkovnaChoice, KamionChoice
@@ -47,8 +47,10 @@ class ZakazkaAdminForm(forms.ModelForm):
             self.fields['tryskat'].initial = bedna.tryskat if bedna else TryskaniChoice.NEZADANO
             self.fields['rovnat'].initial = bedna.rovnat if bedna else RovnaniChoice.NEZADANO
 
-            if inst.kamion_prijem and inst.kamion_prijem.zakaznik:
-                self.fields['predpis'].queryset = inst.kamion_prijem.zakaznik.predpisy.all()            
+        if inst and inst.pk and inst.kamion_prijem and inst.kamion_prijem.zakaznik:
+            self.fields['predpis'].queryset = inst.kamion_prijem.zakaznik.predpisy.filter(aktivni=True)
+        else:
+            self.fields['predpis'].queryset = Predpis.objects.filter(aktivni=True)           
 
 
 class ZakazkaInlineForm(forms.ModelForm):
@@ -90,10 +92,12 @@ class ZakazkaInlineForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         inst = getattr(self, "instance", None)
 
-        if zakaznik:
-            self.fields['predpis'].queryset = zakaznik.predpisy.all()
-        elif inst.pk and inst.kamion_prijem and inst.kamion_prijem.zakaznik:
-            self.fields['predpis'].queryset = inst.kamion_prijem.zakaznik.predpisy.all()
+        if inst and inst.pk and inst.kamion_prijem and inst.kamion_prijem.zakaznik:
+            self.fields['predpis'].queryset = inst.kamion_prijem.zakaznik.predpisy.filter(aktivni=True)
+        elif zakaznik:
+            self.fields['predpis'].queryset = zakaznik.predpisy.filter(aktivni=True)
+        else:
+            self.fields['predpis'].queryset = Predpis.objects.filter(aktivni=True)
 
 
 class BednaAdminForm(forms.ModelForm):
