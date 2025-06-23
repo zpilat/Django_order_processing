@@ -52,6 +52,7 @@ class ZakazkaAutomatizovanyPrijemInline(admin.TabularInline):
     extra = 5
     fields = ('artikl', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit', 'popis',
               'priorita', 'pocet_beden', 'celkova_hmotnost', 'tara', 'material',)
+    seelect_related = ('predpis',)
     show_change_link = True
     formfield_overrides = {
         models.CharField: {'widget': TextInput(attrs={ 'size': '30'})},
@@ -87,6 +88,7 @@ class ZakazkaKamionPrijemInline(admin.TabularInline):
     fields = ('artikl', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit',
               'popis', 'prubeh', 'priorita', 'celkovy_pocet_beden', 'get_komplet',)
     readonly_fields = ('expedovano', 'get_komplet', 'celkovy_pocet_beden',)
+    select_related = ('predpis',)
     show_change_link = True
     formfield_overrides = {
         models.CharField: {'widget': TextInput(attrs={ 'size': '30'})},
@@ -150,6 +152,7 @@ class ZakazkaKamionVydejInline(admin.TabularInline):
               'popis', 'prubeh', 'priorita', 'celkovy_pocet_beden',)
     readonly_fields = ('artikl', 'kamion_prijem', 'prumer', 'delka', 'predpis', 'typ_hlavy',
                        'celozavit', 'popis', 'prubeh', 'priorita', 'celkovy_pocet_beden',)
+    select_related = ('kamion_prijem', 'predpis',)
     show_change_link = True
     formfield_overrides = {
         models.CharField: {'widget': TextInput(attrs={ 'size': '30'})},
@@ -295,7 +298,6 @@ class KamionAdmin(SimpleHistoryAdmin):
         ]
         return custom_urls + urls
 
-    @transaction.atomic
     def import_view(self, request):
         """
         Zobrazí formulář pro import zakázek do kamionu a zpracuje nahraný soubor.
@@ -398,63 +400,64 @@ class KamionAdmin(SimpleHistoryAdmin):
                     df.rename(columns=column_mapping, inplace=True)
 
                     # Uložení záznamů
-                    zakazky_cache = {}
-                    for _, row in df.iterrows():
-                        if pd.isna(row.get('artikl')):
-                            raise ValueError("Chyba: Sloupec 'Artikel- nummer' nesmí být prázdný.")
+                    with transaction.atomic():
+                        zakazky_cache = {}
+                        for _, row in df.iterrows():
+                            if pd.isna(row.get('artikl')):
+                                raise ValueError("Chyba: Sloupec 'Artikel- nummer' nesmí být prázdný.")
 
-                        artikl = row['artikl']
+                            artikl = row['artikl']
 
-                        if artikl not in zakazky_cache:
-                            prumer = row.get('prumer')
+                            if artikl not in zakazky_cache:
+                                prumer = row.get('prumer')
 
-                            # Formátování průměru: '10.0' → '10', '7.5' → '7,5'
-                            if prumer == prumer.to_integral():
-                                retezec_prumer = str(int(prumer))
-                            else:
-                                retezec_prumer = str(prumer).replace('.', ',')
+                                # Formátování průměru: '10.0' → '10', '7.5' → '7,5'
+                                if prumer == prumer.to_integral():
+                                    retezec_prumer = str(int(prumer))
+                                else:
+                                    retezec_prumer = str(prumer).replace('.', ',')
 
-                            # Sestavení názvu předpisu
-                            try:
-                                cislo_predpisu = int(row['predpis'])
-                                nazev_predpis=f"{cislo_predpisu:05d}_Ø{retezec_prumer}"                                
-                            except (ValueError, TypeError):
-                                nazev_predpis = f"{row['predpis']}_Ø{retezec_prumer}"
+                                # Sestavení názvu předpisu
+                                try:
+                                    cislo_predpisu = int(row['predpis'])
+                                    nazev_predpis=f"{cislo_predpisu:05d}_Ø{retezec_prumer}"                                
+                                except (ValueError, TypeError):
+                                    nazev_predpis = f"{row['predpis']}_Ø{retezec_prumer}"
 
-                            # Získání předpisu, pokud existuje
-                            predpis_qs = Predpis.objects.filter(nazev=nazev_predpis, aktivni=True)
-                            predpis = predpis_qs.first() if predpis_qs.exists() else None
+                                # Získání předpisu, pokud existuje
+                                predpis_qs = Predpis.objects.filter(nazev=nazev_predpis, aktivni=True)
+                                predpis = predpis_qs.first() if predpis_qs.exists() else None
 
-                            if not predpis:
-                               raise ValueError(f"Předpis „{nazev_predpis}“ neexistuje nebo není aktivní.")
+                                if not predpis:
+                                    raise ValueError(f"Předpis „{nazev_predpis}“ neexistuje nebo není aktivní.")
 
-                            zakazka = Zakazka.objects.create(
-                                kamion_prijem=kamion,
-                                artikl=artikl,
-                                prumer=prumer,
-                                delka=row.get('delka'),
-                                predpis=predpis,
-                                typ_hlavy=row.get('typ_hlavy'),
-                                celozavit=row.get('celozavit', False),
-                                priorita=row.get('priorita', PrioritaChoice.NIZKA),
-                                popis=row.get('popis'),
-                                vrstva=row.get('vrstva'),
-                                povrch=row.get('povrch'),
-                                prubeh=f"{int(row.get('prubeh')):06d}" if row.get('prubeh') else None,
+                                zakazka = Zakazka.objects.create(
+                                    kamion_prijem=kamion,
+                                    artikl=artikl,
+                                    prumer=prumer,
+                                    delka=row.get('delka'),
+                                    predpis=predpis,
+                                    typ_hlavy=row.get('typ_hlavy'),
+                                    celozavit=row.get('celozavit', False),
+                                    priorita=row.get('priorita', PrioritaChoice.NIZKA),
+                                    popis=row.get('popis'),
+                                    vrstva=row.get('vrstva'),
+                                    povrch=row.get('povrch'),
+                                    prubeh=f"{int(row.get('prubeh')):06d}" if row.get('prubeh') else None,
+                                )
+                                zakazky_cache[artikl] = zakazka
+
+                            Bedna.objects.create(
+                                zakazka=zakazky_cache[artikl],
+                                hmotnost=row.get('hmotnost'),
+                                tara=row.get('tara'),
+                                material=row.get('material'),
+                                sarze=row.get('sarze'),
+                                behalter_nr=row.get('behalter_nr'),
+                                dodatecne_info=row.get('dodatecne_info'),
+                                dodavatel_materialu=row.get('dodavatel_materialu'),
+                                vyrobni_zakazka=row.get('vyrobni_zakazka')
                             )
-                            zakazky_cache[artikl] = zakazka
-
-                        Bedna.objects.create(
-                            zakazka=zakazky_cache[artikl],
-                            hmotnost=row.get('hmotnost'),
-                            tara=row.get('tara'),
-                            material=row.get('material'),
-                            sarze=row.get('sarze'),
-                            behalter_nr=row.get('behalter_nr'),
-                            dodatecne_info=row.get('dodatecne_info'),
-                            dodavatel_materialu=row.get('dodavatel_materialu'),
-                            vyrobni_zakazka=row.get('vyrobni_zakazka')
-                        )
 
                     self.message_user(request, "Import proběhl úspěšně.", messages.SUCCESS)
                     return redirect("..")
