@@ -369,7 +369,15 @@ class KamionAdmin(SimpleHistoryAdmin):
                         if pd.notna(row['Bezeichnung']) and 'konstrux' in row['Bezeichnung'].lower():
                             return True
                         return False
-                    df['celozavit'] = df.apply(celozavit, axis=1)                                      
+                    df['celozavit'] = df.apply(celozavit, axis=1)        
+
+                    # Vytvoří se nový sloupec 'odfosfatovat', pokud je ve sloupci 'Bezeichnung' obsaženo 'muss entphosphatiert werden',
+                    # vyplní se hodnota True, jinak False
+                    def odfosfatovat(row):
+                        if pd.notna(row['Sonder / Zusatzinfo']) and 'muss entphosphatiert werden' in row['Sonder / Zusatzinfo'].lower():
+                            return True
+                        return False
+                    df['odfosfatovat'] = df.apply(odfosfatovat, axis=1)
 
                     # Odstranění nepotřebných sloupců
                     df.drop(columns=[
@@ -456,7 +464,8 @@ class KamionAdmin(SimpleHistoryAdmin):
                                 behalter_nr=row.get('behalter_nr'),
                                 dodatecne_info=row.get('dodatecne_info'),
                                 dodavatel_materialu=row.get('dodavatel_materialu'),
-                                vyrobni_zakazka=row.get('vyrobni_zakazka')
+                                vyrobni_zakazka=row.get('vyrobni_zakazka'),
+                                odfosfatovat=row.get('odfosfatovat'),
                             )
 
                     self.message_user(request, "Import proběhl úspěšně.", messages.SUCCESS)
