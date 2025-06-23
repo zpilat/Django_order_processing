@@ -41,16 +41,14 @@ class ZakazkaAdminForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         inst = getattr(self, "instance", None)
 
-
-
         if inst and inst.pk:
-            # Existující instance
-            tryskat = inst.bedny.first().tryskat if inst.bedny.exists() else TryskaniChoice.NEZADANO
-            rovnat = inst.bedny.first().rovnat if inst.bedny.exists() else RovnaniChoice.NEZADANO
+            # Inicializace z první bedny (pokud existuje)
+            bedna = inst.bedny.first()
+            self.fields['tryskat'].initial = bedna.tryskat if bedna else TryskaniChoice.NEZADANO
+            self.fields['rovnat'].initial = bedna.rovnat if bedna else RovnaniChoice.NEZADANO
 
-            # Nastavíme initial hodnoty pro pole stav_bedny, tryskat a rovnat
-            self.fields['tryskat'].initial = tryskat
-            self.fields['rovnat'].initial = rovnat
+            if inst.kamion_prijem and inst.kamion_prijem.zakaznik:
+                self.fields['predpis'].queryset = inst.kamion_prijem.zakaznik.predpisy.all()            
 
 
 class ZakazkaInlineForm(forms.ModelForm):
@@ -83,6 +81,19 @@ class ZakazkaInlineForm(forms.ModelForm):
     class Meta:
         model = Zakazka
         fields = "__all__"            
+
+    def __init__(self, *args, zakaznik=None, **kwargs):
+        """
+        Inicializace formuláře ZakazkaInlineForm.
+        Pokud existuje instance zakázky nebo kamion, nastaví se queryset pro pole 'predpis'
+        """
+        super().__init__(*args, **kwargs)
+        inst = getattr(self, "instance", None)
+
+        if zakaznik:
+            self.fields['predpis'].queryset = zakaznik.predpisy.all()
+        elif inst.pk and inst.kamion_prijem and inst.kamion_prijem.zakaznik:
+            self.fields['predpis'].queryset = inst.kamion_prijem.zakaznik.predpisy.all()
 
 
 class BednaAdminForm(forms.ModelForm):

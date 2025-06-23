@@ -52,12 +52,26 @@ class ZakazkaAutomatizovanyPrijemInline(admin.TabularInline):
     extra = 5
     fields = ('artikl', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit', 'popis',
               'priorita', 'pocet_beden', 'celkova_hmotnost', 'tara', 'material',)
-    autocomplete_fields = ('predpis',)
     show_change_link = True
     formfield_overrides = {
         models.CharField: {'widget': TextInput(attrs={ 'size': '30'})},
         models.DecimalField: {'widget': TextInput(attrs={ 'size': '8'})},
     }
+
+    def get_formset(self, request, obj=None, **kwargs):
+        zakaznik = None
+        if obj and obj.prijem_vydej == 'P':
+            zakaznik = obj.zakaznik  # obj je instance Kamion
+
+        Form = self.form
+
+        class CustomForm(Form):
+            def __init__(self, *args, **kw):
+                kw['zakaznik'] = zakaznik
+                super().__init__(*args, **kw)
+
+        kwargs['form'] = CustomForm
+        return super().get_formset(request, obj, **kwargs)
 
 
 class ZakazkaKamionPrijemInline(admin.TabularInline):
@@ -65,6 +79,7 @@ class ZakazkaKamionPrijemInline(admin.TabularInline):
     Inline pro správu zakázek v rámci kamionu.
     """
     model = Zakazka
+    form = ZakazkaInlineForm
     fk_name = 'kamion_prijem'
     verbose_name = 'Zakázka - příjem'
     verbose_name_plural = 'Zakázky - příjem'
@@ -177,17 +192,18 @@ class KamionAdmin(SimpleHistoryAdmin):
 
     def get_inlines(self, request, obj):
         """
-        Vrací inliny pro správu zakázek kamionu v závislosti na tom, zda se jedná o kamion pro příjem nebo výdej a jestli jde o přidání nebo editaci.
+        Vrací inliny pro správu zakázek kamionu v závislosti na tom,
+        zda se jedná o kamion pro příjem nebo výdej a jestli jde o přidání nebo editaci.
         """
-        # Pokud se jedná o přidání nového kamionu se zakázkami.
-        if not obj:
-            return [ZakazkaAutomatizovanyPrijemInline]
-        # Pokud se jedná o editaci kamionu příjem.
-        if obj and obj.prijem_vydej == 'P':
-            return [ZakazkaKamionPrijemInline]
         # Pokud se jedná o editaci kamionu výdej.
         if obj and obj.prijem_vydej == 'V':
             return [ZakazkaKamionVydejInline]
+        # Pokud se jedná o editaci kamionu příjem.
+        if obj and obj.prijem_vydej == 'P':        
+            # Pokud se jedná o přidání zakázek a beden do prázdného kamionu příjem.
+            if obj and not obj.zakazky_prijem.exists():
+                return [ZakazkaAutomatizovanyPrijemInline]
+            return [ZakazkaKamionPrijemInline]
         return []
     
     @admin.display(description='Zákazník', ordering='zakaznik__zkraceny_nazev', empty_value='-')
@@ -558,7 +574,6 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     list_filter = ('kamion_prijem__zakaznik', 'typ_hlavy', 'celozavit', 'priorita', 'povrch', KompletZakazkaFilter, ExpedovanaZakazkaFilter,)
     ordering = ('-id',)
     date_hierarchy = 'kamion_prijem__datum'
-    autocomplete_fields = ('predpis',)
     list_per_page = 25
     formfield_overrides = {
         models.CharField: {'widget': TextInput(attrs={ 'size': '30'})},
