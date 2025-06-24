@@ -44,7 +44,27 @@ class ExpedovanaZakazkaFilter(admin.SimpleListFilter):
         elif value == 'expedovano':
             return queryset.filter(expedovano=True)
         return queryset
+
+
+class AktivniPredpisFilter(admin.SimpleListFilter):
+    """
+    Filtrovat zakázky podle aktivního předpisu.
+    """
+    title = "Aktivní předpis"
+    parameter_name = "aktivni_predpis"
+
+    def lookups(self, request, model_admin):
+        return (
+            ('ne', 'Ne'),
+        )
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if value == 'ne':
+            return queryset.filter(aktivni=False)
+        return queryset.filter(aktivni=True)
     
+
 class KompletZakazkaFilter(admin.SimpleListFilter):
     """
     Filtrovat zakázky podle rozpracovanosti a kompletnosti.

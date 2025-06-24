@@ -17,7 +17,7 @@ import re
 from .models import Zakaznik, Kamion, Zakazka, Bedna, Predpis
 from .actions import expedice_zakazek_action, import_kamionu_action, tisk_karet_beden_action, tisk_karet_beden_zakazek_action, tisk_karet_beden_kamionu_action, \
     tisk_dodaciho_listu_kamionu_action, vratit_zakazky_z_expedice_action, expedice_zakazek_kamion_action
-from .filters import ExpedovanaZakazkaFilter, StavBednyFilter, KompletZakazkaFilter
+from .filters import ExpedovanaZakazkaFilter, StavBednyFilter, KompletZakazkaFilter, AktivniPredpisFilter
 from .forms import ZakazkaAdminForm, BednaAdminForm, ImportZakazekForm, ZakazkaInlineForm
 from .choices import (
     TypHlavyChoice, StavBednyChoice, RovnaniChoice, TryskaniChoice,
@@ -1039,7 +1039,6 @@ class PredpisAdmin(SimpleHistoryAdmin):
     """
     Správa předpisů v administraci.
     """
-
     fields = ('nazev', 'skupina', 'zakaznik', 'ohyb', 'krut', 'povrch', 'jadro', 'vrstva', 'popousteni', 'sarzovani',
               'pletivo', 'popis_povrch', 'popis_jadro', 'popis_vrstva', 'popis_ohyb', 'popis_krut', 'poznamka',
               'aktivni')
@@ -1048,7 +1047,7 @@ class PredpisAdmin(SimpleHistoryAdmin):
                     'sarzovani', 'pletivo', 'poznamka', 'aktivni')
     list_display_links = ('nazev',)
     search_fields = ('nazev',)
-    list_filter = ('zakaznik__zkraceny_nazev',)
+    list_filter = ('zakaznik__zkraceny_nazev', AktivniPredpisFilter)
     ordering = ['-zakaznik__zkratka', 'nazev']
     list_per_page = 25
 
