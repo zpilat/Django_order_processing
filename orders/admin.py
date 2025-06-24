@@ -5,6 +5,7 @@ from django.forms.models import BaseInlineFormSet
 from django.utils.safestring import mark_safe
 from django.utils.translation import gettext_lazy as _
 from django.contrib.admin.views.main import ChangeList
+from django.contrib.admin.widgets import RelatedFieldWidgetWrapper
 from django.urls import path, reverse
 from django.shortcuts import redirect, render
 from django.utils.html import format_html
@@ -74,6 +75,28 @@ class ZakazkaAutomatizovanyPrijemInline(admin.TabularInline):
 
         kwargs['form'] = CustomForm
         return super().get_formset(request, obj, **kwargs)
+    
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
+        """
+        Přizpůsobení widgetů pro pole v administraci.
+        """
+        if isinstance(db_field, models.ForeignKey):
+            # Zruší zobrazení ikon pro ForeignKey pole v administraci, nepřidá RelatedFieldWidgetWrapper.
+            formfield = self.formfield_for_foreignkey(db_field, request, **kwargs)
+            # DŮLEŽITÉ: znovu obalit widget
+            rel = db_field.remote_field
+            formfield.widget = RelatedFieldWidgetWrapper(
+                formfield.widget,
+                rel,
+                self.admin_site,
+                can_add_related=False,
+                can_change_related=False,
+                can_delete_related=False,
+                can_view_related=True,
+            )
+            return formfield
+
+        return super().formfield_for_dbfield(db_field, request, **kwargs)
 
 
 class ZakazkaKamionPrijemInline(admin.TabularInline):
@@ -136,8 +159,26 @@ class ZakazkaKamionPrijemInline(admin.TabularInline):
         Přizpůsobení widgetů pro pole v administraci.
         """
         if db_field.name == 'prubeh':
-            kwargs['widget'] = TextInput(attrs={'size': '12'})  # Změna velikosti pole pro průběh
-        return super().formfield_for_dbfield(db_field, request, **kwargs)    
+            kwargs['widget'] = TextInput(attrs={'size': '12'})
+            return super().formfield_for_dbfield(db_field, request, **kwargs)
+
+        if isinstance(db_field, models.ForeignKey):
+            # Zruší zobrazení ikon pro ForeignKey pole v administraci, nepřidá RelatedFieldWidgetWrapper.
+            formfield = self.formfield_for_foreignkey(db_field, request, **kwargs)
+            # DŮLEŽITÉ: znovu obalit widget
+            rel = db_field.remote_field
+            formfield.widget = RelatedFieldWidgetWrapper(
+                formfield.widget,
+                rel,
+                self.admin_site,
+                can_add_related=False,
+                can_change_related=False,
+                can_delete_related=False,
+                can_view_related=True,
+            )
+            return formfield
+
+        return super().formfield_for_dbfield(db_field, request, **kwargs)
 
 
 class ZakazkaKamionVydejInline(admin.TabularInline):
