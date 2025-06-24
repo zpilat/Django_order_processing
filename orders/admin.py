@@ -15,8 +15,9 @@ import pandas as pd
 import re
 
 from .models import Zakaznik, Kamion, Zakazka, Bedna, Predpis
-from .actions import expedice_zakazek_action, import_kamionu_action, tisk_karet_beden_action, tisk_karet_beden_zakazek_action, tisk_karet_beden_kamionu_action, \
-    tisk_dodaciho_listu_kamionu_action, vratit_zakazky_z_expedice_action, expedice_zakazek_kamion_action
+from .actions import expedice_zakazek_action, import_kamionu_action, tisk_karet_beden_action, tisk_karet_beden_zakazek_action, \
+    tisk_karet_beden_kamionu_action, tisk_dodaciho_listu_kamionu_action, vratit_zakazky_z_expedice_action, expedice_zakazek_kamion_action, \
+    tisk_karet_kontroly_kvality_action
 from .filters import ExpedovanaZakazkaFilter, StavBednyFilter, KompletZakazkaFilter, AktivniPredpisFilter
 from .forms import ZakazkaAdminForm, BednaAdminForm, ImportZakazekForm, ZakazkaInlineForm
 from .choices import (
@@ -890,7 +891,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     - Pro každý řádek dropdown omezí na povolené volby podle stejné logiky.
     - Číslo bedny se generuje automaticky a je readonly
     """
-    actions = [tisk_karet_beden_action]
+    actions = [tisk_karet_beden_action, tisk_karet_kontroly_kvality_action]
     form = BednaAdminForm
 
     # Parametry pro zobrazení detailu v administraci

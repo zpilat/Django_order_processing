@@ -10,6 +10,7 @@ from .models import Zakazka, Bedna
 from weasyprint import HTML
 
 import re
+import gc
 import logging
 logger = logging.getLogger('orders')
 
@@ -31,15 +32,14 @@ def utilita_tisk_karet_beden(modeladmin, request, queryset):
     """
     Vytvoří PDF s kartami beden.
     """
+    gc.collect()  # Uvolní paměť před generováním PDF
     if queryset.count() > 0:
         from io import BytesIO
         pdf_buffer = BytesIO()
         all_html = ""
         for bedna in queryset:
             # Zkrátí popis pro každou bednu do prvního slova začínajícího číslicí.
-            match = re.match(r"^(.*?)(\s+\d+.*)?$", bedna.zakazka.popis)    
-            if match:
-                bedna.zakazka.popis = match.group(1).strip()
+            utilita_zkraceni_popisu_beden(modeladmin, request, bedna)
             context = {"bedna": bedna}
             html = render_to_string("orders/karta_bedny_eur.html", context)
             all_html += html + '<p style="page-break-after: always"></p>'  # Oddělí stránky
@@ -105,3 +105,11 @@ def kontrola_zakazek(modeladmin, request, queryset):
             if not all(bedna.stav_bedny == StavBednyChoice.K_EXPEDICI for bedna in zakazka.bedny.all()):
                 messages.error(request, f"Zakázka {zakazka} pro zákazníka s nastaveným příznakem 'Pouze kompletní zakázky' musí mít všechny bedny ve stavu K_EXPEDICI.")
                 return
+            
+def utilita_zkraceni_popisu_beden(modeladmin, request, bedna):
+    """
+    Zkrátí popis zakázky na první slovo začínající číslicí.
+    """
+    match = re.match(r"^(.*?)(\s+\d+.*)?$", bedna.zakazka.popis)    
+    if match:
+        bedna.zakazka.popis = match.group(1).strip()

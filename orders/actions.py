@@ -10,7 +10,7 @@ import re
 from weasyprint import HTML
 
 from .models import Zakazka, Bedna, Kamion, Zakaznik, StavBednyChoice
-from .utils import utilita_tisk_karet_beden, expedice_zakazek, kontrola_zakazek
+from .utils import utilita_tisk_karet_beden, expedice_zakazek, kontrola_zakazek, utilita_zkraceni_popisu_beden
 from .forms import VyberKamionForm
 
 # Akce pro bedny:
@@ -18,15 +18,13 @@ from .forms import VyberKamionForm
 @admin.action(description="Vytisknout kartu bedny do PDF")
 def tisk_karet_beden_action(modeladmin, request, queryset):
     """
-    Vytvoří PDF s kartou bedny nebo více označených beden.
+    Vytvoří PDF s kartou bedny pro označené bedny.
     """
     # Upraví popis zakázky na zkrácenou verzi, aby se vlezla do pole v kartě bedny.
     if queryset.count() == 1:
         bedna = queryset.first()
         # Zkrátí popis pro každou bednu do prvního slova začínajícího číslicí.
-        match = re.match(r"^(.*?)(\s+\d+.*)?$", bedna.zakazka.popis)    
-        if match:
-            bedna.zakazka.popis = match.group(1).strip()        
+        utilita_zkraceni_popisu_beden(modeladmin, request, bedna)
         context = {"bedna": bedna}
         html_string = render_to_string("orders/karta_bedny_eur.html", context)
         pdf_file = HTML(string=html_string).write_pdf()
@@ -40,6 +38,26 @@ def tisk_karet_beden_action(modeladmin, request, queryset):
         messages.error(request, "Neoznačili jste žádnou bednu.")
         return None
 
+@admin.action(description="Vytisknout KKK do PDF")
+def tisk_karet_kontroly_kvality_action(modeladmin, request, queryset):
+    """
+    Vytvoří PDF s kartou kontroly kvality pro označené bedny.
+    """
+    # Upraví popis zakázky na zkrácenou verzi, aby se vlezla do pole v kartě bedny.
+    if queryset.count() == 1:
+        bedna = queryset.first()
+        # Zkrátí popis pro každou bednu do prvního slova začínajícího číslicí.
+        utilita_zkraceni_popisu_beden(modeladmin, request, bedna)
+        context = {"bedna": bedna}
+        html_string = render_to_string("orders/karta_kontroly_kvality_eur.html", context)
+        pdf_file = HTML(string=html_string).write_pdf()
+        response = HttpResponse(pdf_file, content_type="application/pdf")
+        response['Content-Disposition'] = f'inline; filename="karta_kontroly_kvality_{bedna.cislo_bedny}.pdf"'
+        return response
+    else:
+        messages.error(request, "Neoznačili jste žádnou nebo více než jednu bednu.")
+        return None
+    
 # Akce pro zakázky:
 
 @admin.action(description="Expedice vybraných zakázek")
