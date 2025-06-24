@@ -86,6 +86,7 @@
         .fs-pdf-35 { font-size: 3.5rem; }
         .fs-pdf-30 { font-size: 3rem; }
         .fs-pdf-25 { font-size: 2.5rem; }
+        .fs-pdf-20 { font-size: 2rem; }
         .fs-pdf-17 { font-size: 1.75rem; }
         .fs-pdf-15 { font-size: 1.5rem; }
         .fs-pdf-12 { font-size: 1.25rem; }
@@ -150,7 +151,7 @@
                 <tr></tr>
 
                 <tr>
-                    <td colspan="3" rowspan="7" class="text-center fw-bold fs-pdf-12">
+                    <td colspan="3" rowspan="7" class="text-center fw-bold fs-pdf-17">
                         HPM HEAT SK
                     </td>
                     <td colspan="8" rowspan="3" class="text-center text-danger fs-pdf-25 fw-bold">
@@ -159,10 +160,10 @@
                     <td colspan="2" rowspan="7" class="text-center fw-bold fs-pdf-35">
                         {{ bedna.zakazka.predpis.skupina }}
                     </td>
-                    <td colspan="3" rowspan="3" class="text-center">
+                    <td colspan="3" rowspan="3" class="text-center no-border-end">
                         Počet beden:
                     </td>
-                    <td colspan="2" rowspan="3" class="text-center text-danger fs-pdf-17 fw-bold">
+                    <td colspan="2" rowspan="3" class="text-center text-danger fs-pdf-20 fw-bold no-border-start">
                         {{ bedna.poradi_bedny }}/{{ bedna.zakazka.pocet_beden }}
                     </td>
                 </tr>
@@ -172,10 +173,10 @@
                     <td colspan="8" rowspan="4" class="text-center text-danger fs-pdf-25 fw-bold">
                         {{ bedna.zakazka.artikl }}
                     </td>
-                    <td colspan="3" rowspan="4" class="text-center">
+                    <td colspan="3" rowspan="4" class="text-center no-border-end">
                         Odfosfátování:
                     </td>
-                    <td colspan="2" rowspan="4" class="text-center text-danger fs-pdf-17 fw-bold">
+                    <td colspan="2" rowspan="4" class="text-center text-danger fs-pdf-17 fw-bold no-border-start">
                         {% if bedna.odfosfatovat %}ANO{% else %}-{% endif %}
                     </td>
                 </tr>
