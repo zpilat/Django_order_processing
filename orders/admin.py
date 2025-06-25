@@ -390,6 +390,8 @@ class KamionAdmin(SimpleHistoryAdmin):
                             prumer_str, delka_str = row['Abmessung'].replace(',', '.').split('x')
                             return Decimal(prumer_str.strip()), Decimal(delka_str.strip())
                         except Exception:
+                            messages.info(request, "Chyba: Sloupec 'Abmessung' musí obsahovat hodnoty ve formátu 'prumer x delka'.")
+                            errors.append("Chyba: Sloupec 'Abmessung' musí obsahovat hodnoty ve formátu 'prumer x delka'.")
                             return None, None
 
                     df[['prumer', 'delka']] = df.apply(
@@ -445,6 +447,9 @@ class KamionAdmin(SimpleHistoryAdmin):
                         'Vorgang+': 'prubeh',
                     }                  
                     df.rename(columns=column_mapping, inplace=True)
+
+                    # Setřídění podle sloupce prumer, delka, predpis, artikl, sarze, behalter_nr
+                    df.sort_values(by=['prumer', 'delka', 'predpis', 'artikl', 'sarze', 'behalter_nr'], inplace=True)
 
                     # Uložení záznamů
                     with transaction.atomic():
