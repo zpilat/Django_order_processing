@@ -10,7 +10,7 @@ import re
 from weasyprint import HTML
 
 from .models import Zakazka, Bedna, Kamion, Zakaznik, StavBednyChoice
-from .utils import utilita_tisk_karet_beden, expedice_zakazek, kontrola_zakazek, utilita_zkraceni_popisu_beden
+from .utils import utilita_tisk_dokumentace, expedice_zakazek, kontrola_zakazek, utilita_zkraceni_popisu_beden
 from .forms import VyberKamionForm
 
 # Akce pro bedny:
@@ -21,19 +21,10 @@ def tisk_karet_beden_action(modeladmin, request, queryset):
     Vytvoří PDF s kartou bedny pro označené bedny.
     """
     # Upraví popis zakázky na zkrácenou verzi, aby se vlezla do pole v kartě bedny.
-    if queryset.count() == 1:
-        bedna = queryset.first()
-        # Zkrátí popis pro každou bednu do prvního slova začínajícího číslicí.
-        utilita_zkraceni_popisu_beden(modeladmin, request, bedna)
-        context = {"bedna": bedna}
-        html_string = render_to_string("orders/karta_bedny_eur.html", context)
-        pdf_file = HTML(string=html_string).write_pdf()
-        response = HttpResponse(pdf_file, content_type="application/pdf")
-        response['Content-Disposition'] = f'inline; filename="karta_bedny_{bedna.cislo_bedny}.pdf"'
-        return response
-    # Pokud je více beden, udělej hromadné PDF (každá bedna nová stránka)
-    elif queryset.count() > 1:
-        return utilita_tisk_karet_beden(modeladmin, request, queryset)
+    if queryset.count() > 0:
+        filename = "karty_beden.pdf"
+        string = "orders/karta_bedny_eur.html"
+        return utilita_tisk_dokumentace(modeladmin, request, queryset, string, filename)
     else:
         messages.error(request, "Neoznačili jste žádnou bednu.")
         return None
@@ -44,18 +35,13 @@ def tisk_karet_kontroly_kvality_action(modeladmin, request, queryset):
     Vytvoří PDF s kartou kontroly kvality pro označené bedny.
     """
     # Upraví popis zakázky na zkrácenou verzi, aby se vlezla do pole v kartě bedny.
-    if queryset.count() == 1:
-        bedna = queryset.first()
-        # Zkrátí popis pro každou bednu do prvního slova začínajícího číslicí.
-        utilita_zkraceni_popisu_beden(modeladmin, request, bedna)
-        context = {"bedna": bedna}
-        html_string = render_to_string("orders/karta_kontroly_kvality_eur.html", context)
-        pdf_file = HTML(string=html_string).write_pdf()
-        response = HttpResponse(pdf_file, content_type="application/pdf")
-        response['Content-Disposition'] = f'inline; filename="karta_kontroly_kvality_{bedna.cislo_bedny}.pdf"'
+    if queryset.count() > 0:
+        filename = "karty_kontroly_kvality.pdf"
+        string = "orders/karta_kontroly_kvality_eur.html"
+        response = utilita_tisk_dokumentace(modeladmin, request, queryset, string, filename)
         return response
     else:
-        messages.error(request, "Neoznačili jste žádnou nebo více než jednu bednu.")
+        messages.error(request, "Neoznačili jste žádnou bednu.")
         return None
     
 # Akce pro zakázky:
@@ -113,8 +99,9 @@ def tisk_karet_beden_zakazek_action(modeladmin, request, queryset):
     if not bedny.exists():
         messages.error(request, "V označených zakázkách nejsou žádné bedny.")
         return None
-    return utilita_tisk_karet_beden(modeladmin, request, bedny)    
-
+    filename = "karty_beden.pdf"
+    string = "orders/karta_bedny_eur.html"
+    return utilita_tisk_dokumentace(modeladmin, request, bedny, string, filename)
 
 @admin.action(description="Vrácení vybraných zakázek z expedice")
 def vratit_zakazky_z_expedice_action(modeladmin, request, queryset):
@@ -277,4 +264,6 @@ def tisk_karet_beden_kamionu_action(modeladmin, request, queryset):
     if not bedny.exists():
         messages.error(request, "V označeném kamionu nejsou žádné bedny.")
         return None
-    return utilita_tisk_karet_beden(modeladmin, request, bedny)
+    filename = "karty_beden.pdf"
+    string = "orders/karta_bedny_eur.html"
+    return utilita_tisk_dokumentace(modeladmin, request, bedny, string, filename)

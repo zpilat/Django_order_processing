@@ -28,9 +28,9 @@ def get_verbose_name_for_column(model, field_chain):
         current_model = field.remote_field.model
     return field_chain  # fallback
 
-def utilita_tisk_karet_beden(modeladmin, request, queryset):
+def utilita_tisk_dokumentace(modeladmin, request, queryset, string, filename):
     """
-    Vytvoří PDF s kartami beden.
+    Utilita pro tisk dokumentace.
     """
     gc.collect()  # Uvolní paměť před generováním PDF
     if queryset.count() > 0:
@@ -41,12 +41,12 @@ def utilita_tisk_karet_beden(modeladmin, request, queryset):
             # Zkrátí popis pro každou bednu do prvního slova začínajícího číslicí.
             utilita_zkraceni_popisu_beden(modeladmin, request, bedna)
             context = {"bedna": bedna}
-            html = render_to_string("orders/karta_bedny_eur.html", context)
+            html = render_to_string(string, context)
             all_html += html + '<p style="page-break-after: always"></p>'  # Oddělí stránky
 
         pdf_file = HTML(string=all_html).write_pdf()
         response = HttpResponse(pdf_file, content_type="application/pdf")
-        response['Content-Disposition'] = f'inline; filename="karty_beden.pdf"'
+        response['Content-Disposition'] = f'inline; filename={filename}'
         return response
     else:
         messages.error(request, "Není vybrána žádná bedna k tisku.")
