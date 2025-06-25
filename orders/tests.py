@@ -13,6 +13,10 @@ from orders.choices import StavBednyChoice, TypHlavyChoice
 
 
 class AdminBase(TestCase):
+    """
+    Základní třída pro testy admin rozhraní.
+    Obsahuje společné metody a nastavení pro testy admin tříd.
+    """
     @classmethod
     def setUpTestData(cls):
         cls.factory = RequestFactory()
@@ -27,6 +31,10 @@ class AdminBase(TestCase):
 
 
 class KamionAdminTests(AdminBase):
+    """
+    Testy pro KamionAdmin třídu.
+    Testuje metody pro získání inlinů, polí a readonly polí.
+    """
     def setUp(self):
         self.admin = KamionAdmin(Kamion, self.site)
 
@@ -37,9 +45,21 @@ class KamionAdminTests(AdminBase):
 
     def test_get_inlines(self):
         add_inlines = self.admin.get_inlines(self.get_request(), None)
+        self.assertEqual(add_inlines, [])
+        
+        self.kamion.prijem_vydej = 'P'        
+        add_inlines = self.admin.get_inlines(self.get_request(), self.kamion)
         self.assertEqual(add_inlines[0].__name__, 'ZakazkaAutomatizovanyPrijemInline')
 
-        self.kamion.prijem_vydej = 'P'
+        zakazka = Zakazka.objects.create(
+            kamion_prijem=self.kamion,
+            artikl='A1',
+            prumer=10,
+            delka=200,
+            predpis=self.predpis,
+            typ_hlavy=TypHlavyChoice.TK,
+            popis='Test Zakázka',
+        )
         inlines = self.admin.get_inlines(self.get_request(), self.kamion)
         self.assertEqual(inlines[0].__name__, 'ZakazkaKamionPrijemInline')
 
@@ -138,6 +158,10 @@ class KamionAdminTests(AdminBase):
 
 
 class ZakazkaAdminTests(AdminBase):
+    """
+    Testy pro ZakazkaAdmin třídu.
+    Testuje metody pro získání fieldsets, list_display a form s vlastními volbami.
+    """
     @classmethod
     def setUpTestData(cls):
         super().setUpTestData()
@@ -182,6 +206,10 @@ class ZakazkaAdminTests(AdminBase):
 
 
 class BednaAdminTests(AdminBase):
+    """
+    Testy pro BednaAdmin třídu.
+    Testuje metody pro kontrolu oprávnění, zobrazení seznamu a úpravy polí.
+    """
     @classmethod
     def setUpTestData(cls):
         super().setUpTestData()
