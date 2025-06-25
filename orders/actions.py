@@ -84,7 +84,7 @@ def expedice_zakazek_action(modeladmin, request, queryset):
         zakazky_zakaznika = queryset.filter(kamion_prijem__zakaznik=zakaznik)
         expedice_zakazek(modeladmin, request, zakazky_zakaznika, kamion)
 
-    messages.success(request, f"Zakázky byly úspěšně expedovány, byl vytvořen nový kamion výdeje {kamion.cislo_dl_zakaznika}.")
+    messages.success(request, f"Zakázky byly úspěšně expedovány, byl vytvořen nový kamion výdeje {kamion.poradove_cislo}.{kamion.zakaznik.zkratka}-{kamion.datum.strftime('%Y-%m-%d')}.")
     
 
 @admin.action(description="Vytisknout karty beden z vybraných zakázek")

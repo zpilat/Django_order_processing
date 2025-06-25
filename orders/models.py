@@ -73,6 +73,7 @@ class Kamion(models.Model):
     datum = models.DateField(verbose_name='Datum')
     cislo_dl_zakaznika = models.CharField(max_length=50, verbose_name='Číslo DL', blank=True, null=True)
     prijem_vydej = models.CharField(choices=KamionChoice.choices, max_length=1, verbose_name='Přijem/Výdej', default=KamionChoice.PRIJEM)
+    poradove_cislo = models.PositiveIntegerField(verbose_name='Pořadové číslo', blank=True, null=True)
     history = HistoricalRecords()
 
     class Meta:
@@ -84,7 +85,7 @@ class Kamion(models.Model):
         """
         Vrací řetězec reprezentující kamion. Datum je upraveno do formátu YY-MM-DD.
         """
-        return f'{self.id}.{self.zakaznik.zkratka} {self.datum.strftime("%d.%m.%y")}'
+        return f'{self.poradove_cislo}.{self.zakaznik.zkratka} {self.datum.strftime("%d.%m.%y")}'
     
     @property
     def celkova_hmotnost_netto(self):
@@ -142,6 +143,30 @@ class Kamion(models.Model):
         Vrací URL pro zobrazení detailu kamionu v administraci.
         """
         return reverse("admin:orders_kamion_change", args=[self.pk])    
+    
+    def save(self, *args, **kwargs):
+        """
+        Uloží instanci Kamion.
+        - Pokud se jedná o novou instanci (bez PK):
+          * Před uložením nastaví `poradove_cislo` na další číslo v řadě pro daného zákazníka, typ kamionu (prijem_vydej) a daný rok.
+        """
+        is_existing_instance = bool(self.pk)
+
+        if not is_existing_instance:
+            zakaznik = self.zakaznik
+            typ_kamionu = self.prijem_vydej
+            rok = self.datum.year
+
+            # Při vytváření nového kamionu nastavíme pořadové číslo kamionu na další v řadě - pro daného zákazníka, typ kamionu a rok.
+            posledni = (
+                self.__class__.objects
+                .filter(zakaznik=zakaznik, prijem_vydej=typ_kamionu, datum__year=rok)
+                .order_by("-poradove_cislo")
+                .first()
+            )
+            self.poradove_cislo = ((posledni.poradove_cislo + 1) if posledni else 1)
+
+        super().save(*args, **kwargs)
     
 
 class Predpis(models.Model):
@@ -279,7 +304,7 @@ class Bedna(models.Model):
         """
         Uloží instanci Bedna.
         - Pokud se jedná o novou instanci (bez PK):
-          * Před uložením nastaví `cislo_bedny` na další číslo v řadě pro daného zákazníka, pokud není již zadáno.
+          * Před uložením nastaví `cislo_bedny` na další číslo v řadě pro daného zákazníka.
           * Pro zákazníka s příznakem `vse_tryskat` nastaví `tryskat` na `SPINAVA`.
         """
         is_existing_instance = bool(self.pk)

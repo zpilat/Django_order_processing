@@ -16,9 +16,9 @@ import pandas as pd
 import re
 
 from .models import Zakaznik, Kamion, Zakazka, Bedna, Predpis, Odberatel
-from .actions import expedice_zakazek_action, import_kamionu_action, tisk_karet_beden_action, tisk_karet_beden_zakazek_action, \
-    tisk_karet_beden_kamionu_action, tisk_dodaciho_listu_kamionu_action, vratit_zakazky_z_expedice_action, expedice_zakazek_kamion_action, \
-    tisk_karet_kontroly_kvality_action, tisk_karet_kontroly_kvality_zakazek_action, tisk_karet_kontroly_kvality_kamionu_action
+from .actions import (expedice_zakazek_action, import_kamionu_action, tisk_karet_beden_action, tisk_karet_beden_zakazek_action,
+    tisk_karet_beden_kamionu_action, tisk_dodaciho_listu_kamionu_action, vratit_zakazky_z_expedice_action, expedice_zakazek_kamion_action,
+    tisk_karet_kontroly_kvality_action, tisk_karet_kontroly_kvality_zakazek_action, tisk_karet_kontroly_kvality_kamionu_action)
 from .filters import ExpedovanaZakazkaFilter, StavBednyFilter, KompletZakazkaFilter, AktivniPredpisFilter
 from .forms import ZakazkaAdminForm, BednaAdminForm, ImportZakazekForm, ZakazkaInlineForm
 from .choices import (
@@ -218,9 +218,9 @@ class KamionAdmin(SimpleHistoryAdmin):
     """
     actions = [import_kamionu_action, tisk_karet_beden_kamionu_action, tisk_karet_kontroly_kvality_kamionu_action, tisk_dodaciho_listu_kamionu_action]
 
-    fields = ('zakaznik', 'datum', 'cislo_dl_zakaznika', 'prijem_vydej', 'odberatel',) 
-    readonly_fields = ('prijem_vydej',)
-    list_display = ('get_kamion_str', 'get_zakaznik_zkraceny_nazev', 'get_datum', 'cislo_dl_zakaznika', 'prijem_vydej', 'odberatel',
+    fields = ('zakaznik', 'datum', 'poradove_cislo', 'cislo_dl_zakaznika', 'prijem_vydej', 'odberatel',) 
+    readonly_fields = ('prijem_vydej', 'poradove_cislo',)
+    list_display = ('get_kamion_str', 'get_zakaznik_zkraceny_nazev', 'get_datum', 'poradove_cislo', 'cislo_dl_zakaznika', 'prijem_vydej', 'odberatel',
                     'get_pocet_beden_skladem', 'get_celkova_hmotnost_netto', 'get_celkova_hmotnost_brutto',)
     list_select_related = ('zakaznik',)
     list_filter = ('zakaznik__zkraceny_nazev', 'prijem_vydej',)

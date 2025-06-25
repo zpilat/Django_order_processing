@@ -66,7 +66,7 @@
                 <p class="fs-pdf-06 fw-bold my-0">LIEFERSCHEIN</p>
             </div>
             <div class="col-4">
-                <p class="fs-pdf-06 my-0">EXP/{{ kamion.id }}/{{ kamion.datum|date:"Y" }}/{{ kamion.zakaznik.zkratka }}</p>
+                <p class="fs-pdf-06 my-0">EXP/{{ kamion.poradove_cislo }}/{{ kamion.datum|date:"Y" }}/{{ kamion.zakaznik.zkratka }}</p>
             </div>
             <div class="col-5">
                 <p class="fs-pdf-06 my-0">Gbely dňa: {{ kamion.datum|date:"d. m. Y" }}</p>
