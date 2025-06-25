@@ -431,3 +431,24 @@ class Bedna(models.Model):
             return [choice for choice in RovnaniChoice.choices if choice[0] not in (RovnaniChoice.ROVNA, RovnaniChoice.NEZADANO)]
         # fallback: všechno
         return list(RovnaniChoice.choices)
+    
+class Cena(models.Model):
+    """
+    Model pro cenu zakázky.
+    Umožňuje přiřadit cenu k zakázce a sledovat historii změn cen.
+    """
+    zakaznik = models.ForeignKey(Zakaznik, on_delete=models.CASCADE, related_name='ceny', verbose_name='Zákazník')
+    predpis = models.ForeignKey(Predpis, on_delete=models.PROTECT, related_name='ceny', verbose_name='Předpis')
+    prumer = models.DecimalField(max_digits=4, decimal_places=1, verbose_name='Průměr')
+    delka = models.DecimalField(max_digits=6, decimal_places=1, verbose_name='Délka')
+    hlava = models.CharField(choices=TypHlavyChoice.choices, max_length=3, verbose_name='Typ hlavy')
+    cena = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='Cena (Kč/kg)')
+    history = HistoricalRecords()
+
+    class Meta:
+        verbose_name = 'Cena'
+        verbose_name_plural = 'ceny'
+        ordering = ['zakaznik__nazev', 'predpis__nazev', 'prumer', 'delka', 'hlava']
+
+    def __str__(self):
+        return f'{self.cena} Kč/kg'
