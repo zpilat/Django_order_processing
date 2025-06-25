@@ -31,14 +31,13 @@ class ZakaznikAdmin(SimpleHistoryAdmin):
     """
     Správa zákazníků v administraci.
     """
-    list_display = ('nazev', 'zkraceny_nazev', 'zkratka', 'adresa', 'mesto', 'stat', 'kontaktni_osoba', 'telefon',
+    list_display = ('nazev', 'zkraceny_nazev', 'zkratka', 'adresa', 'mesto', 'psc', 'stat', 'kontaktni_osoba', 'telefon',
                     'email', 'vse_tryskat', 'pouze_komplet', 'ciselna_rada',)
     ordering = ('nazev',)
     list_per_page = 20
 
-    history_list_display = ["id", "nazev", "zkratka",]
-    history_search_fields = ["nazev", "zkratka",]    
-    history_list_filter = ["nazev", "zkratka",]
+    history_list_display = ["id", "nazev", "zkratka", "adresa", "mesto", "psc", "stat", "kontaktni_osoba", "telefon", "email"]
+    history_search_fields = ["nazev"]
     history_list_per_page = 20
 
 
@@ -647,7 +646,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     list_select_related = ("kamion_prijem", "kamion_vydej")
     search_fields = ('artikl',)
     search_help_text = "Hledat podle artiklu"
-    list_filter = ('kamion_prijem__zakaznik', 'typ_hlavy', 'celozavit', 'priorita', 'povrch', KompletZakazkaFilter, ExpedovanaZakazkaFilter,)
+    list_filter = ('kamion_prijem__zakaznik', 'typ_hlavy', 'celozavit', 'priorita', 'povrch', KompletZakazkaFilter, ExpedovanaZakazkaFilter, 'odberatel',)
     ordering = ('-id',)
     date_hierarchy = 'kamion_prijem__datum'
     list_per_page = 25
@@ -1135,11 +1134,11 @@ class OdberatelAdmin(SimpleHistoryAdmin):
     """
     Správa odběratelů v administraci.
     """
-    list_display = ('nazev', 'zkraceny_nazev', 'zkratka', 'adresa', 'mesto', 'stat', 'kontaktni_osoba', 'telefon', 'email',)
+    list_display = ('nazev', 'zkraceny_nazev', 'zkratka', 'adresa', 'mesto', 'psc', 'stat', 'kontaktni_osoba', 'telefon', 'email',)
     list_display_links = ('nazev',)
     ordering = ['nazev']
     list_per_page = 25
 
-    history_list_display = ['nazev', 'zkraceny_nazev', 'zkratka', 'adresa', 'mesto', 'stat', 'kontaktni_osoba', 'telefon', 'email']
+    history_list_display = ['nazev', 'zkraceny_nazev', 'zkratka', 'adresa', 'mesto', 'psc', 'stat', 'kontaktni_osoba', 'telefon', 'email']
     history_search_fields = ['nazev']
     history_list_per_page = 20    

@@ -41,7 +41,7 @@
                 <p class="fs-pdf-06 mb-0">IČO 36341029</p>
             </div>
             <div class="col-5">
-                <p class="fs-pdf-06 fw-bold mb-0">&nbsp;</p>
+                <p class="fs-pdf-06 mb-0">&nbsp;</p>
                 <p class="fs-pdf-06 mb-0">&nbsp;</p>
                 <p class="fs-pdf-06 mb-0">Mob. 00421/902847613</p>
             </div>
@@ -50,15 +50,15 @@
         <div class="row text-start lh-1">
             <div class="col-7">
                 <p class="fs-pdf-06 mb-0">Besitzer der Ware:</p>
-                <p class="fs-pdf-06 fw-bold mb-0">EuroTec GmbH</p>
-                <p class="fs-pdf-06 mb-0">Unter dem Hofe 5</p>
-                <p class="fs-pdf-06 mb-0">D-58099 Hagen</p>
+                <p class="fs-pdf-06 fw-bold mb-0">{{ kamion.zakaznik.nazev }}</p>
+                <p class="fs-pdf-06 mb-0">{{ kamion.zakaznik.adresa }}</p>
+                <p class="fs-pdf-06 mb-0">{{ kamion.zakaznik.psc }} {{ kamion.zakaznik.mesto }}</p>
             </div>
             <div class="col-5">
                 <p class="fs-pdf-06 mb-0">Adresse der Abgabe:</p>
-                <p class="fs-pdf-06 mb-0">Metallveredelung Huber GmbH</p>
-                <p class="fs-pdf-06 mb-0">Kufsteiner Wald 23</p>
-                <p class="fs-pdf-06 mb-0">A-6334 Kufstein</p>
+                <p class="fs-pdf-06 mb-0">{{ kamion.odberatel.nazev }}</p>
+                <p class="fs-pdf-06 mb-0">{{ kamion.odberatel.adresa }}</p>
+                <p class="fs-pdf-06 mb-0">{{ kamion.odberatel.psc }} {{ kamion.odberatel.mesto }}</p>
             </div>
         </div>
         <div class="row text-start mt-2 lh-1">
@@ -66,7 +66,7 @@
                 <p class="fs-pdf-06 fw-bold my-0">LIEFERSCHEIN</p>
             </div>
             <div class="col-4">
-                <p class="fs-pdf-06 my-0">EXP/042/2025/EUR</p>
+                <p class="fs-pdf-06 my-0">EXP/{{ kamion.id }}/{{ kamion.datum|date:"Y" }}/{{ kamion.zakaznik.zkratka }}</p>
             </div>
             <div class="col-5">
                 <p class="fs-pdf-06 my-0">Gbely dňa: {{ kamion.datum|date:"d. m. Y" }}</p>
@@ -129,7 +129,7 @@
                 <p class="fs-pdf-06 mb-0">Dodací podmínky:</p>
             </div>
             <div class="col-5">
-                <p class="fs-pdf-06 mb-0">1275,87 €</p>
+                <p class="fs-pdf-06 mb-0">{{ kamion.celkova_hodnota_materialu }} €</p>
                 <p class="fs-pdf-06 mb-0">73 181 558</p>
                 <p class="fs-pdf-06 mb-0">DE</p>
                 <p class="fs-pdf-06 mb-0">DDU</p>
