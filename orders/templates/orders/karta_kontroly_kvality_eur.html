@@ -86,6 +86,7 @@
         .fs-17 { font-size: 1.75rem; }
         .fs-15 { font-size: 1.5rem; }
         .fs-12 { font-size: 1.25rem; }
+        .fs-11 { font-size: 1.125rem; }
         .fs-10 { font-size: 1rem; }
         .fs-09 { font-size: 0.9rem; }
         .fs-08 { font-size: 0.8rem; }
@@ -164,10 +165,10 @@
                     </td>
                 </tr>
                 <tr style="height: 50px;">
-                    <td colspan="2" class="fs-12 fw-bold">
+                    <td colspan="2" class="fs-11 fw-bold">
                         <div style="display: flex; justify-content: space-between; width: 100%;">
                             <span style="padding: 0 5px;">{{ bedna.zakazka.popis|slice:":22" }}</span>
-                            <span style="padding: 0 5px;">{{ bedna.zakazka.artikl }}</span>
+                            <span style="padding: 0 5px;">{{ bedna.zakazka.artikl }}-{{ bedna.sarze }}</span>
                         </div>
                     </td>
                 </tr>           

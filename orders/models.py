@@ -83,9 +83,9 @@ class Kamion(models.Model):
 
     def __str__(self):
         """
-        Vrací řetězec reprezentující kamion. Datum je upraveno do formátu YY-MM-DD.
+        Vrací řetězec reprezentující kamion. Datum je upraveno do formátu YY-MM.
         """
-        return f'{self.poradove_cislo}.{self.zakaznik.zkratka} {self.datum.strftime("%d.%m.%y")}'
+        return f'{self.poradove_cislo}.{self.zakaznik.zkratka} {self.datum.strftime("%d.%m")}'
     
     @property
     def celkova_hmotnost_netto(self):
