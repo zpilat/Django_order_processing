@@ -18,7 +18,7 @@ import re
 from .models import Zakaznik, Kamion, Zakazka, Bedna, Predpis
 from .actions import expedice_zakazek_action, import_kamionu_action, tisk_karet_beden_action, tisk_karet_beden_zakazek_action, \
     tisk_karet_beden_kamionu_action, tisk_dodaciho_listu_kamionu_action, vratit_zakazky_z_expedice_action, expedice_zakazek_kamion_action, \
-    tisk_karet_kontroly_kvality_action
+    tisk_karet_kontroly_kvality_action, tisk_karet_kontroly_kvality_zakazek_action, tisk_karet_kontroly_kvality_kamionu_action
 from .filters import ExpedovanaZakazkaFilter, StavBednyFilter, KompletZakazkaFilter, AktivniPredpisFilter
 from .forms import ZakazkaAdminForm, BednaAdminForm, ImportZakazekForm, ZakazkaInlineForm
 from .choices import (
@@ -217,7 +217,7 @@ class KamionAdmin(SimpleHistoryAdmin):
     """
     Správa kamionů v administraci.
     """
-    actions = [import_kamionu_action, tisk_karet_beden_kamionu_action, tisk_dodaciho_listu_kamionu_action]
+    actions = [import_kamionu_action, tisk_karet_beden_kamionu_action, tisk_karet_kontroly_kvality_kamionu_action, tisk_dodaciho_listu_kamionu_action]
 
     fields = ('zakaznik', 'datum', 'cislo_dl', 'prijem_vydej', 'misto_expedice',) 
     readonly_fields = ('prijem_vydej',)
@@ -634,7 +634,8 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     """
     inlines = [BednaInline]
     form = ZakazkaAdminForm
-    actions = [tisk_karet_beden_zakazek_action, expedice_zakazek_action, vratit_zakazky_z_expedice_action, expedice_zakazek_kamion_action]
+    actions = [tisk_karet_beden_zakazek_action, tisk_karet_kontroly_kvality_zakazek_action, expedice_zakazek_action,
+               vratit_zakazky_z_expedice_action, expedice_zakazek_kamion_action]
 
     # Parametry pro zobrazení detailu v administraci
     readonly_fields = ('expedovano', 'get_komplet')

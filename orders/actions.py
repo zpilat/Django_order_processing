@@ -15,7 +15,7 @@ from .forms import VyberKamionForm
 
 # Akce pro bedny:
 
-@admin.action(description="Vytisknout kartu bedny do PDF")
+@admin.action(description="Vytisknout karty bedny")
 def tisk_karet_beden_action(modeladmin, request, queryset):
     """
     Vytvoří PDF s kartou bedny pro označené bedny.
@@ -29,7 +29,7 @@ def tisk_karet_beden_action(modeladmin, request, queryset):
         messages.error(request, "Neoznačili jste žádnou bednu.")
         return None
 
-@admin.action(description="Vytisknout KKK do PDF")
+@admin.action(description="Vytisknout KKK")
 def tisk_karet_kontroly_kvality_action(modeladmin, request, queryset):
     """
     Vytvoří PDF s kartou kontroly kvality pro označené bedny.
@@ -87,10 +87,10 @@ def expedice_zakazek_action(modeladmin, request, queryset):
     messages.success(request, f"Zakázky byly úspěšně expedovány, byl vytvořen nový kamion výdeje {kamion.cislo_dl}.")
     
 
-@admin.action(description="Vytisknout karty beden z vybraných zakázek v PDF")
+@admin.action(description="Vytisknout karty beden z vybraných zakázek")
 def tisk_karet_beden_zakazek_action(modeladmin, request, queryset):
     """
-    Vytvoří PDF s kartami beden ze zvolených zakázek.
+    Vytvoří PDF s kartami beden ze zvolených zakázkách.
     """
     if not queryset.exists():
         messages.error(request, "Neoznačili jste žádnou zakázku.")
@@ -101,6 +101,22 @@ def tisk_karet_beden_zakazek_action(modeladmin, request, queryset):
         return None
     filename = "karty_beden.pdf"
     string = "orders/karta_bedny_eur.html"
+    return utilita_tisk_dokumentace(modeladmin, request, bedny, string, filename)
+
+@admin.action(description="Vytisknout KKK z vybraných zakázek")
+def tisk_karet_kontroly_kvality_zakazek_action(modeladmin, request, queryset):
+    """
+    Vytvoří PDF s kartami kontroly kvality ze zvolených zakázkách.
+    """
+    if not queryset.exists():
+        messages.error(request, "Neoznačili jste žádnou zakázku.")
+        return None
+    bedny = Bedna.objects.filter(zakazka__in=queryset)
+    if not bedny.exists():
+        messages.error(request, "V označených zakázkách nejsou žádné bedny.")
+        return None
+    filename = "karty_kontroly_kvality.pdf"
+    string = "orders/karta_kontroly_kvality_eur.html"
     return utilita_tisk_dokumentace(modeladmin, request, bedny, string, filename)
 
 @admin.action(description="Vrácení vybraných zakázek z expedice")
@@ -242,8 +258,7 @@ def tisk_dodaciho_listu_kamionu_action(modeladmin, request, queryset):
         modeladmin.message_user(request, "Tisk DL je zatím možný pouze pro zákazníka Eurotec.", level=messages.ERROR)
         return
 
-
-@admin.action(description="Vytisknout karty beden z vybraného kamionu v PDF")
+@admin.action(description="Vytisknout karty beden z vybraného kamionu")
 def tisk_karet_beden_kamionu_action(modeladmin, request, queryset):
     """
     Vytvoří PDF s kartami beden z vybraného kamionu.
@@ -266,4 +281,29 @@ def tisk_karet_beden_kamionu_action(modeladmin, request, queryset):
         return None
     filename = "karty_beden.pdf"
     string = "orders/karta_bedny_eur.html"
+    return utilita_tisk_dokumentace(modeladmin, request, bedny, string, filename)
+
+@admin.action(description="Vytisknout KKK z vybraného kamionu")
+def tisk_karet_kontroly_kvality_kamionu_action(modeladmin, request, queryset):
+    """
+    Vytvoří PDF s kartami kontroly kvality z vybraného kamionu.
+    Musí být vybrán pouze jeden kamion, jinak se zobrazí chybová zpráva.
+    Musí se jednat o kamion s příznakem příjem, jinak se zobrazí chybová zpráva.
+    Tisknou se pouze karty beden, které nejsou již expedovány.
+    """
+    if not queryset.exists():
+        messages.error(request, "Neoznačili jste žádný kamion.")
+        return None
+    if queryset.count() != 1:
+        messages.error(request, "Vyberte pouze jeden kamion.")
+        return None
+    if queryset.first().prijem_vydej != 'P':
+        messages.error(request, "Tisk karet beden je možný pouze pro kamiony příjem.")
+        return None
+    bedny = Bedna.objects.filter(zakazka__kamion_prijem__in=queryset).exclude(stav_bedny=StavBednyChoice.EXPEDOVANO)
+    if not bedny.exists():
+        messages.error(request, "V označeném kamionu nejsou žádné bedny.")
+        return None
+    filename = "karty_kontroly_kvality.pdf"
+    string = "orders/karta_kontroly_kvality_eur.html"
     return utilita_tisk_dokumentace(modeladmin, request, bedny, string, filename)
