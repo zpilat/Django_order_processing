@@ -33,11 +33,6 @@ class PrioritaChoice(models.TextChoices):
     STREDNI = 'P2', 'Střední P2'
     VYSOKA = 'P1', 'Vysoká P1'
 
-class ZinkovnaChoice(models.TextChoices):
-    HUBER = 'HUBER', 'Huber'
-    STIEFLER = 'STIEFLER', 'Stiefler'
-    SULZ = 'SULZ', 'Sulz'
-
 class KamionChoice(models.TextChoices):
     PRIJEM = 'P', 'Přijem'
     VYDEJ = 'V', 'Výdej'

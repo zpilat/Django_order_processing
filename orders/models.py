@@ -7,10 +7,9 @@ from django.db.models import Sum
 
 from .choices import (
     TypHlavyChoice, StavBednyChoice, RovnaniChoice, TryskaniChoice,
-    PrioritaChoice, ZinkovnaChoice, KamionChoice
+    PrioritaChoice, KamionChoice
 )
 
-# Create your models here.
 class Zakaznik(models.Model):
     nazev = models.CharField(max_length=100, verbose_name='Název zákazníka', unique=True)
     zkraceny_nazev = models.CharField(max_length=15, verbose_name='Zkrácený název', unique=True,
@@ -39,12 +38,39 @@ class Zakaznik(models.Model):
         return self.zkraceny_nazev
     
 
+class Odberatel(models.Model):
+    """
+    Model pro odběratele, který je spojen s kamionem výdej.
+    Může se nastavit i jako položka pro zakázku, pokud je předem určeno,
+    ke kterému odběrateli musí zakázka odejít.
+    """
+    nazev = models.CharField(max_length=100, verbose_name='Název odběratele', unique=True)
+    zkraceny_nazev = models.CharField(max_length=15, verbose_name='Zkrácený název', unique=True,
+                                       help_text='Zkrácený název odběratele, např. pro zobrazení v kartě bedny a v přehledech.')
+    zkratka = models.CharField(max_length=3, verbose_name='Zkratka', unique=True)
+    adresa = models.CharField(max_length=100, blank=True, null=True, verbose_name='Adresa')
+    mesto = models.CharField(max_length=50, blank=True, null=True, verbose_name='Město')
+    stat = models.CharField(max_length=50, blank=True, null=True, verbose_name='Stát')
+    kontaktni_osoba = models.CharField(max_length=50, blank=True, null=True, verbose_name='Kontaktní osoba')
+    telefon = models.CharField(max_length=50, blank=True, null=True, verbose_name='Telefon')
+    email = models.EmailField(max_length=100, blank=True, null=True, verbose_name='E-mail')
+    history = HistoricalRecords()
+
+    class Meta:
+        verbose_name = 'Odběratel'
+        verbose_name_plural = 'odběratelé'
+        ordering = ['nazev']
+
+    def __str__(self):
+        return self.zkraceny_nazev
+
+
 class Kamion(models.Model):
     zakaznik = models.ForeignKey(Zakaznik, on_delete=models.CASCADE, related_name='kamiony', verbose_name='Zákazník')
+    odberatel = models.ForeignKey(Odberatel, on_delete=models.SET_NULL, related_name='kamiony', verbose_name='Odběratel', blank=True, null=True)
     datum = models.DateField(verbose_name='Datum')
     cislo_dl = models.CharField(max_length=50, verbose_name='Číslo DL', blank=True, null=True)
     prijem_vydej = models.CharField(choices=KamionChoice.choices, max_length=1, verbose_name='Přijem/Výdej', default=KamionChoice.PRIJEM)
-    misto_expedice = models.CharField(max_length=100, verbose_name='Místo expedice', blank=True, null=True)
     history = HistoricalRecords()
 
     class Meta:
@@ -170,7 +196,7 @@ class Zakazka(models.Model):
     povrch = models.CharField(max_length=20, null=True, blank=True, verbose_name='Oberfläche')
     prubeh = models.CharField(max_length=20, null=True, blank=True, verbose_name='Vorgang+')
     priorita = models.CharField(choices=PrioritaChoice.choices, max_length=5, default=PrioritaChoice.NIZKA, verbose_name='Priorita')
-    zinkovna = models.CharField(choices=ZinkovnaChoice.choices, max_length=10, null=True, blank=True, verbose_name='Zinkovna')
+    odberatel = models.ForeignKey(Odberatel, on_delete=models.SET_NULL, related_name='zakazky', verbose_name='Odběratel', blank=True, null=True)
     expedovano = models.BooleanField(default=False, verbose_name='Expedováno')
     history = HistoricalRecords()
 
@@ -178,9 +204,6 @@ class Zakazka(models.Model):
         verbose_name = 'Zakázka'
         verbose_name_plural = 'zakázky'
         ordering = ['id']
-        permissions = [
-            ('change_expedovana_zakazka', 'Může měnit expedované zakázky'),
-        ]
 
     def __str__(self):
         return f'{self.kamion_prijem.id}-{self.kamion_prijem.zakaznik.zkratka} {self.kamion_prijem.datum.strftime("%d.%m.%y")}-{self.artikl}'

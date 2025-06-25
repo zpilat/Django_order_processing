@@ -23,7 +23,7 @@ from .filters import ExpedovanaZakazkaFilter, StavBednyFilter, KompletZakazkaFil
 from .forms import ZakazkaAdminForm, BednaAdminForm, ImportZakazekForm, ZakazkaInlineForm
 from .choices import (
     TypHlavyChoice, StavBednyChoice, RovnaniChoice, TryskaniChoice,
-    PrioritaChoice, ZinkovnaChoice, KamionChoice
+    PrioritaChoice, KamionChoice
 )
 
 @admin.register(Zakaznik)
@@ -191,9 +191,9 @@ class ZakazkaKamionVydejInline(admin.TabularInline):
     verbose_name_plural = "Zakázky - výdej"
     extra = 0
     fields = ('artikl', 'kamion_prijem', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit',
-              'popis', 'prubeh', 'priorita', 'celkovy_pocet_beden',)
+              'popis', 'prubeh', 'priorita', 'celkovy_pocet_beden', 'odberatel',)
     readonly_fields = ('artikl', 'kamion_prijem', 'prumer', 'delka', 'predpis', 'typ_hlavy',
-                       'celozavit', 'popis', 'prubeh', 'priorita', 'celkovy_pocet_beden',)
+                       'celozavit', 'popis', 'prubeh', 'priorita', 'celkovy_pocet_beden', 'odberatel',)
     select_related = ('kamion_prijem', 'predpis',)
     show_change_link = True
     formfield_overrides = {
@@ -219,9 +219,9 @@ class KamionAdmin(SimpleHistoryAdmin):
     """
     actions = [import_kamionu_action, tisk_karet_beden_kamionu_action, tisk_karet_kontroly_kvality_kamionu_action, tisk_dodaciho_listu_kamionu_action]
 
-    fields = ('zakaznik', 'datum', 'cislo_dl', 'prijem_vydej', 'misto_expedice',) 
+    fields = ('zakaznik', 'datum', 'cislo_dl', 'prijem_vydej', 'odberatel',) 
     readonly_fields = ('prijem_vydej',)
-    list_display = ('get_kamion_str', 'get_zakaznik_zkraceny_nazev', 'get_datum', 'cislo_dl', 'prijem_vydej', 'misto_expedice',
+    list_display = ('get_kamion_str', 'get_zakaznik_zkraceny_nazev', 'get_datum', 'cislo_dl', 'prijem_vydej', 'odberatel',
                     'get_pocet_beden_skladem', 'get_celkova_hmotnost_netto', 'get_celkova_hmotnost_brutto',)
     list_select_related = ('zakaznik',)
     list_filter = ('zakaznik__zkraceny_nazev', 'prijem_vydej',)
@@ -257,7 +257,6 @@ class KamionAdmin(SimpleHistoryAdmin):
         Zobrazí zkrácený název zákazníka a umožní třídění podle hlavičky pole.
         """
         return obj.zakaznik.zkraceny_nazev
-
     
     @admin.display(description='Datum', ordering='datum', empty_value='-')
     def get_datum(self, obj):
@@ -306,17 +305,16 @@ class KamionAdmin(SimpleHistoryAdmin):
         """
         Vrací seznam polí, která se mají zobrazit ve formuláře Kamion při přidání nového a při editaci.
 
-        - Pokud není obj (tj. add_view), zruší se zobrazení pole `prijem_vydej`.
-        - Pokud je obj a kamion je pro příjem, zruší se zobrazení pole `misto_expedice`.
-
+        - Pokud není obj (tj. add_view), zruší se zobrazení pole `prijem_vydej` a `odberatel`.
+        - Pokud je obj a kamion je pro příjem, zruší se zobrazení pole `odberatel`.
         """
         fields = list(super().get_fields(request, obj))
 
         if not obj:  # Pokud se jedná o přidání nového kamionu
             fields.remove('prijem_vydej')
-            fields.remove('misto_expedice')
+            fields.remove('odberatel')
         if obj and obj.prijem_vydej == 'P':
-            fields.remove('misto_expedice')
+            fields.remove('odberatel')
 
         return fields
 
@@ -808,14 +806,14 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
                 # Pokud je zakázka expedovaná, kvůli has_permission v modelu ZakazkaAdmin nelze měnit, zobrazí i kamion výdej
                 my_fieldsets = [
                     ('Expedovaná zakázka:', {
-                        'fields': ['kamion_prijem', 'kamion_vydej', 'artikl', 'typ_hlavy', 'celozavit', 'prumer', 'delka', 'predpis', 'priorita', 'popis', 'zinkovna', 'get_komplet',],
+                        'fields': ['kamion_prijem', 'kamion_vydej', 'artikl', 'typ_hlavy', 'celozavit', 'prumer', 'delka', 'predpis', 'priorita', 'popis', 'odberatel', 'get_komplet',],
                         'description': 'Zakázka je expedovaná a nelze ji měnit.',
                     }),
                 ]
             else:  # Pokud zakázka není expedovaná, zobrazí se základní pole pro editaci
                 my_fieldsets = [
                     ('Zakázka skladem:', {
-                        'fields': ['kamion_prijem', 'artikl', 'typ_hlavy', 'celozavit', 'prumer', 'delka', 'predpis', 'priorita', 'popis', 'zinkovna', 'get_komplet',],
+                        'fields': ['kamion_prijem', 'artikl', 'typ_hlavy', 'celozavit', 'prumer', 'delka', 'predpis', 'priorita', 'popis', 'odberatel', 'get_komplet',],
                     }),
                 ]
                
@@ -867,7 +865,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
         else:  # přidání nového záznamu
             return [
                 ('Příjem zakázky na sklad:', {
-                    'fields': ['kamion_prijem', 'artikl', 'typ_hlavy', 'celozavit','prumer', 'delka', 'predpis', 'priorita', 'popis', 'zinkovna', 'get_komplet',],
+                    'fields': ['kamion_prijem', 'artikl', 'typ_hlavy', 'celozavit','prumer', 'delka', 'predpis', 'priorita', 'popis', 'odberatel', 'get_komplet',],
                     'description': 'Přijímání zakázky z kamiónu na sklad, pokud ještě není kamión v systému, vytvořte ho pomocí ikony ➕ u položky Kamión.',
                 }), 
                 ('Pouze pro Eurotec:', {

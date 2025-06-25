@@ -2,7 +2,7 @@ from django import forms
 from .models import Zakaznik, Kamion, Zakazka, Bedna, Predpis
 from .choices import (
     TypHlavyChoice, StavBednyChoice, RovnaniChoice, TryskaniChoice,
-    PrioritaChoice, ZinkovnaChoice, KamionChoice
+    PrioritaChoice, KamionChoice
 )
 
 class ImportZakazekForm(forms.Form):
