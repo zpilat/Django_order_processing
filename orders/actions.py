@@ -58,7 +58,7 @@ def expedice_zakazek_action(modeladmin, request, queryset):
             - `prijem_vydej='V'` (výdej)
             - `datum` dnešní datum
             - `zakaznik` nastavený na aktuálního zákazníka
-            - `cislo_dl` s prefixem zkratky zákazníka a dnešním datem
+            - `cislo_dl_zakaznika` s prefixem zkratky zákazníka a dnešním datem
     3. Pro každou zakázku daného zákazníka:
         - Zkontroluje se, zda všechny bedny v zakázce mají stav `K_EXPEDICI`.
         - Pokud ano, vyexpeduje celou zakázku.
@@ -76,7 +76,7 @@ def expedice_zakazek_action(modeladmin, request, queryset):
     for zakaznik in zakaznici:
         kamion = Kamion.objects.create(
             zakaznik=zakaznik,
-            cislo_dl=f"{zakaznik.zkratka} - {today_str}",
+            cislo_dl_zakaznika=f"{zakaznik.zkratka} - {today_str}",
             datum=datetime.date.today(),
             prijem_vydej='V',
         )
@@ -84,7 +84,7 @@ def expedice_zakazek_action(modeladmin, request, queryset):
         zakazky_zakaznika = queryset.filter(kamion_prijem__zakaznik=zakaznik)
         expedice_zakazek(modeladmin, request, zakazky_zakaznika, kamion)
 
-    messages.success(request, f"Zakázky byly úspěšně expedovány, byl vytvořen nový kamion výdeje {kamion.cislo_dl}.")
+    messages.success(request, f"Zakázky byly úspěšně expedovány, byl vytvořen nový kamion výdeje {kamion.cislo_dl_zakaznika}.")
     
 
 @admin.action(description="Vytisknout karty beden z vybraných zakázek")
@@ -251,7 +251,7 @@ def tisk_dodaciho_listu_kamionu_action(modeladmin, request, queryset):
         html_string = render_to_string("orders/dodaci_list_eur.html", context)
         pdf_file = HTML(string=html_string).write_pdf()
         response = HttpResponse(pdf_file, content_type="application/pdf")
-        response['Content-Disposition'] = f'inline; filename="dodaci_list_{kamion.cislo_dl}.pdf"'
+        response['Content-Disposition'] = f'inline; filename="dodaci_list_{kamion.cislo_dl_zakaznika}.pdf"'
         return response
     # Pokud není pro zákazníka zatím tisk DL umožněn, zobrazí se chybová zpráva
     else:

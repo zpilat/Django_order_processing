@@ -71,7 +71,7 @@ class Kamion(models.Model):
     zakaznik = models.ForeignKey(Zakaznik, on_delete=models.CASCADE, related_name='kamiony', verbose_name='Zákazník')
     odberatel = models.ForeignKey(Odberatel, on_delete=models.SET_NULL, related_name='kamiony', verbose_name='Odběratel', blank=True, null=True)
     datum = models.DateField(verbose_name='Datum')
-    cislo_dl = models.CharField(max_length=50, verbose_name='Číslo DL', blank=True, null=True)
+    cislo_dl_zakaznika = models.CharField(max_length=50, verbose_name='Číslo DL', blank=True, null=True)
     prijem_vydej = models.CharField(choices=KamionChoice.choices, max_length=1, verbose_name='Přijem/Výdej', default=KamionChoice.PRIJEM)
     history = HistoricalRecords()
 

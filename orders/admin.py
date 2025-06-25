@@ -218,9 +218,9 @@ class KamionAdmin(SimpleHistoryAdmin):
     """
     actions = [import_kamionu_action, tisk_karet_beden_kamionu_action, tisk_karet_kontroly_kvality_kamionu_action, tisk_dodaciho_listu_kamionu_action]
 
-    fields = ('zakaznik', 'datum', 'cislo_dl', 'prijem_vydej', 'odberatel',) 
+    fields = ('zakaznik', 'datum', 'cislo_dl_zakaznika', 'prijem_vydej', 'odberatel',) 
     readonly_fields = ('prijem_vydej',)
-    list_display = ('get_kamion_str', 'get_zakaznik_zkraceny_nazev', 'get_datum', 'cislo_dl', 'prijem_vydej', 'odberatel',
+    list_display = ('get_kamion_str', 'get_zakaznik_zkraceny_nazev', 'get_datum', 'cislo_dl_zakaznika', 'prijem_vydej', 'odberatel',
                     'get_pocet_beden_skladem', 'get_celkova_hmotnost_netto', 'get_celkova_hmotnost_brutto',)
     list_select_related = ('zakaznik',)
     list_filter = ('zakaznik__zkraceny_nazev', 'prijem_vydej',)
