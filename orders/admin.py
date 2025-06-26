@@ -1171,8 +1171,8 @@ class CenaAdmin(SimpleHistoryAdmin):
     """
     Správa cen v administraci.
     """
-    list_display = ('get_zakaznik', 'popis_s_delkou', 'get_predpisy', 'delka_min', 'delka_max', 'cena')
-    list_editable = ('delka_min', 'delka_max', 'cena')
+    list_display = ('get_zakaznik', 'popis_s_delkou', 'get_predpisy', 'delka_min', 'delka_max', 'cena_za_kg')
+    list_editable = ('delka_min', 'delka_max', 'cena_za_kg')
     list_display_links = ('popis_s_delkou',)
     list_filter = ('zakaznik',)
     search_fields = ('popis',)
@@ -1180,7 +1180,7 @@ class CenaAdmin(SimpleHistoryAdmin):
     save_as = True
     list_per_page = 25
 
-    history_list_display = ['zakaznik', 'delka_min', 'delka_max', 'cena']
+    history_list_display = ['zakaznik', 'delka_min', 'delka_max', 'cena_za_kg']
     history_list_filter = ['zakaznik',]
     history_list_per_page = 20
 
