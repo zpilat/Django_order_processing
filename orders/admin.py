@@ -15,7 +15,7 @@ from decimal import Decimal, ROUND_HALF_UP
 import pandas as pd
 import re
 
-from .models import Zakaznik, Kamion, Zakazka, Bedna, Predpis, Odberatel
+from .models import Zakaznik, Kamion, Zakazka, Bedna, Predpis, Odberatel, TypHlavy, Cena
 from .actions import (expedice_zakazek_action, import_kamionu_action, tisk_karet_beden_action, tisk_karet_beden_zakazek_action,
     tisk_karet_beden_kamionu_action, tisk_dodaciho_listu_kamionu_action, vratit_zakazky_z_expedice_action, expedice_zakazek_kamion_action,
     tisk_karet_kontroly_kvality_action, tisk_karet_kontroly_kvality_zakazek_action, tisk_karet_kontroly_kvality_kamionu_action)
@@ -634,6 +634,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     """
     Správa zakázek v administraci.
     """
+    # Použité inline, formuláře a akce
     inlines = [BednaInline]
     form = ZakazkaAdminForm
     actions = [tisk_karet_beden_zakazek_action, tisk_karet_kontroly_kvality_zakazek_action, expedice_zakazek_action,
@@ -643,7 +644,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     readonly_fields = ('expedovano', 'get_komplet')
     
     # Parametry pro zobrazení seznamu v administraci
-    list_display = ('artikl', 'kamion_prijem_link', 'kamion_vydej_link', 'prumer', 'delka', 'predpis_link', 'get_typ_hlavy',
+    list_display = ('artikl', 'kamion_prijem_link', 'kamion_vydej_link', 'prumer', 'delka', 'predpis_link', 'typ_hlavy_link',
                     'get_skupina', 'get_celozavit', 'zkraceny_popis', 'priorita', 'hmotnost_zakazky_k_expedici_brutto',
                     'pocet_beden_k_expedici', 'celkovy_pocet_beden', 'get_komplet',)
     list_display_links = ('artikl',)
@@ -696,11 +697,12 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
         return obj.celozavit
     
     @admin.display(description='Hlava', ordering='typ_hlavy', empty_value='-')
-    def get_typ_hlavy(self, obj):
+    def typ_hlavy_link(self, obj):
         """
         Zobrazí typ hlavy a umožní třídění podle hlavičky pole.
         """
-        return obj.typ_hlavy
+        if obj.typ_hlavy:
+            return mark_safe(f'<a href="{obj.typ_hlavy.get_admin_url()}">{obj.typ_hlavy.nazev}</a>')
 
     @admin.display(description="Popis zkr.", ordering='popis')
     def zkraceny_popis(self, obj):
@@ -1147,3 +1149,73 @@ class OdberatelAdmin(SimpleHistoryAdmin):
     history_list_display = ['nazev', 'zkraceny_nazev', 'zkratka', 'adresa', 'mesto', 'psc', 'stat', 'kontaktni_osoba', 'telefon', 'email']
     history_search_fields = ['nazev']
     history_list_per_page = 20    
+
+
+@admin.register(TypHlavy)
+class TypHlavyAdmin(SimpleHistoryAdmin):
+    """
+    Správa typů hlav v administraci.
+    """
+    list_display = ('nazev', 'popis')
+    list_display_links = ('nazev',)
+    ordering = ['nazev']
+    list_per_page = 25
+
+    history_list_display = ['nazev', 'popis']
+    history_search_fields = ['nazev']
+    history_list_per_page = 20
+    
+
+@admin.register(Cena)    
+class CenaAdmin(SimpleHistoryAdmin):
+    """
+    Správa cen v administraci.
+    """
+    list_display = ('get_zakaznik', 'popis_s_delkou', 'get_predpisy', 'delka_min', 'delka_max', 'cena')
+    list_editable = ('delka_min', 'delka_max', 'cena')
+    list_display_links = ('popis_s_delkou',)
+    list_filter = ('zakaznik',)
+    search_fields = ('popis',)
+    autocomplete_fields = ('predpis',)
+    save_as = True
+    list_per_page = 25
+
+    history_list_display = ['zakaznik', 'delka_min', 'delka_max', 'cena']
+    history_list_filter = ['zakaznik',]
+    history_list_per_page = 20
+
+    formfield_overrides = {
+        models.DecimalField: {'widget': TextInput(attrs={'size': '6'})},
+    }    
+
+    @admin.display(description='Předpisy', ordering='predpis__nazev', empty_value='-')
+    def get_predpisy(self, obj):
+        """
+        Zobrazí názvy předpisů spojených s cenou a umožní třídění podle hlavičky pole.
+        Pokud není žádný předpis spojen, vrátí prázdný řetězec.
+        """
+        if obj.predpis.exists():
+            predpisy_text = ", ".join(predpis.nazev for predpis in obj.predpis.all())
+            return format_html(
+                '<div style="max-width: 780px; white-space: normal;">{}</div>',
+                predpisy_text
+            )
+        return "-"
+    
+    @admin.display(description='Zák.', ordering='zakaznik__nazev', empty_value='-')
+    def get_zakaznik(self, obj):
+        """
+        Zobrazí zkratku zákazníka spojeného s cenou.
+        """
+        return obj.zakaznik.zkratka if obj.zakaznik else "-"
+    
+    @admin.display(description='Popis s délkou', ordering='popis', empty_value='-')
+    def popis_s_delkou(self, obj):
+        """
+        Zobrazí popis ceny s délkou, pokud je delka_max a delka_min vyplněna.
+        Pokud není delka_max nebo delka_min vyplněna, vrátí pouze popis.
+        """
+        if obj.delka_min and obj.delka_max:
+            return f"{obj.popis}x{int(obj.delka_min)}-{int(obj.delka_max)}"
+        return obj.popis
+    

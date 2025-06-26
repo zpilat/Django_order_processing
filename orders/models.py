@@ -6,8 +6,7 @@ from django.core.exceptions import ValidationError
 from django.db.models import Sum
 
 from .choices import (
-    TypHlavyChoice, StavBednyChoice, RovnaniChoice, TryskaniChoice,
-    PrioritaChoice, KamionChoice
+    StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice
 )
 
 class Zakaznik(models.Model):
@@ -207,6 +206,30 @@ class Predpis(models.Model):
         Vrací URL pro zobrazení detailu předpisu v administraci.
         """
         return reverse("admin:orders_predpis_change", args=[self.pk])    
+        
+
+class TypHlavy(models.Model):
+    """
+    Model pro typ hlavy.
+    Umožňuje definovat různé typy hlav, které mohou být použity v zakázkách.
+    """
+    nazev = models.CharField(max_length=10, verbose_name='Typ hlavy', unique=True)
+    popis = models.CharField(max_length=50, blank=True, null=True, verbose_name='Popis')
+    history = HistoricalRecords()
+
+    class Meta:
+        verbose_name = 'Typ hlavy'
+        verbose_name_plural = 'typy hlav'
+        ordering = ['nazev']
+
+    def __str__(self):
+        return self.nazev    
+    
+    def get_admin_url(self):
+        """
+        Vrací URL pro zobrazení detailu typu hlavy v administraci.
+        """
+        return reverse("admin:orders_typhlavy_change", args=[self.pk])  
 
 
 class Zakazka(models.Model):
@@ -216,7 +239,7 @@ class Zakazka(models.Model):
     prumer = models.DecimalField(max_digits=4, decimal_places=1, verbose_name='Průměr')
     delka = models.DecimalField(max_digits=6, decimal_places=1, verbose_name='Délka')
     predpis = models.ForeignKey(Predpis, on_delete=models.PROTECT, related_name='zakazky', verbose_name='Předpis / Výkres')
-    typ_hlavy = models.CharField(choices=TypHlavyChoice.choices, max_length=3, verbose_name='Typ hlavy')
+    typ_hlavy = models.ForeignKey(TypHlavy, on_delete=models.PROTECT, related_name='zakazky', verbose_name='Typ hlavy')
     celozavit = models.BooleanField(default=False, verbose_name='Celozávit')
     popis = models.CharField(max_length=100, verbose_name='Popis')
     vrstva = models.CharField(max_length=20, null=True, blank=True, verbose_name='Beschichtung')
@@ -437,18 +460,19 @@ class Cena(models.Model):
     Model pro cenu zakázky.
     Umožňuje přiřadit cenu k zakázce a sledovat historii změn cen.
     """
+    popis = models.CharField(max_length=50, verbose_name='Popis ceny')
     zakaznik = models.ForeignKey(Zakaznik, on_delete=models.CASCADE, related_name='ceny', verbose_name='Zákazník')
-    predpis = models.ForeignKey(Predpis, on_delete=models.PROTECT, related_name='ceny', verbose_name='Předpis')
-    prumer = models.DecimalField(max_digits=4, decimal_places=1, verbose_name='Průměr')
-    delka = models.DecimalField(max_digits=6, decimal_places=1, verbose_name='Délka')
-    hlava = models.CharField(choices=TypHlavyChoice.choices, max_length=3, verbose_name='Typ hlavy')
+    predpis = models.ManyToManyField(Predpis, related_name='ceny', verbose_name='Předpisy',
+                                        help_text='Předpisy, ke kterým se cena vztahuje. Může být více předpisů pro daný průměr a cenu.')
+    delka_min = models.DecimalField(max_digits=6, decimal_places=1, verbose_name='Délka od (včetně)')
+    delka_max = models.DecimalField(max_digits=6, decimal_places=1, verbose_name='Délka do (vyjma)')
     cena = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='Cena (Kč/kg)')
     history = HistoricalRecords()
 
     class Meta:
         verbose_name = 'Cena'
         verbose_name_plural = 'ceny'
-        ordering = ['zakaznik__nazev', 'predpis__nazev', 'prumer', 'delka', 'hlava']
+        ordering = ['popis', 'delka_min']
 
     def __str__(self):
-        return f'{self.cena} Kč/kg'
+        return f'{self.zakaznik.zkratka} {self.popis}x{int(self.delka_min)}-{int(self.delka_max)}'
