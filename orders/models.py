@@ -334,7 +334,7 @@ class Cena(models.Model):
     """
     popis = models.CharField(max_length=50, verbose_name='Popis ceny')
     zakaznik = models.ForeignKey(Zakaznik, on_delete=models.CASCADE, related_name='ceny', verbose_name='Zákazník')
-    predpis = models.ManyToManyField(Predpis, related_name='ceny', verbose_name='Předpisy', null=True, blank=True,
+    predpis = models.ManyToManyField(Predpis, related_name='ceny', verbose_name='Předpisy', blank=True,
                                         help_text='Předpisy, ke kterým se cena vztahuje. Může být více předpisů pro daný průměr a cenu.')
     delka_min = models.DecimalField(max_digits=6, decimal_places=1, verbose_name='Délka od (včetně)')
     delka_max = models.DecimalField(max_digits=6, decimal_places=1, verbose_name='Délka do (vyjma)')
