@@ -481,9 +481,17 @@ class KamionAdmin(SimpleHistoryAdmin):
                                 # Získání předpisu, pokud existuje
                                 predpis_qs = Predpis.objects.filter(nazev=nazev_predpis, aktivni=True)
                                 predpis = predpis_qs.first() if predpis_qs.exists() else None
-
                                 if not predpis:
                                     raise ValueError(f"Předpis „{nazev_predpis}“ neexistuje nebo není aktivní.")
+                                
+                                # Získání typu hlavy, pokud existuje
+                                typ_hlavy_excel = row.get('typ_hlavy', '').strip()
+                                if not typ_hlavy_excel:
+                                    raise ValueError("Chyba: Sloupec s typem hlavy nesmí být prázdný.")
+                                typ_hlavy_qs = TypHlavy.objects.filter(nazev=typ_hlavy_excel)
+                                typ_hlavy = typ_hlavy_qs.first() if typ_hlavy_qs.exists() else None
+                                if not typ_hlavy:
+                                    raise ValueError(f"Typ hlavy „{typ_hlavy_excel}“ neexistuje.")
 
                                 zakazka = Zakazka.objects.create(
                                     kamion_prijem=kamion,
@@ -491,7 +499,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                                     prumer=prumer,
                                     delka=row.get('delka'),
                                     predpis=predpis,
-                                    typ_hlavy=row.get('typ_hlavy'),
+                                    typ_hlavy=typ_hlavy,
                                     celozavit=row.get('celozavit', False),
                                     priorita=row.get('priorita', PrioritaChoice.NIZKA),
                                     popis=row.get('popis'),

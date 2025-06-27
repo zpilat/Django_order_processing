@@ -126,15 +126,15 @@ class Kamion(models.Model):
         return celkova_tara + self.celkova_hmotnost_netto
     
     @property
-    def cena_za_kamion(self):
+    def cena_za_kamion_vydej(self):
         """
-        Vrací cenu za kamion na základě zákazníka, předpisu a délky, pouze pro kamionu výdej.
+        Vrací cenu za kamion výdej na základě zákazníka, předpisu a délky, pouze pro kamionu výdej.
         Celkovou cenu vypočte podle property cena_za_zakazku pro jednotlivé zakázky v kamionu.
         Pokud není cena nalezena, vrací 0.
         """
         if self.prijem_vydej == KamionChoice.VYDEJ:
-            # Získá všechny bedny obsažené v kamionu.
-            zakazky = self.zakazky.all()
+            # Získá všechny zakázky obsažené v kamionu.
+            zakazky = self.zakazky_vydej.all()
             if not zakazky.exists():
                 return 0
             return Decimal(
@@ -178,12 +178,12 @@ class Kamion(models.Model):
     @property
     def hmotnost_tryskanych_beden(self):
         """
-        Vrací pro kamion výdej celkovou hmotnost beden, které mají stav tryskané.
+        Vrací pro kamion výdej celkovou hmotnost beden, které mají stav tryskání: otryskaná.
         """
         if self.prijem_vydej == KamionChoice.VYDEJ:
             return Bedna.objects.filter(
                 zakazka__kamion_vydej=self,
-                stav_bedny=StavBednyChoice.TRYSKANE
+                tryskat=TryskaniChoice.OTRYSKANA
             ).aggregate(suma=Sum('hmotnost'))['suma'] or 0
         raise ValidationError(_("Neplatný typ kamionu. Musí být buď 'Přijem' nebo 'Výdej'."))
 
@@ -328,7 +328,7 @@ class Zakazka(models.Model):
         return reverse("admin:orders_zakazka_change", args=[self.pk])
 
     @property
-    def cena_za_zakázku(self):
+    def cena_za_zakazku(self):
         """
         Vrací cenu zboží v zakázce v EUR/bednu.
         Výpočet ceny se provádí na základě předpisu, délky a zákazníka.

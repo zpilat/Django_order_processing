@@ -54,13 +54,13 @@
                     908 45 Gbely<br>
                 </td>
                 <td class="text-center fs-15 fw-bold" style="width: 33%;">
-                    HPM HEAT SK<br><br>
-                    <span class="fs-10 fw-normal">
+                    HPM HEAT SK<br>
+                    <div class="fs-10 fw-normal">
                         Proforma faktúra (EuroTec GmbH)
-                    </span>
-                    <span class="fs-10">
+                    </div>
+                    <div class="fs-10">
                         EXP/{{ kamion.poradove_cislo }}/{{ kamion.datum|date:"Y" }}/{{ kamion.zakaznik.zkratka }}
-                    </span>
+                    </div>
                 </td>
                 <td class="text-end fs-10" style="width: 33%;">
                     Gbely dňa: {{ kamion.datum|date:"d. m. Y" }}<br>
@@ -68,7 +68,7 @@
             </tr>
         </tbody>
     </table>
-    <table class="table table-striped text-center fs-09 fw-bold" style="width: 100%; table-layout: fixed; font-family: 'Arial';">
+    <table class="table table-striped text-center fs-09" style="width: 100%; table-layout: fixed; font-family: 'Arial';">
         <tbody>
             <tr>
                 <th  style="width: 10%;">
@@ -96,13 +96,13 @@
                     Počet beden
                 </th>                                        
             </tr>
-            {{ for zakazka in kamion.zakazky_vydej.all }}
+            {% for zakazka in kamion.zakazky_vydej.all %}
                 <tr class="text-center fs-10">
                     <td>
                         {{ zakazka.artikl }}
                     </td>
                     <td>
-                        {{ zakazka.celkova_hmotnost|floatformat:1 }} kg
+                        {{ zakazka.celkova_hmotnost|floatformat:1 }}
                     </td>
                     <td>
                         {{ zakazka.prumer }}x{{ zakazka.delka|floatformat:0 }}
@@ -114,16 +114,16 @@
                         {{ zakazka.typ_hlavy.nazev }}
                     </td>
                     <td>
-                        {{ zakazka.cena_za_kg|floatformat:2 }} €
+                        {{ zakazka.cena_za_kg|floatformat:2 }}
                     </td>
                     <td>
-                        {{ zakazka.cena_za_zakazku|floatformat:2 }} €
+                        {{ zakazka.cena_za_zakazku|floatformat:2 }}
                     </td>
                     <td>
                         {{ zakazka.pocet_beden }}
                     </td>
                 </tr>
-            {{ endfor}}
+            {% endfor %}
             <tr class="text-center fs-10 fw-bold">
                 <td></td>
                 <td>
@@ -134,7 +134,7 @@
                 <td></td>
                 <td></td>
                 <td>
-                    {{ kamion.cena_za_kamion|floatformat:2 }} €
+                    {{ kamion.cena_za_kamion_vydej|floatformat:2 }} €
                 </td>
                 <td>
                     {{ kamion.pocet_beden_expedovano }} ks
@@ -144,7 +144,7 @@
     </table>    
 
     <p class="text-start fs-10 fw-bold" style="margin-top: 1mm; margin-bottom: 0;">
-        Fakturovat tryskání: {{ kamion.hmotnost_tryskanych_beden|floatformat:2 }} kg
+        Fakturovat tryskání: {{ kamion.hmotnost_tryskanych_beden|floatformat:1 }} kg
     </p>
 </body>
 </html>
