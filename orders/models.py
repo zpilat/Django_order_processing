@@ -157,6 +157,35 @@ class Kamion(models.Model):
                 ).count()
         return 0
 
+    @property
+    def pocet_beden_expedovano(self):
+        """
+        Vrací počet beden spojených s tímto kamionem, které jsou ve stavu EXPEDOVANO.
+        """
+        # Pokud je kamion pro příjem, vrací počet beden ve stavu expedováno.
+        if self.prijem_vydej == KamionChoice.PRIJEM:
+            return Bedna.objects.filter(
+                zakazka__kamion_prijem=self,
+                stav_bedny=StavBednyChoice.EXPEDOVANO
+            ).count()
+        # Pokud je kamion pro výdej, vrací všechny bedny - všechny jsou expedovány.
+        if self.prijem_vydej == KamionChoice.VYDEJ:
+            return Bedna.objects.filter(
+                zakazka__kamion_vydej=self,
+            ).count()
+        raise ValidationError(_("Neplatný typ kamionu. Musí být buď 'Přijem' nebo 'Výdej'."))
+
+    @property
+    def hmotnost_tryskanych_beden(self):
+        """
+        Vrací pro kamion výdej celkovou hmotnost beden, které mají stav tryskané.
+        """
+        if self.prijem_vydej == KamionChoice.VYDEJ:
+            return Bedna.objects.filter(
+                zakazka__kamion_vydej=self,
+                stav_bedny=StavBednyChoice.TRYSKANE
+            ).aggregate(suma=Sum('hmotnost'))['suma'] or 0
+        raise ValidationError(_("Neplatný typ kamionu. Musí být buď 'Přijem' nebo 'Výdej'."))
 
     def get_admin_url(self):
         """
@@ -324,7 +353,34 @@ class Zakazka(models.Model):
             return cena_za_zakazku
         # Pro ostatní zákazníky zatím není výpočet ceny implementován
         else:
-            return 0    
+            return 0
+        
+    @property
+    def cena_za_kg(self):
+        """
+        Vrací cenu zboží v zakázce v EUR/kg.
+        Výpočet ceny se provádí na základě předpisu, délky a zákazníka.
+        """
+        predpis = self.predpis
+        zakaznik = self.kamion_prijem.zakaznik
+        delka = self.delka
+
+        # Pokud není předpis nebo zákazník, vrací 0
+        if not predpis or not zakaznik:
+            return 0
+
+        # Zákazník Eurotec      
+        if zakaznik.zkratka == 'EUR':
+            cena = Cena.objects.filter(
+                predpis=predpis,
+                delka_min__lte=delka,
+                delka_max__gt=delka,
+                zakaznik=zakaznik
+            ).first()
+            return cena.cena_za_kg if cena else 0
+        # Pro ostatní zákazníky zatím není výpočet ceny implementován
+        else:
+            return 0
     
 
 class Cena(models.Model):

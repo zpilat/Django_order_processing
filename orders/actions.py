@@ -225,7 +225,7 @@ def import_kamionu_action(modeladmin, request, queryset):
         return
 
 
-@admin.action(description="Vytisknout dodací list kamionu do PDF")
+@admin.action(description="Vytisknout dodací list kamionu")
 def tisk_dodaciho_listu_kamionu_action(modeladmin, request, queryset):
     """
     Vytiskne dodací list pro vybraný kamion do PDF.
@@ -256,6 +256,39 @@ def tisk_dodaciho_listu_kamionu_action(modeladmin, request, queryset):
     # Pokud není pro zákazníka zatím tisk DL umožněn, zobrazí se chybová zpráva
     else:
         modeladmin.message_user(request, "Tisk DL je zatím možný pouze pro zákazníka Eurotec.", level=messages.ERROR)
+        return
+
+@admin.action(description="Vytisknout proforma fakturu kamionu")
+def tisk_proforma_faktury_kamionu_action(modeladmin, request, queryset):
+    """
+    Vytiskne proforma fakturu pro vybraný kamion do PDF.
+    Předpokládá, že je vybrán pouze jeden kamion a to kamion s příznakem výdej.
+    Pokud je vybráno více kamionů, zobrazí se chybová zpráva.
+    Zatím je tisk pouze pro zákazníka Eurotec (EUR).
+    """
+    if not queryset.exists():
+        modeladmin.message_user(request, "Neoznačili jste žádný kamion.", level=messages.ERROR)
+        return
+    # Pokud je vybráno více kamionů, zobrazí se chybová zpráva
+    if queryset.count() != 1:
+        modeladmin.message_user(request, "Vyberte pouze jeden kamion.", level=messages.ERROR)
+        return
+    kamion = queryset.first()
+    # Zkontroluje, zda je kamion s příznakem výdej
+    if kamion.prijem_vydej != 'V':
+        modeladmin.message_user(request, "Tisk proforma faktury je možný pouze pro kamiony výdej.", level=messages.ERROR)
+        return
+    # Zkontroluje, zda je kamion pro zákazníka Eurotec
+    if kamion.zakaznik.zkratka == "EUR":
+        context = {"kamion": kamion}
+        html_string = render_to_string("orders/proforma_faktura_eur.html", context)
+        pdf_file = HTML(string=html_string).write_pdf()
+        response = HttpResponse(pdf_file, content_type="application/pdf")
+        response['Content-Disposition'] = f'inline; filename="proforma_faktura_{kamion.cislo_dl_zakaznika}.pdf"'
+        return response
+    # Pokud není pro zákazníka zatím tisk proforma faktury umožněn, zobrazí se chybová zpráva
+    else:
+        modeladmin.message_user(request, "Tisk proforma faktury je zatím možný pouze pro zákazníka Eurotec.", level=messages.ERROR)
         return
 
 @admin.action(description="Vytisknout karty beden z vybraného kamionu")

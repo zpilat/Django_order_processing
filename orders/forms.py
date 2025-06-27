@@ -65,11 +65,14 @@ class ZakazkaAdminForm(ZakazkaPredpisValidatorMixin, forms.ModelForm):
             self.fields['tryskat'].initial = bedna.tryskat if bedna else TryskaniChoice.NEZADANO
             self.fields['rovnat'].initial = bedna.rovnat if bedna else RovnaniChoice.NEZADANO
 
-        if inst and inst.pk and inst.kamion_prijem and inst.kamion_prijem.zakaznik:
-            self.fields['predpis'].queryset = inst.kamion_prijem.zakaznik.predpisy.filter(aktivni=True)
-        else:
-            self.fields['predpis'].queryset = Predpis.objects.filter(aktivni=True)           
-
+        # Nastavení querysetu pro pole 'predpis' podle kontextu zakázky
+        if 'predpis' in self.fields:
+            if inst and inst.pk:
+                if not inst.expedovano and inst.kamion_prijem and inst.kamion_prijem.zakaznik:
+                    self.fields['predpis'].queryset = inst.kamion_prijem.zakaznik.predpisy.filter(aktivni=True)
+            else:
+                self.fields['predpis'].queryset = Predpis.objects.filter(aktivni=True)
+         
 
 class ZakazkaInlineForm(ZakazkaPredpisValidatorMixin, forms.ModelForm):
     """
