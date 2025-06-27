@@ -1204,7 +1204,7 @@ class CenaAdmin(SimpleHistoryAdmin):
     """
     Správa cen v administraci.
     """
-    list_display = ('get_zakaznik', 'popis_s_delkou', 'get_predpisy', 'delka_min', 'delka_max', 'cena_za_kg')
+    list_display = ('get_zakaznik', 'popis_s_delkou', 'delka_min', 'delka_max', 'cena_za_kg', 'get_predpisy')
     list_editable = ('delka_min', 'delka_max', 'cena_za_kg')
     list_display_links = ('popis_s_delkou',)
     list_filter = ('zakaznik',)
