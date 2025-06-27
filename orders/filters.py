@@ -1,5 +1,6 @@
 from django.contrib import admin
-from .models import StavBednyChoice, Zakazka, Bedna
+from .models import Zakazka, Bedna, Zakaznik
+from .choices import StavBednyChoice
 
 class StavBednyFilter(admin.SimpleListFilter):
     """
@@ -129,3 +130,49 @@ class SkupinaFilter(admin.SimpleListFilter):
                 return queryset.filter(zakazka__predpis__skupina=int(value))
             except (ValueError, TypeError):
                 return queryset.none()
+
+
+class ZakaznikBednyFilter(admin.SimpleListFilter):
+    """
+    Filtrovat zakázky podle zákazníka.
+    """
+    title = "Zákazník"
+    parameter_name = "zakaznik"
+
+    def lookups(self, request, model_admin):
+        return Zakaznik.objects.values_list('zkratka', 'zkraceny_nazev').order_by('zkratka')
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if not value:
+            self.title = "Zákazník: Vše"
+            return queryset
+        try:
+            zakaznik = Zakaznik.objects.get(zkratka=value)
+            self.title = f"Zákazník: {zakaznik.zkraceny_nazev}"
+            return queryset.filter(zakazka__kamion_prijem__zakaznik=zakaznik)
+        except Zakaznik.DoesNotExist:
+            return queryset.none()
+        
+
+class ZakaznikZakazkyFilter(admin.SimpleListFilter):
+    """
+    Filtrovat zakázky podle zákazníka.
+    """
+    title = "Zákazník"
+    parameter_name = "zakaznik"
+
+    def lookups(self, request, model_admin):
+        return Zakaznik.objects.values_list('zkratka', 'zkraceny_nazev').order_by('zkratka')
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if not value:
+            self.title = "Zákazník: Vše"
+            return queryset
+        try:
+            zakaznik = Zakaznik.objects.get(zkratka=value)
+            self.title = f"Zákazník: {zakaznik.zkraceny_nazev}"
+            return queryset.filter(kamion_prijem__zakaznik=zakaznik)
+        except Zakaznik.DoesNotExist:
+            return queryset.none()

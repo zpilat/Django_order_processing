@@ -16,11 +16,16 @@ import pandas as pd
 import re
 
 from .models import Zakaznik, Kamion, Zakazka, Bedna, Predpis, Odberatel, TypHlavy, Cena
-from .actions import (expedice_zakazek_action, import_kamionu_action, tisk_karet_beden_action, tisk_karet_beden_zakazek_action,
+from .actions import (
+    expedice_zakazek_action, import_kamionu_action, tisk_karet_beden_action, tisk_karet_beden_zakazek_action,
     tisk_karet_beden_kamionu_action, tisk_dodaciho_listu_kamionu_action, vratit_zakazky_z_expedice_action, expedice_zakazek_kamion_action,
     tisk_karet_kontroly_kvality_action, tisk_karet_kontroly_kvality_zakazek_action, tisk_karet_kontroly_kvality_kamionu_action,
-    tisk_proforma_faktury_kamionu_action)
-from .filters import ExpedovanaZakazkaFilter, StavBednyFilter, KompletZakazkaFilter, AktivniPredpisFilter, SkupinaFilter
+    tisk_proforma_faktury_kamionu_action
+    )
+from .filters import (
+    ExpedovanaZakazkaFilter, StavBednyFilter, KompletZakazkaFilter, AktivniPredpisFilter, SkupinaFilter, ZakaznikBednyFilter,
+    ZakaznikZakazkyFilter
+)
 from .forms import ZakazkaAdminForm, BednaAdminForm, ImportZakazekForm, ZakazkaInlineForm
 from .choices import (
     TypHlavyChoice, StavBednyChoice, RovnaniChoice, TryskaniChoice,
@@ -663,7 +668,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     list_select_related = ("kamion_prijem", "kamion_vydej")
     search_fields = ('artikl',)
     search_help_text = "Hledat podle artiklu"
-    list_filter = ('kamion_prijem__zakaznik', 'typ_hlavy', 'celozavit', 'priorita', 'povrch', KompletZakazkaFilter, ExpedovanaZakazkaFilter, 'odberatel',)
+    list_filter = (ZakaznikZakazkyFilter, 'typ_hlavy', 'celozavit', 'priorita', 'povrch', KompletZakazkaFilter, ExpedovanaZakazkaFilter, 'odberatel',)
     ordering = ('-id',)
     date_hierarchy = 'kamion_prijem__datum'
     list_per_page = 25
@@ -968,7 +973,7 @@ class BednaAdmin(SimpleHistoryAdmin):
 
     # Parametry pro zobrazení seznamu v administraci
     list_display = ('get_cislo_bedny', 'get_behalter_nr', 'zakazka_link', 'kamion_prijem_link', 'kamion_vydej_link',
-                    'get_prumer', 'get_delka', 'zkraceny_popis','get_skupina_TZ', 'get_typ_hlavy', 'get_celozavit',
+                    'get_prumer', 'get_delka','get_skupina_TZ', 'get_typ_hlavy', 'get_celozavit', 'zkraceny_popis',
                     'rovnat', 'tryskat', 'stav_bedny', 'hmotnost', 'tara', 'get_priorita', 'get_datum', 'poznamka',)
     # list_editable - je nastaveno pro různé stavy filtru Skladem v metodě changelist_view
     list_display_links = ('get_cislo_bedny', )
@@ -976,7 +981,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     list_per_page = 50
     search_fields = ('cislo_bedny', 'behalter_nr', 'zakazka__artikl',)
     search_help_text = "Hledat dle čísla bedny, č.b. zákazníka nebo zakázky"
-    list_filter = ('zakazka__kamion_prijem__zakaznik', StavBednyFilter, 'rovnat', 'tryskat', 'zakazka__celozavit',
+    list_filter = (ZakaznikBednyFilter, StavBednyFilter, 'rovnat', 'tryskat', 'zakazka__celozavit',
                    'zakazka__typ_hlavy', 'zakazka__priorita', SkupinaFilter,)
     ordering = ('id',)
     date_hierarchy = 'zakazka__kamion_prijem__datum'
