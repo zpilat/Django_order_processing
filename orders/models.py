@@ -129,20 +129,20 @@ class Kamion(models.Model):
     def cena_za_kamion(self):
         """
         Vrací cenu za kamion na základě zákazníka, předpisu a délky, pouze pro kamionu výdej.
-        Celkovou cenu vypočte podle property cena_za_bednu pro jednotlivé bedny v kamionu.
-        Pokud není cena nalezena, vrací None.
+        Celkovou cenu vypočte podle property cena_za_zakazku pro jednotlivé zakázky v kamionu.
+        Pokud není cena nalezena, vrací 0.
         """
         if self.prijem_vydej == KamionChoice.VYDEJ:
             # Získá všechny bedny obsažené v kamionu.
-            bedny = Bedna.objects.filter(zakazka__kamion_vydej=self)
-            if not bedny.exists():
-                return None
+            zakazky = self.zakazky.all()
+            if not zakazky.exists():
+                return 0
             return Decimal(
                 sum(
-                    Decimal(bedna.cena_za_bednu) for bedna in bedny if bedna.cena_za_bednu
+                    Decimal(zakazka.cena_za_zakazku) for zakazka in zakazky if zakazka.cena_za_zakazku
                 ).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
             )
-        return None
+        return 0
 
     @property
     def pocet_beden_skladem(self):
@@ -297,6 +297,34 @@ class Zakazka(models.Model):
         Vrací URL pro zobrazení detailu zakázky v administraci.
         """
         return reverse("admin:orders_zakazka_change", args=[self.pk])
+
+    @property
+    def cena_za_zakázku(self):
+        """
+        Vrací cenu zboží v zakázce v EUR/bednu.
+        Výpočet ceny se provádí na základě předpisu, délky a zákazníka.
+        """
+        predpis = self.predpis
+        zakaznik = self.kamion_prijem.zakaznik
+        delka = self.delka
+
+        # Pokud není předpis nebo zákazník, vrací 0
+        if not predpis or not zakaznik:
+            return 0
+
+        # Zákazník Eurotec
+        if zakaznik.zkratka == 'EUR':
+            cena = Cena.objects.filter(
+                predpis=predpis,
+                delka_min__lte=delka,
+                delka_max__gt=delka,
+                zakaznik=zakaznik
+            ).first()
+            cena_za_zakazku = Decimal(cena.cena_za_kg * self.celkova_hmotnost).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP) if cena else 0
+            return cena_za_zakazku
+        # Pro ostatní zákazníky zatím není výpočet ceny implementován
+        else:
+            return 0    
     
 
 class Cena(models.Model):
@@ -306,7 +334,7 @@ class Cena(models.Model):
     """
     popis = models.CharField(max_length=50, verbose_name='Popis ceny')
     zakaznik = models.ForeignKey(Zakaznik, on_delete=models.CASCADE, related_name='ceny', verbose_name='Zákazník')
-    predpis = models.ManyToManyField(Predpis, related_name='ceny', verbose_name='Předpisy',
+    predpis = models.ManyToManyField(Predpis, related_name='ceny', verbose_name='Předpisy', null=True, blank=True,
                                         help_text='Předpisy, ke kterým se cena vztahuje. Může být více předpisů pro daný průměr a cenu.')
     delka_min = models.DecimalField(max_digits=6, decimal_places=1, verbose_name='Délka od (včetně)')
     delka_max = models.DecimalField(max_digits=6, decimal_places=1, verbose_name='Délka do (vyjma)')
