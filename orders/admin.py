@@ -20,7 +20,7 @@ from .actions import (expedice_zakazek_action, import_kamionu_action, tisk_karet
     tisk_karet_beden_kamionu_action, tisk_dodaciho_listu_kamionu_action, vratit_zakazky_z_expedice_action, expedice_zakazek_kamion_action,
     tisk_karet_kontroly_kvality_action, tisk_karet_kontroly_kvality_zakazek_action, tisk_karet_kontroly_kvality_kamionu_action,
     tisk_proforma_faktury_kamionu_action)
-from .filters import ExpedovanaZakazkaFilter, StavBednyFilter, KompletZakazkaFilter, AktivniPredpisFilter
+from .filters import ExpedovanaZakazkaFilter, StavBednyFilter, KompletZakazkaFilter, AktivniPredpisFilter, SkupinaFilter
 from .forms import ZakazkaAdminForm, BednaAdminForm, ImportZakazekForm, ZakazkaInlineForm
 from .choices import (
     TypHlavyChoice, StavBednyChoice, RovnaniChoice, TryskaniChoice,
@@ -217,20 +217,22 @@ class KamionAdmin(SimpleHistoryAdmin):
     """
     Správa kamionů v administraci.
     """
+    # Použité akce
     actions = [import_kamionu_action, tisk_karet_beden_kamionu_action, tisk_karet_kontroly_kvality_kamionu_action, tisk_dodaciho_listu_kamionu_action,
                tisk_proforma_faktury_kamionu_action]
-
+    # Parametry pro zobrazení detailu v administraci
     fields = ('zakaznik', 'datum', 'poradove_cislo', 'cislo_dl_zakaznika', 'prijem_vydej', 'odberatel',) 
     readonly_fields = ('prijem_vydej', 'poradove_cislo',)
-    list_display = ('get_kamion_str', 'get_zakaznik_zkraceny_nazev', 'get_datum', 'poradove_cislo', 'cislo_dl_zakaznika', 'prijem_vydej', 'odberatel',
-                    'get_pocet_beden_skladem', 'get_celkova_hmotnost_netto', 'get_celkova_hmotnost_brutto',)
+    # Parametry pro zobrazení seznamu v administraci
+    list_display = ('get_kamion_str', 'get_zakaznik_zkraceny_nazev', 'get_datum', 'poradove_cislo', 'cislo_dl_zakaznika', 'prijem_vydej',
+                    'odberatel', 'get_pocet_beden_skladem', 'get_celkova_hmotnost_netto', 'get_celkova_hmotnost_brutto',)
     list_select_related = ('zakaznik',)
     list_filter = ('zakaznik__zkraceny_nazev', 'prijem_vydej',)
     list_display_links = ('get_kamion_str',)
     ordering = ('-id',)
     date_hierarchy = 'datum'
     list_per_page = 20
-
+    # Parametry pro zobrazení historie v administraci
     history_list_display = ["id", "zakaznik", "datum"]
     history_search_fields = ["zakaznik__zkraceny_nazev", "datum"]
     history_list_filter = ["zakaznik", "datum"]
@@ -266,13 +268,12 @@ class KamionAdmin(SimpleHistoryAdmin):
         """
         return obj.datum.strftime('%d.%m.%Y')
 
-    @admin.display(description='Kamion')
+    @admin.display(description='Kamion', ordering='id', empty_value='-')
     def get_kamion_str(self, obj):
         """
         Zobrazí stringový popis kamionu a umožní třídění podle hlavičky pole.
         """
-        return obj.__str__()
-    get_kamion_str.admin_order_field = 'id'
+        return f'{obj.poradove_cislo}. kamión {obj.get_prijem_vydej_display().lower()} {obj.datum.strftime("%Y")} {obj.zakaznik.zkratka}'
 
     @admin.display(description='Netto kg')
     def get_celkova_hmotnost_netto(self, obj):
@@ -654,7 +655,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     readonly_fields = ('expedovano', 'get_komplet')
     
     # Parametry pro zobrazení seznamu v administraci
-    list_display = ('artikl', 'kamion_prijem_link', 'kamion_vydej_link', 'prumer', 'delka', 'predpis_link', 'typ_hlavy_link',
+    list_display = ('artikl', 'get_datum', 'kamion_prijem_link', 'kamion_vydej_link', 'prumer', 'delka', 'predpis_link', 'typ_hlavy_link',
                     'get_skupina', 'get_celozavit', 'zkraceny_popis', 'priorita', 'hmotnost_zakazky_k_expedici_brutto',
                     'pocet_beden_k_expedici', 'celkovy_pocet_beden', 'get_komplet',)
     list_display_links = ('artikl',)
@@ -689,6 +690,16 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
         """
         if obj.predpis:
             return mark_safe(f'<a href="{obj.predpis.get_admin_url()}">{obj.predpis.nazev}</a>')
+        
+    @admin.display(description='Datum', ordering='kamion_prijem__datum', empty_value='-')
+    def get_datum(self, obj):
+        """
+        Zobrazí datum kamionu příjmu, ke kterému zakázka patří, a umožní třídění podle hlavičky pole.
+        Pokud není kamion příjmu připojen, vrátí prázdný řetězec.
+        """
+        if obj.kamion_prijem:
+            return obj.kamion_prijem.datum.strftime('%y-%m-%d')
+        return '-'
 
     @admin.display(description='TZ', ordering='predpis__skupina', empty_value='-')
     def get_skupina(self, obj):
@@ -747,7 +758,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
         """
         return obj.bedny.filter(stav_bedny=StavBednyChoice.K_EXPEDICI).count() if obj.bedny.exists() else 0
 
-    @admin.display(description='Kamion příjem', ordering='kamion_prijem__id', empty_value='-')
+    @admin.display(description='Kam. příjem', ordering='kamion_prijem__id', empty_value='-')
     def kamion_prijem_link(self, obj):
         """
         Vytvoří odkaz na detail kamionu příjmu, ke kterému zakázka patří a umožní třídění podle hlavičky pole.
@@ -755,7 +766,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
         if obj.kamion_prijem:
             return mark_safe(f'<a href="{obj.kamion_prijem.get_admin_url()}">{obj.kamion_prijem}</a>')
 
-    @admin.display(description='Kamion výdej', ordering='kamion_vydej__id', empty_value='-')
+    @admin.display(description='Kam. výdej', ordering='kamion_vydej__id', empty_value='-')
     def kamion_vydej_link(self, obj):
         """
         Vytvoří odkaz na detail kamionu výdeje, ke kterému zakázka patří a umožní třídění podle hlavičky pole.
@@ -956,17 +967,17 @@ class BednaAdmin(SimpleHistoryAdmin):
     readonly_fields = ('cislo_bedny',)
 
     # Parametry pro zobrazení seznamu v administraci
-    list_display = ('get_cislo_bedny', 'get_behalter_nr', 'zakazka_link', 'kamion_prijem_link', 'kamion_vydej_link', 'get_skupina_TZ',
-                    'zkraceny_popis', 'get_prumer', 'get_delka', 'rovnat', 'tryskat', 'stav_bedny', 'get_typ_hlavy', 'get_celozavit',
-                    'hmotnost', 'tara', 'get_priorita', 'poznamka',)
+    list_display = ('get_cislo_bedny', 'get_behalter_nr', 'zakazka_link', 'kamion_prijem_link', 'kamion_vydej_link',
+                    'get_prumer', 'get_delka', 'zkraceny_popis','get_skupina_TZ', 'get_typ_hlavy', 'get_celozavit',
+                    'rovnat', 'tryskat', 'stav_bedny', 'hmotnost', 'tara', 'get_priorita', 'get_datum', 'poznamka',)
     # list_editable - je nastaveno pro různé stavy filtru Skladem v metodě changelist_view
     list_display_links = ('get_cislo_bedny', )
     list_select_related = ("zakazka", "zakazka__kamion_prijem", "zakazka__kamion_vydej")
     list_per_page = 50
-    search_fields = ('cislo_bedny', 'zakazka__artikl', 'zakazka__delka',)
-    search_help_text = "Hledat podle čísla bedny, zakázky nebo délky vrutu"
+    search_fields = ('cislo_bedny', 'behalter_nr', 'zakazka__artikl',)
+    search_help_text = "Hledat dle čísla bedny, č.b. zákazníka nebo zakázky"
     list_filter = ('zakazka__kamion_prijem__zakaznik', StavBednyFilter, 'rovnat', 'tryskat', 'zakazka__celozavit',
-                   'zakazka__typ_hlavy', 'zakazka__priorita', 'zakazka__predpis__skupina',)
+                   'zakazka__typ_hlavy', 'zakazka__priorita', SkupinaFilter,)
     ordering = ('id',)
     date_hierarchy = 'zakazka__kamion_prijem__datum'
     formfield_overrides = {
@@ -988,6 +999,16 @@ class BednaAdmin(SimpleHistoryAdmin):
         Číslo bedny se generuje automaticky a je readonly.
         """
         return obj.cislo_bedny
+    
+    @admin.display(description='Datum', ordering='zakazka__kamion_prijem__datum', empty_value='-')
+    def get_datum(self, obj):
+        """
+        Zobrazí datum kamionu příjmu, ke kterému bedna patří, a umožní třídění podle hlavičky pole.
+        Pokud není kamion příjmu připojen, vrátí prázdný řetězec.
+        """
+        if obj.zakazka and obj.zakazka.kamion_prijem:
+            return obj.zakazka.kamion_prijem.datum.strftime('%y-%m-%d')
+        return '-'
     
     @admin.display(description='Č.b. zák.', ordering='behalter_nr', empty_value='-')
     def get_behalter_nr(self, obj):
@@ -1012,7 +1033,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         """
         return obj.zakazka.celozavit
     
-    @admin.display(description="Popis zkr.", ordering='zakazka__popis')
+    @admin.display(description="Zkrácený popis", ordering='zakazka__popis')
     def zkraceny_popis(self, obj):
         """
         Vrátí vše do prvního výskytu čísla (včetně předchozí mezery)
@@ -1022,7 +1043,7 @@ class BednaAdmin(SimpleHistoryAdmin):
             return obj.zakazka.popis
         return format_html('<span title="{}">{}</span>', obj.zakazka.popis, match.group(1))        
 
-    @admin.display(description='Kamion příjem', ordering='zakazka__kamion_prijem__id', empty_value='-')
+    @admin.display(description='Kam. příjem', ordering='zakazka__kamion_prijem__id', empty_value='-')
     def kamion_prijem_link(self, obj):
         """
         Vytvoří odkaz na detail kamionu příjmu, ke kterému bedna patří a umožní třídění podle hlavičky pole.
@@ -1030,7 +1051,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         if obj.zakazka and obj.zakazka.kamion_prijem:
             return mark_safe(f'<a href="{obj.zakazka.kamion_prijem.get_admin_url()}">{obj.zakazka.kamion_prijem}</a>')
 
-    @admin.display(description='Kamion výdej', ordering='zakazka__kamion_vydej__id', empty_value='-')
+    @admin.display(description='Kam. výdej', ordering='zakazka__kamion_vydej__id', empty_value='-')
     def kamion_vydej_link(self, obj):
         """
         Vytvoří odkaz na detail kamionu výdeje, ke kterému bedna patří a umožní třídění podle hlavičky pole.
@@ -1123,6 +1144,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         list_display = list(super().get_list_display(request))
         if request.GET.get('stav_bedny_vlastni') != 'EX':
             list_display.remove('kamion_vydej_link')
+            list_display.remove('kamion_prijem_link')
         return list_display
 
 
@@ -1136,6 +1158,7 @@ class PredpisAdmin(SimpleHistoryAdmin):
                     'sarzovani', 'pletivo', 'poznamka', 'aktivni')
     list_display_links = ('nazev',)
     search_fields = ('nazev',)
+    search_help_text = "Hledat dle názvu předpisu"
     list_filter = ('zakaznik__zkraceny_nazev', AktivniPredpisFilter)
     ordering = ['-zakaznik__zkratka', 'nazev']
     list_per_page = 25
@@ -1186,6 +1209,7 @@ class CenaAdmin(SimpleHistoryAdmin):
     list_display_links = ('popis_s_delkou',)
     list_filter = ('zakaznik',)
     search_fields = ('popis',)
+    search_help_text = "Hledat dle popisu ceny"
     autocomplete_fields = ('predpis',)
     save_as = True
     list_per_page = 25

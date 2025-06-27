@@ -96,3 +96,36 @@ class KompletZakazkaFilter(admin.SimpleListFilter):
             queryset = queryset.filter(bedny__stav_bedny=StavBednyChoice.K_EXPEDICI).distinct()
         self.title = f"Kompletní: {self.label_dict.get(value, value)}" if value else "Kompletní: Vše"
         return queryset
+    
+
+class SkupinaFilter(admin.SimpleListFilter):
+    """
+    Filtrovat zakázky podle skupiny tepelného zpracování.
+    """
+    title = "Skupina TZ"
+    parameter_name = "skupina"
+
+    def lookups(self, request, model_admin):
+        return (
+            ('1', 'TZ 1'),
+            ('2', 'TZ 2'),
+            ('3', 'TZ 3'),
+            ('4', 'TZ 4'),
+            ('5', 'TZ 5'),
+            ('ostatni', 'Ostatní'),
+        )
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if not value:
+            self.title = "Skupina TZ: Vše"
+            return queryset
+        elif value == 'ostatni':
+            self.title = "Skupina TZ: Ostatní"
+            return queryset.exclude(zakazka__predpis__skupina__in=[1, 2, 3, 4, 5])
+        else:
+            try:
+                self.title = f"Skupina TZ: TZ {value}"
+                return queryset.filter(zakazka__predpis__skupina=int(value))
+            except (ValueError, TypeError):
+                return queryset.none()
