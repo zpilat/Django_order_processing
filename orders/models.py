@@ -86,7 +86,7 @@ class Kamion(models.Model):
         """
         Vrací řetězec reprezentující kamion. Datum je upraveno do formátu YY-MM.
         """
-        return f'{self.poradove_cislo}. {self.zakaznik.zkratka} {self.datum.strftime("%Y")}'
+        return f'{self.poradove_cislo}. {self.zakaznik.zkratka} {self.datum.strftime("%Y")})'
 
     @property
     def celkova_hmotnost_netto(self):

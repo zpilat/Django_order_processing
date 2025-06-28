@@ -973,12 +973,12 @@ class BednaAdmin(SimpleHistoryAdmin):
 
     # Parametry pro zobrazení seznamu v administraci
     list_display = ('get_cislo_bedny', 'get_behalter_nr', 'zakazka_link', 'kamion_prijem_link', 'kamion_vydej_link',
-                    'get_prumer', 'get_delka','get_skupina_TZ', 'get_typ_hlavy', 'get_celozavit', 'zkraceny_popis',
-                    'rovnat', 'tryskat', 'stav_bedny', 'hmotnost', 'tara', 'get_priorita', 'get_datum', 'poznamka',)
+                    'rovnat', 'tryskat', 'stav_bedny', 'get_prumer', 'get_delka','get_skupina_TZ', 'get_typ_hlavy',
+                    'get_celozavit', 'zkraceny_popis', 'hmotnost', 'tara', 'get_priorita', 'get_datum', 'poznamka',)
     # list_editable - je nastaveno pro různé stavy filtru Skladem v metodě changelist_view
     list_display_links = ('get_cislo_bedny', )
     list_select_related = ("zakazka", "zakazka__kamion_prijem", "zakazka__kamion_vydej")
-    list_per_page = 50
+    list_per_page = 30
     search_fields = ('cislo_bedny', 'behalter_nr', 'zakazka__artikl',)
     search_help_text = "Hledat dle čísla bedny, č.b. zákazníka nebo zakázky"
     list_filter = (ZakaznikBednyFilter, StavBednyFilter, 'rovnat', 'tryskat', 'zakazka__celozavit',
