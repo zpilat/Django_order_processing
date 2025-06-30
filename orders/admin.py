@@ -318,10 +318,9 @@ class KamionAdmin(SimpleHistoryAdmin):
         fields = list(super().get_fields(request, obj))
 
         if not obj:  # Pokud se jedná o přidání nového kamionu
-            fields.remove('prijem_vydej')
-            fields.remove('odberatel')
+            fields = [f for f in fields if f not in ('prijem_vydej', 'odberatel')]
         if obj and obj.prijem_vydej == 'P':
-            fields.remove('odberatel')
+            fields = [f for f in fields if f != 'odberatel']
 
         return fields
 
@@ -620,28 +619,28 @@ class BednaInline(admin.TabularInline):
 
     def get_fields(self, request, obj=None):
         """
-        Vrací seznam polí, která se mají zobrazit ve formuláři Bedna při editaci.
+        Vrací seznam polí, která se mají zobrazit ve formuláři Bednainline.
 
-        - Pokud není obj (tj. add_view), použije se základní fields z super().  
-        - Pokud obj existuje a zákazník zakázky není 'EUR' (Eurotec),
-          vyloučí se pole dodatecne_info, dodavatel_materialu a vyrobni_zakazka.
+        - Pokud není obj (tj. add_view), vyloučí se pole `cislo_bedny`, protože se generuje automaticky.
+        - Pokud je obj (tj. edit_view) a zákazník kamionu příjmu je 'ROT', vyloučí se pole `dodatecne_info`,
+            `dodavatel_materialu` a `vyrobni_zakazka`.
+        - Pokud je obj (tj. edit_view) a zákazník kamionu příjmu je 'SSH', 'SWG', 'HPM', 'FIS',
+            vyloučí se pole `behalter_nr`, `dodatecne_info`, `dodavatel_materialu` a `vyrobni_zakazka`.
         """
         fields = list(super().get_fields(request, obj))
-
+        exclude_fields = []
+        # Pokud se jedná o editaci existující bedny
         if obj:
             # Vyloučení polí dle zákazníka
-            exclude_fields = []
-            if obj.kamion_prijem.zakaznik.zkratka == 'RTB':
+            if obj.kamion_prijem.zakaznik.zkratka == 'ROT':
                 exclude_fields = ['dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka']
-            elif obj.kamion_prijem.zakaznik.zkratka in ('SCH', 'HPM'):
+            elif obj.kamion_prijem.zakaznik.zkratka in ('SSH', 'SWG', 'HPM', 'FIS'):
                 exclude_fields = ['behalter_nr', 'dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka']
-            for field in exclude_fields:
-                if field in fields:
-                    fields.remove(field)
+        # Při přidání nové bedny se vyloučí pole `cislo_bedny`, protože se generuje automaticky.
         else:
-            # Při přidáno nové bedny se vyloučí pole `cislo_bedny`, protože se generuje automaticky.
-            fields.remove('cislo_bedny')
+            exclude_fields = ['cislo_bedny']
 
+        fields = [f for f in fields if f not in exclude_fields]
         return fields
     
 
@@ -1105,18 +1104,24 @@ class BednaAdmin(SimpleHistoryAdmin):
         """
         Vrací seznam polí, která se mají zobrazit z formuláře Bedna při editaci.
 
-        - Pokud není obj (tj. add_view), použije se základní fields ze super().  
-        - Pokud obj existuje a zákazník zakázky není 'EUR' (Eurotec),
-          odeberou se ze zobrazených polí behalter_nr, dodatecne_info, dodavatel_materialu a vyrobni_zakazka.
-        """
-        fields = list(super().get_fields(request, obj) or [])
+        - Pokud není obj (tj. add_view), odebere se pole `cislo_bedny`, protože se generuje automaticky.  
+        - Pokud obj existuje a zákazník zakázky je ROT, odebere se ze zobrazených polí dodatecne_info, dodavatel_materialu a vyrobni_zakazka.
+        - Pokud obj existuje a zákazník zakázky je SSH, SWG, HPM nebo FIS, odebere se navíc k ROT ze zobrazených polí behalter_nr.
+        """   
+        fields = list(super().get_fields(request, obj))
+        exclude_fields = []
+        # Pokud se jedná o editaci existující bedny
+        if obj:
+            # Vyloučení polí dle zákazníka
+            if obj.zakazka.kamion_prijem.zakaznik.zkratka == 'ROT':
+                exclude_fields = ['dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka']
+            elif obj.zakazka.kamion_prijem.zakaznik.zkratka in ('SSH', 'SWG', 'HPM', 'FIS'):
+                exclude_fields = ['behalter_nr', 'dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka']
+        # Při přidání nové bedny se vyloučí pole `cislo_bedny`, protože se generuje automaticky.
+        else:
+            exclude_fields = ['cislo_bedny']
 
-        if obj and obj.zakazka.kamion_prijem.zakaznik.zkratka != 'EUR':
-            fields_to_remove = ['behalter_nr', 'dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka']
-            for field in fields_to_remove:
-                if field in fields:
-                    fields.remove(field)
-
+        fields = [f for f in fields if f not in exclude_fields]
         return fields
     
     def get_changelist_form(self, request, **kwargs):
