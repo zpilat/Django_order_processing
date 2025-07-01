@@ -1,4 +1,5 @@
 from django import forms
+from django.db.models import Exists, OuterRef
 from .models import Zakaznik, Kamion, Zakazka, Bedna, Predpis
 from .choices import (
     TypHlavyChoice, StavBednyChoice, RovnaniChoice, TryskaniChoice,
@@ -79,9 +80,15 @@ class ZakazkaAdminForm(ZakazkaPredpisValidatorMixin, forms.ModelForm):
          
         # Nastavení querysetu pro pole 'kamion_prijem'
         if 'kamion_prijem' in self.fields:
+            zakazka_qs = Zakazka.objects.filter(kamion_prijem=OuterRef('pk'), expedovano=False)
             self.fields['kamion_prijem'].queryset = Kamion.objects.filter(
                 prijem_vydej=KamionChoice.PRIJEM,
-            )
+            ).annotate(
+                ma_neexpedovanou=Exists(zakazka_qs)
+            ).filter(
+                ma_neexpedovanou=True
+            ).order_by('-id')
+
 
 class ZakazkaInlineForm(ZakazkaPredpisValidatorMixin, forms.ModelForm):
     """

@@ -306,7 +306,7 @@ class Zakazka(models.Model):
         ordering = ['id']
 
     def __str__(self):
-        return f'{self.artikl}-{self.kamion_prijem.datum.strftime("%d.%m.%y")}-{self.kamion_prijem.id}.{self.kamion_prijem.zakaznik.zkratka}'
+        return f'{self.artikl}-{self.kamion_prijem.datum.strftime("%d.%m.%y")}-{self.kamion_prijem.id}. {self.kamion_prijem.zakaznik.zkratka}'
 
     @property
     def celkova_hmotnost(self):
