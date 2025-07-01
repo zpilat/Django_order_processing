@@ -1,7 +1,7 @@
 from django import forms
 from django.db.models import Exists, OuterRef
 from django.utils import timezone
-from .models import Zakaznik, Kamion, Zakazka, Bedna, Predpis
+from .models import Zakaznik, Kamion, Zakazka, Bedna, Predpis, Odberatel
 from .choices import (
     TypHlavyChoice, StavBednyChoice, RovnaniChoice, TryskaniChoice,
     PrioritaChoice, KamionChoice
@@ -212,3 +212,14 @@ class VyberKamionVydejForm(forms.Form):
                 zakaznik=zakaznik,
                 datum__gte=timezone.now()-timezone.timedelta(days=10)
             ).order_by('-id')
+
+
+class OdberatelForm(forms.Form):
+    """
+    Formulář pro výběr odběratele.
+    Umožňuje vybrat odběratele při expedici zakázky.
+    """
+    odberatel = forms.ModelChoiceField(
+        queryset=Odberatel.objects.all(),
+        label="Vyberte odběratele",
+    )

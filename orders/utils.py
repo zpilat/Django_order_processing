@@ -56,6 +56,9 @@ def utilita_tisk_dokumentace(modeladmin, request, queryset, string, filename):
 def utilita_expedice_zakazek(modeladmin, request, queryset, kamion):
     """
     Expeduje vybrané zakázky a jejich bedny.
+    Pokud zakázka obsahuje bedny, které nejsou ve stavu K_EXPEDICI, vytvoří novou zakázku pro tyto bedny.
+    Bedny ve stavu K_EXPEDICI jsou expedovány a jejich stav je změněn na EXPEDOVANO.
+    Zakázka je poté expedována do zadaného kamionu a její stav expedovano je nastaven na True.
     """
     for zakazka in queryset:
         bedny = zakazka.bedny.all()
@@ -70,13 +73,11 @@ def utilita_expedice_zakazek(modeladmin, request, queryset, kamion):
             logger.info(f"Uživatel {request.user} vytvořil novou zakázku {nova_zakazka} pro neexpedovatelné bedny ze zakázky ID {zakazka}.")
 
             for bedna in bedny_ne_k_expedici:
-                puvodni_id = bedna.id
                 bedna.zakazka = nova_zakazka
                 bedna.save()
                 logger.info(f"Uživatel {request.user} přesunul bednu {bedna} do nové zakázky ID {nova_zakazka}.")
 
         for bedna in bedny_k_expedici:
-            puvodni_id = bedna.id
             bedna.stav_bedny = StavBednyChoice.EXPEDOVANO
             bedna.save()
             logger.info(f"Uživatel {request.user} expedoval bednu {bedna} (stav nastaven na EXPEDOVANO).")
