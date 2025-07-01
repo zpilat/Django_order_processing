@@ -55,6 +55,10 @@ class ZakazkaAdminForm(ZakazkaPredpisValidatorMixin, forms.ModelForm):
         stav_bedny s možností změny na přechozí nebo následující stav bedny pro všechny bedny v zakázce.
         Stav bedny se nastaví podle první bedny v zakázce, pokud existuje 
         a to ve třídě Patchedform v metodě get_form v modelu Bedna.
+        Jsou vyfiltrovány pouze aktivní předpisy zákazníka, pokud je zakázka přiřazena ke kamionu s zákazníkem.
+        Jinak jsou zobrazeny všechny aktivní předpisy.
+        Jsou vyfiltrovány pouze kamiony, které mají stav 'P' (příjem) a obsahují aspoň jednu zakázku, která
+        nemá stav expedováno.
         """
         super().__init__(*args, **kwargs)
         inst = getattr(self, "instance", None)
@@ -73,6 +77,11 @@ class ZakazkaAdminForm(ZakazkaPredpisValidatorMixin, forms.ModelForm):
             else:
                 self.fields['predpis'].queryset = Predpis.objects.filter(aktivni=True)
          
+        # Nastavení querysetu pro pole 'kamion_prijem'
+        if 'kamion_prijem' in self.fields:
+            self.fields['kamion_prijem'].queryset = Kamion.objects.filter(
+                prijem_vydej=KamionChoice.PRIJEM,
+            )
 
 class ZakazkaInlineForm(ZakazkaPredpisValidatorMixin, forms.ModelForm):
     """

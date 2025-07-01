@@ -65,7 +65,9 @@ class AktivniPredpisFilter(admin.SimpleListFilter):
     def queryset(self, request, queryset):
         value = self.value()
         if value == 'ne':
+            self.title = "Aktivní předpis: Ne"
             return queryset.filter(aktivni=False)
+        self.title = "Aktivní předpis: Ano"
         return queryset.filter(aktivni=True)
     
 
