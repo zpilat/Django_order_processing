@@ -53,7 +53,7 @@ def utilita_tisk_dokumentace(modeladmin, request, queryset, string, filename):
         return None
     
 @transaction.atomic
-def expedice_zakazek(modeladmin, request, queryset, kamion):
+def utilita_expedice_zakazek(modeladmin, request, queryset, kamion):
     """
     Expeduje vybrané zakázky a jejich bedny.
     """
@@ -86,7 +86,7 @@ def expedice_zakazek(modeladmin, request, queryset, kamion):
         zakazka.save()
         logger.info(f"Uživatel {request.user} expedoval zakázku {zakazka} do kamionu {kamion}.")
 
-def kontrola_zakazek(modeladmin, request, queryset):
+def utilita_kontrola_zakazek(modeladmin, request, queryset):
     """
     Kontroluje zakázky na přítomnost beden a jejich stav.
     Pokud zakázka nemá žádné bedny nebo žádné bedny ve stavu K_EXPEDICI, zobrazí chybovou zprávu.

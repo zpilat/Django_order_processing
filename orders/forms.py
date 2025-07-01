@@ -1,5 +1,6 @@
 from django import forms
 from django.db.models import Exists, OuterRef
+from django.utils import timezone
 from .models import Zakaznik, Kamion, Zakazka, Bedna, Predpis
 from .choices import (
     TypHlavyChoice, StavBednyChoice, RovnaniChoice, TryskaniChoice,
@@ -190,7 +191,7 @@ class BednaAdminForm(forms.ModelForm):
             field_rovnat.initial = self.instance.rovnat
 
 
-class VyberKamionForm(forms.Form):
+class VyberKamionVydejForm(forms.Form):
     """
     Formulář pro výběr kamionu pro expedici zakázek.
     Umožňuje vybrat kamion, který má stav 'V' (výdej).
@@ -207,5 +208,7 @@ class VyberKamionForm(forms.Form):
         super().__init__(*args, **kwargs)
         if zakaznik:
             self.fields['kamion'].queryset = Kamion.objects.filter(
-                prijem_vydej='V', zakaznik=zakaznik
-            )
+                prijem_vydej=KamionChoice.VYDEJ,
+                zakaznik=zakaznik,
+                datum__gte=timezone.now()-timezone.timedelta(days=10)
+            ).order_by('-id')

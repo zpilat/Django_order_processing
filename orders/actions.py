@@ -10,8 +10,8 @@ import re
 from weasyprint import HTML
 
 from .models import Zakazka, Bedna, Kamion, Zakaznik, StavBednyChoice
-from .utils import utilita_tisk_dokumentace, expedice_zakazek, kontrola_zakazek, utilita_zkraceni_popisu_beden
-from .forms import VyberKamionForm
+from .utils import utilita_tisk_dokumentace, utilita_expedice_zakazek, utilita_kontrola_zakazek, utilita_zkraceni_popisu_beden
+from .forms import VyberKamionVydejForm
 
 # Akce pro bedny:
 
@@ -69,7 +69,7 @@ def expedice_zakazek_action(modeladmin, request, queryset):
         messages.error(request, "Neoznačili jste žádnou zakázku.")
         return
         
-    kontrola_zakazek(modeladmin, request, queryset)
+    utilita_kontrola_zakazek(modeladmin, request, queryset)
 
     zakaznici = Zakaznik.objects.filter(kamiony__zakazky_prijem__in=queryset).distinct()
     today_str = datetime.date.today().strftime("%Y-%m-%d")
@@ -82,7 +82,7 @@ def expedice_zakazek_action(modeladmin, request, queryset):
         )
 
         zakazky_zakaznika = queryset.filter(kamion_prijem__zakaznik=zakaznik)
-        expedice_zakazek(modeladmin, request, zakazky_zakaznika, kamion)
+        utilita_expedice_zakazek(modeladmin, request, zakazky_zakaznika, kamion)
 
     messages.success(request, f"Zakázky byly úspěšně expedovány, byl vytvořen nový kamion výdeje {kamion.poradove_cislo}.{kamion.zakaznik.zkratka}-{kamion.datum.strftime('%Y-%m-%d')}.")
     
@@ -163,15 +163,15 @@ def expedice_zakazek_kamion_action(modeladmin, request, queryset):
         messages.error(request, "Všechny vybrané zakázky musí patřit jednomu zákazníkovi.")
         return
     
-    kontrola_zakazek(modeladmin, request, queryset)
+    utilita_kontrola_zakazek(modeladmin, request, queryset)
 
     zakaznik_id = zakaznici[0]
 
     if 'apply' in request.POST:
-        form = VyberKamionForm(request.POST, zakaznik=zakaznik_id)
+        form = VyberKamionVydejForm(request.POST, zakaznik=zakaznik_id)
         if form.is_valid():
             kamion = form.cleaned_data['kamion']
-            expedice_zakazek(modeladmin, request, queryset, kamion)
+            utilita_expedice_zakazek(modeladmin, request, queryset, kamion)
 
             messages.success(
                 request,
@@ -179,7 +179,7 @@ def expedice_zakazek_kamion_action(modeladmin, request, queryset):
             )
             return
     else:
-        form = VyberKamionForm(zakaznik=zakaznik_id)
+        form = VyberKamionVydejForm(zakaznik=zakaznik_id)
 
     return render(request, 'admin/expedice_zakazek_form.html', {
         'zakazky': queryset,
