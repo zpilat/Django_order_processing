@@ -1,3 +1,8 @@
+/* Tělo CSS souboru pro úpravu vzhledu a rozvržení stránek */
+body {
+    font-family: 'Liberation Sans', 'Arial'; /* Nastavení písma */
+}
+
 /* Formuláře */
 form .form-group {
     margin-bottom: 5px; /* Zmenšení rozestupů mezi poli */
