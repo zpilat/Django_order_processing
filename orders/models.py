@@ -196,8 +196,9 @@ class Kamion(models.Model):
     def save(self, *args, **kwargs):
         """
         Uloží instanci Kamion.
-        - Pokud se jedná o novou instanci (bez PK):
-          * Před uložením nastaví `poradove_cislo` na další číslo v řadě pro daného zákazníka, typ kamionu (prijem_vydej) a daný rok.
+        - Pokud se jedná o novou instanci (bez PK), před uložením:
+          * nastaví `poradove_cislo` na další číslo v řadě pro daného zákazníka, typ kamionu (prijem_vydej) a daný rok.
+          * pokud je vytvářený kamion pro výdej, nastaví cislo_dl na požadovaný řetězec.
         """
         is_existing_instance = bool(self.pk)
 
@@ -214,6 +215,10 @@ class Kamion(models.Model):
                 .first()
             )
             self.poradove_cislo = ((posledni.poradove_cislo + 1) if posledni else 1)
+
+            if typ_kamionu == KamionChoice.VYDEJ:
+                # Pokud je kamion pro výdej, nastavíme cislo_dl na požadovaný řetězec.
+                self.cislo_dl = f"EXP-{int(self.poradove_cislo):03d}-{self.datum.year}-{self.zakaznik.zkratka}"
 
         super().save(*args, **kwargs)
     

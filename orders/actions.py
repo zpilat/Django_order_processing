@@ -3,13 +3,14 @@ from django.shortcuts import redirect
 from django.http import HttpResponse
 from django.template.loader import render_to_string
 from django.shortcuts import render
+from django.db import transaction
 
 import datetime
 from weasyprint import HTML
 
 from .models import Zakazka, Bedna, Kamion, Zakaznik, StavBednyChoice
 from .utils import utilita_tisk_dokumentace, utilita_expedice_zakazek, utilita_kontrola_zakazek, utilita_tisk_dl_a_proforma_faktury
-from .forms import VyberKamionVydejForm
+from .forms import VyberKamionVydejForm, OdberatelForm
 from .choices import KamionChoice, StavBednyChoice
 
 # Akce pro bedny:
@@ -51,18 +52,20 @@ def expedice_zakazek_action(modeladmin, request, queryset):
     Expeduje vybrané zakázky a jejich bedny.
 
     Průběh:
-    1. Kontrola querysetu a zakázek.       
-    2. Pro každého zákazníka v querysetu:
+    1. Kontrola querysetu a zakázek.     
+    2. Získání všech zákazníků, kteří mají kamiony spojené s vybranými zakázkami.
+    3. Vytvoří se formulář pro výběr odběratele.  
+    4. Pro každého zákazníka v querysetu:
         - Vytvoří se nový objekt `Kamion`:
             - `prijem_vydej=KamionChoice.VYDEJ`
             - `datum` dnešní datum
             - `zakaznik` nastavený na aktuálního zákazníka
-            - `cislo_dl` s prefixem zkratky zákazníka a dnešním datem
-    3. Pro každou zakázku daného zákazníka:
+            - `odberatel` zvolený odběratel z formuláře
+    5. Pro každou zakázku daného zákazníka:
         - Zkontroluje se, zda všechny bedny v zakázce mají stav `K_EXPEDICI`.
         - Pokud ano, vyexpeduje celou zakázku.
         - Pokud ne, vyexpeduje bedny K_EXPEDICI a vytvoří novou zakázku se stejnými daty jako původní a převede do ní bedny, které nejsou ve stavu `K_EXPEDICI`.            
-    4. Po úspěšném průběhu odešle `messages.success`. V případě nesplnění podmínek vrátí chybu pomocí `messages.error` a akce se přeruší.
+    6. Po úspěšném průběhu odešle `messages.success`. V případě nesplnění podmínek vrátí chybu pomocí `messages.error` a akce se přeruší.
     """
     if not queryset.exists():
         messages.error(request, "Neoznačili jste žádnou zakázku.")
@@ -71,21 +74,76 @@ def expedice_zakazek_action(modeladmin, request, queryset):
     utilita_kontrola_zakazek(modeladmin, request, queryset)
 
     zakaznici = Zakaznik.objects.filter(kamiony__zakazky_prijem__in=queryset).distinct()
-    today_str = datetime.date.today().strftime("%Y-%m-%d")
-    for zakaznik in zakaznici:
-        kamion = Kamion.objects.create(
-            zakaznik=zakaznik,
-            datum=datetime.date.today(),
-            prijem_vydej=KamionChoice.VYDEJ,
-        )
-        kamion.cislo_dl=f"EXP-{int(kamion.poradove_cislo):03d}-{kamion.datum.year}-{kamion.zakaznik.zkratka}"
-        kamion.save()
 
-        zakazky_zakaznika = queryset.filter(kamion_prijem__zakaznik=zakaznik)
-        utilita_expedice_zakazek(modeladmin, request, zakazky_zakaznika, kamion)
+    if 'apply' in request.POST:
+        form = OdberatelForm(request.POST)
+        if form.is_valid():
+            odberatel = form.cleaned_data['odberatel']
 
-    messages.success(request, f"Zakázky byly úspěšně expedovány, byl vytvořen nový kamion výdeje {kamion.cislo_dl}.")
+            vytvorene_kamiony = []
+            with transaction.atomic():
+                for zakaznik in zakaznici:
+                    try:
+                        kamion = Kamion.objects.create(
+                            zakaznik=zakaznik,
+                            datum=datetime.date.today(),
+                            prijem_vydej=KamionChoice.VYDEJ,
+                            odberatel=odberatel,
+                        )
+                        vytvorene_kamiony.append(kamion.cislo_dl)
+                        zakazky_zakaznika = queryset.filter(kamion_prijem__zakaznik=zakaznik)
+                        utilita_expedice_zakazek(modeladmin, request, zakazky_zakaznika, kamion)                        
+                    except Exception as e:
+                        messages.error(request, f"Nastala chyba {e} při vytváření kamionu pro zákazníka {zakaznik.zkraceny_nazev}")
+                        return
 
+            messages.success(request, f"Zakázky byly úspěšně expedovány, vytvořené kamiony výdeje {', '.join(vytvorene_kamiony)}.")            
+            return
+    else:
+        form = OdberatelForm()
+
+    return render(request, 'admin/expedice_kamionu_form.html', {
+        'zakazky': queryset,
+        'form': form,
+        'title': "Expedice zakázek nového kamionu",
+        'action': "expedice_zakazek_action",
+    })
+
+@admin.action(description="Expedice do existujícího kamionu")
+def expedice_zakazek_kamion_action(modeladmin, request, queryset):
+    if not queryset.exists():
+        messages.error(request, "Neoznačili jste žádnou zakázku.")
+        return
+
+    zakaznici = queryset.values_list('kamion_prijem__zakaznik', flat=True).distinct()
+    if zakaznici.count() != 1:
+        messages.error(request, "Všechny vybrané zakázky musí patřit jednomu zákazníkovi.")
+        return
+    
+    utilita_kontrola_zakazek(modeladmin, request, queryset)
+
+    zakaznik_id = zakaznici[0]
+
+    if 'apply' in request.POST:
+        form = VyberKamionVydejForm(request.POST, zakaznik=zakaznik_id)
+        if form.is_valid():
+            kamion = form.cleaned_data['kamion']
+            utilita_expedice_zakazek(modeladmin, request, queryset, kamion)
+
+            messages.success(
+                request,
+                f"Zakázky byly úspěšně expedovány do kamionu {kamion} zákazníka {kamion.zakaznik.nazev}."
+            )
+            return
+    else:
+        form = VyberKamionVydejForm(zakaznik=zakaznik_id)
+
+    return render(request, 'admin/expedice_zakazek_form.html', {
+        'zakazky': queryset,
+        'form': form,
+        'title': "Expedice do existujícího kamionu",
+        'action': "expedice_zakazek_kamion_action",
+    })
 
 @admin.action(description="Vytisknout karty beden z vybraných zakázek")
 def tisk_karet_beden_zakazek_action(modeladmin, request, queryset):
@@ -151,43 +209,6 @@ def vratit_zakazky_z_expedice_action(modeladmin, request, queryset):
             bedna.save()
 
     messages.success(request, "Vybrané zakázky byly úspěšně vráceny z expedice.")
-
-@admin.action(description="Expedice do existujícího kamionu")
-def expedice_zakazek_kamion_action(modeladmin, request, queryset):
-    if not queryset.exists():
-        messages.error(request, "Neoznačili jste žádnou zakázku.")
-        return
-
-    zakaznici = queryset.values_list('kamion_prijem__zakaznik', flat=True).distinct()
-    if zakaznici.count() != 1:
-        messages.error(request, "Všechny vybrané zakázky musí patřit jednomu zákazníkovi.")
-        return
-    
-    utilita_kontrola_zakazek(modeladmin, request, queryset)
-
-    zakaznik_id = zakaznici[0]
-
-    if 'apply' in request.POST:
-        form = VyberKamionVydejForm(request.POST, zakaznik=zakaznik_id)
-        if form.is_valid():
-            kamion = form.cleaned_data['kamion']
-            utilita_expedice_zakazek(modeladmin, request, queryset, kamion)
-
-            messages.success(
-                request,
-                f"Zakázky byly úspěšně expedovány do kamionu {kamion} zákazníka {kamion.zakaznik.nazev}."
-            )
-            return
-    else:
-        form = VyberKamionVydejForm(zakaznik=zakaznik_id)
-
-    return render(request, 'admin/expedice_zakazek_form.html', {
-        'zakazky': queryset,
-        'form': form,
-        'title': "Expedice do existujícího kamionu",
-        'action': "expedice_zakazek_kamion_action",
-    })
-
 
 # Akce pro kamiony:
 
