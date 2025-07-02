@@ -1,11 +1,6 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-class TypHlavyChoice(models.TextChoices):
-    TK = 'TK', 'TK'
-    SK = 'SK', 'SK'
-    ZK = 'ZK', 'ZK'
-
 class StavBednyChoice(models.TextChoices):
     PRIJATO = 'PR', 'Přijato'
     K_NAVEZENI = 'KN', 'K navezení'

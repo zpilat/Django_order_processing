@@ -2,10 +2,7 @@ from django import forms
 from django.db.models import Exists, OuterRef
 from django.utils import timezone
 from .models import Zakaznik, Kamion, Zakazka, Bedna, Predpis, Odberatel
-from .choices import (
-    TypHlavyChoice, StavBednyChoice, RovnaniChoice, TryskaniChoice,
-    PrioritaChoice, KamionChoice
-)
+from .choices import StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice
 
 class ImportZakazekForm(forms.Form):
     file = forms.FileField(label="Soubor (XLSX nebo CSV)")

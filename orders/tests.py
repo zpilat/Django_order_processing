@@ -8,8 +8,8 @@ from datetime import date
 from unittest.mock import patch
 
 from orders.admin import KamionAdmin, ZakazkaAdmin, BednaAdmin
-from orders.models import Zakaznik, Kamion, Zakazka, Bedna, Predpis
-from orders.choices import StavBednyChoice, TypHlavyChoice
+from orders.models import Zakaznik, Kamion, Zakazka, Bedna, Predpis, TypHlavy, Odberatel, Cena
+from orders.choices import StavBednyChoice
 
 
 class AdminBase(TestCase):
@@ -28,6 +28,7 @@ class AdminBase(TestCase):
         )
         cls.kamion = Kamion.objects.create(zakaznik=cls.zakaznik, datum=date.today())
         cls.predpis = Predpis.objects.create(nazev='Test Predpis', skupina=1, zakaznik=cls.zakaznik,)
+        cls.typ_hlavy = TypHlavy.objects.create(nazev='SK', popis='Zápustná hlava')
 
 
 class KamionAdminTests(AdminBase):
@@ -57,7 +58,7 @@ class KamionAdminTests(AdminBase):
             prumer=10,
             delka=200,
             predpis=self.predpis,
-            typ_hlavy=TypHlavyChoice.TK,
+            typ_hlavy=self.typ_hlavy,
             popis='Test Zakázka',
         )
         inlines = self.admin.get_inlines(self.get_request(), self.kamion)
@@ -70,19 +71,19 @@ class KamionAdminTests(AdminBase):
     def test_get_fields_and_readonly(self):
         fields_add = self.admin.get_fields(self.get_request(), None)
         self.assertNotIn('prijem_vydej', fields_add)
-        self.assertNotIn('misto_expedice', fields_add)
+        self.assertNotIn('odberatel', fields_add)
 
         self.kamion.prijem_vydej = 'P'
         fields_edit = self.admin.get_fields(self.get_request(), self.kamion)
-        self.assertNotIn('misto_expedice', fields_edit)
+        self.assertNotIn('odberatel', fields_edit)
         self.assertIn('prijem_vydej', fields_edit)
 
         self.kamion.prijem_vydej = 'V'
         fields_edit = self.admin.get_fields(self.get_request(), self.kamion)
-        self.assertIn('misto_expedice', fields_edit)
+        self.assertIn('odberatel', fields_edit)
 
         rof_add = self.admin.get_readonly_fields(self.get_request(), None)
-        self.assertEqual(rof_add, ['prijem_vydej'])
+        self.assertEqual(rof_add, ['prijem_vydej', 'poradove_cislo'])
         rof_edit = self.admin.get_readonly_fields(self.get_request(), self.kamion)
         self.assertIn('zakaznik', rof_edit)
 
@@ -135,7 +136,7 @@ class KamionAdminTests(AdminBase):
 
         zak = Zakazka(
             artikl='A1', prumer=1, delka=1,
-            predpis=self.predpis, typ_hlavy=TypHlavyChoice.TK,
+            predpis=self.predpis, typ_hlavy=self.typ_hlavy,
             popis='p'
         )
 
@@ -168,7 +169,7 @@ class ZakazkaAdminTests(AdminBase):
         cls.zakazka = Zakazka.objects.create(
             kamion_prijem=cls.kamion,
             artikl='A1', prumer=1, delka=1,
-            predpis=cls.predpis, typ_hlavy=TypHlavyChoice.TK,
+            predpis=cls.predpis, typ_hlavy=cls.typ_hlavy,
             popis='p'
         )
         cls.bedna = Bedna.objects.create(
@@ -216,7 +217,7 @@ class BednaAdminTests(AdminBase):
         cls.zakazka = Zakazka.objects.create(
             kamion_prijem=cls.kamion,
             artikl='A1', prumer=1, delka=1,
-            predpis=cls.predpis, typ_hlavy=TypHlavyChoice.TK,
+            predpis=cls.predpis, typ_hlavy=cls.typ_hlavy,
             popis='p'
         )
         cls.bedna = Bedna.objects.create(

@@ -27,10 +27,7 @@ from .filters import (
     ZakaznikZakazkyFilter
 )
 from .forms import ZakazkaAdminForm, BednaAdminForm, ImportZakazekForm, ZakazkaInlineForm
-from .choices import (
-    TypHlavyChoice, StavBednyChoice, RovnaniChoice, TryskaniChoice,
-    PrioritaChoice, KamionChoice
-)
+from .choices import StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice
 
 @admin.register(Zakaznik)
 class ZakaznikAdmin(SimpleHistoryAdmin):

@@ -11,11 +11,8 @@ from django.utils.translation import gettext_lazy as _
 import django.utils.timezone as timezone
 
 from .utils import get_verbose_name_for_column
-from .models import Bedna, Zakazka, Kamion, Zakaznik
-from .choices import (
-    TypHlavyChoice, StavBednyChoice, RovnaniChoice, TryskaniChoice,
-    PrioritaChoice, KamionChoice
-)
+from .models import Bedna, Zakazka, Kamion, Zakaznik, TypHlavy, Predpis, Odberatel, Cena
+from .choices import  StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice
 
 import logging
 logger = logging.getLogger('orders')
@@ -71,7 +68,7 @@ class BednyListView(LoginRequiredMixin, ListView):
         columns['zakazka__kamion_prijem__zakaznik__zkratka'] = 'Zákazník'
         stav_choices = [("SKLAD", "SKLADEM"), ("", "VŠE")] + list(StavBednyChoice.choices)
         zakaznik_choices = [("", "VŠE")] + [(zakaznik.zkratka, zakaznik.zkratka) for zakaznik in Zakaznik.objects.all()]
-        typ_hlavy_choices = [("", "VŠE")] + list(TypHlavyChoice.choices)
+        typ_hlavy_choices = [("", "VŠE")] + [(typ_hlavy.nazev, typ_hlavy.nazev) for typ_hlavy in TypHlavy.objects.all()]
         priorita_choices = [("", "VŠE")] + list(PrioritaChoice.choices)
 
         context.update({
