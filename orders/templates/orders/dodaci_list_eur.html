@@ -65,14 +65,14 @@
                 <p class="fs-pdf-06 fw-bold my-0">LIEFERSCHEIN</p>
             </div>
             <div class="col-4">
-                <p class="fs-pdf-06 my-0">EXP/{{ kamion.poradove_cislo }}/{{ kamion.datum|date:"Y" }}/{{ kamion.zakaznik.zkratka }}</p>
+                <p class="fs-pdf-06 my-0">{{ kamion.cislo_dl }}</p>
             </div>
             <div class="col-5">
                 <p class="fs-pdf-06 my-0">Gbely dňa: {{ kamion.datum|date:"d. m. Y" }}</p>
             </div>
         </div>
 
-        <table class="table table-bordered border-black" style="width: 100%; table-layout: fixed; font-family: 'Arial';">
+        <table class="table table-bordered border-black" style="width: 100%; table-layout: fixed;">
             <thead>
                 <tr class="text-center fw-bold fs-pdf-05">
                     <td class="bg-body-secondary" style="width: 5%;">Vorgang+</td>

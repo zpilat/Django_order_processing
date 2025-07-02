@@ -45,7 +45,7 @@
     </style>
 </head>
 <body>
-    <table class="table" style="width: 100%; table-layout: fixed; font-family: 'Arial'; margin-bottom: 1mm; margin-top: 0;">
+    <table class="table" style="width: 100%; table-layout: fixed; margin-bottom: 1mm; margin-top: 0;">
         <tbody>
             <tr>
                 <td class="text-start fs-10" style="width: 33%;">
@@ -59,7 +59,7 @@
                         Proforma faktúra (EuroTec GmbH)
                     </div>
                     <div class="fs-10">
-                        EXP/{{ kamion.poradove_cislo }}/{{ kamion.datum|date:"Y" }}/{{ kamion.zakaznik.zkratka }}
+                        {{ kamion.cislo_dl }}
                     </div>
                 </td>
                 <td class="text-end fs-10" style="width: 33%;">
@@ -68,7 +68,7 @@
             </tr>
         </tbody>
     </table>
-    <table class="table table-striped text-center fs-09" style="width: 100%; table-layout: fixed; font-family: 'Arial';">
+    <table class="table table-striped text-center fs-09" style="width: 100%; table-layout: fixed;">
         <tbody>
             <tr>
                 <th  style="width: 10%;">

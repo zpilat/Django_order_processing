@@ -2,16 +2,15 @@ from django.contrib import admin, messages
 from django.shortcuts import redirect
 from django.http import HttpResponse
 from django.template.loader import render_to_string
-from django.forms.models import model_to_dict
 from django.shortcuts import render
 
 import datetime
-import re
 from weasyprint import HTML
 
 from .models import Zakazka, Bedna, Kamion, Zakaznik, StavBednyChoice
-from .utils import utilita_tisk_dokumentace, utilita_expedice_zakazek, utilita_kontrola_zakazek, utilita_zkraceni_popisu_beden
+from .utils import utilita_tisk_dokumentace, utilita_expedice_zakazek, utilita_kontrola_zakazek
 from .forms import VyberKamionVydejForm
+from .choices import KamionChoice, StavBednyChoice
 
 # Akce pro bedny:
 
@@ -55,10 +54,10 @@ def expedice_zakazek_action(modeladmin, request, queryset):
     1. Kontrola querysetu a zakázek.       
     2. Pro každého zákazníka v querysetu:
         - Vytvoří se nový objekt `Kamion`:
-            - `prijem_vydej='V'` (výdej)
+            - `prijem_vydej=KamionChoice.VYDEJ`
             - `datum` dnešní datum
             - `zakaznik` nastavený na aktuálního zákazníka
-            - `cislo_dl_zakaznika` s prefixem zkratky zákazníka a dnešním datem
+            - `cislo_dl` s prefixem zkratky zákazníka a dnešním datem
     3. Pro každou zakázku daného zákazníka:
         - Zkontroluje se, zda všechny bedny v zakázce mají stav `K_EXPEDICI`.
         - Pokud ano, vyexpeduje celou zakázku.
@@ -76,16 +75,17 @@ def expedice_zakazek_action(modeladmin, request, queryset):
     for zakaznik in zakaznici:
         kamion = Kamion.objects.create(
             zakaznik=zakaznik,
-            cislo_dl_zakaznika=f"{zakaznik.zkratka} - {today_str}",
             datum=datetime.date.today(),
-            prijem_vydej='V',
+            prijem_vydej=KamionChoice.VYDEJ,
         )
+        kamion.cislo_dl=f"EXP-{int(kamion.poradove_cislo):03d}-{kamion.datum.year}-{kamion.zakaznik.zkratka}"
+        kamion.save()
 
         zakazky_zakaznika = queryset.filter(kamion_prijem__zakaznik=zakaznik)
         utilita_expedice_zakazek(modeladmin, request, zakazky_zakaznika, kamion)
 
-    messages.success(request, f"Zakázky byly úspěšně expedovány, byl vytvořen nový kamion výdeje {kamion.poradove_cislo}.{kamion.zakaznik.zkratka}-{kamion.datum.strftime('%Y-%m-%d')}.")
-    
+    messages.success(request, f"Zakázky byly úspěšně expedovány, byl vytvořen nový kamion výdeje {kamion.cislo_dl}.")
+
 
 @admin.action(description="Vytisknout karty beden z vybraných zakázek")
 def tisk_karet_beden_zakazek_action(modeladmin, request, queryset):
@@ -251,7 +251,7 @@ def tisk_dodaciho_listu_kamionu_action(modeladmin, request, queryset):
         html_string = render_to_string("orders/dodaci_list_eur.html", context)
         pdf_file = HTML(string=html_string).write_pdf()
         response = HttpResponse(pdf_file, content_type="application/pdf")
-        response['Content-Disposition'] = f'inline; filename="dodaci_list_{kamion.cislo_dl_zakaznika}.pdf"'
+        response['Content-Disposition'] = f'inline; filename="dodaci_list_{kamion.cislo_dl}.pdf"'
         return response
     # Pokud není pro zákazníka zatím tisk DL umožněn, zobrazí se chybová zpráva
     else:
@@ -284,7 +284,7 @@ def tisk_proforma_faktury_kamionu_action(modeladmin, request, queryset):
         html_string = render_to_string("orders/proforma_faktura_eur.html", context)
         pdf_file = HTML(string=html_string).write_pdf()
         response = HttpResponse(pdf_file, content_type="application/pdf")
-        response['Content-Disposition'] = f'inline; filename="proforma_faktura_{kamion.cislo_dl_zakaznika}.pdf"'
+        response['Content-Disposition'] = f'inline; filename="proforma_faktura_{kamion.cislo_dl}.pdf"'
         return response
     # Pokud není pro zákazníka zatím tisk proforma faktury umožněn, zobrazí se chybová zpráva
     else:

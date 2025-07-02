@@ -39,7 +39,7 @@ def utilita_tisk_dokumentace(modeladmin, request, queryset, string, filename):
         all_html = ""
         for bedna in queryset:
             # Zkrátí popis pro každou bednu do prvního slova začínajícího číslicí.
-            utilita_zkraceni_popisu_beden(modeladmin, request, bedna)
+            utilita_zkraceni_popisu_beden(bedna)
             context = {"bedna": bedna}
             html = render_to_string(string, context)
             all_html += html + '<p style="page-break-after: always"></p>'  # Oddělí stránky
@@ -107,7 +107,7 @@ def utilita_kontrola_zakazek(modeladmin, request, queryset):
                 messages.error(request, f"Zakázka {zakazka} pro zákazníka s nastaveným příznakem 'Pouze kompletní zakázky' musí mít všechny bedny ve stavu K_EXPEDICI.")
                 return
             
-def utilita_zkraceni_popisu_beden(modeladmin, request, bedna):
+def utilita_zkraceni_popisu_beden(bedna):
     """
     Zkrátí popis zakázky na první slovo začínající číslicí.
     """
