@@ -324,13 +324,13 @@ class KamionAdmin(SimpleHistoryAdmin):
     def get_readonly_fields(self, request, obj=None):
         """
         Vrací seznam readonly polí pro inline Kamion, pokud se jedná o editaci existujícího kamionu,
-        přidá do stávajících readonly_fields pole 'zakaznik'. Pokud je kamion pro výdej, přidá se pole 'odberatel'.
+        přidá do stávajících readonly_fields pole 'zakaznik'. Pokud je kamion pro výdej, přidá se pole 'cislo_dl'.
         """
         rof = list(super().get_readonly_fields(request, obj)) or []
         if obj:
             rof.append('zakaznik')
         if obj and obj.prijem_vydej == KamionChoice.VYDEJ:
-            rof.append('odberatel')
+            rof.append('cislo_dl')
         return rof
     
     def get_urls(self):
