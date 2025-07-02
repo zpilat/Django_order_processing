@@ -153,6 +153,8 @@ class BednaAdminForm(forms.ModelForm):
     2. EXISTUJÍCÍ instance:
        - Pro stav_bedny nabídne všechny možné stavy, které jsou povoleny pro danou bednu a nastaví `initial` na aktuální stav.
        - Pro tryskat a rovnat nabídne všechny možné stavy, které jsou povoleny pro danou bednu a nastaví `initial` na aktuální stav.
+
+    Omezuje jak při tvorbě, tak při změně výběr zakázky na ty zakázky, které ještě nejsou expedované.
     """
     class Meta:
         model = Bedna
@@ -189,6 +191,10 @@ class BednaAdminForm(forms.ModelForm):
             allowed_rovnat = self.instance.get_allowed_rovnat_choices()
             field_rovnat.choices = allowed_rovnat
             field_rovnat.initial = self.instance.rovnat
+
+        if 'zakazka' in self.fields:
+            # Nastavení querysetu pro pole 'zakazka' na zakázky, které nejsou expedované
+            self.fields['zakazka'].queryset = Zakazka.objects.filter(expedovano=False).order_by('-id')
 
 
 class VyberKamionVydejForm(forms.Form):

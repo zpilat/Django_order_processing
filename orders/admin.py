@@ -610,9 +610,15 @@ class BednaInline(admin.TabularInline):
         Přizpůsobení widgetů pro pole v administraci.
         """
         if db_field.name == 'dodatecne_info':
-            kwargs['widget'] = TextInput(attrs={'size': '28'})  # Změna velikosti pole pro dodatečné info
+            kwargs['widget'] = TextInput(attrs={
+                'size': '30',
+                'style': 'font-size: 10px;',
+                })  # Změna velikosti pole a velikosti písma pro dodatečné info
         elif db_field.name == 'poznamka':
-            kwargs['widget'] = TextInput(attrs={'size': '22'}) # Změna velikosti pole pro poznámku HPM
+            kwargs['widget'] = TextInput(attrs={
+                'size': '20',
+                'style': 'font-size: 10px;'
+                }) # Změna velikosti pole pro poznámku HPM
         elif db_field.name == 'dodavatel_materialu':
             kwargs['widget'] = TextInput(attrs={'size': '4'})  # Změna velikosti pole pro dodavatele materiálu
         return super().formfield_for_dbfield(db_field, request, **kwargs)
@@ -969,6 +975,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     fields = ('zakazka', 'cislo_bedny', 'hmotnost', 'tara', 'mnozstvi', 'material', 'sarze', 'behalter_nr', 'dodatecne_info',
               'dodavatel_materialu', 'vyrobni_zakazka', 'tryskat', 'rovnat', 'stav_bedny', 'poznamka', 'odfosfatovat',)
     readonly_fields = ('cislo_bedny',)
+    autocomplete_fields = ('zakazka',)
 
     # Parametry pro zobrazení seznamu v administraci
     list_display = ('get_cislo_bedny', 'get_behalter_nr', 'zakazka_link', 'kamion_prijem_link', 'kamion_vydej_link',
