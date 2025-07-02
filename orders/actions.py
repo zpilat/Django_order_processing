@@ -8,7 +8,7 @@ import datetime
 from weasyprint import HTML
 
 from .models import Zakazka, Bedna, Kamion, Zakaznik, StavBednyChoice
-from .utils import utilita_tisk_dokumentace, utilita_expedice_zakazek, utilita_kontrola_zakazek
+from .utils import utilita_tisk_dokumentace, utilita_expedice_zakazek, utilita_kontrola_zakazek, utilita_tisk_dl_a_proforma_faktury
 from .forms import VyberKamionVydejForm
 from .choices import KamionChoice, StavBednyChoice
 
@@ -22,8 +22,8 @@ def tisk_karet_beden_action(modeladmin, request, queryset):
     # Upraví popis zakázky na zkrácenou verzi, aby se vlezla do pole v kartě bedny.
     if queryset.count() > 0:
         filename = "karty_beden.pdf"
-        string = "orders/karta_bedny_eur.html"
-        return utilita_tisk_dokumentace(modeladmin, request, queryset, string, filename)
+        html_path = "orders/karta_bedny_eur.html"
+        return utilita_tisk_dokumentace(modeladmin, request, queryset, html_path, filename)
     else:
         messages.error(request, "Neoznačili jste žádnou bednu.")
         return None
@@ -36,8 +36,8 @@ def tisk_karet_kontroly_kvality_action(modeladmin, request, queryset):
     # Upraví popis zakázky na zkrácenou verzi, aby se vlezla do pole v kartě bedny.
     if queryset.count() > 0:
         filename = "karty_kontroly_kvality.pdf"
-        string = "orders/karta_kontroly_kvality_eur.html"
-        response = utilita_tisk_dokumentace(modeladmin, request, queryset, string, filename)
+        html_path = "orders/karta_kontroly_kvality_eur.html"
+        response = utilita_tisk_dokumentace(modeladmin, request, queryset, html_path, filename)
         return response
     else:
         messages.error(request, "Neoznačili jste žádnou bednu.")
@@ -100,8 +100,8 @@ def tisk_karet_beden_zakazek_action(modeladmin, request, queryset):
         messages.error(request, "V označených zakázkách nejsou žádné bedny.")
         return None
     filename = "karty_beden.pdf"
-    string = "orders/karta_bedny_eur.html"
-    return utilita_tisk_dokumentace(modeladmin, request, bedny, string, filename)
+    html_path = "orders/karta_bedny_eur.html"
+    return utilita_tisk_dokumentace(modeladmin, request, bedny, html_path, filename)
 
 @admin.action(description="Vytisknout KKK z vybraných zakázek")
 def tisk_karet_kontroly_kvality_zakazek_action(modeladmin, request, queryset):
@@ -247,15 +247,13 @@ def tisk_dodaciho_listu_kamionu_action(modeladmin, request, queryset):
         return
     # Zkontroluje, zda je kamion pro zákazníka Eurotec
     if kamion.zakaznik.zkratka == "EUR":
-        context = {"kamion": kamion}
-        html_string = render_to_string("orders/dodaci_list_eur.html", context)
-        pdf_file = HTML(string=html_string).write_pdf()
-        response = HttpResponse(pdf_file, content_type="application/pdf")
-        response['Content-Disposition'] = f'inline; filename="dodaci_list_{kamion.cislo_dl}.pdf"'
-        return response
+        zkratka = kamion.zakaznik.zkratka.lower()
+        html_path = f"orders/dodaci_list_{zkratka}.html"
+        filename = f'dodaci_list_{kamion.cislo_dl}.pdf'
+        return utilita_tisk_dl_a_proforma_faktury(modeladmin, request, kamion, html_path, filename)
     # Pokud není pro zákazníka zatím tisk DL umožněn, zobrazí se chybová zpráva
     else:
-        modeladmin.message_user(request, "Tisk DL je zatím možný pouze pro zákazníka Eurotec.", level=messages.ERROR)
+        modeladmin.message_user(request, f"Tisk DL zatím pro zákazníka {kamion.zakaznik.zkraceny_nazev} není možný", level=messages.ERROR)
         return
 
 @admin.action(description="Vytisknout proforma fakturu kamionu")
@@ -280,15 +278,13 @@ def tisk_proforma_faktury_kamionu_action(modeladmin, request, queryset):
         return
     # Zkontroluje, zda je kamion pro zákazníka Eurotec
     if kamion.zakaznik.zkratka == "EUR":
-        context = {"kamion": kamion}
-        html_string = render_to_string("orders/proforma_faktura_eur.html", context)
-        pdf_file = HTML(string=html_string).write_pdf()
-        response = HttpResponse(pdf_file, content_type="application/pdf")
-        response['Content-Disposition'] = f'inline; filename="proforma_faktura_{kamion.cislo_dl}.pdf"'
-        return response
+        zkratka = kamion.zakaznik.zkratka.lower()
+        html_path = f"orders/proforma_faktura_{zkratka}.html"
+        filename = f'proforma_faktura_{kamion.cislo_dl}.pdf'
+        return utilita_tisk_dl_a_proforma_faktury(modeladmin, request, kamion, html_path, filename)
     # Pokud není pro zákazníka zatím tisk proforma faktury umožněn, zobrazí se chybová zpráva
     else:
-        modeladmin.message_user(request, "Tisk proforma faktury je zatím možný pouze pro zákazníka Eurotec.", level=messages.ERROR)
+        modeladmin.message_user(request, f"Tisk proforma faktury zatím pro zákazníka {kamion.zakaznik.zkraceny_nazev} není možný", level=messages.ERROR)
         return
 
 @admin.action(description="Vytisknout karty beden z vybraného kamionu")
@@ -313,8 +309,8 @@ def tisk_karet_beden_kamionu_action(modeladmin, request, queryset):
         messages.error(request, "V označeném kamionu nejsou žádné bedny.")
         return None
     filename = "karty_beden.pdf"
-    string = "orders/karta_bedny_eur.html"
-    return utilita_tisk_dokumentace(modeladmin, request, bedny, string, filename)
+    html_path = "orders/karta_bedny_eur.html"
+    return utilita_tisk_dokumentace(modeladmin, request, bedny, html_path, filename)
 
 @admin.action(description="Vytisknout KKK z vybraného kamionu")
 def tisk_karet_kontroly_kvality_kamionu_action(modeladmin, request, queryset):
@@ -338,5 +334,5 @@ def tisk_karet_kontroly_kvality_kamionu_action(modeladmin, request, queryset):
         messages.error(request, "V označeném kamionu nejsou žádné bedny.")
         return None
     filename = "karty_kontroly_kvality.pdf"
-    string = "orders/karta_kontroly_kvality_eur.html"
-    return utilita_tisk_dokumentace(modeladmin, request, bedny, string, filename)
+    html_path = "orders/karta_kontroly_kvality_eur.html"
+    return utilita_tisk_dokumentace(modeladmin, request, bedny, html_path, filename)

@@ -28,7 +28,7 @@ def get_verbose_name_for_column(model, field_chain):
         current_model = field.remote_field.model
     return field_chain  # fallback
 
-def utilita_tisk_dokumentace(modeladmin, request, queryset, string, filename):
+def utilita_tisk_dokumentace(modeladmin, request, queryset, html_path, filename):
     """
     Utilita pro tisk dokumentace.
     """
@@ -41,7 +41,7 @@ def utilita_tisk_dokumentace(modeladmin, request, queryset, string, filename):
             # Zkrátí popis pro každou bednu do prvního slova začínajícího číslicí.
             utilita_zkraceni_popisu_beden(bedna)
             context = {"bedna": bedna}
-            html = render_to_string(string, context)
+            html = render_to_string(html_path, context)
             all_html += html + '<p style="page-break-after: always"></p>'  # Oddělí stránky
 
         pdf_file = HTML(string=all_html).write_pdf()
@@ -51,7 +51,18 @@ def utilita_tisk_dokumentace(modeladmin, request, queryset, string, filename):
     else:
         messages.error(request, "Není vybrána žádná bedna k tisku.")
         return None
-    
+
+def utilita_tisk_dl_a_proforma_faktury(modeladmin, request, kamion, html_path, filename):
+    """
+    Tiskne dodací list a proforma fakturu pro vybraný kamion a daného zákazníka.
+    """
+    context = {"kamion": kamion}
+    html_string = render_to_string(html_path, context)
+    pdf_file = HTML(string=html_string).write_pdf()
+    response = HttpResponse(pdf_file, content_type="application/pdf")
+    response['Content-Disposition'] = f'inline; filename="{filename}"'
+    return response    
+
 @transaction.atomic
 def utilita_expedice_zakazek(modeladmin, request, queryset, kamion):
     """
