@@ -120,7 +120,7 @@ def utilita_kontrola_zakazek(modeladmin, request, queryset):
             
 def utilita_zkraceni_popisu_beden(bedna):
     """
-    Zkrátí popis zakázky na první slovo začínající číslicí.
+    Zkrátí popis zakázky do prvního slova začínající číslicí.
     """
     match = re.match(r"^(.*?)(\s+\d+.*)?$", bedna.zakazka.popis)    
     if match:
