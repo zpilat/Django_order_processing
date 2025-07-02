@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 {% load static %}
+{% load custom_filters %}
 {% load i18n %}
 <html lang="cs">
 <head>
@@ -59,7 +60,7 @@
                         Proforma faktúra (EuroTec GmbH)
                     </div>
                     <div class="fs-10">
-                        {{ kamion.cislo_dl }}
+                        {{ kamion.cislo_dl|nahrada_pomlcky_za_lomitko }}
                     </div>
                 </td>
                 <td class="text-end fs-10" style="width: 33%;">

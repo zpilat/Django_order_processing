@@ -2,7 +2,7 @@ from django import template
 
 register = template.Library()
 
-@register.filter
+@register.filter(name='url_remove_param')
 def url_remove_param(querystring, params):
     """
     Odstraní parametry z query stringu.
@@ -15,7 +15,7 @@ def url_remove_param(querystring, params):
     )
     return new_querystring
 
-@register.filter
+@register.filter(name='attr_chain')
 def attr_chain(obj, attr_chain):
     """
     Projde objekt podle řetězce atributů oddělených __ a vrátí hodnotu.
@@ -32,7 +32,7 @@ def attr_chain(obj, attr_chain):
             return "✔️" if obj else "❌"        
     return obj
 
-@register.filter
+@register.filter(name='get_bedna_by_stav')
 def get_bedna_by_stav(bedny_stavy, stav_value):
     """
     Vrátí dict s daty pro daný stav bedny, pokud existuje; jinak None.
@@ -45,3 +45,10 @@ def get_bedna_by_stav(bedny_stavy, stav_value):
 @register.filter(name='add_class')
 def add_class(field, css_class):
     return field.as_widget(attrs={"class": css_class})
+
+@register.filter(name='nahrada_pomlcky_za_lomitko')
+def nahrada_pomlcky_za_lomitko(cislo_dl):
+    """
+    Nahradí pomlčky v čísle dodacího listu lomítky.
+    """
+    return cislo_dl.replace('-', '/') if isinstance(cislo_dl, str) else cislo_dl
