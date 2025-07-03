@@ -42,6 +42,13 @@ def get_bedna_by_stav(bedny_stavy, stav_value):
             return row
     return None
 
+@register.filter(name='dict_get')
+def dict_get(d, key):
+    """
+    Vrátí hodnotu z dict podle klíče, pokud existuje; jinak None.
+    """
+    return d.get(key)
+
 @register.filter(name='add_class')
 def add_class(field, css_class):
     return field.as_widget(attrs={"class": css_class})

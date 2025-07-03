@@ -6,52 +6,50 @@
 </div>
 
 <div class="row">
-    {% for zakaznik, bedny_stavy in prehled_beden_zakaznika.items %}
-      <div class="col-xxl-2 col-xl-3 col-lg-4 col-md-6 col-sm-12 mb-4" style="font-family: 'Segoe UI';">
-        {# Pro každý zákazník vytvoř kartu s přehledem stavů beden #}
-        <div class="card h-100 shadow-sm">
-          <div class="card-header fw-bold" style="background-color: #ffde17;  color: #214290;">
-            {{ zakaznik }}
-          </div>
-          <div class="card-body p-2">
-            <table class="table table-sm align-middle mb-0">
-              <thead>
-                <tr>
-                  <th style="background-color: #214290; color: #ffde17;">Stav bedny</th>
-                  <th style="background-color: #214290; color: #ffde17;">Počet</th>
-                  <th style="background-color: #214290; color: #ffde17;">Hm. (kg)</th>
-                </tr>
-              </thead>
-              <tbody class="table-striped">
-                {% for stav_value, stav_label in stav_bedny_choices %}
-                  {# Hledej info pro tento stav u zákazníka #}
-                  {% with bedna_row=bedny_stavy|get_bedna_by_stav:stav_value %}
-                  {% if forloop.counter|divisibleby:2 %}
-                    <tr class="table-light">
-                  {% else %}
-                    <tr>
-                  {% endif %}
-                      <td>{{ stav_label }}</td>
-                      {% if bedna_row %}
-                        <td>{{ bedna_row.pocet }}</td>
-                        <td>
-                          {% if bedna_row.hmotnost %}
-                            {{ bedna_row.hmotnost|floatformat:1 }}
-                          {% else %}
-                            0
-                          {% endif %}
-                        </td>
-                      {% else %}
-                        <td class="text-muted">–</td>
-                        <td class="text-muted">–</td>
-                      {% endif %}
-                    </tr>
-                  {% endwith %}
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
+  {% for zakaznik, bedny_stavy in prehled_beden_zakaznika.items %}
+    <div class="col-xxl-2 col-xl-3 col-lg-4 col-md-6 col-sm-12 mb-4" style="font-family: 'Segoe UI';">
+      <div class="card h-100 shadow-sm">
+        <div class="card-header fw-bold" style="background-color: #ffde17; color: #214290;">
+          {{ zakaznik }}
+        </div>
+        <div class="card-body p-2">
+          <table class="table table-sm align-middle mb-0">
+            <thead>
+              <tr>
+                <th style="background-color: #214290; color: #ffde17;">Stav bedny</th>
+                <th style="background-color: #214290; color: #ffde17;">Počet</th>
+                <th style="background-color: #214290; color: #ffde17;">Hm. (kg)</th>
+              </tr>
+            </thead>
+            <tbody class="table-striped">
+              {% for stav in stavy_bedny_list %}
+                {% with bedna_row=bedny_stavy|dict_get:stav %}
+                {% if forloop.counter|divisibleby:2 %}
+                  <tr class="table-light">
+                {% else %}
+                  <tr>
+                {% endif %}
+                    <td>{{ stav }}</td>
+                    {% if bedna_row %}
+                      <td>{{ bedna_row.0 }}</td>
+                      <td>
+                        {% if bedna_row.1 %}
+                          {{ bedna_row.1|floatformat:1 }}
+                        {% else %}
+                          0
+                        {% endif %}
+                      </td>
+                    {% else %}
+                      <td class="text-muted">–</td>
+                      <td class="text-muted">–</td>
+                    {% endif %}
+                  </tr>
+                {% endwith %}
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
       </div>
-    {% endfor %}
+    </div>
+  {% endfor %}
 </div>

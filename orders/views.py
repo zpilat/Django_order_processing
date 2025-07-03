@@ -166,33 +166,58 @@ class ZakazkyListView(LoginRequiredMixin, ListView):
 
 @login_required
 def dashboard_bedny_view(request):
-    '''
-    Zobrazení přehledu stavu beden jednotlivých zákazníků,
-    pro každého zákazníka a pro všechny dohromady zobrazí pro jednotlivé stavy celkovou hmotnost.
-    '''
-    prehled_beden_zakaznika = {}
-    
-    # Přidání celkového přehledu pro všechny zákazníky
-    prehled_beden_zakaznika['CELKEM'] = Bedna.objects.values('stav_bedny').annotate(
-        pocet=Count('id'),
-        hmotnost=Sum('hmotnost')
-    )
-    
-    # Získání přehledu beden pro každého zákazníka
-    for zakaznik in Zakaznik.objects.all():
-        bedny_zakaznika = Bedna.objects.filter(zakazka__kamion_prijem__zakaznik=zakaznik)
-        prehled_beden_zakaznika[zakaznik.nazev] = bedny_zakaznika.values('stav_bedny').annotate(
+    """
+    Přehled stavu beden dle zákazníků.
+    """
+    def get_stav_data(filter_kwargs):
+        """
+        Získává data o stavech beden pro dané filtry.
+        """
+        data = Bedna.objects.filter(**filter_kwargs).values(
+            'zakazka__kamion_prijem__zakaznik__zkraceny_nazev'
+        ).annotate(
             pocet=Count('id'),
             hmotnost=Sum('hmotnost')
         )
-    
+        data_dict = {
+            item['zakazka__kamion_prijem__zakaznik__zkraceny_nazev']: (item['pocet'], item['hmotnost']) for item in data
+        }
+        total = Bedna.objects.filter(**filter_kwargs).aggregate(
+            pocet=Count('id'),
+            hmotnost=Sum('hmotnost')
+        )
+        data_dict['CELKEM'] = (total['pocet'], total['hmotnost'])
+        return data_dict
+
+    stavy = {
+        'Zakalené': {'stav_bedny__in': [StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO, StavBednyChoice.K_EXPEDICI]},
+        'Ke kontrole': {'stav_bedny': StavBednyChoice.ZAKALENO},
+        'Křivé': {'rovnat': RovnaniChoice.KRIVA},
+        'Otryskané': {'tryskat': TryskaniChoice.OTRYSKANA},
+        'K tryskání': {'tryskat': TryskaniChoice.SPINAVA, 'stav_bedny__in': [StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO]},
+        'K expedici': {'stav_bedny': StavBednyChoice.K_EXPEDICI},
+        'Surové': {'stav_bedny__in': [StavBednyChoice.PRIJATO, StavBednyChoice.K_NAVEZENI, StavBednyChoice.NAVEZENO, StavBednyChoice.DO_ZPRACOVANI]},
+        'Navezené': {'stav_bedny': StavBednyChoice.NAVEZENO},
+        'Přijaté': {'stav_bedny__in': [StavBednyChoice.PRIJATO, StavBednyChoice.K_NAVEZENI]},
+    }
+
+    zakaznici = list(Zakaznik.objects.values_list('zkraceny_nazev', flat=True).order_by('zkraceny_nazev')) + ['CELKEM']
+    prehled_beden_zakaznika = {zak: {stav: (0, 0) for stav in stavy} for zak in zakaznici}
+
+    for stav, filter_kwargs in stavy.items():
+        stav_data = get_stav_data(filter_kwargs)
+        for zak in zakaznici:
+            prehled_beden_zakaznika[zak][stav] = stav_data.get(zak, (0, 0))
+
+    stavy_bedny_list = ['Zakalené', 'Ke kontrole', 'Křivé', 'Otryskané', 'K tryskání', 'K expedici', 'Surové', 'Navezené', 'Přijaté']
+
     context = {
         'prehled_beden_zakaznika': prehled_beden_zakaznika,
-        'stav_bedny_choices': StavBednyChoice.choices,
+        'stavy_bedny_list': stavy_bedny_list,
         'db_table': 'dashboard_bedny',
         'current_time': timezone.now(),
-        }
-    
+    }
+
     if request.htmx:
         return render(request, "orders/partials/dashboard_bedny_content.html", context)
     return render(request, 'orders/dashboard_bedny.html', context)
