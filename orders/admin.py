@@ -24,7 +24,8 @@ from .actions import (
     )
 from .filters import (
     ExpedovanaZakazkaFilter, StavBednyFilter, KompletZakazkaFilter, AktivniPredpisFilter, SkupinaFilter, ZakaznikBednyFilter,
-    ZakaznikZakazkyFilter, PrijemVydejFilter
+    ZakaznikZakazkyFilter, ZakaznikKamionuFilter, PrijemVydejFilter, TryskaniFilter, RovnaniFilter, PrioritaBednyFilter, PrioritaZakazkyFilter,
+    OberflacheFilter, TypHlavyBednyFilter, TypHlavyZakazkyFilter, CelozavitBednyFilter, CelozavitZakazkyFilter
 )
 from .forms import ZakazkaAdminForm, BednaAdminForm, ImportZakazekForm, ZakazkaInlineForm
 from .choices import StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice
@@ -229,7 +230,7 @@ class KamionAdmin(SimpleHistoryAdmin):
     list_display = ('get_kamion_str', 'get_zakaznik_zkraceny_nazev', 'get_datum', 'poradove_cislo', 'cislo_dl', 'prijem_vydej',
                     'odberatel', 'get_pocet_beden_skladem', 'get_celkova_hmotnost_netto', 'get_celkova_hmotnost_brutto',)
     list_select_related = ('zakaznik',)
-    list_filter = ('zakaznik__zkraceny_nazev', PrijemVydejFilter)
+    list_filter = (ZakaznikKamionuFilter, PrijemVydejFilter)
     list_display_links = ('get_kamion_str',)
     date_hierarchy = 'datum'
     list_per_page = 20
@@ -671,7 +672,8 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     list_select_related = ("kamion_prijem", "kamion_vydej")
     search_fields = ('artikl',)
     search_help_text = "Hledat podle artiklu"
-    list_filter = (ZakaznikZakazkyFilter, 'typ_hlavy', 'celozavit', 'priorita', 'povrch', KompletZakazkaFilter, ExpedovanaZakazkaFilter, 'odberatel',)
+    list_filter = (ZakaznikZakazkyFilter, KompletZakazkaFilter, PrioritaZakazkyFilter, CelozavitZakazkyFilter, TypHlavyZakazkyFilter,
+                   OberflacheFilter, ExpedovanaZakazkaFilter,)
     ordering = ('-id',)
     date_hierarchy = 'kamion_prijem__datum'
     list_per_page = 25
@@ -985,8 +987,8 @@ class BednaAdmin(SimpleHistoryAdmin):
     list_per_page = 30
     search_fields = ('cislo_bedny', 'behalter_nr', 'zakazka__artikl',)
     search_help_text = "Hledat dle čísla bedny, č.b. zákazníka nebo zakázky"
-    list_filter = (ZakaznikBednyFilter, StavBednyFilter, 'rovnat', 'tryskat', 'zakazka__celozavit',
-                   'zakazka__typ_hlavy', 'zakazka__priorita', SkupinaFilter,)
+    list_filter = (ZakaznikBednyFilter, StavBednyFilter, TryskaniFilter, RovnaniFilter, CelozavitBednyFilter,
+                   TypHlavyBednyFilter, PrioritaBednyFilter, SkupinaFilter,)
     ordering = ('id',)
     date_hierarchy = 'zakazka__kamion_prijem__datum'
     formfield_overrides = {
