@@ -24,7 +24,7 @@ from .actions import (
     )
 from .filters import (
     ExpedovanaZakazkaFilter, StavBednyFilter, KompletZakazkaFilter, AktivniPredpisFilter, SkupinaFilter, ZakaznikBednyFilter,
-    ZakaznikZakazkyFilter
+    ZakaznikZakazkyFilter, PrijemVydejFilter
 )
 from .forms import ZakazkaAdminForm, BednaAdminForm, ImportZakazekForm, ZakazkaInlineForm
 from .choices import StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice
@@ -229,9 +229,8 @@ class KamionAdmin(SimpleHistoryAdmin):
     list_display = ('get_kamion_str', 'get_zakaznik_zkraceny_nazev', 'get_datum', 'poradove_cislo', 'cislo_dl', 'prijem_vydej',
                     'odberatel', 'get_pocet_beden_skladem', 'get_celkova_hmotnost_netto', 'get_celkova_hmotnost_brutto',)
     list_select_related = ('zakaznik',)
-    list_filter = ('zakaznik__zkraceny_nazev', 'prijem_vydej',)
+    list_filter = ('zakaznik__zkraceny_nazev', PrijemVydejFilter)
     list_display_links = ('get_kamion_str',)
-    ordering = ('-id',)
     date_hierarchy = 'datum'
     list_per_page = 20
     # Parametry pro zobrazení historie v administraci

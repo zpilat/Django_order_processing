@@ -1,6 +1,7 @@
 from django.contrib import admin
-from .models import Zakazka, Bedna, Zakaznik
+from .models import Zakazka, Bedna, Zakaznik, Kamion
 from .choices import StavBednyChoice
+from django.db.models import Exists, OuterRef
 
 class StavBednyFilter(admin.SimpleListFilter):
     """
@@ -178,3 +179,38 @@ class ZakaznikZakazkyFilter(admin.SimpleListFilter):
             return queryset.filter(kamion_prijem__zakaznik=zakaznik)
         except Zakaznik.DoesNotExist:
             return queryset.none()
+        
+
+class PrijemVydejFilter(admin.SimpleListFilter):
+    """
+    Filtrovat kamiony podle typu (příjem - vše, příjem - skladm, výdej).
+    """
+    title = "Typ kamionu"
+    parameter_name = "prijem_vydej"
+
+    def lookups(self, request, model_admin):
+        return (
+            ('PS', 'Příjem - Se zakázkami skladem'),
+            ('PV', 'Příjem - Vše'),
+            ('V', 'Výdej'),
+        )
+
+    def queryset(self, request, queryset):
+        value = self.value()      
+        if not value:
+            self.title = "Typ kamionu: Vše"
+            return queryset
+        elif value == 'PV':
+            self.title = "Typ kamionu: Příjem vše"
+            return queryset.filter(prijem_vydej='P')
+        elif value == 'PS':
+            self.title = "Typ kamionu: Skladem"
+            zakazka_qs = Zakazka.objects.filter(kamion_prijem=OuterRef('pk'), expedovano=False)             
+            return queryset.filter(prijem_vydej='P',).annotate(ma_neexpedovanou=Exists(zakazka_qs)
+            ).filter(ma_neexpedovanou=True)
+        elif value == 'V':
+            self.title = "Typ kamionu: Výdej"
+            return queryset.filter(prijem_vydej='V')
+        return queryset.none()
+    
+

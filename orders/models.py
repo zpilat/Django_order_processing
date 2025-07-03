@@ -80,7 +80,7 @@ class Kamion(models.Model):
     class Meta:
         verbose_name = 'Kamión'
         verbose_name_plural = 'kamióny'
-        ordering = ['id']
+        ordering = ['-id']
 
     def __str__(self):
         """

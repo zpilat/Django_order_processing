@@ -85,7 +85,7 @@ class ZakazkaAdminForm(ZakazkaPredpisValidatorMixin, forms.ModelForm):
                 ma_neexpedovanou=Exists(zakazka_qs)
             ).filter(
                 ma_neexpedovanou=True
-            ).order_by('-id')
+            )
 
 
 class ZakazkaInlineForm(ZakazkaPredpisValidatorMixin, forms.ModelForm):
