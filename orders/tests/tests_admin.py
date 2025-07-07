@@ -7,7 +7,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from datetime import date
 from unittest.mock import patch
 
-from orders.admin import KamionAdmin, ZakazkaAdmin, BednaAdmin
+from orders.admin import KamionAdmin, ZakazkaAdmin, BednaAdmin, BednaInline
 from orders.models import Zakaznik, Kamion, Zakazka, Bedna, Predpis, TypHlavy, Odberatel, Cena
 from orders.choices import StavBednyChoice
 
@@ -97,6 +97,11 @@ class KamionAdminTests(AdminBase):
         resp = self.admin.import_view(post_req)
         self.assertEqual(resp.status_code, 200)
 
+        # Prepare required objects for a successful import
+        predpis_import = Predpis.objects.create(
+            nazev='00123_Ø10', skupina=1, zakaznik=self.zakaznik
+        )
+        typ_hlavy_import = TypHlavy.objects.create(nazev='TK', popis='Test')
 
         df_data = {
             'Abhol- datum': ['2024-01-01'],
@@ -113,7 +118,7 @@ class KamionAdminTests(AdminBase):
             'Behälter-Nr.:': [1],
             'Lief.': ['L1'],
             'Fertigungs- aftrags Nr.': ['F1'],
-            'Typ hlavy': ['TK'],  # přidáno
+            'Kopf': ['TK'],
         }
         import pandas as pandas_mod
         df = pandas_mod.DataFrame(df_data)
@@ -127,9 +132,19 @@ class KamionAdminTests(AdminBase):
         valid_req._messages = FallbackStorage(valid_req)
 
         with patch('orders.admin.pd.read_excel', return_value=df):
+            zak_before = Zakazka.objects.count()
+            bedna_before = Bedna.objects.count()
             resp = self.admin.import_view(valid_req)
 
         self.assertEqual(resp.status_code, 302)
+        self.assertEqual(Zakazka.objects.count(), zak_before + 1)
+        self.assertEqual(Bedna.objects.count(), bedna_before + 1)
+
+        # cleanup created objects
+        Zakazka.objects.all().delete()
+        Bedna.objects.all().delete()
+        predpis_import.delete()
+        typ_hlavy_import.delete()
 
     def test_save_formset_creates_bedny(self):
         admin_form = type('F', (), {'instance': self.kamion})()
@@ -156,6 +171,38 @@ class KamionAdminTests(AdminBase):
         self.admin.save_formset(self.get_request(), admin_form, fs, False)
         self.assertEqual(Zakazka.objects.count(), 1)
         self.assertEqual(Bedna.objects.count(), 2)
+
+    def test_save_formset_change_doesnt_create_bedny(self):
+        """
+        Testuje, že při změně kamionu se nevytvoří nové bedny.
+        Při změně kamionu by se měly pouze aktualizovat existující zakázky a bedny,
+        ale neměly by se vytvářet nové záznamy.
+        """
+        kamion = Kamion.objects.create(zakaznik=self.zakaznik, datum=date.today())
+        zakazka = Zakazka.objects.create(
+            kamion_prijem=kamion,
+            artikl='A1', prumer=1, delka=1,
+            predpis=self.predpis, typ_hlavy=self.typ_hlavy,
+            popis='p',
+        )
+        Bedna.objects.create(zakazka=zakazka, hmotnost=1, tara=1)
+
+        admin_form = type('F', (), {'instance': kamion})()
+
+        class DummyFormset:
+            def __init__(self):
+                self.instance = kamion
+                self.forms = []
+                self.saved = False
+
+            def save(self, commit=True):
+                self.saved = True
+                return []
+
+        fs = DummyFormset()
+        self.admin.save_formset(self.get_request(), admin_form, fs, True)
+        self.assertTrue(fs.saved)
+        self.assertEqual(Bedna.objects.count(), 1)
 
 
 class ZakazkaAdminTests(AdminBase):
@@ -254,3 +301,61 @@ class BednaAdminTests(AdminBase):
         self.assertNotIn('kamion_vydej_link', ld)
         ld2 = self.admin.get_list_display(self.get_request({'stav_bedny_vlastni': 'EX'}))
         self.assertIn('kamion_vydej_link', ld2)
+
+class BednaInlineGetFieldsTests(AdminBase):
+    """
+    Testy pro BednaInline.get_fields.
+    Testuje, jak se mění pole podle typu zákazníka a stavu bedny.
+    """
+
+    def setUp(self):
+        self.inline = BednaInline(Zakazka, self.site)
+
+    def get_request(self):
+        req = self.factory.get('/')
+        req.user = self.user
+        return req
+
+    def create_bedna(self, code):
+        idx = Zakaznik.objects.count() + 1
+        zak = Zakaznik.objects.create(
+            nazev=code,
+            zkraceny_nazev=code,
+            zkratka=code,
+            ciselna_rada=100000 + idx,
+        )
+        kam = Kamion.objects.create(zakaznik=zak, datum=date.today())
+        zakazka = Zakazka.objects.create(
+            kamion_prijem=kam,
+            artikl='A',
+            prumer=1,
+            delka=1,
+            predpis=self.predpis,
+            typ_hlavy=self.typ_hlavy,
+            popis='p',
+        )
+        bedna = Bedna.objects.create(zakazka=zakazka, hmotnost=1, tara=1)
+        setattr(bedna, 'kamion_prijem', zakazka.kamion_prijem)
+        return bedna
+
+    def test_add_view_excludes_cislo_bedny(self):
+        fields = self.inline.get_fields(self.get_request(), None)
+        self.assertNotIn('cislo_bedny', fields)
+
+    def test_existing_rot_excludes_extra_fields(self):
+        bedna = self.create_bedna('ROT')
+        fields = self.inline.get_fields(self.get_request(), bedna)
+        self.assertNotIn('dodatecne_info', fields)
+        self.assertNotIn('dodavatel_materialu', fields)
+        self.assertNotIn('vyrobni_zakazka', fields)
+        self.assertIn('behalter_nr', fields)
+
+    def test_special_customers_exclude_behalter_nr(self):
+        for code in ('SSH', 'SWG', 'HPM', 'FIS'):
+            bedna = self.create_bedna(code)
+            fields = self.inline.get_fields(self.get_request(), bedna)
+            with self.subTest(code=code):
+                self.assertNotIn('behalter_nr', fields)
+                self.assertNotIn('dodatecne_info', fields)
+                self.assertNotIn('dodavatel_materialu', fields)
+                self.assertNotIn('vyrobni_zakazka', fields)
