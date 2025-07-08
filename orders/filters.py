@@ -343,7 +343,7 @@ class PrijemVydejFilter(DynamicTitleFilter):
         elif value == 'PV':
             zakazka_qs = Zakazka.objects.filter(kamion_prijem=OuterRef('pk'), expedovano=False)
             return queryset.filter(prijem_vydej='P', zakazky_prijem__isnull=False).annotate(ma_neexpedovanou=Exists(zakazka_qs)
-            ).filter(ma_neexpedovanou=False)
+            ).filter(ma_neexpedovanou=False).distinct()
         elif value == 'PS':
             zakazka_qs = Zakazka.objects.filter(kamion_prijem=OuterRef('pk'), expedovano=False)
             return queryset.filter(prijem_vydej='P',).annotate(ma_neexpedovanou=Exists(zakazka_qs)
