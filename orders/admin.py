@@ -240,6 +240,9 @@ class KamionAdmin(SimpleHistoryAdmin):
     history_list_filter = ["zakaznik", "datum"]
     history_list_per_page = 20
 
+    class Media:
+        js = ('orders/admin_actions_target_blank.js',)
+
     def get_inlines(self, request, obj):
         """
         Vrací inliny pro správu zakázek kamionu v závislosti na tom,
@@ -690,7 +693,10 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     history_list_per_page = 20
 
     class Media:
-        js = ('admin/js/zakazky_hmotnost_sum.js',)
+        js = (
+            'orders/zakazky_hmotnost_sum.js',
+            'orders/admin_actions_target_blank.js',
+            )
 
     @admin.display(description='Předpis', ordering='predpis__id', empty_value='-')
     def predpis_link(self, obj):
@@ -1002,6 +1008,9 @@ class BednaAdmin(SimpleHistoryAdmin):
     history_search_fields = ["zakazka__kamion_prijem__zakaznik__nazev", "cislo_bedny", "stav_bedny", "zakazka__typ_hlavy", "poznamka"]
     history_list_filter = ["zakazka__kamion_prijem__zakaznik__nazev", "zakazka__kamion_prijem__datum", "stav_bedny"]
     history_list_per_page = 20
+
+    class Media:
+        js = ('orders/admin_actions_target_blank.js',)    
 
     @admin.display(description='Č. bedny', ordering='cislo_bedny')
     def get_cislo_bedny(self, obj):
