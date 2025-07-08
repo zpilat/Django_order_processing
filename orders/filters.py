@@ -317,16 +317,17 @@ class ZakaznikKamionuFilter(DynamicTitleFilter):
 
 class PrijemVydejFilter(DynamicTitleFilter):
     """
-    Filtrovat kamiony podle typu (příjem - vše, příjem - skladm, výdej).
+    Filtrovat kamiony podle typu (příjem - bez zakázek, příjem - se zakázkami skladem, příjem - vyexpedovaný, výdej).
     """
     title = "Typ kamionu"
     parameter_name = "prijem_vydej"
 
     def __init__(self, request, params, model, model_admin):
         self.label_dict = {
+            'PB': 'Příjem - Bez zakázek',
             'PS': 'Příjem - Se zakázkami skladem',
-            'PV': 'Příjem - Vše',
-            'V': 'Výdej'
+            'PV': 'Příjem - Vyexpedovaný',            
+            'V': 'Výdej',
         }
         super().__init__(request, params, model, model_admin)
 
@@ -337,8 +338,12 @@ class PrijemVydejFilter(DynamicTitleFilter):
         value = self.value()      
         if not value:
             return queryset
+        elif value == 'PB':
+            return queryset.filter(prijem_vydej='P', zakazky_prijem__isnull=True)
         elif value == 'PV':
-            return queryset.filter(prijem_vydej='P')
+            zakazka_qs = Zakazka.objects.filter(kamion_prijem=OuterRef('pk'), expedovano=False)
+            return queryset.filter(prijem_vydej='P',).annotate(ma_neexpedovanou=Exists(zakazka_qs)
+            ).filter(ma_neexpedovanou=False)
         elif value == 'PS':
             zakazka_qs = Zakazka.objects.filter(kamion_prijem=OuterRef('pk'), expedovano=False)
             return queryset.filter(prijem_vydej='P',).annotate(ma_neexpedovanou=Exists(zakazka_qs)

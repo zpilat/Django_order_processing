@@ -336,6 +336,52 @@ class KamionAdmin(SimpleHistoryAdmin):
             rof.append('cislo_dl')
         return rof
     
+    def get_actions(self, request):
+        """
+        Přizpůsobí dostupné akce v administraci podle filtru typu kamionu
+        (příjem - vyexpedovaný, příjem - skladem, výdej).
+        Odstraní akce, které nejsou relevantní pro daný typ kamionu.
+        """
+        actions = super().get_actions(request)
+        def remove_action(action_name):
+            """
+            Pomocná funkce pro odstranění akce z administrace.
+            """
+            if action_name in actions:
+                del actions[action_name]
+
+        if (request.GET.get('prijem_vydej') == 'V'):
+            actions_to_remove = [
+                'import_kamionu_action',
+                'tisk_karet_beden_kamionu_action',
+                'tisk_karet_kontroly_kvality_kamionu_action'
+            ]
+        elif (request.GET.get('prijem_vydej') == 'PS'):
+            actions_to_remove = [
+                'import_kamionu_action',                
+                'tisk_dodaciho_listu_kamionu_action',
+                'tisk_proforma_faktury_kamionu_action'
+            ]
+        elif (request.GET.get('prijem_vydej') == 'PB'):
+            actions_to_remove = [
+                'tisk_karet_beden_kamionu_action',
+                'tisk_karet_kontroly_kvality_kamionu_action',
+                'tisk_dodaciho_listu_kamionu_action',
+                'tisk_proforma_faktury_kamionu_action'
+            ]
+        else:
+            actions_to_remove = [
+                'import_kamionu_action',
+                'tisk_karet_beden_kamionu_action',
+                'tisk_karet_kontroly_kvality_kamionu_action',
+                'tisk_dodaciho_listu_kamionu_action',
+                'tisk_proforma_faktury_kamionu_action'
+            ]
+        for action in actions_to_remove:
+            remove_action(action)
+        
+        return actions
+
     def get_urls(self):
         """
         Přidá vlastní URL pro import zakázek do kamionu.
