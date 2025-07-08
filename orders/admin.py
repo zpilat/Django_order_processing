@@ -35,12 +35,12 @@ class ZakaznikAdmin(SimpleHistoryAdmin):
     """
     Správa zákazníků v administraci.
     """
-    list_display = ('nazev', 'zkraceny_nazev', 'zkratka', 'adresa', 'mesto', 'psc', 'stat', 'kontaktni_osoba', 'telefon',
+    list_display = ('nazev', 'zkraceny_nazev', 'zkratka', 'adresa', 'mesto', 'psc', 'stat', 'zkratka_statu', 'kontaktni_osoba', 'telefon',
                     'email', 'vse_tryskat', 'pouze_komplet', 'ciselna_rada',)
     ordering = ('nazev',)
     list_per_page = 20
 
-    history_list_display = ["id", "nazev", "zkratka", "adresa", "mesto", "psc", "stat", "kontaktni_osoba", "telefon", "email"]
+    history_list_display = ["id", "nazev", "zkratka", "adresa", "mesto", "psc", "stat", "zkratka_statu", "kontaktni_osoba", "telefon", "email"]
     history_search_fields = ["nazev"]
     history_list_per_page = 20
 
@@ -1191,12 +1191,12 @@ class OdberatelAdmin(SimpleHistoryAdmin):
     """
     Správa odběratelů v administraci.
     """
-    list_display = ('nazev', 'zkraceny_nazev', 'zkratka', 'adresa', 'mesto', 'psc', 'stat', 'kontaktni_osoba', 'telefon', 'email',)
+    list_display = ('nazev', 'zkraceny_nazev', 'zkratka', 'adresa', 'mesto', 'psc', 'stat', 'zkratka_statu', 'kontaktni_osoba', 'telefon', 'email',)
     list_display_links = ('nazev',)
     ordering = ['nazev']
     list_per_page = 25
 
-    history_list_display = ['nazev', 'zkraceny_nazev', 'zkratka', 'adresa', 'mesto', 'psc', 'stat', 'kontaktni_osoba', 'telefon', 'email']
+    history_list_display = ['nazev', 'zkraceny_nazev', 'zkratka', 'adresa', 'mesto', 'psc', 'stat', 'zkratka_statu', 'kontaktni_osoba', 'telefon', 'email']
     history_search_fields = ['nazev']
     history_list_per_page = 20    
 
