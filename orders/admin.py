@@ -362,14 +362,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                 'tisk_dodaciho_listu_kamionu_action',
                 'tisk_proforma_faktury_kamionu_action'
             ]
-        elif (request.GET.get('prijem_vydej') == 'PB'):
-            actions_to_remove = [
-                'tisk_karet_beden_kamionu_action',
-                'tisk_karet_kontroly_kvality_kamionu_action',
-                'tisk_dodaciho_listu_kamionu_action',
-                'tisk_proforma_faktury_kamionu_action'
-            ]
-        else:
+        elif (request.GET.get('prijem_vydej') == 'PV'):
             actions_to_remove = [
                 'import_kamionu_action',
                 'tisk_karet_beden_kamionu_action',
@@ -377,6 +370,14 @@ class KamionAdmin(SimpleHistoryAdmin):
                 'tisk_dodaciho_listu_kamionu_action',
                 'tisk_proforma_faktury_kamionu_action'
             ]
+        else:
+            actions_to_remove = [
+                'tisk_karet_beden_kamionu_action',
+                'tisk_karet_kontroly_kvality_kamionu_action',
+                'tisk_dodaciho_listu_kamionu_action',
+                'tisk_proforma_faktury_kamionu_action'
+            ]
+            
         for action in actions_to_remove:
             remove_action(action)
         
