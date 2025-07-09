@@ -4,6 +4,9 @@ from django.utils import timezone
 from .models import Zakaznik, Kamion, Zakazka, Bedna, Predpis, Odberatel
 from .choices import StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice
 
+import logging
+logger = logging.getLogger('orders')
+
 class ImportZakazekForm(forms.Form):
     file = forms.FileField(label="Soubor (XLSX nebo CSV)")
 
@@ -19,9 +22,8 @@ class ZakazkaPredpisValidatorMixin:
         kamion = cleaned_data.get("kamion_prijem")
 
         if predpis and kamion and predpis.zakaznik != kamion.zakaznik:
-            raise forms.ValidationError(
-                f"Předpis „{predpis}“ nepatří zákazníkovi „{kamion.zakaznik}“."
-            )
+            logger.error(f"Pokud o přiřazení předpisu „{predpis}“, který nepatří zákazníkovi „{kamion.zakaznik}“ zakázky.")
+            raise forms.ValidationError(f"Předpis „{predpis}“ nepatří zákazníkovi „{kamion.zakaznik}“.")
         return cleaned_data
 
 

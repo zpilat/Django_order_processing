@@ -47,8 +47,10 @@ def utilita_tisk_dokumentace(modeladmin, request, queryset, html_path, filename)
         pdf_file = HTML(string=all_html).write_pdf()
         response = HttpResponse(pdf_file, content_type="application/pdf")
         response['Content-Disposition'] = f'inline; filename={filename}'
+        logger.info(f"Uživatel {request.user} vygeneroval PDF dokumentaci pro {queryset.count()} beden.")
         return response
     else:
+        logger.warning(f"Uživatel {request.user} se pokusil tisknout dokumentaci, ale nebyly vybrány žádné bedny.")
         messages.error(request, "Není vybrána žádná bedna k tisku.")
         return None
 
@@ -61,6 +63,7 @@ def utilita_tisk_dl_a_proforma_faktury(modeladmin, request, kamion, html_path, f
     pdf_file = HTML(string=html_string).write_pdf()
     response = HttpResponse(pdf_file, content_type="application/pdf")
     response['Content-Disposition'] = f'inline; filename="{filename}"'
+    logger.info(f"Uživatel {request.user} vygeneroval PDF dokumentaci pro kamion {kamion}.")
     return response    
 
 @transaction.atomic
@@ -106,15 +109,18 @@ def utilita_kontrola_zakazek(modeladmin, request, queryset):
     """
     for zakazka in queryset:
         if not zakazka.bedny.exists():
+            logger.warning(f"Zakázka {zakazka} nemá žádné bedny.")
             messages.error(request, f"Zakázka {zakazka} nemá žádné bedny.")
             return
 
         if not any(bedna.stav_bedny == StavBednyChoice.K_EXPEDICI for bedna in zakazka.bedny.all()):
+            logger.warning(f"Zakázka {zakazka} nemá žádné bedny ve stavu K_EXPEDICI.")
             messages.error(request, f"Zakázka {zakazka} nemá žádné bedny ve stavu K_EXPEDICI.")
             return
     
         if zakazka.kamion_prijem.zakaznik.pouze_komplet:
             if not all(bedna.stav_bedny == StavBednyChoice.K_EXPEDICI for bedna in zakazka.bedny.all()):
+                logger.warning(f"Zakázka {zakazka} pro zákazníka s příznakem 'Pouze kompletní zakázky' musí mít všechny bedny ve stavu K_EXPEDICI.")
                 messages.error(request, f"Zakázka {zakazka} pro zákazníka s nastaveným příznakem 'Pouze kompletní zakázky' musí mít všechny bedny ve stavu K_EXPEDICI.")
                 return
             

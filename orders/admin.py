@@ -30,6 +30,9 @@ from .filters import (
 from .forms import ZakazkaAdminForm, BednaAdminForm, ImportZakazekForm, ZakazkaInlineForm
 from .choices import StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice
 
+import logging
+logger = logging.getLogger('orders')
+
 @admin.register(Zakaznik)
 class ZakaznikAdmin(SimpleHistoryAdmin):
     """
@@ -77,6 +80,7 @@ class ZakazkaAutomatizovanyPrijemInline(admin.TabularInline):
                 super().__init__(*args, **kw)
 
         kwargs['form'] = CustomForm
+        logger.info(f"Uživatel {request.user} otevřel inline pro automatizovaný příjem zakázek v kamionu {obj.poradove_cislo}.")
         return super().get_formset(request, obj, **kwargs)
     
     def formfield_for_dbfield(self, db_field, request, **kwargs):
@@ -377,7 +381,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                 'tisk_dodaciho_listu_kamionu_action',
                 'tisk_proforma_faktury_kamionu_action'
             ]
-            
+
         for action in actions_to_remove:
             remove_action(action)
         
@@ -404,6 +408,7 @@ class KamionAdmin(SimpleHistoryAdmin):
         preview = []
 
         if request.method == 'POST':
+            logger.info(f"Uživatel {request.user} zahájil import zakázek pro kamion {kamion.poradove_cislo}.")
             form = ImportZakazekForm(request.POST, request.FILES)
             if form.is_valid():
                 file = form.cleaned_data['file']
@@ -506,12 +511,13 @@ class KamionAdmin(SimpleHistoryAdmin):
 
                     # Setřídění podle sloupce prumer, delka, predpis, artikl, sarze, behalter_nr
                     df.sort_values(by=['prumer', 'delka', 'predpis', 'artikl', 'sarze', 'behalter_nr'], inplace=True)
-
+                    logger.info(f"Uživatel {request.user} úspěšně načetl data z Excel souboru pro import zakázek.")
                     # Uložení záznamů
                     with transaction.atomic():
                         zakazky_cache = {}
                         for _, row in df.iterrows():
                             if pd.isna(row.get('artikl')):
+                                logger.error("Chyba: Sloupec 'Artikel- nummer' nesmí být prázdný.")
                                 raise ValueError("Chyba: Sloupec 'Artikel- nummer' nesmí být prázdný.")
 
                             artikl = row['artikl']
@@ -536,15 +542,18 @@ class KamionAdmin(SimpleHistoryAdmin):
                                 predpis_qs = Predpis.objects.filter(nazev=nazev_predpis, aktivni=True)
                                 predpis = predpis_qs.first() if predpis_qs.exists() else None
                                 if not predpis:
+                                    logger.error(f"Předpis „{nazev_predpis}“ neexistuje nebo není aktivní.")
                                     raise ValueError(f"Předpis „{nazev_predpis}“ neexistuje nebo není aktivní.")
                                 
                                 # Získání typu hlavy, pokud existuje
                                 typ_hlavy_excel = row.get('typ_hlavy', '').strip()
                                 if not typ_hlavy_excel:
+                                    logger.error("Chyba: Sloupec s typem hlavy nesmí být prázdný.")
                                     raise ValueError("Chyba: Sloupec s typem hlavy nesmí být prázdný.")
                                 typ_hlavy_qs = TypHlavy.objects.filter(nazev=typ_hlavy_excel)
                                 typ_hlavy = typ_hlavy_qs.first() if typ_hlavy_qs.exists() else None
                                 if not typ_hlavy:
+                                    logger.error(f"Typ hlavy „{typ_hlavy_excel}“ neexistuje.")
                                     raise ValueError(f"Typ hlavy „{typ_hlavy_excel}“ neexistuje.")
 
                                 zakazka = Zakazka.objects.create(
@@ -576,16 +585,19 @@ class KamionAdmin(SimpleHistoryAdmin):
                                 odfosfatovat=row.get('odfosfatovat'),
                             )
 
+                    logger.info(f"Uživatel {request.user} úspěšně uložil zakázky a bedny pro kamion {kamion.poradove_cislo}.")
                     self.message_user(request, "Import proběhl úspěšně.", messages.SUCCESS)
                     return redirect("..")
 
                 except Exception as e:
+                    logger.error(f"Chyba při importu zakázek pro kamion {kamion.poradove_cislo}: {e}")
                     self.message_user(request, f"Chyba při importu: {e}", messages.ERROR)
                     return redirect("..")
 
         else:
+            logger.info(f"Uživatel {request.user} otevřel formulář pro import zakázek do kamionu {kamion}.")
             form = ImportZakazekForm()
-
+    
         return render(request, 'admin/import_zakazky.html', {
             'form': form,
             'kamion': kamion,

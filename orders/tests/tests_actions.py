@@ -50,27 +50,37 @@ class ActionsBase(TestCase):
         req.session = {}
         req._messages = FallbackStorage(req)
         return req
+    
+
+class DummyAdmin:
+    def message_user(self, request, message, level=None):
+        pass  # Dummy method to avoid errors in tests
 
 
 class ActionsTests(ActionsBase):
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.admin = DummyAdmin()
+
     @patch('orders.actions.utilita_tisk_dokumentace')
     def test_tisk_karet_beden_action(self, mock_util):
         mock_util.return_value = HttpResponse('ok')
         req = self.get_request()
         qs = Bedna.objects.all()
-        resp = actions.tisk_karet_beden_action(None, req, qs)
-        mock_util.assert_called_once_with(None, req, qs,
+        resp = actions.tisk_karet_beden_action(self.admin, req, qs)
+        mock_util.assert_called_once_with(self.admin, req, qs,
                                           'orders/karta_bedny_eur.html', 'karty_beden.pdf')
         self.assertIsInstance(resp, HttpResponse)
 
     def test_tisk_karet_beden_action_empty(self):
-        resp = actions.tisk_karet_beden_action(None, self.get_request(), Bedna.objects.none())
+        resp = actions.tisk_karet_beden_action(self.admin, self.get_request(), Bedna.objects.none())
         self.assertIsNone(resp)
 
     @patch('orders.actions.utilita_tisk_dokumentace')
     def test_tisk_karet_kontroly_kvality_action(self, mock_util):
         mock_util.return_value = HttpResponse('ok')
-        resp = actions.tisk_karet_kontroly_kvality_action(None, self.get_request(), Bedna.objects.all())
+        resp = actions.tisk_karet_kontroly_kvality_action(self.admin, self.get_request(), Bedna.objects.all())
         mock_util.assert_called_once()
         self.assertIsInstance(resp, HttpResponse)
 
@@ -80,13 +90,13 @@ class ActionsTests(ActionsBase):
         data = {'apply': '1', 'odberatel': self.odberatel.id}
         req = self.get_request('post', data)
         with patch('orders.actions.Kamion.objects.create', return_value=self.kamion_vydej) as mock_create:
-            resp = actions.expedice_zakazek_action(None, req, Zakazka.objects.all())
+            resp = actions.expedice_zakazek_action(self.admin, req, Zakazka.objects.all())
         self.assertIsNone(resp)
         mock_create.assert_called()
         mock_expedice.assert_called()
 
     def test_expedice_zakazek_action_empty(self):
-        resp = actions.expedice_zakazek_action(None, self.get_request('post'), Zakazka.objects.none())
+        resp = actions.expedice_zakazek_action(self.admin, self.get_request('post'), Zakazka.objects.none())
         self.assertIsNone(resp)
 
     @patch('orders.actions.utilita_expedice_zakazek')
@@ -95,27 +105,27 @@ class ActionsTests(ActionsBase):
         data = {'apply': '1', 'kamion': self.kamion_vydej.id}
         req = self.get_request('post', data)
         qs = Zakazka.objects.all()
-        resp = actions.expedice_zakazek_kamion_action(None, req, qs)
+        resp = actions.expedice_zakazek_kamion_action(self.admin, req, qs)
         self.assertIsNone(resp)
-        mock_expedice.assert_called_with(None, req, qs, self.kamion_vydej)
+        mock_expedice.assert_called_with(self.admin, req, qs, self.kamion_vydej)
 
     @patch('orders.actions.utilita_tisk_dokumentace')
     def test_tisk_karet_beden_zakazek_action(self, mock_util):
         mock_util.return_value = HttpResponse('ok')
-        resp = actions.tisk_karet_beden_zakazek_action(None, self.get_request(), Zakazka.objects.all())
+        resp = actions.tisk_karet_beden_zakazek_action(self.admin, self.get_request(), Zakazka.objects.all())
         self.assertIsInstance(resp, HttpResponse)
 
     @patch('orders.actions.utilita_tisk_dokumentace')
     def test_tisk_karet_kontroly_kvality_zakazek_action(self, mock_util):
         mock_util.return_value = HttpResponse('ok')
-        resp = actions.tisk_karet_kontroly_kvality_zakazek_action(None, self.get_request(), Zakazka.objects.all())
+        resp = actions.tisk_karet_kontroly_kvality_zakazek_action(self.admin, self.get_request(), Zakazka.objects.all())
         self.assertIsInstance(resp, HttpResponse)
 
     def test_vratit_zakazky_z_expedice_action(self):
         self.zakazka.expedovano = True
         self.zakazka.kamion_vydej = self.kamion_vydej
         self.zakazka.save()
-        actions.vratit_zakazky_z_expedice_action(None, self.get_request('post'), Zakazka.objects.all())
+        actions.vratit_zakazky_z_expedice_action(self.admin, self.get_request('post'), Zakazka.objects.all())
         self.zakazka.refresh_from_db()
         self.assertFalse(self.zakazka.expedovano)
         self.assertIsNone(self.zakazka.kamion_vydej)
@@ -141,11 +151,11 @@ class ActionsTests(ActionsBase):
     @patch('orders.actions.utilita_tisk_dokumentace')
     def test_tisk_karet_beden_kamionu_action(self, mock_util):
         mock_util.return_value = HttpResponse('ok')
-        resp = actions.tisk_karet_beden_kamionu_action(None, self.get_request(), Kamion.objects.filter(id=self.kamion_prijem.id))
+        resp = actions.tisk_karet_beden_kamionu_action(self.admin, self.get_request(), Kamion.objects.filter(id=self.kamion_prijem.id))
         self.assertIsInstance(resp, HttpResponse)
 
     @patch('orders.actions.utilita_tisk_dokumentace')
     def test_tisk_karet_kontroly_kvality_kamionu_action(self, mock_util):
         mock_util.return_value = HttpResponse('ok')
-        resp = actions.tisk_karet_kontroly_kvality_kamionu_action(None, self.get_request(), Kamion.objects.filter(id=self.kamion_prijem.id))
+        resp = actions.tisk_karet_kontroly_kvality_kamionu_action(self.admin, self.get_request(), Kamion.objects.filter(id=self.kamion_prijem.id))
         self.assertIsInstance(resp, HttpResponse)

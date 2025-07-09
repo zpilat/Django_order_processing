@@ -17,153 +17,6 @@ from .choices import  StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaCh
 import logging
 logger = logging.getLogger('orders')
 
-# Create your views here.
-
-def home_view(request):
-    """
-    Zobrazuje úvodní stránku aplikace.
-    
-    Parameters:
-    - request: HTTP request objekt.
-
-    Vrací:
-    - render: HTML stránku `home.html` s aktuálním přihlášeným uživatelem v kontextu.
-    """
-    context = {'db_table': 'home'}
-    logger.debug(f'Zahájena view home_view s uživatelem: {request.user}')
-    return render(request, "orders/home.html", context)
-
-
-class BednyListView(LoginRequiredMixin, ListView):
-    """
-    Zobrazuje seznam beden.
-
-    Template:
-    - `bedny_list.html`
-
-    Kontext:
-    - Seznam beden a možnosti filtrování.
-    """
-    model = Bedna
-    template_name = 'orders/bedny_list.html'
-    ordering = ['id']
-
-    def get_context_data(self, **kwargs):
-        """
-        Přidává další data do kontextu pro zobrazení v šabloně.
-
-        Vrací:
-        - Kontext obsahující filtry a řazení.
-        """
-        context = super().get_context_data(**kwargs)
-
-        columns_fields = [
-            'id', 'cislo_bedny', 'zakazka__priorita', 'zakazka__kamion_prijem__zakaznik__zkratka',
-            'zakazka__kamion_prijem__datum', 'zakazka__kamion_prijem', 'zakazka__artikl', 'zakazka__prumer',
-            'zakazka__delka', 'hmotnost', 'stav_bedny', 'zakazka__typ_hlavy', 'tryskat', 'rovnat',
-            'poznamka',
-        ]
-        # Získání názvů sloupců pro zobrazení v tabulce - slovník {pole: názvy sloupců}
-        columns = {field: get_verbose_name_for_column(Bedna, field) for field in columns_fields}
-        columns['zakazka__kamion_prijem__zakaznik__zkratka'] = 'Zákazník'
-        stav_choices = [("SKLAD", "SKLADEM"), ("", "VŠE")] + list(StavBednyChoice.choices)
-        zakaznik_choices = [("", "VŠE")] + [(zakaznik.zkratka, zakaznik.zkratka) for zakaznik in Zakaznik.objects.all()]
-        typ_hlavy_choices = [("", "VŠE")] + [(typ_hlavy.nazev, typ_hlavy.nazev) for typ_hlavy in TypHlavy.objects.all()]
-        priorita_choices = [("", "VŠE")] + list(PrioritaChoice.choices)
-
-        context.update({
-            'db_table': 'bedny',
-            'sort': self.request.GET.get('sort', 'id'),
-            'order': self.request.GET.get('order', 'up'),
-            'query': self.request.GET.get('query', ''),
-            'stav_filter': self.request.GET.get('stav_filter', 'VŠE'),
-            'stav_choices': stav_choices,
-            'priorita_filter': self.request.GET.get('priorita_filter', 'VŠE'),
-            'priorita_choices': priorita_choices,
-            'zakaznik_filter': self.request.GET.get('zakaznik_filter', 'VŠE'),
-            'zakaznik_choices': zakaznik_choices,
-            'typ_hlavy_filter': self.request.GET.get('typ_hlavy_filter', 'VŠE'),
-            'typ_hlavy_choices': typ_hlavy_choices,
-            'tryskat': self.request.GET.get('tryskat', ''),
-            'rovnat': self.request.GET.get('rovnat', ''),
-            'columns': columns,
-        })
-        return context
-
-    
-    def get_queryset(self):
-        """
-        Získává seznam beden na základě vyhledávání a filtrování.
-
-        Vrací:
-        - queryset: Filtrovaný a seřazený seznam beden.
-        """
-        queryset = Bedna.objects.all()
-
-        query = self.request.GET.get('query', '')
-        sort = self.request.GET.get('sort', 'id')
-        order = self.request.GET.get('order', 'up')
-        stav_filter = self.request.GET.get('stav_filter','SKLAD')      
-        zakaznik_filter = self.request.GET.get('zakaznik_filter', 'VŠE')
-        typ_hlavy_filter = self.request.GET.get('typ_hlavy_filter', 'VŠE')  
-        priorita_filter = self.request.GET.get('priorita_filter', 'VŠE')
-        # Filtrování podle checkboxů
-        filters = {'tryskat': self.request.GET.get('tryskat', ''),
-                   'rovnat': self.request.GET.get('rovnat', '')}
-
-        if stav_filter and stav_filter != 'VŠE':
-            if stav_filter == 'SKLAD':
-                queryset = queryset.exclude(stav_bedny='EX')
-            else:
-                queryset = queryset.filter(stav_bedny=stav_filter)
-
-        if zakaznik_filter and zakaznik_filter != 'VŠE':
-            queryset = queryset.filter(zakazka__kamion_prijem__zakaznik__zkratka=zakaznik_filter)
-
-        if typ_hlavy_filter and typ_hlavy_filter != 'VŠE':
-            queryset = queryset.filter(zakazka__typ_hlavy=typ_hlavy_filter)
-
-        if priorita_filter and priorita_filter != 'VŠE':
-            queryset = queryset.filter(zakazka__priorita=priorita_filter)
-
-        for field, value in filters.items():
-            if value == 'on':
-                queryset = queryset.filter(**{field: True})
-
-        if query:
-            queryset = queryset.filter(
-                Q(cislo_bedny__icontains=query) | Q(zakazka__kamion_prijem__datum__icontains=query)
-            )
-
-        if order == 'down':
-            sort = f"-{sort}"
-         
-        queryset = queryset.order_by(sort)
-
-        return queryset
-    
-    def render_to_response(self, context, **response_kwargs):
-        if self.request.headers.get('Hx-Request') == 'true':
-            return render(self.request, "orders/partials/listview_table.html", context)
-        else:
-            return super().render_to_response(context, **response_kwargs)
-
-
-class ZakazkyListView(LoginRequiredMixin, ListView):
-    """
-    Zobrazuje seznam zakázek.
-
-    Template:
-    - `zakazky_list.html`
-
-    Kontext:
-    - Seznam zakázek a možnosti filtrování.
-    """
-    model = Zakazka
-    template_name = 'orders/zakazky_list.html'
-    ordering = ['id']
-
-
 @login_required
 def dashboard_bedny_view(request):
     """
@@ -221,7 +74,6 @@ def dashboard_bedny_view(request):
     if request.htmx:
         return render(request, "orders/partials/dashboard_bedny_content.html", context)
     return render(request, 'orders/dashboard_bedny.html', context)
-
 
 @login_required
 def dashboard_kamiony_view(request):
@@ -307,3 +159,131 @@ def dashboard_kamiony_view(request):
     if request.htmx:
         return render(request, "orders/partials/dashboard_kamiony_content.html", context)
     return render(request, 'orders/dashboard_kamiony.html', context)
+
+class BednyListView(LoginRequiredMixin, ListView):
+    """
+    Zobrazuje seznam beden.
+
+    Template:
+    - `bedny_list.html`
+
+    Kontext:
+    - Seznam beden a možnosti filtrování.
+    """
+    model = Bedna
+    template_name = 'orders/bedny_list.html'
+    ordering = ['id']
+
+    def get_context_data(self, **kwargs):
+        """
+        Přidává další data do kontextu pro zobrazení v šabloně.
+
+        Vrací:
+        - Kontext obsahující filtry a řazení.
+        """
+        context = super().get_context_data(**kwargs)
+
+        columns_fields = [
+            'id', 'cislo_bedny', 'zakazka__priorita', 'zakazka__kamion_prijem__zakaznik__zkratka',
+            'zakazka__kamion_prijem__datum', 'zakazka__kamion_prijem', 'zakazka__artikl', 'zakazka__prumer',
+            'zakazka__delka', 'hmotnost', 'stav_bedny', 'zakazka__typ_hlavy', 'tryskat', 'rovnat',
+            'poznamka',
+        ]
+        # Získání názvů sloupců pro zobrazení v tabulce - slovník {pole: názvy sloupců}
+        columns = {field: get_verbose_name_for_column(Bedna, field) for field in columns_fields}
+        columns['zakazka__kamion_prijem__zakaznik__zkratka'] = 'Zákazník'
+        stav_choices = [("SKLAD", "SKLADEM"), ("", "VŠE")] + list(StavBednyChoice.choices)
+        zakaznik_choices = [("", "VŠE")] + [(zakaznik.zkratka, zakaznik.zkratka) for zakaznik in Zakaznik.objects.all()]
+        typ_hlavy_choices = [("", "VŠE")] + [(typ_hlavy.nazev, typ_hlavy.nazev) for typ_hlavy in TypHlavy.objects.all()]
+        priorita_choices = [("", "VŠE")] + list(PrioritaChoice.choices)
+
+        context.update({
+            'db_table': 'bedny',
+            'sort': self.request.GET.get('sort', 'id'),
+            'order': self.request.GET.get('order', 'up'),
+            'query': self.request.GET.get('query', ''),
+            'stav_filter': self.request.GET.get('stav_filter', 'VŠE'),
+            'stav_choices': stav_choices,
+            'priorita_filter': self.request.GET.get('priorita_filter', 'VŠE'),
+            'priorita_choices': priorita_choices,
+            'zakaznik_filter': self.request.GET.get('zakaznik_filter', 'VŠE'),
+            'zakaznik_choices': zakaznik_choices,
+            'typ_hlavy_filter': self.request.GET.get('typ_hlavy_filter', 'VŠE'),
+            'typ_hlavy_choices': typ_hlavy_choices,
+            'tryskat': self.request.GET.get('tryskat', ''),
+            'rovnat': self.request.GET.get('rovnat', ''),
+            'columns': columns,
+        })
+        return context
+    
+    def get_queryset(self):
+        """
+        Získává seznam beden na základě vyhledávání a filtrování.
+
+        Vrací:
+        - queryset: Filtrovaný a seřazený seznam beden.
+        """
+        queryset = Bedna.objects.all()
+
+        query = self.request.GET.get('query', '')
+        sort = self.request.GET.get('sort', 'id')
+        order = self.request.GET.get('order', 'up')
+        stav_filter = self.request.GET.get('stav_filter','SKLAD')      
+        zakaznik_filter = self.request.GET.get('zakaznik_filter', 'VŠE')
+        typ_hlavy_filter = self.request.GET.get('typ_hlavy_filter', 'VŠE')  
+        priorita_filter = self.request.GET.get('priorita_filter', 'VŠE')
+        # Filtrování podle checkboxů
+        filters = {'tryskat': self.request.GET.get('tryskat', ''),
+                   'rovnat': self.request.GET.get('rovnat', '')}
+
+        if stav_filter and stav_filter != 'VŠE':
+            if stav_filter == 'SKLAD':
+                queryset = queryset.exclude(stav_bedny='EX')
+            else:
+                queryset = queryset.filter(stav_bedny=stav_filter)
+
+        if zakaznik_filter and zakaznik_filter != 'VŠE':
+            queryset = queryset.filter(zakazka__kamion_prijem__zakaznik__zkratka=zakaznik_filter)
+
+        if typ_hlavy_filter and typ_hlavy_filter != 'VŠE':
+            queryset = queryset.filter(zakazka__typ_hlavy=typ_hlavy_filter)
+
+        if priorita_filter and priorita_filter != 'VŠE':
+            queryset = queryset.filter(zakazka__priorita=priorita_filter)
+
+        for field, value in filters.items():
+            if value == 'on':
+                queryset = queryset.filter(**{field: True})
+
+        if query:
+            queryset = queryset.filter(
+                Q(cislo_bedny__icontains=query) | Q(zakazka__kamion_prijem__datum__icontains=query)
+            )
+
+        if order == 'down':
+            sort = f"-{sort}"
+         
+        queryset = queryset.order_by(sort)
+
+        return queryset
+    
+    def render_to_response(self, context, **response_kwargs):
+        if self.request.headers.get('Hx-Request') == 'true':
+            return render(self.request, "orders/partials/listview_table.html", context)
+        else:
+            return super().render_to_response(context, **response_kwargs)
+
+
+class ZakazkyListView(LoginRequiredMixin, ListView):
+    """
+    Zobrazuje seznam zakázek.
+
+    Template:
+    - `zakazky_list.html`
+
+    Kontext:
+    - Seznam zakázek a možnosti filtrování.
+    """
+    model = Zakazka
+    template_name = 'orders/zakazky_list.html'
+    ordering = ['id']
