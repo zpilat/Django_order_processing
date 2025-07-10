@@ -56,7 +56,7 @@ class DelkaFilter(DynamicTitleFilter):
         Pokud je vybrán zákazník, filtruje se podle délky zakázek tohoto zákazníka.
         Pokud je vybrána skupina tepelného zpracování, filtruje se podle délky zakázek této skupiny.
         Pokud je vybrán stav bedny, filtruje se podle délky zakázek, které mají bedny v tomto stavu.
-        Pokud není vybrán stav bedny, vrátí se všechny délky zakázek, které nejsou expedovány.
+        Pokud není vybrán stav bedny, vrátí se prázdný slovník.
         """
         zakaznik = request.GET.get('zakaznik', None)
         skupina = request.GET.get('skupina', None)
@@ -68,7 +68,7 @@ class DelkaFilter(DynamicTitleFilter):
         if skupina and skupina.isdigit():
             query = query.filter(predpis__skupina=int(skupina))
         if not stav_bedny:
-            query = query.filter(bedny__stav_bedny__in=stav_bedny_bez_expedice)
+            query = query.none()
         else:
             query = query.filter(bedny__stav_bedny=stav_bedny)
 
