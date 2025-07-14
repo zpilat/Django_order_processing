@@ -1150,7 +1150,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         """
         Zobrazí prioritu zakázky a umožní třídění podle hlavičky pole.
         """
-        return obj.zakazka.priorita
+        return obj.zakazka.get_priorita_display() if obj.zakazka else "-"
 
     @admin.display(description='Ø', ordering='zakazka__prumer')
     def get_prumer(self, obj):

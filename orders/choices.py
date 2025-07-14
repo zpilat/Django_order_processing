@@ -24,9 +24,9 @@ class TryskaniChoice(models.TextChoices):
     OTRYSKANA = 'OT', 'Otryskaná'
 
 class PrioritaChoice(models.TextChoices):
-    NIZKA = '-', 'Nízká'
-    STREDNI = 'P2', 'Střední P2'
-    VYSOKA = 'P1', 'Vysoká P1'
+    VYSOKA = 'P1', 'P1'
+    STREDNI = 'P2', 'P2'
+    NIZKA = 'P3', '-'
 
 class KamionChoice(models.TextChoices):
     PRIJEM = 'P', 'Přijem'
