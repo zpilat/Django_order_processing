@@ -1,7 +1,7 @@
 from django.contrib.admin import SimpleListFilter
 from .models import Zakazka, Bedna, Zakaznik, Kamion, TypHlavy, Predpis
 from .choices import StavBednyChoice, TryskaniChoice, RovnaniChoice, PrioritaChoice
-from django.db.models import Exists, OuterRef
+from django.db.models import Exists, OuterRef, Sum
 
 stav_bedny_bez_expedice = [stavbedny for stavbedny in StavBednyChoice if stavbedny != StavBednyChoice.EXPEDOVANO]
 
@@ -53,28 +53,52 @@ class DelkaFilter(DynamicTitleFilter):
 
     def __init__(self, request, params, model, model_admin):
         """
-        Pokud není vybrán stav bedny, nejsou zobrazeny v nabídce žádné délky.        
-        Pokud je vybrán stav bedny, zobrazí se v nabídce délky, které mají bedny v tomto stavu.        
-        Pokud je vybrán zákazník, zobrazí se v nabídce délky tohoto zákazníka.
-        Pokud je vybrána skupina tepelného zpracování, zobrazí se v nabídce délky této skupiny.
+        Pokud není vybrán stav bedny nebo zákazník, nejsou zobrazeny v nabídce žádné délky.
+        Jinak v nabídce délky, které mají bedny v tomto stavu, pro daného zákazníka a případné další filtry.
         """
-        stav_bedny = request.GET.get('stav_bedny', None)
-        if not stav_bedny:
-            self.label_dict = {}
-        else:
-            zakaznik = request.GET.get('zakaznik', None)
-            skupina = request.GET.get('skupina', None)            
-            query = Zakazka.objects.filter(bedny__stav_bedny=stav_bedny)
-            if zakaznik:
-                query = query.filter(kamion_prijem__zakaznik__zkratka=zakaznik)
-            if skupina and skupina.isdigit():
-                query = query.filter(predpis__skupina=int(skupina))
-            # Vytvoří slovník s unikátními délkami pro zobrazení ve filtru ve správném formátu - <delka: int(delka)>
-            self.label_dict = {delka: int(delka) for delka in query.values_list('delka', flat=True).distinct().order_by('delka')}
+        stav_bedny = request.GET.get('stav_bedny')
+        zakaznik = request.GET.get('zakaznik')
+
+        self.label_dict = {}
+        if stav_bedny and zakaznik:
+            query = Bedna.objects.filter(
+                stav_bedny=stav_bedny,
+                zakazka__kamion_prijem__zakaznik__zkratka=zakaznik
+            )
+
+            # Další možné filtry z requestu
+            filter_fields = {
+                'skupina':      'zakazka__predpis__skupina',
+                'tryskani':     'tryskat',
+                'rovnani':      'rovnat',
+                'celozavit':    'zakazka__celozavit',
+                'typ_hlavy':    'zakazka__typ_hlavy',
+                'priorita_bedny': 'zakazka__priorita'
+            }
+
+            filter_kwargs = {
+                db_field: request.GET.get(param)
+                for param, db_field in filter_fields.items()
+                if request.GET.get(param) not in (None, '')
+            }
+            if filter_kwargs:
+                query = query.filter(**filter_kwargs)
+
+            # Sestavení slovníku délka: popisek
+            query_list = (
+                query.values('zakazka__delka')
+                .annotate(celkova_hmotnost=Sum('hmotnost'))
+                .order_by('zakazka__delka')
+            )
+            self.label_dict = {
+                data['zakazka__delka']: f"{int(data['zakazka__delka'])} ({data['celkova_hmotnost']:.0f} kg)"
+                for data in query_list
+            }
+
         super().__init__(request, params, model, model_admin)
 
     def lookups(self, request, model_admin):
-        return self.label_dict.items()    
+        return self.label_dict.items()
 
     def queryset(self, request, queryset):
         value = self.value()
