@@ -69,7 +69,8 @@ class DelkaFilter(DynamicTitleFilter):
                 query = query.filter(kamion_prijem__zakaznik__zkratka=zakaznik)
             if skupina and skupina.isdigit():
                 query = query.filter(predpis__skupina=int(skupina))
-            self.label_dict = dict(query.values_list('delka', 'delka').distinct().order_by('delka'))
+            # Vytvoří slovník s unikátními délkami pro zobrazení ve filtru ve správném formátu - <delka: int(delka)>
+            self.label_dict = {delka: int(delka) for delka in query.values_list('delka', flat=True).distinct().order_by('delka')}
         super().__init__(request, params, model, model_admin)
 
     def lookups(self, request, model_admin):
@@ -81,43 +82,6 @@ class DelkaFilter(DynamicTitleFilter):
             return queryset
         return queryset.filter(zakazka__delka=value)
     
-
-class KombinaceDoPripravkuFilter(DynamicTitleFilter):
-    """
-    Filtrovat bedny vhodné na kombinaci do přípravku podle zadané délky.
-    """
-    title = "Kombinace do přípravku"
-    parameter_name = "kombinace_do_pripravku"
-
-    def __init__(self, request, params, model, model_admin):
-        """
-        Pokud není vybrán stav bedny a nebo je vybrán stav jiný než Přijato, nejsou zobrazeny v nabídce žádné délky.        
-        Pokud je vybrán stav bedny Přijato, zobrazí se v nabídce délky, které mají bedny v tomto stavu.        
-        Pokud je vybrán zákazník, zobrazí se v nabídce délky tohoto zákazníka.
-        Pokud je vybrána skupina tepelného zpracování, zobrazí se v nabídce délky této skupiny.
-        Položky vyfiltrované v changelistu jsou ty, které jsou vhodné pro kombinaci do přípravku.
-        """
-        stav_bedny = request.GET.get('stav_bedny', None)
-        if not stav_bedny:
-            self.label_dict = {}
-        else:
-            zakaznik = request.GET.get('zakaznik', None)
-            skupina = request.GET.get('skupina', None)            
-            query = Zakazka.objects.filter(bedny__stav_bedny=stav_bedny)
-            if zakaznik:
-                query = query.filter(kamion_prijem__zakaznik__zkratka=zakaznik)
-            if skupina and skupina.isdigit():
-                query = query.filter(predpis__skupina=int(skupina))
-            self.label_dict = dict(query.values_list('delka', 'delka').distinct().order_by('delka'))
-        super().__init__(request, params, model, model_admin)
-
-    def lookups(self, request, model_admin):
-        return self.label_dict.items()    
-
-    # Zatím není implementováno
-    def queryset(self, request, queryset):
-        pass
-        
 
 class TryskaniFilter(DynamicTitleFilter):
     """
