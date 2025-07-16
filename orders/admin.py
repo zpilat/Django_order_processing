@@ -730,7 +730,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
                     'get_skupina', 'get_celozavit', 'zkraceny_popis', 'priorita', 'hmotnost_zakazky_k_expedici_brutto',
                     'pocet_beden_k_expedici', 'celkovy_pocet_beden', 'get_komplet',)
     list_display_links = ('artikl',)
-    list_editable = ('priorita',)
+    # list_editable = nastavováno dynamicky v get_list_editable
     list_select_related = ("kamion_prijem", "kamion_vydej")
     search_fields = ('artikl',)
     search_help_text = "Hledat podle artiklu"
@@ -986,6 +986,23 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
         if not request.GET.get('skladem'):
             ld.remove('kamion_vydej_link')
         return ld
+    
+    def get_list_editable(self, request):
+        """
+        Přizpůsobení zobrazení sloupců pro editaci v seznamu zakázek podle aktivního filtru.
+        Pokud není aktivní filtr "skladem=Expedováno", přidá se do list_editable pole priorita.
+        """
+        if request.GET.get('skladem')!= 'expedovano':
+            return ['priorita']
+        return []
+        
+    def changelist_view(self, request, extra_context = None):
+        """
+        Přizpůsobení zobrazení seznamu zakázek v administraci.
+        - Nastaví list_editable na základě aktivního filtru.
+        """
+        self.list_editable = self.get_list_editable(request)
+        return super().changelist_view(request, extra_context)
 
     def get_form(self, request, obj=None, **kwargs):
         """
@@ -1338,3 +1355,6 @@ class CenaAdmin(SimpleHistoryAdmin):
             return f"{obj.popis}x{int(obj.delka_min)}-{int(obj.delka_max)}"
         return obj.popis
     
+
+# Nastavení atributů AdminSite
+admin.site.index_title = "Správa zakázek"
