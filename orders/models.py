@@ -311,6 +311,9 @@ class Zakazka(models.Model):
         verbose_name = 'Zakázka'
         verbose_name_plural = 'zakázky'
         ordering = ['id']
+        permissions = (
+            ('can_change_expedovana_zakazka', 'Může upravovat expedované zakázky'),
+        )
 
     def __str__(self):
         return f'{self.artikl}-{self.kamion_prijem.datum.strftime("%d.%m.%y")}-{self.kamion_prijem.id}. {self.kamion_prijem.zakaznik.zkratka}'
@@ -430,12 +433,17 @@ class Bedna(models.Model):
     mnozstvi = models.PositiveIntegerField(null=True, blank=True, verbose_name='Mn. ks')
     poznamka = models.CharField(max_length=100, null=True, blank=True, verbose_name='Poznámka HPM')
     odfosfatovat = models.BooleanField(default=False, verbose_name='Odfos.')
+    pozastaveno = models.BooleanField(default=False, verbose_name='Pozastaveno',
+                                       help_text='Pokud je bedna pozastavena, nelze s ní pracovat, dokud ji odpovědná osoba neuvolní.')
     history = HistoricalRecords()
 
     class Meta:
         verbose_name = 'Bedna'
         verbose_name_plural = 'bedny'
         ordering = ['id']
+        permissions = (
+            ('can_change_expedovana_bedna', 'Může upravovat expedované bedny'),
+        )
 
     def __str__(self):
         return f'{self.zakazka.kamion_prijem.zakaznik.zkratka} {self.zakazka.kamion_prijem.datum.strftime("%d.%m.%y")}-{self.zakazka.artikl}-{self.zakazka.prumer}x{self.zakazka.delka}-{self.cislo_bedny}'

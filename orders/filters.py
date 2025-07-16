@@ -13,6 +13,7 @@ class DynamicTitleFilter(SimpleListFilter):
     """
     title = "Filtr"
     vse = 'Vše'
+    collapsible = True
 
     def __init__(self, request, params, model, model_admin):
         super().__init__(request, params, model, model_admin)
@@ -29,6 +30,7 @@ class StavBednyFilter(DynamicTitleFilter):
     title = "Stav bedny"
     parameter_name = "stav_bedny"
     vse = 'Vše skladem'
+    collapsible = False
 
     def __init__(self, request, params, model, model_admin):
         self.label_dict = {**dict(StavBednyChoice.choices)}
@@ -171,6 +173,30 @@ class PrioritaBednyFilter(DynamicTitleFilter):
         if value is None:
             return queryset
         return queryset.filter(zakazka__priorita=value)
+    
+
+class PozastavenoFilter(DynamicTitleFilter):
+    """
+    Filtrovat bedny podle toho, jestli jsou pozastavené nebo uvolněné.
+    """
+    title = "Uvolněno"
+    parameter_name = "uvolneno"
+    vse = 'Vše uvolněné'
+
+    def __init__(self, request, params, model, model_admin):
+        self.label_dict = {
+            'pozastaveno': "Pozastaveno",
+        }
+        super().__init__(request, params, model, model_admin)
+
+    def lookups(self, request, model_admin):
+        return self.label_dict.items()
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if value == 'pozastaveno':
+            return queryset.filter(pozastaveno=True)
+        return queryset.filter(pozastaveno=False)
 
 
 class PrioritaZakazkyFilter(DynamicTitleFilter):
