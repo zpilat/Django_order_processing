@@ -84,16 +84,19 @@ class DelkaFilter(DynamicTitleFilter):
             if filter_kwargs:
                 query = query.filter(**filter_kwargs)
 
-            # Sestavení slovníku délka: popisek
-            query_list = (
-                query.values('zakazka__delka')
-                .annotate(celkova_hmotnost=Sum('hmotnost'))
-                .order_by('zakazka__delka')
-            )
-            self.label_dict = {
-                data['zakazka__delka']: f"{int(data['zakazka__delka'])} ({data['celkova_hmotnost']:.0f} kg)"
-                for data in query_list
-            }
+            if stav_bedny == StavBednyChoice.PRIJATO:
+                # Sestavení slovníku délka: popisek
+                query_list = (
+                    query.values('zakazka__delka')
+                    .annotate(celkova_hmotnost=Sum('hmotnost'))
+                    .order_by('zakazka__delka')
+                )
+                self.label_dict = {
+                    data['zakazka__delka']: f"{int(data['zakazka__delka'])} ({data['celkova_hmotnost']:.0f} kg)"
+                    for data in query_list
+                }
+            else:
+                self.label_dict = {delka: int(delka) for delka in query.values_list('zakazka__delka', flat=True).distinct().order_by('zakazka__delka')}
 
         super().__init__(request, params, model, model_admin)
 
