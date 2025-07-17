@@ -1250,9 +1250,9 @@ class BednaAdmin(SimpleHistoryAdmin):
     def get_list_editable(self, request):
         """
         Přizpůsobení zobrazení sloupců pro editaci v seznamu beden podle aktivního filtru.
-        Pokud je aktivní filtr Stav bedny = Expedováno, odebere se inline-editace.
+        Pokud je aktivní filtr Stav bedny = Expedováno nebo Uvolněno = Pozastaveno, odebere se inline-editace.
         """
-        if request.GET.get('stav_bedny') == 'EX':
+        if request.GET.get('stav_bedny', None) == 'EX' or request.GET.get('uvolneno', None) == 'pozastaveno':
             return []
         return ['stav_bedny', 'tryskat', 'rovnat', 'poznamka']    
     
