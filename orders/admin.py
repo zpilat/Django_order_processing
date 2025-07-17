@@ -1,4 +1,5 @@
 from django.contrib import admin, messages
+from django.contrib.auth.models import Permission
 from django.db import models, transaction
 from django.forms import TextInput, RadioSelect
 from django.forms.models import BaseInlineFormSet
@@ -32,6 +33,8 @@ from .choices import StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaCho
 
 import logging
 logger = logging.getLogger('orders')
+
+admin.site.register(Permission)
 
 @admin.register(Zakaznik)
 class ZakaznikAdmin(SimpleHistoryAdmin):
