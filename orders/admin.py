@@ -1078,7 +1078,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     list_display = ('get_cislo_bedny', 'get_behalter_nr', 'zakazka_link', 'kamion_prijem_link', 'kamion_vydej_link',
                     'rovnat', 'tryskat', 'stav_bedny', 'get_prumer', 'get_delka','get_skupina_TZ', 'get_typ_hlavy',
                     'get_celozavit', 'zkraceny_popis', 'hmotnost', 'tara', 'get_priorita', 'get_datum', 'poznamka',)
-    # list_editable - je nastaveno pro různé stavy filtru Skladem v metodě changelist_view
+    list_editable = ('rovnat', 'tryskat', 'stav_bedny', 'poznamka',)
     list_display_links = ('get_cislo_bedny', )
     list_select_related = ("zakazka", "zakazka__kamion_prijem", "zakazka__kamion_vydej")
     list_per_page = 30
@@ -1246,19 +1246,29 @@ class BednaAdmin(SimpleHistoryAdmin):
         if obj and obj.pozastaveno and not request.user.has_perm('orders.change_bedna_pozastavena'):
             return False
         return super().has_change_permission(request, obj)  
-    
-    def get_list_editable(self, request):
+
+    def get_changelist_formset(self, request, **kwargs):
         """
-        Přizpůsobení zobrazení sloupců pro editaci v seznamu beden podle aktivního filtru.
-        Pokud je aktivní filtr Stav bedny = Expedováno nebo Uvolněno = Pozastaveno, odebere se inline-editace.
+        Vytvoří vlastní formset pro ChangeList, který zakáže editaci polí v závislosti na stavu bedny a oprávněních uživatele.
+        Pokud je bedna pozastavena nebo expedována a uživatel nemá příslušná oprávnění, zakáže se editace polí.
         """
-        if request.GET.get('stav_bedny') == 'EX' or request.GET.get('uvolneno') == 'pozastaveno':
-            return []
-        return ['stav_bedny', 'tryskat', 'rovnat', 'poznamka']
-    
-    def changelist_view(self, request, extra_context=None):
-        self.list_editable = self.get_list_editable(request)
-        return super().changelist_view(request, extra_context)
+        formset = super().get_changelist_formset(request, **kwargs)
+
+        class CustomFormset(formset):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                for form in self.forms:
+                    obj = form.instance
+                    zamknout = (
+                        obj.pozastaveno and not request.user.has_perm('orders.can_change_bedna_pozastavena')
+                    ) or (
+                        obj.stav_bedny == StavBednyChoice.EXPEDOVANO and not request.user.has_perm('orders.can_change_bedna_expedovana')
+                    )
+                    if zamknout:
+                        for field in form.fields:
+                            form.fields[field].disabled = True
+
+        return CustomFormset
     
     def get_list_display(self, request):
         """

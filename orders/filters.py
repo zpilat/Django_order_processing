@@ -181,10 +181,10 @@ class PozastavenoFilter(DynamicTitleFilter):
     """
     title = "Uvolněno"
     parameter_name = "uvolneno"
-    vse = 'Vše uvolněno'
 
     def __init__(self, request, params, model, model_admin):
         self.label_dict = {
+        'uvolneno': "Uvolněno",
         'pozastaveno': "Pozastaveno",
         }
         super().__init__(request, params, model, model_admin)
@@ -196,7 +196,9 @@ class PozastavenoFilter(DynamicTitleFilter):
         value = self.value()
         if value == 'pozastaveno':
             return queryset.filter(pozastaveno=True)
-        return queryset.filter(pozastaveno=False)
+        elif value == 'uvolneno':
+            return queryset.filter(pozastaveno=False)
+        return queryset.filter()
 
 
 class PrioritaZakazkyFilter(DynamicTitleFilter):
