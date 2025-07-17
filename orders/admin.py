@@ -1078,7 +1078,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     list_display = ('get_cislo_bedny', 'get_behalter_nr', 'zakazka_link', 'kamion_prijem_link', 'kamion_vydej_link',
                     'rovnat', 'tryskat', 'stav_bedny', 'get_prumer', 'get_delka','get_skupina_TZ', 'get_typ_hlavy',
                     'get_celozavit', 'zkraceny_popis', 'hmotnost', 'tara', 'get_priorita', 'get_datum', 'poznamka',)
-    list_editable = ('rovnat', 'tryskat', 'stav_bedny', 'poznamka',)
+    # list_editable = nastavováno dynamicky v get_list_editable
     list_display_links = ('get_cislo_bedny', )
     list_select_related = ("zakazka", "zakazka__kamion_prijem", "zakazka__kamion_vydej")
     list_per_page = 30
@@ -1246,11 +1246,27 @@ class BednaAdmin(SimpleHistoryAdmin):
         if obj and obj.pozastaveno and not request.user.has_perm('orders.change_bedna_pozastavena'):
             return False
         return super().has_change_permission(request, obj)  
+    
+    def get_list_editable(self, request):
+        """
+        Přizpůsobení zobrazení sloupců pro editaci v seznamu beden podle aktivního filtru.
+        Pokud je aktivní filtr Stav bedny = Expedováno, odebere se inline-editace.
+        """
+        if request.GET.get('stav_bedny') == 'EX':
+            return []
+        return ['stav_bedny', 'tryskat', 'rovnat', 'poznamka']    
+    
+    def changelist_view(self, request, extra_context=None):
+        """
+        Přizpůsobení zobrazení seznamu beden podle aktivního filtru.
+        """
+        self.list_editable = self.get_list_editable(request)
+        return super().changelist_view(request, extra_context)
 
     def get_changelist_formset(self, request, **kwargs):
         """
         Vytvoří vlastní formset pro ChangeList, který zakáže editaci polí v závislosti na stavu bedny a oprávněních uživatele.
-        Pokud je bedna pozastavena nebo expedována a uživatel nemá příslušná oprávnění, zakáže se editace polí.
+        Pokud je bedna pozastavena a uživatel nemá příslušná oprávnění, zakáže se editace polí.
         """
         formset = super().get_changelist_formset(request, **kwargs)
 
@@ -1259,12 +1275,7 @@ class BednaAdmin(SimpleHistoryAdmin):
                 super().__init__(*args, **kwargs)
                 for form in self.forms:
                     obj = form.instance
-                    zamknout = (
-                        obj.pozastaveno and not request.user.has_perm('orders.can_change_bedna_pozastavena')
-                    ) or (
-                        obj.stav_bedny == StavBednyChoice.EXPEDOVANO and not request.user.has_perm('orders.can_change_bedna_expedovana')
-                    )
-                    if zamknout:
+                    if obj.pozastaveno and not request.user.has_perm('orders.can_change_bedna_pozastavena'):
                         for field in form.fields:
                             form.fields[field].disabled = True
 
@@ -1273,12 +1284,11 @@ class BednaAdmin(SimpleHistoryAdmin):
     def get_list_display(self, request):
         """
         Přizpůsobení zobrazení sloupců v seznamu Bedna.
-        Pokud není aktivní filtr Expedováno, vyloučí se zobrazení sloupce kamion_vydej_link.
+        Pokud není aktivní filtr stav bedny Expedováno, vyloučí se zobrazení sloupce kamion_vydej_link.
         """
         list_display = list(super().get_list_display(request))
-        if request.GET.get('stav_bedny_vlastni') != 'EX':
+        if request.GET.get('stav_bedny', None) != 'EX':
             list_display.remove('kamion_vydej_link')
-            list_display.remove('kamion_prijem_link')
         return list_display
 
 
