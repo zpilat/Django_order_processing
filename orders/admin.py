@@ -34,7 +34,11 @@ from .choices import StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaCho
 import logging
 logger = logging.getLogger('orders')
 
-admin.site.register(Permission)
+@admin.register(Permission)
+class PermissionAdmin(admin.ModelAdmin):
+    list_display = ('name', 'codename', 'content_type')
+    search_fields = ('name', 'codename')
+    list_filter = ('content_type',)
 
 @admin.register(Zakaznik)
 class ZakaznikAdmin(SimpleHistoryAdmin):
@@ -718,7 +722,7 @@ class BednaInline(admin.TabularInline):
         Přizpůsobení oprávnění pro změnu inline Bedna.
         - Pokud je zakázka expedována a uživatel nemá oprávnění, zakáže se možnost změny.
         """
-        if obj and obj.expedovano and not request.user.has_perm('orders.can_change_expedovana_bedna'):
+        if obj and obj.expedovano and not request.user.has_perm('orders.change_expedovana_bedna'):
             return False
         return super().has_change_permission(request, obj)
     
@@ -882,7 +886,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
         """
         Kontrola oprávnění pro změnu zakázky, v případě expedované zakázky nelze měnit, pokud nemá uživatel oprávnění.
         """
-        if obj and obj.expedovano and not request.user.has_perm('orders.can_change_expedovana_zakazka'):
+        if obj and obj.expedovano and not request.user.has_perm('orders.change_expedovana_zakazka'):
             return False
         return super().has_change_permission(request, obj)  
        
@@ -1237,9 +1241,9 @@ class BednaAdmin(SimpleHistoryAdmin):
         """
         Kontrola oprávnění pro změnu bedny, v případě expedované nebo pozastavené bedny nelze bez práv měnit.
         """
-        if obj and obj.stav_bedny == StavBednyChoice.EXPEDOVANO and not request.user.has_perm('orders.can_change_bedna_expedovana'):
+        if obj and obj.stav_bedny == StavBednyChoice.EXPEDOVANO and not request.user.has_perm('orders.change_bedna_expedovana'):
             return False
-        if obj and obj.pozastaveno and not request.user.has_perm('orders.can_change_bedna_pozastavena'):
+        if obj and obj.pozastaveno and not request.user.has_perm('orders.change_bedna_pozastavena'):
             return False
         return super().has_change_permission(request, obj)  
     

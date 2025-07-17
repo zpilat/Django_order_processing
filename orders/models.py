@@ -312,7 +312,7 @@ class Zakazka(models.Model):
         verbose_name_plural = 'zakázky'
         ordering = ['id']
         permissions = (
-            ('can_change_expedovana_zakazka', 'Může upravovat expedované zakázky'),
+            ('change_expedovana_zakazka', 'Může upravovat expedované zakázky'),
         )
 
     def __str__(self):
@@ -442,8 +442,8 @@ class Bedna(models.Model):
         verbose_name_plural = 'bedny'
         ordering = ['id']
         permissions = (
-            ('can_change_expedovana_bedna', 'Může upravovat expedované bedny'),
-            ('can_change_pozastavena_bedna', 'Může upravovat a uvolnit pozastavené bedny'),
+            ('change_expedovana_bedna', 'Může upravovat expedované bedny'),
+            ('change_pozastavena_bedna', 'Může upravovat a uvolnit pozastavené bedny'),
         )
 
     def __str__(self):
