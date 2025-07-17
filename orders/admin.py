@@ -228,8 +228,8 @@ class KamionAdmin(SimpleHistoryAdmin):
     actions = [import_kamionu_action, tisk_karet_beden_kamionu_action, tisk_karet_kontroly_kvality_kamionu_action, tisk_dodaciho_listu_kamionu_action,
                tisk_proforma_faktury_kamionu_action]
     # Parametry pro zobrazení detailu v administraci
-    fields = ('zakaznik', 'datum', 'poradove_cislo', 'cislo_dl', 'prijem_vydej', 'odberatel',) 
-    readonly_fields = ('prijem_vydej', 'poradove_cislo',)
+    fields = ('zakaznik', 'datum', 'poradove_cislo', 'cislo_dl', 'prijem_vydej', 'odberatel',) # další úpravy v get_fields
+    readonly_fields = ('prijem_vydej', 'poradove_cislo',) # další úpravy v get_readonly_fields
     # Parametry pro zobrazení seznamu v administraci
     list_display = ('get_kamion_str', 'get_zakaznik_zkraceny_nazev', 'get_datum', 'poradove_cislo', 'cislo_dl', 'prijem_vydej',
                     'odberatel', 'get_pocet_beden_skladem', 'get_celkova_hmotnost_netto', 'get_celkova_hmotnost_brutto',)
@@ -709,6 +709,15 @@ class BednaInline(admin.TabularInline):
 
         fields = [f for f in fields if f not in exclude_fields]
         return fields
+
+    def has_change_permission(self, request, obj=None):
+        """
+        Přizpůsobení oprávnění pro změnu inline Bedna.
+        - Pokud je zakázka expedována a uživatel nemá oprávnění, zakáže se možnost změny.
+        """
+        if obj and obj.expedovano and not request.user.has_perm('orders.can_change_expedovana_bedna'):
+            return False
+        return super().has_change_permission(request, obj)
     
 
 @admin.register(Zakazka)
@@ -868,9 +877,9 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
 
     def has_change_permission(self, request, obj=None):
         """
-        Kontrola oprávnění pro změnu zakázky, v případě expedované zakázky nelze měnit.
+        Kontrola oprávnění pro změnu zakázky, v případě expedované zakázky nelze měnit, pokud nemá uživatel oprávnění.
         """
-        if obj and obj.expedovano:
+        if obj and obj.expedovano and not request.user.has_perm('orders.can_change_expedovana_zakazka'):
             return False
         return super().has_change_permission(request, obj)  
        
@@ -986,20 +995,19 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
         if not request.GET.get('skladem'):
             ld.remove('kamion_vydej_link')
         return ld
-    
+
     def get_list_editable(self, request):
         """
         Přizpůsobení zobrazení sloupců pro editaci v seznamu zakázek podle aktivního filtru.
         Pokud není aktivní filtr "skladem=Expedováno", přidá se do list_editable pole priorita.
         """
-        if request.GET.get('skladem')!= 'expedovano':
+        if request.GET.get('skladem') != 'expedovano':
             return ['priorita']
         return []
-        
-    def changelist_view(self, request, extra_context = None):
+
+    def changelist_view(self, request, extra_context=None):
         """
-        Přizpůsobení zobrazení seznamu zakázek v administraci.
-        - Nastaví list_editable na základě aktivního filtru.
+        Přizpůsobení zobrazení seznamu zakázek podle aktivního filtru.
         """
         self.list_editable = self.get_list_editable(request)
         return super().changelist_view(request, extra_context)
@@ -1224,19 +1232,26 @@ class BednaAdmin(SimpleHistoryAdmin):
 
     def has_change_permission(self, request, obj=None):
         """
-        Kontrola oprávnění pro změnu bedny, v případě expedované bedny nelze měnit.
+        Kontrola oprávnění pro změnu bedny, v případě expedované nebo pozastavené bedny nelze bez práv měnit.
         """
-        if obj and obj.stav_bedny == StavBednyChoice.EXPEDOVANO:
+        if obj and obj.stav_bedny == StavBednyChoice.EXPEDOVANO and not request.user.has_perm('orders.can_change_bedna_expedovana'):
+            return False
+        if obj and obj.pozastaveno and not request.user.has_perm('orders.can_change_bedna_pozastavena'):
             return False
         return super().has_change_permission(request, obj)  
     
+    def get_list_editable(self, request):
+        """
+        Přizpůsobení zobrazení sloupců pro editaci v seznamu beden podle aktivního filtru.
+        Pokud je aktivní filtr Stav bedny = Expedováno nebo Uvolněno = Pozastaveno, odebere se inline-editace.
+        """
+        if request.GET.get('stav_bedny') == 'EX' or request.GET.get('uvolneno') == 'pozastaveno':
+            return []
+        return ['stav_bedny', 'tryskat', 'rovnat', 'poznamka']
+    
     def changelist_view(self, request, extra_context=None):
-        # když je aktivní filtr Stav bedny vlastni = EX (expedováno), zakáže se inline-editace
-        if request.GET.get('stav_bedny_vlastni') == 'EX':
-            self.list_editable = ()      # žádné editovatelné sloupce
-        else:
-            self.list_editable = ('stav_bedny', 'rovnat', 'tryskat', 'poznamka',)
-        return super().changelist_view(request, extra_context)        
+        self.list_editable = self.get_list_editable(request)
+        return super().changelist_view(request, extra_context)
     
     def get_list_display(self, request):
         """

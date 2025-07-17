@@ -443,6 +443,7 @@ class Bedna(models.Model):
         ordering = ['id']
         permissions = (
             ('can_change_expedovana_bedna', 'Může upravovat expedované bedny'),
+            ('can_change_pozastavena_bedna', 'Může upravovat a uvolnit pozastavené bedny'),
         )
 
     def __str__(self):

@@ -181,11 +181,11 @@ class PozastavenoFilter(DynamicTitleFilter):
     """
     title = "Uvolněno"
     parameter_name = "uvolneno"
-    vse = 'Vše uvolněné'
+    vse = 'Vše uvolněno'
 
     def __init__(self, request, params, model, model_admin):
         self.label_dict = {
-            'pozastaveno': "Pozastaveno",
+        'pozastaveno': "Pozastaveno",
         }
         super().__init__(request, params, model, model_admin)
 
