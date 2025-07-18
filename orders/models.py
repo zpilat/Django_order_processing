@@ -466,6 +466,23 @@ class Bedna(models.Model):
         for i, cislo in enumerate(cisla_beden, start=1):
             if cislo == self.cislo_bedny:
                 return i 
+            
+        return 0  # pokud není nalezeno, vrací 0
+    
+    def clean(self):
+        """
+        Validace stavu bedny a tryskání/rovnání.
+        - Pokud je stav bedny K_EXPEDICI nebo EXPEDOVANO, musí být tryskání buď Čistá nebo Otryskaná
+        - Pokud je stav bedny K_EXPEDICI nebo EXPEDOVANO, musí být rovnání buď Rovná nebo Vyrovnaná.
+        """
+        super().clean()    
+        if self.stav_bedny in [StavBednyChoice.K_EXPEDICI, StavBednyChoice.EXPEDOVANO]:
+            if self.tryskat not in [TryskaniChoice.CISTA, TryskaniChoice.OTRYSKANA]:
+                raise ValidationError(_("Pro stav 'K expedici' a 'Expedováno' musí být tryskání buď Čistá nebo Otryskaná."))
+                logger.warning(f'Uzivatel se pokusil uložit bednu ve stavu {self.stav_bedny} s neplatným stavem tryskání: {self.tryskat}')
+            if self.rovnat not in [RovnaniChoice.ROVNA, RovnaniChoice.VYROVNANA]:
+                raise ValidationError(_("Pro stav 'K expedici' a 'Expedováno' musí být rovnání buď Rovná nebo Vyrovnaná."))
+                logger.warning(f'Uzivatel se pokusil uložit bednu ve stavu {self.stav_bedny} s neplatným stavem rovnání: {self.rovnat}')
 
     def save(self, *args, **kwargs):
         """
@@ -476,6 +493,7 @@ class Bedna(models.Model):
         """
         is_existing_instance = bool(self.pk)
 
+        # Pokud se jedná o novou instanci, nastaví se číslo bedny a další hodnoty
         if not is_existing_instance:
             zakaznik = self.zakazka.kamion_prijem.zakaznik
 

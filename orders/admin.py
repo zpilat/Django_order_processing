@@ -75,6 +75,10 @@ class ZakazkaAutomatizovanyPrijemInline(admin.TabularInline):
     }
 
     def get_formset(self, request, obj=None, **kwargs):
+        """
+        Přizpůsobení formsetu pro inline.
+        Pokud je objekt (kamion) pro příjem, předá se zakazník do formuláře.
+        """
         zakaznik = None
         if obj and obj.prijem_vydej == 'P':
             zakaznik = obj.zakaznik  # obj je instance Kamion
@@ -87,7 +91,6 @@ class ZakazkaAutomatizovanyPrijemInline(admin.TabularInline):
                 super().__init__(*args, **kw)
 
         kwargs['form'] = CustomForm
-        logger.info(f"Uživatel {request.user} otevřel inline pro automatizovaný příjem zakázek v kamionu {obj.poradove_cislo}.")
         return super().get_formset(request, obj, **kwargs)
     
     def formfield_for_dbfield(self, db_field, request, **kwargs):
@@ -1026,7 +1029,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
         """
         FormClass = super().get_form(request, obj, **kwargs)
         
-        class PatchedForm(FormClass):
+        class CustomForm(FormClass):
             def __init__(self_inner, *args, **inner_kwargs):
                 super().__init__(*args, **inner_kwargs)
 
@@ -1051,9 +1054,9 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
                         allowed = prvni_bedna.get_allowed_rovnat_choices()
                         self_inner.fields['rovnat'].choices = allowed
                         self_inner.fields['rovnat'].initial = prvni_bedna.rovnat
-        
-        return PatchedForm
-    
+
+        return CustomForm
+
 
 @admin.register(Bedna)
 class BednaAdmin(SimpleHistoryAdmin):
