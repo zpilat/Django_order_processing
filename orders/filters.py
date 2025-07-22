@@ -86,7 +86,7 @@ class DelkaFilter(DynamicTitleFilter):
             if filter_kwargs:
                 query = query.filter(**filter_kwargs)
 
-            if stav_bedny == StavBednyChoice.PRIJATO:
+            if stav_bedny != StavBednyChoice.EXPEDOVANO:
                 # Sestavení slovníku délka: popisek
                 query_list = (
                     query.values('zakazka__delka')
@@ -94,7 +94,7 @@ class DelkaFilter(DynamicTitleFilter):
                     .order_by('zakazka__delka')
                 )
                 self.label_dict = {
-                    data['zakazka__delka']: f"{int(data['zakazka__delka'])} ({data['celkova_hmotnost']:.0f} kg)"
+                    data['zakazka__delka']: f"{int(data['zakazka__delka'])} <{data['celkova_hmotnost']:.0f} kg>"
                     for data in query_list
                 }
             else:

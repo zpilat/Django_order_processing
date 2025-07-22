@@ -21,7 +21,7 @@ from .actions import (
     expedice_zakazek_action, import_kamionu_action, tisk_karet_beden_action, tisk_karet_beden_zakazek_action,
     tisk_karet_beden_kamionu_action, tisk_dodaciho_listu_kamionu_action, vratit_zakazky_z_expedice_action, expedice_zakazek_kamion_action,
     tisk_karet_kontroly_kvality_action, tisk_karet_kontroly_kvality_zakazek_action, tisk_karet_kontroly_kvality_kamionu_action,
-    tisk_proforma_faktury_kamionu_action
+    tisk_proforma_faktury_kamionu_action, zmenit_stav_bedny_na_k_navezeni_action
     )
 from .filters import (
     ExpedovanaZakazkaFilter, StavBednyFilter, KompletZakazkaFilter, AktivniPredpisFilter, SkupinaFilter, ZakaznikBednyFilter,
@@ -357,12 +357,6 @@ class KamionAdmin(SimpleHistoryAdmin):
         Odstraní akce, které nejsou relevantní pro daný typ kamionu.
         """
         actions = super().get_actions(request)
-        def remove_action(action_name):
-            """
-            Pomocná funkce pro odstranění akce z administrace.
-            """
-            if action_name in actions:
-                del actions[action_name]
 
         if (request.GET.get('prijem_vydej') == 'V'):
             actions_to_remove = [
@@ -393,7 +387,8 @@ class KamionAdmin(SimpleHistoryAdmin):
             ]
 
         for action in actions_to_remove:
-            remove_action(action)
+            if action in actions:
+                del actions[action]
         
         return actions
 
@@ -752,7 +747,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     # list_editable = nastavováno dynamicky v get_list_editable
     list_select_related = ("kamion_prijem", "kamion_vydej")
     search_fields = ('artikl',)
-    search_help_text = "Hledat podle artiklu"
+    search_help_text = "Dle artiklu"
     list_filter = (ZakaznikZakazkyFilter, KompletZakazkaFilter, PrioritaZakazkyFilter, CelozavitZakazkyFilter, TypHlavyZakazkyFilter,
                    OberflacheFilter, ExpedovanaZakazkaFilter,)
     ordering = ('-id',)
@@ -1068,7 +1063,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     - Pro každý řádek dropdown omezí na povolené volby podle stejné logiky.
     - Číslo bedny se generuje automaticky a je readonly
     """
-    actions = [tisk_karet_beden_action, tisk_karet_kontroly_kvality_action]
+    actions = [tisk_karet_beden_action, tisk_karet_kontroly_kvality_action, zmenit_stav_bedny_na_k_navezeni_action]
     form = BednaAdminForm
 
     # Parametry pro zobrazení detailu v administraci
@@ -1086,7 +1081,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     list_select_related = ("zakazka", "zakazka__kamion_prijem", "zakazka__kamion_vydej")
     list_per_page = 30
     search_fields = ('cislo_bedny', 'behalter_nr', 'zakazka__artikl',)
-    search_help_text = "Hledat dle čísla bedny, č.b. zákazníka nebo zakázky"
+    search_help_text = "Dle čísla bedny, č.b. zákazníka nebo zakázky"
     list_filter = (ZakaznikBednyFilter, StavBednyFilter, TryskaniFilter, RovnaniFilter, CelozavitBednyFilter,
                    TypHlavyBednyFilter, PrioritaBednyFilter, PozastavenoFilter, SkupinaFilter, DelkaFilter)
     ordering = ('id',)
@@ -1294,6 +1289,26 @@ class BednaAdmin(SimpleHistoryAdmin):
             list_display.remove('kamion_vydej_link')
         return list_display
 
+    def get_actions(self, request):
+        """
+        Přizpůsobí dostupné akce v administraci podle filtru stavu bedny.
+        Pokud není stav bedny PRIJATO, odebere akci pro změnu stavu bedny na K_NAVEZENI.
+        """
+        actions = super().get_actions(request)
+
+        actions_to_remove = []
+
+        if (request.GET.get('stav_bedny', None) != 'PR'):
+            actions_to_remove = [
+                'zmenit_stav_bedny_na_k_navezeni_action',
+            ]
+
+        for action in actions_to_remove:
+            if action in actions:
+                del actions[action]
+
+        return actions
+
 
 @admin.register(Predpis)
 class PredpisAdmin(SimpleHistoryAdmin):
@@ -1305,7 +1320,7 @@ class PredpisAdmin(SimpleHistoryAdmin):
                     'sarzovani', 'pletivo', 'poznamka', 'aktivni')
     list_display_links = ('nazev',)
     search_fields = ('nazev',)
-    search_help_text = "Hledat dle názvu předpisu"
+    search_help_text = "Dle názvu předpisu"
     list_filter = ('zakaznik__zkraceny_nazev', AktivniPredpisFilter)
     ordering = ['-zakaznik__zkratka', 'nazev']
     list_per_page = 25
@@ -1356,7 +1371,7 @@ class CenaAdmin(SimpleHistoryAdmin):
     list_display_links = ('popis_s_delkou',)
     list_filter = ('zakaznik',)
     search_fields = ('popis',)
-    search_help_text = "Hledat dle popisu ceny"
+    search_help_text = "Dle popisu ceny"
     autocomplete_fields = ('predpis',)
     save_as = True
     list_per_page = 25
