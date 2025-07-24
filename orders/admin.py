@@ -1239,9 +1239,9 @@ class BednaAdmin(SimpleHistoryAdmin):
         """
         Kontrola oprávnění pro změnu bedny, v případě expedované nebo pozastavené bedny nelze bez práv měnit.
         """
-        if obj and obj.stav_bedny == StavBednyChoice.EXPEDOVANO and not request.user.has_perm('orders.change_bedna_expedovana'):
+        if obj and obj.stav_bedny == StavBednyChoice.EXPEDOVANO and not request.user.has_perm('orders.change_expedovana_bedna'):
             return False
-        if obj and obj.pozastaveno and not request.user.has_perm('orders.change_bedna_pozastavena'):
+        if obj and obj.pozastaveno and not request.user.has_perm('orders.change_pozastavena_bedna'):
             return False
         return super().has_change_permission(request, obj)  
     
@@ -1273,7 +1273,7 @@ class BednaAdmin(SimpleHistoryAdmin):
                 super().__init__(*args, **kwargs)
                 for form in self.forms:
                     obj = form.instance
-                    if obj.pozastaveno and not request.user.has_perm('orders.can_change_bedna_pozastavena'):
+                    if obj.pozastaveno and not request.user.has_perm('orders.change_pozastavena_bedna'):
                         for field in form.fields:
                             form.fields[field].disabled = True
 
