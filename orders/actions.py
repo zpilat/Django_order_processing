@@ -87,6 +87,9 @@ def expedice_zakazek_action(modeladmin, request, queryset):
         - Pokud ne, vyexpeduje bedny K_EXPEDICI a vytvoří novou zakázku se stejnými daty jako původní a převede do ní bedny, které nejsou ve stavu `K_EXPEDICI`.            
     6. Po úspěšném průběhu odešle `messages.success`. V případě nesplnění podmínek vrátí chybu pomocí `messages.error` a akce se přeruší.
     """        
+    if not queryset.exists():
+        return None
+
     utilita_kontrola_zakazek(modeladmin, request, queryset)
 
     zakaznici = Zakaznik.objects.filter(kamiony__zakazky_prijem__in=queryset).distinct()

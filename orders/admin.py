@@ -724,6 +724,24 @@ class BednaInline(admin.TabularInline):
             return False
         return super().has_change_permission(request, obj)
     
+    def get_formset(self, request, obj=None, **kwargs):
+        """
+        Přizpůsobení formsetu pro inline Bedna.
+        - Pokud je bedna pozastavena a uživatel nemá oprávnění, zakáže se možnost změny polí.
+        """
+        Formset = super().get_formset(request, obj, **kwargs)
+
+        class CustomFormset(Formset):
+            def __init__(self_inner, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                for form in self_inner.forms:
+                    bedna = form.instance
+                    if bedna.pozastaveno and not request.user.has_perm('orders.change_pozastavena_bedna'):
+                        for field in form.fields:
+                            form.fields[field].disabled = True
+
+        return CustomFormset
+    
 
 @admin.register(Zakazka)
 class ZakazkaAdmin(SimpleHistoryAdmin):
@@ -1269,9 +1287,9 @@ class BednaAdmin(SimpleHistoryAdmin):
         formset = super().get_changelist_formset(request, **kwargs)
 
         class CustomFormset(formset):
-            def __init__(self, *args, **kwargs):
+            def __init__(self_inner, *args, **kwargs):
                 super().__init__(*args, **kwargs)
-                for form in self.forms:
+                for form in self_inner.forms:
                     obj = form.instance
                     if obj.pozastaveno and not request.user.has_perm('orders.change_pozastavena_bedna'):
                         for field in form.fields:

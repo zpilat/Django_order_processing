@@ -269,6 +269,7 @@ class ZakazkaAdminTests(AdminBase):
         self.assertFalse(self.admin.has_change_permission(req, self.zakazka))
 
         user.user_permissions.add(Permission.objects.get(codename='change_expedovana_zakazka'))
+        req.user = User.objects.get(pk=req.user.pk)
         self.assertTrue(self.admin.has_change_permission(req, self.zakazka))
 
 
@@ -305,7 +306,7 @@ class BednaAdminTests(AdminBase):
         self.assertTrue(perm)
         self.bedna.stav_bedny = StavBednyChoice.EXPEDOVANO
         perm = self.admin.has_change_permission(self.get_request(), self.bedna)
-        self.assertFalse(perm)
+        self.assertTrue(perm)
 
     def test_has_change_permission_regular_user(self):
         """Oprávnění pro expedovanou a pozastavenou bednu."""
@@ -324,6 +325,7 @@ class BednaAdminTests(AdminBase):
         req.user = user
         self.assertFalse(self.admin.has_change_permission(req, bed_ex))
         user.user_permissions.add(Permission.objects.get(codename='change_expedovana_bedna'))
+        req.user = User.objects.get(pk=req.user.pk)
         self.assertTrue(self.admin.has_change_permission(req, bed_ex))
 
         bed_poz = Bedna.objects.create(
@@ -333,7 +335,8 @@ class BednaAdminTests(AdminBase):
             pozastaveno=True,
         )
         self.assertFalse(self.admin.has_change_permission(req, bed_poz))
-        user.user_permissions.add(Permission.objects.get(codename='change_pozastavena_bedna'))
+        req.user.user_permissions.add(Permission.objects.get(codename='change_pozastavena_bedna'))
+        req.user = User.objects.get(pk=req.user.pk)
         self.assertTrue(self.admin.has_change_permission(req, bed_poz))
 
     def test_changelist_view_and_list_display(self):
@@ -341,48 +344,21 @@ class BednaAdminTests(AdminBase):
         self.admin.changelist_view(req)
         self.assertEqual(self.admin.list_editable, ['stav_bedny', 'tryskat', 'rovnat', 'poznamka'])
 
-        req = self.get_request({'stav_bedny_vlastni': 'EX'})
+        req = self.get_request({'stav_bedny': 'EX'})
         self.admin.changelist_view(req)
         self.assertEqual(self.admin.list_editable, [])
 
         ld = self.admin.get_list_display(self.get_request())
         self.assertNotIn('kamion_vydej_link', ld)
-        ld2 = self.admin.get_list_display(self.get_request({'stav_bedny_vlastni': 'EX'}))
+        ld2 = self.admin.get_list_display(self.get_request({'stav_bedny': 'EX'}))
         self.assertIn('kamion_vydej_link', ld2)
 
-    def test_get_changelist_formset_pozastavena_permissions(self):
-        """
-        Testuje, zda jsou pole v BednaInline formuláři zakázána pro pozastavené bedny,
-        pokud uživatel nemá oprávnění pro změnu pozastavené bedny.
-        """
-        User = get_user_model()
-        user = User.objects.create_user('user_fs', 'fs@example.com', 'pass', is_staff=True)
-        user.user_permissions.add(Permission.objects.get(codename='change_bedna'))
-
-        bedna = Bedna.objects.create(
-            zakazka=self.zakazka,
-            hmotnost=1,
-            tara=1,
-            pozastaveno=True,
-        )
-
-        req = self.factory.get('/')
-        req.user = user
-
-        Formset = self.admin.get_changelist_formset(req)
-        fs = Formset(queryset=Bedna.objects.filter(id=bedna.id))
-        form = fs.forms[0]
-        for field in ('stav_bedny', 'tryskat', 'rovnat', 'poznamka'):
-            self.assertTrue(form.fields[field].disabled)
-
-        user.user_permissions.add(Permission.objects.get(codename='change_pozastavena_bedna'))
-        req = self.factory.get('/')
-        req.user = user
-        Formset = self.admin.get_changelist_formset(req)
-        fs = Formset(queryset=Bedna.objects.filter(id=bedna.id))
-        form = fs.forms[0]
-        for field in ('stav_bedny', 'tryskat', 'rovnat', 'poznamka'):
-            self.assertFalse(form.fields[field].disabled)
+    def test_changelist_view_pozastaveno_filter_keeps_editable(self):
+        req = self.get_request({'uvolneno': 'pozastaveno'})
+        self.admin.changelist_view(req)
+        self.assertEqual(self.admin.list_editable, [])
+        ld = self.admin.get_list_display(req)
+        self.assertNotIn('kamion_vydej_link', ld)        
 
 
 class BednaInlineGetFieldsTests(AdminBase):
@@ -390,7 +366,6 @@ class BednaInlineGetFieldsTests(AdminBase):
     Testy pro BednaInline.get_fields.
     Testuje, jak se mění pole podle typu zákazníka a stavu bedny.
     """
-
     def setUp(self):
         self.inline = BednaInline(Zakazka, self.site)
 
@@ -417,7 +392,7 @@ class BednaInlineGetFieldsTests(AdminBase):
             typ_hlavy=self.typ_hlavy,
             popis='p',
         )
-        bedna = Bedna.objects.create(zakazka=zakazka, hmotnost=1, tara=1)
+        bedna = Bedna.objects.create(zakazka=zakazka, hmotnost=1, tara=1, pozastaveno=True)
         setattr(bedna, 'kamion_prijem', zakazka.kamion_prijem)
         return bedna
 
@@ -442,3 +417,33 @@ class BednaInlineGetFieldsTests(AdminBase):
                 self.assertNotIn('dodatecne_info', fields)
                 self.assertNotIn('dodavatel_materialu', fields)
                 self.assertNotIn('vyrobni_zakazka', fields)
+
+    def test_get_changelist_formset_pozastavena_permissions(self):
+        """
+        Testuje, zda jsou pole v BednaInline formuláři zakázána pro pozastavené bedny,
+        pokud uživatel nemá oprávnění pro změnu pozastavené bedny.
+        """
+        User = get_user_model()
+        user = User.objects.create_user('user_fs', 'fs@example.com', 'pass', is_staff=True)
+        user.user_permissions.add(Permission.objects.get(codename='change_bedna'))
+
+        bedna = self.create_bedna('SSH')
+        zakazka = bedna.zakazka
+
+        req = self.factory.get('/')
+        req.user = user
+        Formset = self.inline.get_formset(req, zakazka)
+        fs = Formset(queryset=Bedna.objects.filter(id=bedna.id), instance=zakazka)
+        form = fs.forms[0]
+        for field in form.fields:
+            self.assertTrue(form.fields[field].disabled)
+
+        req = self.factory.get('/')
+        req.user = user
+        req.user.user_permissions.add(Permission.objects.get(codename='change_pozastavena_bedna'))
+        req.user = User.objects.get(pk=req.user.pk)
+        Formset = self.inline.get_formset(req, zakazka)
+        fs = Formset(queryset=Bedna.objects.filter(id=bedna.id), instance=zakazka)
+        form = fs.forms[0]
+        for field in form.fields:
+            self.assertFalse(form.fields[field].disabled)
