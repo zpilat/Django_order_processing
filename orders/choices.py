@@ -15,6 +15,7 @@ class RovnaniChoice(models.TextChoices):
     NEZADANO = '--', '--------'
     ROVNA = 'RO', 'Rovná'
     KRIVA = 'KR', 'Křivá'
+    ROVNA_SE = 'RS', 'Rovná se'
     VYROVNANA = 'VY', 'Vyrovnaná'
 
 class TryskaniChoice(models.TextChoices):

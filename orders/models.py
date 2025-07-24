@@ -604,16 +604,19 @@ class Bedna(models.Model):
             return [curr_choice]        
         # NEZADANO
         if curr == RovnaniChoice.NEZADANO:
-            return [choice for choice in RovnaniChoice.choices if choice[0] != RovnaniChoice.VYROVNANA]
+            return [choice for choice in RovnaniChoice.choices if choice[0] in (RovnaniChoice.NEZADANO, RovnaniChoice.ROVNA, RovnaniChoice.KRIVA)]
         # KRIVA
         if curr == RovnaniChoice.KRIVA:
-            return [choice for choice in RovnaniChoice.choices if choice[0] != RovnaniChoice.ROVNA]
+            return [choice for choice in RovnaniChoice.choices if choice[0] in (RovnaniChoice.NEZADANO, RovnaniChoice.KRIVA, RovnaniChoice.ROVNA_SE)]
+        # ROVNA_SE
+        if curr == RovnaniChoice.ROVNA_SE:
+            return [choice for choice in RovnaniChoice.choices if choice[0] in (RovnaniChoice.KRIVA, RovnaniChoice.ROVNA_SE, RovnaniChoice.VYROVNANA)]
         # ROVNA
         if curr == RovnaniChoice.ROVNA:
-            return [choice for choice in RovnaniChoice.choices if choice[0] not in (RovnaniChoice.KRIVA, RovnaniChoice.VYROVNANA)]
+            return [choice for choice in RovnaniChoice.choices if choice[0] in (RovnaniChoice.NEZADANO, RovnaniChoice.ROVNA)]
         # VYROVNANA
         if curr == RovnaniChoice.VYROVNANA:
-            return [choice for choice in RovnaniChoice.choices if choice[0] not in (RovnaniChoice.ROVNA, RovnaniChoice.NEZADANO)]
+            return [choice for choice in RovnaniChoice.choices if choice[0] in (RovnaniChoice.ROVNA_SE, RovnaniChoice.VYROVNANA)]
         # fallback: všechno
         return list(RovnaniChoice.choices)
     
