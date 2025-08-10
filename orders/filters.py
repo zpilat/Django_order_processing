@@ -175,7 +175,7 @@ class PrioritaBednyFilter(DynamicTitleFilter):
         return queryset.filter(zakazka__priorita=value)
     
 
-class PozastavenoFilter(DynamicTitleFilter):
+class UvolnenoFilter(DynamicTitleFilter):
     """
     Filtrovat bedny podle toho, jestli jsou pozastavené nebo uvolněné.
     """
