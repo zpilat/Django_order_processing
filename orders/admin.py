@@ -72,7 +72,10 @@ class ZakazkaAutomatizovanyPrijemInline(admin.TabularInline):
     show_change_link = True
     formfield_overrides = {
         models.CharField: {'widget': TextInput(attrs={ 'size': '30'})},
-        models.DecimalField: {'widget': TextInput(attrs={ 'size': '8'})},
+        models.DecimalField: {
+            'widget': TextInput(attrs={ 'size': '8'}),
+            'localize': True
+        }
     }
 
     def get_formset(self, request, obj=None, **kwargs):
@@ -134,7 +137,10 @@ class ZakazkaKamionPrijemInline(admin.TabularInline):
     show_change_link = True
     formfield_overrides = {
         models.CharField: {'widget': TextInput(attrs={ 'size': '30'})},
-        models.DecimalField: {'widget': TextInput(attrs={ 'size': '8'})},
+        models.DecimalField: {
+            'widget': TextInput(attrs={'size': '8'}),
+            'localize': True
+        },
     }
 
     @admin.display(description='Komplet')
@@ -215,8 +221,11 @@ class ZakazkaKamionVydejInline(admin.TabularInline):
     select_related = ('kamion_prijem', 'predpis',)
     show_change_link = True
     formfield_overrides = {
-        models.CharField: {'widget': TextInput(attrs={ 'size': '30'})},
-        models.DecimalField: {'widget': TextInput(attrs={ 'size': '8'})},
+        models.CharField: {'widget': TextInput(attrs={'size': '30'})},
+        models.DecimalField: {
+            'widget': TextInput(attrs={'size': '8'}),
+            'localize': True
+        },
     }
 
     @admin.display(description='Beden')
@@ -668,7 +677,10 @@ class BednaInline(admin.TabularInline):
     show_change_link = True
     formfield_overrides = {
         models.CharField: {'widget': TextInput(attrs={'size': '12'})},  # default
-        models.DecimalField: {'widget': TextInput(attrs={'size': '5'})},
+        models.DecimalField: {
+            'widget': TextInput(attrs={'size': '5'}),
+            'localize': True
+        },
         models.IntegerField: {'widget': TextInput(attrs={'size': '5'})},
     }
 
@@ -774,7 +786,10 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     list_per_page = 25
     formfield_overrides = {
         models.CharField: {'widget': TextInput(attrs={ 'size': '30'})},
-        models.DecimalField: {'widget': TextInput(attrs={ 'size': '8'})},
+        models.DecimalField: {
+            'widget': TextInput(attrs={ 'size': '8'}),
+            'localize': True
+        },
         models.BooleanField: {'widget': RadioSelect(choices=[(True, 'Ano'), (False, 'Ne')])}
     }
 
@@ -1108,7 +1123,10 @@ class BednaAdmin(SimpleHistoryAdmin):
     date_hierarchy = 'zakazka__kamion_prijem__datum'
     formfield_overrides = {
         models.CharField: {'widget': TextInput(attrs={ 'size': '30'})},
-        models.DecimalField: {'widget': TextInput(attrs={ 'size': '8'})},
+        models.DecimalField: {
+            'widget': TextInput(attrs={ 'size': '8'}),
+            'localize': True
+        },
         models.BooleanField: {'widget': RadioSelect(choices=[(True, 'Ano'), (False, 'Ne')])}
     }
 
@@ -1402,7 +1420,10 @@ class CenaAdmin(SimpleHistoryAdmin):
     history_list_per_page = 20
 
     formfield_overrides = {
-        models.DecimalField: {'widget': TextInput(attrs={'size': '6'})},
+        models.DecimalField: {
+            'widget': TextInput(attrs={'size': '6'}),
+            'localize': True
+            },
     }    
 
     @admin.display(description='Předpisy', ordering='predpis__nazev', empty_value='-')
