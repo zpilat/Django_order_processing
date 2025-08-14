@@ -40,6 +40,7 @@ class PermissionAdmin(admin.ModelAdmin):
     search_fields = ('name', 'codename')
     list_filter = ('content_type',)
 
+
 @admin.register(Zakaznik)
 class ZakaznikAdmin(SimpleHistoryAdmin):
     """
@@ -1328,3 +1329,113 @@ class BednaAdmin(SimpleHistoryAdmin):
                 del actions[action]
 
         return actions
+    
+
+@admin.register(Predpis)
+class PredpisAdmin(SimpleHistoryAdmin):
+    """
+    Správa předpisů v administraci.
+    """
+    save_as = True
+    list_display = ('nazev', 'skupina', 'zakaznik__zkraceny_nazev', 'ohyb', 'krut', 'povrch', 'jadro', 'vrstva', 'popousteni',
+                    'sarzovani', 'pletivo', 'poznamka', 'aktivni')
+    list_display_links = ('nazev',)
+    search_fields = ('nazev',)
+    search_help_text = "Dle názvu předpisu"
+    list_filter = ('zakaznik__zkraceny_nazev', AktivniPredpisFilter)
+    ordering = ['-zakaznik__zkratka', 'nazev']
+    list_per_page = 25
+
+    history_list_display = ['nazev', 'skupina', 'zakaznik']
+    history_search_fields = ['nazev']
+    history_list_filter = ['zakaznik__zkraceny_nazev']
+    history_list_per_page = 20
+
+
+@admin.register(Odberatel)
+class OdberatelAdmin(SimpleHistoryAdmin):
+    """
+    Správa odběratelů v administraci.
+    """
+    list_display = ('nazev', 'zkraceny_nazev', 'zkratka', 'adresa', 'mesto', 'psc', 'stat', 'zkratka_statu', 'kontaktni_osoba', 'telefon', 'email',)
+    list_display_links = ('nazev',)
+    ordering = ['nazev']
+    list_per_page = 25
+
+    history_list_display = ['nazev', 'zkraceny_nazev', 'zkratka', 'adresa', 'mesto', 'psc', 'stat', 'zkratka_statu', 'kontaktni_osoba', 'telefon', 'email']
+    history_search_fields = ['nazev']
+    history_list_per_page = 20    
+
+
+@admin.register(TypHlavy)
+class TypHlavyAdmin(SimpleHistoryAdmin):
+    """
+    Správa typů hlav v administraci.
+    """
+    list_display = ('nazev', 'popis')
+    list_display_links = ('nazev',)
+    ordering = ['nazev']
+    list_per_page = 25
+
+    history_list_display = ['nazev', 'popis']
+    history_search_fields = ['nazev']
+    history_list_per_page = 20
+    
+
+@admin.register(Cena)    
+class CenaAdmin(SimpleHistoryAdmin):
+    """
+    Správa cen v administraci.
+    """
+    list_display = ('get_zakaznik', 'popis_s_delkou', 'delka_min', 'delka_max', 'cena_za_kg', 'get_predpisy')
+    list_editable = ('delka_min', 'delka_max', 'cena_za_kg')
+    list_display_links = ('popis_s_delkou',)
+    list_filter = ('zakaznik',)
+    search_fields = ('popis',)
+    search_help_text = "Dle popisu ceny"
+    autocomplete_fields = ('predpis',)
+    save_as = True
+    list_per_page = 25
+
+    history_list_display = ['zakaznik', 'delka_min', 'delka_max', 'cena_za_kg']
+    history_list_filter = ['zakaznik',]
+    history_list_per_page = 20
+
+    formfield_overrides = {
+        models.DecimalField: {'widget': TextInput(attrs={'size': '6'})},
+    }    
+
+    @admin.display(description='Předpisy', ordering='predpis__nazev', empty_value='-')
+    def get_predpisy(self, obj):
+        """
+        Zobrazí názvy předpisů spojených s cenou a umožní třídění podle hlavičky pole.
+        Pokud není žádný předpis spojen, vrátí prázdný řetězec.
+        """
+        if obj.predpis.exists():
+            predpisy_text = ", ".join(predpis.nazev for predpis in obj.predpis.all())
+            return format_html(
+                '<div style="max-width: 780px; white-space: normal;">{}</div>',
+                predpisy_text
+            )
+        return "-"
+    
+    @admin.display(description='Zák.', ordering='zakaznik__nazev', empty_value='-')
+    def get_zakaznik(self, obj):
+        """
+        Zobrazí zkratku zákazníka spojeného s cenou.
+        """
+        return obj.zakaznik.zkratka if obj.zakaznik else "-"
+    
+    @admin.display(description='Popis s délkou', ordering='popis', empty_value='-')
+    def popis_s_delkou(self, obj):
+        """
+        Zobrazí popis ceny s délkou, pokud je delka_max a delka_min vyplněna.
+        Pokud není delka_max nebo delka_min vyplněna, vrátí pouze popis.
+        """
+        if obj.delka_min and obj.delka_max:
+            return f"{obj.popis}x{int(obj.delka_min)}-{int(obj.delka_max)}"
+        return obj.popis
+    
+
+# Nastavení atributů AdminSite
+admin.site.index_title = "Správa zakázek"

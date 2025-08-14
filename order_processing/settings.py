@@ -122,7 +122,6 @@ AUTH_PASSWORD_VALIDATORS = [
 LANGUAGE_CODE = 'cs'
 TIME_ZONE = 'Europe/Prague'
 USE_I18N = True
-USE_L10N = True
 USE_TZ = True
 
 
