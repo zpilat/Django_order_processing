@@ -1,7 +1,11 @@
 from django.contrib.admin import SimpleListFilter
+from django.db.models import Exists, OuterRef, Sum
+from django.utils import timezone
+
+from datetime import timedelta
+
 from .models import Zakazka, Bedna, Zakaznik, Kamion, TypHlavy, Predpis
 from .choices import StavBednyChoice, TryskaniChoice, RovnaniChoice, PrioritaChoice
-from django.db.models import Exists, OuterRef, Sum
 
 stav_bedny_bez_expedice = [stavbedny for stavbedny in StavBednyChoice if stavbedny != StavBednyChoice.EXPEDOVANO]
 
@@ -26,14 +30,15 @@ class DynamicTitleFilter(SimpleListFilter):
 class StavBednyFilter(DynamicTitleFilter):
     """
     Filtrovat bedny podle stavu.
+    Bedny po expiraci - bedny, které jsou skladem déle než 28 dní.
     """
     title = "Stav bedny"
     parameter_name = "stav_bedny"
     vse = 'Vše skladem'
-    collapsible = False
 
     def __init__(self, request, params, model, model_admin):
         self.label_dict = {**dict(StavBednyChoice.choices)}
+        self.label_dict['PE'] = 'Bedny po expiraci'
         super().__init__(request, params, model, model_admin)
 
     def lookups(self, request, model_admin):
@@ -43,6 +48,9 @@ class StavBednyFilter(DynamicTitleFilter):
         value = self.value()
         if value is None:
             return queryset.exclude(stav_bedny=StavBednyChoice.EXPEDOVANO)
+        if value == 'PE':
+            expiration_date = timezone.localdate() - timedelta(days=28)
+            return queryset.exclude(stav_bedny=StavBednyChoice.EXPEDOVANO).filter(zakazka__kamion_prijem__datum__lt=expiration_date)
         return queryset.filter(stav_bedny=value)
 
 
