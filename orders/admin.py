@@ -1102,7 +1102,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     form = BednaAdminForm
 
     # Parametry pro zobrazení detailu v administraci
-    fields = ('zakazka', 'cislo_bedny', 'hmotnost', 'tara', 'mnozstvi', 'material', 'sarze', 'behalter_nr', 'dodatecne_info',
+    fields = ('zakazka', 'pozice', 'cislo_bedny', 'hmotnost', 'tara', 'mnozstvi', 'material', 'sarze', 'behalter_nr', 'dodatecne_info',
               'dodavatel_materialu', 'vyrobni_zakazka', 'tryskat', 'rovnat', 'stav_bedny', 'poznamka', 'odfosfatovat', 'pozastaveno',)
     readonly_fields = ('cislo_bedny',)
     autocomplete_fields = ('zakazka',)
@@ -1110,7 +1110,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     # Parametry pro zobrazení seznamu v administraci
     list_display = ('get_cislo_bedny', 'get_behalter_nr', 'zakazka_link', 'kamion_prijem_link', 'kamion_vydej_link',
                     'rovnat', 'tryskat', 'stav_bedny', 'get_prumer', 'get_delka','get_skupina_TZ', 'get_typ_hlavy',
-                    'get_celozavit', 'zkraceny_popis', 'hmotnost', 'tara', 'get_priorita', 'get_datum', 'poznamka',)
+                    'get_celozavit', 'zkraceny_popis', 'hmotnost', 'pozice', 'get_priorita', 'get_datum', 'poznamka',)
     # list_editable = nastavováno dynamicky v get_list_editable
     list_display_links = ('get_cislo_bedny', )
     list_select_related = ("zakazka", "zakazka__kamion_prijem", "zakazka__kamion_vydej")

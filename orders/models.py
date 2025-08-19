@@ -8,7 +8,7 @@ from django.db.models import Sum
 from decimal import Decimal, ROUND_HALF_UP
 
 from .choices import (
-    StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice
+    StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice, KodChoice
 )
 
 class Zakaznik(models.Model):
@@ -416,8 +416,35 @@ class Cena(models.Model):
         return f'{self.zakaznik.zkratka} {self.popis}x{int(self.delka_min)}-{int(self.delka_max)}'    
 
 
+class Pozice(models.Model):
+    kod = models.CharField(max_length=1, choices=KodChoice.choices, verbose_name='Kód pozice', unique=True)
+    kapacita = models.PositiveIntegerField(verbose_name='Kapacita', default=15)
+
+    class Meta:
+        verbose_name = 'Pozice'
+        verbose_name_plural = 'pozice'
+        ordering = ['kod']
+
+    def __str__(self):
+        return f'Pozice {self.kod}'
+
+    def get_admin_url(self):
+        return reverse('admin:orders_pozice_change', args=[self.pk])
+
+    @property
+    def pocet_beden(self):
+        return self.bedny.count()
+    
+    @property
+    def vyuziti_procent(self):
+        if self.kapacita == 0:
+            return 0
+        return round((self.pocet_beden / self.kapacita) * 100, 1)
+
+
 class Bedna(models.Model):
     zakazka = models.ForeignKey(Zakazka, on_delete=models.CASCADE, related_name='bedny', verbose_name='Zakázka')
+    pozice = models.ForeignKey(Pozice, on_delete=models.SET_NULL, null=True, blank=True, related_name='bedny', verbose_name='Pozice')
     cislo_bedny = models.PositiveIntegerField(blank=True, verbose_name='Číslo bedny', unique=True,)
     hmotnost = models.DecimalField(max_digits=5, decimal_places=1, blank=True, verbose_name='Netto')
     tara = models.DecimalField(max_digits=5, blank=True, decimal_places=1, verbose_name='Tára')

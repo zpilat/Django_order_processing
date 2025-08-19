@@ -32,3 +32,15 @@ class PrioritaChoice(models.TextChoices):
 class KamionChoice(models.TextChoices):
     PRIJEM = 'P', 'Přijem'
     VYDEJ = 'V', 'Výdej'
+
+class KodChoice(models.TextChoices):
+    A = 'A', 'A'
+    B = 'B', 'B'
+    C = 'C', 'C'
+    D = 'D', 'D'
+    E = 'E', 'E'
+    F = 'F', 'F'
+    G = 'G', 'G'
+    H = 'H', 'H'
+    I = 'I', 'I'
+    J = 'J', 'J'
