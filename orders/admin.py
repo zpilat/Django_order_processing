@@ -5,18 +5,20 @@ from django.forms import TextInput, RadioSelect
 from django.forms.models import BaseInlineFormSet
 from django.utils.safestring import mark_safe
 from django.utils.translation import gettext_lazy as _
+from django.utils.html import format_html
 from django.contrib.admin.views.main import ChangeList
 from django.contrib.admin.widgets import RelatedFieldWidgetWrapper
 from django.urls import path, reverse
 from django.shortcuts import redirect, render
 from django.utils.html import format_html
+from django.db.models import Count
 
 from simple_history.admin import SimpleHistoryAdmin
 from decimal import Decimal, ROUND_HALF_UP
 import pandas as pd
 import re
 
-from .models import Zakaznik, Kamion, Zakazka, Bedna, Predpis, Odberatel, TypHlavy, Cena
+from .models import Zakaznik, Kamion, Zakazka, Bedna, Predpis, Odberatel, TypHlavy, Cena, Pozice
 from .actions import (
     expedice_zakazek_action, import_kamionu_action, tisk_karet_beden_action, tisk_karet_beden_zakazek_action,
     tisk_karet_beden_kamionu_action, tisk_dodaciho_listu_kamionu_action, vratit_zakazky_z_expedice_action, expedice_zakazek_kamion_action,
@@ -1110,7 +1112,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     # Parametry pro zobrazení seznamu v administraci
     list_display = ('get_cislo_bedny', 'get_behalter_nr', 'zakazka_link', 'kamion_prijem_link', 'kamion_vydej_link',
                     'rovnat', 'tryskat', 'stav_bedny', 'get_prumer', 'get_delka','get_skupina_TZ', 'get_typ_hlavy',
-                    'get_celozavit', 'zkraceny_popis', 'hmotnost', 'pozice', 'get_priorita', 'get_datum', 'poznamka',)
+                    'get_celozavit', 'zkraceny_popis', 'hmotnost', 'get_pozice', 'get_priorita', 'get_datum', 'poznamka',)
     # list_editable = nastavováno dynamicky v get_list_editable
     list_display_links = ('get_cislo_bedny', )
     list_select_related = ("zakazka", "zakazka__kamion_prijem", "zakazka__kamion_vydej")
@@ -1164,6 +1166,14 @@ class BednaAdmin(SimpleHistoryAdmin):
         Pokud není vyplněno, zobrazí se '-'.
         """
         return obj.behalter_nr
+    
+    @admin.display(description='Poz.', ordering='pozice', empty_value='-')
+    def get_pozice(self, obj):
+        """
+        Zobrazí kod pozice bedny a umožní třídění podle hlavičky pole.
+        Pokud není pozice vyplněna, zobrazí se '-'.
+        """
+        return obj.pozice.kod if obj.pozice else '-'
 
     @admin.display(description='Zakázka', ordering='zakazka__id', empty_value='-')
     def zakazka_link(self, obj):
@@ -1457,6 +1467,33 @@ class CenaAdmin(SimpleHistoryAdmin):
             return f"{obj.popis}x{int(obj.delka_min)}-{int(obj.delka_max)}"
         return obj.popis
     
+
+@admin.register(Pozice)
+class PoziceAdmin(admin.ModelAdmin):
+    list_display = ("kod", "get_pocet_beden", "get_vyuziti", "seznam_beden")
+    list_per_page = 20
+
+    @admin.display(description="Obsazenost")
+    def get_pocet_beden(self, obj: Pozice):
+        return f"{obj.pocet_beden} / {obj.kapacita}"
+
+    @admin.display(description="Využití")
+    def get_vyuziti(self, obj: Pozice):
+        # jednoduchý progress bar
+        vyuziti = obj.vyuziti_procent
+        pozadi = "#22c55e" if vyuziti < 80 else ("#eab308" if vyuziti < 100 else "#ef4444")
+        bar = f"""
+        <div style="width:120px;border:1px solid #ddd;height:12px;border-radius:6px;overflow:hidden;">
+            <div style="width:{vyuziti}%;height:100%;background:{pozadi};"></div>
+        </div>
+        """
+        return format_html(bar + f" {vyuziti}%")
+
+    @admin.display(description="Bedny na pozici")
+    def seznam_beden(self, obj):
+        bedny_na_pozici = obj.bedny.values_list("cislo_bedny", flat=True)
+        return f"{', '.join(map(str, bedny_na_pozici))}" if bedny_na_pozici else "-"
+
 
 # Nastavení atributů AdminSite
 admin.site.index_title = "Správa zakázek"
