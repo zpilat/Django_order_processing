@@ -1,0 +1,26 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls %}
+
+{% block content %}
+<form method="post">{% csrf_token %}
+  <table class="adminlist">
+    <thead>
+      <tr><th>Bedna</th><th>Pozice</th></tr>
+    </thead>
+    <tbody>
+      {% for form in formset.forms %}
+        <tr>
+          <td>
+            {{ form.bedna_id }}  {# hidden input #}
+            {{ form.cislo }}
+          </td>
+          <td>{{ form.pozice }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <div class="submit-row">
+    <input type="submit" name="apply" value="Připravit k navezení" class="default">
+  </div>
+</form>
+{% endblock %}

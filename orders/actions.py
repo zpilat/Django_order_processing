@@ -4,11 +4,14 @@ from django.http import HttpResponse
 from django.template.loader import render_to_string
 from django.shortcuts import render
 from django.db import transaction
+from django import forms
+from django.forms import formset_factory
+from django.template.response import TemplateResponse
 
 import datetime
 from weasyprint import HTML
 
-from .models import Zakazka, Bedna, Kamion, Zakaznik, StavBednyChoice
+from .models import Zakazka, Bedna, Kamion, Zakaznik, StavBednyChoice, Pozice
 from .utils import utilita_tisk_dokumentace, utilita_expedice_zakazek, utilita_kontrola_zakazek, utilita_tisk_dl_a_proforma_faktury
 from .forms import VyberKamionVydejForm, OdberatelForm
 from .choices import KamionChoice, StavBednyChoice
@@ -41,28 +44,121 @@ def tisk_karet_kontroly_kvality_action(modeladmin, request, queryset):
     logger.info(f"Uživatel {request.user} tiskne karty kontroly kvality pro {queryset.count()} vybraných beden.")
     return response
 
-@admin.action(description="Změna stavu bedny na K_NAVEZENI")
-def zmenit_stav_bedny_na_k_navezeni_action(modeladmin, request, queryset):
+
+class _RadekForm(forms.Form):
+    bedna_id = forms.IntegerField(widget=forms.HiddenInput())
+    cislo = forms.CharField(label="Číslo bedny", disabled=True, required=False)
+    pozice = forms.ModelChoiceField(
+        queryset=Pozice.objects.all(),
+        label="Pozice",
+        required=True
+    )
+
+
+def _render_oznacit_k_navezeni(modeladmin, request, queryset, formset):
     """
-    Změní stav vybraných beden na K_NAVEZENI.
-    
-    Průběh:
-    1. Pro každou bednu v querysetu:
-        - Zkontroluje se, zda má stav PRIJATO.
-        - Pokud ano, změní se stav na K_NAVEZENI.
-    2. Po úspěšném průběhu odešle `messages.success`.
+    Vykreslení mezikroku akce (formset s volbou pozic).
+    """
+    context = {
+        **modeladmin.admin_site.each_context(request),
+        "title": "Zvol pozice pro vybrané bedny",
+        "queryset": queryset,
+        "formset": formset,
+        "opts": modeladmin.model._meta,
+        "action_checkbox_name": admin.helpers.ACTION_CHECKBOX_NAME,
+    }
+    return TemplateResponse(request, "admin/bedna/oznacit_k_navezeni.html", context)    
+
+@admin.action(description="Změna stavu bedny na K_NAVEZENI")
+def oznacit_k_navezeni_action(modeladmin, request, queryset):
+    """
+    Změní stav vybraných beden na K_NAVEZENI a přidá k bedně zvolenou pozici.
+    1) GET: zobrazí formset s výběrem pozice pro každou vybranou bednu.
+    2) POST (apply): validace kapacit + uložení (stav PRIJATO -> K_NAVEZENI a přiřazení pozice).
     """
     for bedna in queryset:
         if bedna.stav_bedny != StavBednyChoice.PRIJATO:
             logger.info(f"Uživatel {request.user} se pokusil změnit stav bedny {bedna}, ale ta není v stavu PRIJATO.")
             modeladmin.message_user(request, f"Bedna {bedna} není v stavu PRIJATO.", level=messages.ERROR)
             continue
-        
-        bedna.stav_bedny = StavBednyChoice.K_NAVEZENI
-        bedna.save()
-        logger.info(f"Uživatel {request.user} úspěšně změnil stav bedny {bedna} na K_NAVEZENI.")
 
-    modeladmin.message_user(request, "Stav vybraných beden byl úspěšně změněn na K_NAVEZENI.", level=messages.SUCCESS)
+    RadekFormSet = formset_factory(_RadekForm, extra=0)
+
+    if request.method == "POST" and "apply" in request.POST:
+        formset = RadekFormSet(request.POST)
+        if not formset.is_valid():
+            messages.error(request, "Formulář není validní.")
+            return _render_oznacit_k_navezeni(modeladmin, request, queryset, formset)
+
+        # Předpočítáme aktuální obsazenost/kapacity pro varování
+        kapacita = {}
+        obsazenost = {}
+        for p in Pozice.objects.all():
+            kapacita[p.pk] = p.kapacita
+            obsazenost[p.pk] = p.bedny.count()
+
+        uspesne = 0
+        mimo_stav = 0
+        prekrocena_kapacita = 0
+
+        with transaction.atomic():
+            vybrane_ids = [f.cleaned_data["bedna_id"] for f in formset.forms]
+            bedny_map = {
+                b.pk: b for b in Bedna.objects.select_for_update().filter(pk__in=vybrane_ids)
+            }
+
+            for f in formset.forms:
+                bedna_id = f.cleaned_data["bedna_id"]
+                pozice = f.cleaned_data["pozice"]
+                b = bedny_map.get(bedna_id)
+                if not b:
+                    continue
+
+                # pořád musí být PRIJATO
+                if b.stav_bedny != StavBednyChoice.PRIJATO:
+                    mimo_stav += 1
+                    continue
+
+                pid = pozice.pk
+                # Pokud by přiřazení přesáhlo kapacitu, jen si to poznačíme pro warning
+                if obsazenost[pid] + 1 > kapacita[pid]:
+                    prekrocena_kapacita += 1
+
+                # Přesun + změna stavu (bez ohledu na kapacitu)
+                b.pozice = pozice
+                b.stav_bedny = StavBednyChoice.K_NAVEZENI
+                b.save(update_fields=["pozice", "stav_bedny"])
+
+                obsazenost[pid] += 1
+                uspesne += 1
+
+        if uspesne:
+            messages.success(request, f"Připraveno k navezení: {uspesne} beden.")
+        if prekrocena_kapacita:
+            messages.warning(
+                request,
+                f"U {prekrocena_kapacita} beden byla překročena kapacita cílové pozice, přesto byly přiřazeny."
+            )
+        if mimo_stav:
+            messages.warning(
+                request,
+                f"{mimo_stav} beden nebylo ve stavu PRIJATO."
+            )
+
+        # návrat na changelist
+        return None
+
+    # GET – předvyplň formset
+    initial = [
+        {
+            "bedna_id": b.pk,
+            "cislo": getattr(b, "cislo_bedny", b.pk),
+        }
+        for b in queryset
+    ]
+    formset = RadekFormSet(initial=initial)
+    return _render_oznacit_k_navezeni(modeladmin, request, queryset, formset)        
+
     
 # Akce pro zakázky:
 
