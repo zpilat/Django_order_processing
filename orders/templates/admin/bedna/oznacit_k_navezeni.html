@@ -15,15 +15,21 @@
 
   <table class="adminlist">
     <thead>
-      <tr><th>Bedna</th><th>Pozice</th></tr>
+      <tr>
+        <th>Bedna</th><th>Rozměr</th><th>Artikl</th><th>Typ hlavy</th><th>Popis</th><th>Pozice</th>
+      </tr>
     </thead>
     <tbody>
       {% for form in formset.forms %}
         <tr>
           <td>
             {{ form.bedna_id }}  {# hidden input #}
-            {{ form.cislo }}
+            {{ form.initial.cislo }}
           </td>
+          <td>{{ form.initial.prumer }}x{{ form.initial.delka }}</td>
+          <td>{{ form.initial.artikl }}</td>
+          <td>{{ form.initial.typ_hlavy }}</td>
+          <td>{{ form.initial.popis }}</td>
           <td>{{ form.pozice }}</td>
         </tr>
       {% endfor %}

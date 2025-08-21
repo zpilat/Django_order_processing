@@ -76,12 +76,23 @@ def oznacit_k_navezeni_action(modeladmin, request, queryset):
     KNavezeniFormSet = formset_factory(KNavezeniForm, extra=0)
 
     if request.method == "POST" and "apply" in request.POST:
+        select_ids = request.POST.getlist(admin.helpers.ACTION_CHECKBOX_NAME)
+        qs = Bedna.objects.filter(pk__in=select_ids)            
+        initial = [
+            {
+                "bedna_id": bedna.pk,
+                "cislo": bedna.cislo_bedny,
+                "prumer": bedna.zakazka.prumer,
+                "delka": bedna.zakazka.delka,
+                "artikl": bedna.zakazka.artikl,
+                "typ_hlavy": bedna.zakazka.typ_hlavy,
+                "popis": bedna.zakazka.popis,
+                "pozice": bedna.pozice
+            } for bedna in qs
+        ]
+        formset = KNavezeniFormSet(data=request.POST, initial=initial, prefix="ozn")
         # Pokud formset není validní, znovu se vykreslí s hodnotami
-        if not formset.is_valid():
-            select_ids = request.POST.getlist(admin.helpers.ACTION_CHECKBOX_NAME)
-            qs = Bedna.objects.filter(pk__in=select_ids)            
-            initial = [{"bedna_id": bedna.pk, "cislo": getattr(bedna, "cislo_bedny", bedna.pk)} for bedna in qs]
-            formset = KNavezeniFormSet(data=request.POST, initial=initial, prefix="ozn")            
+        if not formset.is_valid():           
             messages.error(request, "Formulář není validní.")
             return _render_oznacit_k_navezeni(modeladmin, request, qs, formset)
 
@@ -133,7 +144,18 @@ def oznacit_k_navezeni_action(modeladmin, request, queryset):
         return None
 
     # GET – předvyplň formset
-    initial = [{"bedna_id": bedna.pk, "cislo": getattr(bedna, "cislo_bedny", bedna.pk)} for bedna in queryset]
+    initial = [
+        {
+            "bedna_id": bedna.pk,
+            "cislo": bedna.cislo_bedny,
+            "prumer": bedna.zakazka.prumer,
+            "delka": bedna.zakazka.delka,
+            "artikl": bedna.zakazka.artikl,
+            "typ_hlavy": bedna.zakazka.typ_hlavy,
+            "popis": bedna.zakazka.popis,
+            "pozice": bedna.pozice
+        } for bedna in queryset
+    ]
     formset = KNavezeniFormSet(initial=initial, prefix="ozn")
     return _render_oznacit_k_navezeni(modeladmin, request, queryset, formset)        
 
