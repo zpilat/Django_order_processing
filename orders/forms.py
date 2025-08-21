@@ -234,6 +234,9 @@ class OdberatelForm(forms.Form):
 
 
 class KNavezeniForm(forms.Form):
+    """
+    Formulář pro výběr pozice pro bednu při změně stavu na k navezení.
+    """
     bedna_id = forms.IntegerField(widget=forms.HiddenInput())
     cislo = forms.CharField(label="Číslo bedny", disabled=True, required=False)
     pozice = forms.ModelChoiceField(
