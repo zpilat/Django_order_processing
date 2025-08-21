@@ -13,7 +13,7 @@ from weasyprint import HTML
 
 from .models import Zakazka, Bedna, Kamion, Zakaznik, StavBednyChoice, Pozice
 from .utils import utilita_tisk_dokumentace, utilita_expedice_zakazek, utilita_kontrola_zakazek, utilita_tisk_dl_a_proforma_faktury
-from .forms import VyberKamionVydejForm, OdberatelForm
+from .forms import VyberKamionVydejForm, OdberatelForm, KNavezeniForm
 from .choices import KamionChoice, StavBednyChoice
 
 import logging
@@ -44,27 +44,18 @@ def tisk_karet_kontroly_kvality_action(modeladmin, request, queryset):
     logger.info(f"Uživatel {request.user} tiskne karty kontroly kvality pro {queryset.count()} vybraných beden.")
     return response
 
-
-class _RadekForm(forms.Form):
-    bedna_id = forms.IntegerField(widget=forms.HiddenInput())
-    cislo = forms.CharField(label="Číslo bedny", disabled=True, required=False)
-    pozice = forms.ModelChoiceField(
-        queryset=Pozice.objects.all(),
-        label="Pozice",
-        required=True
-    )
-
-
 def _render_oznacit_k_navezeni(modeladmin, request, queryset, formset):
     """
-    Vykreslení mezikroku akce (formset s volbou pozic).
+    Interní funkce vykreslení mezikroku akce (formset s volbou pozic).
     """
+    action = request.POST.get("action") or request.GET.get("action") or "oznacit_k_navezeni_action"
     context = {
         **modeladmin.admin_site.each_context(request),
         "title": "Zvol pozice pro vybrané bedny",
         "queryset": queryset,
         "formset": formset,
         "opts": modeladmin.model._meta,
+        "action_name": action,
         "action_checkbox_name": admin.helpers.ACTION_CHECKBOX_NAME,
     }
     return TemplateResponse(request, "admin/bedna/oznacit_k_navezeni.html", context)    
@@ -82,13 +73,19 @@ def oznacit_k_navezeni_action(modeladmin, request, queryset):
             modeladmin.message_user(request, f"Bedna {bedna} není v stavu PRIJATO.", level=messages.ERROR)
             continue
 
-    RadekFormSet = formset_factory(_RadekForm, extra=0)
+    KNavezeniFormSet = formset_factory(KNavezeniForm, extra=0)
 
     if request.method == "POST" and "apply" in request.POST:
-        formset = RadekFormSet(request.POST)
+        select_ids = request.POST.getlist(admin.helpers.ACTION_CHECKBOX_NAME)
+        qs = Bedna.objects.filter(pk__in=select_ids)
+
+        initial = [{"bedna_id": bedna.pk, "cislo": getattr(bedna, "cislo_bedny", bedna.pk)} for bedna in qs]
+        formset = KNavezeniFormSet(data=request.POST, initial=initial, prefix="ozn")
+        
+        # pokud formset není validní, znovu se vykreslí s hodnotami
         if not formset.is_valid():
             messages.error(request, "Formulář není validní.")
-            return _render_oznacit_k_navezeni(modeladmin, request, queryset, formset)
+            return _render_oznacit_k_navezeni(modeladmin, request, qs, formset)
 
         # Předpočítáme aktuální obsazenost/kapacity pro varování
         kapacita = {}
@@ -98,7 +95,6 @@ def oznacit_k_navezeni_action(modeladmin, request, queryset):
             obsazenost[p.pk] = p.bedny.count()
 
         uspesne = 0
-        mimo_stav = 0
         prekrocena_kapacita = 0
 
         with transaction.atomic():
@@ -112,11 +108,6 @@ def oznacit_k_navezeni_action(modeladmin, request, queryset):
                 pozice = f.cleaned_data["pozice"]
                 b = bedny_map.get(bedna_id)
                 if not b:
-                    continue
-
-                # pořád musí být PRIJATO
-                if b.stav_bedny != StavBednyChoice.PRIJATO:
-                    mimo_stav += 1
                     continue
 
                 pid = pozice.pk
@@ -139,24 +130,13 @@ def oznacit_k_navezeni_action(modeladmin, request, queryset):
                 request,
                 f"U {prekrocena_kapacita} beden byla překročena kapacita cílové pozice, přesto byly přiřazeny."
             )
-        if mimo_stav:
-            messages.warning(
-                request,
-                f"{mimo_stav} beden nebylo ve stavu PRIJATO."
-            )
 
         # návrat na changelist
         return None
 
     # GET – předvyplň formset
-    initial = [
-        {
-            "bedna_id": b.pk,
-            "cislo": getattr(b, "cislo_bedny", b.pk),
-        }
-        for b in queryset
-    ]
-    formset = RadekFormSet(initial=initial)
+    initial = [{"bedna_id": bedna.pk, "cislo": getattr(bedna, "cislo_bedny", bedna.pk)} for bedna in queryset]
+    formset = KNavezeniFormSet(initial=initial, prefix="ozn")
     return _render_oznacit_k_navezeni(modeladmin, request, queryset, formset)        
 
     

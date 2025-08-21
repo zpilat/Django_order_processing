@@ -1347,7 +1347,7 @@ class BednaAdmin(SimpleHistoryAdmin):
 
         actions_to_remove = []
 
-        if (request.GET.get('stav_bedny', None) != StavBednyChoice.PRIJATO):
+        if request.method == "GET" and request.GET.get('stav_bedny', None) != StavBednyChoice.PRIJATO:
             actions_to_remove = [
                 'oznacit_k_navezeni_action',
             ]

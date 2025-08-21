@@ -1,7 +1,7 @@
 from django import forms
 from django.db.models import Exists, OuterRef
 from django.utils import timezone
-from .models import Zakaznik, Kamion, Zakazka, Bedna, Predpis, Odberatel
+from .models import Zakaznik, Kamion, Zakazka, Bedna, Predpis, Odberatel, Pozice
 from .choices import StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice
 
 import logging
@@ -230,4 +230,14 @@ class OdberatelForm(forms.Form):
     odberatel = forms.ModelChoiceField(
         queryset=Odberatel.objects.all(),
         label="Vyberte odběratele",
+    )
+
+
+class KNavezeniForm(forms.Form):
+    bedna_id = forms.IntegerField(widget=forms.HiddenInput())
+    cislo = forms.CharField(label="Číslo bedny", disabled=True, required=False)
+    pozice = forms.ModelChoiceField(
+        queryset=Pozice.objects.all(),
+        label="Pozice",
+        required=True
     )

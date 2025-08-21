@@ -3,6 +3,16 @@
 
 {% block content %}
 <form method="post">{% csrf_token %}
+  {# udržení kontextu akce #}
+  <input type="hidden" name="action" value="{{ action_name }}">
+
+  {# odeslání všech vybraných PK zpět #}
+  {% for obj in queryset %}
+    <input type="hidden" name="{{ action_checkbox_name }}" value="{{ obj.pk }}">
+  {% endfor %}
+
+  {{ formset.management_form }}
+
   <table class="adminlist">
     <thead>
       <tr><th>Bedna</th><th>Pozice</th></tr>
@@ -19,6 +29,7 @@
       {% endfor %}
     </tbody>
   </table>
+
   <div class="submit-row">
     <input type="submit" name="apply" value="Připravit k navezení" class="default">
   </div>
