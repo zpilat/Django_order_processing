@@ -1370,8 +1370,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         Přizpůsobí zobrazení pole pro cizí klíč v administraci.
         """
         if db_field.name == "pozice":
-            kwargs['empty_label'] = "-"
-        
+            kwargs['empty_label'] = "-"        
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
     
     def formfield_for_dbfield(self, db_field, request, **kwargs):
@@ -1381,12 +1380,17 @@ class BednaAdmin(SimpleHistoryAdmin):
         if isinstance(db_field, models.ForeignKey):
             # Zruší zobrazení ikon pro ForeignKey pole v administraci, nepřidá RelatedFieldWidgetWrapper.
             formfield = self.formfield_for_foreignkey(db_field, request, **kwargs)
-            # DŮLEŽITÉ: znovu obalit widget
+            # pokud už je wrapnutý? -> jen se vypnou ikonky
+            if isinstance(formfield.widget, RelatedFieldWidgetWrapper):
+                for attr in ("can_add_related", "can_change_related", "can_delete_related", "can_view_related"):
+                    if hasattr(formfield.widget, attr):
+                        setattr(formfield.widget, attr, False)
+                return formfield
+
+            # není wrapnutý? -> zabalí se a vypnou se ikonky
             rel = db_field.remote_field
             formfield.widget = RelatedFieldWidgetWrapper(
-                formfield.widget,
-                rel,
-                self.admin_site,
+                formfield.widget, rel, self.admin_site,
                 can_add_related=False,
                 can_change_related=False,
                 can_delete_related=False,
@@ -1394,7 +1398,7 @@ class BednaAdmin(SimpleHistoryAdmin):
             )
             return formfield
 
-        return super().formfield_for_dbfield(db_field, request, **kwargs)    
+        return super().formfield_for_dbfield(db_field, request, **kwargs)
 
 
 @admin.register(Predpis)
