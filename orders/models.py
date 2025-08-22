@@ -426,7 +426,7 @@ class Pozice(models.Model):
         ordering = ['kod']
 
     def __str__(self):
-        return f'Pozice {self.kod}'
+        return f'{self.kod}'
 
     def get_admin_url(self):
         return reverse('admin:orders_pozice_change', args=[self.pk])

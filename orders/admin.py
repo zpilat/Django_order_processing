@@ -1112,8 +1112,8 @@ class BednaAdmin(SimpleHistoryAdmin):
     # Parametry pro zobrazení seznamu v administraci
     list_display = ('get_cislo_bedny', 'get_behalter_nr', 'zakazka_link', 'kamion_prijem_link', 'kamion_vydej_link',
                     'rovnat', 'tryskat', 'stav_bedny', 'get_prumer', 'get_delka','get_skupina_TZ', 'get_typ_hlavy',
-                    'get_celozavit', 'zkraceny_popis', 'hmotnost', 'get_pozice', 'get_priorita', 'get_datum', 'poznamka',)
-    # list_editable = nastavováno dynamicky v get_list_editable
+                    'get_celozavit', 'zkraceny_popis', 'hmotnost', 'pozice', 'get_priorita', 'get_datum', 'poznamka',)
+    # list_editable nastavován dynamicky v get_list_editable
     list_display_links = ('get_cislo_bedny', )
     list_select_related = ("zakazka", "zakazka__kamion_prijem", "zakazka__kamion_vydej")
     list_per_page = 30
@@ -1124,7 +1124,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     ordering = ('id',)
     date_hierarchy = 'zakazka__kamion_prijem__datum'
     formfield_overrides = {
-        models.CharField: {'widget': TextInput(attrs={ 'size': '30'})},
+        models.CharField: {'widget': TextInput(attrs={ 'size': '20'})},
         models.DecimalField: {
             'widget': TextInput(attrs={ 'size': '8'}),
             'localize': True
@@ -1300,8 +1300,8 @@ class BednaAdmin(SimpleHistoryAdmin):
         """
         if request.GET.get('stav_bedny', None) == 'EX' or request.GET.get('uvolneno', None) == 'pozastaveno':
             return []
-        return ['stav_bedny', 'tryskat', 'rovnat', 'poznamka']    
-    
+        return ['stav_bedny', 'tryskat', 'rovnat', 'poznamka', 'pozice']
+
     def changelist_view(self, request, extra_context=None):
         """
         Přizpůsobení zobrazení seznamu beden podle aktivního filtru.
@@ -1358,6 +1358,36 @@ class BednaAdmin(SimpleHistoryAdmin):
 
         return actions
     
+    def formfield_for_foreignkey(self, db_field, request=None, **kwargs):
+        """
+        Přizpůsobí zobrazení pole pro cizí klíč v administraci.
+        """
+        if db_field.name == "pozice":
+            kwargs['empty_label'] = "-"
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+    
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
+        """
+        Přizpůsobení widgetů pro pole v administraci.
+        """
+        if isinstance(db_field, models.ForeignKey):
+            # Zruší zobrazení ikon pro ForeignKey pole v administraci, nepřidá RelatedFieldWidgetWrapper.
+            formfield = self.formfield_for_foreignkey(db_field, request, **kwargs)
+            # DŮLEŽITÉ: znovu obalit widget
+            rel = db_field.remote_field
+            formfield.widget = RelatedFieldWidgetWrapper(
+                formfield.widget,
+                rel,
+                self.admin_site,
+                can_add_related=False,
+                can_change_related=False,
+                can_delete_related=False,
+                can_view_related=False,
+            )
+            return formfield
+
+        return super().formfield_for_dbfield(db_field, request, **kwargs)    
+
 
 @admin.register(Predpis)
 class PredpisAdmin(SimpleHistoryAdmin):
@@ -1472,6 +1502,7 @@ class CenaAdmin(SimpleHistoryAdmin):
 class PoziceAdmin(admin.ModelAdmin):
     list_display = ("kod", "get_pocet_beden", "get_vyuziti", "seznam_beden")
     list_per_page = 20
+    search_fields = ("kod",)
 
     @admin.display(description="Obsazenost")
     def get_pocet_beden(self, obj: Pozice):

@@ -27,7 +27,7 @@ class TryskaniChoice(models.TextChoices):
 class PrioritaChoice(models.TextChoices):
     VYSOKA = 'P1', 'P1'
     STREDNI = 'P2', 'P2'
-    NIZKA = 'P3', '-'
+    NIZKA = 'P3', '--'
 
 class KamionChoice(models.TextChoices):
     PRIJEM = 'P', 'Přijem'
