@@ -1124,7 +1124,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     ordering = ('id',)
     date_hierarchy = 'zakazka__kamion_prijem__datum'
     formfield_overrides = {
-        models.CharField: {'widget': TextInput(attrs={ 'size': '20'})},
+        models.CharField: {'widget': TextInput(attrs={ 'size': '20', 'style': 'font-size: 10px;'})},
         models.DecimalField: {
             'widget': TextInput(attrs={ 'size': '8'}),
             'localize': True
@@ -1297,9 +1297,12 @@ class BednaAdmin(SimpleHistoryAdmin):
         """
         Přizpůsobení zobrazení sloupců pro editaci v seznamu beden podle aktivního filtru.
         Pokud je aktivní filtr Stav bedny = Expedováno nebo Uvolněno = Pozastaveno, odebere se inline-editace.
+        Pokud není aktivní filtr stav bedny = Prijato, K_navezeni, Navezeno, vyloučí se možnost editace sloupce pozice.
         """
         if request.GET.get('stav_bedny', None) == 'EX' or request.GET.get('uvolneno', None) == 'pozastaveno':
             return []
+        if request.GET.get('stav_bedny', None) not in ('PR', 'KN', 'NA'):
+            return ['stav_bedny', 'tryskat', 'rovnat', 'poznamka']
         return ['stav_bedny', 'tryskat', 'rovnat', 'poznamka', 'pozice']
 
     def changelist_view(self, request, extra_context=None):
@@ -1331,11 +1334,15 @@ class BednaAdmin(SimpleHistoryAdmin):
         """
         Přizpůsobení zobrazení sloupců v seznamu Bedna.
         Pokud není aktivní filtr stav bedny Expedováno, vyloučí se zobrazení sloupce kamion_vydej_link.
+        Pokud není aktivní filtr stav bedny Prijato, K_navezeni, Navezeno, vyloučí se zobrazení sloupce pozice.
         """
         list_display = list(super().get_list_display(request))
         if request.GET.get('stav_bedny', None) != 'EX':
             if 'kamion_vydej_link' in list_display:
                 list_display.remove('kamion_vydej_link')
+        if request.GET.get('stav_bedny', None) not in ('PR', 'KN', 'NA'):
+            if 'pozice' in list_display:
+                list_display.remove('pozice')
         return list_display
 
     def get_actions(self, request):
@@ -1364,6 +1371,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         """
         if db_field.name == "pozice":
             kwargs['empty_label'] = "-"
+        
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
     
     def formfield_for_dbfield(self, db_field, request, **kwargs):
