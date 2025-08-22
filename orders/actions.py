@@ -87,6 +87,7 @@ def oznacit_k_navezeni_action(modeladmin, request, queryset):
                 "artikl": bedna.zakazka.artikl,
                 "typ_hlavy": bedna.zakazka.typ_hlavy,
                 "popis": bedna.zakazka.popis,
+                "poznamka": bedna.poznamka,
                 "pozice": bedna.pozice
             } for bedna in qs
         ]
@@ -114,6 +115,7 @@ def oznacit_k_navezeni_action(modeladmin, request, queryset):
 
             for f in formset.forms:
                 bedna_id = f.cleaned_data["bedna_id"]
+                poznamka = f.cleaned_data["poznamka"]
                 pozice = f.cleaned_data["pozice"]
                 b = bedny_map.get(bedna_id)
                 if not b:
@@ -126,8 +128,9 @@ def oznacit_k_navezeni_action(modeladmin, request, queryset):
 
                 # Přesun + změna stavu (bez ohledu na kapacitu)
                 b.pozice = pozice
+                b.poznamka = poznamka
                 b.stav_bedny = StavBednyChoice.K_NAVEZENI
-                b.save(update_fields=["pozice", "stav_bedny"])
+                b.save(update_fields=["pozice", "poznamka", "stav_bedny"])
 
                 obsazenost[pid] += 1
                 uspesne += 1
@@ -153,6 +156,7 @@ def oznacit_k_navezeni_action(modeladmin, request, queryset):
             "artikl": bedna.zakazka.artikl,
             "typ_hlavy": bedna.zakazka.typ_hlavy,
             "popis": bedna.zakazka.popis,
+            "poznamka": bedna.poznamka,
             "pozice": bedna.pozice
         } for bedna in queryset
     ]
