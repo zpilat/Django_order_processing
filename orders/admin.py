@@ -1159,7 +1159,7 @@ class BednaAdmin(SimpleHistoryAdmin):
             return obj.zakazka.kamion_prijem.datum.strftime('%y-%m-%d')
         return '-'
     
-    @admin.display(description='Č.b. zák.', ordering='behalter_nr', empty_value='-')
+    @admin.display(description='Č.b.z.', ordering='behalter_nr', empty_value='-')
     def get_behalter_nr(self, obj):
         """
         Zobrazí číslo bedny zákazníka a umožní třídění podle hlavičky pole.
