@@ -501,6 +501,7 @@ class Bedna(models.Model):
         Validace stavu bedny a tryskání/rovnání.
         - Pokud je stav bedny K_EXPEDICI nebo EXPEDOVANO, musí být tryskání buď Čistá nebo Otryskaná
         - Pokud je stav bedny K_EXPEDICI nebo EXPEDOVANO, musí být rovnání buď Rovná nebo Vyrovnaná.
+        - Pokud je stav bedny K_NAVEZENI nebo NAVEZENO, musí být zadána pozice.
         """
         super().clean()    
         if self.stav_bedny in [StavBednyChoice.K_EXPEDICI, StavBednyChoice.EXPEDOVANO]:
@@ -510,6 +511,11 @@ class Bedna(models.Model):
             if self.rovnat not in [RovnaniChoice.ROVNA, RovnaniChoice.VYROVNANA]:
                 raise ValidationError(_("Pro stav 'K expedici' a 'Expedováno' musí být rovnání buď Rovná nebo Vyrovnaná."))
                 logger.warning(f'Uzivatel se pokusil uložit bednu ve stavu {self.stav_bedny} s neplatným stavem rovnání: {self.rovnat}')
+        
+        if self.stav_bedny in [StavBednyChoice.K_NAVEZENI, StavBednyChoice.NAVEZENO]:
+            if not self.pozice:
+                raise ValidationError(_("Pro stav 'K navezení' a 'Navezeno' musí být zadána pozice."))
+                logger.warning(f'Uzivatel se pokusil uložit bednu ve stavu {self.stav_bedny} bez pozice.')
 
     def save(self, *args, **kwargs):
         """
@@ -517,6 +523,7 @@ class Bedna(models.Model):
         - Pokud se jedná o novou instanci (bez PK):
           * Před uložením nastaví `cislo_bedny` na další číslo v řadě pro daného zákazníka.
           * Pro zákazníka s příznakem `vse_tryskat` nastaví `tryskat` na `SPINAVA`.
+        - Pokud je stav bedny jiný než K_NAVEZENI nebo NAVEZENO, vymaže pozici.
         """
         is_existing_instance = bool(self.pk)
 
@@ -536,6 +543,9 @@ class Bedna(models.Model):
             # Pokud je zákazník s příznakem `vse_tryskat`, nastavíme tryskat na SPINAVA
             if zakaznik.vse_tryskat:
                 self.tryskat = TryskaniChoice.SPINAVA
+
+        if self.stav_bedny not in [StavBednyChoice.K_NAVEZENI, StavBednyChoice.NAVEZENO]:
+            self.pozice = None
 
         super().save(*args, **kwargs)
 
