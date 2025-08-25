@@ -63,6 +63,19 @@ class ActionsTests(ActionsBase):
         super().setUpTestData()
         cls.admin = DummyAdmin()
 
+    # Helpers for tests that need to assert messages
+    def _messaging_admin(self):
+        from django.contrib import messages as dj_messages
+
+        class _Admin:
+            def message_user(self, request, message, level=None):
+                dj_messages.add_message(request, level or dj_messages.INFO, message)
+
+        return _Admin()
+
+    def _messages_texts(self, request):
+        return [m.message for m in list(request._messages)]
+
     @patch('orders.actions.utilita_tisk_dokumentace')
     def test_tisk_karet_beden_action(self, mock_util):
         mock_util.return_value = HttpResponse('ok')
@@ -136,11 +149,45 @@ class ActionsTests(ActionsBase):
         resp = actions.import_kamionu_action(self.site, self.get_request('post'), Kamion.objects.filter(id=kamion.id))
         self.assertIsNotNone(resp)
 
+    def test_import_kamionu_action_multiple_selected_error(self):
+        admin_obj = self._messaging_admin()
+        k1 = Kamion.objects.create(zakaznik=self.zakaznik, datum=date.today())
+        k2 = Kamion.objects.create(zakaznik=self.zakaznik, datum=date.today())
+        req = self.get_request('post')
+        resp = actions.import_kamionu_action(admin_obj, req, Kamion.objects.filter(id__in=[k1.id, k2.id]))
+        self.assertIsNone(resp)
+        msgs = self._messages_texts(req)
+        self.assertTrue(any('Vyber pouze jeden kamion' in m for m in msgs))
+
+    def test_import_kamionu_action_not_prijem_error(self):
+        admin_obj = self._messaging_admin()
+        req = self.get_request('post')
+        resp = actions.import_kamionu_action(admin_obj, req, Kamion.objects.filter(id=self.kamion_vydej.id))
+        self.assertIsNone(resp)
+        msgs = self._messages_texts(req)
+        self.assertTrue(any('Import je možný pouze pro kamiony příjem' in m for m in msgs))
+
+    def test_import_kamionu_action_has_orders_error(self):
+        admin_obj = self._messaging_admin()
+        req = self.get_request('post')
+        resp = actions.import_kamionu_action(admin_obj, req, Kamion.objects.filter(id=self.kamion_prijem.id))
+        self.assertIsNone(resp)
+        msgs = self._messages_texts(req)
+        self.assertTrue(any('Kamion již obsahuje zakázky' in m for m in msgs))
+
     @patch('orders.actions.utilita_tisk_dl_a_proforma_faktury')
     def test_tisk_dodaciho_listu_kamionu_action(self, mock_util):
         mock_util.return_value = HttpResponse('ok')
         resp = actions.tisk_dodaciho_listu_kamionu_action(self.site, self.get_request(), Kamion.objects.filter(id=self.kamion_vydej.id))
         self.assertIsInstance(resp, HttpResponse)
+
+    def test_tisk_dodaciho_listu_kamionu_action_not_vydej_error(self):
+        admin_obj = self._messaging_admin()
+        req = self.get_request('get')
+        resp = actions.tisk_dodaciho_listu_kamionu_action(admin_obj, req, Kamion.objects.filter(id=self.kamion_prijem.id))
+        self.assertIsNone(resp)
+        msgs = self._messages_texts(req)
+        self.assertTrue(any('Tisk DL je možný pouze pro kamiony výdej' in m for m in msgs))
 
     @patch('orders.actions.utilita_tisk_dl_a_proforma_faktury')
     def test_tisk_proforma_faktury_kamionu_action(self, mock_util):
@@ -148,17 +195,75 @@ class ActionsTests(ActionsBase):
         resp = actions.tisk_proforma_faktury_kamionu_action(self.site, self.get_request(), Kamion.objects.filter(id=self.kamion_vydej.id))
         self.assertIsInstance(resp, HttpResponse)
 
+    def test_tisk_proforma_faktury_kamionu_action_not_vydej_error(self):
+        admin_obj = self._messaging_admin()
+        req = self.get_request('get')
+        resp = actions.tisk_proforma_faktury_kamionu_action(admin_obj, req, Kamion.objects.filter(id=self.kamion_prijem.id))
+        self.assertIsNone(resp)
+        msgs = self._messages_texts(req)
+        self.assertTrue(any('Tisk proforma faktury je možný pouze pro kamiony výdej' in m for m in msgs))
+
     @patch('orders.actions.utilita_tisk_dokumentace')
     def test_tisk_karet_beden_kamionu_action(self, mock_util):
         mock_util.return_value = HttpResponse('ok')
         resp = actions.tisk_karet_beden_kamionu_action(self.admin, self.get_request(), Kamion.objects.filter(id=self.kamion_prijem.id))
         self.assertIsInstance(resp, HttpResponse)
 
+    def test_tisk_karet_beden_kamionu_action_wrong_direction_error(self):
+        admin_obj = self._messaging_admin()
+        req = self.get_request('get')
+        resp = actions.tisk_karet_beden_kamionu_action(admin_obj, req, Kamion.objects.filter(id=self.kamion_vydej.id))
+        self.assertIsNone(resp)
+        msgs = self._messages_texts(req)
+        self.assertTrue(any('Tisk karet beden je možný pouze pro kamiony příjem' in m for m in msgs))
+
+    def test_tisk_karet_beden_kamionu_action_no_bedny_error(self):
+        admin_obj = self._messaging_admin()
+        empty_k = Kamion.objects.create(zakaznik=self.zakaznik, datum=date.today())
+        req = self.get_request('get')
+        resp = actions.tisk_karet_beden_kamionu_action(admin_obj, req, Kamion.objects.filter(id=empty_k.id))
+        self.assertIsNone(resp)
+        msgs = self._messages_texts(req)
+        self.assertTrue(any('V označeném kamionu nejsou žádné bedny' in m for m in msgs))
+
     @patch('orders.actions.utilita_tisk_dokumentace')
     def test_tisk_karet_kontroly_kvality_kamionu_action(self, mock_util):
         mock_util.return_value = HttpResponse('ok')
         resp = actions.tisk_karet_kontroly_kvality_kamionu_action(self.admin, self.get_request(), Kamion.objects.filter(id=self.kamion_prijem.id))
         self.assertIsInstance(resp, HttpResponse)
+
+    def test_tisk_karet_kontroly_kvality_kamionu_action_wrong_direction_error(self):
+        admin_obj = self._messaging_admin()
+        req = self.get_request('get')
+        resp = actions.tisk_karet_kontroly_kvality_kamionu_action(admin_obj, req, Kamion.objects.filter(id=self.kamion_vydej.id))
+        self.assertIsNone(resp)
+        msgs = self._messages_texts(req)
+        self.assertTrue(any('Tisk karet beden je možný pouze pro kamiony příjem' in m for m in msgs))
+
+    def test_tisk_karet_kontroly_kvality_kamionu_action_no_bedny_error(self):
+        admin_obj = self._messaging_admin()
+        empty_k = Kamion.objects.create(zakaznik=self.zakaznik, datum=date.today())
+        req = self.get_request('get')
+        resp = actions.tisk_karet_kontroly_kvality_kamionu_action(admin_obj, req, Kamion.objects.filter(id=empty_k.id))
+        self.assertIsNone(resp)
+        msgs = self._messages_texts(req)
+        self.assertTrue(any('V označeném kamionu nejsou žádné bedny' in m for m in msgs))
+
+    def test_expedice_zakazek_kamion_action_multiple_customers_error(self):
+        admin_obj = self._messaging_admin()
+        z2 = Zakaznik.objects.create(nazev='Z2', zkraceny_nazev='Z2', zkratka='E2', ciselna_rada=200000)
+        k2 = Kamion.objects.create(zakaznik=z2, datum=date.today())
+        predpis2 = Predpis.objects.create(nazev='P2', skupina=1, zakaznik=z2)
+        zak2 = Zakazka.objects.create(
+            kamion_prijem=k2, artikl='B1', prumer=1, delka=1,
+            predpis=predpis2, typ_hlavy=self.typ_hlavy, popis='p2'
+        )
+        req = self.get_request('post')
+        qs = Zakazka.objects.filter(id__in=[self.zakazka.id, zak2.id])
+        resp = actions.expedice_zakazek_kamion_action(admin_obj, req, qs)
+        self.assertIsNone(resp)
+        msgs = self._messages_texts(req)
+        self.assertTrue(any('Všechny vybrané zakázky musí patřit jednomu zákazníkovi' in m for m in msgs))
 
 
 class KNavezeniActionTests(ActionsBase):
