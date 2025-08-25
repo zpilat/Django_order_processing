@@ -8,7 +8,7 @@ from datetime import date
 
 from orders.models import (
     Zakaznik, Kamion, Zakazka, Bedna, Predpis, TypHlavy,
-    Odberatel
+    Odberatel, Pozice
 )
 from orders.choices import KamionChoice, StavBednyChoice
 from orders import actions
@@ -159,3 +159,93 @@ class ActionsTests(ActionsBase):
         mock_util.return_value = HttpResponse('ok')
         resp = actions.tisk_karet_kontroly_kvality_kamionu_action(self.admin, self.get_request(), Kamion.objects.filter(id=self.kamion_prijem.id))
         self.assertIsInstance(resp, HttpResponse)
+
+
+class KNavezeniActionTests(ActionsBase):
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        # Vytvoří výchozí skladovou pozici
+        cls.pozice_A = Pozice.objects.create(kod='A', kapacita=10)
+
+    def _minimal_admin(self):
+        # Minimální stub s atributy používanými renderem akce
+        class _Site:
+            def each_context(self, request):
+                return {}
+
+        class _Admin:
+            admin_site = _Site()
+            model = Bedna
+
+            def message_user(self, request, message, level=None):
+                # žádná akce pro testy
+                return None
+
+        return _Admin()
+
+    def test_get_renders_formset(self):
+        # Přidá druhou bednu ve stavu PRIJATO
+        Bedna.objects.create(zakazka=self.zakazka, hmotnost=2, tara=1)
+        req = self.get_request('get')
+        admin_obj = self._minimal_admin()
+        qs = Bedna.objects.all().order_by('id')
+        resp = actions.oznacit_k_navezeni_action(admin_obj, req, qs)
+        # Měl by vrátit TemplateResponse s formsetem pro obě bedny
+        from django.template.response import TemplateResponse
+        self.assertIsInstance(resp, TemplateResponse)
+        self.assertIn('formset', resp.context_data)
+        formset = resp.context_data['formset']
+        self.assertEqual(len(formset.forms), qs.count())
+
+    def test_post_success_updates_bedny(self):
+        admin_obj = self._minimal_admin()
+        qs = Bedna.objects.all().order_by('id')
+        # Vytvoří platný formset POST
+        from django.contrib import admin as dj_admin
+        data = {
+            'apply': '1',
+            # management form
+            'ozn-TOTAL_FORMS': str(qs.count()),
+            'ozn-INITIAL_FORMS': str(qs.count()),
+            'ozn-MIN_NUM_FORMS': '0',
+            'ozn-MAX_NUM_FORMS': '1000',
+        }
+        for i, b in enumerate(qs):
+            data[f'ozn-{i}-bedna_id'] = str(b.id)
+            data[f'ozn-{i}-pozice'] = str(self.pozice_A.id)
+            data[f'ozn-{i}-poznamka'] = 'pozn'
+        # Označení vybraných ID pomocí názvu zaškrtávacího políčka akce
+        for b in qs:
+            data.setdefault(dj_admin.helpers.ACTION_CHECKBOX_NAME, [])
+            data[dj_admin.helpers.ACTION_CHECKBOX_NAME].append(str(b.id))
+
+        req = self.get_request('post', data)
+        resp = actions.oznacit_k_navezeni_action(admin_obj, req, qs)
+        self.assertIsNone(resp)
+        # Ověření aktualizací
+        for b in qs:
+            b.refresh_from_db()
+            self.assertEqual(b.stav_bedny, StavBednyChoice.K_NAVEZENI)
+            self.assertEqual(b.pozice_id, self.pozice_A.id)
+            self.assertEqual(b.poznamka, 'pozn')
+
+    def test_post_invalid_form_returns_template(self):
+        admin_obj = self._minimal_admin()
+        qs = Bedna.objects.all()[:1]
+        from django.contrib import admin as dj_admin
+        data = {
+            'apply': '1',
+            'ozn-TOTAL_FORMS': '1',
+            'ozn-INITIAL_FORMS': '1',
+            'ozn-MIN_NUM_FORMS': '0',
+            'ozn-MAX_NUM_FORMS': '1000',
+            'ozn-0-bedna_id': str(qs[0].id),
+            'ozn-0-pozice': '',  # invalid (required)
+            'ozn-0-poznamka': '',
+            dj_admin.helpers.ACTION_CHECKBOX_NAME: [str(qs[0].id)],
+        }
+        req = self.get_request('post', data)
+        resp = actions.oznacit_k_navezeni_action(admin_obj, req, qs)
+        from django.template.response import TemplateResponse
+        self.assertIsInstance(resp, TemplateResponse)
