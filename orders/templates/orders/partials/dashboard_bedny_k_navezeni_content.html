@@ -17,7 +17,7 @@
         <tbody>
           {% for group in groups %}
             <tr>
-              <th colspan="4" style="background-color: #ffde17; color: #214290;">POZICE {{ group.pozice_label }}</th>
+              <th colspan="4" style="background-color: #ffde17; color: #214290;">POZICE {{ group.pozice }}</th>
             </tr>
             <tr>
               <th style="background-color: #214290; color: #ffde17;">Číslo bedny</th>
@@ -25,16 +25,15 @@
               <th style="background-color: #214290; color: #ffde17;">Popis</th>
               <th style="background-color: #214290; color: #ffde17;">Poznámka</th>
             </tr>          
-            {% for bedna in group.bedny %}
-              {% if forloop.counter|divisibleby:2 %}
-                <tr class="table-light">
-              {% else %}
-                <tr>
-              {% endif %}
-                <td>{{ bedna.cislo_bedny }}</td>
-                <td>{{ bedna.zakazka.prumer }} × {{ bedna.zakazka.delka }}</td>
-                <td>{{ bedna.zakazka.popis }}</td>
-                <td>{{ bedna.poznamka }}</td>
+            {% for zakazka in group.zakazky %}
+              <tr>
+                <th colspan="4" style="background-color: #ffde17; color: #214290;">ZAKÁZKA {{ zakazka.zakazka }}</th>
+              </tr>
+              <tr>
+                <td>{{ zakazka.bedna.cislo_bedny }}</td>
+                <td>{{ zakazka.bedna.zakazka.prumer }} x {{ zakazka.bedna.zakazka.delka }}</td>
+                <td>{{ zakazka.bedna.zakazka.popis }}</td>
+                <td>{{ zakazka.bedna.poznamka }}</td>
               </tr>
             {% endfor %}
           {% endfor %}  

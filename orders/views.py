@@ -173,29 +173,42 @@ def dashboard_bedny_k_navezeni_view(request):
         Bedna.objects
         .filter(stav_bedny=StavBednyChoice.K_NAVEZENI)
         .select_related('pozice', 'zakazka')
-        .order_by('pozice__kod', 'cislo_bedny')
+        .order_by('pozice__kod', 'zakazka', 'cislo_bedny')
     )
 
-    # Připravíme seznam skupin: [{pozice: <Pozice|None>, pozice_label: str, bedny: [Bedna, ...]}, ...]
+    # Připravíme seznam skupin: [{pozice: <Pozice|None>, zakazky: {zakazka: <Zakazka>, bedny: [Bedna, ...], ...}, ...}]
     groups = []
-    current_key = None
-    current_group = None
+    current_pozice_key = None
+    current_zakazka_key = None
+    current_pozice_group = None
+    current_zakazka_group = None
+
     for bedna in qs:
         pozice = bedna.pozice
-        key = pozice.kod if pozice and getattr(pozice, 'kod', None) else None
-        if current_group is None or key != current_key:
-            if current_group:
-                groups.append(current_group)
-            label = pozice.kod if pozice and getattr(pozice, 'kod', None) else 'Bez pozice'
-            current_group = {
-                'pozice': pozice,
-                'pozice_label': label,
+        zakazka = bedna.zakazka
+        pozice_key = pozice.id if pozice and getattr(pozice, 'kod', None) else None
+        zakazka_key = zakazka.id if zakazka else None     
+        if current_pozice_group is None or pozice_key != current_pozice_key:
+            if current_pozice_group:
+                groups.append(current_pozice_group)
+            current_pozice_group = {
+                'pozice': pozice.kod,
+                'zakazky': {}
+            }
+            current_pozice_key = pozice_key
+        if current_zakazka_group is None or zakazka_key != current_zakazka_key:
+            if current_zakazka_group:
+                current_pozice_group['zakazky'][current_zakazka_key] = current_zakazka_group
+            current_zakazka_group = {
+                'zakazka': zakazka,
                 'bedny': []
             }
-            current_key = key
-        current_group['bedny'].append(bedna)
-    if current_group:
-        groups.append(current_group)
+            current_zakazka_key = zakazka_key
+        current_zakazka_group['bedny'].append(bedna)
+    if current_zakazka_group:
+        current_pozice_group['zakazky'][current_zakazka_key] = current_zakazka_group
+    if current_pozice_group:
+        groups.append(current_pozice_group)
 
     context = {
         'groups': groups,
