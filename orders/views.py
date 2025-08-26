@@ -176,39 +176,30 @@ def dashboard_bedny_k_navezeni_view(request):
         .order_by('pozice__kod', 'zakazka', 'cislo_bedny')
     )
 
-    # Připravíme seznam skupin: [{pozice: <Pozice|None>, zakazky: {zakazka: <Zakazka>, bedny: [Bedna, ...], ...}, ...}]
     groups = []
-    current_pozice_key = None
-    current_zakazka_key = None
-    current_pozice_group = None
-    current_zakazka_group = None
+    pozice_map = {}
 
     for bedna in qs:
-        pozice = bedna.pozice
-        zakazka = bedna.zakazka
-        pozice_key = pozice.id if pozice and getattr(pozice, 'kod', None) else None
-        zakazka_key = zakazka.id if zakazka else None     
-        if current_pozice_group is None or pozice_key != current_pozice_key:
-            if current_pozice_group:
-                groups.append(current_pozice_group)
-            current_pozice_group = {
-                'pozice': pozice.kod,
-                'zakazky': {}
-            }
-            current_pozice_key = pozice_key
-        if current_zakazka_group is None or zakazka_key != current_zakazka_key:
-            if current_zakazka_group:
-                current_pozice_group['zakazky'][current_zakazka_key] = current_zakazka_group
-            current_zakazka_group = {
-                'zakazka': zakazka,
-                'bedny': []
-            }
-            current_zakazka_key = zakazka_key
-        current_zakazka_group['bedny'].append(bedna)
-    if current_zakazka_group:
-        current_pozice_group['zakazky'][current_zakazka_key] = current_zakazka_group
-    if current_pozice_group:
-        groups.append(current_pozice_group)
+        pozice_kod = bedna.pozice.kod if bedna.pozice else None
+        zakazka_id = bedna.zakazka.id if bedna.zakazka else None
+
+        # Najde nebo vytvoří skupinu pro pozici
+        if pozice_kod not in pozice_map:
+            pozice_group = {'pozice': pozice_kod, 'zakazky_group': []}
+            pozice_map[pozice_kod] = pozice_group
+            groups.append(pozice_group)
+        else:
+            pozice_group = pozice_map[pozice_kod]
+
+        # Najde nebo vytvoří podskupinu pro zakázku
+        zakazka_group = next((z for z in pozice_group['zakazky_group'] if z['zakazka'].id == zakazka_id), None)
+        if not zakazka_group:
+            zakazka_group = {'zakazka': bedna.zakazka, 'bedny': []}
+            pozice_group['zakazky_group'].append(zakazka_group)
+
+        # Přidá bednu do správné zakázky
+        zakazka_group['bedny'].append(bedna)
+
 
     context = {
         'groups': groups,
