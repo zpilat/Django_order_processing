@@ -1,0 +1,14 @@
+{% extends "orders/base.html" %}
+
+{% block header %}{% endblock%}
+
+{% block content %}
+  <div id="dashboard-content"
+       hx-get="{% url 'dashboard_bedny_k_navezeni' %}"
+       hx-trigger="every 60m"
+       hx-swap="innerHTML">
+    {% include "orders/partials/dashboard_bedny_k_navezeni_content.html" %}
+  </div>
+{% endblock %}
+
+

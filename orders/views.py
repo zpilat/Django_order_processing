@@ -160,6 +160,53 @@ def dashboard_kamiony_view(request):
         return render(request, "orders/partials/dashboard_kamiony_content.html", context)
     return render(request, 'orders/dashboard_kamiony.html', context)
 
+
+@login_required
+def dashboard_bedny_k_navezeni_view(request):
+    """
+    Zobrazí všechny bedny se stavem K_NAVEZENI, seskupené podle pozice a zakázky.
+
+    Sloupce: číslo bedny, rozměr (průměr × délka), popis, poznámka.
+    Seskupeno podle pozice (kód pozice), setříděno podle pozice a čísla bedny.
+    """
+    qs = (
+        Bedna.objects
+        .filter(stav_bedny=StavBednyChoice.K_NAVEZENI)
+        .select_related('pozice', 'zakazka')
+        .order_by('pozice__kod', 'cislo_bedny')
+    )
+
+    # Připravíme seznam skupin: [{pozice: <Pozice|None>, pozice_label: str, bedny: [Bedna, ...]}, ...]
+    groups = []
+    current_key = None
+    current_group = None
+    for bedna in qs:
+        pozice = bedna.pozice
+        key = pozice.kod if pozice and getattr(pozice, 'kod', None) else None
+        if current_group is None or key != current_key:
+            if current_group:
+                groups.append(current_group)
+            label = pozice.kod if pozice and getattr(pozice, 'kod', None) else 'Bez pozice'
+            current_group = {
+                'pozice': pozice,
+                'pozice_label': label,
+                'bedny': []
+            }
+            current_key = key
+        current_group['bedny'].append(bedna)
+    if current_group:
+        groups.append(current_group)
+
+    context = {
+        'groups': groups,
+        'db_table': 'bedny_k_navezeni',
+        'current_time': timezone.now(),        
+    }
+
+    # Volitelný HTMX partial v budoucnu
+    return render(request, 'orders/dashboard_bedny_k_navezeni.html', context)
+
+
 class BednyListView(LoginRequiredMixin, ListView):
     """
     Zobrazuje seznam beden.
@@ -272,18 +319,3 @@ class BednyListView(LoginRequiredMixin, ListView):
             return render(self.request, "orders/partials/listview_table.html", context)
         else:
             return super().render_to_response(context, **response_kwargs)
-
-
-class ZakazkyListView(LoginRequiredMixin, ListView):
-    """
-    Zobrazuje seznam zakázek.
-
-    Template:
-    - `zakazky_list.html`
-
-    Kontext:
-    - Seznam zakázek a možnosti filtrování.
-    """
-    model = Zakazka
-    template_name = 'orders/zakazky_list.html'
-    ordering = ['id']

@@ -10,7 +10,7 @@
                         aria-expanded="false">
                     {% if db_table == 'dashboard_bedny' %}dashboard_bedny                        
                     {% elif db_table == 'bedny' %}PŘEHLED BEDEN
-                    {% elif db_table == 'zakazky' %}PŘEHLED ZAKÁZEK
+                    {% elif db_table == 'bedny_k_navezeni' %}PŘEHLED BEDEN K NAVEZENÍ
                     {% else %}Výběr modulu
                     {% endif %}
                 </button>
@@ -21,8 +21,8 @@
                     {% if db_table != 'bedny' %}
                         <li><a class="dropdown-item small" href="{% url 'bedny_list' %}">Přehled beden</a></li>
                     {% endif %}
-                    {% if db_table != 'zakazky' %}
-                        <li><a class="dropdown-item small" href="{% url 'zakazky_list' %}">Přehled zakázek</a></li>
+                    {% if db_table != 'bedny_k_navezeni' %}
+                        <li><a class="dropdown-item small" href="{% url 'dashboard_bedny_k_navezeni' %}">Přehled beden k navezení</a></li>
                     {% endif %}
                 </ul>
             </div>
