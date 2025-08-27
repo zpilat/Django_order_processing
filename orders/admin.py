@@ -434,18 +434,10 @@ class KamionAdmin(SimpleHistoryAdmin):
                 file = form.cleaned_data.get('file')
                 tmp_token = request.POST.get('tmp_token')
                 tmp_filename = None
-                is_htmx = request.headers.get('HX-Request') == 'true' or request.META.get('HTTP_HX_REQUEST') == 'true'
+                is_htmx = False
                 # Povolit pouze .xlsx (openpyxl), ale jen pokud je nahrán nový soubor
                 if file and not file.name.lower().endswith('.xlsx'):
                     errors.append("Soubor musí být ve formátu .xlsx (Excel).")
-                    if is_htmx and request.POST.get('preview'):
-                        return render(request, 'admin/_import_zakazky_preview.html', {
-                            'preview': preview,
-                            'errors': errors,
-                            'warnings': warnings,
-                            'tmp_token': tmp_token,
-                            'tmp_filename': tmp_filename,
-                        })
                     return render(request, 'admin/import_zakazky.html', {
                         'form': form,
                         'kamion': kamion,
@@ -465,14 +457,6 @@ class KamionAdmin(SimpleHistoryAdmin):
                     if request.POST.get('preview'):
                         if not file:
                             errors.append("Pro náhled musíte vybrat soubor.")
-                            if is_htmx:
-                                return render(request, 'admin/_import_zakazky_preview.html', {
-                                    'preview': preview,
-                                    'errors': errors,
-                                    'warnings': warnings,
-                                    'tmp_token': tmp_token,
-                                    'tmp_filename': tmp_filename,
-                                })
                             return render(request, 'admin/import_zakazky.html', {
                                 'form': form,
                                 'kamion': kamion,
@@ -556,14 +540,6 @@ class KamionAdmin(SimpleHistoryAdmin):
                     if missing:
                         errors.append("Chyba: V Excelu chybí povinné sloupce: " + ", ".join(missing))
                         preview = []
-                        if is_htmx and request.POST.get('preview'):
-                            return render(request, 'admin/_import_zakazky_preview.html', {
-                                'preview': preview,
-                                'errors': errors,
-                                'warnings': warnings,
-                                'tmp_token': tmp_token,
-                                'tmp_filename': tmp_filename,
-                            })
                         return render(request, 'admin/import_zakazky.html', {
                             'form': form,
                             'kamion': kamion,
@@ -684,14 +660,6 @@ class KamionAdmin(SimpleHistoryAdmin):
                     # Režim náhledu – bez uložení
                     if request.POST.get('preview'):
                         messages.info(request, "Zobrazen náhled importu. Data nebyla uložena.")
-                        if is_htmx:
-                            return render(request, 'admin/_import_zakazky_preview.html', {
-                                'preview': preview,
-                                'errors': errors,
-                                'warnings': warnings,
-                                'tmp_token': tmp_token,
-                                'tmp_filename': tmp_filename,
-                            })
                         return render(request, 'admin/import_zakazky.html', {
                             'form': form,
                             'kamion': kamion,

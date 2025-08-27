@@ -1,11 +1,6 @@
 {% extends "admin/base_site.html" %}
 {% load custom_filters%}
 
-{% block extrahead %}
-  {{ block.super }}
-  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
-{% endblock %}
-
 {% block content %}
 <div id="content" class="flex">
   {% if errors %}
@@ -24,13 +19,11 @@
     </ul>
   {% endif %}
 
-  <form id="import-form" method="post" enctype="multipart/form-data" novalidate>
+  <form method="post" enctype="multipart/form-data" novalidate>
   {% csrf_token %}
-  <div id="tmp-token-slot">
-    {% if tmp_token %}
-      <input type="hidden" name="tmp_token" value="{{ tmp_token }}" />
-    {% endif %}
-  </div>
+  {% if tmp_token %}
+    <input type="hidden" name="tmp_token" value="{{ tmp_token }}" />
+  {% endif %}
   <div class="module aligned">
       <fieldset class="module aligned">
       <div class="form-row">
@@ -38,34 +31,53 @@
           <label for="{{ form.file.id_for_label }}">{{ form.file.label }}</label>
           <span style="display:flex;gap:8px;align-items:center;">
             {{ form.file|add_class:"vTextField" }}
-            <span id="file-hint" class="help">
-              {% if tmp_filename %}
-                Vybraný soubor: <strong>{{ tmp_filename }}</strong> (ponecháte-li prázdné, použije se tento)
-              {% endif %}
-            </span>
+            {% if tmp_filename %}
+              <span class="help">Vybraný soubor: <strong>{{ tmp_filename }}</strong> (ponecháte-li prázdné, použije se tento)</span>
+            {% endif %}
           </span>
       </div>
       </fieldset>
   </div>
 
   <div class="submit-row">
-  <button id="preview-btn" type="button" name="preview" value="1" class="default"
-          hx-post="."
-          hx-include="#import-form"
-          hx-encoding="multipart/form-data"
-          hx-target="#preview-container"
-          hx-swap="innerHTML">
-    Náhled
-  </button>
+  <button type="submit" name="preview" value="1" class="default">Náhled</button>
   <input type="submit" value="Importovat" class="default">
   </div>
   </form>
 
-  <div id="preview-container">
-    {% if preview %}
-      {% include "admin/_import_zakazky_preview.html" %}
-    {% endif %}
-  </div>
+  {% if preview %}
+    <h3>Náhled importu (max. 50 řádků)</h3>
+    <div class="results">
+      <table id="result_list">
+        <thead>
+          <tr>
+            <th scope="col">Artikl</th>
+            <th scope="col">Ø</th>
+            <th scope="col">Délka</th>
+            <th scope="col">Předpis</th>
+            <th scope="col">Typ hlavy</th>
+            <th scope="col">Popis</th>
+            <th scope="col">Hmotnost (kg)</th>
+            <th scope="col">Tara (kg)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in preview %}
+            <tr>
+              <td>{{ row.artikl }}</td>
+              <td>{{ row.prumer }}</td>
+              <td>{{ row.delka }}</td>
+              <td>{{ row.predpis }}</td>
+              <td>{{ row.typ_hlavy }}</td>
+              <td>{{ row.popis }}</td>
+              <td>{{ row.hmotnost }}</td>
+              <td>{{ row.tara }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
 </div>
 {% endblock %}
 
