@@ -24,3 +24,6 @@ db.sqlite3
 *.bak
 .DS_Store
 Thumbs.db
+
+# Dočasné soubory v adresáři tmp
+tmp/
