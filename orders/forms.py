@@ -8,7 +8,10 @@ import logging
 logger = logging.getLogger('orders')
 
 class ImportZakazekForm(forms.Form):
-    file = forms.FileField(label="Soubor (pouze XLSX)", required=True)
+    file = forms.FileField(
+        label="Soubor (pouze XLSX)",
+        required=False,
+        widget=forms.ClearableFileInput(attrs={'accept': '.xlsx'}))
 
 class ZakazkaPredpisValidatorMixin:
     """

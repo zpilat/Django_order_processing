@@ -1,6 +1,15 @@
 {% extends "admin/base_site.html" %}
 {% load custom_filters%}
 
+{% block extrahead %}
+  {{ block.super }}
+  <style>
+    /* secondary button look close to admin */
+    .btn-secondary { background: #f3f4f6; border: 1px solid #d1d5db; color: #111827; border-radius: 4px; padding: 9px 12px; }
+    .btn-secondary:hover { background: #e5e7eb; }
+  </style>
+{% endblock%}
+
 {% block content %}
 <div id="content" class="flex">
   {% if errors %}
@@ -29,7 +38,7 @@
       <div class="form-row">
           {{ form.file.errors }}
           <label for="{{ form.file.id_for_label }}">{{ form.file.label }}</label>
-          <span style="display:flex;gap:8px;align-items:center;">
+          <span style="display:flex;gap:20px;align-items:center;">
             {{ form.file|add_class:"vTextField" }}
             {% if tmp_filename %}
               <span class="help">Vybraný soubor: <strong>{{ tmp_filename }}</strong> (ponecháte-li prázdné, použije se tento)</span>
@@ -40,7 +49,7 @@
   </div>
 
   <div class="submit-row">
-  <button type="submit" name="preview" value="1" class="default">Náhled</button>
+  <button type="submit" name="preview" value="1" class="btn-secondary">Náhled</button>
   <input type="submit" value="Importovat" class="default">
   </div>
   </form>
