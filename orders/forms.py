@@ -8,7 +8,7 @@ import logging
 logger = logging.getLogger('orders')
 
 class ImportZakazekForm(forms.Form):
-    file = forms.FileField(label="Soubor (XLSX nebo CSV)")
+    file = forms.FileField(label="Soubor (pouze XLSX)", required=True)
 
 class ZakazkaPredpisValidatorMixin:
     """

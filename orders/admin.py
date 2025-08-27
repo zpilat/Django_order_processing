@@ -15,6 +15,8 @@ from django.db.models import Count
 
 from simple_history.admin import SimpleHistoryAdmin
 from decimal import Decimal, ROUND_HALF_UP
+from django.core.files.storage import default_storage
+import uuid
 import pandas as pd
 import re
 
@@ -421,35 +423,114 @@ class KamionAdmin(SimpleHistoryAdmin):
         """
         kamion_id = request.GET.get("kamion")
         kamion = Kamion.objects.get(pk=kamion_id) if kamion_id else None
-        errors = []
-        preview = []
+        errors: list[str] = []
+        warnings: list[str] = []
+        preview: list[dict] = []
 
         if request.method == 'POST':
             logger.info(f"Uživatel {request.user} zahájil import zakázek pro kamion {kamion.poradove_cislo}.")
             form = ImportZakazekForm(request.POST, request.FILES)
             if form.is_valid():
-                file = form.cleaned_data['file']
+                file = form.cleaned_data.get('file')
+                tmp_token = request.POST.get('tmp_token')
+                tmp_filename = None
+                is_htmx = request.headers.get('HX-Request') == 'true' or request.META.get('HTTP_HX_REQUEST') == 'true'
+                # Povolit pouze .xlsx (openpyxl), ale jen pokud je nahrán nový soubor
+                if file and not file.name.lower().endswith('.xlsx'):
+                    errors.append("Soubor musí být ve formátu .xlsx (Excel).")
+                    if is_htmx and request.POST.get('preview'):
+                        return render(request, 'admin/_import_zakazky_preview.html', {
+                            'preview': preview,
+                            'errors': errors,
+                            'warnings': warnings,
+                            'tmp_token': tmp_token,
+                            'tmp_filename': tmp_filename,
+                        })
+                    return render(request, 'admin/import_zakazky.html', {
+                        'form': form,
+                        'kamion': kamion,
+                        'preview': preview,
+                        'errors': errors,
+                        'warnings': warnings,
+                        'tmp_token': tmp_token,
+                        'tmp_filename': tmp_filename,
+                        'title': f"Import zakázek pro kamion {kamion}",
+                    })
                 try:
+                    # Vyber zdroj souboru – nový upload nebo dočasný soubor z náhledu
+                    tmp_map = request.session.get('import_tmp_files', {})
+                    saved_path = None
+                    excel_stream = None
+
+                    if request.POST.get('preview'):
+                        if not file:
+                            errors.append("Pro náhled musíte vybrat soubor.")
+                            if is_htmx:
+                                return render(request, 'admin/_import_zakazky_preview.html', {
+                                    'preview': preview,
+                                    'errors': errors,
+                                    'warnings': warnings,
+                                    'tmp_token': tmp_token,
+                                    'tmp_filename': tmp_filename,
+                                })
+                            return render(request, 'admin/import_zakazky.html', {
+                                'form': form,
+                                'kamion': kamion,
+                                'preview': preview,
+                                'errors': errors,
+                                'warnings': warnings,
+                                'tmp_token': tmp_token,
+                                'tmp_filename': tmp_filename,
+                                'title': f"Import zakázek pro kamion {kamion}",
+                            })
+                        token = str(uuid.uuid4())
+                        saved_path = default_storage.save(f"tmp/imports/{token}.xlsx", file)
+                        tmp_map[token] = {'path': saved_path, 'name': file.name}
+                        request.session['import_tmp_files'] = tmp_map
+                        request.session.modified = True
+                        tmp_token = token
+                        tmp_filename = file.name
+                        excel_stream = default_storage.open(saved_path, 'rb')
+                    else:
+                        if file:
+                            excel_stream = file
+                            tmp_filename = getattr(file, 'name', None)
+                        elif tmp_token and tmp_token in tmp_map:
+                            saved_path = tmp_map[tmp_token]['path']
+                            tmp_filename = tmp_map[tmp_token]['name']
+                            excel_stream = default_storage.open(saved_path, 'rb')
+                        else:
+                            errors.append("Nebyl poskytnut žádný soubor k importu.")
+                            return render(request, 'admin/import_zakazky.html', {
+                                'form': form,
+                                'kamion': kamion,
+                                'preview': preview,
+                                'errors': errors,
+                                'warnings': warnings,
+                                'tmp_token': tmp_token,
+                                'tmp_filename': tmp_filename,
+                                'title': f"Import zakázek pro kamion {kamion}",
+                            })
+
                     # Načte prvních 200 řádků (jinak načítá celý soubor - přes 100000 řádků)
-                    df = pd.read_excel(file, nrows=200, engine="openpyxl")
+                    df = pd.read_excel(excel_stream, nrows=200, engine="openpyxl")
+                    try:
+                        # zavřít handle, pokud je z uloženého souboru
+                        if saved_path and excel_stream:
+                            excel_stream.close()
+                    except Exception:
+                        pass
 
                     # Najde první úplně prázdný řádek
                     first_empty_index = df[df.isnull().all(axis=1)].index.min()
                     if pd.notna(first_empty_index):
                         df = df.loc[:first_empty_index - 1]
 
-                    # Zkontroluje, jsou všechny datumy ve sloupci 'Abhol- datum' stejné.
-                    if not df['Abhol- datum'].isnull().all():
+                    # Zkontroluje datumy v 'Abhol- datum' – při různosti pouze varování
+                    if 'Abhol- datum' in df.columns and not df['Abhol- datum'].isnull().all():
                         unique_dates = df['Abhol- datum'].dropna().unique()
                         if len(unique_dates) > 1:
-                            errors.append("Chyba: Všechny datumy v 'Abhol- datum' musí být stejné.")
-                            return render(request, 'admin/import_zakazky.html', {
-                                'form': form,
-                                'kamion': kamion,
-                                'preview': preview,
-                                'errors': errors,
-                                'title': f"Import zakázek pro kamion {kamion}",
-                            })
+                            warnings.append("Upozornění: Sloupec 'Abhol- datum' obsahuje různé hodnoty. Import pokračuje.")
 
                     # Odstraní prázdné sloupce
                     df.dropna(axis=1, how='all', inplace=True)
@@ -462,10 +543,44 @@ class KamionAdmin(SimpleHistoryAdmin):
                         'n. Zg. / \nas drg': 'n. Zg. / as drg',
                     }, inplace=True)
 
+                    # Povinné zdrojové sloupce dle specifikace
+                    required_src = [
+                        'Abmessung',
+                        'Artikel- nummer',
+                        'n. Zg. / as drg',
+                        'Kopf',
+                        'Gewicht in kg',
+                        'Tara kg',
+                    ]
+                    missing = [c for c in required_src if c not in df.columns]
+                    if missing:
+                        errors.append("Chyba: V Excelu chybí povinné sloupce: " + ", ".join(missing))
+                        preview = []
+                        if is_htmx and request.POST.get('preview'):
+                            return render(request, 'admin/_import_zakazky_preview.html', {
+                                'preview': preview,
+                                'errors': errors,
+                                'warnings': warnings,
+                                'tmp_token': tmp_token,
+                                'tmp_filename': tmp_filename,
+                            })
+                        return render(request, 'admin/import_zakazky.html', {
+                            'form': form,
+                            'kamion': kamion,
+                            'preview': preview,
+                            'errors': errors,
+                            'warnings': warnings,
+                            'tmp_token': tmp_token,
+                            'tmp_filename': tmp_filename,
+                            'title': f"Import zakázek pro kamion {kamion}",
+                        })
+
                     # Přidání prumer a delka
                     def rozdel_rozmer(row):
                         try:
-                            prumer_str, delka_str = row['Abmessung'].replace(',', '.').split('x')
+                            text = str(row.get('Abmessung', '') or '')
+                            text = text.replace('×', 'x').replace('X', 'x')
+                            prumer_str, delka_str = text.replace(',', '.').split('x')
                             return Decimal(prumer_str.strip()), Decimal(delka_str.strip())
                         except Exception:
                             messages.info(request, "Chyba: Sloupec 'Abmessung' musí obsahovat hodnoty ve formátu 'prumer x delka'.")
@@ -529,6 +644,65 @@ class KamionAdmin(SimpleHistoryAdmin):
                     # Setřídění podle sloupce prumer, delka, predpis, artikl, sarze, behalter_nr
                     df.sort_values(by=['prumer', 'delka', 'predpis', 'artikl', 'sarze', 'behalter_nr'], inplace=True)
                     logger.info(f"Uživatel {request.user} úspěšně načetl data z Excel souboru pro import zakázek.")
+
+                    # Připravit náhled (prvních 50 řádků)
+                    preview = [
+                        {
+                            'artikl': r.get('Artikel- nummer') or r.get('artikl'),
+                            'prumer': r.get('prumer'),
+                            'delka': r.get('delka'),
+                            'predpis': r.get('n. Zg. / as drg') or r.get('predpis'),
+                            'typ_hlavy': r.get('Kopf') or r.get('typ_hlavy'),
+                            'popis': r.get('Bezeichnung') or r.get('popis'),
+                            'hmotnost': r.get('Gewicht in kg') or r.get('hmotnost'),
+                            'tara': r.get('Tara kg') or r.get('tara'),
+                        }
+                        for _, r in df.head(50).iterrows()
+                    ]
+
+                    # Pokud jsou chyby po parsování, zobrazit náhled a chyby (bez uložení)
+                    if errors:
+                        if is_htmx and request.POST.get('preview'):
+                            return render(request, 'admin/_import_zakazky_preview.html', {
+                                'preview': preview,
+                                'errors': errors,
+                                'warnings': warnings,
+                                'tmp_token': tmp_token,
+                                'tmp_filename': tmp_filename,
+                            })
+                        return render(request, 'admin/import_zakazky.html', {
+                            'form': form,
+                            'kamion': kamion,
+                            'preview': preview,
+                            'errors': errors,
+                            'warnings': warnings,
+                            'tmp_token': tmp_token,
+                            'tmp_filename': tmp_filename,
+                            'title': f"Import zakázek pro kamion {kamion}",
+                        })
+
+                    # Režim náhledu – bez uložení
+                    if request.POST.get('preview'):
+                        messages.info(request, "Zobrazen náhled importu. Data nebyla uložena.")
+                        if is_htmx:
+                            return render(request, 'admin/_import_zakazky_preview.html', {
+                                'preview': preview,
+                                'errors': errors,
+                                'warnings': warnings,
+                                'tmp_token': tmp_token,
+                                'tmp_filename': tmp_filename,
+                            })
+                        return render(request, 'admin/import_zakazky.html', {
+                            'form': form,
+                            'kamion': kamion,
+                            'preview': preview,
+                            'errors': errors,
+                            'warnings': warnings,
+                            'tmp_token': tmp_token,
+                            'tmp_filename': tmp_filename,
+                            'title': f"Import zakázek pro kamion {kamion}",
+                        })
+
                     # Uložení záznamů
                     with transaction.atomic():
                         zakazky_cache = {}
@@ -551,7 +725,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                                 # Sestavení názvu předpisu
                                 try:
                                     cislo_predpisu = int(row['predpis'])
-                                    nazev_predpis=f"{cislo_predpisu:05d}_Ø{retezec_prumer}"                                
+                                    nazev_predpis=f"{cislo_predpisu:05d}_Ø{retezec_prumer}"
                                 except (ValueError, TypeError):
                                     nazev_predpis = f"{row['predpis']}_Ø{retezec_prumer}"
 
@@ -603,6 +777,19 @@ class KamionAdmin(SimpleHistoryAdmin):
                             )
 
                     logger.info(f"Uživatel {request.user} úspěšně uložil zakázky a bedny pro kamion {kamion.poradove_cislo}.")
+                    # pokud se importovalo z dočasného souboru, uklidit
+                    if not request.POST.get('preview') and 'tmp_token' in locals() and tmp_token:
+                        tmp_map = request.session.get('import_tmp_files', {})
+                        info = tmp_map.pop(tmp_token, None)
+                        if info and info.get('path'):
+                            try:
+                                default_storage.delete(info['path'])
+                            except Exception:
+                                pass
+                        request.session['import_tmp_files'] = tmp_map
+                        request.session.modified = True
+                    for w in warnings:
+                        messages.warning(request, w)
                     self.message_user(request, "Import proběhl úspěšně.", messages.SUCCESS)
                     return redirect("..")
 
@@ -610,16 +797,18 @@ class KamionAdmin(SimpleHistoryAdmin):
                     logger.error(f"Chyba při importu zakázek pro kamion {kamion.poradove_cislo}: {e}")
                     self.message_user(request, f"Chyba při importu: {e}", messages.ERROR)
                     return redirect("..")
-
         else:
             logger.info(f"Uživatel {request.user} otevřel formulář pro import zakázek do kamionu {kamion}.")
             form = ImportZakazekForm()
-    
+
         return render(request, 'admin/import_zakazky.html', {
             'form': form,
             'kamion': kamion,
             'preview': preview,
             'errors': errors,
+            'warnings': warnings,
+            'tmp_token': None,
+            'tmp_filename': None,
             'title': f"Import zakázek pro kamion {kamion}",
         })
     

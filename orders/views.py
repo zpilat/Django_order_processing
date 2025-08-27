@@ -207,7 +207,8 @@ def dashboard_bedny_k_navezeni_view(request):
         'current_time': timezone.now(),        
     }
 
-    # Volitelný HTMX partial v budoucnu
+    if request.htmx:
+        return render(request, "orders/partials/dashboard_bedny_k_navezeni_content.html", context)
     return render(request, 'orders/dashboard_bedny_k_navezeni.html', context)
 
 
