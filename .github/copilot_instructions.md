@@ -27,7 +27,7 @@
 
 ## 4) Django Admin – konvence
 
-- \`\`: preferuj stručné a užitečné sloupce. Pole v `list_editable` musí být současně i v `list_display` a nesmí být první sloupec.
+- **list_display**: preferuj stručné a užitečné sloupce. Pole v `list_editable` musí být současně i v `list_display` a nesmí být první sloupec.
 - **Editace FK v changelistu**: pro `pozice` použij `list_editable=("pozice",)`; zvaž `autocomplete_fields=("pozice",)`. Pokud je klasický select, nastav `empty_label` na `"-"`.
 - **Ikony u FK (RelatedFieldWidgetWrapper)**: pokud je nechceme, vypni `can_add_related`, `can_change_related`, `can_delete_related`, `can_view_related` na wrapperu místo ručního odstraňování.
 - **Výkon**: přidávej `list_select_related=("pozice",)` a u M2M `prefetch_related`.
@@ -51,8 +51,8 @@ def formfield_for_dbfield(self, db_field, request, **kwargs):
 ## 5) Validace & business logika
 
 - V modelu `Bedna` při ukládání platí:
-  - Pokud je `stav_bedny` v `{K_NAVEZENI, NAVEZENO}`, \`\`\*\* musí být vyplněná\*\*.
-  - Při jiných stavech se \`\`\*\* vynuluje\*\*.
+  - Pokud je `stav_bedny` v `{K_NAVEZENI, NAVEZENO}`, pozice musí být vyplněná.
+  - Při jiných stavech se pozice vynuluje.
 - Preferuj validace v `clean()` + bezpečnost v `save()` (idempotentně). Neprováděj **mutace stavu na GET**.
 
 ## 6) Vlastní akce „označit k navezení“ – standard
