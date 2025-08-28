@@ -1,7 +1,7 @@
 {% load custom_filters %}
 
 <div class="row flex-nowrap overflow-auto">
-  <div class="col-xxl-5 col-xl-6 col-lg-8 col-md-10 col-sm-12 mb-4">
+  <div id="knavezeni-dashboard" class="col-xxl-5 col-xl-6 col-lg-8 col-md-10 col-sm-12 mb-4">
     <div class="alert" role="alert" style="background-color: #214290; color: #ffde17; font-family: 'Segoe UI';">
       <h3>Přehled beden k navezení</h3>
       <h6>Naposledy aktualizováno: {{ current_time|date:"d.m.Y H:i" }}</h6>
@@ -49,6 +49,11 @@
           </tr>
         {% endif %}
       </tbody>
-    </table>     
+    </table><br>     
+    <div class="mb-2" style="text-align: center; display: flex; gap: 8px; justify-content: center;">
+      <a href="{% url 'dashboard_bedny_k_navezeni_pdf' %}" target="_blank" style="background:#214290;color:#fff;border:1px solid #1b387a;border-radius:4px;padding:6px 12px;text-decoration:none;display:inline-block;">
+        Tisk do PDF
+      </a>
+    </div>    
   </div>
 </div> 

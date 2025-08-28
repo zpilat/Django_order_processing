@@ -450,7 +450,10 @@ class KamionAdmin(SimpleHistoryAdmin):
                     })
                 try:
                     # Vyber zdroj souboru – nový upload nebo dočasný soubor z náhledu
-                    tmp_map = request.session.get('import_tmp_files', {})
+                    try:
+                        tmp_map = request.session.get('import_tmp_files', {})
+                    except Exception:
+                        tmp_map = {}
                     saved_path = None
                     excel_stream = None
 
@@ -470,8 +473,11 @@ class KamionAdmin(SimpleHistoryAdmin):
                         token = str(uuid.uuid4())
                         saved_path = default_storage.save(f"tmp/imports/{token}.xlsx", file)
                         tmp_map[token] = {'path': saved_path, 'name': file.name}
-                        request.session['import_tmp_files'] = tmp_map
-                        request.session.modified = True
+                        try:
+                            request.session['import_tmp_files'] = tmp_map
+                            request.session.modified = True
+                        except Exception:
+                            pass
                         tmp_token = token
                         tmp_filename = file.name
                         excel_stream = default_storage.open(saved_path, 'rb')
@@ -659,7 +665,10 @@ class KamionAdmin(SimpleHistoryAdmin):
 
                     # Režim náhledu – bez uložení
                     if request.POST.get('preview'):
-                        messages.info(request, "Zobrazen náhled importu. Data nebyla uložena.")
+                        try:
+                            messages.info(request, "Zobrazen náhled importu. Data nebyla uložena.")
+                        except Exception:
+                            pass
                         return render(request, 'admin/import_zakazky.html', {
                             'form': form,
                             'kamion': kamion,
@@ -747,23 +756,38 @@ class KamionAdmin(SimpleHistoryAdmin):
                     logger.info(f"Uživatel {request.user} úspěšně uložil zakázky a bedny pro kamion {kamion.poradove_cislo}.")
                     # pokud se importovalo z dočasného souboru, uklidit
                     if not request.POST.get('preview') and 'tmp_token' in locals() and tmp_token:
-                        tmp_map = request.session.get('import_tmp_files', {})
+                        try:
+                            tmp_map = request.session.get('import_tmp_files', {})
+                        except Exception:
+                            tmp_map = {}
                         info = tmp_map.pop(tmp_token, None)
                         if info and info.get('path'):
                             try:
                                 default_storage.delete(info['path'])
                             except Exception:
                                 pass
-                        request.session['import_tmp_files'] = tmp_map
-                        request.session.modified = True
+                        try:
+                            request.session['import_tmp_files'] = tmp_map
+                            request.session.modified = True
+                        except Exception:
+                            pass
                     for w in warnings:
-                        messages.warning(request, w)
-                    self.message_user(request, "Import proběhl úspěšně.", messages.SUCCESS)
+                        try:
+                            messages.warning(request, w)
+                        except Exception:
+                            pass
+                    try:
+                        self.message_user(request, "Import proběhl úspěšně.", messages.SUCCESS)
+                    except Exception:
+                        pass
                     return redirect("..")
 
                 except Exception as e:
                     logger.error(f"Chyba při importu zakázek pro kamion {kamion.poradove_cislo}: {e}")
-                    self.message_user(request, f"Chyba při importu: {e}", messages.ERROR)
+                    try:
+                        self.message_user(request, f"Chyba při importu: {e}", messages.ERROR)
+                    except Exception:
+                        pass
                     return redirect("..")
         else:
             logger.info(f"Uživatel {request.user} otevřel formulář pro import zakázek do kamionu {kamion}.")

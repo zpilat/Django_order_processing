@@ -13,6 +13,7 @@ import django.utils.timezone as timezone
 from .utils import get_verbose_name_for_column
 from .models import Bedna, Zakazka, Kamion, Zakaznik, TypHlavy, Predpis, Odberatel, Cena
 from .choices import  StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice
+from weasyprint import HTML
 
 import logging
 logger = logging.getLogger('orders')
@@ -161,14 +162,8 @@ def dashboard_kamiony_view(request):
     return render(request, 'orders/dashboard_kamiony.html', context)
 
 
-@login_required
-def dashboard_bedny_k_navezeni_view(request):
-    """
-    Zobrazí všechny bedny se stavem K_NAVEZENI, seskupené podle pozice a zakázky.
-
-    Sloupce: číslo bedny, rozměr (průměr × délka), popis, poznámka.
-    Seskupeno podle pozice (kód pozice), setříděno podle pozice a čísla bedny.
-    """
+def _get_bedny_k_navezeni_groups():
+    """Sestaví seskupená data beden k navezení podle pozice a zakázky."""
     qs = (
         Bedna.objects
         .filter(stav_bedny=StavBednyChoice.K_NAVEZENI)
@@ -200,9 +195,19 @@ def dashboard_bedny_k_navezeni_view(request):
         # Přidá bednu do správné zakázky
         zakazka_group['bedny'].append(bedna)
 
+    return groups
 
+
+@login_required
+def dashboard_bedny_k_navezeni_view(request):
+    """
+    Zobrazí všechny bedny se stavem K_NAVEZENI, seskupené podle pozice a zakázky.
+
+    Sloupce: číslo bedny, rozměr (průměr × délka), popis, poznámka.
+    Seskupeno podle pozice (kód pozice), setříděno podle pozice a čísla bedny.
+    """
     context = {
-        'groups': groups,
+        'groups': _get_bedny_k_navezeni_groups(),
         'db_table': 'bedny_k_navezeni',
         'current_time': timezone.now(),        
     }
@@ -210,6 +215,23 @@ def dashboard_bedny_k_navezeni_view(request):
     if request.htmx:
         return render(request, "orders/partials/dashboard_bedny_k_navezeni_content.html", context)
     return render(request, 'orders/dashboard_bedny_k_navezeni.html', context)
+
+
+@login_required
+def dashboard_bedny_k_navezeni_pdf_view(request):
+    """PDF verze přehledu beden k navezení (WeasyPrint)."""
+    context = {
+        'groups': _get_bedny_k_navezeni_groups(),
+        'current_time': timezone.now(),
+    }
+    from django.template.loader import render_to_string
+    from django.http import HttpResponse
+
+    html_string = render_to_string('orders/print/bedny_k_navezeni_print.html', context)
+    pdf_bytes = HTML(string=html_string).write_pdf()
+    response = HttpResponse(pdf_bytes, content_type='application/pdf')
+    response['Content-Disposition'] = 'inline; filename="bedny_k_navezeni.pdf"'
+    return response
 
 
 class BednyListView(LoginRequiredMixin, ListView):
