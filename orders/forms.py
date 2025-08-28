@@ -11,7 +11,12 @@ class ImportZakazekForm(forms.Form):
     file = forms.FileField(
         label="Soubor (pouze XLSX)",
         required=False,
-        widget=forms.ClearableFileInput(attrs={'accept': '.xlsx'}))
+        widget=forms.ClearableFileInput(attrs={
+            "accept": ".xlsx",
+            "style": "padding:.4rem .6rem; border:1px solid var(--hairline-color); "
+                     "border-radius:6px; height:1.35rem; width:350px; max-width:450px;"
+        }),
+    )
 
 class ZakazkaPredpisValidatorMixin:
     """
