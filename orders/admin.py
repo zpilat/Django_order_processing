@@ -503,7 +503,30 @@ class KamionAdmin(SimpleHistoryAdmin):
                             })
 
                     # Načte prvních 200 řádků (jinak načítá celý soubor - přes 100000 řádků)
-                    df = pd.read_excel(excel_stream, nrows=200, engine="openpyxl")
+                    # Sjednocená normalizace: zajistí, že artikl je vždy čistý text bez koncového '.0'.
+                    def _clean_artikl(val):
+                        if pd.isna(val):
+                            return None
+                        s = str(val).strip()
+                        # typický případ z Excelu: 902925.0 → 902925
+                        if s.endswith('.0'):
+                            try:
+                                float_val = float(s)
+                                if float_val.is_integer():
+                                    return str(int(float_val))
+                            except Exception:
+                                pass
+                            return s[:-2]
+                        return s
+
+                    df = pd.read_excel(
+                        excel_stream,
+                        nrows=200,
+                        engine="openpyxl",
+                        converters={
+                            'Artikel- nummer': _clean_artikl,
+                        }
+                    )
                     try:
                         # zavřít handle, pokud je z uloženého souboru
                         if saved_path and excel_stream:
@@ -630,7 +653,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                     # Připravit náhled (prvních 50 řádků)
                     preview = [
                         {
-                            'artikl': r.get('Artikel- nummer') or r.get('artikl'),
+                            'artikl': r.get('artikl'),
                             'prumer': r.get('prumer'),
                             'delka': r.get('delka'),
                             'predpis': r.get('n. Zg. / as drg') or r.get('predpis'),
