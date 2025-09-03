@@ -31,3 +31,6 @@ tmp/
 # soubory Excel
 *.xls
 *.xlsx
+
+# archivní adresář
+archive/
