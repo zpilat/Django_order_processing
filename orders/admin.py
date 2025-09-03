@@ -523,6 +523,9 @@ class KamionAdmin(SimpleHistoryAdmin):
                         excel_stream,
                         nrows=200,
                         engine="openpyxl",
+                        dtype={
+                            'Artikel- nummer': str,
+                        },
                         converters={
                             'Artikel- nummer': _clean_artikl,
                         }

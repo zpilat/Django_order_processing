@@ -27,3 +27,7 @@ Thumbs.db
 
 # Dočasné soubory v adresáři tmp
 tmp/
+
+# soubory Excel
+*.xls
+*.xlsx
