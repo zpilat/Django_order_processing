@@ -14,7 +14,7 @@ from django.utils.html import format_html
 from django.db.models import Count
 
 from simple_history.admin import SimpleHistoryAdmin
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal, ROUND_HALF_UP, ROUND_DOWN
 from django.core.files.storage import default_storage
 import uuid
 import pandas as pd
@@ -961,8 +961,8 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     readonly_fields = ('expedovano', 'get_komplet')
     
     # Parametry pro zobrazení seznamu v administraci
-    list_display = ('artikl', 'get_datum', 'kamion_prijem_link', 'kamion_vydej_link', 'prumer', 'delka', 'predpis_link', 'typ_hlavy_link',
-                    'get_skupina', 'get_celozavit', 'zkraceny_popis', 'priorita', 'hmotnost_zakazky_k_expedici_brutto',
+    list_display = ('artikl', 'get_datum', 'kamion_prijem_link', 'kamion_vydej_link', 'get_prumer', 'get_delka_int', 'predpis_link',
+                    'typ_hlavy_link', 'get_skupina', 'get_celozavit', 'zkraceny_popis', 'priorita', 'hmotnost_zakazky_k_expedici_brutto',
                     'pocet_beden_k_expedici', 'celkovy_pocet_beden', 'get_komplet',)
     list_display_links = ('artikl',)
     # list_editable = nastavováno dynamicky v get_list_editable
@@ -1003,6 +1003,26 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
         """
         if obj.predpis:
             return mark_safe(f'<a href="{obj.predpis.get_admin_url()}">{obj.predpis.nazev}</a>')
+        
+    @admin.display(description='Délka', ordering='delka', empty_value='-')
+    def get_delka_int(self, obj):
+        """
+        Zobrazí délku zakázky jako celé číslo (oříznuté číslice za čárkou) a umožní třídění podle hlavičky pole.
+        Pokud není délka připojena, vrátí prázdný řetězec.
+        """
+        if obj.delka is not None:
+            return int(obj.delka.to_integral_value(rounding=ROUND_DOWN))
+        return '-'
+    
+    @admin.display(description='Ø', ordering='prumer', empty_value='-')
+    def get_prumer(self, obj):
+        """
+        Zobrazí průměr zakázky a umožní třídění podle hlavičky pole.
+        Pokud není průměr připojen, vrátí prázdný řetězec.
+        """
+        if obj.prumer is not None:
+            return obj.prumer
+        return '-'
         
     @admin.display(description='Datum', ordering='kamion_prijem__datum', empty_value='-')
     def get_datum(self, obj):
@@ -1299,7 +1319,7 @@ class BednaAdmin(SimpleHistoryAdmin):
 
     # Parametry pro zobrazení seznamu v administraci
     list_display = ('get_cislo_bedny', 'get_behalter_nr', 'zakazka_link', 'kamion_prijem_link', 'kamion_vydej_link',
-                    'rovnat', 'tryskat', 'stav_bedny', 'get_prumer', 'get_delka','get_skupina_TZ', 'get_typ_hlavy',
+                    'rovnat', 'tryskat', 'stav_bedny', 'get_prumer', 'get_delka_int','get_skupina_TZ', 'get_typ_hlavy',
                     'get_celozavit', 'zkraceny_popis', 'hmotnost', 'pozice', 'get_priorita', 'get_datum', 'poznamka',)
     # list_editable nastavován dynamicky v get_list_editable
     list_display_links = ('get_cislo_bedny', )
@@ -1425,12 +1445,14 @@ class BednaAdmin(SimpleHistoryAdmin):
         """
         return obj.zakazka.prumer
 
-    @admin.display(description='Délka', ordering='zakazka__delka')
-    def get_delka(self, obj):
+    @admin.display(description='Délka', ordering='zakazka__delka', empty_value='-')
+    def get_delka_int(self, obj):
         """
-        Zobrazí délku zakázky a umožní třídění podle hlavičky pole.
+        Zobrazí délku zakázky jako integer a umožní třídění podle hlavičky pole.
         """
-        return obj.zakazka.delka
+        if obj.zakazka and obj.zakazka.delka is not None:
+            return int(obj.zakazka.delka.to_integral_value(rounding=ROUND_DOWN))
+        return '-'
     
     @admin.display(description='TZ', ordering='zakazka__predpis__skupina', empty_value='-')
     def get_skupina_TZ(self, obj):
