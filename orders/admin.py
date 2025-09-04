@@ -971,7 +971,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     search_help_text = "Dle artiklu"
     list_filter = (ZakaznikZakazkyFilter, KompletZakazkaFilter, PrioritaZakazkyFilter, CelozavitZakazkyFilter, TypHlavyZakazkyFilter,
                    OberflacheFilter, ExpedovanaZakazkaFilter,)
-    ordering = ('-id',)
+    ordering = ('id',)
     date_hierarchy = 'kamion_prijem__datum'
     list_per_page = 25
     formfield_overrides = {
