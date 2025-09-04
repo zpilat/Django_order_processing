@@ -8,7 +8,7 @@
     </div>    
     <table class="table table-sm align-middle mb-0 text-center">
       <thead>
-        <tr style="font-size: 1.2rem;">
+        <tr style="font-size: 1.5rem;">
           <th colspan="5" class="fw-bold" style="background-color: #ffde17; color: #214290;">Bedny k navezení</th>
         </tr>
       </thead>
@@ -16,14 +16,14 @@
         {% if groups %}
           {% for group in groups %}
             <tr>
-              <th colspan="5" style="background-color: #ffde17; color: #214290;">POZICE {{ group.pozice }}</th>
+              <th colspan="5" style="background-color: #ffde17; color: #214290; font-size: 1.2rem;">Do pozice: {{ group.pozice }}</th>
             </tr>
             <tr>
               <th style="background-color: #214290; color: #ffde17;">Artikl</th>
               <th style="background-color: #214290; color: #ffde17;">Číslo bedny</th>
               <th style="background-color: #214290; color: #ffde17;">Rozměr</th>
               <th style="background-color: #214290; color: #ffde17;">Popis</th>
-              <th style="background-color: #214290; color: #ffde17;">Poznámka</th>
+              <th style="background-color: #214290; color: #ffde17;">Poznámka k navezení</th>
             </tr>          
             {% for zakazka_group in group.zakazky_group %}
               {% for bedna in zakazka_group.bedny %}
@@ -38,7 +38,7 @@
                   <td>{{ bedna.cislo_bedny }}</td>
                   <td>{{ zakazka_group.zakazka.prumer }} x {{ zakazka_group.zakazka.delka }}</td>
                   <td>{{ zakazka_group.zakazka.popis }}</td>
-                  <td>{{ bedna.poznamka|default:"" }}</td>
+                  <td>{{ bedna.poznamka_k_navezeni|default:"" }}</td>
                 </tr>
               {% endfor %}
             {% endfor %}

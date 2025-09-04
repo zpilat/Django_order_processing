@@ -84,17 +84,25 @@ def oznacit_k_navezeni_action(modeladmin, request, queryset):
                 "cislo": bedna.cislo_bedny,
                 "prumer": bedna.zakazka.prumer,
                 "delka": bedna.zakazka.delka,
+                "hmotnost": bedna.hmotnost,
                 "artikl": bedna.zakazka.artikl,
                 "typ_hlavy": bedna.zakazka.typ_hlavy,
                 "popis": bedna.zakazka.popis,
-                "poznamka": bedna.poznamka,
+                "poznamka_k_navezeni": bedna.poznamka_k_navezeni,
                 "pozice": bedna.pozice
             } for bedna in qs
         ]
         formset = KNavezeniFormSet(data=request.POST, initial=initial, prefix="ozn")
+
         # Pokud formset není validní, znovu se vykreslí s hodnotami
         if not formset.is_valid():           
             messages.error(request, "Formulář není validní.")
+            return _render_oznacit_k_navezeni(modeladmin, request, qs, formset)
+        
+        # Pokud není uvedena pozice u první bedny, znovu se vykreslí s hodnotami a chybou
+        aktualni_pozice = formset.forms[0].cleaned_data.get("pozice")
+        if not aktualni_pozice:
+            messages.error(request, "Musíš vybrat alespoň první pozici.")
             return _render_oznacit_k_navezeni(modeladmin, request, qs, formset)
 
         # Předpočítáme aktuální obsazenost/kapacity pro varování
@@ -115,22 +123,29 @@ def oznacit_k_navezeni_action(modeladmin, request, queryset):
 
             for f in formset.forms:
                 bedna_id = f.cleaned_data["bedna_id"]
-                poznamka = f.cleaned_data["poznamka"]
-                pozice = f.cleaned_data["pozice"]
+                poznamka_k_navezeni = f.cleaned_data["poznamka_k_navezeni"]
+                pozice = f.cleaned_data["pozice"] #co zadal uživatel na tomto řádku
+
+                # pokud uživatel zadal na řádku pozici, stane se aktuální pozicí, jinak se použije poslední zadaná pozice
+                if pozice:
+                    aktualni_pozice = pozice
+                else:
+                    pozice = aktualni_pozice               
+
                 b = bedny_map.get(bedna_id)
                 if not b:
                     continue
 
                 pid = pozice.pk
-                # Pokud by přiřazení přesáhlo kapacitu, jen si to poznačíme pro warning
+                # Pokud by přiřazení přesáhlo kapacitu, jen poznačíme pro warning
                 if obsazenost[pid] + 1 > kapacita[pid]:
                     prekrocena_kapacita += 1
 
                 # Přesun + změna stavu (bez ohledu na kapacitu)
                 b.pozice = pozice
-                b.poznamka = poznamka
+                b.poznamka_k_navezeni = poznamka_k_navezeni
                 b.stav_bedny = StavBednyChoice.K_NAVEZENI
-                b.save(update_fields=["pozice", "poznamka", "stav_bedny"])
+                b.save(update_fields=["pozice", "poznamka_k_navezeni", "stav_bedny"])
 
                 obsazenost[pid] += 1
                 uspesne += 1
@@ -153,10 +168,11 @@ def oznacit_k_navezeni_action(modeladmin, request, queryset):
             "cislo": bedna.cislo_bedny,
             "prumer": bedna.zakazka.prumer,
             "delka": bedna.zakazka.delka,
+            "hmotnost": bedna.hmotnost,
             "artikl": bedna.zakazka.artikl,
             "typ_hlavy": bedna.zakazka.typ_hlavy,
             "popis": bedna.zakazka.popis,
-            "poznamka": bedna.poznamka,
+            "poznamka_k_navezeni": bedna.poznamka_k_navezeni,
             "pozice": bedna.pozice
         } for bedna in queryset
     ]

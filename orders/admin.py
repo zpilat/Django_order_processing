@@ -1313,7 +1313,7 @@ class BednaAdmin(SimpleHistoryAdmin):
 
     # Parametry pro zobrazení detailu v administraci
     fields = ('zakazka', 'pozice', 'cislo_bedny', 'hmotnost', 'tara', 'mnozstvi', 'material', 'sarze', 'behalter_nr', 'dodatecne_info',
-              'dodavatel_materialu', 'vyrobni_zakazka', 'tryskat', 'rovnat', 'stav_bedny', 'poznamka', 'odfosfatovat', 'pozastaveno',)
+              'dodavatel_materialu', 'vyrobni_zakazka', 'tryskat', 'rovnat', 'stav_bedny', 'poznamka', 'odfosfatovat', 'pozastaveno', 'poznamka_k_navezeni')
     readonly_fields = ('cislo_bedny',)
     autocomplete_fields = ('zakazka',)
 

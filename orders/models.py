@@ -462,6 +462,7 @@ class Bedna(models.Model):
     odfosfatovat = models.BooleanField(default=False, verbose_name='Odfos.')
     pozastaveno = models.BooleanField(default=False, verbose_name='Pozastaveno',
                                        help_text='Pokud je bedna pozastavena, nelze s ní pracovat, dokud ji odpovědná osoba neuvolní.')
+    poznamka_k_navezeni = models.CharField(max_length=50, blank=True, null=True, verbose_name='Poznámka k navezení')
     history = HistoricalRecords()
 
     class Meta:
@@ -523,7 +524,7 @@ class Bedna(models.Model):
         - Pokud se jedná o novou instanci (bez PK):
           * Před uložením nastaví `cislo_bedny` na další číslo v řadě pro daného zákazníka.
           * Pro zákazníka s příznakem `vse_tryskat` nastaví `tryskat` na `SPINAVA`.
-        - Pokud je stav bedny jiný než K_NAVEZENI nebo NAVEZENO, vymaže pozici.
+        - Pokud je stav bedny jiný než K_NAVEZENI nebo NAVEZENO, vymaže pozici a poznámku k navezení.
         """
         is_existing_instance = bool(self.pk)
 
@@ -544,8 +545,10 @@ class Bedna(models.Model):
             if zakaznik.vse_tryskat:
                 self.tryskat = TryskaniChoice.SPINAVA
 
+        # Pokud je stav bedny jiný než K_NAVEZENI nebo NAVEZENO, vymaže pozici a poznámku k navezení
         if self.stav_bedny not in [StavBednyChoice.K_NAVEZENI, StavBednyChoice.NAVEZENO]:
             self.pozice = None
+            self.poznamka_k_navezeni = None
 
         super().save(*args, **kwargs)
 
