@@ -583,8 +583,8 @@ class KamionAdmin(SimpleHistoryAdmin):
                     # Vytvoří se nový sloupec 'priorita', pokud je ve sloupci 'Sonder / Zusatzinfo' obsaženo 'eilig', vyplní se hodnota 'P1' jako priorita
                     def priorita(row):
                         if pd.notna(row['Sonder / Zusatzinfo']) and 'eilig' in row['Sonder / Zusatzinfo'].lower():
-                            return 'P1'
-                        return '-'
+                            return PrioritaChoice.VYSOKA
+                        return PrioritaChoice.NIZKA
                     df['priorita'] = df.apply(priorita, axis=1)
 
                     # Vytvoří se nový sloupec 'celozavit', pokud je ve sloupci 'Bezeichnung' obsaženo 'konstrux', vyplní se hodnota True, jinak False
