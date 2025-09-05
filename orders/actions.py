@@ -177,7 +177,28 @@ def oznacit_k_navezeni_action(modeladmin, request, queryset):
         } for bedna in queryset
     ]
     formset = KNavezeniFormSet(initial=initial, prefix="ozn")
-    return _render_oznacit_k_navezeni(modeladmin, request, queryset, formset)        
+    return _render_oznacit_k_navezeni(modeladmin, request, queryset, formset)       
+
+@admin.action(description="Změna stavu bedny na NAVEZENO")
+def oznacit_navezeno_action(modeladmin, request, queryset):
+    """
+    Změní stav vybraných beden na NAVEZENO.
+    """
+    # kontrola, zda jsou všechny bedny v querysetu ve stavu K_NAVEZENI
+    if queryset.exclude(stav_bedny=StavBednyChoice.K_NAVEZENI).exists():
+        logger.info(f"Uživatel {request.user} se pokusil změnit stav na NAVEZENO, ale některé bedny nejsou ve stavu K NAVEZENÍ.")
+        modeladmin.message_user(request, "Některé vybrané bedny nejsou ve stavu K NAVEZENÍ.", level=messages.ERROR)
+        return None
+
+    with transaction.atomic():
+        for bedna in queryset:
+            if bedna.stav_bedny == StavBednyChoice.K_NAVEZENI:
+                bedna.stav_bedny = StavBednyChoice.NAVEZENO
+                bedna.save(update_fields=["stav_bedny"])
+
+    messages.success(request, f"Navezeno: {queryset.count()} beden.")
+    logger.info(f"Uživatel {request.user} změnil stav na NAVEZENO u {queryset.count()} beden.")
+    return None
 
 @admin.action(description="Vrátit bedny ze stavu K NAVEZENÍ do PŘIJATO")
 def vratit_bedny_do_stavu_prijato_action(modeladmin, request, queryset):

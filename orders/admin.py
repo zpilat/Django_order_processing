@@ -25,7 +25,7 @@ from .actions import (
     expedice_zakazek_action, import_kamionu_action, tisk_karet_beden_action, tisk_karet_beden_zakazek_action,
     tisk_karet_beden_kamionu_action, tisk_dodaciho_listu_kamionu_action, vratit_zakazky_z_expedice_action, expedice_zakazek_kamion_action,
     tisk_karet_kontroly_kvality_action, tisk_karet_kontroly_kvality_zakazek_action, tisk_karet_kontroly_kvality_kamionu_action,
-    tisk_proforma_faktury_kamionu_action, oznacit_k_navezeni_action, vratit_bedny_do_stavu_prijato_action
+    tisk_proforma_faktury_kamionu_action, oznacit_k_navezeni_action, vratit_bedny_do_stavu_prijato_action, oznacit_navezeno_action
     )
 from .filters import (
     ExpedovanaZakazkaFilter, StavBednyFilter, KompletZakazkaFilter, AktivniPredpisFilter, SkupinaFilter, ZakaznikBednyFilter,
@@ -1308,7 +1308,10 @@ class BednaAdmin(SimpleHistoryAdmin):
     - Pro každý řádek dropdown omezí na povolené volby podle stejné logiky.
     - Číslo bedny se generuje automaticky a je readonly
     """
-    actions = [tisk_karet_beden_action, tisk_karet_kontroly_kvality_action, oznacit_k_navezeni_action, vratit_bedny_do_stavu_prijato_action]
+    actions = [
+        tisk_karet_beden_action, tisk_karet_kontroly_kvality_action, oznacit_k_navezeni_action, oznacit_navezeno_action,
+        vratit_bedny_do_stavu_prijato_action,
+    ]
     form = BednaAdminForm
 
     # Parametry pro zobrazení detailu v administraci
@@ -1572,7 +1575,7 @@ class BednaAdmin(SimpleHistoryAdmin):
 
         if request.method == "GET" and request.GET.get('stav_bedny', None) != StavBednyChoice.K_NAVEZENI:
             actions_to_remove += [
-                'vratit_bedny_do_stavu_prijato_action',
+                'vratit_bedny_do_stavu_prijato_action', 'oznacit_navezeno_action',
             ]
 
         for action in actions_to_remove:
