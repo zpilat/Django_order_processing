@@ -102,7 +102,7 @@ def oznacit_k_navezeni_action(modeladmin, request, queryset):
         # Pokud není uvedena pozice u první bedny, znovu se vykreslí s hodnotami a chybou
         aktualni_pozice = formset.forms[0].cleaned_data.get("pozice")
         if not aktualni_pozice:
-            messages.error(request, "Musíš vybrat alespoň první pozici.")
+            messages.error(request, "Je potřeba vybrat alespoň první pozici.")
             return _render_oznacit_k_navezeni(modeladmin, request, qs, formset)
 
         # Předpočítáme aktuální obsazenost/kapacity pro varování

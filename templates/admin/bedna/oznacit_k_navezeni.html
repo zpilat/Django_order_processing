@@ -1,0 +1,58 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{% block content %}
+<p>Stačí označit vždy první stejnou pozici, další se přiřadí automaticky až do další zadané pozice.</p>
+<form method="post">{% csrf_token %}
+  {# udržení kontextu akce #}
+  <input type="hidden" name="action" value="{{ action_name }}">
+
+  {# odeslání všech vybraných PK zpět #}
+  {% for obj in queryset %}
+    <input type="hidden" name="{{ action_checkbox_name }}" value="{{ obj.pk }}">
+  {% endfor %}
+
+  {{ formset.management_form }}
+
+  <table class="adminlist">
+    <thead>
+      <tr>
+        <th>Bedna</th><th>Hmotnost</th><th>Rozměr</th><th>Artikl</th><th>Typ hlavy</th><th>Popis</th><th>Poznámka k navezení</th><th>Pozice</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for form in formset.forms %}
+      {% ifchanged form.initial.artikl %}
+        <tr style="border-top: 2px solid #cac8c8ff;">
+      {% else %}
+        {% if forloop.last %}
+          <tr style="border-bottom: 2px solid #cac8c8ff;">
+        {% else %}
+          <tr>
+        {% endif %}
+      {% endifchanged %}            
+          <td>
+            {{ form.bedna_id }}  {# hidden input #}
+            {{ form.initial.cislo }}
+          </td>
+          <td>{{ form.initial.hmotnost|floatformat:0 }} kg</td>          
+          {% ifchanged form.initial.artikl %}
+            <td>{{ form.initial.prumer }} x {{ form.initial.delka }} mm</td>
+            <td>{{ form.initial.artikl }}</td>
+            <td>{{ form.initial.typ_hlavy }}</td>
+            <td>{{ form.initial.popis }}</td>          
+            <td>{{ form.poznamka_k_navezeni }}</td>                
+          {% else %}
+            <td></td><td></td><td></td><td></td><td></td>
+          {% endifchanged %}
+          <td>{{ form.pozice }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <br>
+  <div class="submit-row">
+    <input type="submit" name="apply" value="Připravit k navezení" class="default">
+  </div>
+</form>
+{% endblock %}
