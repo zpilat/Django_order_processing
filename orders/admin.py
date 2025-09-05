@@ -25,7 +25,7 @@ from .actions import (
     expedice_zakazek_action, import_kamionu_action, tisk_karet_beden_action, tisk_karet_beden_zakazek_action,
     tisk_karet_beden_kamionu_action, tisk_dodaciho_listu_kamionu_action, vratit_zakazky_z_expedice_action, expedice_zakazek_kamion_action,
     tisk_karet_kontroly_kvality_action, tisk_karet_kontroly_kvality_zakazek_action, tisk_karet_kontroly_kvality_kamionu_action,
-    tisk_proforma_faktury_kamionu_action, oznacit_k_navezeni_action
+    tisk_proforma_faktury_kamionu_action, oznacit_k_navezeni_action, vratit_bedny_do_stavu_prijato_action
     )
 from .filters import (
     ExpedovanaZakazkaFilter, StavBednyFilter, KompletZakazkaFilter, AktivniPredpisFilter, SkupinaFilter, ZakaznikBednyFilter,
@@ -1308,7 +1308,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     - Pro každý řádek dropdown omezí na povolené volby podle stejné logiky.
     - Číslo bedny se generuje automaticky a je readonly
     """
-    actions = [tisk_karet_beden_action, tisk_karet_kontroly_kvality_action, oznacit_k_navezeni_action]
+    actions = [tisk_karet_beden_action, tisk_karet_kontroly_kvality_action, oznacit_k_navezeni_action, vratit_bedny_do_stavu_prijato_action]
     form = BednaAdminForm
 
     # Parametry pro zobrazení detailu v administraci
@@ -1559,6 +1559,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         """
         Přizpůsobí dostupné akce v administraci podle filtru stavu bedny.
         Pokud není stav bedny PRIJATO, odebere akci pro změnu stavu bedny na K_NAVEZENI.
+        Pokud není stav bedny K_NAVEZENI, odebere akci pro vrácení stavu bedny na PRIJATO.
         """
         actions = super().get_actions(request)
 
@@ -1567,6 +1568,11 @@ class BednaAdmin(SimpleHistoryAdmin):
         if request.method == "GET" and request.GET.get('stav_bedny', None) != StavBednyChoice.PRIJATO:
             actions_to_remove = [
                 'oznacit_k_navezeni_action',
+            ]
+
+        if request.method == "GET" and request.GET.get('stav_bedny', None) != StavBednyChoice.K_NAVEZENI:
+            actions_to_remove += [
+                'vratit_bedny_do_stavu_prijato_action',
             ]
 
         for action in actions_to_remove:

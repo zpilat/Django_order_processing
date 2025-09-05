@@ -121,10 +121,10 @@ def oznacit_k_navezeni_action(modeladmin, request, queryset):
                 b.pk: b for b in Bedna.objects.select_for_update().filter(pk__in=vybrane_ids)
             }
 
-            for f in formset.forms:
-                bedna_id = f.cleaned_data["bedna_id"]
-                poznamka_k_navezeni = f.cleaned_data["poznamka_k_navezeni"]
-                pozice = f.cleaned_data["pozice"] #co zadal uživatel na tomto řádku
+            for form in formset.forms:
+                bedna_id = form.cleaned_data["bedna_id"]
+                poznamka_k_navezeni = form.cleaned_data["poznamka_k_navezeni"]
+                pozice = form.cleaned_data["pozice"] #co zadal uživatel na tomto řádku
 
                 # pokud uživatel zadal na řádku pozici, stane se aktuální pozicí, jinak se použije poslední zadaná pozice
                 if pozice:
@@ -132,8 +132,8 @@ def oznacit_k_navezeni_action(modeladmin, request, queryset):
                 else:
                     pozice = aktualni_pozice               
 
-                b = bedny_map.get(bedna_id)
-                if not b:
+                bedna = bedny_map.get(bedna_id)
+                if not bedna:
                     continue
 
                 pid = pozice.pk
@@ -142,10 +142,10 @@ def oznacit_k_navezeni_action(modeladmin, request, queryset):
                     prekrocena_kapacita += 1
 
                 # Přesun + změna stavu (bez ohledu na kapacitu)
-                b.pozice = pozice
-                b.poznamka_k_navezeni = poznamka_k_navezeni
-                b.stav_bedny = StavBednyChoice.K_NAVEZENI
-                b.save(update_fields=["pozice", "poznamka_k_navezeni", "stav_bedny"])
+                bedna.pozice = pozice
+                bedna.poznamka_k_navezeni = poznamka_k_navezeni
+                bedna.stav_bedny = StavBednyChoice.K_NAVEZENI
+                bedna.save()
 
                 obsazenost[pid] += 1
                 uspesne += 1
@@ -179,7 +179,27 @@ def oznacit_k_navezeni_action(modeladmin, request, queryset):
     formset = KNavezeniFormSet(initial=initial, prefix="ozn")
     return _render_oznacit_k_navezeni(modeladmin, request, queryset, formset)        
 
-    
+@admin.action(description="Vrátit bedny ze stavu K NAVEZENÍ do PŘIJATO")
+def vratit_bedny_do_stavu_prijato_action(modeladmin, request, queryset):
+    """
+    Vrátí vybrané bedny ze stavu K NAVEZENÍ do PŘIJATO.
+    """
+    # kontrola, zda jsou všechny zakázky v querysetu ve stavu K_NAVEZENI
+    if queryset.exclude(stav_bedny=StavBednyChoice.K_NAVEZENI).exists():
+        logger.info(f"Uživatel {request.user} se pokusil vrátit bedny do stavu PŘIJATO, ale některé nejsou ve stavu K NAVEZENÍ.")
+        messages.error(request, "Některé vybrané bedny nejsou ve stavu K NAVEZENÍ.")
+        return None
+
+    with transaction.atomic():
+        for bedna in queryset:
+            bedna.stav_bedny = StavBednyChoice.PRIJATO
+            bedna.save()
+
+    logger.info(f"Uživatel {request.user} vrátil do stavu PŘIJATO {queryset.count()} beden.")
+    messages.success(request, f"Vráceno do stavu PŘIJATO: {queryset.count()} beden.")
+    return None
+
+
 # Akce pro zakázky:
 
 @admin.action(description="Expedice vybraných zakázek")
