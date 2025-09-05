@@ -35,9 +35,9 @@
             {{ form.bedna_id }}  {# hidden input #}
             {{ form.initial.cislo }}
           </td>
-          <td>{{ form.initial.hmotnost|floatformat:0 }} kg</td>          
+          <td>{{ form.initial.hmotnost|floatformat:0 }}kg</td>          
           {% ifchanged form.initial.artikl %}
-            <td><strong>{{ form.initial.prumer }} x {{ form.initial.delka }} mm</strong></td>
+            <td><strong>{{ form.initial.prumer }}x{{ form.initial.delka|floatformat:0 }}</strong></td>
             <td><strong>{{ form.initial.artikl }}</strong></td>
             <td><strong>{{ form.initial.typ_hlavy }}</strong></td>
             <td><strong>{{ form.initial.popis }}</strong></td>          
