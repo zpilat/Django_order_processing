@@ -37,10 +37,10 @@
           </td>
           <td>{{ form.initial.hmotnost|floatformat:0 }} kg</td>          
           {% ifchanged form.initial.artikl %}
-            <td>{{ form.initial.prumer }} x {{ form.initial.delka }} mm</td>
-            <td>{{ form.initial.artikl }}</td>
-            <td>{{ form.initial.typ_hlavy }}</td>
-            <td>{{ form.initial.popis }}</td>          
+            <td><strong>{{ form.initial.prumer }} x {{ form.initial.delka }} mm</strong></td>
+            <td><strong>{{ form.initial.artikl }}</strong></td>
+            <td><strong>{{ form.initial.typ_hlavy }}</strong></td>
+            <td><strong>{{ form.initial.popis }}</strong></td>          
             <td>{{ form.poznamka_k_navezeni }}</td>                
           {% else %}
             <td></td><td></td><td></td><td></td><td></td>
