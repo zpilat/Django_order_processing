@@ -37,11 +37,6 @@
   </style>
 </head>
 <body>
-  <header>
-    <h1>Přehled beden k navezení</h1>
-    <div class="meta">Vygenerováno: {{ current_time|date:"d.m.Y H:i" }}</div>
-  </header>
-
   {% if groups %}
     {% for group in groups %}
       <table class="group-table">
@@ -87,5 +82,9 @@
       </tbody>
     </table>
   {% endif %}
+  <br>
+  <footer>
+    <div class="meta">Přehled beden k navezení vygenerován: {{ current_time|date:"d.m.Y H:i" }}</div>
+  </footer>
 </body>
 </html>
