@@ -25,8 +25,9 @@ from .actions import (
     expedice_zakazek_action, import_kamionu_action, tisk_karet_beden_action, tisk_karet_beden_zakazek_action,
     tisk_karet_beden_kamionu_action, tisk_dodaciho_listu_kamionu_action, vratit_zakazky_z_expedice_action, expedice_zakazek_kamion_action,
     tisk_karet_kontroly_kvality_action, tisk_karet_kontroly_kvality_zakazek_action, tisk_karet_kontroly_kvality_kamionu_action,
-    tisk_proforma_faktury_kamionu_action, oznacit_k_navezeni_action, vratit_bedny_do_stavu_prijato_action, oznacit_navezeno_action
-    )
+    tisk_proforma_faktury_kamionu_action, oznacit_k_navezeni_action, vratit_bedny_do_stavu_prijato_action, oznacit_navezeno_action,
+    oznacit_do_zpracovani_action, oznacit_zakaleno_action, oznacit_zkontrolovano_action, oznacit_k_expedici_action,
+   )
 from .filters import (
     ExpedovanaZakazkaFilter, StavBednyFilter, KompletZakazkaFilter, AktivniPredpisFilter, SkupinaFilter, ZakaznikBednyFilter,
     ZakaznikZakazkyFilter, ZakaznikKamionuFilter, PrijemVydejFilter, TryskaniFilter, RovnaniFilter, PrioritaBednyFilter, PrioritaZakazkyFilter,
@@ -1310,7 +1311,8 @@ class BednaAdmin(SimpleHistoryAdmin):
     """
     actions = [
         tisk_karet_beden_action, tisk_karet_kontroly_kvality_action, oznacit_k_navezeni_action, oznacit_navezeno_action,
-        vratit_bedny_do_stavu_prijato_action,
+        vratit_bedny_do_stavu_prijato_action, oznacit_do_zpracovani_action, oznacit_zakaleno_action, oznacit_zkontrolovano_action,
+        oznacit_k_expedici_action,
     ]
     form = BednaAdminForm
 
@@ -1561,22 +1563,42 @@ class BednaAdmin(SimpleHistoryAdmin):
     def get_actions(self, request):
         """
         Přizpůsobí dostupné akce v administraci podle filtru stavu bedny.
-        Pokud není stav bedny PRIJATO, odebere akci pro změnu stavu bedny na K_NAVEZENI.
-        Pokud není stav bedny K_NAVEZENI, odebere akci pro vrácení stavu bedny na PRIJATO.
+        Pokud není stav bedny PRIJATO, zruší se akce pro změnu stavu bedny na K_NAVEZENI.
+        Pokud není stav bedny K_NAVEZENI, zruší akci pro změnu stavu bedny na NAVEZENO a pro vrácení stavu bedny na PRIJATO.
+        Pokud není stav bedny NAVEZENO, zruší akci pro změnu stavu bedny na DO_ZPRACOVANI.
+        Pokud není stav bedny DO_ZPRACOVANI, zruší akci pro změnu stavu bedny na ZAKALENO.
+        Pokud není stav bedny ZAKALENO, zruší akci pro změnu stavu bedny na ZKONTROLOVANO.
+        Pokud není stav bedny ZKONTROLOVANO, zruší akci pro změnu stavu bedny na K_EXPEDICI.
         """
         actions = super().get_actions(request)
 
         actions_to_remove = []
 
-        if request.method == "GET" and request.GET.get('stav_bedny', None) != StavBednyChoice.PRIJATO:
-            actions_to_remove = [
-                'oznacit_k_navezeni_action',
-            ]
-
-        if request.method == "GET" and request.GET.get('stav_bedny', None) != StavBednyChoice.K_NAVEZENI:
-            actions_to_remove += [
-                'vratit_bedny_do_stavu_prijato_action', 'oznacit_navezeno_action',
-            ]
+        if request.method == "GET":
+            if request.GET.get('stav_bedny', None) != StavBednyChoice.PRIJATO:
+                actions_to_remove = [
+                    'oznacit_k_navezeni_action',
+                ]
+            if request.GET.get('stav_bedny', None) != StavBednyChoice.K_NAVEZENI:
+                actions_to_remove += [
+                    'vratit_bedny_do_stavu_prijato_action', 'oznacit_navezeno_action',
+                ]
+            if request.GET.get('stav_bedny', None) != StavBednyChoice.NAVEZENO:
+                actions_to_remove += [
+                    'oznacit_do_zpracovani_action',
+                ]
+            if request.GET.get('stav_bedny', None) != StavBednyChoice.DO_ZPRACOVANI:
+                actions_to_remove += [
+                    'oznacit_zakaleno_action',
+                ]
+            if request.GET.get('stav_bedny', None) != StavBednyChoice.ZAKALENO:
+                actions_to_remove += [
+                    'oznacit_zkontrolovano_action',
+                ]
+            if request.GET.get('stav_bedny', None) != StavBednyChoice.ZKONTROLOVANO:
+                actions_to_remove += [
+                    'oznacit_k_expedici_action',
+                ]
 
         for action in actions_to_remove:
             if action in actions:
