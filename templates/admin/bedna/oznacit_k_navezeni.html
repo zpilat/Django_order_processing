@@ -36,7 +36,7 @@
             {{ form.initial.cislo }}
           </td>
           <td>{{ form.initial.hmotnost|floatformat:0 }}kg</td>          
-          {% ifchanged form.initial.artikl %}
+          {% ifchanged form.initial.zakazka_id %}
             <td><strong>{{ form.initial.prumer }}x{{ form.initial.delka|floatformat:0 }}</strong></td>
             <td><strong>{{ form.initial.artikl }}</strong></td>
             <td><strong>{{ form.initial.typ_hlavy }}</strong></td>
