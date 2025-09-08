@@ -80,9 +80,18 @@ def utilita_expedice_zakazek(modeladmin, request, queryset, kamion):
         bedny_ne_k_expedici = bedny.exclude(stav_bedny=StavBednyChoice.K_EXPEDICI)
 
         if bedny_ne_k_expedici.exists():
-            # Vytvoří novou zakázku
-            zakazka_data = model_to_dict(zakazka, exclude=['id', 'kamion_vydej', 'expedovano'])
-            zakazka_data['kamion_prijem'] = zakazka.kamion_prijem
+            # Vytvoří novou zakázku – robustní klon přes _id pro FK
+            exclude = {'id', 'kamion_vydej', 'expedovano'}
+            zakazka_data = {}
+            for field in Zakazka._meta.fields:
+                if field.name in exclude:
+                    continue
+                if field.is_relation and getattr(field, 'many_to_one', False):
+                    # Např. predpis_id, typ_hlavy_id, kamion_prijem_id, odberatel_id, ...
+                    zakazka_data[field.attname] = getattr(zakazka, field.attname)
+                else:
+                    zakazka_data[field.name] = getattr(zakazka, field.name)
+
             nova_zakazka = Zakazka.objects.create(**zakazka_data)
             logger.info(f"Uživatel {request.user} vytvořil novou zakázku {nova_zakazka} pro neexpedovatelné bedny ze zakázky ID {zakazka}.")
 
