@@ -392,7 +392,7 @@ def expedice_zakazek_action(modeladmin, request, queryset):
         'action': "expedice_zakazek_action",
     })
 
-@admin.action(description="Expedice do existujícího kamionu")
+@admin.action(description="Expedice vybraných zakázek do existujícího kamionu")
 def expedice_zakazek_kamion_action(modeladmin, request, queryset):
     """
     Expeduje vybrané zakázky do existujícího kamionu zákazníka.

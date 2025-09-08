@@ -1236,6 +1236,35 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
                 }),                 
             ]                    
    
+    def get_actions(self, request):
+        """
+        Přizpůsobí dostupné akce v administraci podle filtru stavu bedny.
+        Standardně jsou dostupné všechny akce:
+        actions = [tisk_karet_beden_zakazek_action, tisk_karet_kontroly_kvality_zakazek_action, expedice_zakazek_action,
+        vratit_zakazky_z_expedice_action, expedice_zakazek_kamion_action]        
+        Pokud je filtr skladem == expedovano, zruší se akce expedice_zakazek_action a expedice_zakazek_kamion_action
+        Pokud není filtr skladem aktivovan, zruší se akce vratit_zakazky_z_expedice_action.
+        """
+        actions = super().get_actions(request)
+
+        actions_to_remove = []
+
+        if request.method == "GET":
+            if request.GET.get('skladem', None) == 'expedovano':
+                actions_to_remove = [
+                    'expedice_zakazek_action', 'expedice_zakazek_kamion_action'
+                ]
+            else:
+                actions_to_remove = [
+                    'vratit_zakazky_z_expedice_action',
+                ]
+
+        for action in actions_to_remove:
+            if action in actions:
+                del actions[action]
+
+        return actions
+
     def get_list_display(self, request):
         """
         Přizpůsobení zobrazení sloupců v seznamu zakázek podle aktivního filtru.
