@@ -34,7 +34,8 @@ from .actions import (
 from .filters import (
     ExpedovanaZakazkaFilter, StavBednyFilter, KompletZakazkaFilter, AktivniPredpisFilter, SkupinaFilter, ZakaznikBednyFilter,
     ZakaznikZakazkyFilter, ZakaznikKamionuFilter, PrijemVydejFilter, TryskaniFilter, RovnaniFilter, PrioritaBednyFilter, PrioritaZakazkyFilter,
-    OberflacheFilter, TypHlavyBednyFilter, TypHlavyZakazkyFilter, CelozavitBednyFilter, CelozavitZakazkyFilter, DelkaFilter, UvolnenoFilter
+    OberflacheFilter, TypHlavyBednyFilter, TypHlavyZakazkyFilter, CelozavitBednyFilter, CelozavitZakazkyFilter, DelkaFilter, UvolnenoFilter,
+    OdberatelFilter,
 )
 from .forms import ZakazkaAdminForm, BednaAdminForm, ImportZakazekForm, ZakazkaInlineForm
 from .choices import StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice
@@ -1016,7 +1017,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     list_select_related = ("kamion_prijem", "kamion_vydej")
     search_fields = ('artikl',)
     search_help_text = "Dle artiklu"
-    list_filter = (ZakaznikZakazkyFilter, KompletZakazkaFilter, PrioritaZakazkyFilter, CelozavitZakazkyFilter, TypHlavyZakazkyFilter,
+    list_filter = (ZakaznikZakazkyFilter, OdberatelFilter, KompletZakazkaFilter, PrioritaZakazkyFilter, CelozavitZakazkyFilter, TypHlavyZakazkyFilter,
                    OberflacheFilter, ExpedovanaZakazkaFilter,)
     ordering = ('id',)
     date_hierarchy = 'kamion_prijem__datum'

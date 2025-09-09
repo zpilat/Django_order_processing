@@ -1,10 +1,11 @@
 from django.contrib.admin import SimpleListFilter
 from django.db.models import Exists, OuterRef, Sum
+from django.db.models import Q
 from django.utils import timezone
 
 from datetime import timedelta
 
-from .models import Zakazka, Bedna, Zakaznik, Kamion, TypHlavy, Predpis
+from .models import Zakazka, Bedna, Zakaznik, Kamion, TypHlavy, Predpis, Odberatel
 from .choices import StavBednyChoice, TryskaniChoice, RovnaniChoice, PrioritaChoice
 
 stav_bedny_bez_expedice = [stavbedny for stavbedny in StavBednyChoice if stavbedny != StavBednyChoice.EXPEDOVANO]
@@ -229,6 +230,32 @@ class PrioritaZakazkyFilter(DynamicTitleFilter):
             return queryset
         return queryset.filter(priorita=value)
     
+
+class OdberatelFilter(DynamicTitleFilter):
+    """
+    Filtrovat zakázky podle odběratele. Pokud je vybrán odběratel, 
+    filtruje se podle tohoto odběratele + všechny zakázky, které nemají odběratele (null).
+    """
+    title = "Odběratel"
+    parameter_name = "odberatel"
+
+    def __init__(self, request, params, model, model_admin):
+        self.label_dict = dict(Odberatel.objects.values_list('zkratka', 'zkraceny_nazev').order_by('zkratka'))
+        super().__init__(request, params, model, model_admin)
+
+    def lookups(self, request, model_admin):
+        return self.label_dict.items()           
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if not value:
+            return queryset
+        try:
+            odberatel = Odberatel.objects.get(zkratka=value)
+            return queryset.filter(Q(kamion_prijem__odberatel=odberatel) | Q(kamion_prijem__odberatel__isnull=True))
+        except Odberatel.DoesNotExist:
+            return queryset.none()
+
 
 class ExpedovanaZakazkaFilter(DynamicTitleFilter):
     """
