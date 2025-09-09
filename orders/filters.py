@@ -240,11 +240,12 @@ class OdberatelFilter(DynamicTitleFilter):
     parameter_name = "odberatel"
 
     def __init__(self, request, params, model, model_admin):
-        self.label_dict = dict(Odberatel.objects.values_list('zkratka', 'zkraceny_nazev').order_by('zkratka'))
+        label_list = Odberatel.objects.values_list('zkratka', 'zkraceny_nazev').order_by('zkratka')
+        self.label_dict = {key: f"{value} + bez odběratele" for key, value in label_list}
         super().__init__(request, params, model, model_admin)
 
     def lookups(self, request, model_admin):
-        return [(key, f"{value} + bez odběratele") for key, value in self.label_dict.items()]
+        return self.label_dict.items()
 
     def queryset(self, request, queryset):
         value = self.value()
