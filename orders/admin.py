@@ -19,6 +19,8 @@ from django.core.files.storage import default_storage
 import uuid
 import pandas as pd
 import re
+from django import forms
+from django.contrib.admin.helpers import ActionForm
 
 from .models import Zakaznik, Kamion, Zakazka, Bedna, Predpis, Odberatel, TypHlavy, Cena, Pozice
 from .actions import (
@@ -1662,6 +1664,58 @@ class BednaAdmin(SimpleHistoryAdmin):
                 del actions[action]
 
         return actions
+
+    def get_action_choices(self, request, default_choices=models.BLANK_CHOICE_DASH):
+        """
+        Vytvoří optgroup pro akce (využívá se v admin_actions tagu).
+        """
+        actions = self.get_actions(request)
+        if not actions:
+            return default_choices
+
+        group_map = {
+            'tisk_karet_beden_action': 'Tisk / Export',
+            'tisk_karet_kontroly_kvality_action': 'Tisk / Export',
+            'oznacit_k_navezeni_action': 'Stav bedny',
+            'oznacit_navezeno_action': 'Stav bedny',
+            'vratit_bedny_do_stavu_prijato_action': 'Stav bedny',
+            'oznacit_do_zpracovani_action': 'Stav bedny',
+            'oznacit_zakaleno_action': 'Stav bedny',
+            'oznacit_zkontrolovano_action': 'Stav bedny',
+            'oznacit_k_expedici_action': 'Stav bedny',
+            'oznacit_rovna_action': 'Rovnání',
+            'oznacit_kriva_action': 'Rovnání',
+            'oznacit_rovna_se_action': 'Rovnání',
+            'oznacit_vyrovnana_action': 'Rovnání',
+            'oznacit_cista_action': 'Tryskání',
+            'oznacit_spinava_action': 'Tryskání',
+            'oznacit_otryskana_action': 'Tryskání',
+        }
+        order = ['Tisk / Export', 'Stav bedny', 'Rovnání', 'Tryskání']
+        grouped = {g: [] for g in order}
+
+        for name, (_func, _action_name, desc) in actions.items():
+            g = group_map.get(name, 'Ostatní')
+            # Přetypovat i případný lazy překlad na str
+            text = str(desc) if desc is not None else ''
+            # Formátovat jen pokud obsahuje placeholdery delete_selected (bez toho by % vyhodilo chybu)
+            if '%(verbose_name' in text:
+                try:
+                    text = text % {
+                        'verbose_name': self.model._meta.verbose_name,
+                        'verbose_name_plural': self.model._meta.verbose_name_plural,
+                    }
+                except Exception:
+                    # Při chybě ponechat původní text
+                    pass
+            grouped.setdefault(g, []).append((name, text))
+
+        choices = [default_choices[0]]
+        for g in order + [g for g in grouped.keys() if g not in order]:
+            opts = grouped.get(g)
+            if opts:
+                choices.append((g, sorted(opts, key=lambda x: x[1].lower())))
+        return choices
     
     def formfield_for_foreignkey(self, db_field, request=None, **kwargs):
         """

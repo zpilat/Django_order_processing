@@ -47,6 +47,7 @@ def dashboard_bedny_view(request):
         'Zakalené': {'stav_bedny__in': [StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO, StavBednyChoice.K_EXPEDICI]},
         'Ke kontrole': {'stav_bedny': StavBednyChoice.ZAKALENO},
         'Křivé': {'rovnat': RovnaniChoice.KRIVA},
+        'Rovná se': {'rovnat': RovnaniChoice.ROVNA_SE},
         'Otryskané': {'tryskat': TryskaniChoice.OTRYSKANA},
         'K tryskání': {'tryskat': TryskaniChoice.SPINAVA, 'stav_bedny__in': [StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO]},
         'K expedici': {'stav_bedny': StavBednyChoice.K_EXPEDICI},
@@ -63,7 +64,7 @@ def dashboard_bedny_view(request):
         for zak in zakaznici:
             prehled_beden_zakaznika[zak][stav] = stav_data.get(zak, (0, 0))
 
-    stavy_bedny_list = ['Zakalené', 'Ke kontrole', 'Křivé', 'Otryskané', 'K tryskání', 'K expedici', 'Surové', 'Navezené', 'Přijaté']
+    stavy_bedny_list = list(stavy.keys())
 
     context = {
         'prehled_beden_zakaznika': prehled_beden_zakaznika,
