@@ -244,7 +244,7 @@ class OdberatelFilter(DynamicTitleFilter):
         super().__init__(request, params, model, model_admin)
 
     def lookups(self, request, model_admin):
-        return self.label_dict.items()           
+        return [(key, f"{value} + bez odběratele") for key, value in self.label_dict.items()]
 
     def queryset(self, request, queryset):
         value = self.value()
