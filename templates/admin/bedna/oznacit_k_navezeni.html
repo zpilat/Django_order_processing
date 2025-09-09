@@ -22,15 +22,15 @@
     </thead>
     <tbody>
       {% for form in formset.forms %}
-      {% ifchanged form.initial.artikl %}
-        <tr style="border-top: 2px solid #cac8c8ff;">
-      {% else %}
-        {% if forloop.last %}
-          <tr style="border-bottom: 2px solid #cac8c8ff;">
+        {% ifchanged form.initial.zakazka_id %}
+          <tr style="border-top: 2px solid #cac8c8ff;">
         {% else %}
-          <tr>
-        {% endif %}
-      {% endifchanged %}            
+          {% if forloop.last %}
+            <tr style="border-bottom: 2px solid #cac8c8ff;">
+          {% else %}
+            <tr>
+          {% endif %}
+        {% endifchanged %}            
           <td>
             {{ form.bedna_id }}  {# hidden input #}
             {{ form.initial.cislo }}
