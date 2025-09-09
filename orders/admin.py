@@ -410,6 +410,49 @@ class KamionAdmin(SimpleHistoryAdmin):
         
         return actions
 
+    def get_action_choices(self, request, default_choices=models.BLANK_CHOICE_DASH):
+        """Seskupení akcí kamionu do optgroup + formátování placeholderů.
+
+        Skupiny:
+        - Import / Příjem
+        - Tisk karet
+        - Doklady
+        Ostatní (delete_selected) spadne do 'Ostatní'.
+        """
+        actions = self.get_actions(request)
+        if not actions:
+            return default_choices
+
+        group_map = {
+            'import_kamionu_action': 'Import / Příjem',
+            'tisk_karet_beden_kamionu_action': 'Tisk karet',
+            'tisk_karet_kontroly_kvality_kamionu_action': 'Tisk karet',
+            'tisk_dodaciho_listu_kamionu_action': 'Doklady',
+            'tisk_proforma_faktury_kamionu_action': 'Doklady',
+        }
+        order = ['Import / Příjem', 'Tisk karet', 'Doklady']
+        grouped = {g: [] for g in order}
+
+        for name, (_func, _action_name, desc) in actions.items():
+            group = group_map.get(name, 'Ostatní')
+            text = str(desc) if desc is not None else ''
+            if '%(verbose_name' in text:
+                try:
+                    text = text % {
+                        'verbose_name': self.model._meta.verbose_name,
+                        'verbose_name_plural': self.model._meta.verbose_name_plural,
+                    }
+                except Exception:
+                    pass
+            grouped.setdefault(group, []).append((name, text))
+
+        choices = [default_choices[0]]
+        for g in order + [g for g in grouped.keys() if g not in order]:
+            opts = grouped.get(g)
+            if opts:
+                choices.append((g, sorted(opts, key=lambda x: x[1].lower())))
+        return choices
+
     def get_urls(self):
         """
         Přidá vlastní URL pro import zakázek do kamionu.
@@ -1268,6 +1311,48 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
 
         return actions
 
+    def get_action_choices(self, request, default_choices=models.BLANK_CHOICE_DASH):
+        """Seskupení akcí zakázek do optgroup a formátování placeholderů.
+
+        Skupiny:
+        - Tisk / Export
+        - Expedice
+        Ostatní akce (např. delete_selected) spadnou do 'Ostatní'.
+        """
+        actions = self.get_actions(request)
+        if not actions:
+            return default_choices
+
+        group_map = {
+            'tisk_karet_beden_zakazek_action': 'Tisk / Export',
+            'tisk_karet_kontroly_kvality_zakazek_action': 'Tisk / Export',
+            'expedice_zakazek_action': 'Expedice',
+            'expedice_zakazek_kamion_action': 'Expedice',
+            'vratit_zakazky_z_expedice_action': 'Expedice',
+        }
+        order = ['Tisk / Export', 'Expedice']
+        grouped = {g: [] for g in order}
+
+        for name, (_func, _action_name, desc) in actions.items():
+            group = group_map.get(name, 'Ostatní')
+            text = str(desc) if desc is not None else ''
+            if '%(verbose_name' in text:
+                try:
+                    text = text % {
+                        'verbose_name': self.model._meta.verbose_name,
+                        'verbose_name_plural': self.model._meta.verbose_name_plural,
+                    }
+                except Exception:
+                    pass
+            grouped.setdefault(group, []).append((name, text))
+
+        choices = [default_choices[0]]
+        for g in order + [g for g in grouped.keys() if g not in order]:
+            opts = grouped.get(g)
+            if opts:
+                choices.append((g, sorted(opts, key=lambda x: x[1].lower())))
+        return choices
+
     def get_list_display(self, request):
         """
         Přizpůsobení zobrazení sloupců v seznamu zakázek podle aktivního filtru.
@@ -1667,7 +1752,13 @@ class BednaAdmin(SimpleHistoryAdmin):
 
     def get_action_choices(self, request, default_choices=models.BLANK_CHOICE_DASH):
         """
-        Vytvoří optgroup pro akce (využívá se v admin_actions tagu).
+        Seskupení akcí beden do optgroup a formátování placeholderů.
+        Skupiny:
+        - Tisk / Export
+        - Stav bedny
+        - Rovnání
+        - Tryskání
+        Ostatní akce (např. delete_selected) spadnou do 'Ostatní'.
         """
         actions = self.get_actions(request)
         if not actions:
