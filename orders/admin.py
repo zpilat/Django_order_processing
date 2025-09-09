@@ -26,7 +26,8 @@ from .actions import (
     tisk_karet_beden_kamionu_action, tisk_dodaciho_listu_kamionu_action, vratit_zakazky_z_expedice_action, expedice_zakazek_kamion_action,
     tisk_karet_kontroly_kvality_action, tisk_karet_kontroly_kvality_zakazek_action, tisk_karet_kontroly_kvality_kamionu_action,
     tisk_proforma_faktury_kamionu_action, oznacit_k_navezeni_action, vratit_bedny_do_stavu_prijato_action, oznacit_navezeno_action,
-    oznacit_do_zpracovani_action, oznacit_zakaleno_action, oznacit_zkontrolovano_action, oznacit_k_expedici_action,
+    oznacit_do_zpracovani_action, oznacit_zakaleno_action, oznacit_zkontrolovano_action, oznacit_k_expedici_action, oznacit_rovna_action,
+    oznacit_kriva_action, oznacit_rovna_se_action, oznacit_vyrovnana_action, oznacit_cista_action, oznacit_spinava_action, oznacit_otryskana_action,
    )
 from .filters import (
     ExpedovanaZakazkaFilter, StavBednyFilter, KompletZakazkaFilter, AktivniPredpisFilter, SkupinaFilter, ZakaznikBednyFilter,
@@ -1341,7 +1342,8 @@ class BednaAdmin(SimpleHistoryAdmin):
     actions = [
         tisk_karet_beden_action, tisk_karet_kontroly_kvality_action, oznacit_k_navezeni_action, oznacit_navezeno_action,
         vratit_bedny_do_stavu_prijato_action, oznacit_do_zpracovani_action, oznacit_zakaleno_action, oznacit_zkontrolovano_action,
-        oznacit_k_expedici_action,
+        oznacit_k_expedici_action, oznacit_rovna_action, oznacit_kriva_action, oznacit_rovna_se_action, oznacit_vyrovnana_action,
+        oznacit_cista_action, oznacit_spinava_action, oznacit_otryskana_action,
     ]
     form = BednaAdminForm
 
@@ -1591,13 +1593,19 @@ class BednaAdmin(SimpleHistoryAdmin):
 
     def get_actions(self, request):
         """
-        Přizpůsobí dostupné akce v administraci podle filtru stavu bedny.
-        Pokud není stav bedny PRIJATO, zruší se akce pro změnu stavu bedny na K_NAVEZENI.
-        Pokud není stav bedny K_NAVEZENI, zruší akci pro změnu stavu bedny na NAVEZENO a pro vrácení stavu bedny na PRIJATO.
-        Pokud není stav bedny NAVEZENO, zruší akci pro změnu stavu bedny na DO_ZPRACOVANI.
-        Pokud není stav bedny DO_ZPRACOVANI, zruší akci pro změnu stavu bedny na ZAKALENO.
-        Pokud není stav bedny ZAKALENO, zruší akci pro změnu stavu bedny na ZKONTROLOVANO.
-        Pokud není stav bedny ZKONTROLOVANO, zruší akci pro změnu stavu bedny na K_EXPEDICI.
+        Přizpůsobí dostupné akce v administraci podle filtru stavu bedny, rovnat a tryskat.
+        Pokud není aktivní filtr stav bedny PRIJATO, zruší se akce pro změnu stavu bedny na K_NAVEZENI.
+        Pokud není aktivní filtr stav bedny K_NAVEZENI, zruší akci pro změnu stavu bedny na NAVEZENO a pro vrácení stavu bedny na PRIJATO.
+        Pokud není aktivní filtr stav bedny NAVEZENO, zruší akci pro změnu stavu bedny na DO_ZPRACOVANI.
+        Pokud není aktivní filtr stav bedny DO_ZPRACOVANI, zruší akci pro změnu stavu bedny na ZAKALENO.
+        Pokud není aktivní filtr stav bedny ZAKALENO, zruší akci pro změnu stavu bedny na ZKONTROLOVANO.
+        Pokud není aktivní filtr stav bedny ZKONTROLOVANO, zruší akci pro změnu stavu bedny na K_EXPEDICI.
+        Pokud není aktivní filtr stav bedny K_EXPEDICI, zruší akci pro změnu stavu bedny na ZPRACOVANO.
+        Pokud není aktivní filtr rovnani NEZADANO, zruší akce pro změnu stavu rovnání na ROVNA a KRIVA.
+        Pokud není aktivní filtr rovnani KRIVA, zruší akci pro změnu stavu rovnání na ROVNA_SE.
+        Pokud není aktivní filtr rovnani ROVNA_SE, zruší akci pro změnu stavu rovnání na VYROVNANA.
+        Pokud není aktivní filtr tryskani NEZADANO, zruší akce pro změnu stavu tryskání na CISTA a SPINAVA.
+        Pokud není aktivní filtr tryskani SPINAVA nebo NEZADANO, zruší akci pro změnu stavu tryskání na OTRYSKANA.
         """
         actions = super().get_actions(request)
 
@@ -1627,6 +1635,26 @@ class BednaAdmin(SimpleHistoryAdmin):
             if request.GET.get('stav_bedny', None) != StavBednyChoice.ZKONTROLOVANO:
                 actions_to_remove += [
                     'oznacit_k_expedici_action',
+                ]
+            if request.GET.get('rovnani', None) != RovnaniChoice.NEZADANO:
+                actions_to_remove += [
+                    'oznacit_rovna_action', 'oznacit_kriva_action',
+                ]
+            if request.GET.get('rovnani', None) != RovnaniChoice.KRIVA:
+                actions_to_remove += [
+                    'oznacit_rovna_se_action',
+                ]
+            if request.GET.get('rovnani', None) != RovnaniChoice.ROVNA_SE:
+                actions_to_remove += [
+                    'oznacit_vyrovnana_action',
+                ]
+            if request.GET.get('tryskani', None) != TryskaniChoice.NEZADANO:
+                actions_to_remove += [
+                    'oznacit_cista_action', 'oznacit_spinava_action',
+                ]
+            if request.GET.get('tryskani', None) not in [TryskaniChoice.SPINAVA, TryskaniChoice.NEZADANO]:
+                actions_to_remove += [
+                    'oznacit_otryskana_action',
                 ]
 
         for action in actions_to_remove:

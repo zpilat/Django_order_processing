@@ -326,6 +326,154 @@ def oznacit_k_expedici_action(modeladmin, request, queryset):
     logger.info(f"Uživatel {request.user} změnil stav na K_EXPEDICI u {queryset.count()} beden.")
     return None
 
+@admin.action(description="Změna stavu rovnání na ROVNÁ")
+def oznacit_rovna_action(modeladmin, request, queryset):
+    """
+    Změní stav rovnání vybraných beden z NEZADANO na ROVNA.
+    """
+    # kontrola, zda jsou všechny bedny v querysetu ve stavu NEZADANO
+    if queryset.exclude(rovnat=RovnaniChoice.NEZADANO).exists():
+        logger.info(f"Uživatel {request.user} se pokusil změnit stav na ROVNA, ale některé bedny nejsou ve stavu NEZADANO.")
+        modeladmin.message_user(request, "Některé vybrané bedny nejsou ve stavu NEZADANO.", level=messages.ERROR)
+        return None
+
+    with transaction.atomic():
+        for bedna in queryset:
+            if bedna.rovnat == RovnaniChoice.NEZADANO:
+                bedna.rovnat = RovnaniChoice.ROVNA
+                bedna.save()
+
+    messages.success(request, f"Změněno: {queryset.count()} beden.")
+    logger.info(f"Uživatel {request.user} změnil stav rovnání na ROVNA u {queryset.count()} beden.")
+    return None
+
+@admin.action(description="Změna stavu rovnání na KŘIVÁ")
+def oznacit_kriva_action(modeladmin, request, queryset):
+    """
+    Změní stav rovnání vybraných beden z NEZADANO na KRIVA.
+    """
+    # kontrola, zda jsou všechny bedny v querysetu ve stavu NEZADANO
+    if queryset.exclude(rovnat=RovnaniChoice.NEZADANO).exists():
+        logger.info(f"Uživatel {request.user} se pokusil změnit stav na KRIVA, ale některé bedny nejsou ve stavu NEZADANO.")
+        modeladmin.message_user(request, "Některé vybrané bedny nejsou ve stavu NEZADANO.", level=messages.ERROR)
+        return None
+
+    with transaction.atomic():
+        for bedna in queryset:
+            if bedna.rovnat == RovnaniChoice.NEZADANO:
+                bedna.rovnat = RovnaniChoice.KRIVA
+                bedna.save()
+
+    messages.success(request, f"Změněno: {queryset.count()} beden.")
+    logger.info(f"Uživatel {request.user} změnil stav rovnání na KRIVA u {queryset.count()} beden.")
+    return None
+
+@admin.action(description="Změna stavu rovnání na ROVNÁ SE")
+def oznacit_rovna_se_action(modeladmin, request, queryset):
+    """
+    Změní stav rovnání vybraných beden z KRIVA na ROVNA_SE.
+    """
+    # kontrola, zda jsou všechny bedny v querysetu ve stavu KRIVA
+    if queryset.exclude(rovnat=RovnaniChoice.KRIVA).exists():
+        logger.info(f"Uživatel {request.user} se pokusil změnit stav na ROVNA SE, ale některé bedny nejsou ve stavu KRIVA.")
+        modeladmin.message_user(request, "Některé vybrané bedny nejsou ve stavu KRIVA.", level=messages.ERROR)
+        return None
+
+    with transaction.atomic():
+        for bedna in queryset:
+            if bedna.rovnat == RovnaniChoice.KRIVA:
+                bedna.rovnat = RovnaniChoice.ROVNA_SE
+                bedna.save()
+
+    messages.success(request, f"Změněno: {queryset.count()} beden.")
+    logger.info(f"Uživatel {request.user} změnil stav rovnání na ROVNA SE u {queryset.count()} beden.")
+    return None
+
+@admin.action(description="Změna stavu rovnání na VYROVNANÁ")
+def oznacit_vyrovnana_action(modeladmin, request, queryset):
+    """
+    Změní stav rovnání vybraných beden z ROVNA_SE na VYROVNANA.
+    """
+    # kontrola, zda jsou všechny bedny v querysetu ve stavu ROVNA_SE
+    if queryset.exclude(rovnat=RovnaniChoice.ROVNA_SE).exists():
+        logger.info(f"Uživatel {request.user} se pokusil změnit stav na VYROVNANA, ale některé bedny nejsou ve stavu ROVNA_SE.")
+        modeladmin.message_user(request, "Některé vybrané bedny nejsou ve stavu ROVNÁ SE.", level=messages.ERROR)
+        return None
+
+    with transaction.atomic():
+        for bedna in queryset:
+            if bedna.rovnat == RovnaniChoice.ROVNA_SE:
+                bedna.rovnat = RovnaniChoice.VYROVNANA
+                bedna.save()
+
+    messages.success(request, f"Změněno: {queryset.count()} beden.")
+    logger.info(f"Uživatel {request.user} změnil stav rovnání na VYROVNANÁ u {queryset.count()} beden.")
+    return None
+
+@admin.action(description="Změna stavu tryskání na ČISTÁ")
+def oznacit_cista_action(modeladmin, request, queryset):
+    """
+    Změní stav tryskání vybraných beden z NEZADANO na CISTA.
+    """
+    # kontrola, zda jsou všechny bedny v querysetu ve stavu NEZADANO
+    if queryset.exclude(tryskat=TryskaniChoice.NEZADANO).exists():
+        logger.info(f"Uživatel {request.user} se pokusil změnit stav tryskání na CISTA, ale některé bedny nejsou ve stavu NEZADANO.")
+        modeladmin.message_user(request, "Některé vybrané bedny nejsou ve stavu NEZADANO.", level=messages.ERROR)
+        return None
+
+    with transaction.atomic():
+        for bedna in queryset:
+            if bedna.tryskat == TryskaniChoice.NEZADANO:
+                bedna.tryskat = TryskaniChoice.CISTA
+                bedna.save()
+
+    messages.success(request, f"Změněno: {queryset.count()} beden.")
+    logger.info(f"Uživatel {request.user} změnil stav tryskání na CISTA u {queryset.count()} beden.")
+    return None
+
+@admin.action(description="Změna stavu tryskání na ŠPINAVÁ")
+def oznacit_spinava_action(modeladmin, request, queryset):
+    """
+    Změní stav tryskání vybraných beden z NEZADANO na SPINAVA.
+    """
+    # kontrola, zda jsou všechny bedny v querysetu ve stavu NEZADANO
+    if queryset.exclude(tryskat=TryskaniChoice.NEZADANO).exists():
+        logger.info(f"Uživatel {request.user} se pokusil změnit stav tryskání na SPINAVA, ale některé bedny nejsou ve stavu NEZADANO.")
+        modeladmin.message_user(request, "Některé vybrané bedny nejsou ve stavu NEZADANO.", level=messages.ERROR)
+        return None
+
+    with transaction.atomic():
+        for bedna in queryset:
+            if bedna.tryskat == TryskaniChoice.NEZADANO:
+                bedna.tryskat = TryskaniChoice.SPINAVA
+                bedna.save()
+
+    messages.success(request, f"Změněno: {queryset.count()} beden.")
+    logger.info(f"Uživatel {request.user} změnil stav tryskání na SPINAVA u {queryset.count()} beden.")
+    return None
+
+@admin.action(description="Změna stavu tryskání na OTRYSKANÁ")
+def oznacit_otryskana_action(modeladmin, request, queryset):
+    """
+    Změní stav tryskání vybraných beden ze SPINAVA na OTRYSKANA.
+    """
+    # kontrola, zda jsou všechny bedny v querysetu ve stavu SPINAVA
+    if queryset.exclude(tryskat=TryskaniChoice.SPINAVA).exists():
+        logger.info(f"Uživatel {request.user} se pokusil změnit stav tryskání na OTRYSKANÁ, ale některé bedny nejsou ve stavu SPINAVA.")
+        modeladmin.message_user(request, "Některé vybrané bedny nejsou ve stavu SPINAVA.", level=messages.ERROR)
+        return None
+
+    with transaction.atomic():
+        for bedna in queryset:
+            if bedna.tryskat == TryskaniChoice.SPINAVA:
+                bedna.tryskat = TryskaniChoice.OTRYSKANA
+                bedna.save()
+
+    messages.success(request, f"Změněno: {queryset.count()} beden.")
+    logger.info(f"Uživatel {request.user} změnil stav tryskání na OTRYSKANA u {queryset.count()} beden.")
+    return None
+
+
 # Akce pro zakázky:
 
 @admin.action(description="Expedice vybraných zakázek")
