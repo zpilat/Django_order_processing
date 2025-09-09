@@ -397,13 +397,15 @@ class KamionAdmin(SimpleHistoryAdmin):
                 'tisk_dodaciho_listu_kamionu_action',
                 'tisk_proforma_faktury_kamionu_action'
             ]
-        else:
+        elif (request.GET.get('prijem_vydej') == 'PB'):
             actions_to_remove = [
                 'tisk_karet_beden_kamionu_action',
                 'tisk_karet_kontroly_kvality_kamionu_action',
                 'tisk_dodaciho_listu_kamionu_action',
                 'tisk_proforma_faktury_kamionu_action'
             ]
+        else:
+            actions_to_remove = []
 
         for action in actions_to_remove:
             if action in actions:
@@ -428,10 +430,10 @@ class KamionAdmin(SimpleHistoryAdmin):
             'import_kamionu_action': 'Import / Příjem',
             'tisk_karet_beden_kamionu_action': 'Tisk karet',
             'tisk_karet_kontroly_kvality_kamionu_action': 'Tisk karet',
-            'tisk_dodaciho_listu_kamionu_action': 'Doklady',
-            'tisk_proforma_faktury_kamionu_action': 'Doklady',
+            'tisk_dodaciho_listu_kamionu_action': 'Tisk dokladů',
+            'tisk_proforma_faktury_kamionu_action': 'Tisk dokladů',
         }
-        order = ['Import / Příjem', 'Tisk karet', 'Doklady']
+        order = ['Import / Příjem', 'Tisk karet', 'Tisk dokladů']
         grouped = {g: [] for g in order}
 
         for name, (_func, _action_name, desc) in actions.items():

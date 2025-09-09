@@ -636,7 +636,7 @@ def vratit_zakazky_z_expedice_action(modeladmin, request, queryset):
 
 # Akce pro kamiony:
 
-@admin.action(description="Importovat dodací list pro vybraný kamion")
+@admin.action(description="Importovat dodací list pro vybraný kamion příjem bez zakázek")
 def import_kamionu_action(modeladmin, request, queryset):
     """
     Importuje dodací list pro vybraný kamion.
@@ -671,7 +671,7 @@ def import_kamionu_action(modeladmin, request, queryset):
         return
 
 
-@admin.action(description="Vytisknout dodací list kamionu")
+@admin.action(description="Vytisknout dodací list vybraného kamionu výdej")
 def tisk_dodaciho_listu_kamionu_action(modeladmin, request, queryset):
     """
     Vytiskne dodací list pro vybraný kamion do PDF.
@@ -703,7 +703,7 @@ def tisk_dodaciho_listu_kamionu_action(modeladmin, request, queryset):
         modeladmin.message_user(request, f"Tisk DL zatím pro zákazníka {kamion.zakaznik.zkraceny_nazev} není možný", level=messages.ERROR)
         return
 
-@admin.action(description="Vytisknout proforma fakturu kamionu")
+@admin.action(description="Vytisknout proforma fakturu vybraného kamionu výdej")
 def tisk_proforma_faktury_kamionu_action(modeladmin, request, queryset):
     """
     Vytiskne proforma fakturu pro vybraný kamion do PDF.
@@ -735,7 +735,7 @@ def tisk_proforma_faktury_kamionu_action(modeladmin, request, queryset):
         modeladmin.message_user(request, f"Tisk proforma faktury zatím pro zákazníka {kamion.zakaznik.zkraceny_nazev} není možný", level=messages.ERROR)
         return
 
-@admin.action(description="Vytisknout karty beden z vybraného kamionu")
+@admin.action(description="Vytisknout karty beden z vybraného kamionu příjem se zakázkami")
 def tisk_karet_beden_kamionu_action(modeladmin, request, queryset):
     """
     Vytvoří PDF s kartami beden z vybraného kamionu.
@@ -761,7 +761,7 @@ def tisk_karet_beden_kamionu_action(modeladmin, request, queryset):
     logger.info(f"Uživatel {request.user} tiskne karty beden pro {bedny.count()} vybraných beden.")
     return utilita_tisk_dokumentace(modeladmin, request, bedny, html_path, filename)
 
-@admin.action(description="Vytisknout KKK z vybraného kamionu")
+@admin.action(description="Vytisknout KKK z vybraného kamionu příjem se zakázkami")
 def tisk_karet_kontroly_kvality_kamionu_action(modeladmin, request, queryset):
     """
     Vytvoří PDF s kartami kontroly kvality z vybraného kamionu.
