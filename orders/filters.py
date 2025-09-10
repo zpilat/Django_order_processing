@@ -561,13 +561,13 @@ class ZakaznikKamionuFilter(DynamicTitleFilter):
             return queryset.filter(zakaznik=zakaznik)
         except Zakaznik.DoesNotExist:
             return queryset.none()        
-        
+
 
 class PrijemVydejFilter(DynamicTitleFilter):
     """
     Filtrovat kamiony podle typu (příjem - bez zakázek, příjem - se zakázkami skladem, příjem - vyexpedovaný, výdej).
     """
-    title = "Typ kamionu"
+    title = "Typ kamiónu"
     parameter_name = "prijem_vydej"
 
     def __init__(self, request, params, model, model_admin):
