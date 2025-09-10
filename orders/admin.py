@@ -35,7 +35,7 @@ from .filters import (
     ExpedovanaZakazkaFilter, StavBednyFilter, KompletZakazkaFilter, AktivniPredpisFilter, SkupinaFilter, ZakaznikBednyFilter,
     ZakaznikZakazkyFilter, ZakaznikKamionuFilter, PrijemVydejFilter, TryskaniFilter, RovnaniFilter, PrioritaBednyFilter, PrioritaZakazkyFilter,
     OberflacheFilter, TypHlavyBednyFilter, TypHlavyZakazkyFilter, CelozavitBednyFilter, CelozavitZakazkyFilter, DelkaFilter, UvolnenoFilter,
-    OdberatelFilter,
+    OdberatelFilter, ZakaznikPredpisFilter
 )
 from .forms import ZakazkaAdminForm, BednaAdminForm, ImportZakazekForm, ZakazkaInlineForm
 from .choices import StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice
@@ -1858,7 +1858,7 @@ class PredpisAdmin(SimpleHistoryAdmin):
     list_display_links = ('nazev',)
     search_fields = ('nazev',)
     search_help_text = "Dle názvu předpisu"
-    list_filter = ('zakaznik__zkraceny_nazev', AktivniPredpisFilter)
+    list_filter = (ZakaznikPredpisFilter, AktivniPredpisFilter)
     ordering = ['-zakaznik__zkratka', 'nazev']
     list_per_page = 25
 

@@ -27,6 +27,7 @@ class DynamicTitleFilter(SimpleListFilter):
         label = label_dict.get(value, value) if value else self.vse
         self.title = f"{self.title}: {label}"
 
+# filtry pro Bedny
 
 class StavBednyFilter(DynamicTitleFilter):
     """
@@ -210,6 +211,129 @@ class UvolnenoFilter(DynamicTitleFilter):
         return queryset.filter()
 
 
+class SkupinaFilter(DynamicTitleFilter):
+    """
+    Filtrovat bedny podle skupiny tepelného zpracování.
+    """
+    title = "Skupina TZ"
+    parameter_name = "skupina"
+
+    def __init__(self, request, params, model, model_admin):
+        """
+        Pokud je vybrán zákazník, filtruje se podle skupin tepelného zpracování zakázek tohoto zákazníka.
+        Pokud je vybrán stav bedny, filtruje se podle skupin tepelného zpracování zakázek, které mají bedny v tomto stavu.
+        Pokud není vybrán stav bedny, vrátí se všechny skupiny tepelného zpracování zakázek, které nejsou expedovány.
+        """
+        zakaznik = request.GET.get('zakaznik', None)
+        stav_bedny = request.GET.get('stav_bedny', None)
+
+        query = Predpis.objects.filter(aktivni=True)
+
+        if zakaznik:
+            query = query.filter(zakazky__kamion_prijem__zakaznik__zkratka=zakaznik)
+        if not stav_bedny:
+                query = query.filter(zakazky__bedny__stav_bedny__in=stav_bedny_bez_expedice)
+        else:
+            query = query.filter(zakazky__bedny__stav_bedny=stav_bedny)
+
+        # Vytvoří slovník s unikátními názvy skupin pro zobrazení ve filtru ve správném formátu
+        label_dict = dict(query.values_list('skupina', 'skupina').distinct().order_by('skupina'))
+        self.label_dict = {k: f'TZ {v}' for k, v in label_dict.items()}
+        super().__init__(request, params, model, model_admin)
+
+    def lookups(self, request, model_admin):
+        return self.label_dict.items()       
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if not value:
+            return queryset
+        try:
+            return queryset.filter(zakazka__predpis__skupina=int(value))
+        except (ValueError, TypeError):
+            return queryset.none()
+
+
+class ZakaznikBednyFilter(DynamicTitleFilter):
+    """
+    Filtrovat bedny podle zákazníka.
+    """
+    title = "Zákazník"
+    parameter_name = "zakaznik"
+
+    def __init__(self, request, params, model, model_admin):
+        self.label_dict = dict(Zakaznik.objects.values_list('zkratka', 'zkraceny_nazev').order_by('zkratka'))
+        super().__init__(request, params, model, model_admin)
+
+    def lookups(self, request, model_admin):
+        return self.label_dict.items()           
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if not value:
+            return queryset
+        try:
+            zakaznik = Zakaznik.objects.get(zkratka=value)
+            return queryset.filter(zakazka__kamion_prijem__zakaznik=zakaznik)
+        except Zakaznik.DoesNotExist:
+            return queryset.none()        
+
+
+class TypHlavyBednyFilter(DynamicTitleFilter):
+    """
+    Filtrovat bedny podle typu hlavy.
+    """
+    title = "Typ hlavy"
+    parameter_name = "typ_hlavy"
+
+    def __init__(self, request, params, model, model_admin):
+        self.label_dict = dict(TypHlavy.objects.values_list('nazev', 'nazev').order_by('nazev'))
+        super().__init__(request, params, model, model_admin)
+
+    def lookups(self, request, model_admin):
+        return self.label_dict.items()           
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if not value:
+            return queryset
+        try:
+            typ_hlavy = TypHlavy.objects.get(nazev=value)
+            return queryset.filter(zakazka__typ_hlavy=typ_hlavy)
+        except TypHlavy.DoesNotExist:
+            return queryset.none()
+        
+
+class CelozavitBednyFilter(DynamicTitleFilter):
+    """
+    Filtrovat bedny podle druhu závitu.
+    """
+    title = "Celozávit"
+    parameter_name = "celozavit"
+
+    def __init__(self, request, params, model, model_admin):
+        self.label_dict = {
+            'ano': 'Ano',
+            'ne': 'Ne'
+        }
+        super().__init__(request, params, model, model_admin)
+
+    def lookups(self, request, model_admin):
+        return self.label_dict.items()    
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if not value:
+            return queryset
+        elif value == 'ano':
+            return queryset.filter(zakazka__celozavit=True)
+        elif value == 'ne':
+            return queryset.filter(zakazka__celozavit=False)
+        return queryset.none()
+    
+
+# filtry pro Zakázky
+
 class PrioritaZakazkyFilter(DynamicTitleFilter):
     """
     Filtrovat zakázky podle priority.
@@ -280,29 +404,7 @@ class ExpedovanaZakazkaFilter(DynamicTitleFilter):
         elif value == 'expedovano':
             return queryset.filter(expedovano=True)
         return queryset
-
-
-class AktivniPredpisFilter(DynamicTitleFilter):
-    """
-    Filtrovat zakázky podle aktivního předpisu.
-    """
-    title = "Aktivní předpis"
-    vse = 'Vše aktivní'
-    parameter_name = "aktivni_predpis"
-
-    def __init__(self, request, params, model, model_admin):
-        self.label_dict = {'ne': "Ne"}
-        super().__init__(request, params, model, model_admin)
-
-    def lookups(self, request, model_admin):
-        return self.label_dict.items()    
-
-    def queryset(self, request, queryset):
-        value = self.value()
-        if value == 'ne':
-            return queryset.filter(aktivni=False)
-        return queryset.filter(aktivni=True)
-    
+      
 
 class KompletZakazkaFilter(DynamicTitleFilter):
     """
@@ -336,74 +438,6 @@ class KompletZakazkaFilter(DynamicTitleFilter):
         return queryset
     
 
-class SkupinaFilter(DynamicTitleFilter):
-    """
-    Filtrovat bedny podle skupiny tepelného zpracování.
-    """
-    title = "Skupina TZ"
-    parameter_name = "skupina"
-
-    def __init__(self, request, params, model, model_admin):
-        """
-        Pokud je vybrán zákazník, filtruje se podle skupin tepelného zpracování zakázek tohoto zákazníka.
-        Pokud je vybrán stav bedny, filtruje se podle skupin tepelného zpracování zakázek, které mají bedny v tomto stavu.
-        Pokud není vybrán stav bedny, vrátí se všechny skupiny tepelného zpracování zakázek, které nejsou expedovány.
-        """
-        zakaznik = request.GET.get('zakaznik', None)
-        stav_bedny = request.GET.get('stav_bedny', None)
-
-        query = Predpis.objects.filter(aktivni=True)
-
-        if zakaznik:
-            query = query.filter(zakazky__kamion_prijem__zakaznik__zkratka=zakaznik)
-        if not stav_bedny:
-                query = query.filter(zakazky__bedny__stav_bedny__in=stav_bedny_bez_expedice)
-        else:
-            query = query.filter(zakazky__bedny__stav_bedny=stav_bedny)
-
-        # Vytvoří slovník s unikátními názvy skupin pro zobrazení ve filtru ve správném formátu
-        label_dict = dict(query.values_list('skupina', 'skupina').distinct().order_by('skupina'))
-        self.label_dict = {k: f'TZ {v}' for k, v in label_dict.items()}
-        super().__init__(request, params, model, model_admin)
-
-    def lookups(self, request, model_admin):
-        return self.label_dict.items()       
-
-    def queryset(self, request, queryset):
-        value = self.value()
-        if not value:
-            return queryset
-        try:
-            return queryset.filter(zakazka__predpis__skupina=int(value))
-        except (ValueError, TypeError):
-            return queryset.none()
-
-
-class ZakaznikBednyFilter(DynamicTitleFilter):
-    """
-    Filtrovat bedny podle zákazníka.
-    """
-    title = "Zákazník"
-    parameter_name = "zakaznik"
-
-    def __init__(self, request, params, model, model_admin):
-        self.label_dict = dict(Zakaznik.objects.values_list('zkratka', 'zkraceny_nazev').order_by('zkratka'))
-        super().__init__(request, params, model, model_admin)
-
-    def lookups(self, request, model_admin):
-        return self.label_dict.items()           
-
-    def queryset(self, request, queryset):
-        value = self.value()
-        if not value:
-            return queryset
-        try:
-            zakaznik = Zakaznik.objects.get(zkratka=value)
-            return queryset.filter(zakazka__kamion_prijem__zakaznik=zakaznik)
-        except Zakaznik.DoesNotExist:
-            return queryset.none()
-        
-
 class ZakaznikZakazkyFilter(DynamicTitleFilter):
     """
     Filtrovat zakázky podle zákazníka.
@@ -428,6 +462,81 @@ class ZakaznikZakazkyFilter(DynamicTitleFilter):
         except Zakaznik.DoesNotExist:
             return queryset.none()
         
+
+class TypHlavyZakazkyFilter(DynamicTitleFilter):
+    """
+    Filtrovat zakázky podle typu hlavy.
+    """
+    title = "Typ hlavy"
+    parameter_name = "typ_hlavy"
+
+    def __init__(self, request, params, model, model_admin):
+        self.label_dict = dict(TypHlavy.objects.values_list('nazev', 'nazev').order_by('nazev'))
+        super().__init__(request, params, model, model_admin)
+
+    def lookups(self, request, model_admin):
+        return self.label_dict.items()    
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if not value:
+            return queryset
+        try:
+            typ_hlavy = TypHlavy.objects.get(nazev=value)
+            return queryset.filter(typ_hlavy=typ_hlavy)
+        except TypHlavy.DoesNotExist:
+            return queryset.none()
+        
+
+class CelozavitZakazkyFilter(DynamicTitleFilter):
+    """
+    Filtrovat zakázky podle druhu závitu.
+    """
+    title = "Celozávit"
+    parameter_name = "celozavit"
+
+    def __init__(self, request, params, model, model_admin):
+        self.label_dict = {
+            'ano': 'Ano',
+            'ne': 'Ne'
+        }
+        super().__init__(request, params, model, model_admin)
+
+    def lookups(self, request, model_admin):
+        return self.label_dict.items()    
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if not value:
+            return queryset
+        elif value == 'ano':
+            return queryset.filter(celozavit=True)
+        elif value == 'ne':
+            return queryset.filter(celozavit=False)
+        return queryset.none()
+    
+
+class OberflacheFilter(DynamicTitleFilter):
+    """
+    Filtrovat zakázky podle povrchu.
+    """
+    title = "Povrch"
+    parameter_name = "povrch"
+
+    def __init__(self, request, params, model, model_admin):
+        self.label_dict = dict(Zakazka.objects.filter(povrch__isnull=False).values_list('povrch', 'povrch').distinct().order_by('povrch'))
+        super().__init__(request, params, model, model_admin)
+
+    def lookups(self, request, model_admin):
+        return self.label_dict.items()    
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if not value:
+            return queryset
+        return queryset.filter(povrch=value)
+
+# filtry pro Kamiony
 
 class ZakaznikKamionuFilter(DynamicTitleFilter):
     """
@@ -489,42 +598,40 @@ class PrijemVydejFilter(DynamicTitleFilter):
             ).filter(ma_neexpedovanou=True)
         elif value == 'V':
             return queryset.filter(prijem_vydej='V')
-        return queryset.none()
-    
+        return queryset.none()    
+          
+# filtry pro Předpisy
 
-class TypHlavyBednyFilter(DynamicTitleFilter):
+class AktivniPredpisFilter(DynamicTitleFilter):
     """
-    Filtrovat bedny podle typu hlavy.
+    Filtrovat předpisy - jestli jsou aktivní nebo ne.
     """
-    title = "Typ hlavy"
-    parameter_name = "typ_hlavy"
+    title = "Aktivní předpis"
+    vse = 'Vše aktivní'
+    parameter_name = "aktivni_predpis"
 
     def __init__(self, request, params, model, model_admin):
-        self.label_dict = dict(TypHlavy.objects.values_list('nazev', 'nazev').order_by('nazev'))
+        self.label_dict = {'ne': "Ne"}
         super().__init__(request, params, model, model_admin)
 
     def lookups(self, request, model_admin):
-        return self.label_dict.items()           
+        return self.label_dict.items()    
 
     def queryset(self, request, queryset):
         value = self.value()
-        if not value:
-            return queryset
-        try:
-            typ_hlavy = TypHlavy.objects.get(nazev=value)
-            return queryset.filter(zakazka__typ_hlavy=typ_hlavy)
-        except TypHlavy.DoesNotExist:
-            return queryset.none()
-        
-class TypHlavyZakazkyFilter(DynamicTitleFilter):
+        if value == 'ne':
+            return queryset.filter(aktivni=False)
+        return queryset.filter(aktivni=True)    
+
+class ZakaznikPredpisFilter(DynamicTitleFilter):
     """
-    Filtrovat zakázky podle typu hlavy.
+    Filtrovat předpisy podle zákazníka.
     """
-    title = "Typ hlavy"
-    parameter_name = "typ_hlavy"
+    title = "Zákazník"
+    parameter_name = "zakaznik"
 
     def __init__(self, request, params, model, model_admin):
-        self.label_dict = dict(TypHlavy.objects.values_list('nazev', 'nazev').order_by('nazev'))
+        self.label_dict = dict(Zakaznik.objects.values_list('zkratka', 'zkraceny_nazev').order_by('zkratka'))
         super().__init__(request, params, model, model_admin)
 
     def lookups(self, request, model_admin):
@@ -535,84 +642,7 @@ class TypHlavyZakazkyFilter(DynamicTitleFilter):
         if not value:
             return queryset
         try:
-            typ_hlavy = TypHlavy.objects.get(nazev=value)
-            return queryset.filter(typ_hlavy=typ_hlavy)
-        except TypHlavy.DoesNotExist:
-            return queryset.none()
-        
-
-class CelozavitZakazkyFilter(DynamicTitleFilter):
-    """
-    Filtrovat zakázky podle druhu závitu.
-    """
-    title = "Celozávit"
-    parameter_name = "celozavit"
-
-    def __init__(self, request, params, model, model_admin):
-        self.label_dict = {
-            'ano': 'Ano',
-            'ne': 'Ne'
-        }
-        super().__init__(request, params, model, model_admin)
-
-    def lookups(self, request, model_admin):
-        return self.label_dict.items()    
-
-    def queryset(self, request, queryset):
-        value = self.value()
-        if not value:
-            return queryset
-        elif value == 'ano':
-            return queryset.filter(celozavit=True)
-        elif value == 'ne':
-            return queryset.filter(celozavit=False)
-        return queryset.none()
-    
-
-class CelozavitBednyFilter(DynamicTitleFilter):
-    """
-    Filtrovat bedny podle druhu závitu.
-    """
-    title = "Celozávit"
-    parameter_name = "celozavit"
-
-    def __init__(self, request, params, model, model_admin):
-        self.label_dict = {
-            'ano': 'Ano',
-            'ne': 'Ne'
-        }
-        super().__init__(request, params, model, model_admin)
-
-    def lookups(self, request, model_admin):
-        return self.label_dict.items()    
-
-    def queryset(self, request, queryset):
-        value = self.value()
-        if not value:
-            return queryset
-        elif value == 'ano':
-            return queryset.filter(zakazka__celozavit=True)
-        elif value == 'ne':
-            return queryset.filter(zakazka__celozavit=False)
-        return queryset.none()
-    
-
-class OberflacheFilter(DynamicTitleFilter):
-    """
-    Filtrovat zakázky podle povrchu.
-    """
-    title = "Povrch"
-    parameter_name = "povrch"
-
-    def __init__(self, request, params, model, model_admin):
-        self.label_dict = dict(Zakazka.objects.filter(povrch__isnull=False).values_list('povrch', 'povrch').distinct().order_by('povrch'))
-        super().__init__(request, params, model, model_admin)
-
-    def lookups(self, request, model_admin):
-        return self.label_dict.items()    
-
-    def queryset(self, request, queryset):
-        value = self.value()
-        if not value:
-            return queryset
-        return queryset.filter(povrch=value)
+            zakaznik = Zakaznik.objects.get(zkratka=value)
+            return queryset.filter(zakaznik=zakaznik)
+        except Zakaznik.DoesNotExist:
+            return queryset.none()    
