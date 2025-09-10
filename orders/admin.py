@@ -795,6 +795,13 @@ class KamionAdmin(SimpleHistoryAdmin):
                                 if not typ_hlavy:
                                     logger.error(f"Typ hlavy „{typ_hlavy_excel}“ neexistuje.")
                                     raise ValueError(f"Typ hlavy „{typ_hlavy_excel}“ neexistuje.")
+                                
+                                # zajištění správného formátu u pole prubeh (šestimístné číslo s předními nulami)
+                                prubeh=(
+                                    f"{int(row.get('prubeh')):06d}"
+                                    if pd.notna(row.get('prubeh')) and str(row.get('prubeh')).strip().isdigit()
+                                    else None
+                                ),                                
 
                                 zakazka = Zakazka.objects.create(
                                     kamion_prijem=kamion,
@@ -808,11 +815,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                                     popis=row.get('popis'),
                                     vrstva=row.get('vrstva'),
                                     povrch=row.get('povrch'),
-                                    prubeh=(
-                                        f"{int(row.get('prubeh')):06d}"
-                                        if pd.notna(row.get('prubeh')) and str(row.get('prubeh')).strip().isdigit()
-                                        else None
-                                    ),
+                                    prubeh=prubeh,
                                 )
                                 zakazky_cache[artikl] = zakazka
 
