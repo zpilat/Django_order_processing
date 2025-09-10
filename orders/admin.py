@@ -552,7 +552,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                                 'title': f"Import zakázek pro kamion {kamion}",
                             })
 
-                    # Načte prvních 200 řádků (jinak načítá celý soubor - přes 100000 řádků)
+                    # Načte prvních 200 řádků (jinak zbytečně načítá celý soubor - přes 100000 prázdných řádků)
                     df = pd.read_excel(
                         excel_stream,
                         nrows=200,
@@ -764,11 +764,15 @@ class KamionAdmin(SimpleHistoryAdmin):
                                     nazev_predpis = f"{row['predpis']}_Ø{retezec_prumer}"
 
                                 # Získání předpisu, pokud existuje
-                                predpis_qs = Predpis.objects.filter(nazev=nazev_predpis, aktivni=True)
-                                predpis = predpis_qs.first() if predpis_qs.exists() else None
+                                predpis = Predpis.objects.filter(nazev=nazev_predpis, aktivni=True).first()
+                                # Fallback: použít/nebo vytvořit 'Neznámý předpis' pro zákazníka Eurotec                                
                                 if not predpis:
-                                    logger.error(f"Předpis „{nazev_predpis}“ neexistuje nebo není aktivní.")
-                                    raise ValueError(f"Předpis „{nazev_predpis}“ neexistuje nebo není aktivní.")
+                                    eurotec = Zakaznik.objects.filter(zkratka='EUR').only('id').first()
+                                    predpis, _ = Predpis.objects.get_or_create(
+                                        nazev='Neznámý předpis',
+                                        zakaznik=eurotec,
+                                        defaults={'aktivni': True},
+                                    )
                                 
                                 # Získání typu hlavy, pokud existuje
                                 typ_hlavy_excel = row.get('typ_hlavy', '').strip()
