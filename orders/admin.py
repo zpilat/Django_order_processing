@@ -573,20 +573,10 @@ class KamionAdmin(SimpleHistoryAdmin):
                     if pd.notna(first_empty_index):
                         df = df.loc[:first_empty_index - 1]
 
-                    # Zkontroluje datumy v 'Abhol- datum' – při různosti pouze varování
-                    if 'Abhol- datum' in df.columns and not df['Abhol- datum'].isnull().all():
-                        unique_dates = df['Abhol- datum'].dropna().unique()
-                        if len(unique_dates) > 1:
-                            warnings.append("Upozornění: Sloupec 'Abhol- datum' obsahuje různé hodnoty. Import pokračuje.")
-                        if len(unique_dates) == 1 and pd.notna(unique_dates[0]):
-                            excel_date = pd.to_datetime(unique_dates[0]).date()
-                            if excel_date != kamion.datum:
-                                warnings.append(f"Upozornění: Datum v souboru ({excel_date.strftime('%d.%m.%Y')}) neodpovídá datumu kamionu ({kamion.datum.strftime('%d.%m.%Y')}). Import pokračuje.")
-
                     # Odstraní prázdné sloupce
                     df.dropna(axis=1, how='all', inplace=True)
 
-                    # Přehledné přejmenování sloupců
+                    # Přehledné přejmenování sloupců ze zdroje (opravy rozbitých názvů)
                     df.rename(columns={
                         'Unnamed: 6': 'Kopf',
                         'Unnamed: 7': 'Abmessung',
@@ -594,14 +584,49 @@ class KamionAdmin(SimpleHistoryAdmin):
                         'n. Zg. / \nas drg': 'n. Zg. / as drg',
                     }, inplace=True)
 
+                    # Jednorázové mapování zdrojových názvů na interní názvy
+                    column_mapping = {
+                        'Abhol- datum': 'datum',
+                        'Material- charge': 'sarze',
+                        'Artikel- nummer': 'artikl',
+                        'Kopf': 'typ_hlavy',
+                        'Be-schich-tung': 'vrstva',
+                        'Bezeichnung': 'popis',
+                        'n. Zg. / as drg': 'predpis',
+                        'Material': 'material',
+                        'Ober- fläche': 'povrch',
+                        'Gewicht in kg': 'hmotnost',
+                        'Tara kg': 'tara',
+                        'Behälter-Nr.:': 'behalter_nr',
+                        'Sonder / Zusatzinfo': 'dodatecne_info',
+                        'Lief.': 'dodavatel_materialu',
+                        'Fertigungs- auftrags Nr.': 'vyrobni_zakazka',
+                        'Vorgang+': 'prubeh',
+                        'Abmessung': 'rozmer',
+                    }
+                    df.rename(columns=column_mapping, inplace=True)
+
+                    # Zkontroluje datumy ve sloupci 'datum' – při různosti pouze varování
+                    if 'datum' in df.columns and not df['datum'].isnull().all():
+                        unique_dates = df['datum'].dropna().unique()
+                        if len(unique_dates) > 1:
+                            warnings.append("Upozornění: Sloupec 'datum' obsahuje různé hodnoty. Import pokračuje.")
+                        if len(unique_dates) == 1 and pd.notna(unique_dates[0]):
+                            excel_date = pd.to_datetime(unique_dates[0]).date()
+                            if excel_date != kamion.datum:
+                                warnings.append(
+                                    f"Upozornění: Datum v souboru ({excel_date.strftime('%d.%m.%Y')}) "
+                                    f"neodpovídá datumu kamionu ({kamion.datum.strftime('%d.%m.%Y')}). Import pokračuje."
+                                )                    
+
                     # Povinné zdrojové sloupce dle specifikace
                     required_src = [
-                        'Abmessung',
-                        'Artikel- nummer',
-                        'n. Zg. / as drg',
-                        'Kopf',
-                        'Gewicht in kg',
-                        'Tara kg',
+                        'rozmer',
+                        'artikl',
+                        'predpis',
+                        'typ_hlavy',
+                        'hmotnost',
+                        'tara',
                     ]
                     missing = [c for c in required_src if c not in df.columns]
                     if missing:
@@ -621,7 +646,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                     # Přidání prumer a delka
                     def rozdel_rozmer(row):
                         try:
-                            text = str(row.get('Abmessung', '') or '')
+                            text = str(row.get('rozmer', '') or '')
                             text = text.replace('×', 'x').replace('X', 'x')
                             prumer_str, delka_str = text.replace(',', '.').split('x')
                             return Decimal(prumer_str.strip()), Decimal(delka_str.strip())
@@ -662,27 +687,6 @@ class KamionAdmin(SimpleHistoryAdmin):
                         'Gew.', 'Härterei', 'Prod. Datum', 'Menge', 'von Härterei \nnach Galvanik', 'Galvanik',
                         'vom Galvanik nach Eurotec',
                     ], inplace=True, errors='ignore')
-
-                    # Mapování názvů sloupců
-                    column_mapping = {
-                        'Abhol- datum': 'datum',
-                        'Material- charge': 'sarze',
-                        'Artikel- nummer': 'artikl',
-                        'Kopf': 'typ_hlavy',
-                        'Be-schich-tung': 'vrstva',
-                        'Bezeichnung': 'popis',
-                        'n. Zg. / as drg': 'predpis',
-                        'Material': 'material',
-                        'Ober- fläche': 'povrch',
-                        'Gewicht in kg': 'hmotnost',
-                        'Tara kg': 'tara',
-                        'Behälter-Nr.:': 'behalter_nr',
-                        'Sonder / Zusatzinfo': 'dodatecne_info',
-                        'Lief.': 'dodavatel_materialu',
-                        'Fertigungs- auftrags Nr.': 'vyrobni_zakazka',
-                        'Vorgang+': 'prubeh',
-                    }                  
-                    df.rename(columns=column_mapping, inplace=True)
 
                     # Setřídění podle sloupce prumer, delka, predpis, artikl, sarze, behalter_nr
                     df.sort_values(by=['prumer', 'delka', 'predpis', 'artikl', 'sarze', 'behalter_nr'], inplace=True)
