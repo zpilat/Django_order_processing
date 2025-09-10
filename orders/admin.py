@@ -659,31 +659,31 @@ class KamionAdmin(SimpleHistoryAdmin):
                         lambda row: pd.Series(rozdel_rozmer(row)), axis=1
                     )
 
-                    # Vytvoří se nový sloupec 'priorita', pokud je ve sloupci 'Sonder / Zusatzinfo' obsaženo 'eilig', vyplní se hodnota 'P1' jako priorita
+                    # Vytvoří se nový sloupec 'priorita', pokud je ve sloupci dodatecne_info obsaženo 'eilig', vyplní se hodnota 'P1' jako priorita
                     def priorita(row):
-                        if pd.notna(row['Sonder / Zusatzinfo']) and 'eilig' in row['Sonder / Zusatzinfo'].lower():
+                        if pd.notna(row['dodatecne_info']) and 'eilig' in row['dodatecne_info'].lower():
                             return PrioritaChoice.VYSOKA
                         return PrioritaChoice.NIZKA
                     df['priorita'] = df.apply(priorita, axis=1)
 
-                    # Vytvoří se nový sloupec 'celozavit', pokud je ve sloupci 'Bezeichnung' obsaženo 'konstrux', vyplní se hodnota True, jinak False
+                    # Vytvoří se nový sloupec 'celozavit', pokud je ve sloupci 'popis' obsaženo 'konstrux', vyplní se hodnota True, jinak False
                     def celozavit(row):
-                        if pd.notna(row['Bezeichnung']) and 'konstrux' in row['Bezeichnung'].lower():
+                        if pd.notna(row['popis']) and 'konstrux' in row['popis'].lower():
                             return True
                         return False
                     df['celozavit'] = df.apply(celozavit, axis=1)        
 
-                    # Vytvoří se nový sloupec 'odfosfatovat', pokud je ve sloupci 'Bezeichnung' obsaženo 'muss entphosphatiert werden',
+                    # Vytvoří se nový sloupec 'odfosfatovat', pokud je ve sloupci 'popis' obsaženo 'muss entphosphatiert werden',
                     # vyplní se hodnota True, jinak False
                     def odfosfatovat(row):
-                        if pd.notna(row['Sonder / Zusatzinfo']) and 'muss entphosphatiert werden' in row['Sonder / Zusatzinfo'].lower():
+                        if pd.notna(row['dodatecne_info']) and 'muss entphosphatiert werden' in row['dodatecne_info'].lower():
                             return True
                         return False
                     df['odfosfatovat'] = df.apply(odfosfatovat, axis=1)
 
                     # Odstranění nepotřebných sloupců
                     df.drop(columns=[
-                        'Unnamed: 0', 'Abmessung', 'Gew + Tara', 'VPE', 'Box', 'Anzahl Boxen pro Behälter',
+                        'Unnamed: 0', 'rozmer', 'Gew + Tara', 'VPE', 'Box', 'Anzahl Boxen pro Behälter',
                         'Gew.', 'Härterei', 'Prod. Datum', 'Menge', 'von Härterei \nnach Galvanik', 'Galvanik',
                         'vom Galvanik nach Eurotec',
                     ], inplace=True, errors='ignore')
@@ -785,10 +785,11 @@ class KamionAdmin(SimpleHistoryAdmin):
                                     logger.warning(f"Varování při importu: Předpis „{nazev_predpis}“ neexistuje. Použit předpis 'Neznámý předpis'.")
                                 
                                 # Získání typu hlavy, pokud existuje
-                                typ_hlavy_excel = row.get('typ_hlavy', '').strip()
-                                if not typ_hlavy_excel:
+                                typ_hlavy_excel = row.get('typ_hlavy', None)
+                                if pd.isna(typ_hlavy_excel) or not str(typ_hlavy_excel).strip():
                                     logger.error("Chyba: Sloupec s typem hlavy nesmí být prázdný.")
                                     raise ValueError("Chyba: Sloupec s typem hlavy nesmí být prázdný.")
+                                typ_hlavy_excel = str(typ_hlavy_excel).strip()
                                 typ_hlavy_qs = TypHlavy.objects.filter(nazev=typ_hlavy_excel)
                                 typ_hlavy = typ_hlavy_qs.first() if typ_hlavy_qs.exists() else None
                                 if not typ_hlavy:
@@ -807,7 +808,11 @@ class KamionAdmin(SimpleHistoryAdmin):
                                     popis=row.get('popis'),
                                     vrstva=row.get('vrstva'),
                                     povrch=row.get('povrch'),
-                                    prubeh=f"{int(row.get('prubeh')):06d}" if row.get('prubeh') else None,
+                                    prubeh=(
+                                        f"{int(row.get('prubeh')):06d}"
+                                        if pd.notna(row.get('prubeh')) and str(row.get('prubeh')).strip().isdigit()
+                                        else None
+                                    ),
                                 )
                                 zakazky_cache[artikl] = zakazka
 
