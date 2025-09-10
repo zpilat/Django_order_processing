@@ -469,7 +469,7 @@ class KamionAdmin(SimpleHistoryAdmin):
     def import_view(self, request):
         """
         Zobrazí formulář pro import zakázek do kamionu a zpracuje nahraný soubor.
-        Umožňuje importovat zakázky z Excel souboru a automaticky vytvoří bedny na základě dat v souboru.
+        Umožňuje importovat zakázky z Excel souboru a automaticky vytvoří bedny na základě dat v souboru od Eurotecu.
         """
         kamion_id = request.GET.get("kamion")
         kamion = Kamion.objects.get(pk=kamion_id) if kamion_id else None
@@ -773,6 +773,8 @@ class KamionAdmin(SimpleHistoryAdmin):
                                         zakaznik=eurotec,
                                         defaults={'aktivni': True},
                                     )
+                                    warnings.append(f"Varování: Předpis „{nazev_predpis}“ neexistuje. Použit předpis 'Neznámý předpis'.")
+                                    logger.warning(f"Varování při importu: Předpis „{nazev_predpis}“ neexistuje. Použit předpis 'Neznámý předpis'.")
                                 
                                 # Získání typu hlavy, pokud existuje
                                 typ_hlavy_excel = row.get('typ_hlavy', '').strip()
