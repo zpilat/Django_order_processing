@@ -578,6 +578,10 @@ class KamionAdmin(SimpleHistoryAdmin):
                         unique_dates = df['Abhol- datum'].dropna().unique()
                         if len(unique_dates) > 1:
                             warnings.append("Upozornění: Sloupec 'Abhol- datum' obsahuje různé hodnoty. Import pokračuje.")
+                        if len(unique_dates) == 1 and pd.notna(unique_dates[0]):
+                            excel_date = pd.to_datetime(unique_dates[0]).date()
+                            if excel_date != kamion.datum:
+                                warnings.append(f"Upozornění: Datum v souboru ({excel_date.strftime('%d.%m.%Y')}) neodpovídá datumu kamionu ({kamion.datum.strftime('%d.%m.%Y')}). Import pokračuje.")
 
                     # Odstraní prázdné sloupce
                     df.dropna(axis=1, how='all', inplace=True)
