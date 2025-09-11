@@ -466,6 +466,20 @@ class KamionAdmin(SimpleHistoryAdmin):
             path('import-zakazek/', self.admin_site.admin_view(self.import_view), name='import_zakazek_beden'),
         ]
         return custom_urls + urls
+    
+    def _render_import(self, request, form, kamion, preview, errors, warnings, tmp_token,
+                       tmp_filename, title=None, status=200):
+        context = {
+            'form': form,
+            'kamion': kamion,
+            'preview': preview,
+            'errors': errors,
+            'warnings': warnings,
+            'tmp_token': tmp_token,
+            'tmp_filename': tmp_filename,
+            'title': title or (f"Import zakázek pro kamion {kamion}" if kamion else "Import zakázek"),
+        }
+        return render(request, 'admin/import_zakazky.html', context, status=status)
 
     def import_view(self, request):
         """
@@ -491,16 +505,9 @@ class KamionAdmin(SimpleHistoryAdmin):
                 if file:
                     errors = utilita_validate_excel_upload(file)
                     if errors:
-                        return render(request, 'admin/import_zakazky.html', {
-                            'form': form,
-                            'kamion': kamion,
-                            'preview': preview,
-                            'errors': errors,
-                            'warnings': warnings,
-                            'tmp_token': tmp_token,
-                            'tmp_filename': tmp_filename,
-                            'title': f"Import zakázek pro kamion {kamion}",
-                        })
+                        return self._render_import(
+                            request, form, kamion, preview, errors, warnings, tmp_token, tmp_filename
+                        )
                 # Zpracování souboru    
                 try:
                     # Vyber zdroj souboru – nový upload nebo dočasný soubor z náhledu
@@ -514,16 +521,9 @@ class KamionAdmin(SimpleHistoryAdmin):
                     if request.POST.get('preview'):
                         if not file:
                             errors.append("Pro náhled musíte vybrat soubor.")
-                            return render(request, 'admin/import_zakazky.html', {
-                                'form': form,
-                                'kamion': kamion,
-                                'preview': preview,
-                                'errors': errors,
-                                'warnings': warnings,
-                                'tmp_token': tmp_token,
-                                'tmp_filename': tmp_filename,
-                                'title': f"Import zakázek pro kamion {kamion}",
-                            })
+                            return self._render_import(
+                                request, form, kamion, preview, errors, warnings, tmp_token, tmp_filename
+                            )
                         token = str(uuid.uuid4())
                         saved_path = default_storage.save(f"tmp/imports/{token}.xlsx", file)
                         tmp_map[token] = {'path': saved_path, 'name': file.name}
@@ -545,16 +545,9 @@ class KamionAdmin(SimpleHistoryAdmin):
                             excel_stream = default_storage.open(saved_path, 'rb')
                         else:
                             errors.append("Nebyl poskytnut žádný soubor k importu.")
-                            return render(request, 'admin/import_zakazky.html', {
-                                'form': form,
-                                'kamion': kamion,
-                                'preview': preview,
-                                'errors': errors,
-                                'warnings': warnings,
-                                'tmp_token': tmp_token,
-                                'tmp_filename': tmp_filename,
-                                'title': f"Import zakázek pro kamion {kamion}",
-                            })
+                            return self._render_import(
+                                request, form, kamion, preview, errors, warnings, tmp_token, tmp_filename
+                            )
 
                     # Načte prvních 200 řádků (jinak zbytečně načítá celý soubor - přes 100000 prázdných řádků)
                     df = pd.read_excel(
@@ -629,16 +622,9 @@ class KamionAdmin(SimpleHistoryAdmin):
                     if missing:
                         errors.append("Chyba: V Excelu chybí povinné sloupce: " + ", ".join(missing))
                         preview = []
-                        return render(request, 'admin/import_zakazky.html', {
-                            'form': form,
-                            'kamion': kamion,
-                            'preview': preview,
-                            'errors': errors,
-                            'warnings': warnings,
-                            'tmp_token': tmp_token,
-                            'tmp_filename': tmp_filename,
-                            'title': f"Import zakázek pro kamion {kamion}",
-                        })
+                        return self._render_import(
+                            request, form, kamion, preview, errors, warnings, tmp_token, tmp_filename
+                        )
 
                     # Přidání prumer a delka
                     def rozdel_rozmer(row):
@@ -714,16 +700,9 @@ class KamionAdmin(SimpleHistoryAdmin):
                                 'tmp_token': tmp_token,
                                 'tmp_filename': tmp_filename,
                             })
-                        return render(request, 'admin/import_zakazky.html', {
-                            'form': form,
-                            'kamion': kamion,
-                            'preview': preview,
-                            'errors': errors,
-                            'warnings': warnings,
-                            'tmp_token': tmp_token,
-                            'tmp_filename': tmp_filename,
-                            'title': f"Import zakázek pro kamion {kamion}",
-                        })
+                        return self._render_import(
+                            request, form, kamion, preview, errors, warnings, tmp_token, tmp_filename
+                        )
 
                     # Režim náhledu – bez uložení
                     if request.POST.get('preview'):
@@ -731,16 +710,9 @@ class KamionAdmin(SimpleHistoryAdmin):
                             messages.info(request, "Zobrazen náhled importu. Data nebyla uložena.")
                         except Exception:
                             pass
-                        return render(request, 'admin/import_zakazky.html', {
-                            'form': form,
-                            'kamion': kamion,
-                            'preview': preview,
-                            'errors': errors,
-                            'warnings': warnings,
-                            'tmp_token': tmp_token,
-                            'tmp_filename': tmp_filename,
-                            'title': f"Import zakázek pro kamion {kamion}",
-                        })
+                        return self._render_import(
+                            request, form, kamion, preview, errors, warnings, tmp_token, tmp_filename
+                        )
 
                     # Uložení záznamů
                     with transaction.atomic():
@@ -880,17 +852,9 @@ class KamionAdmin(SimpleHistoryAdmin):
         else:
             logger.info(f"Uživatel {request.user} otevřel formulář pro import zakázek do kamionu {kamion}.")
             form = ImportZakazekForm()
-
-        return render(request, 'admin/import_zakazky.html', {
-            'form': form,
-            'kamion': kamion,
-            'preview': preview,
-            'errors': errors,
-            'warnings': warnings,
-            'tmp_token': None,
-            'tmp_filename': None,
-            'title': f"Import zakázek pro kamion {kamion}",
-        })
+        return self._render_import(
+            request, form, kamion, preview, errors, warnings, None, None
+        )
     
     def save_formset(self, request, form, formset: BaseInlineFormSet, change):
         """
