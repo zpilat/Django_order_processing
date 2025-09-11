@@ -776,11 +776,14 @@ class KamionAdmin(SimpleHistoryAdmin):
                                 # Fallback: použít/nebo vytvořit 'Neznámý předpis' pro zákazníka Eurotec                                
                                 if not predpis:
                                     eurotec = Zakaznik.objects.filter(zkratka='EUR').only('id').first()
-                                    predpis, _ = Predpis.objects.get_or_create(
+                                    predpis, created = Predpis.objects.get_or_create(
                                         nazev='Neznámý předpis',
                                         zakaznik=eurotec,
                                         defaults={'aktivni': True},
                                     )
+                                    if not created and not predpis.aktivni:
+                                        predpis.aktivni = True
+                                        predpis.save()
                                     warnings.append(f"Varování: Předpis „{nazev_predpis}“ neexistuje. Použit předpis 'Neznámý předpis'.")
                                     logger.warning(f"Varování při importu: Předpis „{nazev_predpis}“ neexistuje. Použit předpis 'Neznámý předpis'.")
                                 
