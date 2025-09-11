@@ -106,11 +106,11 @@ class KamionAdminTests(AdminBase):
 
         df_data = {
             'Abhol- datum': ['2024-01-01'],
-            'Abmessung': ['10 x 50'],
+            'Unnamed: 7': ['10 x 50'],
             'Bezeichnung': ['desc 1'],
             'Sonder / Zusatzinfo': [''],
             'Artikel- nummer': ['A1'],
-            'n. Zg. / as drg': ['123'],
+            'n. Zg. / \nas drg': ['123'],
             'Material- charge': ['M1'],
             'Material': ['steel'],
             'Ober- fläche': ['ZP'],
@@ -118,8 +118,8 @@ class KamionAdminTests(AdminBase):
             'Tara kg': [1],
             'Behälter-Nr.:': [1],
             'Lief.': ['L1'],
-            'Fertigungs- aftrags Nr.': ['F1'],
-            'Kopf': ['TK'],
+            'Fertigungs- auftrags Nr.': ['F1'],
+            'Unnamed: 6': ['TK'],
         }
         import pandas as pandas_mod
         df = pandas_mod.DataFrame(df_data)

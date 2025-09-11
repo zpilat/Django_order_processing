@@ -80,8 +80,10 @@ class UtilitaExpediceZakazekTests(UtilsBase):
 
         original_create = Zakazka.objects.create
         def create_wrapper(**kwargs):
-            kwargs['predpis_id'] = kwargs.pop('predpis')
-            kwargs['typ_hlavy_id'] = kwargs.pop('typ_hlavy')
+            if 'predpis' in kwargs:
+                kwargs['predpis_id'] = kwargs.pop('predpis')
+            if 'typ_hlavy' in kwargs:
+                kwargs['typ_hlavy_id'] = kwargs.pop('typ_hlavy')
             return original_create(**kwargs)
 
         with patch('orders.utils.Zakazka.objects.create', side_effect=create_wrapper):

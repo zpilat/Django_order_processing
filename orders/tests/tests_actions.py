@@ -319,7 +319,7 @@ class KNavezeniActionTests(ActionsBase):
         for i, b in enumerate(qs):
             data[f'ozn-{i}-bedna_id'] = str(b.id)
             data[f'ozn-{i}-pozice'] = str(self.pozice_A.id)
-            data[f'ozn-{i}-poznamka'] = 'pozn'
+            data[f'ozn-{i}-poznamka_k_navezeni'] = 'pozn'
         # Označení vybraných ID pomocí názvu zaškrtávacího políčka akce
         for b in qs:
             data.setdefault(dj_admin.helpers.ACTION_CHECKBOX_NAME, [])
@@ -333,7 +333,7 @@ class KNavezeniActionTests(ActionsBase):
             b.refresh_from_db()
             self.assertEqual(b.stav_bedny, StavBednyChoice.K_NAVEZENI)
             self.assertEqual(b.pozice_id, self.pozice_A.id)
-            self.assertEqual(b.poznamka, 'pozn')
+            self.assertEqual(b.poznamka_k_navezeni, 'pozn')
 
     def test_post_invalid_form_returns_template(self):
         admin_obj = self._minimal_admin()
