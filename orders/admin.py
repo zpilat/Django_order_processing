@@ -465,11 +465,43 @@ class KamionAdmin(SimpleHistoryAdmin):
             path('import-zakazek/', self.admin_site.admin_view(self.import_view), name='import_zakazek_beden'),
         ]
         return custom_urls + urls
+    
+    def validate_excel_upload(self, uploaded_file):
+        """
+        Validuje nahraný Excel soubor pro import zakázek.
+        Kontroluje, zda je soubor přítomen, má správnou příponu a není prázdný.
+        Pokouší se načíst soubor pomocí pandas pro ověření, že je platný.
+        Vrací seznam chybových zpráv, pokud nějaké jsou.
+        """
+        errors: list[str] = []
+
+        if not uploaded_file:
+            errors.append("Soubor chybí.")
+            return errors
+
+        name = uploaded_file.name.casefold()
+
+        if not name.endswith('.xlsx'):
+            errors.append("Soubor musí mít příponu .xlsx.")
+            return errors
+
+        if uploaded_file.size == 0:
+            errors.append("Soubor je prázdný.")
+            return errors
+
+        try:
+            # Rychlý sanity read (jen hlavička)
+            pd.read_excel(uploaded_file, nrows=1, engine="openpyxl")
+            uploaded_file.seek(0)  # vrátit pozici pro další čtení
+        except Exception:
+            errors.append("Soubor nelze načíst jako platný .xlsx.")
+        return errors
 
     def import_view(self, request):
         """
         Zobrazí formulář pro import zakázek do kamionu a zpracuje nahraný soubor.
-        Umožňuje importovat zakázky z Excel souboru a automaticky vytvoří bedny na základě dat v souboru od Eurotecu.
+        Umožňuje importovat zakázky z Excel souboru a automaticky vytvoří bedny na základě dat v souboru.
+        Zatím funguje pouze pro kamiony Eurotecu.
         """
         kamion_id = request.GET.get("kamion")
         kamion = Kamion.objects.get(pk=kamion_id) if kamion_id else None
@@ -485,19 +517,21 @@ class KamionAdmin(SimpleHistoryAdmin):
                 tmp_token = request.POST.get('tmp_token')
                 tmp_filename = None
                 is_htmx = False
-                # Povolit pouze .xlsx (openpyxl), ale jen pokud je nahrán nový soubor
-                if file and not file.name.lower().endswith('.xlsx'):
-                    errors.append("Soubor musí být ve formátu .xlsx (Excel).")
-                    return render(request, 'admin/import_zakazky.html', {
-                        'form': form,
-                        'kamion': kamion,
-                        'preview': preview,
-                        'errors': errors,
-                        'warnings': warnings,
-                        'tmp_token': tmp_token,
-                        'tmp_filename': tmp_filename,
-                        'title': f"Import zakázek pro kamion {kamion}",
-                    })
+                # Validace pouze nového uploadu
+                if file:
+                    errors = self.validate_excel_upload(file)
+                    if errors:
+                        return render(request, 'admin/import_zakazky.html', {
+                            'form': form,
+                            'kamion': kamion,
+                            'preview': preview,
+                            'errors': errors,
+                            'warnings': warnings,
+                            'tmp_token': tmp_token,
+                            'tmp_filename': tmp_filename,
+                            'title': f"Import zakázek pro kamion {kamion}",
+                        })
+                # Zpracování souboru    
                 try:
                     # Vyber zdroj souboru – nový upload nebo dočasný soubor z náhledu
                     try:
@@ -576,23 +610,16 @@ class KamionAdmin(SimpleHistoryAdmin):
                     # Odstraní prázdné sloupce
                     df.dropna(axis=1, how='all', inplace=True)
 
-                    # Přehledné přejmenování sloupců ze zdroje (opravy rozbitých názvů)
-                    df.rename(columns={
-                        'Unnamed: 6': 'Kopf',
-                        'Unnamed: 7': 'Abmessung',
-                        'Menge       ': 'Menge',
-                        'n. Zg. / \nas drg': 'n. Zg. / as drg',
-                    }, inplace=True)
-
                     # Jednorázové mapování zdrojových názvů na interní názvy
                     column_mapping = {
+                        'Unnamed: 6': 'typ_hlavy',
+                        'Unnamed: 7': 'rozmer',                        
                         'Abhol- datum': 'datum',
                         'Material- charge': 'sarze',
                         'Artikel- nummer': 'artikl',
-                        'Kopf': 'typ_hlavy',
                         'Be-schich-tung': 'vrstva',
                         'Bezeichnung': 'popis',
-                        'n. Zg. / as drg': 'predpis',
+                        'n. Zg. / \nas drg': 'predpis',
                         'Material': 'material',
                         'Ober- fläche': 'povrch',
                         'Gewicht in kg': 'hmotnost',
@@ -602,7 +629,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                         'Lief.': 'dodavatel_materialu',
                         'Fertigungs- auftrags Nr.': 'vyrobni_zakazka',
                         'Vorgang+': 'prubeh',
-                        'Abmessung': 'rozmer',
+                        'Menge       ': 'mnozstvi',                     
                     }
                     df.rename(columns=column_mapping, inplace=True)
 
@@ -684,7 +711,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                     # Odstranění nepotřebných sloupců
                     df.drop(columns=[
                         'Unnamed: 0', 'rozmer', 'Gew + Tara', 'VPE', 'Box', 'Anzahl Boxen pro Behälter',
-                        'Gew.', 'Härterei', 'Prod. Datum', 'Menge', 'von Härterei \nnach Galvanik', 'Galvanik',
+                        'Gew.', 'Härterei', 'Prod. Datum', 'mnozstvi', 'von Härterei \nnach Galvanik', 'Galvanik',
                         'vom Galvanik nach Eurotec',
                     ], inplace=True, errors='ignore')
 
@@ -800,11 +827,20 @@ class KamionAdmin(SimpleHistoryAdmin):
                                     raise ValueError(f"Typ hlavy „{typ_hlavy_excel}“ neexistuje.")
                                 
                                 # zajištění správného formátu u pole prubeh (šestimístné číslo s předními nulami)
-                                prubeh=(
-                                    f"{int(row.get('prubeh')):06d}"
-                                    if pd.notna(row.get('prubeh')) and str(row.get('prubeh')).strip().isdigit()
-                                    else None
-                                ),                                
+                                prubeh_raw = row.get('prubeh')
+                                prubeh = None
+
+                                if pd.notna(prubeh_raw):
+                                    if isinstance(prubeh_raw, int):
+                                        prubeh = f"{prubeh_raw:06d}"
+                                    elif isinstance(prubeh_raw, float) and prubeh_raw.is_integer():
+                                        prubeh = f"{int(prubeh_raw):06d}"
+                                    else:
+                                        s = str(prubeh_raw).strip()
+                                        if s.isdigit():
+                                            prubeh = f"{int(s):06d}"
+                                        elif s.endswith('.0') and s.replace('.0', '').isdigit():
+                                            prubeh = f"{int(float(s)):06d}"                                
 
                                 zakazka = Zakazka.objects.create(
                                     kamion_prijem=kamion,
