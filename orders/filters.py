@@ -131,6 +131,9 @@ class TryskaniFilter(DynamicTitleFilter):
 
     def __init__(self, request, params, model, model_admin):
         self.label_dict = {**dict(TryskaniChoice.choices)}
+        for key, value in self.label_dict.items():
+            if key == TryskaniChoice.NEZADANO:
+                self.label_dict[key] = value + ' (Nezadáno)'
         super().__init__(request, params, model, model_admin)
 
     def lookups(self, request, model_admin):
@@ -152,6 +155,9 @@ class RovnaniFilter(DynamicTitleFilter):
 
     def __init__(self, request, params, model, model_admin):
         self.label_dict = {**dict(RovnaniChoice.choices)}
+        for key, value in self.label_dict.items():
+            if key == RovnaniChoice.NEZADANO:
+                self.label_dict[key] = value + ' (Nezadáno)'
         super().__init__(request, params, model, model_admin)
 
     def lookups(self, request, model_admin):
