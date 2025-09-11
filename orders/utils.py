@@ -7,6 +7,8 @@ from django.db import transaction
 from .choices import StavBednyChoice
 from .models import Zakazka, Bedna
 
+import pandas as pd
+
 from weasyprint import HTML
 
 import re
