@@ -39,6 +39,7 @@ from .filters import (
 )
 from .forms import ZakazkaAdminForm, BednaAdminForm, ImportZakazekForm, ZakazkaInlineForm
 from .choices import StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice
+from .utils import utilita_validate_excel_upload
 
 import logging
 logger = logging.getLogger('orders')
@@ -465,37 +466,6 @@ class KamionAdmin(SimpleHistoryAdmin):
             path('import-zakazek/', self.admin_site.admin_view(self.import_view), name='import_zakazek_beden'),
         ]
         return custom_urls + urls
-    
-    def validate_excel_upload(self, uploaded_file):
-        """
-        Validuje nahraný Excel soubor pro import zakázek.
-        Kontroluje, zda je soubor přítomen, má správnou příponu a není prázdný.
-        Pokouší se načíst soubor pomocí pandas pro ověření, že je platný.
-        Vrací seznam chybových zpráv, pokud nějaké jsou.
-        """
-        errors: list[str] = []
-
-        if not uploaded_file:
-            errors.append("Soubor chybí.")
-            return errors
-
-        name = uploaded_file.name.casefold()
-
-        if not name.endswith('.xlsx'):
-            errors.append("Soubor musí mít příponu .xlsx.")
-            return errors
-
-        if uploaded_file.size == 0:
-            errors.append("Soubor je prázdný.")
-            return errors
-
-        try:
-            # Rychlý sanity read (jen hlavička)
-            pd.read_excel(uploaded_file, nrows=1, engine="openpyxl")
-            uploaded_file.seek(0)  # vrátit pozici pro další čtení
-        except Exception:
-            errors.append("Soubor nelze načíst jako platný .xlsx.")
-        return errors
 
     def import_view(self, request):
         """
@@ -519,7 +489,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                 is_htmx = False
                 # Validace pouze nového uploadu
                 if file:
-                    errors = self.validate_excel_upload(file)
+                    errors = utilita_validate_excel_upload(file)
                     if errors:
                         return render(request, 'admin/import_zakazky.html', {
                             'form': form,

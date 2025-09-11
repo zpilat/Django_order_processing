@@ -140,3 +140,35 @@ def utilita_zkraceni_popisu_beden(bedna):
     match = re.match(r"^(.*?)(\s+\d+.*)?$", bedna.zakazka.popis)    
     if match:
         bedna.zakazka.popis = match.group(1).strip()
+
+
+def utilita_validate_excel_upload(uploaded_file):
+    """
+    Validuje nahraný Excel soubor pro import zakázek.
+    Kontroluje, zda je soubor přítomen, má správnou příponu a není prázdný.
+    Pokouší se načíst soubor pomocí pandas pro ověření, že je platný.
+    Vrací seznam chybových zpráv, pokud nějaké jsou.
+    """
+    errors: list[str] = []
+
+    if not uploaded_file:
+        errors.append("Soubor chybí.")
+        return errors
+
+    name = uploaded_file.name.casefold()
+
+    if not name.endswith('.xlsx'):
+        errors.append("Soubor musí mít příponu .xlsx.")
+        return errors
+
+    if uploaded_file.size == 0:
+        errors.append("Soubor je prázdný.")
+        return errors
+
+    try:
+        # Rychlý sanity read (jen hlavička)
+        pd.read_excel(uploaded_file, nrows=1, engine="openpyxl")
+        uploaded_file.seek(0)  # vrátit pozici pro další čtení
+    except Exception:
+        errors.append("Soubor nelze načíst jako platný .xlsx.")
+    return errors
