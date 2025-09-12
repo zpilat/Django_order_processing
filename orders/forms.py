@@ -111,6 +111,7 @@ class ZakazkaInlineForm(ZakazkaPredpisValidatorMixin, forms.ModelForm):
     celkove_mnozstvi = forms.IntegerField(
         label="Celk. množ.",
         min_value=1,
+        required=False,
         widget=forms.NumberInput(attrs={'size': '5', 'style': 'width: 60px;'})
     )
     pocet_beden = forms.IntegerField(
