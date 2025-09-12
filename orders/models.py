@@ -506,11 +506,12 @@ class Bedna(models.Model):
         """
         super().clean()    
         if self.stav_bedny in [StavBednyChoice.K_EXPEDICI, StavBednyChoice.EXPEDOVANO]:
+            text = _("Pro zadání stavu 'K expedici' nebo 'Expedováno' musí být tryskání buď Čistá nebo Otryskaná a rovnání buď Rovná nebo Vyrovnaná.")
             if self.tryskat not in [TryskaniChoice.CISTA, TryskaniChoice.OTRYSKANA]:
-                raise ValidationError(_("Pro stav 'K expedici' a 'Expedováno' musí být tryskání buď Čistá nebo Otryskaná."))
+                raise ValidationError(text)
                 logger.warning(f'Uzivatel se pokusil uložit bednu ve stavu {self.stav_bedny} s neplatným stavem tryskání: {self.tryskat}')
             if self.rovnat not in [RovnaniChoice.ROVNA, RovnaniChoice.VYROVNANA]:
-                raise ValidationError(_("Pro stav 'K expedici' a 'Expedováno' musí být rovnání buď Rovná nebo Vyrovnaná."))
+                raise ValidationError(text)
                 logger.warning(f'Uzivatel se pokusil uložit bednu ve stavu {self.stav_bedny} s neplatným stavem rovnání: {self.rovnat}')
         
         if self.stav_bedny in [StavBednyChoice.K_NAVEZENI, StavBednyChoice.NAVEZENO]:
@@ -559,9 +560,8 @@ class Bedna(models.Model):
         Pravidla pro výběr:
         - Pokud je stav `EXPEDOVANO`, nabídne pouze tento stav.
         - Pokud je stav `K_EXPEDICI`, nabídne předchozí stav a aktuální stav.
-        - Pokud je stav `ZKONTROLOVANO`, nabídne předchozí stav a aktuální stav,    
-            a pokud zároveň `tryskat` ∈ {CISTA, OTRYSKANA} a 
-            `rovnat` ∈ {ROVNA, VYROVNANA}, doplní i následující stav.
+        - Pokud je stav `ZAKALENO`, `DO_ZPRACOVANI` nebo `NAVEZENO` nabídne předchozí, aktuální stav
+          a všechny následující až do K_EXPEDICI.
         - Pokud je stav `PRIJATO`, nabídne tento stav a následující stav.
         - Ve všech ostatních stavech nabídne předchozí, aktuální a následující stav.
         """
@@ -579,16 +579,9 @@ class Bedna(models.Model):
         # K_EXPEDICI
         if curr == StavBednyChoice.K_EXPEDICI:
             return [choices[idx - 1], choices[idx]]
-        # ZKONTROLOVANO
-        if curr == StavBednyChoice.ZKONTROLOVANO:
-            allowed = [choices[idx - 1], choices[idx]]
-            if (self.tryskat in (TryskaniChoice.CISTA, TryskaniChoice.OTRYSKANA)
-             and self.rovnat in (RovnaniChoice.ROVNA, RovnaniChoice.VYROVNANA)):
-                allowed.append(choices[idx + 1])
-            return allowed
-        # PRIJATO
-        if curr == StavBednyChoice.PRIJATO:
-            return [choices[idx], choices[idx + 1]]
+        # ZAKALENO, DO_ZPRACOVANI, NAVEZENO
+        if curr in (StavBednyChoice.ZAKALENO, StavBednyChoice.DO_ZPRACOVANI, StavBednyChoice.NAVEZENO):
+            return choices[idx - 1 : choices.index((StavBednyChoice.K_EXPEDICI, 'K expedici')) + 1]
         # ostatní
         before = [choices[idx - 1]] if idx > 0 else []
         after  = [choices[idx + 1]] if idx < len(choices) - 1 else []

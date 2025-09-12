@@ -60,3 +60,9 @@ class KodChoice(models.TextChoices):
     X = 'X', 'X'
     Y = 'Y', 'Y'
     Z = 'Z', 'Z'
+
+stav_bedny_skladem = [stavbedny for stavbedny in StavBednyChoice if stavbedny != StavBednyChoice.EXPEDOVANO]
+
+stav_bedny_rozpracovanost = [
+    StavBednyChoice.NAVEZENO, StavBednyChoice.DO_ZPRACOVANI, StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO
+    ]

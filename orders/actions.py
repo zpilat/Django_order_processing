@@ -15,7 +15,7 @@ from weasyprint import HTML
 from .models import Zakazka, Bedna, Kamion, Zakaznik, Pozice
 from .utils import utilita_tisk_dokumentace, utilita_expedice_zakazek, utilita_kontrola_zakazek, utilita_tisk_dl_a_proforma_faktury
 from .forms import VyberKamionVydejForm, OdberatelForm, KNavezeniForm
-from .choices import KamionChoice, StavBednyChoice, RovnaniChoice, TryskaniChoice
+from .choices import KamionChoice, StavBednyChoice, RovnaniChoice, TryskaniChoice, stav_bedny_skladem, stav_bedny_rozpracovanost
 
 import logging
 logger = logging.getLogger('orders')
@@ -291,12 +291,12 @@ def oznacit_zkontrolovano_action(modeladmin, request, queryset):
 @admin.action(description="Změna stavu bedny na K_EXPEDICI")
 def oznacit_k_expedici_action(modeladmin, request, queryset):
     """
-    Změní stav vybraných beden ze ZKONTROLOVANO na K_EXPEDICI.
+    Změní stav vybraných beden z NAVEZENO, DO_ZPRACOVANI, ZAKALENO nebo ZKONTROLOVANO na K_EXPEDICI.
     """
-    # kontrola, zda jsou všechny bedny v querysetu ve stavu ZKONTROLOVANO
-    if queryset.exclude(stav_bedny=StavBednyChoice.ZKONTROLOVANO).exists():
-        logger.info(f"Uživatel {request.user} se pokusil změnit stav na K_EXPEDICI, ale některé bedny nejsou ve stavu ZKONTROLOVANO.")
-        modeladmin.message_user(request, "Některé vybrané bedny nejsou ve stavu ZKONTROLOVANO.", level=messages.ERROR)
+    # kontrola, zda jsou všechny bedny v querysetu ve stavu NAVEZENO, DO_ZPRACOVANI, ZAKALENO nebo ZKONTROLOVANO
+    if queryset.exclude(stav_bedny__in=stav_bedny_rozpracovanost).exists():
+        logger.info(f"Uživatel {request.user} se pokusil změnit stav na K_EXPEDICI, ale některé bedny nejsou ve stavu NAVEZENO, DO_ZPRACOVANI, ZAKALENO nebo ZKONTROLOVANO.")
+        modeladmin.message_user(request, "Některé vybrané bedny nejsou ve stavu NAVEZENO, DO_ZPRACOVANI, ZAKALENO nebo ZKONTROLOVANO.", level=messages.ERROR)
         return None
     
     # kontrola, zda všechny bedny splňují podmínky pro přechod do stavu K_EXPEDICI:
@@ -318,7 +318,7 @@ def oznacit_k_expedici_action(modeladmin, request, queryset):
     # pokud nějaká bedna nesplňuje podmínky, akce se přeruší
     with transaction.atomic():
         for bedna in queryset:
-            if bedna.stav_bedny == StavBednyChoice.ZKONTROLOVANO:
+            if bedna.stav_bedny in [StavBednyChoice.NAVEZENO, StavBednyChoice.DO_ZPRACOVANI, StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO]:
                 bedna.stav_bedny = StavBednyChoice.K_EXPEDICI
                 bedna.save()
 

@@ -38,7 +38,7 @@ from .filters import (
     OdberatelFilter, ZakaznikPredpisFilter
 )
 from .forms import ZakazkaAdminForm, BednaAdminForm, ImportZakazekForm, ZakazkaInlineForm
-from .choices import StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice
+from .choices import StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice, stav_bedny_rozpracovanost, stav_bedny_skladem
 from .utils import utilita_validate_excel_upload
 
 import logging
@@ -68,7 +68,7 @@ class ZakaznikAdmin(SimpleHistoryAdmin):
 
 class ZakazkaAutomatizovanyPrijemInline(admin.TabularInline):
     """
-    Inline pro příjem zakázek v rámci kamionu na sklad včetně automatizovaného vytvoření beden a rozpočtení hmotnosti.
+    Inline pro příjem zakázek v rámci kamionu na sklad včetně automatizovaného vytvoření beden a rozpočtení hmotnosti a množství.
     """
     model = Zakazka
     form = ZakazkaInlineForm
@@ -77,7 +77,7 @@ class ZakazkaAutomatizovanyPrijemInline(admin.TabularInline):
     verbose_name_plural = 'Zakázky - automatizovaný příjem'
     extra = 5
     fields = ('artikl', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit', 'popis',
-              'priorita', 'pocet_beden', 'celkova_hmotnost', 'tara', 'material',)
+              'priorita', 'pocet_beden', 'celkova_hmotnost', 'celkove_mnozstvi', 'tara', 'material',)
     select_related = ('predpis',)
     show_change_link = True
     formfield_overrides = {
@@ -880,12 +880,14 @@ class KamionAdmin(SimpleHistoryAdmin):
 
                 # Získání dodatečných hodnot z vlastního formuláře zakázky
                 celkova_hmotnost = inline_form.cleaned_data.get("celkova_hmotnost")
+                celkove_mnozstvi = inline_form.cleaned_data.get("celkove_mnozstvi")
                 pocet_beden = inline_form.cleaned_data.get("pocet_beden")
                 tara = inline_form.cleaned_data.get("tara")
                 material = inline_form.cleaned_data.get("material")
 
-                # Rozpočítání hmotnosti, pro poslední bednu se použije zbytek hmotnosti po rozpočítání a zaokrouhlení
-                if celkova_hmotnost and pocet_beden:
+                # Rozpočítání hmotnosti a množství
+                if pocet_beden and celkova_hmotnost and celkove_mnozstvi:
+                    # Rozpočítání hmotnosti, pro poslední bednu se použije zbytek hmotnosti po rozpočítání a zaokrouhlení
                     hmotnost_bedny = Decimal(celkova_hmotnost) / int(pocet_beden)
                     hmotnost_bedny = hmotnost_bedny.quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)
                     hodnoty = [hmotnost_bedny] * (pocet_beden - 1)
@@ -893,14 +895,34 @@ class KamionAdmin(SimpleHistoryAdmin):
                     posledni = posledni.quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)
                     hodnoty.append(posledni)
 
+                    # Rozpočítání množství, použije se jednoduché dělení, pouze orientační hodnota            
+                    mnozstvi_bedny = int(celkove_mnozstvi) // int(pocet_beden)
+                    mnozstvi_bedny = max(mnozstvi_bedny, 1)
+
                     for i in range(pocet_beden):
                         Bedna.objects.create(
                             zakazka=zakazka,
                             hmotnost=hodnoty[i],
                             tara=tara,
                             material=material,
+                            mnozstvi=mnozstvi_bedny,
                             # cislo_bedny se dopočítá v metodě save() modelu Bedna
                         )
+
+                # Rozpočítání množství, použije se jednoduché dělení, pouze orientační hodnota
+                if celkove_mnozstvi and pocet_beden:
+                    mnozstvi_bedny = int(celkove_mnozstvi) // int(pocet_beden)
+                    mnozstvi_bedny = max(mnozstvi_bedny, 1)
+                    hodnoty = [mnozstvi_bedny] * (pocet_beden - 1)
+                    posledni = celkove_mnozstvi - sum(hodnoty)
+                    posledni = max(posledni, 1)
+                    hodnoty.append(posledni)
+
+                    bedny_zakazky = zakazka.bedny.all().order_by('id')
+                    for bedna, mnozstvi in zip(bedny_zakazky, hodnoty):
+                        bedna.mnozstvi = mnozstvi
+                        bedna.save()
+
 
 
 class BednaInline(admin.TabularInline):
@@ -1722,7 +1744,7 @@ class BednaAdmin(SimpleHistoryAdmin):
                 actions_to_remove += [
                     'oznacit_zkontrolovano_action',
                 ]
-            if request.GET.get('stav_bedny', None) != StavBednyChoice.ZKONTROLOVANO:
+            if request.GET.get('stav_bedny', None) not in [StavBednyChoice.ZKONTROLOVANO, 'RO']:
                 actions_to_remove += [
                     'oznacit_k_expedici_action',
                 ]

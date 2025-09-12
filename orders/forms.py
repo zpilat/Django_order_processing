@@ -104,25 +104,30 @@ class ZakazkaInlineForm(ZakazkaPredpisValidatorMixin, forms.ModelForm):
     Umožní rozpočítat celkovou hmotnost zakázky na jednotlivé bedny. Přidá všem bedná v zakázce táru a typ materiálu.
     """
     celkova_hmotnost = forms.DecimalField(
-        label="Celková hmotnost",
+        label="Celk. hmotn.",
         min_value=1.0,
-        widget=forms.TextInput(attrs={'size': '8', 'style': 'width: 80px;'})
+        widget=forms.TextInput(attrs={'size': '8', 'style': 'width: 60px;'})
+    )
+    celkove_mnozstvi = forms.IntegerField(
+        label="Celk. množ.",
+        min_value=1,
+        widget=forms.NumberInput(attrs={'size': '5', 'style': 'width: 60px;'})
     )
     pocet_beden = forms.IntegerField(
         label="Počet beden",
         min_value=1,
-        widget=forms.NumberInput(attrs={'size': '5', 'style': 'width: 60px;'})
+        widget=forms.NumberInput(attrs={'size': '5', 'style': 'width: 40px;'})
     )
     tara = forms.DecimalField(
         label="Tára",
         min_value=20.0,
         initial=65.0,
-        widget=forms.TextInput(attrs={'size': '8', 'style': 'width: 80px;'})
+        widget=forms.TextInput(attrs={'size': '8', 'style': 'width: 40px;'})
     )
     material = forms.CharField(
         label="Materiál",
         required=False,
-        widget=forms.TextInput(attrs={'size': '10', 'style': 'width: 80px;'})
+        widget=forms.TextInput(attrs={'size': '10', 'style': 'width: 60px;'})
     )
 
     class Meta:
