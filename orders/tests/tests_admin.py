@@ -115,6 +115,7 @@ class KamionAdminTests(AdminBase):
             'Material': ['steel'],
             'Ober- fläche': ['ZP'],
             'Gewicht in kg': [1],
+            'Gew.': [1],
             'Tara kg': [1],
             'Behälter-Nr.:': [1],
             'Lief.': ['L1'],

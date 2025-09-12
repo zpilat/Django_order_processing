@@ -167,10 +167,15 @@ def utilita_validate_excel_upload(uploaded_file):
         errors.append("Soubor je prázdný.")
         return errors
 
+    # Volitelný lehký sanity read: při chybě uživatele pouze varujeme do logu,
+    # vlastní čtení a validace obsahu proběhne v import procesu.
     try:
-        # Rychlý sanity read (jen hlavička)
         pd.read_excel(uploaded_file, nrows=1, engine="openpyxl")
-        uploaded_file.seek(0)  # vrátit pozici pro další čtení
     except Exception:
-        errors.append("Soubor nelze načíst jako platný .xlsx.")
+        logger.warning("Sanity read selhal, soubor nemusí být plnohodnotné .xlsx, pokračuji a ověřím při importu.")
+    finally:
+        try:
+            uploaded_file.seek(0)
+        except Exception:
+            pass
     return errors
