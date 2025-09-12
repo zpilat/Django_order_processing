@@ -1450,7 +1450,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     # list_editable nastavován dynamicky v get_list_editable
     list_display_links = ('get_cislo_bedny', )
     list_select_related = ("zakazka", "zakazka__kamion_prijem", "zakazka__kamion_vydej")
-    list_per_page = 30
+    list_per_page = 25
     search_fields = ('cislo_bedny', 'behalter_nr', 'zakazka__artikl',)
     search_help_text = "Dle čísla bedny, č.b. zákazníka nebo zakázky"
     list_filter = (ZakaznikBednyFilter, StavBednyFilter, TryskaniFilter, RovnaniFilter, CelozavitBednyFilter,
@@ -1460,7 +1460,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     formfield_overrides = {
         models.CharField: {'widget': TextInput(attrs={ 'size': '20', 'style': 'font-size: 10px;'})},
         models.DecimalField: {
-            'widget': TextInput(attrs={ 'size': '8'}),
+            'widget': TextInput(attrs={ 'size': '3'}),
             'localize': True
         },
         models.BooleanField: {'widget': RadioSelect(choices=[(True, 'Ano'), (False, 'Ne')])}
@@ -1638,8 +1638,8 @@ class BednaAdmin(SimpleHistoryAdmin):
         if request.GET.get('stav_bedny', None) == 'EX' or request.GET.get('uvolneno', None) == 'pozastaveno':
             return []
         if request.GET.get('stav_bedny', None) not in ('PR', 'KN', 'NA'):
-            return ['stav_bedny', 'tryskat', 'rovnat', 'poznamka']
-        return ['stav_bedny', 'tryskat', 'rovnat', 'poznamka', 'pozice']
+            return ['stav_bedny', 'tryskat', 'rovnat', 'hmotnost', 'poznamka']
+        return ['stav_bedny', 'tryskat', 'rovnat', 'hmotnost', 'poznamka', 'pozice']
 
     def changelist_view(self, request, extra_context=None):
         """

@@ -8,7 +8,10 @@ from datetime import timedelta
 from .models import Zakazka, Bedna, Zakaznik, Kamion, TypHlavy, Predpis, Odberatel
 from .choices import StavBednyChoice, TryskaniChoice, RovnaniChoice, PrioritaChoice
 
-stav_bedny_bez_expedice = [stavbedny for stavbedny in StavBednyChoice if stavbedny != StavBednyChoice.EXPEDOVANO]
+stav_bedny_skladem = [stavbedny for stavbedny in StavBednyChoice if stavbedny != StavBednyChoice.EXPEDOVANO]
+stav_bedny_rozpracovanost = [
+    StavBednyChoice.NAVEZENO, StavBednyChoice.DO_ZPRACOVANI, StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO
+    ]
 
 class DynamicTitleFilter(SimpleListFilter):
     """
@@ -40,6 +43,7 @@ class StavBednyFilter(DynamicTitleFilter):
 
     def __init__(self, request, params, model, model_admin):
         self.label_dict = {**dict(StavBednyChoice.choices)}
+        self.label_dict['RO'] = 'Rozpracované'
         self.label_dict['PE'] = 'Bedny po expiraci'
         super().__init__(request, params, model, model_admin)
 
@@ -49,8 +53,10 @@ class StavBednyFilter(DynamicTitleFilter):
     def queryset(self, request, queryset):
         value = self.value()
         if value is None:
-            return queryset.exclude(stav_bedny=StavBednyChoice.EXPEDOVANO)
-        if value == 'PE':
+            return queryset.filter(stav_bedny__in=stav_bedny_skladem)
+        elif value == 'RO':
+            return queryset.filter(stav_bedny__in=stav_bedny_rozpracovanost)
+        elif value == 'PE':
             expiration_date = timezone.localdate() - timedelta(days=28)
             return queryset.exclude(stav_bedny=StavBednyChoice.EXPEDOVANO).filter(zakazka__kamion_prijem__datum__lt=expiration_date)
         return queryset.filter(stav_bedny=value)
@@ -245,9 +251,7 @@ class SkupinaFilter(DynamicTitleFilter):
 
         if zakaznik:
             query = query.filter(zakazky__kamion_prijem__zakaznik__zkratka=zakaznik)
-        if not stav_bedny:
-                query = query.filter(zakazky__bedny__stav_bedny__in=stav_bedny_bez_expedice)
-        else:
+        if stav_bedny:
             query = query.filter(zakazky__bedny__stav_bedny=stav_bedny)
 
         # Vytvoří slovník s unikátními názvy skupin pro zobrazení ve filtru ve správném formátu
