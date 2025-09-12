@@ -592,9 +592,34 @@ class KamionAdmin(SimpleHistoryAdmin):
                         'Lief.': 'dodavatel_materialu',
                         'Fertigungs- auftrags Nr.': 'vyrobni_zakazka',
                         'Vorgang+': 'prubeh',
-                        'Menge       ': 'mnozstvi',                     
+                        'Menge       ': 'mnozstvi',       
+                        'Gew.': 'hmotnost_ks',              
                     }
-                    df.rename(columns=column_mapping, inplace=True)
+                    df.rename(columns=column_mapping, inplace=True)              
+
+                    # Povinné zdrojové sloupce dle specifikace
+                    required_src = [
+                        'sarze',
+                        'popis',
+                        'rozmer',
+                        'artikl',
+                        'predpis',
+                        'typ_hlavy',
+                        'material',
+                        'behalter_nr',
+                        'hmotnost',
+                        'tara',
+                        'dodatecne_info',
+                        'hmotnost_ks'
+                        'datum',
+                    ]
+                    missing = [c for c in required_src if c not in df.columns]
+                    if missing:
+                        errors.append("Chyba: V Excelu chybí povinné sloupce: " + ", ".join(missing))
+                        preview = []
+                        return self._render_import(
+                            request, form, kamion, preview, errors, warnings, tmp_token, tmp_filename
+                        )
 
                     # Zkontroluje datumy ve sloupci 'datum' – při různosti pouze varování
                     if 'datum' in df.columns and not df['datum'].isnull().all():
@@ -607,24 +632,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                                 warnings.append(
                                     f"Upozornění: Datum v souboru ({excel_date.strftime('%d.%m.%Y')}) "
                                     f"neodpovídá datumu kamionu ({kamion.datum.strftime('%d.%m.%Y')}). Import pokračuje."
-                                )                    
-
-                    # Povinné zdrojové sloupce dle specifikace
-                    required_src = [
-                        'rozmer',
-                        'artikl',
-                        'predpis',
-                        'typ_hlavy',
-                        'hmotnost',
-                        'tara',
-                    ]
-                    missing = [c for c in required_src if c not in df.columns]
-                    if missing:
-                        errors.append("Chyba: V Excelu chybí povinné sloupce: " + ", ".join(missing))
-                        preview = []
-                        return self._render_import(
-                            request, form, kamion, preview, errors, warnings, tmp_token, tmp_filename
-                        )
+                                )      
 
                     # Přidání prumer a delka
                     def rozdel_rozmer(row):
