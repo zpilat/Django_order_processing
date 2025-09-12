@@ -12,6 +12,7 @@ from django.urls import path, reverse
 from django.shortcuts import redirect, render
 from django.utils.html import format_html
 from django.db.models import Count
+from django.core.exceptions import ValidationError 
 
 from simple_history.admin import SimpleHistoryAdmin
 from decimal import Decimal, ROUND_HALF_UP, ROUND_DOWN
@@ -882,11 +883,41 @@ class KamionAdmin(SimpleHistoryAdmin):
                 celkova_hmotnost = inline_form.cleaned_data.get("celkova_hmotnost")
                 celkove_mnozstvi = inline_form.cleaned_data.get("celkove_mnozstvi")
                 pocet_beden = inline_form.cleaned_data.get("pocet_beden")
-                tara = inline_form.cleaned_data.get("tara")
-                material = inline_form.cleaned_data.get("material")
+                tara = inline_form.cleaned_data.get("tara", 65.0)  # výchozí hodnota 65 kg
+                material = inline_form.cleaned_data.get("material", '')
 
-                # Rozpočítání hmotnosti a množství
-                if pocet_beden and celkova_hmotnost and celkove_mnozstvi:
+                # Rozpočítání hmotnosti a množství a vytvoření beden zakázky, pokud je zadán počet beden a celková hmotnost
+                if pocet_beden:
+                    # Pokud není zadána celková hmotnost, dá se error, protože hmotnost bedny je povinná
+                    if not celkova_hmotnost:
+                        formset._non_form_errors = formset.error_class(
+                            ["Pokud je zadán počet beden, musí být zadána i celková hmotnost."]
+                        )
+                        raise ValidationError(
+                            "Pokud je zadán počet beden, musí být zadána i celková hmotnost."
+                        )
+                    if celkova_hmotnost <= 0:
+                        formset._non_form_errors = formset.error_class(
+                            ["Celková hmotnost musí být větší než 0."]
+                        )
+                        raise ValidationError("Celková hmotnost musí být větší než 0.")
+                    # Pokud není zadáno správné množství, dá se warning a mnozstvi bedny se nastaví se na 1
+                    if not celkove_mnozstvi or celkove_mnozstvi <= 0:
+                        try:
+                            messages.warning(
+                                request,
+                                f"U zakázky {zakazka} nebylo zadáno množství nebo bylo menší než 1. Nastavuje se množství v bedně na 1ks.",
+                            )
+                            logger.warning(
+                                f"U zakázky {zakazka} nebylo zadáno množství nebo bylo menší než 1. Nastavuje se množství v bedně na 1ks."
+                            )
+                        except Exception:
+                            pass
+                        mnozstvi_bedny = 1
+                    # Pokud je zadáno správné celkové množství, rozdělí se do jednotlivých beden, jedná se o orientační hodnotu
+                    else:
+                        mnozstvi_bedny = max(int(celkove_mnozstvi) // int(pocet_beden), 1)
+
                     # Rozpočítání hmotnosti, pro poslední bednu se použije zbytek hmotnosti po rozpočítání a zaokrouhlení
                     hmotnost_bedny = Decimal(celkova_hmotnost) / int(pocet_beden)
                     hmotnost_bedny = hmotnost_bedny.quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)
@@ -894,10 +925,6 @@ class KamionAdmin(SimpleHistoryAdmin):
                     posledni = celkova_hmotnost - sum(hodnoty)
                     posledni = posledni.quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)
                     hodnoty.append(posledni)
-
-                    # Rozpočítání množství, použije se jednoduché dělení, pouze orientační hodnota            
-                    mnozstvi_bedny = int(celkove_mnozstvi) // int(pocet_beden)
-                    mnozstvi_bedny = max(mnozstvi_bedny, 1)
 
                     for i in range(pocet_beden):
                         Bedna.objects.create(
@@ -909,21 +936,6 @@ class KamionAdmin(SimpleHistoryAdmin):
                             # cislo_bedny se dopočítá v metodě save() modelu Bedna
                         )
 
-                # Rozpočítání množství, použije se jednoduché dělení, pouze orientační hodnota
-                if celkove_mnozstvi and pocet_beden:
-                    mnozstvi_bedny = int(celkove_mnozstvi) // int(pocet_beden)
-                    mnozstvi_bedny = max(mnozstvi_bedny, 1)
-                    hodnoty = [mnozstvi_bedny] * (pocet_beden - 1)
-                    posledni = celkove_mnozstvi - sum(hodnoty)
-                    posledni = max(posledni, 1)
-                    hodnoty.append(posledni)
-
-                    bedny_zakazky = zakazka.bedny.all().order_by('id')
-                    for bedna, mnozstvi in zip(bedny_zakazky, hodnoty):
-                        bedna.mnozstvi = mnozstvi
-                        bedna.save()
-
-
 
 class BednaInline(admin.TabularInline):
     """
@@ -934,7 +946,7 @@ class BednaInline(admin.TabularInline):
     extra = 0
     # další úprava zobrazovaných polí podle různých podmínek je v get_fields
     fields = ('cislo_bedny', 'behalter_nr', 'hmotnost', 'tara', 'mnozstvi', 'material', 'sarze', 'dodatecne_info',
-              'dodavatel_materialu', 'vyrobni_zakazka', 'odfosfatovat', 'tryskat', 'rovnat', 'stav_bedny', 'poznamka',)
+              'dodavatel_materialu', 'vyrobni_zakazka', 'odfosfatovat', 'tryskat', 'rovnat', 'stav_bedny', 'pozice', 'poznamka',)
     readonly_fields = ('cislo_bedny',)
     show_change_link = True
     formfield_overrides = {
@@ -1202,32 +1214,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
         """
         if obj and obj.expedovano and not request.user.has_perm('orders.change_expedovana_zakazka'):
             return False
-        return super().has_change_permission(request, obj)  
-       
-    def save_formset(self, request, form, formset, change):
-        """
-        Uložení formsetu pro bedny. 
-        Při editaci zakázky:
-        - Pokud je zakázka expedovaná, nelze upravovat.
-        - Pokud se mění stav bedny, tryskat nebo rovnat, provede se logika pro změnu stavu všech beden v zakázce.
-        """
-        if change:
-            if any(f in form.changed_data for f in ('stav_bedny','tryskat','rovnat')):
-                instances = list(formset.queryset)
-
-                # Získání hodnot z formuláře
-                new_stav_bedny = form.cleaned_data['stav_bedny'] if 'stav_bedny' in form.changed_data else None
-                new_tryskat = form.cleaned_data['tryskat'] if 'tryskat' in form.changed_data else None
-                new_rovnat = form.cleaned_data['rovnat'] if 'rovnat' in form.changed_data else None
-
-                for instance in instances:
-                    # Pokud se mění stav bedny, tryskat nebo rovnat, nastaví se nové hodnoty
-                    for field, new_value in [('stav_bedny', new_stav_bedny), ('tryskat', new_tryskat), ('rovnat', new_rovnat)]:
-                        if new_value is not None:
-                            setattr(instance, field, new_value)
-                    instance.save()
-                         
-        formset.save()
+        return super().has_change_permission(request, obj)      
 
     def get_fieldsets(self, request, obj=None):
         """
@@ -1257,40 +1244,6 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
                         'description': 'Pro Eurotec musí být vyplněno: Tloušťka vrstvy, povrchová úprava a průběh.',
                     }),
                 )
-
-            # Pokud jsou pro stav_bedny, tryskat a rovnat stejné hodnoty pro všechny bedny v zakázce, přidá pole pro změnu stavu těchto položek pro všechny bedny
-            if obj.bedny.exists() and obj.expedovano is False:
-                stav_bedny = obj.bedny.first().stav_bedny
-                tryskat = obj.bedny.first().tryskat
-                rovnat = obj.bedny.first().rovnat
-                fields = []
-                # Pokud není pro žádnou bednu stav_bedny k_expedici:
-                if not any(bedna.stav_bedny == StavBednyChoice.K_EXPEDICI for bedna in obj.bedny.all()):
-                    # Pokud mají všechny bedny stejnou hodnotu pro tryskat, přidá pole pro změnu tryskat
-                    if all(bedna.tryskat == tryskat for bedna in obj.bedny.all()):
-                        fields += ['tryskat']
-                    # Pokud mají všechny bedny stejnou hodnotu pro rovnat, přidá pole pro změnu rovnat
-                    if all(bedna.rovnat == rovnat for bedna in obj.bedny.all()):
-                        fields += ['rovnat']
-                # Pokud mají všechny bedny stejnou hodnotu pro stav_bedny:
-                if all(bedna.stav_bedny == stav_bedny for bedna in obj.bedny.all()):
-                    # Pokud není stav_bedny zkontrolovano, přidá pole pro změnu stav_bedny
-                    if stav_bedny != StavBednyChoice.ZKONTROLOVANO:
-                        fields += ['stav_bedny']
-                    # Pokud je stav bedny k_expedici a zároveň není pro žádnou bednu tryskat in (TryskaniChoice.SPINAVA, TryskaniChoice.NEZADANO)
-                    # a zároveň není pro žádnou bednu rovnat in (RovnaniChoice.NEZADANO, RovnaniChoice.KRIVA), přidej pole pro změnu stavu beden
-                    else:
-                        if not any(bedna.tryskat in (TryskaniChoice.SPINAVA, TryskaniChoice.NEZADANO) for bedna in obj.bedny.all()) and \
-                           not any(bedna.rovnat in (RovnaniChoice.KRIVA, RovnaniChoice.NEZADANO) for bedna in obj.bedny.all()):
-                            fields += ['stav_bedny']
-                if fields:
-                    my_fieldsets.append(
-                        ('Změna stavu všech beden v zakázce:', {
-                            'fields': fields,
-                            'description': 'Zde můžete změnit stav všech beden v zakázce najednou, ale bedny musí mít pro měněnou položku všechny stejnou hodnotu. \
-                                Přepíše případné změněné hodnoty u jednotlivých beden.',
-                        }),
-                    )
 
             return my_fieldsets
 
