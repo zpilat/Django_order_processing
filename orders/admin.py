@@ -1902,8 +1902,8 @@ class CenaAdmin(SimpleHistoryAdmin):
     list_editable = ('delka_min', 'delka_max', 'cena_za_kg')
     list_display_links = ('popis_s_delkou',)
     list_filter = ('zakaznik',)
-    search_fields = ('popis',)
-    search_help_text = "Dle popisu ceny"
+    search_fields = ('popis', 'predpis__nazev',)
+    search_help_text = "Dle popisu ceny a názvu předpisu"
     autocomplete_fields = ('predpis',)
     save_as = True
     list_per_page = 25

@@ -131,15 +131,22 @@ class TryskaniFilter(DynamicTitleFilter):
 
     def __init__(self, request, params, model, model_admin):
         self.label_dict = {**dict(TryskaniChoice.choices)}
+        self.label_dict['hotovo'] = 'Hotovo'
         super().__init__(request, params, model, model_admin)
 
     def lookups(self, request, model_admin):
-        return [(k, v + ' (Nezadáno)') if k == TryskaniChoice.NEZADANO else (k, v) for k, v in self.label_dict.items()]
+        return [
+            (k, f"{v} (Nezadáno)") if k == TryskaniChoice.NEZADANO
+            else (k, f"{v} (Čistá | Otryskaná)") if k == 'hotovo'
+            else  (k, v) for k, v in self.label_dict.items()
+        ]
 
     def queryset(self, request, queryset):
         value = self.value()
         if value is None:
             return queryset
+        if value == 'hotovo':
+            return queryset.filter(tryskat__in=(TryskaniChoice.OTRYSKANA, TryskaniChoice.CISTA))
         return queryset.filter(tryskat=value)
     
 
@@ -152,15 +159,22 @@ class RovnaniFilter(DynamicTitleFilter):
 
     def __init__(self, request, params, model, model_admin):
         self.label_dict = {**dict(RovnaniChoice.choices)}
+        self.label_dict['hotovo'] = 'Hotovo'
         super().__init__(request, params, model, model_admin)
 
     def lookups(self, request, model_admin):
-        return [(k, v + ' (Nezadáno)') if k == RovnaniChoice.NEZADANO else (k, v) for k, v in self.label_dict.items()]
+        return [
+            (k, f"{v} (Nezadáno)") if k == RovnaniChoice.NEZADANO
+            else (k, f"{v} (Rovná | Vyrovnaná)") if k == 'hotovo'
+            else (k, v) for k, v in self.label_dict.items()
+            ]
 
     def queryset(self, request, queryset):
         value = self.value()
         if value is None:
             return queryset
+        if value == 'hotovo':
+            return queryset.filter(rovnat__in=(RovnaniChoice.ROVNA, RovnaniChoice.VYROVNANA))
         return queryset.filter(rovnat=value)
 
 
