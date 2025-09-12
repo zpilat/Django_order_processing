@@ -100,11 +100,11 @@ class DelkaFilter(DynamicTitleFilter):
                 # Sestavení slovníku délka: popisek
                 query_list = (
                     query.values('zakazka__delka')
-                    .annotate(celkova_hmotnost=Sum('hmotnost'))
+                    .annotate(celkova_hmotnost=Sum('hmotnost'), celkove_mnozstvi=Sum('mnozstvi'))
                     .order_by('zakazka__delka')
                 )
                 self.label_dict = {
-                    data['zakazka__delka']: f"{int(data['zakazka__delka'])} <{data['celkova_hmotnost']:.0f} kg>"
+                    data['zakazka__delka']: f"{int(data['zakazka__delka'])} <{data['celkova_hmotnost']:.0f} kg, {data['celkove_mnozstvi']:.0f} ks>"
                     for data in query_list
                 }
             else:
