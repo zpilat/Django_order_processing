@@ -945,8 +945,8 @@ class BednaInline(admin.TabularInline):
     form = BednaAdminForm
     extra = 0
     # další úprava zobrazovaných polí podle různých podmínek je v get_fields
-    fields = ('cislo_bedny', 'behalter_nr', 'hmotnost', 'tara', 'mnozstvi', 'material', 'sarze', 'dodatecne_info',
-              'dodavatel_materialu', 'vyrobni_zakazka', 'odfosfatovat', 'tryskat', 'rovnat', 'stav_bedny', 'pozice', 'poznamka',)
+    fields = ('cislo_bedny', 'behalter_nr', 'hmotnost', 'tara', 'mnozstvi', 'material', 'sarze', 'dodatecne_info', 'dodavatel_materialu',
+              'vyrobni_zakazka', 'odfosfatovat', 'tryskat', 'rovnat', 'stav_bedny', 'pozice', 'poznamka_k_navezeni', 'poznamka',)
     readonly_fields = ('cislo_bedny',)
     show_change_link = True
     formfield_overrides = {
@@ -974,8 +974,25 @@ class BednaInline(admin.TabularInline):
                 }) # Změna velikosti pole pro poznámku HPM
         elif db_field.name == 'dodavatel_materialu':
             kwargs['widget'] = TextInput(attrs={'size': '4'})  # Změna velikosti pole pro dodavatele materiálu
-        return super().formfield_for_dbfield(db_field, request, **kwargs)
 
+        if isinstance(db_field, models.ForeignKey):
+            # Zruší zobrazení ikon pro ForeignKey pole v administraci, nepřidá RelatedFieldWidgetWrapper.
+            formfield = self.formfield_for_foreignkey(db_field, request, **kwargs)
+            # DŮLEŽITÉ: znovu obalit widget
+            rel = db_field.remote_field
+            formfield.widget = RelatedFieldWidgetWrapper(
+                formfield.widget,
+                rel,
+                self.admin_site,
+                can_add_related=False,
+                can_change_related=False,
+                can_delete_related=False,
+                can_view_related=True,
+            )
+            return formfield
+                    
+        return super().formfield_for_dbfield(db_field, request, **kwargs)
+    
     def get_fields(self, request, obj=None):
         """
         Vrací seznam polí, která se mají zobrazit ve formuláři Bednainline.
