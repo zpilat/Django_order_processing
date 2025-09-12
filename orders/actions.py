@@ -322,7 +322,7 @@ def oznacit_k_expedici_action(modeladmin, request, queryset):
                 bedna.stav_bedny = StavBednyChoice.K_EXPEDICI
                 bedna.save()
 
-    messages.success(request, f"Expedováno: {queryset.count()} beden.")
+    messages.success(request, f"Změněno na K EXPEDICI: {queryset.count()} beden.")
     logger.info(f"Uživatel {request.user} změnil stav na K_EXPEDICI u {queryset.count()} beden.")
     return None
 

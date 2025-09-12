@@ -377,7 +377,7 @@ class OdberatelFilter(DynamicTitleFilter):
             return queryset
         try:
             odberatel = Odberatel.objects.get(zkratka=value)
-            return queryset.filter(Q(kamion_prijem__odberatel=odberatel) | Q(kamion_prijem__odberatel__isnull=True))
+            return queryset.filter(Q(odberatel=odberatel) | Q(odberatel__isnull=True))
         except Odberatel.DoesNotExist:
             return queryset.none()
 
