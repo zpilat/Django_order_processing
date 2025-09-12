@@ -556,6 +556,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                         engine="openpyxl",
                         dtype={
                             'Artikel- nummer': str,
+                            'Vorgang+': str,
                         },
                     )
                     try:
@@ -572,6 +573,10 @@ class KamionAdmin(SimpleHistoryAdmin):
 
                     # Odstraní prázdné sloupce
                     df.dropna(axis=1, how='all', inplace=True)
+
+                    # Pro debug vytisknout názvy sloupců a první řádek dat
+                    logger.debug(f"Import - názvy sloupců: {df.columns.tolist()}")
+                    logger.debug(f"Import - první řádek dat: {df.iloc[0].tolist()}")
 
                     # Jednorázové mapování zdrojových názvů na interní názvy
                     column_mapping = {
@@ -598,24 +603,12 @@ class KamionAdmin(SimpleHistoryAdmin):
                     df.rename(columns=column_mapping, inplace=True)              
 
                     # Povinné zdrojové sloupce dle specifikace
-                    required_src = [
-                        'sarze',
-                        'popis',
-                        'rozmer',
-                        'artikl',
-                        'predpis',
-                        'typ_hlavy',
-                        'material',
-                        'behalter_nr',
-                        'hmotnost',
-                        'tara',
-                        'dodatecne_info',
-                        'hmotnost_ks'
-                        'datum',
+                    required_src = ['sarze', 'popis', 'rozmer', 'artikl', 'predpis', 'typ_hlavy', 'material', 'behalter_nr',
+                                    'hmotnost', 'tara', 'hmotnost_ks', 'datum', 'dodatecne_info'
                     ]
                     missing = [c for c in required_src if c not in df.columns]
                     if missing:
-                        errors.append("Chyba: V Excelu chybí povinné sloupce: " + ", ".join(missing))
+                        errors.append(f"Chyba: V Excelu chybí povinné sloupce: {', '.join(missing)}")
                         preview = []
                         return self._render_import(
                             request, form, kamion, preview, errors, warnings, tmp_token, tmp_filename
@@ -672,10 +665,23 @@ class KamionAdmin(SimpleHistoryAdmin):
                         return False
                     df['odfosfatovat'] = df.apply(odfosfatovat, axis=1)
 
+                    # Vypočítá množství v bedně dle zadané celkové hmotnosti a hmotnosti na ks (hmotnost / hmotnost_ks)
+                    def vypocet_mnozstvi_v_bedně(row):
+                        try:
+                            hmotnost = row.get('hmotnost')
+                            hmotnost_ks = row.get('hmotnost_ks')
+                            if pd.isna(hmotnost) or pd.isna(hmotnost_ks) or hmotnost_ks == 0:
+                                return 1
+                            mnozstvi = int(hmotnost / hmotnost_ks)
+                            return max(mnozstvi, 1)
+                        except Exception:
+                            return 1                        
+                    df['mnozstvi'] = df.apply(vypocet_mnozstvi_v_bedně, axis=1)
+
                     # Odstranění nepotřebných sloupců
                     df.drop(columns=[
                         'Unnamed: 0', 'rozmer', 'Gew + Tara', 'VPE', 'Box', 'Anzahl Boxen pro Behälter',
-                        'Gew.', 'Härterei', 'Prod. Datum', 'mnozstvi', 'von Härterei \nnach Galvanik', 'Galvanik',
+                        'Härterei', 'Prod. Datum', 'hmotnost_ks', 'von Härterei \nnach Galvanik', 'Galvanik',
                         'vom Galvanik nach Eurotec',
                     ], inplace=True, errors='ignore')
 
@@ -693,6 +699,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                             'typ_hlavy': r.get('typ_hlavy'),
                             'popis': r.get('popis'),
                             'hmotnost': r.get('hmotnost'),
+                            'mnozstvi': r.get('mnozstvi'),
                             'tara': r.get('tara'),
                         }
                         for _, r in df.head(50).iterrows()
@@ -726,22 +733,27 @@ class KamionAdmin(SimpleHistoryAdmin):
                     with transaction.atomic():
                         zakazky_cache = {}
                         for _, row in df.iterrows():
-                            if pd.isna(row.get('artikl')):
-                                logger.error("Chyba: Sloupec 'Artikel- nummer' nesmí být prázdný.")
-                                raise ValueError("Chyba: Sloupec 'Artikel- nummer' nesmí být prázdný.")
+
+                            # Kontrola zda všechna povinná pole jsou vyplněna
+                            required_fields = ['sarze', 'popis', 'prumer', 'delka', 'artikl', 'predpis', 'typ_hlavy', 'material',
+                                               'behalter_nr', 'hmotnost', 'tara', 'mnozstvi', 'datum',
+                            ]
+                            for field in required_fields:
+                                if pd.isna(row[field]):
+                                    logger.error(f"Chyba: Povinné pole '{field}' nesmí být prázdné.")
+                                    raise ValueError(f"Chyba: Povinné pole '{field}' nesmí být prázdné.")
 
                             artikl = row['artikl']
 
                             if artikl not in zakazky_cache:
+                                # Získání a formátování průměru pro sestavení názvu předpisu
                                 prumer = row.get('prumer')
-
                                 # Formátování průměru: '10.0' → '10', '7.5' → '7,5'
                                 if prumer == prumer.to_integral():
                                     retezec_prumer = str(int(prumer))
                                 else:
                                     retezec_prumer = str(prumer).replace('.', ',')
 
-                                # Sestavení názvu předpisu
                                 try:
                                     cislo_predpisu = int(row['predpis'])
                                     nazev_predpis=f"{cislo_predpisu:05d}_Ø{retezec_prumer}"
@@ -774,23 +786,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                                 typ_hlavy = typ_hlavy_qs.first() if typ_hlavy_qs.exists() else None
                                 if not typ_hlavy:
                                     logger.error(f"Typ hlavy „{typ_hlavy_excel}“ neexistuje.")
-                                    raise ValueError(f"Typ hlavy „{typ_hlavy_excel}“ neexistuje.")
-                                
-                                # zajištění správného formátu u pole prubeh (šestimístné číslo s předními nulami)
-                                prubeh_raw = row.get('prubeh')
-                                prubeh = None
-
-                                if pd.notna(prubeh_raw):
-                                    if isinstance(prubeh_raw, int):
-                                        prubeh = f"{prubeh_raw:06d}"
-                                    elif isinstance(prubeh_raw, float) and prubeh_raw.is_integer():
-                                        prubeh = f"{int(prubeh_raw):06d}"
-                                    else:
-                                        s = str(prubeh_raw).strip()
-                                        if s.isdigit():
-                                            prubeh = f"{int(s):06d}"
-                                        elif s.endswith('.0') and s.replace('.0', '').isdigit():
-                                            prubeh = f"{int(float(s)):06d}"                                
+                                    raise ValueError(f"Typ hlavy „{typ_hlavy_excel}“ neexistuje.")                            
 
                                 zakazka = Zakazka.objects.create(
                                     kamion_prijem=kamion,
@@ -804,7 +800,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                                     popis=row.get('popis'),
                                     vrstva=row.get('vrstva'),
                                     povrch=row.get('povrch'),
-                                    prubeh=prubeh,
+                                    prubeh=row.get('prubeh'),
                                 )
                                 zakazky_cache[artikl] = zakazka
 
@@ -812,6 +808,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                                 zakazka=zakazky_cache[artikl],
                                 hmotnost=row.get('hmotnost'),
                                 tara=row.get('tara'),
+                                mnozstvi=row.get('mnozstvi', 1),
                                 material=row.get('material'),
                                 sarze=row.get('sarze'),
                                 behalter_nr=row.get('behalter_nr'),
