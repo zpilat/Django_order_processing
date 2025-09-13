@@ -109,10 +109,17 @@ class DelkaFilter(DynamicTitleFilter):
                     .annotate(celkova_hmotnost=Sum('hmotnost'), celkove_mnozstvi=Sum('mnozstvi'))
                     .order_by('zakazka__delka')
                 )
-                self.label_dict = {
-                    data['zakazka__delka']: f"{int(data['zakazka__delka'])} <{data['celkova_hmotnost']:.0f} kg, {data['celkove_mnozstvi']:.0f} ks>"
-                    for data in query_list
-                }
+                vals = list(query_list.values_list('celkove_mnozstvi', flat=True))
+                if vals and all(vals):
+                    self.label_dict = {
+                        data['zakazka__delka']: f"{int(data['zakazka__delka'])} <{data['celkova_hmotnost']:.0f} kg, {data['celkove_mnozstvi']:.0f} ks>"
+                        for data in query_list
+                    }
+                else:
+                    self.label_dict = {
+                        data['zakazka__delka']: f"{int(data['zakazka__delka'])} <{data['celkova_hmotnost']:.0f} kg>"
+                        for data in query_list
+                    }
             else:
                 self.label_dict = {delka: int(delka) for delka in query.values_list('zakazka__delka', flat=True).distinct().order_by('zakazka__delka')}
 
@@ -240,18 +247,20 @@ class SkupinaFilter(DynamicTitleFilter):
 
     def __init__(self, request, params, model, model_admin):
         """
-        Pokud je vybrán zákazník, filtruje se podle skupin tepelného zpracování zakázek tohoto zákazníka.
-        Pokud je vybrán stav bedny, filtruje se podle skupin tepelného zpracování zakázek, které mají bedny v tomto stavu.
-        Pokud není vybrán stav bedny, vrátí se všechny skupiny tepelného zpracování zakázek, které nejsou expedovány.
+        Pro zobrazení vždy vrátí pouze skupiny tepelného zpracování zakázek, které jsou skladem.
+        Pokud je navíc vybrán zákazník, filtruje se ještě podle skupin tepelného zpracování zakázek tohoto zákazníka.
+        Pokud je navíc vybrán stav bedny, filtruje se podle skupin tepelného zpracování zakázek, které mají bedny v tomto stavu.
         """
         zakaznik = request.GET.get('zakaznik', None)
         stav_bedny = request.GET.get('stav_bedny', None)
 
         query = Predpis.objects.filter(aktivni=True)
 
+        query = query.filter(zakazky__expedovano=False)
+
         if zakaznik:
             query = query.filter(zakazky__kamion_prijem__zakaznik__zkratka=zakaznik)
-        if stav_bedny:
+        if stav_bedny and stav_bedny not in ('RO', 'PE'):
             query = query.filter(zakazky__bedny__stav_bedny=stav_bedny)
 
         # Vytvoří slovník s unikátními názvy skupin pro zobrazení ve filtru ve správném formátu
