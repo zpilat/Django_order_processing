@@ -87,27 +87,23 @@ class DelkaFilter(DynamicTitleFilter):
 
     def __init__(self, request, params, model, model_admin):
         """
-        Pokud není vybrán stav bedny nebo zákazník, nejsou zobrazeny v nabídce žádné délky.
-        Jinak v nabídce délky, které mají bedny v tomto stavu, pro daného zákazníka a případné další filtry.
+        Pokud není vybrán stav bedny PRIJATO, nejsou zobrazeny v nabídce žádné délky.
+        Jinak v nabídce délky, které mají bedny v tomto stavu, s aplikovanými případnými dalšími filtry.
         """
-        stav_bedny = request.GET.get('stav_bedny')
-        zakaznik = request.GET.get('zakaznik')
-
         self.label_dict = {}
-        if stav_bedny and zakaznik:
-            query = Bedna.objects.filter(
-                stav_bedny=stav_bedny,
-                zakazka__kamion_prijem__zakaznik__zkratka=zakaznik
-            )
-
-            # Další možné filtry z requestu
+        
+        if request.GET.get('stav_bedny') == StavBednyChoice.PRIJATO:
+            # slovník pro filtry z requestu
             filter_fields = {
-                'skupina':      'zakazka__predpis__skupina',
-                'tryskani':     'tryskat',
-                'rovnani':      'rovnat',
-                'celozavit':    'zakazka__celozavit',
-                'typ_hlavy':    'zakazka__typ_hlavy',
-                'priorita_bedny': 'zakazka__priorita'
+                'zakaznik':       'zakazka__kamion_prijem__zakaznik__zkratka',
+                'stav_bedny':     'stav_bedny',
+                'tryskani':       'tryskat',
+                'rovnani':        'rovnat',
+                'celozavit':      'zakazka__celozavit',
+                'typ_hlavy':      'zakazka__typ_hlavy',
+                'priorita_bedny': 'zakazka__priorita',
+                'pozastaveno':    'pozastaveno',
+                'skupina':        'zakazka__predpis__skupina',
             }
 
             filter_kwargs = {
@@ -116,28 +112,25 @@ class DelkaFilter(DynamicTitleFilter):
                 if request.GET.get(param) not in (None, '')
             }
             if filter_kwargs:
-                query = query.filter(**filter_kwargs)
+                query = Bedna.objects.filter(**filter_kwargs)
 
-            if stav_bedny != StavBednyChoice.EXPEDOVANO:
-                # Sestavení slovníku délka: popisek
-                query_list = (
-                    query.values('zakazka__delka')
-                    .annotate(celkova_hmotnost=Sum('hmotnost'), celkove_mnozstvi=Sum('mnozstvi'))
-                    .order_by('zakazka__delka')
-                )
-                vals = list(query_list.values_list('celkove_mnozstvi', flat=True))
-                if vals and all(vals):
-                    self.label_dict = {
-                        data['zakazka__delka']: f"{int(data['zakazka__delka'])} <{data['celkova_hmotnost']:.0f} kg, {data['celkove_mnozstvi']:.0f} ks>"
-                        for data in query_list
-                    }
-                else:
-                    self.label_dict = {
-                        data['zakazka__delka']: f"{int(data['zakazka__delka'])} <{data['celkova_hmotnost']:.0f} kg>"
-                        for data in query_list
-                    }
+            # Sestavení slovníku délka: popisek
+            query_list = (
+                query.values('zakazka__delka')
+                .annotate(celkova_hmotnost=Sum('hmotnost'), celkove_mnozstvi=Sum('mnozstvi'))
+                .order_by('zakazka__delka')
+            )
+            vals = list(query_list.values_list('celkove_mnozstvi', flat=True))
+            if vals and all(vals):
+                self.label_dict = {
+                    data['zakazka__delka']: f"{int(data['zakazka__delka'])} ({data['celkova_hmotnost']:.0f} kg | {data['celkove_mnozstvi']:.0f} ks)"
+                    for data in query_list
+                }
             else:
-                self.label_dict = {delka: int(delka) for delka in query.values_list('zakazka__delka', flat=True).distinct().order_by('zakazka__delka')}
+                self.label_dict = {
+                    data['zakazka__delka']: f"{int(data['zakazka__delka'])} ({data['celkova_hmotnost']:.0f} kg)"
+                    for data in query_list
+                }
 
         super().__init__(request, params, model, model_admin)
 
@@ -228,17 +221,17 @@ class PrioritaBednyFilter(DynamicTitleFilter):
         return queryset.filter(zakazka__priorita=value)
     
 
-class UvolnenoFilter(DynamicTitleFilter):
+class PozastavenoFilter(DynamicTitleFilter):
     """
     Filtrovat bedny podle toho, jestli jsou pozastavené nebo uvolněné.
     """
-    title = "Uvolněno"
-    parameter_name = "uvolneno"
+    title = "Pozastaveno"
+    parameter_name = "pozastaveno"
 
     def __init__(self, request, params, model, model_admin):
         self.label_dict = {
-        'uvolneno': "Uvolněno",
-        'pozastaveno': "Pozastaveno",
+        'True': "Ano",            
+        'False': "Ne",
         }
         super().__init__(request, params, model, model_admin)
 
@@ -247,9 +240,9 @@ class UvolnenoFilter(DynamicTitleFilter):
 
     def queryset(self, request, queryset):
         value = self.value()
-        if value == 'pozastaveno':
+        if value == 'True':
             return queryset.filter(pozastaveno=True)
-        elif value == 'uvolneno':
+        elif value == 'False':
             return queryset.filter(pozastaveno=False)
         return queryset.filter()
 
@@ -356,8 +349,8 @@ class CelozavitBednyFilter(DynamicTitleFilter):
 
     def __init__(self, request, params, model, model_admin):
         self.label_dict = {
-            'ano': 'Ano',
-            'ne': 'Ne'
+            'True': 'Ano',
+            'False': 'Ne'
         }
         super().__init__(request, params, model, model_admin)
 
@@ -368,9 +361,9 @@ class CelozavitBednyFilter(DynamicTitleFilter):
         value = self.value()
         if not value:
             return queryset
-        elif value == 'ano':
+        elif value == 'True':
             return queryset.filter(zakazka__celozavit=True)
-        elif value == 'ne':
+        elif value == 'False':
             return queryset.filter(zakazka__celozavit=False)
         return queryset.none()
     
@@ -670,7 +663,7 @@ class AktivniPredpisFilter(DynamicTitleFilter):
     parameter_name = "aktivni_predpis"
 
     def __init__(self, request, params, model, model_admin):
-        self.label_dict = {'ne': "Ne"}
+        self.label_dict = {'ne': "Neaktivní"}
         super().__init__(request, params, model, model_admin)
 
     def lookups(self, request, model_admin):

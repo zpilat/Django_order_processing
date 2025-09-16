@@ -35,7 +35,7 @@ from .actions import (
 from .filters import (
     ExpedovanaZakazkaFilter, StavBednyFilter, KompletZakazkaFilter, AktivniPredpisFilter, SkupinaFilter, ZakaznikBednyFilter,
     ZakaznikZakazkyFilter, ZakaznikKamionuFilter, PrijemVydejFilter, TryskaniFilter, RovnaniFilter, PrioritaBednyFilter, PrioritaZakazkyFilter,
-    OberflacheFilter, TypHlavyBednyFilter, TypHlavyZakazkyFilter, CelozavitBednyFilter, CelozavitZakazkyFilter, DelkaFilter, UvolnenoFilter,
+    OberflacheFilter, TypHlavyBednyFilter, TypHlavyZakazkyFilter, CelozavitBednyFilter, CelozavitZakazkyFilter, DelkaFilter, PozastavenoFilter,
     OdberatelFilter, ZakaznikPredpisFilter
 )
 from .forms import ZakazkaAdminForm, BednaAdminForm, ImportZakazekForm, ZakazkaInlineForm
@@ -1446,7 +1446,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     search_fields = ('cislo_bedny', 'behalter_nr', 'zakazka__artikl',)
     search_help_text = "Dle čísla bedny, č.b. zákazníka nebo zakázky"
     list_filter = (ZakaznikBednyFilter, StavBednyFilter, TryskaniFilter, RovnaniFilter, CelozavitBednyFilter,
-                   TypHlavyBednyFilter, PrioritaBednyFilter, UvolnenoFilter, SkupinaFilter, DelkaFilter)
+                   TypHlavyBednyFilter, PrioritaBednyFilter, PozastavenoFilter, SkupinaFilter, DelkaFilter)
     ordering = ('id',)
     date_hierarchy = 'zakazka__kamion_prijem__datum'
     formfield_overrides = {
@@ -1624,10 +1624,10 @@ class BednaAdmin(SimpleHistoryAdmin):
     def get_list_editable(self, request):
         """
         Přizpůsobení zobrazení sloupců pro editaci v seznamu beden podle aktivního filtru.
-        Pokud je aktivní filtr Stav bedny = Expedováno nebo Uvolněno = Pozastaveno, odebere se inline-editace.
+        Pokud je aktivní filtr Stav bedny = Expedováno nebo Pozastaveno = 'True', odebere se inline-editace.
         Pokud není aktivní filtr stav bedny = Prijato, K_navezeni, Navezeno, vyloučí se možnost editace sloupce pozice.
         """
-        if request.GET.get('stav_bedny', None) == 'EX' or request.GET.get('uvolneno', None) == 'pozastaveno':
+        if request.GET.get('stav_bedny', None) == 'EX' or request.GET.get('pozastaveno', None) == 'True':
             return []
         if request.GET.get('stav_bedny', None) not in ('PR', 'KN', 'NA'):
             return ['stav_bedny', 'tryskat', 'rovnat', 'hmotnost', 'poznamka']
