@@ -478,7 +478,7 @@ class KamionAdmin(SimpleHistoryAdmin):
             'warnings': warnings,
             'tmp_token': tmp_token,
             'tmp_filename': tmp_filename,
-            'title': title or (f"Import zakázek pro kamion {kamion}" if kamion else "Import zakázek"),
+            'title': title or (f"Import zakázek pro kamion {kamion} z {kamion.datum.strftime('%d.%m.%Y')}" if kamion else "Import zakázek"),
         }
         return render(request, 'admin/import_zakazky.html', context, status=status)
 

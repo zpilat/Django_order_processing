@@ -50,6 +50,22 @@ class StavBednyFilter(DynamicTitleFilter):
     def lookups(self, request, model_admin):
         return self.label_dict.items()    
 
+    def choices(self, changelist):
+        """
+        Přepíše defaultní text první volby (All) na hodnotu z `self.vse`.
+        """
+        yield {
+            'selected': self.value() is None,
+            'query_string': changelist.get_query_string(remove=[self.parameter_name]),
+            'display': self.vse,  # "Vše skladem"
+        }
+        for lookup, title in self.lookup_choices:
+            yield {
+                'selected': self.value() == str(lookup),
+                'query_string': changelist.get_query_string({self.parameter_name: lookup}),
+                'display': title,
+            }
+
     def queryset(self, request, queryset):
         value = self.value()
         if value is None:
@@ -424,6 +440,22 @@ class ExpedovanaZakazkaFilter(DynamicTitleFilter):
     def lookups(self, request, model_admin):
         return self.label_dict.items()
 
+    def choices(self, changelist):
+        """
+        Přepíše defaultní text první volby (All) na hodnotu z `self.vse`.
+        """
+        yield {
+            'selected': self.value() is None,
+            'query_string': changelist.get_query_string(remove=[self.parameter_name]),
+            'display': self.vse,  # "Vše skladem"
+        }
+        for lookup, title in self.lookup_choices:
+            yield {
+                'selected': self.value() == str(lookup),
+                'query_string': changelist.get_query_string({self.parameter_name: lookup}),
+                'display': title,
+            }    
+
     def queryset(self, request, queryset):
         value = self.value()
         if value is None:
@@ -643,6 +675,22 @@ class AktivniPredpisFilter(DynamicTitleFilter):
 
     def lookups(self, request, model_admin):
         return self.label_dict.items()    
+    
+    def choices(self, changelist):
+        """
+        Přepíše defaultní text první volby (All) na hodnotu z `self.vse`.
+        """
+        yield {
+            'selected': self.value() is None,
+            'query_string': changelist.get_query_string(remove=[self.parameter_name]),
+            'display': self.vse,  # "Vše skladem"
+        }
+        for lookup, title in self.lookup_choices:
+            yield {
+                'selected': self.value() == str(lookup),
+                'query_string': changelist.get_query_string({self.parameter_name: lookup}),
+                'display': title,
+            }    
 
     def queryset(self, request, queryset):
         value = self.value()
