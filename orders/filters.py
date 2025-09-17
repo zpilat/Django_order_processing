@@ -97,7 +97,7 @@ class DelkaFilter(DynamicTitleFilter):
         # Aplikace ostatních filtrů z request.GET (kromě filtru délky)
         other_filters = {k: v for k, v in request.GET.items() if k != self.parameter_name}
         
-        # Mapování URL parametrů na databázová pole (stejné jako v původní verzi)
+        # Mapování URL parametrů na databázová pole
         field_map = {
             'zakaznik': 'zakazka__kamion_prijem__zakaznik__zkratka',
             'tryskani': 'tryskat',
@@ -145,6 +145,20 @@ class DelkaFilter(DynamicTitleFilter):
             .order_by('zakazka__delka')
         )
         
+        # Uložení dostupných délek
+        self.available_delky = {row['zakazka__delka'] for row in query_list}
+        
+        # Kontrola, zda je aktuálně vybraná délka stále dostupná
+        current_value = params.get(self.parameter_name)
+        if current_value:
+            try:
+                selected_delka = float(current_value)
+                if selected_delka not in self.available_delky:
+                    # Odstranění neplatné hodnoty z params
+                    params.pop(self.parameter_name, None)
+            except (ValueError, TypeError):
+                params.pop(self.parameter_name, None)
+        
         # Sestavení label_dict podle dostupnosti množství
         all_have_mnozstvi = bool(query_list) and all(row['celkove_mnozstvi'] for row in query_list)
         if all_have_mnozstvi:
@@ -167,6 +181,15 @@ class DelkaFilter(DynamicTitleFilter):
         value = self.value()
         if not value:
             return queryset
+            
+        # Dodatečná kontrola pro jistotu
+        try:
+            selected_delka = float(value)
+            if selected_delka not in self.available_delky:
+                return queryset
+        except (ValueError, TypeError):
+            return queryset
+            
         return queryset.filter(zakazka__delka=value)
     
 
@@ -739,4 +762,4 @@ class ZakaznikPredpisFilter(DynamicTitleFilter):
             zakaznik = Zakaznik.objects.get(zkratka=value)
             return queryset.filter(zakaznik=zakaznik)
         except Zakaznik.DoesNotExist:
-            return queryset.none()    
+            return queryset.none()
