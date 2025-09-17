@@ -91,45 +91,66 @@ class DelkaFilter(DynamicTitleFilter):
         Jinak v nabídce délky, které mají bedny v tomto stavu, s aplikovanými případnými dalšími filtry.
         """
         self.label_dict = {}
-        
+
         if request.GET.get('stav_bedny') == StavBednyChoice.PRIJATO:
-            # slovník pro filtry z requestu
-            filter_fields = {
+            # Základní queryset pouze pro přijaté bedny
+            base_qs = Bedna.objects.filter(stav_bedny=StavBednyChoice.PRIJATO)
+
+            # mapování param -> DB pole
+            field_map = {
                 'zakaznik':       'zakazka__kamion_prijem__zakaznik__zkratka',
-                'stav_bedny':     'stav_bedny',
+                # 'stav_bedny' je již promítnut v base_qs
                 'tryskani':       'tryskat',
                 'rovnani':        'rovnat',
                 'celozavit':      'zakazka__celozavit',
-                'typ_hlavy':      'zakazka__typ_hlavy',
+                'typ_hlavy':      'zakazka__typ_hlavy__nazev',  # klíčujeme přes název typu hlavy
                 'priorita_bedny': 'zakazka__priorita',
                 'pozastaveno':    'pozastaveno',
                 'skupina':        'zakazka__predpis__skupina',
             }
 
-            filter_kwargs = {
-                db_field: request.GET.get(param)
-                for param, db_field in filter_fields.items()
-                if request.GET.get(param) not in (None, '')
-            }
-            if filter_kwargs:
-                query = Bedna.objects.filter(**filter_kwargs)
+            filter_kwargs = {}
+            for param, db_field in field_map.items():
+                raw_val = request.GET.get(param)
+                if raw_val in (None, ''):
+                    continue
+                # konverze typů pro vybraná pole
+                if param in ('pozastaveno', 'celozavit'):
+                    if raw_val == 'True':
+                        val = True
+                    elif raw_val == 'False':
+                        val = False
+                    else:
+                        continue
+                elif param == 'skupina':
+                    try:
+                        val = int(raw_val)
+                    except (TypeError, ValueError):
+                        continue
+                else:
+                    val = raw_val
+                filter_kwargs[db_field] = val
 
-            # Sestavení slovníku délka: popisek
-            query_list = (
+            query = base_qs.filter(**filter_kwargs) if filter_kwargs else base_qs
+
+            # Agregační dotaz pro délky s celkovou hmotností a množstvím
+            query_list = list(
                 query.values('zakazka__delka')
+                .exclude(zakazka__delka__isnull=True)
                 .annotate(celkova_hmotnost=Sum('hmotnost'), celkove_mnozstvi=Sum('mnozstvi'))
                 .order_by('zakazka__delka')
             )
-            vals = list(query_list.values_list('celkove_mnozstvi', flat=True))
-            if vals and all(vals):
+
+            all_have_mnozstvi = bool(query_list) and all(row['celkove_mnozstvi'] for row in query_list)
+            if all_have_mnozstvi:
                 self.label_dict = {
-                    data['zakazka__delka']: f"{int(data['zakazka__delka'])} ({data['celkova_hmotnost']:.0f} kg | {data['celkove_mnozstvi']:.0f} ks)"
-                    for data in query_list
+                    row['zakazka__delka']: f"{int(row['zakazka__delka'])} ({row['celkova_hmotnost']:.0f} kg | {row['celkove_mnozstvi']:.0f} ks)"
+                    for row in query_list
                 }
             else:
                 self.label_dict = {
-                    data['zakazka__delka']: f"{int(data['zakazka__delka'])} ({data['celkova_hmotnost']:.0f} kg)"
-                    for data in query_list
+                    row['zakazka__delka']: f"{int(row['zakazka__delka'])} ({row['celkova_hmotnost']:.0f} kg)"
+                    for row in query_list
                 }
 
         super().__init__(request, params, model, model_admin)
