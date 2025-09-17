@@ -87,72 +87,77 @@ class DelkaFilter(DynamicTitleFilter):
 
     def __init__(self, request, params, model, model_admin):
         """
-        Pokud není vybrán stav bedny PRIJATO, nejsou zobrazeny v nabídce žádné délky.
-        Jinak v nabídce délky, které mají bedny v tomto stavu, s aplikovanými případnými dalšími filtry.
+        Využije ostatní aktivní filtry (kromě délky) pro získání dostupných délek pro zobrazení délek (včetně celkových hmotností a množství) v lookupech.
         """
         self.label_dict = {}
-
-        if request.GET.get('stav_bedny') == StavBednyChoice.PRIJATO:
-            # Základní queryset pouze pro přijaté bedny
-            base_qs = Bedna.objects.filter(stav_bedny=StavBednyChoice.PRIJATO)
-
-            # mapování param -> DB pole
-            field_map = {
-                'zakaznik':       'zakazka__kamion_prijem__zakaznik__zkratka',
-                # 'stav_bedny' je již promítnut v base_qs
-                'tryskani':       'tryskat',
-                'rovnani':        'rovnat',
-                'celozavit':      'zakazka__celozavit',
-                'typ_hlavy':      'zakazka__typ_hlavy__nazev',  # klíčujeme přes název typu hlavy
-                'priorita_bedny': 'zakazka__priorita',
-                'pozastaveno':    'pozastaveno',
-                'skupina':        'zakazka__predpis__skupina',
-            }
-
-            filter_kwargs = {}
-            for param, db_field in field_map.items():
-                raw_val = request.GET.get(param)
-                if raw_val in (None, ''):
-                    continue
-                # konverze typů pro vybraná pole
-                if param in ('pozastaveno', 'celozavit'):
-                    if raw_val == 'True':
-                        val = True
-                    elif raw_val == 'False':
-                        val = False
-                    else:
-                        continue
-                elif param == 'skupina':
-                    try:
-                        val = int(raw_val)
-                    except (TypeError, ValueError):
-                        continue
+        
+        # Základní queryset pro přijaté bedny
+        base_qs = model.objects.filter(stav_bedny=StavBednyChoice.PRIJATO)
+        
+        # Aplikace ostatních filtrů z request.GET (kromě filtru délky)
+        other_filters = {k: v for k, v in request.GET.items() if k != self.parameter_name}
+        
+        # Mapování URL parametrů na databázová pole (stejné jako v původní verzi)
+        field_map = {
+            'zakaznik': 'zakazka__kamion_prijem__zakaznik__zkratka',
+            'tryskani': 'tryskat',
+            'rovnani': 'rovnat',
+            'celozavit': 'zakazka__celozavit',
+            'typ_hlavy': 'zakazka__typ_hlavy__nazev',
+            'priorita_bedny': 'zakazka__priorita',
+            'pozastaveno': 'pozastaveno',
+            'skupina': 'zakazka__predpis__skupina',
+        }
+        
+        # Sestavení filter_kwargs z ostatních aktivních filtrů
+        filter_kwargs = {}
+        for param, db_field in field_map.items():
+            raw_val = other_filters.get(param)
+            if raw_val in (None, ''):
+                continue
+            
+            # Konverze typů pro vybraná pole
+            if param in ('pozastaveno', 'celozavit'):
+                if raw_val == 'True':
+                    val = True
+                elif raw_val == 'False':
+                    val = False
                 else:
-                    val = raw_val
-                filter_kwargs[db_field] = val
-
-            query = base_qs.filter(**filter_kwargs) if filter_kwargs else base_qs
-
-            # Agregační dotaz pro délky s celkovou hmotností a množstvím
-            query_list = list(
-                query.values('zakazka__delka')
-                .exclude(zakazka__delka__isnull=True)
-                .annotate(celkova_hmotnost=Sum('hmotnost'), celkove_mnozstvi=Sum('mnozstvi'))
-                .order_by('zakazka__delka')
-            )
-
-            all_have_mnozstvi = bool(query_list) and all(row['celkove_mnozstvi'] for row in query_list)
-            if all_have_mnozstvi:
-                self.label_dict = {
-                    row['zakazka__delka']: f"{int(row['zakazka__delka'])} ({row['celkova_hmotnost']:.0f} kg | {row['celkove_mnozstvi']:.0f} ks)"
-                    for row in query_list
-                }
+                    continue
+            elif param == 'skupina':
+                try:
+                    val = int(raw_val)
+                except (TypeError, ValueError):
+                    continue
             else:
-                self.label_dict = {
-                    row['zakazka__delka']: f"{int(row['zakazka__delka'])} ({row['celkova_hmotnost']:.0f} kg)"
-                    for row in query_list
-                }
+                val = raw_val
+            
+            filter_kwargs[db_field] = val
+        
+        # Aplikace filtrů na queryset
+        query = base_qs.filter(**filter_kwargs) if filter_kwargs else base_qs
 
+        # Agregační dotaz pro délky s celkovou hmotností a množstvím
+        query_list = list(
+            query.values('zakazka__delka')
+            .exclude(zakazka__delka__isnull=True)
+            .annotate(celkova_hmotnost=Sum('hmotnost'), celkove_mnozstvi=Sum('mnozstvi'))
+            .order_by('zakazka__delka')
+        )
+        
+        # Sestavení label_dict podle dostupnosti množství
+        all_have_mnozstvi = bool(query_list) and all(row['celkove_mnozstvi'] for row in query_list)
+        if all_have_mnozstvi:
+            self.label_dict = {
+                row['zakazka__delka']: f"{int(row['zakazka__delka'])} ({row['celkova_hmotnost']:.0f} kg | {row['celkove_mnozstvi']:.0f} ks)"
+                for row in query_list
+            }
+        else:
+            self.label_dict = {
+                row['zakazka__delka']: f"{int(row['zakazka__delka'])} ({row['celkova_hmotnost']:.0f} kg)"
+                for row in query_list
+            }
+        
         super().__init__(request, params, model, model_admin)
 
     def lookups(self, request, model_admin):

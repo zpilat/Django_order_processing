@@ -1672,6 +1672,16 @@ class BednaAdmin(SimpleHistoryAdmin):
             if 'pozice' in list_display:
                 list_display.remove('pozice')
         return list_display
+    
+    def get_list_filter(self, request):
+        """
+        Přizpůsobení dostupných filtrů v administraci podle filtru stavu bedny.
+        Pokud není aktivní filtr stav bedny PRIJATO, zruší se filtr delkafilter.
+        """
+        actual_filters = super().get_list_filter(request)
+        if request.GET.get('stav_bedny', None) != StavBednyChoice.PRIJATO:
+            actual_filters = [f for f in actual_filters if f != DelkaFilter]
+        return actual_filters
 
     def get_actions(self, request):
         """
