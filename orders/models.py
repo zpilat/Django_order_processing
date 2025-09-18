@@ -15,7 +15,9 @@ class Zakaznik(models.Model):
     nazev = models.CharField(max_length=100, verbose_name='Název zákazníka', unique=True)
     zkraceny_nazev = models.CharField(max_length=15, verbose_name='Zkrácený název', unique=True,
                                        help_text='Zkrácený název zákazníka, např. pro zobrazení v kartě bedny a v přehledech.')
-    zkratka = models.CharField(max_length=3, verbose_name='Zkratka', unique=True)
+    zkratka = models.CharField(max_length=3, verbose_name='Zkratka', unique=True,
+                               help_text='Zkratka zákazníka, např. pro automatické číslování beden a kamionů a pro programové použití.'
+                               ' Zkratka po vytvoření nemůže být změněna.')
     adresa = models.CharField(max_length=100, blank=True, null=True, verbose_name='Adresa')
     mesto = models.CharField(max_length=50, blank=True, null=True, verbose_name='Město')
     psc = models.CharField(max_length=10, blank=True, null=True, verbose_name='PSČ')

@@ -58,6 +58,17 @@ class ZakaznikAdmin(SimpleHistoryAdmin):
     Správa zákazníků v administraci.
     """
     # Parametry pro zobrazení detailu v administraci
+    fieldsets = [
+        ('Název a adresa', {
+            'fields': ('nazev', 'adresa', 'mesto', 'psc', 'stat', 'zkratka_statu',)
+        }),
+        ('Kontaktní údaje', {
+            'fields': ('kontaktni_osoba', 'telefon', 'email',)
+        }),
+        ('Doplňující parametry', {
+            'fields': ('zkraceny_nazev', 'zkratka', 'ciselna_rada', 'vse_tryskat', 'pouze_komplet',)
+        })
+    ]
     readonly_fields = ('zkratka',)
     
     # Parametry pro zobrazení seznamu v administraci
