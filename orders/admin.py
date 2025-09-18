@@ -961,7 +961,7 @@ class BednaInline(admin.TabularInline):
     extra = 0
     # další úprava zobrazovaných polí podle různých podmínek je v get_fields
     fields = ('cislo_bedny', 'behalter_nr', 'hmotnost', 'tara', 'mnozstvi', 'material', 'sarze', 'dodatecne_info', 'dodavatel_materialu',
-              'vyrobni_zakazka', 'odfosfatovat', 'tryskat', 'rovnat', 'stav_bedny', 'pozice', 'poznamka_k_navezeni', 'poznamka',)
+              'vyrobni_zakazka', 'odfosfatovat', 'tryskat', 'rovnat', 'stav_bedny', 'poznamka',)
     readonly_fields = ('cislo_bedny',)
     show_change_link = True
     formfield_overrides = {
