@@ -57,14 +57,29 @@ class ZakaznikAdmin(SimpleHistoryAdmin):
     """
     Správa zákazníků v administraci.
     """
+    # Parametry pro zobrazení detailu v administraci
+    readonly_fields = ('zkratka',)
+    
+    # Parametry pro zobrazení seznamu v administraci
     list_display = ('nazev', 'zkraceny_nazev', 'zkratka', 'adresa', 'mesto', 'psc', 'stat', 'zkratka_statu', 'kontaktni_osoba', 'telefon',
                     'email', 'vse_tryskat', 'pouze_komplet', 'ciselna_rada',)
     ordering = ('nazev',)
     list_per_page = 20
 
+    # Parametry pro zobrazení historie v administraci
     history_list_display = ["id", "nazev", "zkratka", "adresa", "mesto", "psc", "stat", "zkratka_statu", "kontaktni_osoba", "telefon", "email"]
     history_search_fields = ["nazev"]
     history_list_per_page = 20
+
+    def get_readonly_fields(self, request, obj = None):
+        """
+        Přizpůsobení readonly_fields pro detail zákazníka.
+        V případě, že se vytváří nový zákazník (obj je None), pole 'zkratka' není readonly.
+        """
+        currently_readonly = list(super().get_readonly_fields(request, obj)) or []
+        if obj is None:
+            currently_readonly.remove('zkratka')
+        return currently_readonly
 
 
 class ZakazkaAutomatizovanyPrijemInline(admin.TabularInline):
