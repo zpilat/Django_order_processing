@@ -1888,6 +1888,10 @@ class BednaAdmin(SimpleHistoryAdmin):
                 can_view_related=False,
             )
             return formfield
+        elif isinstance(db_field, models.CharField):
+            if db_field.name in ['poznamka']:
+                kwargs['widget'] = TextInput(attrs={'size': '20', 'style': 'font-size: 10px;'})
+            return db_field.formfield(**kwargs)
 
         return super().formfield_for_dbfield(db_field, request, **kwargs)
 
