@@ -1474,7 +1474,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     ordering = ('id',)
     date_hierarchy = 'zakazka__kamion_prijem__datum'
     formfield_overrides = {
-        models.CharField: {'widget': TextInput(attrs={ 'size': '20', 'style': 'font-size: 10px;'})},
+        # models.CharField: {'widget': TextInput(attrs={ 'size': '20', 'style': 'font-size: 10px;'})},
         models.DecimalField: {
             'widget': TextInput(attrs={ 'size': '3'}),
             'localize': True
