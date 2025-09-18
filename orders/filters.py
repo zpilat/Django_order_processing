@@ -4,6 +4,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 from datetime import timedelta
+from decimal import Decimal, InvalidOperation
 
 from .models import Zakazka, Bedna, Zakaznik, Kamion, TypHlavy, Predpis, Odberatel
 from .choices import StavBednyChoice, TryskaniChoice, RovnaniChoice, PrioritaChoice
@@ -87,7 +88,8 @@ class DelkaFilter(DynamicTitleFilter):
 
     def __init__(self, request, params, model, model_admin):
         """
-        Využije ostatní aktivní filtry (kromě délky) pro získání dostupných délek pro zobrazení délek (včetně celkových hmotností a množství) v lookupech.
+        Využije ostatní aktivní filtry (kromě délky) pro získání dostupných délek a celkových hmotností a množství
+        pro zobrazení v lookupech.
         """
         self.label_dict = {}
         
@@ -145,18 +147,25 @@ class DelkaFilter(DynamicTitleFilter):
             .order_by('zakazka__delka')
         )
         
-        # Uložení dostupných délek
-        self.available_delky = {row['zakazka__delka'] for row in query_list}
+        # Uložení dostupných délek (Decimal pro přesné porovnání)
+        self.available_delky = {
+            Decimal(str(row['zakazka__delka']))
+            for row in query_list
+            if row['zakazka__delka'] is not None
+        }
         
         # Kontrola, zda je aktuálně vybraná délka stále dostupná
         current_value = params.get(self.parameter_name)
-        if current_value:
+        # Pokud je hodnota list/tuple, vezmi první prvek
+        if isinstance(current_value, (list, tuple)):
+            current_value = current_value[0] if current_value else None
+        if current_value not in (None, ''):
             try:
-                selected_delka = float(current_value)
-                if selected_delka not in self.available_delky:
+                selected_delka_dec = Decimal(str(current_value))
+                if selected_delka_dec not in self.available_delky:
                     # Odstranění neplatné hodnoty z params
                     params.pop(self.parameter_name, None)
-            except (ValueError, TypeError):
+            except (InvalidOperation, ValueError, TypeError):
                 params.pop(self.parameter_name, None)
         
         # Sestavení label_dict podle dostupnosti množství
@@ -181,15 +190,6 @@ class DelkaFilter(DynamicTitleFilter):
         value = self.value()
         if not value:
             return queryset
-            
-        # Dodatečná kontrola pro jistotu
-        try:
-            selected_delka = float(value)
-            if selected_delka not in self.available_delky:
-                return queryset
-        except (ValueError, TypeError):
-            return queryset
-            
         return queryset.filter(zakazka__delka=value)
     
 
