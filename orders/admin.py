@@ -1455,9 +1455,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     ]
     form = BednaAdminForm
 
-    # Parametry pro zobrazení detailu v administraci
-    fields = ('zakazka', 'pozice', 'cislo_bedny', 'hmotnost', 'tara', 'mnozstvi', 'material', 'sarze', 'behalter_nr', 'dodatecne_info',
-              'dodavatel_materialu', 'vyrobni_zakazka', 'tryskat', 'rovnat', 'stav_bedny', 'poznamka', 'odfosfatovat', 'pozastaveno', 'poznamka_k_navezeni')
+    # Parametry pro zobrazení detailu v administraci (použijeme get_fieldsets)
     readonly_fields = ('cislo_bedny',)
     autocomplete_fields = ('zakazka',)
 
@@ -1607,29 +1605,48 @@ class BednaAdmin(SimpleHistoryAdmin):
             return obj.zakazka.predpis.skupina
         return '-'
 
-    def get_fields(self, request, obj=None):
+    def get_fieldsets(self, request, obj=None):
         """
-        Vrací seznam polí, která se mají zobrazit z formuláře Bedna při editaci.
+        Sestaví fieldsety podle požadavku a zachová logiku vylučování polí dle zákazníka a toho, zda se jedná o editaci.
+        """
+        groups = [
+            ("Základní údaje", (
+                'zakazka', 'cislo_bedny', 'behalter_nr', 'material', 'sarze', 'poznamka', 'odfosfatovat'
+            )),
+            ("Hmotnost a množství", (
+                'hmotnost', 'tara', 'mnozstvi'
+            )),
+            ("Stavy bedny", (
+                'tryskat', 'rovnat', 'stav_bedny', 'pozastaveno'
+            )),
+            ("K navezení", (
+                'pozice', 'poznamka_k_navezeni'
+            )),
+            ("Speciální informace", (
+                'dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka'
+            )),
+        ]
 
-        - Pokud není obj (tj. add_view), odebere se pole `cislo_bedny`, protože se generuje automaticky.  
-        - Pokud obj existuje a zákazník zakázky je ROT, odebere se ze zobrazených polí dodatecne_info, dodavatel_materialu a vyrobni_zakazka.
-        - Pokud obj existuje a zákazník zakázky je SSH, SWG, HPM nebo FIS, odebere se navíc k ROT ze zobrazených polí behalter_nr.
-        """   
-        fields = list(super().get_fields(request, obj))
+        # Logika vyloučení polí z původního get_fields
         exclude_fields = []
-        # Pokud se jedná o editaci existující bedny
         if obj:
-            # Vyloučení polí dle zákazníka
-            if obj.zakazka.kamion_prijem.zakaznik.zkratka == 'ROT':
+            zkratka_zakaznika = getattr(getattr(getattr(obj, 'zakazka', None), 'kamion_prijem', None), 'zakaznik', None)
+            zkratka = getattr(zkratka_zakaznika, 'zkratka', None)
+            if zkratka == 'ROT':
                 exclude_fields = ['dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka']
-            elif obj.zakazka.kamion_prijem.zakaznik.zkratka in ('SSH', 'SWG', 'HPM', 'FIS'):
+            elif zkratka in ('SSH', 'SWG', 'HPM', 'FIS'):
                 exclude_fields = ['behalter_nr', 'dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka']
-        # Při přidání nové bedny se vyloučí pole `cislo_bedny`, protože se generuje automaticky.
         else:
+            # add_view: cislo_bedny se generuje automaticky
             exclude_fields = ['cislo_bedny']
 
-        fields = [f for f in fields if f not in exclude_fields]
-        return fields
+        fieldsets = []
+        for title, fields in groups:
+            kept = [f for f in fields if f not in exclude_fields]
+            if kept:
+                fieldsets.append((title, {'fields': tuple(kept)}))
+
+        return fieldsets
     
     def get_changelist_form(self, request, **kwargs):
         """
