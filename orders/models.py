@@ -74,7 +74,7 @@ class Odberatel(models.Model):
 
 
 class Kamion(models.Model):
-    zakaznik = models.ForeignKey(Zakaznik, on_delete=models.CASCADE, related_name='kamiony', verbose_name='Zákazník')
+    zakaznik = models.ForeignKey(Zakaznik, on_delete=models.PROTECT, related_name='kamiony', verbose_name='Zákazník')
     odberatel = models.ForeignKey(Odberatel, on_delete=models.SET_NULL, related_name='kamiony', verbose_name='Odběratel', blank=True, null=True)
     datum = models.DateField(verbose_name='Datum')
     cislo_dl = models.CharField(max_length=50, verbose_name='Číslo DL', blank=True, null=True)
@@ -407,7 +407,19 @@ class Zakazka(models.Model):
         # Pro ostatní zákazníky zatím není výpočet ceny implementován
         else:
             return 0
-    
+        
+    # --- Delete guards ---
+    def delete(self, using=None, keep_parents=False):
+        """
+        Zamezí mazání zakázky, pokud má bedny v jiném stavu než PRIJATO.
+        """        
+        if Bedna.objects.filter(zakazka=self).exclude(stav_bedny=StavBednyChoice.PRIJATO).exists():
+            raise ProtectedError(
+                "Mazání zablokováno: Zakázka obsahuje bedny v jiném stavu než PRIJATO.",
+                [self],
+            )
+        return super().delete(using=using, keep_parents=keep_parents)
+
 
 class Cena(models.Model):
     """
@@ -723,3 +735,15 @@ class Bedna(models.Model):
         # Pro ostatní zákazníky zatím není výpočet ceny implementován
         else:
             return 0
+        
+    # --- Delete guards ---
+    def delete(self, using=None, keep_parents=False):
+        """
+        Zamezí mazání bedny, pokud má jiný stav než PRIJATO.
+        """
+        if self.stav_bedny != StavBednyChoice.PRIJATO:
+            raise ProtectedError(
+                "Mazání zablokováno: Bedna má jiný stav než PRIJATO.",
+                [self],
+            )
+        return super().delete(using=using, keep_parents=keep_parents)
