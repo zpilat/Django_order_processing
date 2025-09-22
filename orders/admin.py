@@ -2071,6 +2071,69 @@ class BednaAdmin(SimpleHistoryAdmin):
 
         return super().formfield_for_dbfield(db_field, request, **kwargs)
 
+    # --- UX blokace mazání bedny ---
+    def _delete_blockers(self, obj):
+        """
+        Vrátí seznam důvodů, proč nelze bednu smazat (pro hlášky).
+        Povoleno pouze, pokud je bedna ve stavu PRIJATO.
+        """
+        reasons = []
+        if not obj:
+            return reasons
+        if obj.stav_bedny != StavBednyChoice.PRIJATO:
+            reasons.append(
+                f"Bednu lze smazat pouze ve stavu PRIJATO (aktuálně: {obj.get_stav_bedny_display()})."
+            )
+        return reasons
+
+    def has_delete_permission(self, request, obj=None):
+        """
+        Skryje možnost mazání na detailu bedny, pokud není ve stavu PRIJATO.
+        Hromadnou akci neblokuje (řeší se v delete_queryset s hláškou).
+        """
+        if obj is not None:
+            if self._delete_blockers(obj):
+                return False
+        return super().has_delete_permission(request, obj)
+
+    def delete_model(self, request, obj):
+        """Při mazání z detailu zablokuje a vypíše důvod, pokud bedna není ve stavu PRIJATO."""
+        reasons = self._delete_blockers(obj)
+        if reasons:
+            for r in reasons:
+                try:
+                    messages.error(request, r)
+                except Exception:
+                    pass
+            return  # nic nemaž
+        return super().delete_model(request, obj)
+
+    def delete_queryset(self, request, queryset):
+        """
+        Při hromadném mazání smaže jen bedny ve stavu PRIJATO a pro ostatní vypíše důvod.
+        """
+        allowed_ids = []
+        blocked_info = []
+
+        for obj in queryset:
+            reasons = self._delete_blockers(obj)
+            if reasons:
+                blocked_info.append((obj, reasons))
+            else:
+                allowed_ids.append(obj.pk)
+
+        if blocked_info:
+            for obj, reasons in blocked_info:
+                for r in reasons:
+                    try:
+                        messages.error(request, f"{obj}: {r}")
+                    except Exception:
+                        pass
+
+        if allowed_ids:
+            super().delete_queryset(request, queryset.filter(pk__in=allowed_ids))
+        # Pokud nic nepovoleno, jen vrátí – akce skončí s vypsanými hláškami
+
 
 @admin.register(Predpis)
 class PredpisAdmin(SimpleHistoryAdmin):
