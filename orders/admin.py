@@ -22,6 +22,7 @@ import pandas as pd
 import re
 from django import forms
 from django.contrib.admin.helpers import ActionForm
+from django.contrib.admin.actions import delete_selected as admin_delete_selected
 
 from .models import Zakaznik, Kamion, Zakazka, Bedna, Predpis, Odberatel, TypHlavy, Cena, Pozice
 from .actions import (
@@ -91,6 +92,20 @@ class ZakaznikAdmin(SimpleHistoryAdmin):
         if obj is None:
             currently_readonly.remove('zkratka')
         return currently_readonly
+
+    # Povolit smazání jen 1 položky i když se zobrazuje "Smazat vybrané"
+    def delete_selected_one(self, request, queryset):
+        count = queryset.count()
+        if count != 1:
+            self.message_user(request, f"Pro smazání vyberte právě jednu položku (vybráno: {count}).", messages.ERROR)
+            return
+        return admin_delete_selected(self, request, queryset)
+
+    def get_actions(self, request):
+        actions = super().get_actions(request)
+        # Nahraď defaultní delete_selected obálkou s kontrolou počtu
+        actions['delete_selected'] = (self.delete_selected_one, 'delete_selected', getattr(admin_delete_selected, 'short_description', 'Smazat vybrané'))
+        return actions
 
 
 class ZakazkaAutomatizovanyPrijemInline(admin.TabularInline):
@@ -511,11 +526,22 @@ class KamionAdmin(SimpleHistoryAdmin):
         else:
             actions_to_remove = []
 
+        # Vždy nahraď "delete_selected" naší obálkou s kontrolou 1 položky
+        actions['delete_selected'] = (self.delete_selected_one, 'delete_selected', getattr(admin_delete_selected, 'short_description', 'Smazat vybrané'))
+
         for action in actions_to_remove:
             if action in actions:
                 del actions[action]
-        
+
         return actions
+
+    # Povolit smazání jen 1 položky i když se zobrazuje "Smazat vybrané"
+    def delete_selected_one(self, request, queryset):
+        count = queryset.count()
+        if count != 1:
+            self.message_user(request, f"Pro smazání vyberte právě jednu položku (vybráno: {count}).", messages.ERROR)
+            return
+        return admin_delete_selected(self, request, queryset)
 
     def get_action_choices(self, request, default_choices=models.BLANK_CHOICE_DASH):
         """Seskupení akcí kamionu do optgroup + formátování placeholderů.
