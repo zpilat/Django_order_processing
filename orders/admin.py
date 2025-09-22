@@ -368,6 +368,82 @@ class KamionAdmin(SimpleHistoryAdmin):
         """
         return obj.pocet_beden_skladem
 
+    # --- UX blokace mazání kamionu ---
+    def _delete_blockers(self, obj):
+        """
+        Vrátí seznam důvodů, proč nelze kamion smazat (pro hlášky).
+        Pro kamion výdej: pokud je přiřazen k zakázkám.
+        Pro kamion příjem: pokud obsahuje bedny, které nejsou ve stavu PRIJATO.
+        """
+        reasons = []
+        if not obj:
+            return reasons
+        
+        if obj.prijem_vydej == KamionChoice.PRIJEM:
+            # Blokovat jen pokud existuje aspoň jedna bedna v jiném stavu než PRIJATO
+            total = Bedna.objects.filter(zakazka__kamion_prijem=obj).count()
+            non_prijato = Bedna.objects.filter(zakazka__kamion_prijem=obj).exclude(stav_bedny=StavBednyChoice.PRIJATO).count()
+            if non_prijato:
+                reasons.append(
+                    f"Kamión příjem nelze smazat: obsahuje {non_prijato} beden mimo stav PRIJATO (z celkem {total})."
+                )
+
+        elif obj.prijem_vydej == KamionChoice.VYDEJ:
+            z_count = obj.zakazky_vydej.count()
+            if z_count:
+                b_count = Bedna.objects.filter(zakazka__kamion_vydej=obj).count()
+                reasons.append(
+                    f"Kamión výdej nelze smazat: je přiřazen k {z_count} zakázkám (a {b_count} bednám)."
+                )
+        return reasons
+
+    def has_delete_permission(self, request, obj=None):
+        """
+        Skryje možnost mazání pro konkrétní kamion, pokud má návaznosti.
+        Hromadnou akci neblokuje (řeší se v delete_queryset s hláškou).
+        """
+        if obj is not None:
+            if self._delete_blockers(obj):
+                return False
+        return super().has_delete_permission(request, obj)
+
+    def delete_model(self, request, obj):
+        """Při mazání z detailu zablokuje s jasnou hláškou, pokud jsou návaznosti."""
+        reasons = self._delete_blockers(obj)
+        if reasons:
+            for r in reasons:
+                try:
+                    messages.error(request, r)
+                except Exception:
+                    pass
+            return  # Nic nemaž – ponech uživatele na stránce
+        return super().delete_model(request, obj)
+
+    def delete_queryset(self, request, queryset):
+        """
+        Při hromadném mazání smaže jen kamiony bez návazností a pro ostatní vypíše důvod.
+        """
+        allowed_ids = []
+        blocked_info = []
+
+        for obj in queryset:
+            reasons = self._delete_blockers(obj)
+            if reasons:
+                blocked_info.append((obj, reasons))
+            else:
+                allowed_ids.append(obj.pk)
+
+        if blocked_info:
+            for obj, reasons in blocked_info:
+                for r in reasons:
+                    try:
+                        messages.error(request, f"{obj}: {r}")
+                    except Exception:
+                        pass
+
+        if allowed_ids:
+            super().delete_queryset(request, queryset.filter(pk__in=allowed_ids))
+        # Pokud nic nepovoleno, jen vrátí – akce skončí s vypsanými hláškami
 
     def get_fields(self, request, obj=None):
         """

@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models.deletion import ProtectedError
 from simple_history.models import HistoricalRecords
 from django.utils.translation import gettext_lazy as _
 from django.urls import reverse
@@ -226,6 +227,19 @@ class Kamion(models.Model):
 
         super().save(*args, **kwargs)
     
+    # --- Delete guards ---
+    def delete(self, using=None, keep_parents=False):
+        """
+        Zamezí mazání kamionu příjem, pokud má bedny v jiném stavu než PRIJATO.
+        """
+        if self.prijem_vydej == KamionChoice.PRIJEM:
+            if Bedna.objects.filter(zakazka__kamion_prijem=self).exclude(stav_bedny=StavBednyChoice.PRIJATO).exists():
+                raise ProtectedError(
+                    "Mazání zablokováno: Kamión příjem obsahuje bedny v jiném stavu než PRIJATO.",
+                    [self],
+                )
+        return super().delete(using=using, keep_parents=keep_parents)
+    
 
 class Predpis(models.Model):
     """
@@ -293,7 +307,7 @@ class TypHlavy(models.Model):
 
 class Zakazka(models.Model):
     kamion_prijem = models.ForeignKey(Kamion, on_delete=models.CASCADE, related_name='zakazky_prijem', verbose_name='Kamión příjem', null=True, blank=True)
-    kamion_vydej = models.ForeignKey(Kamion, on_delete=models.CASCADE, related_name='zakazky_vydej', verbose_name='Kamión výdej', null=True, blank=True)
+    kamion_vydej = models.ForeignKey(Kamion, on_delete=models.PROTECT, related_name='zakazky_vydej', verbose_name='Kamión výdej', null=True, blank=True)
     artikl = models.CharField(max_length=50, verbose_name='Artikl / Zakázka')
     prumer = models.DecimalField(max_digits=4, decimal_places=1, verbose_name='Průměr')
     delka = models.DecimalField(max_digits=6, decimal_places=1, verbose_name='Délka')
