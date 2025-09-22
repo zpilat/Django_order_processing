@@ -343,7 +343,7 @@ class BednaAdminTests(AdminBase):
     def test_changelist_view_and_list_display(self):
         req = self.get_request()
         self.admin.changelist_view(req)
-        self.assertEqual(self.admin.list_editable, ['stav_bedny', 'tryskat', 'rovnat', 'poznamka'])
+        self.assertEqual(self.admin.list_editable, ['stav_bedny', 'tryskat', 'rovnat', 'hmotnost', 'poznamka'])
 
         req = self.get_request({'stav_bedny': 'EX'})
         self.admin.changelist_view(req)
@@ -355,7 +355,7 @@ class BednaAdminTests(AdminBase):
         self.assertIn('kamion_vydej_link', ld2)
 
     def test_changelist_view_pozastaveno_filter_keeps_editable(self):
-        req = self.get_request({'uvolneno': 'pozastaveno'})
+        req = self.get_request({'pozastaveno': 'True'})
         self.admin.changelist_view(req)
         self.assertEqual(self.admin.list_editable, [])
         ld = self.admin.get_list_display(req)
