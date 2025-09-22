@@ -104,7 +104,11 @@ class ZakaznikAdmin(SimpleHistoryAdmin):
     def get_actions(self, request):
         actions = super().get_actions(request)
         # Nahraď defaultní delete_selected obálkou s kontrolou počtu
-        actions['delete_selected'] = (self.delete_selected_one, 'delete_selected', getattr(admin_delete_selected, 'short_description', 'Smazat vybrané'))
+        actions['delete_selected'] = (
+            self.__class__.delete_selected_one,
+            'delete_selected',
+            getattr(admin_delete_selected, 'short_description', 'Smazat vybrané'),
+        )
         return actions
 
 
@@ -526,8 +530,12 @@ class KamionAdmin(SimpleHistoryAdmin):
         else:
             actions_to_remove = []
 
-        # Vždy nahraď "delete_selected" naší obálkou s kontrolou 1 položky
-        actions['delete_selected'] = (self.delete_selected_one, 'delete_selected', getattr(admin_delete_selected, 'short_description', 'Smazat vybrané'))
+        # Vždy nahraď "delete_selected" obálkou s kontrolou 1 položky
+        actions['delete_selected'] = (
+            self.__class__.delete_selected_one,
+            'delete_selected',
+            getattr(admin_delete_selected, 'short_description', 'Smazat vybrané'),
+        )
 
         for action in actions_to_remove:
             if action in actions:
