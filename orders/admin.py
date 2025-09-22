@@ -2161,6 +2161,20 @@ class OdberatelAdmin(SimpleHistoryAdmin):
     """
     Správa odběratelů v administraci.
     """
+    # Parametry pro zobrazení detailu v administraci
+    fieldsets = [
+        ('Název a adresa', {
+            'fields': ('nazev', 'adresa', 'mesto', 'psc', 'stat', 'zkratka_statu',)
+        }),
+        ('Kontaktní údaje', {
+            'fields': ('kontaktni_osoba', 'telefon', 'email',)
+        }),
+        ('Doplňující parametry', {
+            'fields': ('zkraceny_nazev', 'zkratka',)
+        })
+    ]
+    readonly_fields = ('zkratka',)
+
     list_display = ('nazev', 'zkraceny_nazev', 'zkratka', 'adresa', 'mesto', 'psc', 'stat', 'zkratka_statu', 'kontaktni_osoba', 'telefon', 'email',)
     list_display_links = ('nazev',)
     ordering = ['nazev']
