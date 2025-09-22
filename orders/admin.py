@@ -111,6 +111,16 @@ class ZakaznikAdmin(SimpleHistoryAdmin):
         )
         return actions
 
+    def has_delete_permission(self, request, obj=None):
+        """
+        Skryje možnost mazání pro konkrétního zákazníka, pokud obsahuje kamiony.
+        Hromadnou akci neblokuje (řeší se v modelu pomocí on_delete.PROTECT).
+        """
+        if obj is not None:
+            if obj.kamiony.exists():
+                return False
+        return super().has_delete_permission(request, obj)    
+
 
 class ZakazkaAutomatizovanyPrijemInline(admin.TabularInline):
     """
@@ -1231,6 +1241,62 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
             'orders/zakazky_hmotnost_sum.js',
             'orders/admin_actions_target_blank.js',
             )
+
+    # --- UX blokace mazání zakázky ---
+    def _delete_blockers(self, obj):
+        """Vrátí seznam důvodů, proč nelze zakázku smazat (pokud obsahuje bedny mimo PRIJATO)."""
+        reasons = []
+        if not obj:
+            return reasons
+        non_prijato = obj.bedny.exclude(stav_bedny=StavBednyChoice.PRIJATO).count() if obj.pk else 0
+        total = obj.bedny.count() if obj.pk else 0
+        if non_prijato:
+            reasons.append(
+                f"Zakázku nelze smazat: obsahuje {non_prijato} beden mimo stav PRIJATO (z celkem {total})."
+            )
+        return reasons
+
+    def has_delete_permission(self, request, obj=None):
+        """Skryje mazání na detailu u zakázky s bednami mimo PRIJATO."""
+        if obj is not None and self._delete_blockers(obj):
+            return False
+        return super().has_delete_permission(request, obj)
+
+    def delete_model(self, request, obj):
+        """Blokuje smazání z detailu a vypíše důvody."""
+        reasons = self._delete_blockers(obj)
+        if reasons:
+            for r in reasons:
+                try:
+                    messages.error(request, r)
+                except Exception:
+                    pass
+            return
+        return super().delete_model(request, obj)
+
+    def delete_queryset(self, request, queryset):
+        """Při hromadném mazání smaže jen povolené a ostatní vypíše s důvodem."""
+        allowed_ids = []
+        blocked_info = []
+
+        for obj in queryset:
+            reasons = self._delete_blockers(obj)
+            if reasons:
+                blocked_info.append((obj, reasons))
+            else:
+                allowed_ids.append(obj.pk)
+
+        if blocked_info:
+            for obj, reasons in blocked_info:
+                for r in reasons:
+                    try:
+                        messages.error(request, f"{obj}: {r}")
+                    except Exception:
+                        pass
+
+        if allowed_ids:
+            super().delete_queryset(request, queryset.filter(pk__in=allowed_ids))
+        # Pokud nic povoleno, jen končí s vypsanými hláškami
 
     @admin.display(description='Předpis', ordering='predpis__id', empty_value='-')
     def predpis_link(self, obj):
