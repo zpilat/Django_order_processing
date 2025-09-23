@@ -60,29 +60,37 @@
       <table id="result_list">
         <thead>
           <tr>
+            <th scope="col">Datum</th>
+            <th scope="col">Číslo bedny</th>
             <th scope="col">Artikl</th>
             <th scope="col">Ø</th>
             <th scope="col">Délka</th>
             <th scope="col">Předpis</th>
             <th scope="col">Typ hlavy</th>
             <th scope="col">Popis</th>
+            <th scope="col">Materiál</th>
+            <th scope="col">Šarže</th>
+            <th scope="col">Množství (ks)</th>            
             <th scope="col">Hmotnost (kg)</th>
-            <th scope="col">Mnozstvi (ks)</th>
-            <th scope="col">Tara (kg)</th>
+            <th scope="col">Tára (kg)</th>
           </tr>
         </thead>
         <tbody>
           {% for row in preview %}
             <tr>
+              <td>{{ row.datum }}</td>
+              <td>{{ row.behalter_nr }}</td>
               <td>{{ row.artikl }}</td>
-              <td>{{ row.prumer }}</td>
-              <td>{{ row.delka }}</td>
-              <td>{{ row.predpis }}</td>
-              <td>{{ row.typ_hlavy }}</td>
+              <td style="text-align: center;">{{ row.prumer }}</td>
+              <td style="text-align: center;">{{ row.delka }}</td>
+              <td style="text-align: center;">{{ row.predpis }}</td>
+              <td style="text-align: center;">{{ row.typ_hlavy }}</td>
               <td>{{ row.popis }}</td>
-              <td>{{ row.hmotnost }}</td>
-              <td>{{ row.mnozstvi }}</td>
-              <td>{{ row.tara }}</td>
+              <td>{{ row.material }}</td>
+              <td>{{ row.sarze }}</td>
+              <td style="text-align: center;">{{ row.mnozstvi }}</td>
+              <td style="text-align: center;">{{ row.hmotnost }}</td>
+              <td style="text-align: center;">{{ row.tara }}</td>
             </tr>
           {% endfor %}
         </tbody>

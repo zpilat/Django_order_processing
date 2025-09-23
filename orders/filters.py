@@ -208,7 +208,7 @@ class TryskaniFilter(DynamicTitleFilter):
     def lookups(self, request, model_admin):
         return [
             (k, f"{v} (Nezadáno)") if k == TryskaniChoice.NEZADANO
-            else (k, f"{v} (Čistá | Otryskaná)") if k == 'hotovo'
+            else (k, f"{v} (Čistá & Otryskaná)") if k == 'hotovo'
             else  (k, v) for k, v in self.label_dict.items()
         ]
 
@@ -236,7 +236,7 @@ class RovnaniFilter(DynamicTitleFilter):
     def lookups(self, request, model_admin):
         return [
             (k, f"{v} (Nezadáno)") if k == RovnaniChoice.NEZADANO
-            else (k, f"{v} (Rovná | Vyrovnaná)") if k == 'hotovo'
+            else (k, f"{v} (Rovná & Vyrovnaná)") if k == 'hotovo'
             else (k, v) for k, v in self.label_dict.items()
             ]
 

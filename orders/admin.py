@@ -836,20 +836,24 @@ class KamionAdmin(SimpleHistoryAdmin):
                     df.sort_values(by=['prumer', 'delka', 'predpis', 'artikl', 'sarze', 'behalter_nr'], inplace=True)
                     logger.info(f"Uživatel {request.user} úspěšně načetl data z Excel souboru pro import zakázek.")
 
-                    # Připravit náhled (prvních 50 řádků)
+                    # Připravení náhledu
                     preview = [
                         {
+                            'datum': r.get('datum').strftime('%d.%m.%Y') if pd.notna(r.get('datum')) else '',
+                            'behalter_nr': int(r.get('behalter_nr')) if pd.notna(r.get('behalter_nr')) else '',
                             'artikl': r.get('artikl'),
                             'prumer': r.get('prumer'),
                             'delka': r.get('delka'),
-                            'predpis': int(r.get('predpis')),
+                            'predpis': int(r.get('predpis')) if pd.notna(r.get('predpis')) else '',
                             'typ_hlavy': r.get('typ_hlavy'),
                             'popis': r.get('popis'),
+                            'material': r.get('material'),
+                            'sarze': r.get('sarze'),
                             'hmotnost': r.get('hmotnost'),
                             'mnozstvi': r.get('mnozstvi'),
                             'tara': r.get('tara'),
                         }
-                        for _, r in df.head(50).iterrows()
+                        for _, r in df.iterrows()
                     ]
 
                     # Pokud jsou chyby po parsování, zobrazit náhled a chyby (bez uložení)
