@@ -1,10 +1,12 @@
 from django.db import models
 from django.db.models.deletion import ProtectedError
-from simple_history.models import HistoricalRecords
 from django.utils.translation import gettext_lazy as _
 from django.urls import reverse
 from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator
 from django.db.models import Sum
+
+from simple_history.models import HistoricalRecords
 
 from decimal import Decimal, ROUND_HALF_UP
 
@@ -472,12 +474,14 @@ class Pozice(models.Model):
         return round((self.pocet_beden / self.kapacita) * 100, 1)
 
 
+hmotnost_validator = MinValueValidator(Decimal('0.0'), message='Hmotnost a tára musí být kladné číslo.')
+
 class Bedna(models.Model):
     zakazka = models.ForeignKey(Zakazka, on_delete=models.CASCADE, related_name='bedny', verbose_name='Zakázka')
     pozice = models.ForeignKey(Pozice, on_delete=models.SET_NULL, null=True, blank=True, related_name='bedny', verbose_name='Pozice')
     cislo_bedny = models.PositiveIntegerField(blank=True, verbose_name='Číslo bedny', unique=True,)
-    hmotnost = models.DecimalField(max_digits=5, decimal_places=1, blank=True, verbose_name='Netto kg')
-    tara = models.DecimalField(max_digits=5, blank=True, decimal_places=1, verbose_name='Tára kg')
+    hmotnost = models.DecimalField(max_digits=5, decimal_places=1, blank=True, verbose_name='Netto kg', validators=[hmotnost_validator],)
+    tara = models.DecimalField(max_digits=5, blank=True, decimal_places=1, verbose_name='Tára kg', validators=[hmotnost_validator],)
     material = models.CharField(max_length=20, null=True, blank=True, verbose_name='Materiál')
     sarze = models.CharField(max_length=20, null=True, blank=True, verbose_name='Šarže materiálu / Charge')
     behalter_nr = models.PositiveIntegerField(null=True, blank=True, verbose_name='Číslo bedny zákazníka')

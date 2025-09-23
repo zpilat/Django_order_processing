@@ -1033,7 +1033,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                 celkova_hmotnost = inline_form.cleaned_data.get("celkova_hmotnost")
                 celkove_mnozstvi = inline_form.cleaned_data.get("celkove_mnozstvi")
                 pocet_beden = inline_form.cleaned_data.get("pocet_beden")
-                tara = inline_form.cleaned_data.get("tara", 65.0)  # výchozí hodnota 65 kg
+                tara = inline_form.cleaned_data.get("tara")
                 material = inline_form.cleaned_data.get("material", '')
 
                 # Rozpočítání hmotnosti a množství a vytvoření beden zakázky, pokud je zadán počet beden a celková hmotnost

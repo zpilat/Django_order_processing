@@ -36,10 +36,6 @@ class ZakazkaPredpisValidatorMixin:
 
 
 class ZakazkaAdminForm(ZakazkaPredpisValidatorMixin, forms.ModelForm):
-    celkova_hmotnost = forms.DecimalField(required=False, min_value=1.0, label="Celková hmotnost kg zakázky")
-    celkove_mnozstvi = forms.IntegerField(required=False, min_value=1, label="Celkové množství ks v zakázce")
-    pocet_beden = forms.IntegerField(required=False, min_value=1, label="Celkový počet beden v zakázce")   
-    tara = forms.DecimalField(required=False, min_value=20.0, initial=65.0, label="Tára")
     material = forms.CharField(required=False, label="Materiál")
     sarze = forms.CharField(required=False, label="Šarže materiálu")
     dodatecne_info = forms.CharField(required=False, label="Sonder / Zusatzinfo")
@@ -105,13 +101,12 @@ class ZakazkaInlineForm(ZakazkaPredpisValidatorMixin, forms.ModelForm):
     """
     celkova_hmotnost = forms.DecimalField(
         label="Celk. hmotn.",
-        min_value=1.0,
+        min_value=0.0,
         widget=forms.TextInput(attrs={'size': '8', 'style': 'width: 60px;'})
     )
     celkove_mnozstvi = forms.IntegerField(
         label="Celk. množ.",
-        min_value=1,
-        required=False,
+        min_value=0,
         widget=forms.NumberInput(attrs={'size': '5', 'style': 'width: 60px;'})
     )
     pocet_beden = forms.IntegerField(
@@ -121,8 +116,7 @@ class ZakazkaInlineForm(ZakazkaPredpisValidatorMixin, forms.ModelForm):
     )
     tara = forms.DecimalField(
         label="Tára",
-        min_value=20.0,
-        initial=65.0,
+        min_value=0.0,
         widget=forms.TextInput(attrs={'size': '8', 'style': 'width: 40px;'})
     )
     material = forms.CharField(
