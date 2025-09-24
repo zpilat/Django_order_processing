@@ -201,6 +201,34 @@ class BednaAdminForm(forms.ModelForm):
             # Nastavení querysetu pro pole 'zakazka' na zakázky, které nejsou expedované
             self.fields['zakazka'].queryset = Zakazka.objects.filter(expedovano=False).order_by('-id')
 
+    def clean(self):
+        """
+        Vypočítá taru z ne-modelového pole 'brutto' při splnění těchto podmínek:
+        - počítá jen pokud je brutto > 0 a hmotnost > 0,
+        - pouze pokud není zadaná kladná tára (tj. None nebo <= 0 se bere jako nezadáno),
+        - záporný výsledek se nastaví na 0.
+        """
+        cleaned = super().clean()
+
+        brutto = cleaned.get('brutto')
+        hmotnost = cleaned.get('hmotnost')
+        tara = cleaned.get('tara')
+
+        try:
+            if brutto is not None:
+                # pokud je už zadána kladná tára, nesahej na ni
+                if tara is not None and tara > 0:
+                    return cleaned
+                # počítej jen pro brutto > 0 a hmotnost > 0
+                if brutto > 0 and hmotnost is not None and hmotnost > 0:
+                    vypocet = brutto - hmotnost
+                    cleaned['tara'] = vypocet if vypocet > 0 else 0
+        except Exception:
+            # v případě nečekaného typu/konverze nech beze změny
+            return cleaned
+
+        return cleaned
+
 
 class VyberKamionVydejForm(forms.Form):
     """

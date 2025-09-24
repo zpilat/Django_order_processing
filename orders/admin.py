@@ -1030,6 +1030,13 @@ class KamionAdmin(SimpleHistoryAdmin):
                 zakazka.kamion_prijem = form.instance
                 zakazka.save()
 
+                # Ulož M2M vazby pro tento formulář (pokud nějaké jsou)
+                if hasattr(inline_form, 'save_m2m'):
+                    try:
+                        inline_form.save_m2m()
+                    except Exception:
+                        pass
+
                 # Získání dodatečných hodnot z vlastního formuláře zakázky (bezpečné převody z None)
                 celkova_hmotnost = inline_form.cleaned_data.get("celkova_hmotnost")
                 celkove_mnozstvi = inline_form.cleaned_data.get("celkove_mnozstvi")
@@ -1060,10 +1067,10 @@ class KamionAdmin(SimpleHistoryAdmin):
                         warnings_for_order.append("není zadáno celkové množství - množství v bednách nebude nastaveno")
 
                     if not (tara and tara > 0):
+                        tara = None                        
                         warnings_for_order.append("není zadána hodnota v poli tára - tára nebude nastavena")
-                        tara = None
 
-                    # Pokud vznikly varování, pošleme JEDNU souhrnnou hlášku
+                    # Pokud vznikly varování, pošle se jedna souhrnnou hlášku
                     if warnings_for_order:
                         try:
                             messages.info(
@@ -1159,7 +1166,7 @@ class BednaInline(admin.TabularInline):
             `dodatecne_info`, `dodavatel_materialu` a `vyrobni_zakazka`.
         - Pokud je obj (tj. edit_view) a zákazník kamionu příjmu je SPX, vyloučí se pole `dodatecne_info` a
             `dodavatel_materialu`. V případě, že aspoň jedna bedna zakázky má zadánu nenulovou hodnotu v poli
-            tara, vyloučí se pole `brutto`.
+            tara, vyloučí se pole `brutto`, jinak se vyloučí pole `tara`.
         - Pokud je obj (tj. edit_view) a zákazník kamionu příjmu je 'SSH', 'SWG', 'HPM', 'FIS',
             vyloučí se pole `behalter_nr`, `brutto`, `dodatecne_info`, `dodavatel_materialu` a `vyrobni_zakazka`.
         - Pokud je obj (tj. edit_view) a zákazník kamionu příjmu 'EUR', vyloučí se pole `brutto`.
@@ -1173,9 +1180,11 @@ class BednaInline(admin.TabularInline):
                 exclude_fields = ['brutto', 'dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka']
             elif obj.kamion_prijem.zakaznik.zkratka == 'SPX':
                 exclude_fields = ['dodatecne_info', 'dodavatel_materialu']
-                # Pokud má aspoň jedna bedna kladnou taru (> 0), vyloučí se navíc pole brutto
+                # Pokud má aspoň jedna bedna kladnou taru (> 0), vyloučí se navíc pole brutto, jinak se vyloučí pole tara
                 if obj.bedny.filter(tara__gt=0).exists():
                     exclude_fields.append('brutto')
+                else:
+                    exclude_fields.append('tara')
             elif obj.kamion_prijem.zakaznik.zkratka in ('SSH', 'SWG', 'HPM', 'FIS'):
                 exclude_fields = ['behalter_nr', 'brutto', 'dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka']
             elif obj.kamion_prijem.zakaznik.zkratka == 'EUR':
