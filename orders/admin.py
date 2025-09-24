@@ -839,19 +839,19 @@ class KamionAdmin(SimpleHistoryAdmin):
                     # Připravení náhledu
                     preview = [
                         {
-                            'datum': r.get('datum').strftime('%d.%m.%Y') if pd.notna(r.get('datum')) else '',
-                            'behalter_nr': int(r.get('behalter_nr')) if pd.notna(r.get('behalter_nr')) else '',
-                            'artikl': r.get('artikl'),
-                            'prumer': r.get('prumer'),
-                            'delka': r.get('delka'),
-                            'predpis': int(r.get('predpis')) if pd.notna(r.get('predpis')) else '',
-                            'typ_hlavy': r.get('typ_hlavy'),
-                            'popis': r.get('popis'),
-                            'material': r.get('material'),
-                            'sarze': r.get('sarze'),
-                            'hmotnost': r.get('hmotnost'),
-                            'mnozstvi': r.get('mnozstvi'),
-                            'tara': r.get('tara'),
+                            'datum': r.get('datum').strftime('%d.%m.%Y') if pd.notna(r.get('datum')) else '!!!!!!',
+                            'behalter_nr': int(r.get('behalter_nr')) if pd.notna(r.get('behalter_nr')) else '!!!!!!',
+                            'artikl': r.get('artikl') if pd.notna(r.get('artikl')) else '!!!!!!',
+                            'prumer': r.get('prumer') if pd.notna(r.get('prumer')) else '!!!!!!',
+                            'delka': r.get('delka') if pd.notna(r.get('delka')) else '!!!!!!',
+                            'predpis': int(r.get('predpis')) if pd.notna(r.get('predpis')) else '!!!!!!',
+                            'typ_hlavy': r.get('typ_hlavy') if pd.notna(r.get('typ_hlavy')) else '!!!!!!',
+                            'popis': r.get('popis') if pd.notna(r.get('popis')) else '!!!!!!',
+                            'material': r.get('material') if pd.notna(r.get('material')) else '!!!!!!',
+                            'sarze': r.get('sarze') if pd.notna(r.get('sarze')) else '!!!!!!',
+                            'hmotnost': r.get('hmotnost') if pd.notna(r.get('hmotnost')) else '!!!!!!',
+                            'mnozstvi': r.get('mnozstvi') if pd.notna(r.get('mnozstvi')) else '!!!!!!',
+                            'tara': r.get('tara') if pd.notna(r.get('tara')) else '!!!!!!',
                         }
                         for _, r in df.iterrows()
                     ]
@@ -1015,8 +1015,9 @@ class KamionAdmin(SimpleHistoryAdmin):
     def save_formset(self, request, form, formset: BaseInlineFormSet, change):
         """
         Uloží inline formuláře pro zakázky kamionu a vytvoří bedny na základě zadaných dat.
+        Při úpravách stávajícího kamionu, který už obsahuje zakázky, se pouze uloží všechny změny do databáze bez vytvoření beden.
         """
-        # Při úpravách stávajícího kamionu, který už obsahuje zakázky, se pouze uloží všechny změny do databáze bez vytvoření beden.
+        # Úprava stávajícího kamionu s již existujícími zakázkami - pouze uloží změny
         if change and formset.instance.zakazky_prijem.exists():
             formset.save()
         # Při vytvoření nového kamionu nebo při přidání zakázek do prázdného kamionu se zpracují inline formuláře pro zakázky a vytvoří se případně automaticky bedny        
@@ -1029,52 +1030,45 @@ class KamionAdmin(SimpleHistoryAdmin):
                 zakazka.kamion_prijem = form.instance
                 zakazka.save()
 
-                # Získání dodatečných hodnot z vlastního formuláře zakázky
-                celkova_hmotnost = inline_form.cleaned_data.get("celkova_hmotnost")
-                celkove_mnozstvi = inline_form.cleaned_data.get("celkove_mnozstvi")
-                pocet_beden = inline_form.cleaned_data.get("pocet_beden")
-                tara = inline_form.cleaned_data.get("tara")
-                material = inline_form.cleaned_data.get("material", '')
+                # Získání dodatečných hodnot z vlastního formuláře zakázky (bezpečné převody z None)
+                raw_celk_hm = inline_form.cleaned_data.get("celkova_hmotnost")
+                raw_celk_mn = inline_form.cleaned_data.get("celkove_mnozstvi")
+                raw_pocet   = inline_form.cleaned_data.get("pocet_beden")
+                raw_tara    = inline_form.cleaned_data.get("tara")
+                material    = inline_form.cleaned_data.get("material", '')
 
-                # Rozpočítání hmotnosti a množství a vytvoření beden zakázky, pokud je zadán počet beden a celková hmotnost
-                if pocet_beden:
-                    # Pokud není zadána celková hmotnost, dá se error, protože hmotnost bedny je povinná
-                    if not celkova_hmotnost:
-                        formset._non_form_errors = formset.error_class(
-                            ["Pokud je zadán počet beden, musí být zadána i celková hmotnost."]
-                        )
-                        raise ValidationError(
-                            "Pokud je zadán počet beden, musí být zadána i celková hmotnost."
-                        )
-                    if celkova_hmotnost <= 0:
-                        formset._non_form_errors = formset.error_class(
-                            ["Celková hmotnost musí být větší než 0."]
-                        )
-                        raise ValidationError("Celková hmotnost musí být větší než 0.")
-                    # Pokud není zadáno správné množství, dá se warning a mnozstvi bedny se nastaví se na 1
-                    if not celkove_mnozstvi or celkove_mnozstvi <= 0:
-                        try:
-                            messages.warning(
-                                request,
-                                f"U zakázky {zakazka} nebylo zadáno množství nebo bylo menší než 1. Nastavuje se množství v bedně na 1ks.",
-                            )
-                            logger.warning(
-                                f"U zakázky {zakazka} nebylo zadáno množství nebo bylo menší než 1. Nastavuje se množství v bedně na 1ks."
-                            )
-                        except Exception:
-                            pass
-                        mnozstvi_bedny = 1
-                    # Pokud je zadáno správné celkové množství, rozdělí se do jednotlivých beden, jedná se o orientační hodnotu
+                # Form fields vrací již typované hodnoty nebo None – ošetří None
+                celkova_hmotnost = raw_celk_hm if raw_celk_hm is not None else Decimal('0')
+                celkove_mnozstvi = raw_celk_mn if raw_celk_mn is not None else 0
+                pocet_beden = raw_pocet if raw_pocet is not None else 0
+                tara = raw_tara if raw_tara is not None else Decimal('0')
+
+                # Vytvoření beden zakázky, pokud je zadán počet beden 
+                if pocet_beden > 0:
+                    # Pokud je zadána celková hmotnost, rozpočítá se na jednotlivé bedny, pro poslední bednu se použije
+                    # zbytek hmotnosti po rozpočítání a zaokrouhlení
+                    if celkova_hmotnost and celkova_hmotnost > 0:
+                        hmotnost_bedny = celkova_hmotnost / pocet_beden
+                        hmotnost_bedny = hmotnost_bedny.quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)
+                        hodnoty = [hmotnost_bedny] * (pocet_beden - 1)
+                        posledni = celkova_hmotnost - sum(hodnoty)
+                        posledni = posledni.quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)
+                        hodnoty.append(posledni)
                     else:
-                        mnozstvi_bedny = max(int(celkove_mnozstvi) // int(pocet_beden), 1)
-
-                    # Rozpočítání hmotnosti, pro poslední bednu se použije zbytek hmotnosti po rozpočítání a zaokrouhlení
-                    hmotnost_bedny = Decimal(celkova_hmotnost) / int(pocet_beden)
-                    hmotnost_bedny = hmotnost_bedny.quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)
-                    hodnoty = [hmotnost_bedny] * (pocet_beden - 1)
-                    posledni = celkova_hmotnost - sum(hodnoty)
-                    posledni = posledni.quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)
-                    hodnoty.append(posledni)
+                        hodnoty = [Decimal('0.0')] * pocet_beden
+                        messages.info(
+                            request,
+                            _(f"U zakázky {zakazka} není zadána celková hmotnost, hmotnosti beden budou nastaveny na 0.0 kg.")
+                        )
+                    # Pokud je zadáno celkové množství, rozpočítá se jednoduše na jednotlivé bedny, je to orientační hodnota
+                    if celkove_mnozstvi > 0:
+                        mnozstvi_bedny = celkove_mnozstvi // pocet_beden
+                    else:
+                        mnozstvi_bedny = None
+                        messages.info(
+                            request,
+                            _(f"U zakázky {zakazka} není zadáno celkové množství, množství v bednách nebude nastaveno.")
+                        )
 
                     for i in range(pocet_beden):
                         Bedna.objects.create(
@@ -1085,6 +1079,16 @@ class KamionAdmin(SimpleHistoryAdmin):
                             mnozstvi=mnozstvi_bedny,
                             # cislo_bedny se dopočítá v metodě save() modelu Bedna
                         )
+
+                # Pokud není zadán počet beden, nevytváří se automaticky žádné bedny a dá se info
+                else:
+                    messages.info(
+                        request,
+                        _(f"U zakázky {zakazka} je zadán počet beden nula, nebudou vytvořeny žádné bedny.")
+                    )
+                    logger.info(
+                        _(f"U zakázky {zakazka} je zadán počet beden nula, nebudou vytvořeny žádné bedny.")
+                    )
 
 
 class BednaInline(admin.TabularInline):

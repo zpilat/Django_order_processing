@@ -42,9 +42,6 @@ class ZakazkaAdminForm(ZakazkaPredpisValidatorMixin, forms.ModelForm):
     dodavatel_materialu = forms.CharField(required=False, label="Lief.")
     vyrobni_zakazka = forms.CharField(required=False, label="Fertigungs-auftrags Nr.")
     poznamka = forms.CharField(required=False, label="Poznámka HPM")
-    tryskat = forms.ChoiceField(choices=TryskaniChoice.choices, required=False, label="Změna stavu tryskání")
-    rovnat = forms.ChoiceField(choices=RovnaniChoice.choices, required=False, label="Změna stavu rovnání")
-    stav_bedny = forms.ChoiceField(choices=StavBednyChoice.choices[:-1], required=False, label="Změna stavu bedny")
 
     class Meta:
         model = Zakazka
@@ -53,13 +50,6 @@ class ZakazkaAdminForm(ZakazkaPredpisValidatorMixin, forms.ModelForm):
     def __init__(self, *args, **kwargs):
         """
         Inicializace formuláře ZakazkaAdminForm.
-        Pole stav_bedny, tryskat a rovnat se u tvorby nové zakázky nezobrazují,
-        při editaci se zobrazí pouze v případě, že všechny bedny v zakázce mají stejný stav a/nebo
-        hodnotu tryskat a/nebo rovnat. Zobrazení je zajištěno podmínkou v fieldsetu v modeladminu.
-        V tomto případě se zobrazí s nabídkou stávající hodnoty jako initial, tryskat a rovnat všechny hodnoty,
-        stav_bedny s možností změny na přechozí nebo následující stav bedny pro všechny bedny v zakázce.
-        Stav bedny se nastaví podle první bedny v zakázce, pokud existuje 
-        a to ve třídě Patchedform v metodě get_form v modelu Bedna.
         Jsou vyfiltrovány pouze aktivní předpisy zákazníka, pokud je zakázka přiřazena ke kamionu s zákazníkem.
         Jinak jsou zobrazeny všechny aktivní předpisy.
         Jsou vyfiltrovány pouze kamiony, které mají stav 'P' (příjem) a obsahují aspoň jednu zakázku, která
@@ -67,12 +57,6 @@ class ZakazkaAdminForm(ZakazkaPredpisValidatorMixin, forms.ModelForm):
         """
         super().__init__(*args, **kwargs)
         inst = getattr(self, "instance", None)
-
-        if inst and inst.pk:
-            # Inicializace z první bedny (pokud existuje)
-            bedna = inst.bedny.first()
-            self.fields['tryskat'].initial = bedna.tryskat if bedna else TryskaniChoice.NEZADANO
-            self.fields['rovnat'].initial = bedna.rovnat if bedna else RovnaniChoice.NEZADANO
 
         # Nastavení querysetu pro pole 'predpis' podle kontextu zakázky
         if 'predpis' in self.fields:
@@ -102,21 +86,25 @@ class ZakazkaInlineForm(ZakazkaPredpisValidatorMixin, forms.ModelForm):
     celkova_hmotnost = forms.DecimalField(
         label="Celk. hmotn.",
         min_value=0.0,
+        required=False,
         widget=forms.TextInput(attrs={'size': '8', 'style': 'width: 60px;'})
     )
     celkove_mnozstvi = forms.IntegerField(
         label="Celk. množ.",
         min_value=0,
+        required=False,
         widget=forms.NumberInput(attrs={'size': '5', 'style': 'width: 60px;'})
     )
     pocet_beden = forms.IntegerField(
         label="Počet beden",
-        min_value=1,
+        min_value=0,
+        required=False,
         widget=forms.NumberInput(attrs={'size': '5', 'style': 'width: 40px;'})
     )
     tara = forms.DecimalField(
         label="Tára",
         min_value=0.0,
+        required=False,
         widget=forms.TextInput(attrs={'size': '8', 'style': 'width: 40px;'})
     )
     material = forms.CharField(
