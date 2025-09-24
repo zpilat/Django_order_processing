@@ -1162,14 +1162,13 @@ class BednaInline(admin.TabularInline):
         Vrací seznam polí, která se mají zobrazit ve formuláři Bednainline.
 
         - Pokud není obj (tj. add_view), vyloučí se pole `cislo_bedny`, protože se generuje automaticky.
-        - Pokud je obj (tj. edit_view) a zákazník kamionu příjmu je 'ROT', vyloučí se pole `brutto`,
-            `dodatecne_info`, `dodavatel_materialu` a `vyrobni_zakazka`.
+        - Pokud je obj (tj. edit_view) a zákazník kamionu příjmu je 'ROT', vyloučí se pole `dodatecne_info`,
+            `dodavatel_materialu` a `vyrobni_zakazka`.
         - Pokud je obj (tj. edit_view) a zákazník kamionu příjmu je SPX, vyloučí se pole `dodatecne_info` a
-            `dodavatel_materialu`. V případě, že aspoň jedna bedna zakázky má zadánu nenulovou hodnotu v poli
-            tara, vyloučí se pole `brutto`, jinak se vyloučí pole `tara`.
+            `dodavatel_materialu`. 
         - Pokud je obj (tj. edit_view) a zákazník kamionu příjmu je 'SSH', 'SWG', 'HPM', 'FIS',
-            vyloučí se pole `behalter_nr`, `brutto`, `dodatecne_info`, `dodavatel_materialu` a `vyrobni_zakazka`.
-        - Pokud je obj (tj. edit_view) a zákazník kamionu příjmu 'EUR', vyloučí se pole `brutto`.
+            vyloučí se pole `behalter_nr`, `dodatecne_info`, `dodavatel_materialu` a `vyrobni_zakazka`.
+        - Pokud je obj (tj. edit_view) a alespoň jedna bedna zakázky má vyplněné pole `tara`, vyloučí se pole `brutto`.
         """
         fields = list(super().get_fields(request, obj))
         exclude_fields = []
@@ -1177,18 +1176,14 @@ class BednaInline(admin.TabularInline):
         if obj:
             # Vyloučení polí dle zákazníka
             if obj.kamion_prijem.zakaznik.zkratka == 'ROT':
-                exclude_fields = ['brutto', 'dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka']
+                exclude_fields = ['dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka']
             elif obj.kamion_prijem.zakaznik.zkratka == 'SPX':
                 exclude_fields = ['dodatecne_info', 'dodavatel_materialu']
-                # Pokud má aspoň jedna bedna kladnou taru (> 0), vyloučí se navíc pole brutto, jinak se vyloučí pole tara
-                if obj.bedny.filter(tara__gt=0).exists():
-                    exclude_fields.append('brutto')
-                else:
-                    exclude_fields.append('tara')
             elif obj.kamion_prijem.zakaznik.zkratka in ('SSH', 'SWG', 'HPM', 'FIS'):
-                exclude_fields = ['behalter_nr', 'brutto', 'dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka']
-            elif obj.kamion_prijem.zakaznik.zkratka == 'EUR':
-                exclude_fields = ['brutto']
+                exclude_fields = ['behalter_nr', 'dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka']
+            # Pokud má aspoň jedna bedna kladnou taru (> 0), vyloučí se navíc pole brutto
+            if obj.bedny.filter(tara__gt=0).exists():
+                exclude_fields.append('brutto')            
         # Při přidání nové bedny se vyloučí pole `cislo_bedny`, protože se generuje automaticky.
         else:
             exclude_fields = ['cislo_bedny']
@@ -1821,7 +1816,7 @@ class BednaAdmin(SimpleHistoryAdmin):
                 'zakazka', 'cislo_bedny', 'behalter_nr', 'material', 'sarze', 'poznamka', 'odfosfatovat'
             )),
             ("Hmotnost a množství", (
-                'hmotnost', 'tara', 'mnozstvi'
+                'hmotnost', 'tara', 'brutto', 'mnozstvi'
             )),
             ("Stavy bedny", (
                 'tryskat', 'rovnat', 'stav_bedny', 'pozastaveno'
@@ -1843,6 +1838,10 @@ class BednaAdmin(SimpleHistoryAdmin):
                 exclude_fields = ['dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka']
             elif zkratka in ('SSH', 'SWG', 'HPM', 'FIS'):
                 exclude_fields = ['behalter_nr', 'dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka']
+            elif zkratka == 'SPX':
+                exclude_fields = ['dodatecne_info', 'dodavatel_materialu']
+            if obj.tara is not None and obj.tara > 0:
+                exclude_fields.append('brutto')
         else:
             # add_view: cislo_bedny se generuje automaticky
             exclude_fields = ['cislo_bedny']

@@ -1,6 +1,9 @@
 from django import forms
 from django.db.models import Exists, OuterRef
 from django.utils import timezone
+
+from decimal import Decimal, ROUND_HALF_UP
+
 from .models import Zakaznik, Kamion, Zakazka, Bedna, Predpis, Odberatel, Pozice
 from .choices import StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice
 
@@ -155,6 +158,7 @@ class BednaAdminForm(forms.ModelForm):
         label="Brutto kg",
         min_value=0.0,
         required=False,
+        help_text="Zadejte brutto pouze pro výpočet táry v případě, že není zadána.",
         widget=forms.TextInput(attrs={'size': '8', 'style': 'width: 60px;'})
     )
 
@@ -203,29 +207,55 @@ class BednaAdminForm(forms.ModelForm):
 
     def clean(self):
         """
-        Vypočítá taru z ne-modelového pole 'brutto' při splnění těchto podmínek:
-        - počítá jen pokud je brutto > 0 a hmotnost > 0,
-        - pouze pokud není zadaná kladná tára (tj. None nebo <= 0 se bere jako nezadáno),
-        - záporný výsledek se nastaví na 0.
+        Validace a výpočet pro formulář BednaAdminForm.
+        Validace:
+        1) Hmotnost musí být zadána a větší než 0.
+        2) Musí být zadána buď tára (větší než 0) nebo brutto (větší než 0) - stačí jedno z nich.
+        3) Musí být zadáno množství větší než 0.
+        4) Pokud není zadána tára, ověří se, že brutto > hmotnost, jinak přidá chybu.
+        5) Pokud je zadána tára, nesmí už být zadána hodnota brutto.
+        Výpočet:
+        Vypočítá táru z ne-modelového pole 'brutto' pokud je zadáno brutto a není zadána tára.
         """
         cleaned = super().clean()
 
         brutto = cleaned.get('brutto')
         hmotnost = cleaned.get('hmotnost')
         tara = cleaned.get('tara')
+        mnozstvi = cleaned.get('mnozstvi')
 
-        try:
-            if brutto is not None:
-                # pokud je už zadána kladná tára, nesahej na ni
-                if tara is not None and tara > 0:
-                    return cleaned
-                # počítej jen pro brutto > 0 a hmotnost > 0
-                if brutto > 0 and hmotnost is not None and hmotnost > 0:
+        # VALIDACE - zobrazí se chyby a nedojde k uložení
+
+        # 1) Hmotnost musí být zadána a větší než 0
+        if hmotnost is None or hmotnost <= 0:
+            self.add_error('hmotnost', "Musí být zadána hmotnost.")
+
+        # 2) Musí být zadána buď tára (větší než 0) nebo brutto (větší než 0) - stačí jedno z nich
+        if (tara is None or tara <= 0) and (brutto is None or brutto <= 0):
+            self.add_error('tara', "Zadejte buď táru nebo brutto.")
+        
+        # 3) Musí být zadáno množství větší než 0
+        if mnozstvi is None or mnozstvi <= 0:
+            self.add_error('mnozstvi', "Množství musí být větší než 0.")
+
+        # 4) Pokud není zadána tára, ověří se, že brutto > hmotnost, jinak přidá chybu
+        if (tara is None or tara <= 0) and (brutto is not None and brutto > 0) and (hmotnost is not None and hmotnost > 0):
+            if brutto <= hmotnost:
+                self.add_error('brutto', "Brutto musí být větší než hmotnost nebo zadejte táru.")
+
+        # 5) Pokud je zadána tára, nesmí už být zadána hodnota brutto
+        if tara is not None and tara > 0 and brutto is not None and brutto > 0:
+            self.add_error('brutto', "Pokud je zadána tára, nesmí být zadáno brutto.")
+
+        # VÝPOČET - pokud nejsou chyby, nastaví se tára
+        if not self.errors:
+            try:
+                if brutto is not None and brutto > 0:
                     vypocet = brutto - hmotnost
-                    cleaned['tara'] = vypocet if vypocet > 0 else 0
-        except Exception:
-            # v případě nečekaného typu/konverze nech beze změny
-            return cleaned
+                    cleaned['tara'] = vypocet.quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)
+            except Exception:
+                # v případě nečekaného typu/konverze nech beze změny
+                return cleaned
 
         return cleaned
 
