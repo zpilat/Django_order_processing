@@ -336,7 +336,7 @@ class Zakazka(models.Model):
         )
 
     def __str__(self):
-        return f'{self.artikl}-{self.kamion_prijem.datum.strftime("%d.%m.%y")}-{self.kamion_prijem.id}. {self.kamion_prijem.zakaznik.zkratka}'
+        return f'{self.artikl}-{self.kamion_prijem.datum.strftime("%d.%m.%y")}-{self.kamion_prijem.poradove_cislo}. {self.kamion_prijem.zakaznik.zkratka}'
 
     @property
     def celkova_hmotnost(self):
@@ -480,8 +480,8 @@ class Bedna(models.Model):
     zakazka = models.ForeignKey(Zakazka, on_delete=models.CASCADE, related_name='bedny', verbose_name='Zakázka')
     pozice = models.ForeignKey(Pozice, on_delete=models.SET_NULL, null=True, blank=True, related_name='bedny', verbose_name='Pozice')
     cislo_bedny = models.PositiveIntegerField(blank=True, verbose_name='Číslo bedny', unique=True,)
-    hmotnost = models.DecimalField(max_digits=5, decimal_places=1, blank=True, verbose_name='Netto kg', validators=[hmotnost_validator],)
-    tara = models.DecimalField(max_digits=5, blank=True, decimal_places=1, verbose_name='Tára kg', validators=[hmotnost_validator],)
+    hmotnost = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True, verbose_name='Netto kg', validators=[hmotnost_validator],)
+    tara = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True, verbose_name='Tára kg', validators=[hmotnost_validator],)
     material = models.CharField(max_length=20, null=True, blank=True, verbose_name='Materiál')
     sarze = models.CharField(max_length=20, null=True, blank=True, verbose_name='Šarže materiálu / Charge')
     behalter_nr = models.PositiveIntegerField(null=True, blank=True, verbose_name='Číslo bedny zákazníka')

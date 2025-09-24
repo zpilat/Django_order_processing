@@ -151,6 +151,13 @@ class BednaAdminForm(forms.ModelForm):
 
     Omezuje jak při tvorbě, tak při změně výběr zakázky na ty zakázky, které ještě nejsou expedované.
     """
+    brutto = forms.DecimalField(
+        label="Brutto kg",
+        min_value=0.0,
+        required=False,
+        widget=forms.TextInput(attrs={'size': '8', 'style': 'width: 60px;'})
+    )
+
     class Meta:
         model = Bedna
         fields = "__all__"

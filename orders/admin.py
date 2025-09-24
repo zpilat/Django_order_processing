@@ -1031,20 +1031,16 @@ class KamionAdmin(SimpleHistoryAdmin):
                 zakazka.save()
 
                 # Získání dodatečných hodnot z vlastního formuláře zakázky (bezpečné převody z None)
-                raw_celk_hm = inline_form.cleaned_data.get("celkova_hmotnost")
-                raw_celk_mn = inline_form.cleaned_data.get("celkove_mnozstvi")
-                raw_pocet   = inline_form.cleaned_data.get("pocet_beden")
-                raw_tara    = inline_form.cleaned_data.get("tara")
-                material    = inline_form.cleaned_data.get("material", '')
-
-                # Form fields vrací již typované hodnoty nebo None – ošetří None
-                celkova_hmotnost = raw_celk_hm if raw_celk_hm is not None else Decimal('0')
-                celkove_mnozstvi = raw_celk_mn if raw_celk_mn is not None else 0
-                pocet_beden = raw_pocet if raw_pocet is not None else 0
-                tara = raw_tara if raw_tara is not None else Decimal('0')
+                celkova_hmotnost = inline_form.cleaned_data.get("celkova_hmotnost")
+                celkove_mnozstvi = inline_form.cleaned_data.get("celkove_mnozstvi")
+                pocet_beden = inline_form.cleaned_data.get("pocet_beden")
+                tara = inline_form.cleaned_data.get("tara")
+                material = inline_form.cleaned_data.get("material")
 
                 # Vytvoření beden zakázky, pokud je zadán počet beden 
-                if pocet_beden > 0:
+                if pocet_beden and pocet_beden > 0:
+                    # Shromažďování varování pro jednu souhrnnou hlášku
+                    warnings_for_order = []
                     # Pokud je zadána celková hmotnost, rozpočítá se na jednotlivé bedny, pro poslední bednu se použije
                     # zbytek hmotnosti po rozpočítání a zaokrouhlení
                     if celkova_hmotnost and celkova_hmotnost > 0:
@@ -1052,23 +1048,30 @@ class KamionAdmin(SimpleHistoryAdmin):
                         hmotnost_bedny = hmotnost_bedny.quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)
                         hodnoty = [hmotnost_bedny] * (pocet_beden - 1)
                         posledni = celkova_hmotnost - sum(hodnoty)
-                        posledni = posledni.quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)
                         hodnoty.append(posledni)
                     else:
-                        hodnoty = [Decimal('0.0')] * pocet_beden
-                        messages.info(
-                            request,
-                            _(f"U zakázky {zakazka} není zadána celková hmotnost, hmotnosti beden budou nastaveny na 0.0 kg.")
-                        )
+                        hodnoty = [None] * pocet_beden
+                        warnings_for_order.append("není zadána celková hmotnost - hmotnosti beden nebudou nastaveny")
                     # Pokud je zadáno celkové množství, rozpočítá se jednoduše na jednotlivé bedny, je to orientační hodnota
-                    if celkove_mnozstvi > 0:
+                    if celkove_mnozstvi and celkove_mnozstvi > 0:
                         mnozstvi_bedny = celkove_mnozstvi // pocet_beden
                     else:
                         mnozstvi_bedny = None
-                        messages.info(
-                            request,
-                            _(f"U zakázky {zakazka} není zadáno celkové množství, množství v bednách nebude nastaveno.")
-                        )
+                        warnings_for_order.append("není zadáno celkové množství - množství v bednách nebude nastaveno")
+
+                    if not (tara and tara > 0):
+                        warnings_for_order.append("není zadána hodnota v poli tára - tára nebude nastavena")
+                        tara = None
+
+                    # Pokud vznikly varování, pošleme JEDNU souhrnnou hlášku
+                    if warnings_for_order:
+                        try:
+                            messages.info(
+                                request,
+                                _(f"U zakázky {zakazka} {', '.join(warnings_for_order)}.")
+                            )
+                        except Exception:
+                            pass
 
                     for i in range(pocet_beden):
                         Bedna.objects.create(
@@ -1099,8 +1102,8 @@ class BednaInline(admin.TabularInline):
     form = BednaAdminForm
     extra = 0
     # další úprava zobrazovaných polí podle různých podmínek je v get_fields
-    fields = ('cislo_bedny', 'behalter_nr', 'hmotnost', 'tara', 'mnozstvi', 'material', 'sarze', 'dodatecne_info', 'dodavatel_materialu',
-              'vyrobni_zakazka', 'odfosfatovat', 'tryskat', 'rovnat', 'stav_bedny', 'poznamka',)
+    fields = ('cislo_bedny', 'behalter_nr', 'hmotnost', 'tara', 'brutto', 'mnozstvi', 'material', 'sarze', 'dodatecne_info',
+              'dodavatel_materialu', 'vyrobni_zakazka', 'odfosfatovat', 'tryskat', 'rovnat', 'stav_bedny', 'poznamka',)
     readonly_fields = ('cislo_bedny',)
     show_change_link = True
     formfield_overrides = {
@@ -1152,10 +1155,14 @@ class BednaInline(admin.TabularInline):
         Vrací seznam polí, která se mají zobrazit ve formuláři Bednainline.
 
         - Pokud není obj (tj. add_view), vyloučí se pole `cislo_bedny`, protože se generuje automaticky.
-        - Pokud je obj (tj. edit_view) a zákazník kamionu příjmu je 'ROT', vyloučí se pole `dodatecne_info`,
-            `dodavatel_materialu` a `vyrobni_zakazka`.
+        - Pokud je obj (tj. edit_view) a zákazník kamionu příjmu je 'ROT', vyloučí se pole `brutto`,
+            `dodatecne_info`, `dodavatel_materialu` a `vyrobni_zakazka`.
+        - Pokud je obj (tj. edit_view) a zákazník kamionu příjmu je SPX, vyloučí se pole `dodatecne_info` a
+            `dodavatel_materialu`. V případě, že aspoň jedna bedna zakázky má zadánu nenulovou hodnotu v poli
+            tara, vyloučí se pole `brutto`.
         - Pokud je obj (tj. edit_view) a zákazník kamionu příjmu je 'SSH', 'SWG', 'HPM', 'FIS',
-            vyloučí se pole `behalter_nr`, `dodatecne_info`, `dodavatel_materialu` a `vyrobni_zakazka`.
+            vyloučí se pole `behalter_nr`, `brutto`, `dodatecne_info`, `dodavatel_materialu` a `vyrobni_zakazka`.
+        - Pokud je obj (tj. edit_view) a zákazník kamionu příjmu 'EUR', vyloučí se pole `brutto`.
         """
         fields = list(super().get_fields(request, obj))
         exclude_fields = []
@@ -1163,9 +1170,16 @@ class BednaInline(admin.TabularInline):
         if obj:
             # Vyloučení polí dle zákazníka
             if obj.kamion_prijem.zakaznik.zkratka == 'ROT':
-                exclude_fields = ['dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka']
+                exclude_fields = ['brutto', 'dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka']
+            elif obj.kamion_prijem.zakaznik.zkratka == 'SPX':
+                exclude_fields = ['dodatecne_info', 'dodavatel_materialu']
+                # Pokud má aspoň jedna bedna kladnou taru (> 0), vyloučí se navíc pole brutto
+                if obj.bedny.filter(tara__gt=0).exists():
+                    exclude_fields.append('brutto')
             elif obj.kamion_prijem.zakaznik.zkratka in ('SSH', 'SWG', 'HPM', 'FIS'):
-                exclude_fields = ['behalter_nr', 'dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka']
+                exclude_fields = ['behalter_nr', 'brutto', 'dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka']
+            elif obj.kamion_prijem.zakaznik.zkratka == 'EUR':
+                exclude_fields = ['brutto']
         # Při přidání nové bedny se vyloučí pole `cislo_bedny`, protože se generuje automaticky.
         else:
             exclude_fields = ['cislo_bedny']
