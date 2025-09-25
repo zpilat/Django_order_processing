@@ -1123,10 +1123,6 @@ class KamionAdmin(SimpleHistoryAdmin):
                                 # cislo_bedny se dopočítá v metodě save() modelu Bedna
                             )
 
-                    # Zaznamená nově vytvořenou zakázku pro change log
-                    if zakazka not in formset.new_objects:
-                        formset.new_objects.append(zakazka)
-
                     # Pokud není zadán počet beden, nevytváří se automaticky žádné bedny a dá se info
                     else:
                         messages.info(
@@ -1136,6 +1132,11 @@ class KamionAdmin(SimpleHistoryAdmin):
                         logger.info(
                             _(f"U zakázky {zakazka} je zadán počet beden nula, nebudou vytvořeny žádné bedny.")
                         )
+
+                    # Zaznamená nově vytvořenou zakázku pro change log
+                    if zakazka not in formset.new_objects:
+                        formset.new_objects.append(zakazka)
+
         except ProtectedError:
             # Uživatelsky přívětivá zpráva místo tracebacku
             try:
