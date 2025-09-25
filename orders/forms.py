@@ -174,9 +174,9 @@ class BednaAdminForm(forms.ModelForm):
         if not self.fields:
             return
 
-        field_stav_bedny = self.fields["stav_bedny"]
-        field_tryskat = self.fields["tryskat"]
-        field_rovnat = self.fields["rovnat"]
+        field_stav_bedny = self.fields.get("stav_bedny")
+        field_tryskat = self.fields.get("tryskat")
+        field_rovnat = self.fields.get("rovnat")
 
         # nová bedna
         if not self.instance or not self.instance.pk:
@@ -187,19 +187,22 @@ class BednaAdminForm(forms.ModelForm):
             field_tryskat.initial = TryskaniChoice.NEZADANO
             field_rovnat.initial = RovnaniChoice.NEZADANO
 
-        # editace: vrátí dle logiky v modelu
+        # editace: vrátí dle logiky v modelu v případě, že existují příslušná pole
         else:
-            allowed_stav_bedny = self.instance.get_allowed_stav_bedny_choices()
-            field_stav_bedny.choices = allowed_stav_bedny
-            field_stav_bedny.initial = self.instance.stav_bedny
+            if field_stav_bedny:
+                allowed_stav_bedny = self.instance.get_allowed_stav_bedny_choices()
+                field_stav_bedny.choices = allowed_stav_bedny
+                field_stav_bedny.initial = self.instance.stav_bedny
 
-            allowed_tryskat = self.instance.get_allowed_tryskat_choices()
-            field_tryskat.choices = allowed_tryskat
-            field_tryskat.initial = self.instance.tryskat
+            if field_tryskat:
+                allowed_tryskat = self.instance.get_allowed_tryskat_choices()
+                field_tryskat.choices = allowed_tryskat
+                field_tryskat.initial = self.instance.tryskat
 
-            allowed_rovnat = self.instance.get_allowed_rovnat_choices()
-            field_rovnat.choices = allowed_rovnat
-            field_rovnat.initial = self.instance.rovnat
+            if field_rovnat:
+                allowed_rovnat = self.instance.get_allowed_rovnat_choices()
+                field_rovnat.choices = allowed_rovnat
+                field_rovnat.initial = self.instance.rovnat
 
         if 'zakazka' in self.fields:
             # Nastavení querysetu pro pole 'zakazka' na zakázky, které nejsou expedované

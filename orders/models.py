@@ -506,6 +506,7 @@ class Bedna(models.Model):
         permissions = (
             ('change_expedovana_bedna', 'Může upravovat expedované bedny'),
             ('change_pozastavena_bedna', 'Může upravovat a uvolnit pozastavené bedny'),
+            ('change_neprijata_bedna', 'Může upravovat bedny ve stavu NEPŘIJATO'),
         )
 
     def __str__(self):

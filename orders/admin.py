@@ -1852,6 +1852,7 @@ class BednaAdmin(SimpleHistoryAdmin):
                 exclude_fields = ['behalter_nr', 'dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka']
             elif zkratka == 'SPX':
                 exclude_fields = ['dodatecne_info', 'dodavatel_materialu']
+            # Pokud je vyplněna tara a je větší než 0, skryje se pole brutto
             if obj.tara is not None and obj.tara > 0:
                 exclude_fields.append('brutto')
         else:
@@ -1870,12 +1871,17 @@ class BednaAdmin(SimpleHistoryAdmin):
         """
         Dynamicky určí, která pole jsou inline-editovatelná v changelistu.
         Podmínky (podle původní logiky/testů):
-        - Pokud je filtr stav_bedny = EX nebo pozastaveno=True => žádná inline editace.
+        - Pokud je filtr stav_bedny = StavBednyChoice.EXPEDOVANO nebo pozastaveno=True => žádná inline editace.
+        - Pokud je filtr stav_bedny = StavBednyChoice.NEPRIJATO a uživatel nemá oprávnění change_neprijata_bedna => žádná inline editace.
         - Jinak standardně: stav_bedny, tryskat, rovnat, hmotnost, poznamka.
-        - Pokud je stav_bedny v (PR, KN, NA) přidá se i pozice.
+        - Pokud je stav_bedny v (StavBednyChoice.PRIJATO, StavBednyChoice.K_NAVEZENI, StavBednyChoice.NAVEZENO) přidá se i pozice.
         """
-        if request.GET.get('stav_bedny') == 'EX' or request.GET.get('pozastaveno') == 'True':
+        if request.GET.get('stav_bedny') == StavBednyChoice.EXPEDOVANO or request.GET.get('pozastaveno') == 'True':
             return []
+        
+        if request.GET.get('stav_bedny') == StavBednyChoice.NEPRIJATO and not request.user.has_perm('orders.change_neprijata_bedna'):
+            return []
+
         editable = ['stav_bedny', 'tryskat', 'rovnat', 'hmotnost', 'tara', 'poznamka']
         if request.GET.get('stav_bedny') in (
             StavBednyChoice.PRIJATO,
@@ -1883,6 +1889,7 @@ class BednaAdmin(SimpleHistoryAdmin):
             StavBednyChoice.NAVEZENO,
         ):
             editable.append('pozice')
+
         return editable
 
     def has_change_permission(self, request, obj=None):
@@ -1890,13 +1897,17 @@ class BednaAdmin(SimpleHistoryAdmin):
         Omezení změn:
         - Expedovaná bedna vyžaduje oprávnění change_expedovana_bedna
         - Pozastavená bedna vyžaduje oprávnění change_pozastavena_bedna
+        - Neprijatá bedna vyžaduje oprávnění change_neprijata_bedna
         Jinak platí standardní change_bedna.
         """
         if obj is not None:
             if getattr(obj, 'stav_bedny', None) == StavBednyChoice.EXPEDOVANO and not request.user.has_perm('orders.change_expedovana_bedna'):
                 return False
+            if getattr(obj, 'stav_bedny', None) == StavBednyChoice.NEPRIJATO and not request.user.has_perm('orders.change_neprijata_bedna'):
+                return False
             if getattr(obj, 'pozastaveno', False) and not request.user.has_perm('orders.change_pozastavena_bedna'):
                 return False
+            
         return super().has_change_permission(request, obj)
     
     def get_changelist_form(self, request, **kwargs):
