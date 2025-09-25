@@ -87,9 +87,13 @@ class DelkaFilter(DynamicTitleFilter):
         pro zobrazení v lookupech.
         """
         self.label_dict = {}
+        # Pokud není aktivován filtr stav_bedny nebo není vybrán "Neprijato" či "Prijato", filtr DelkaFilter se neaplikuje
+        stav_bedny = request.GET.get('stav_bedny', None)
+        if not stav_bedny or stav_bedny not in (StavBednyChoice.NEPRIJATO, StavBednyChoice.PRIJATO):
+            return
         
-        # Základní queryset pro přijaté bedny
-        base_qs = model.objects.filter(stav_bedny=StavBednyChoice.PRIJATO)
+        # Základní queryset pro přijaté bedny, vyfiltrovaný dle filtru stav_bedny v requestu
+        base_qs = model.objects.filter(stav_bedny=stav_bedny)
         
         # Aplikace ostatních filtrů z request.GET (kromě filtru délky)
         other_filters = {k: v for k, v in request.GET.items() if k != self.parameter_name}
