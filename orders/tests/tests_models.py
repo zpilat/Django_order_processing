@@ -110,11 +110,12 @@ class TestModels(ModelsBase):
 
     def test_allowed_stav_bedny_choices(self):
         choices = self.bedna1.get_allowed_stav_bedny_choices()
+        # Nově je výchozí stav NEPRIJATO, takže počáteční dvojice odpovídá NEPRIJATO -> PRIJATO
         self.assertEqual(
             choices[:2],
             [
+                (StavBednyChoice.NEPRIJATO, "Nepřijato"),
                 (StavBednyChoice.PRIJATO, "Přijato"),
-                (StavBednyChoice.K_NAVEZENI, "K navezení"),
             ],
         )
 

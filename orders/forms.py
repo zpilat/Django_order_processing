@@ -144,7 +144,7 @@ class BednaAdminForm(forms.ModelForm):
     v modelu Bedna v metodách `get_allowed_xxxxx_choices`):
 
     1. NOVÁ instance (bez PK):
-       - Pro stav_bedny nabídne všechny stavy kromě EXPEDOVANO a nastaví `initial` na hodnotu `PRIJATO`.
+       - Pro stav_bedny nabídne všechny stavy kromě EXPEDOVANO a nastaví `initial` na hodnotu `NEPRIJATO`.
        - Pro tryskat nabídne všechny hodnoty a nastaví `initial` na hodnotu `NEZADANO`.
        - Pro rovnat nabídne všechny hodnoty a nastaví `initial` na hodnotu `NEZADANO`.
 
@@ -183,7 +183,7 @@ class BednaAdminForm(forms.ModelForm):
             # Nastaví pro stav bedny všechny možné stavy kromě EXPEDOVANO
             allowed_stav_bedny = [choice for choice in StavBednyChoice.choices if choice[0] != StavBednyChoice.EXPEDOVANO]
             field_stav_bedny.choices = allowed_stav_bedny
-            field_stav_bedny.initial = StavBednyChoice.PRIJATO
+            field_stav_bedny.initial = StavBednyChoice.NEPRIJATO
             field_tryskat.initial = TryskaniChoice.NEZADANO
             field_rovnat.initial = RovnaniChoice.NEZADANO
 

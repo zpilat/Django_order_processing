@@ -403,19 +403,19 @@ class KamionAdmin(SimpleHistoryAdmin):
         """
         Vrátí seznam důvodů, proč nelze kamion smazat (pro hlášky).
         Pro kamion výdej: pokud je přiřazen k zakázkám.
-        Pro kamion příjem: pokud obsahuje bedny, které nejsou ve stavu PRIJATO.
+        Pro kamion příjem: pokud obsahuje bedny, které nejsou ve stavu NEPRIJATO.
         """
         reasons = []
         if not obj:
             return reasons
         
         if obj.prijem_vydej == KamionChoice.PRIJEM:
-            # Blokovat jen pokud existuje aspoň jedna bedna v jiném stavu než PRIJATO
+            # Blokovat jen pokud existuje aspoň jedna bedna v jiném stavu než NEPRIJATO
             total = Bedna.objects.filter(zakazka__kamion_prijem=obj).count()
-            non_prijato = Bedna.objects.filter(zakazka__kamion_prijem=obj).exclude(stav_bedny=StavBednyChoice.PRIJATO).count()
-            if non_prijato:
+            non_neprijato = Bedna.objects.filter(zakazka__kamion_prijem=obj).exclude(stav_bedny=StavBednyChoice.NEPRIJATO).count()
+            if non_neprijato:
                 reasons.append(
-                    f"Kamión příjem nelze smazat: obsahuje {non_prijato} beden mimo stav PRIJATO (z celkem {total})."
+                    f"Kamión příjem nelze smazat: obsahuje {non_neprijato} beden mimo stav NEPRIJATO (z celkem {total})."
                 )
 
         elif obj.prijem_vydej == KamionChoice.VYDEJ:
@@ -1139,7 +1139,7 @@ class KamionAdmin(SimpleHistoryAdmin):
         except ProtectedError:
             # Uživatelsky přívětivá zpráva místo tracebacku
             try:
-                messages.error(request, _("Zakázku nelze smazat: obsahuje bedny, které nejsou ve stavu PRIJATO."))
+                messages.error(request, _("Zakázku nelze smazat: obsahuje bedny, které nejsou ve stavu NEPRIJATO."))
             except Exception:
                 pass
             logger.warning("Mazání zakázky zablokováno (ProtectedError).")
@@ -1316,20 +1316,20 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
 
     # --- UX blokace mazání zakázky ---
     def _delete_blockers(self, obj):
-        """Vrátí seznam důvodů, proč nelze zakázku smazat (pokud obsahuje bedny mimo PRIJATO)."""
+        """Vrátí seznam důvodů, proč nelze zakázku smazat (pokud obsahuje bedny mimo NEPRIJATO)."""
         reasons = []
         if not obj:
             return reasons
-        non_prijato = obj.bedny.exclude(stav_bedny=StavBednyChoice.PRIJATO).count() if obj.pk else 0
+        non_neprijato = obj.bedny.exclude(stav_bedny=StavBednyChoice.NEPRIJATO).count() if obj.pk else 0
         total = obj.bedny.count() if obj.pk else 0
-        if non_prijato:
+        if non_neprijato:
             reasons.append(
-                f"Zakázku nelze smazat: obsahuje {non_prijato} beden mimo stav PRIJATO (z celkem {total})."
+                f"Zakázku nelze smazat: obsahuje {non_neprijato} beden mimo stav NEPRIJATO (z celkem {total})."
             )
         return reasons
 
     def has_delete_permission(self, request, obj=None):
-        """Skryje mazání na detailu u zakázky s bednami mimo PRIJATO."""
+        """Skryje mazání na detailu u zakázky s bednami mimo NEPRIJATO."""
         if obj is not None and self._delete_blockers(obj):
             return False
         return super().has_delete_permission(request, obj)
@@ -1675,7 +1675,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     # Parametry pro zobrazení seznamu v administraci
     list_display = ('get_cislo_bedny', 'get_behalter_nr', 'zakazka_link', 'kamion_prijem_link', 'kamion_vydej_link',
                     'rovnat', 'tryskat', 'stav_bedny', 'get_prumer', 'get_delka_int','get_skupina_TZ', 'get_typ_hlavy',
-                    'get_celozavit', 'zkraceny_popis', 'hmotnost', 'pozice', 'get_priorita', 'get_datum', 'poznamka',)
+                    'get_celozavit', 'zkraceny_popis', 'hmotnost', 'tara', 'pozice', 'get_priorita', 'get_datum', 'poznamka',)
     # list_editable nastavován dynamicky v get_list_editable
     list_display_links = ('get_cislo_bedny', )
     list_select_related = ("zakazka", "zakazka__kamion_prijem", "zakazka__kamion_vydej")
@@ -1875,8 +1875,12 @@ class BednaAdmin(SimpleHistoryAdmin):
         """
         if request.GET.get('stav_bedny') == 'EX' or request.GET.get('pozastaveno') == 'True':
             return []
-        editable = ['stav_bedny', 'tryskat', 'rovnat', 'hmotnost', 'poznamka']
-        if request.GET.get('stav_bedny') in ('PR', 'KN', 'NA'):
+        editable = ['stav_bedny', 'tryskat', 'rovnat', 'hmotnost', 'tara', 'poznamka']
+        if request.GET.get('stav_bedny') in (
+            StavBednyChoice.PRIJATO,
+            StavBednyChoice.K_NAVEZENI,
+            StavBednyChoice.NAVEZENO,
+        ):
             editable.append('pozice')
         return editable
 
@@ -1935,7 +1939,11 @@ class BednaAdmin(SimpleHistoryAdmin):
         if request.GET.get('stav_bedny', None) != 'EX':
             if 'kamion_vydej_link' in list_display:
                 list_display.remove('kamion_vydej_link')
-        if request.GET.get('stav_bedny', None) not in ('PR', 'KN', 'NA'):
+        if request.GET.get('stav_bedny', None) not in (
+            StavBednyChoice.PRIJATO,
+            StavBednyChoice.K_NAVEZENI,
+            StavBednyChoice.NAVEZENO,
+        ):
             if 'pozice' in list_display:
                 list_display.remove('pozice')
         return list_display
@@ -2123,20 +2131,20 @@ class BednaAdmin(SimpleHistoryAdmin):
     def _delete_blockers(self, obj):
         """
         Vrátí seznam důvodů, proč nelze bednu smazat (pro hlášky).
-        Povoleno pouze, pokud je bedna ve stavu PRIJATO.
+        Povoleno pouze, pokud je bedna ve stavu NEPRIJATO.
         """
         reasons = []
         if not obj:
             return reasons
-        if obj.stav_bedny != StavBednyChoice.PRIJATO:
+        if obj.stav_bedny != StavBednyChoice.NEPRIJATO:
             reasons.append(
-                f"Bednu lze smazat pouze ve stavu PRIJATO (aktuálně: {obj.get_stav_bedny_display()})."
+                f"Bednu lze smazat pouze ve stavu NEPRIJATO (aktuálně: {obj.get_stav_bedny_display()})."
             )
         return reasons
 
     def has_delete_permission(self, request, obj=None):
         """
-        Skryje možnost mazání na detailu bedny, pokud není ve stavu PRIJATO.
+        Skryje možnost mazání na detailu bedny, pokud není ve stavu NEPRIJATO.
         Hromadnou akci neblokuje (řeší se v delete_queryset s hláškou).
         """
         if obj is not None:
@@ -2145,7 +2153,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         return super().has_delete_permission(request, obj)
 
     def delete_model(self, request, obj):
-        """Při mazání z detailu zablokuje a vypíše důvod, pokud bedna není ve stavu PRIJATO."""
+        """Při mazání z detailu zablokuje a vypíše důvod, pokud bedna není ve stavu NEPRIJATO."""
         reasons = self._delete_blockers(obj)
         if reasons:
             for r in reasons:
@@ -2158,7 +2166,7 @@ class BednaAdmin(SimpleHistoryAdmin):
 
     def delete_queryset(self, request, queryset):
         """
-        Při hromadném mazání smaže jen bedny ve stavu PRIJATO a pro ostatní vypíše důvod.
+        Při hromadném mazání smaže jen bedny ve stavu NEPRIJATO a pro ostatní vypíše důvod.
         """
         allowed_ids = []
         blocked_info = []

@@ -7,12 +7,7 @@ from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 
 from .models import Zakazka, Bedna, Zakaznik, Kamion, TypHlavy, Predpis, Odberatel
-from .choices import StavBednyChoice, TryskaniChoice, RovnaniChoice, PrioritaChoice
-
-stav_bedny_skladem = [stavbedny for stavbedny in StavBednyChoice if stavbedny != StavBednyChoice.EXPEDOVANO]
-stav_bedny_rozpracovanost = [
-    StavBednyChoice.NAVEZENO, StavBednyChoice.DO_ZPRACOVANI, StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO
-    ]
+from .choices import StavBednyChoice, TryskaniChoice, RovnaniChoice, PrioritaChoice, stav_bedny_rozpracovanost, stav_bedny_skladem
 
 class DynamicTitleFilter(SimpleListFilter):
     """
@@ -686,7 +681,8 @@ class PrijemVydejFilter(DynamicTitleFilter):
     def __init__(self, request, params, model, model_admin):
         self.label_dict = {
             'PB': 'Příjem - Bez zakázek',
-            'PS': 'Příjem - Se zakázkami skladem',
+            'PN': 'Příjem - Nepřijatý',
+            'PK': 'Příjem - Komplet přijatý',
             'PV': 'Příjem - Vyexpedovaný',            
             'V': 'Výdej',
         }
@@ -699,16 +695,24 @@ class PrijemVydejFilter(DynamicTitleFilter):
         value = self.value()      
         if not value:
             return queryset
+        # PB Bez zakázek - kamion, který je typu příjem a nemá žádné zakázky
         elif value == 'PB':
             return queryset.filter(prijem_vydej='P', zakazky_prijem__isnull=True)
+        # PN Nepřijatý - kamion, který obsahuje bedny, ale aspoň jedna bedna je ve stavu StavBednyChoices.NEPRIJATO
+        elif value == 'PN':
+            return queryset.filter(prijem_vydej='P', zakazky_prijem__bedny__stav_bedny=StavBednyChoice.NEPRIJATO).distinct()
+        # PK Komplet přijatý - kamion, který neobsahuje ani jednu bednu ve stavu StavBednyChoices.NEPRIJATO
+        # a alespoň jedna bedna je ve stavu uvedeném ve stav_bedny_skladem.
+        elif value == 'PK':
+            return queryset.filter(prijem_vydej='P', zakazky_prijem__isnull=False
+            ).exclude(zakazky_prijem__bedny__stav_bedny=StavBednyChoice.NEPRIJATO
+            ).filter(zakazky_prijem__bedny__stav_bedny__in=stav_bedny_skladem).distinct()  
+        # PV Vyexpedovaný - kamion, který má všechny bedny ve stavu StavBednyChoices.EXPEDOVANO      
         elif value == 'PV':
             zakazka_qs = Zakazka.objects.filter(kamion_prijem=OuterRef('pk'), expedovano=False)
             return queryset.filter(prijem_vydej='P', zakazky_prijem__isnull=False).annotate(ma_neexpedovanou=Exists(zakazka_qs)
             ).filter(ma_neexpedovanou=False).distinct()
-        elif value == 'PS':
-            zakazka_qs = Zakazka.objects.filter(kamion_prijem=OuterRef('pk'), expedovano=False)
-            return queryset.filter(prijem_vydej='P',).annotate(ma_neexpedovanou=Exists(zakazka_qs)
-            ).filter(ma_neexpedovanou=True)
+        # V Výdej - kamion, který je typu výdej
         elif value == 'V':
             return queryset.filter(prijem_vydej='V')
         return queryset.none()    

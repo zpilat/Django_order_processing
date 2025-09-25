@@ -337,7 +337,11 @@ class BednaAdminTests(AdminBase):
     def test_changelist_view_and_list_display(self):
         req = self.get_request()
         self.admin.changelist_view(req)
-        self.assertEqual(self.admin.list_editable, ['stav_bedny', 'tryskat', 'rovnat', 'hmotnost', 'poznamka'])
+        # Nově zahrnujeme i 'tara' v inline editaci a defaultní sada obsahuje tato pole
+        self.assertEqual(
+            self.admin.list_editable,
+            ['stav_bedny', 'tryskat', 'rovnat', 'hmotnost', 'tara', 'poznamka']
+        )
 
         req = self.get_request({'stav_bedny': 'EX'})
         self.admin.changelist_view(req)

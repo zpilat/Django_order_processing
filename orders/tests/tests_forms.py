@@ -152,7 +152,8 @@ class ZakazkaInlineFormTests(FormsBase):
 class BednaAdminFormTests(FormsBase):
     def test_initial_values(self):
         form_new = BednaAdminForm()
-        self.assertEqual(form_new.fields["stav_bedny"].initial, StavBednyChoice.PRIJATO)
+        # Nový default je NEPRIJATO (původně PRIJATO)
+        self.assertEqual(form_new.fields["stav_bedny"].initial, StavBednyChoice.NEPRIJATO)
         self.assertEqual(form_new.fields["tryskat"].initial, TryskaniChoice.NEZADANO)
         self.assertEqual(form_new.fields["rovnat"].initial, RovnaniChoice.NEZADANO)
 

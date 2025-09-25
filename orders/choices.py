@@ -2,6 +2,7 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 
 class StavBednyChoice(models.TextChoices):
+    NEPRIJATO = 'NE', 'Nepřijato'
     PRIJATO = 'PR', 'Přijato'
     K_NAVEZENI = 'KN', 'K navezení'
     NAVEZENO = 'NA', 'Navezeno'
@@ -10,6 +11,14 @@ class StavBednyChoice(models.TextChoices):
     ZKONTROLOVANO = 'ZK', 'Zkontrolováno'
     K_EXPEDICI = 'KE', 'K expedici'
     EXPEDOVANO = 'EX', 'Expedováno'
+
+stav_bedny_skladem = [
+    stavbedny for stavbedny in StavBednyChoice if stavbedny not in (StavBednyChoice.NEPRIJATO, StavBednyChoice.EXPEDOVANO)
+    ]
+
+stav_bedny_rozpracovanost = [
+    StavBednyChoice.NAVEZENO, StavBednyChoice.DO_ZPRACOVANI, StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO
+    ]    
 
 class RovnaniChoice(models.TextChoices):
     NEZADANO = '--', '--------'
@@ -60,9 +69,3 @@ class KodChoice(models.TextChoices):
     X = 'X', 'X'
     Y = 'Y', 'Y'
     Z = 'Z', 'Z'
-
-stav_bedny_skladem = [stavbedny for stavbedny in StavBednyChoice if stavbedny != StavBednyChoice.EXPEDOVANO]
-
-stav_bedny_rozpracovanost = [
-    StavBednyChoice.NAVEZENO, StavBednyChoice.DO_ZPRACOVANI, StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO
-    ]

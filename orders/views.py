@@ -48,12 +48,11 @@ def dashboard_bedny_view(request):
         'Ke kontrole': {'stav_bedny': StavBednyChoice.ZAKALENO},
         'Křivé': {'rovnat': RovnaniChoice.KRIVA},
         'Rovná se': {'rovnat': RovnaniChoice.ROVNA_SE},
-        'Otryskané': {'tryskat': TryskaniChoice.OTRYSKANA},
         'K tryskání': {'tryskat': TryskaniChoice.SPINAVA, 'stav_bedny__in': [StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO]},
         'K expedici': {'stav_bedny': StavBednyChoice.K_EXPEDICI},
         'Surové': {'stav_bedny__in': [StavBednyChoice.PRIJATO, StavBednyChoice.K_NAVEZENI, StavBednyChoice.NAVEZENO, StavBednyChoice.DO_ZPRACOVANI]},
         'Navezené': {'stav_bedny': StavBednyChoice.NAVEZENO},
-        'Přijaté': {'stav_bedny__in': [StavBednyChoice.PRIJATO, StavBednyChoice.K_NAVEZENI]},
+        'Nepřijaté': {'stav_bedny': StavBednyChoice.NEPRIJATO},
     }
 
     zakaznici = list(Zakaznik.objects.values_list('zkraceny_nazev', flat=True).order_by('zkraceny_nazev')) + ['CELKEM']

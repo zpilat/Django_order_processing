@@ -234,12 +234,12 @@ class Kamion(models.Model):
     # --- Delete guards ---
     def delete(self, using=None, keep_parents=False):
         """
-        Zamezí mazání kamionu příjem, pokud má bedny v jiném stavu než PRIJATO.
+        Zamezí mazání kamionu příjem, pokud má bedny v jiném stavu než NEPRIJATO.
         """
         if self.prijem_vydej == KamionChoice.PRIJEM:
-            if Bedna.objects.filter(zakazka__kamion_prijem=self).exclude(stav_bedny=StavBednyChoice.PRIJATO).exists():
+            if Bedna.objects.filter(zakazka__kamion_prijem=self).exclude(stav_bedny=StavBednyChoice.NEPRIJATO).exists():
                 raise ProtectedError(
-                    "Mazání zablokováno: Kamión příjem obsahuje bedny v jiném stavu než PRIJATO.",
+                    "Mazání zablokováno: Kamión příjem obsahuje bedny v jiném stavu než NEPRIJATO.",
                     [self],
                 )
         return super().delete(using=using, keep_parents=keep_parents)
@@ -415,11 +415,11 @@ class Zakazka(models.Model):
     # --- Delete guards ---
     def delete(self, using=None, keep_parents=False):
         """
-        Zamezí mazání zakázky, pokud má bedny v jiném stavu než PRIJATO.
+        Zamezí mazání zakázky, pokud má bedny v jiném stavu než NEPRIJATO.
         """        
-        if Bedna.objects.filter(zakazka=self).exclude(stav_bedny=StavBednyChoice.PRIJATO).exists():
+        if Bedna.objects.filter(zakazka=self).exclude(stav_bedny=StavBednyChoice.NEPRIJATO).exists():
             raise ProtectedError(
-                "Mazání zablokováno: Zakázka obsahuje bedny v jiném stavu než PRIJATO.",
+                "Mazání zablokováno: Zakázka obsahuje bedny v jiném stavu než NEPRIJATO.",
                 [self],
             )
         return super().delete(using=using, keep_parents=keep_parents)
@@ -490,7 +490,7 @@ class Bedna(models.Model):
     vyrobni_zakazka = models.CharField(max_length=20, null=True, blank=True, verbose_name='Fertigungs-auftrags Nr.')
     tryskat = models.CharField(choices=TryskaniChoice.choices, max_length=5, default=TryskaniChoice.NEZADANO, verbose_name='Tryskání')
     rovnat = models.CharField(choices=RovnaniChoice.choices, max_length=5, default=RovnaniChoice.NEZADANO, verbose_name='Rovnání')
-    stav_bedny = models.CharField(choices=StavBednyChoice.choices, max_length=2, default=StavBednyChoice.PRIJATO, verbose_name='Stav bedny')    
+    stav_bedny = models.CharField(choices=StavBednyChoice.choices, max_length=2, default=StavBednyChoice.NEPRIJATO, verbose_name='Stav bedny')
     mnozstvi = models.PositiveIntegerField(null=True, blank=True, verbose_name='Množství ks')
     poznamka = models.CharField(max_length=100, null=True, blank=True, verbose_name='Poznámka HPM')
     odfosfatovat = models.BooleanField(default=False, verbose_name='Odfos.?')
@@ -596,7 +596,7 @@ class Bedna(models.Model):
         - Pokud je stav `K_EXPEDICI`, nabídne předchozí stav a aktuální stav.
         - Pokud je stav `ZAKALENO`, `DO_ZPRACOVANI` nebo `NAVEZENO` nabídne předchozí, aktuální stav
           a všechny následující až do K_EXPEDICI.
-        - Pokud je stav `PRIJATO`, nabídne tento stav a následující stav.
+        - Pokud je stav `NEPRIJATO`, nabídne tento stav a následující stav.
         - Ve všech ostatních stavech nabídne předchozí, aktuální a následující stav.
         """
         choices = list(StavBednyChoice.choices)
@@ -745,11 +745,11 @@ class Bedna(models.Model):
     # --- Delete guards ---
     def delete(self, using=None, keep_parents=False):
         """
-        Zamezí mazání bedny, pokud má jiný stav než PRIJATO.
+        Zamezí mazání bedny, pokud má jiný stav než NEPRIJATO.
         """
-        if self.stav_bedny != StavBednyChoice.PRIJATO:
+        if self.stav_bedny != StavBednyChoice.NEPRIJATO:
             raise ProtectedError(
-                "Mazání zablokováno: Bedna má jiný stav než PRIJATO.",
+                "Mazání zablokováno: Bedna má jiný stav než NEPRIJATO.",
                 [self],
             )
         return super().delete(using=using, keep_parents=keep_parents)
