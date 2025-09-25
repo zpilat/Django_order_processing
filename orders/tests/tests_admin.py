@@ -248,12 +248,6 @@ class ZakazkaAdminTests(AdminBase):
         ld2 = self.admin.get_list_display(self.get_request({'skladem': '1'}))
         self.assertIn('kamion_vydej_link', ld2)
 
-    def test_get_form_custom_choices(self):
-        Form = self.admin.get_form(self.get_request(), self.zakazka)
-        form = Form()
-        prvni_bedna = self.zakazka.bedny.first()
-        self.assertEqual(form.fields['stav_bedny'].initial, prvni_bedna.stav_bedny)
-
     def test_has_change_permission_regular_user(self):
         """Uživatel bez práv nesmí měnit expedovanou zakázku."""
         User = get_user_model()
@@ -403,7 +397,7 @@ class BednaInlineGetFieldsTests(AdminBase):
 
     def test_existing_rot_excludes_extra_fields(self):
         bedna = self.create_bedna('ROT')
-        fields = self.inline.get_fields(self.get_request(), bedna)
+        fields = self.inline.get_fields(self.get_request(), bedna.zakazka)
         self.assertNotIn('dodatecne_info', fields)
         self.assertNotIn('dodavatel_materialu', fields)
         self.assertNotIn('vyrobni_zakazka', fields)
@@ -412,7 +406,7 @@ class BednaInlineGetFieldsTests(AdminBase):
     def test_special_customers_exclude_behalter_nr(self):
         for code in ('SSH', 'SWG', 'HPM', 'FIS'):
             bedna = self.create_bedna(code)
-            fields = self.inline.get_fields(self.get_request(), bedna)
+            fields = self.inline.get_fields(self.get_request(), bedna.zakazka)
             with self.subTest(code=code):
                 self.assertNotIn('behalter_nr', fields)
                 self.assertNotIn('dodatecne_info', fields)

@@ -836,15 +836,36 @@ class KamionAdmin(SimpleHistoryAdmin):
                     df.sort_values(by=['prumer', 'delka', 'predpis', 'artikl', 'sarze', 'behalter_nr'], inplace=True)
                     logger.info(f"Uživatel {request.user} úspěšně načetl data z Excel souboru pro import zakázek.")
 
-                    # Připravení náhledu
-                    preview = [
-                        {
-                            'datum': r.get('datum').strftime('%d.%m.%Y') if pd.notna(r.get('datum')) else '!!!!!!',
-                            'behalter_nr': int(r.get('behalter_nr')) if pd.notna(r.get('behalter_nr')) else '!!!!!!',
+                    # Připravení náhledu (robustnější práce s datem / čísly)
+                    preview = []
+                    for _, r in df.iterrows():
+                        raw_datum = r.get('datum')
+                        datum_fmt = '!!!!!!'
+                        if pd.notna(raw_datum):
+                            try:
+                                if hasattr(raw_datum, 'strftime'):
+                                    datum_fmt = raw_datum.strftime('%d.%m.%Y')
+                                else:
+                                    dconv = pd.to_datetime(raw_datum, errors='coerce')
+                                    if pd.notna(dconv):
+                                        datum_fmt = dconv.strftime('%d.%m.%Y')
+                            except Exception:
+                                datum_fmt = '!!!!!!'
+                        try:
+                            beh_nr = int(r.get('behalter_nr')) if pd.notna(r.get('behalter_nr')) else '!!!!!!'
+                        except Exception:
+                            beh_nr = '!!!!!!'
+                        try:
+                            predpis_val = int(r.get('predpis')) if pd.notna(r.get('predpis')) else '!!!!!!'
+                        except Exception:
+                            predpis_val = '!!!!!!'
+                        preview.append({
+                            'datum': datum_fmt,
+                            'behalter_nr': beh_nr,
                             'artikl': r.get('artikl') if pd.notna(r.get('artikl')) else '!!!!!!',
                             'prumer': r.get('prumer') if pd.notna(r.get('prumer')) else '!!!!!!',
                             'delka': r.get('delka') if pd.notna(r.get('delka')) else '!!!!!!',
-                            'predpis': int(r.get('predpis')) if pd.notna(r.get('predpis')) else '!!!!!!',
+                            'predpis': predpis_val,
                             'typ_hlavy': r.get('typ_hlavy') if pd.notna(r.get('typ_hlavy')) else '!!!!!!',
                             'popis': r.get('popis') if pd.notna(r.get('popis')) else '!!!!!!',
                             'material': r.get('material') if pd.notna(r.get('material')) else '!!!!!!',
@@ -852,9 +873,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                             'hmotnost': r.get('hmotnost') if pd.notna(r.get('hmotnost')) else '!!!!!!',
                             'mnozstvi': r.get('mnozstvi') if pd.notna(r.get('mnozstvi')) else '!!!!!!',
                             'tara': r.get('tara') if pd.notna(r.get('tara')) else '!!!!!!',
-                        }
-                        for _, r in df.iterrows()
-                    ]
+                        })
 
                     # Pokud jsou chyby po parsování, zobrazit náhled a chyby (bez uložení)
                     if errors:
@@ -1051,10 +1070,17 @@ class KamionAdmin(SimpleHistoryAdmin):
                     # Pokud je zadána celková hmotnost, rozpočítá se na jednotlivé bedny, pro poslední bednu se použije
                     # zbytek hmotnosti po rozpočítání a zaokrouhlení
                     if celkova_hmotnost and celkova_hmotnost > 0:
-                        hmotnost_bedny = celkova_hmotnost / pocet_beden
-                        hmotnost_bedny = hmotnost_bedny.quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)
-                        hodnoty = [hmotnost_bedny] * (pocet_beden - 1)
-                        posledni = celkova_hmotnost - sum(hodnoty)
+                        # Zajistit Decimal (testy posílají int/float)
+                        if not isinstance(celkova_hmotnost, Decimal):
+                            try:
+                                celkova_dec = Decimal(str(celkova_hmotnost))
+                            except Exception:
+                                celkova_dec = Decimal(celkova_hmotnost)
+                        else:
+                            celkova_dec = celkova_hmotnost
+                        jednotkova = (celkova_dec / pocet_beden).quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)
+                        hodnoty = [jednotkova] * (pocet_beden - 1)
+                        posledni = (celkova_dec - sum(hodnoty)).quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)
                         hodnoty.append(posledni)
                     else:
                         hodnoty = [None] * pocet_beden
@@ -1172,24 +1198,25 @@ class BednaInline(admin.TabularInline):
         """
         fields = list(super().get_fields(request, obj))
         exclude_fields = []
-        # Pokud se jedná o editaci existující bedny
-        if obj:
-            # Vyloučení polí dle zákazníka
-            if obj.kamion_prijem.zakaznik.zkratka == 'ROT':
-                exclude_fields = ['dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka']
-            elif obj.kamion_prijem.zakaznik.zkratka == 'SPX':
-                exclude_fields = ['dodatecne_info', 'dodavatel_materialu']
-            elif obj.kamion_prijem.zakaznik.zkratka in ('SSH', 'SWG', 'HPM', 'FIS'):
-                exclude_fields = ['behalter_nr', 'dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka']
-            # Pokud má aspoň jedna bedna kladnou taru (> 0), vyloučí se navíc pole brutto
-            if obj.bedny.filter(tara__gt=0).exists():
-                exclude_fields.append('brutto')            
-        # Při přidání nové bedny se vyloučí pole `cislo_bedny`, protože se generuje automaticky.
-        else:
-            exclude_fields = ['cislo_bedny']
-
-        fields = [f for f in fields if f not in exclude_fields]
-        return fields
+        if obj:  # očekává se Zakazka (parent objekt inlinu)
+            zakazka_inst = obj
+            kamion_prijem = getattr(obj, 'kamion_prijem', None)
+            zkratka = getattr(getattr(kamion_prijem, 'zakaznik', None), 'zkratka', None)
+            if zkratka == 'ROT':
+                exclude_fields.extend(['dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka'])
+            elif zkratka == 'SPX':
+                exclude_fields.extend(['dodatecne_info', 'dodavatel_materialu'])
+            elif zkratka in ('SSH', 'SWG', 'HPM', 'FIS'):
+                exclude_fields.extend(['behalter_nr', 'dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka'])
+            if zakazka_inst and hasattr(zakazka_inst, 'bedny'):
+                try:
+                    if zakazka_inst.bedny.filter(tara__gt=0).exists():
+                        exclude_fields.append('brutto')
+                except Exception:
+                    pass
+        else:  # add view
+            exclude_fields.append('cislo_bedny')
+        return [f for f in fields if f not in exclude_fields]
 
     def has_change_permission(self, request, obj=None):
         """
@@ -1603,41 +1630,6 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
         self.list_editable = self.get_list_editable(request)
         return super().changelist_view(request, extra_context)
 
-    def get_form(self, request, obj=None, **kwargs):
-        """
-        Vrací ModelForm pro Zakázku, ale upraví 'choices' 
-        u polí hromadné změny podle stavu první bedny.
-        """
-        FormClass = super().get_form(request, obj, **kwargs)
-        
-        class CustomForm(FormClass):
-            def __init__(self_inner, *args, **inner_kwargs):
-                super().__init__(*args, **inner_kwargs)
-
-                # Pokud upravujeme existující Zakázku a má bedny:
-                if obj and obj.pk and obj.bedny.exists():
-                    prvni_bedna = obj.bedny.first()
-                    
-                    # Omezení choices pro stav_bedny
-                    if 'stav_bedny' in self_inner.fields:
-                        allowed = prvni_bedna.get_allowed_stav_bedny_choices()
-                        self_inner.fields['stav_bedny'].choices = allowed
-                        self_inner.fields['stav_bedny'].initial = prvni_bedna.stav_bedny
-
-                    # Omezení choices pro tryskat
-                    if 'tryskat' in self_inner.fields:
-                        allowed = prvni_bedna.get_allowed_tryskat_choices()
-                        self_inner.fields['tryskat'].choices = allowed
-                        self_inner.fields['tryskat'].initial = prvni_bedna.tryskat
-
-                    # Omezení choices pro rovnat
-                    if 'rovnat' in self_inner.fields:
-                        allowed = prvni_bedna.get_allowed_rovnat_choices()
-                        self_inner.fields['rovnat'].choices = allowed
-                        self_inner.fields['rovnat'].initial = prvni_bedna.rovnat
-
-        return CustomForm
-
 
 @admin.register(Bedna)
 class BednaAdmin(SimpleHistoryAdmin):
@@ -1854,33 +1846,40 @@ class BednaAdmin(SimpleHistoryAdmin):
 
         return fieldsets
     
-    def get_changelist_form(self, request, **kwargs):
+    def get_list_editable(self, request):
         """
-        Vytvoří vlastní formulář pro ChangeList s omezenými volbami pro `stav_bedny`.
+        Dynamicky určí, která pole jsou inline-editovatelná v changelistu.
+        Podmínky (podle původní logiky/testů):
+        - Pokud je filtr stav_bedny = EX nebo pozastaveno=True => žádná inline editace.
+        - Jinak standardně: stav_bedny, tryskat, rovnat, hmotnost, poznamka.
+        - Pokud je stav_bedny v (PR, KN, NA) přidá se i pozice.
         """
-        return BednaAdminForm
+        if request.GET.get('stav_bedny') == 'EX' or request.GET.get('pozastaveno') == 'True':
+            return []
+        editable = ['stav_bedny', 'tryskat', 'rovnat', 'hmotnost', 'poznamka']
+        if request.GET.get('stav_bedny') in ('PR', 'KN', 'NA'):
+            editable.append('pozice')
+        return editable
 
     def has_change_permission(self, request, obj=None):
         """
-        Kontrola oprávnění pro změnu bedny, v případě expedované nebo pozastavené bedny nelze bez práv měnit.
+        Omezení změn:
+        - Expedovaná bedna vyžaduje oprávnění change_expedovana_bedna
+        - Pozastavená bedna vyžaduje oprávnění change_pozastavena_bedna
+        Jinak platí standardní change_bedna.
         """
-        if obj and obj.stav_bedny == StavBednyChoice.EXPEDOVANO and not request.user.has_perm('orders.change_expedovana_bedna'):
-            return False
-        if obj and obj.pozastaveno and not request.user.has_perm('orders.change_pozastavena_bedna'):
-            return False
-        return super().has_change_permission(request, obj)  
+        if obj is not None:
+            if getattr(obj, 'stav_bedny', None) == StavBednyChoice.EXPEDOVANO and not request.user.has_perm('orders.change_expedovana_bedna'):
+                return False
+            if getattr(obj, 'pozastaveno', False) and not request.user.has_perm('orders.change_pozastavena_bedna'):
+                return False
+        return super().has_change_permission(request, obj)
     
-    def get_list_editable(self, request):
+    def get_changelist_form(self, request, **kwargs):
         """
-        Přizpůsobení zobrazení sloupců pro editaci v seznamu beden podle aktivního filtru.
-        Pokud je aktivní filtr Stav bedny = Expedováno nebo Pozastaveno = 'True', odebere se inline-editace.
-        Pokud není aktivní filtr stav bedny = Prijato, K_navezeni, Navezeno, vyloučí se možnost editace sloupce pozice.
+        Vytvoří vlastní form pro ChangeList, který omezuje volby stav_bedny, tryskat a rovnat podle instance.
         """
-        if request.GET.get('stav_bedny', None) == 'EX' or request.GET.get('pozastaveno', None) == 'True':
-            return []
-        if request.GET.get('stav_bedny', None) not in ('PR', 'KN', 'NA'):
-            return ['stav_bedny', 'tryskat', 'rovnat', 'hmotnost', 'poznamka']
-        return ['stav_bedny', 'tryskat', 'rovnat', 'hmotnost', 'poznamka', 'pozice']
+        return BednaAdminForm
 
     def changelist_view(self, request, extra_context=None):
         """

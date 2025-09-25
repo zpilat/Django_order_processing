@@ -168,16 +168,28 @@ class DelkaFilter(DynamicTitleFilter):
             except (InvalidOperation, ValueError, TypeError):
                 params.pop(self.parameter_name, None)
         
-        # Sestavení label_dict podle dostupnosti množství
+        # Sestavení label_dict podle dostupnosti množství a hmnotnosti
         all_have_mnozstvi = bool(query_list) and all(row['celkove_mnozstvi'] for row in query_list)
-        if all_have_mnozstvi:
+        all_have_hmotnost = bool(query_list) and all(row['celkova_hmotnost'] for row in query_list)
+
+        if all_have_mnozstvi and all_have_hmotnost:
             self.label_dict = {
                 row['zakazka__delka']: f"{int(row['zakazka__delka'])} ({row['celkova_hmotnost']:.0f} kg | {row['celkove_mnozstvi']:.0f} ks)"
                 for row in query_list
             }
-        else:
+        elif all_have_hmotnost:
             self.label_dict = {
                 row['zakazka__delka']: f"{int(row['zakazka__delka'])} ({row['celkova_hmotnost']:.0f} kg)"
+                for row in query_list
+            }
+        elif all_have_mnozstvi:
+            self.label_dict = {
+                row['zakazka__delka']: f"{int(row['zakazka__delka'])} ({row['celkove_mnozstvi']:.0f} ks)"
+                for row in query_list
+            }
+        else:
+            self.label_dict = {
+                row['zakazka__delka']: f"{int(row['zakazka__delka'])}"
                 for row in query_list
             }
         
