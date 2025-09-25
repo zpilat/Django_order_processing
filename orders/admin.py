@@ -12,7 +12,8 @@ from django.urls import path, reverse
 from django.shortcuts import redirect, render
 from django.utils.html import format_html
 from django.db.models import Count
-from django.core.exceptions import ValidationError 
+from django.core.exceptions import ValidationError
+from django.db.models.deletion import ProtectedError
 
 from simple_history.admin import SimpleHistoryAdmin
 from decimal import Decimal, ROUND_HALF_UP, ROUND_DOWN
@@ -1036,95 +1037,113 @@ class KamionAdmin(SimpleHistoryAdmin):
         Uloží inline formuláře pro zakázky kamionu a vytvoří bedny na základě zadaných dat.
         Při úpravách stávajícího kamionu, který už obsahuje zakázky, se pouze uloží všechny změny do databáze bez vytvoření beden.
         """
-        # Úprava stávajícího kamionu s již existujícími zakázkami - pouze uloží změny
-        if change and formset.instance.zakazky_prijem.exists():
-            formset.save()
-        # Při vytvoření nového kamionu nebo při přidání zakázek do prázdného kamionu se zpracují inline formuláře pro zakázky a vytvoří se případně automaticky bedny        
-        else:
-            # Uloží se inline formuláře bez okamžitého zápisu do DB
-            zakazky = formset.save(commit=False)
+        # Zajistit existenci atributů používaných admin utilitou construct_change_message
+        for _attr in ("new_objects", "changed_objects", "deleted_objects"):
+            if not hasattr(formset, _attr):
+                setattr(formset, _attr, [])
 
-            for inline_form, zakazka in zip(formset.forms, zakazky):
-                # Uloží se zakázka a připojí se k právě vytvořenému kamionu                
-                zakazka.kamion_prijem = form.instance
-                zakazka.save()
+        try:
+            # Úprava stávajícího kamionu s již existujícími zakázkami - pouze uloží změny
+            if change and formset.instance.zakazky_prijem.exists():
+                formset.save()
+            # Při vytvoření nového kamionu nebo při přidání zakázek do prázdného kamionu se zpracují inline formuláře pro zakázky a vytvoří se případně automaticky bedny        
+            else:
+                # Uloží se inline formuláře bez okamžitého zápisu do DB
+                zakazky = formset.save(commit=False)
 
-                # Ulož M2M vazby pro tento formulář (pokud nějaké jsou)
-                if hasattr(inline_form, 'save_m2m'):
-                    try:
-                        inline_form.save_m2m()
-                    except Exception:
-                        pass
+                for inline_form, zakazka in zip(formset.forms, zakazky):
+                    # Uloží se zakázka a připojí se k právě vytvořenému kamionu                
+                    zakazka.kamion_prijem = form.instance
+                    zakazka.save()
 
-                # Získání dodatečných hodnot z vlastního formuláře zakázky (bezpečné převody z None)
-                celkova_hmotnost = inline_form.cleaned_data.get("celkova_hmotnost")
-                celkove_mnozstvi = inline_form.cleaned_data.get("celkove_mnozstvi")
-                pocet_beden = inline_form.cleaned_data.get("pocet_beden")
-                tara = inline_form.cleaned_data.get("tara")
-                material = inline_form.cleaned_data.get("material")
-
-                # Vytvoření beden zakázky, pokud je zadán počet beden 
-                if pocet_beden and pocet_beden > 0:
-                    # Shromažďování varování pro jednu souhrnnou hlášku
-                    warnings_for_order = []
-                    # Pokud je zadána celková hmotnost, rozpočítá se na jednotlivé bedny, pro poslední bednu se použije
-                    # zbytek hmotnosti po rozpočítání a zaokrouhlení
-                    if celkova_hmotnost and celkova_hmotnost > 0:
-                        # Zajistit Decimal (testy posílají int/float)
-                        if not isinstance(celkova_hmotnost, Decimal):
-                            try:
-                                celkova_dec = Decimal(str(celkova_hmotnost))
-                            except Exception:
-                                celkova_dec = Decimal(celkova_hmotnost)
-                        else:
-                            celkova_dec = celkova_hmotnost
-                        jednotkova = (celkova_dec / pocet_beden).quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)
-                        hodnoty = [jednotkova] * (pocet_beden - 1)
-                        posledni = (celkova_dec - sum(hodnoty)).quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)
-                        hodnoty.append(posledni)
-                    else:
-                        hodnoty = [None] * pocet_beden
-                        warnings_for_order.append("není zadána celková hmotnost - hmotnosti beden nebudou nastaveny")
-                    # Pokud je zadáno celkové množství, rozpočítá se jednoduše na jednotlivé bedny, je to orientační hodnota
-                    if celkove_mnozstvi and celkove_mnozstvi > 0:
-                        mnozstvi_bedny = celkove_mnozstvi // pocet_beden
-                    else:
-                        mnozstvi_bedny = None
-                        warnings_for_order.append("není zadáno celkové množství - množství v bednách nebude nastaveno")
-
-                    if not (tara and tara > 0):
-                        tara = None                        
-                        warnings_for_order.append("není zadána hodnota v poli tára - tára nebude nastavena")
-
-                    # Pokud vznikly varování, pošle se jedna souhrnnou hlášku
-                    if warnings_for_order:
+                    # Ulož M2M vazby pro tento formulář (pokud nějaké jsou)
+                    if hasattr(inline_form, 'save_m2m'):
                         try:
-                            messages.info(
-                                request,
-                                _(f"U zakázky {zakazka} {', '.join(warnings_for_order)}.")
-                            )
+                            inline_form.save_m2m()
                         except Exception:
                             pass
 
-                    for i in range(pocet_beden):
-                        Bedna.objects.create(
-                            zakazka=zakazka,
-                            hmotnost=hodnoty[i],
-                            tara=tara,
-                            material=material,
-                            mnozstvi=mnozstvi_bedny,
-                            # cislo_bedny se dopočítá v metodě save() modelu Bedna
-                        )
+                    # Získání dodatečných hodnot z vlastního formuláře zakázky (bezpečné převody z None)
+                    celkova_hmotnost = inline_form.cleaned_data.get("celkova_hmotnost")
+                    celkove_mnozstvi = inline_form.cleaned_data.get("celkove_mnozstvi")
+                    pocet_beden = inline_form.cleaned_data.get("pocet_beden")
+                    tara = inline_form.cleaned_data.get("tara")
+                    material = inline_form.cleaned_data.get("material")
 
-                # Pokud není zadán počet beden, nevytváří se automaticky žádné bedny a dá se info
-                else:
-                    messages.info(
-                        request,
-                        _(f"U zakázky {zakazka} je zadán počet beden nula, nebudou vytvořeny žádné bedny.")
-                    )
-                    logger.info(
-                        _(f"U zakázky {zakazka} je zadán počet beden nula, nebudou vytvořeny žádné bedny.")
-                    )
+                    # Vytvoření beden zakázky, pokud je zadán počet beden 
+                    if pocet_beden and pocet_beden > 0:
+                        # Shromažďování varování pro jednu souhrnnou hlášku
+                        warnings_for_order = []
+                        # Pokud je zadána celková hmotnost, rozpočítá se na jednotlivé bedny, pro poslední bednu se použije
+                        # zbytek hmotnosti po rozpočítání a zaokrouhlení
+                        if celkova_hmotnost and celkova_hmotnost > 0:
+                            # Zajistit Decimal (testy posílají int/float)
+                            if not isinstance(celkova_hmotnost, Decimal):
+                                try:
+                                    celkova_dec = Decimal(str(celkova_hmotnost))
+                                except Exception:
+                                    celkova_dec = Decimal(celkova_hmotnost)
+                            else:
+                                celkova_dec = celkova_hmotnost
+                            jednotkova = (celkova_dec / pocet_beden).quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)
+                            hodnoty = [jednotkova] * (pocet_beden - 1)
+                            posledni = (celkova_dec - sum(hodnoty)).quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)
+                            hodnoty.append(posledni)
+                        else:
+                            hodnoty = [None] * pocet_beden
+                            warnings_for_order.append("není zadána celková hmotnost - hmotnosti beden nebudou nastaveny")
+                        # Pokud je zadáno celkové množství, rozpočítá se jednoduše na jednotlivé bedny, je to orientační hodnota
+                        if celkove_mnozstvi and celkove_mnozstvi > 0:
+                            mnozstvi_bedny = celkove_mnozstvi // pocet_beden
+                        else:
+                            mnozstvi_bedny = None
+                            warnings_for_order.append("není zadáno celkové množství - množství v bednách nebude nastaveno")
+
+                        if not (tara and tara > 0):
+                            tara = None                        
+                            warnings_for_order.append("není zadána hodnota v poli tára - tára nebude nastavena")
+
+                        # Pokud vznikly varování, pošle se jedna souhrnnou hlášku
+                        if warnings_for_order:
+                            try:
+                                messages.info(
+                                    request,
+                                    _(f"U zakázky {zakazka} {', '.join(warnings_for_order)}.")
+                                )
+                            except Exception:
+                                pass
+
+                        for i in range(pocet_beden):
+                            Bedna.objects.create(
+                                zakazka=zakazka,
+                                hmotnost=hodnoty[i],
+                                tara=tara,
+                                material=material,
+                                mnozstvi=mnozstvi_bedny,
+                                # cislo_bedny se dopočítá v metodě save() modelu Bedna
+                            )
+
+                    # Zaznamená nově vytvořenou zakázku pro change log
+                    if zakazka not in formset.new_objects:
+                        formset.new_objects.append(zakazka)
+
+                    # Pokud není zadán počet beden, nevytváří se automaticky žádné bedny a dá se info
+                    else:
+                        messages.info(
+                            request,
+                            _(f"U zakázky {zakazka} je zadán počet beden nula, nebudou vytvořeny žádné bedny.")
+                        )
+                        logger.info(
+                            _(f"U zakázky {zakazka} je zadán počet beden nula, nebudou vytvořeny žádné bedny.")
+                        )
+        except ProtectedError:
+            # Uživatelsky přívětivá zpráva místo tracebacku
+            try:
+                messages.error(request, _("Zakázku nelze smazat: obsahuje bedny, které nejsou ve stavu PRIJATO."))
+            except Exception:
+                pass
+            logger.warning("Mazání zakázky zablokováno (ProtectedError).")
+            return
 
 
 class BednaInline(admin.TabularInline):
