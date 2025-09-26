@@ -477,6 +477,98 @@ def oznacit_otryskana_action(modeladmin, request, queryset):
 
 # Akce pro zakázky:
 
+@admin.action(description="Přijmout vybrané zakázky na sklad")
+def prijmout_zakazku_action(modeladmin, request, queryset):
+    """
+    Přijme vybrané zakázky na sklad.
+
+    Pro každou zakázku provede:
+    - Kontrolu, že obsahuje alespoň jednu bednu ve stavu NEPRIJATO.
+    - V jedné transakci a pod řádkovým zámkem (select_for_update) předvaliduje přechod všech beden
+      ze stavu NEPRIJATO do stavu PRIJATO pomocí full_clean.
+    - Pokud validace projde, uloží změnu stavu všech těchto beden na PRIJATO.
+
+    Jednotlivé zakázky se zpracují nezávisle; pokud u některé validace selže, přeskočí se a pokračuje se další.
+    """
+    if not queryset.exists():
+        return None
+    
+    prijato_count = 0
+    preskoceno_count = 0
+
+    for zakazka in queryset:
+        # Kontrola: v zakázce musí být alespoň jedna bedna ve stavu NEPRIJATO
+        if not Bedna.objects.filter(zakazka=zakazka, stav_bedny=StavBednyChoice.NEPRIJATO).exists():
+            logger.info(
+                f"Uživatel {request.user} se pokusil přijmout zakázku {zakazka}, ale nemá žádnou bednu ve stavu NEPRIJATO."
+            )
+            modeladmin.message_user(
+                request,
+                f"Zakázka {zakazka} neobsahuje žádné bedny ve stavu NEPRIJATO.",
+                level=messages.ERROR,
+            )
+            preskoceno_count += 1
+            continue
+
+        try:
+            with transaction.atomic():
+                bedny_qs = Bedna.objects.select_for_update().filter(
+                    zakazka=zakazka,
+                    stav_bedny=StavBednyChoice.NEPRIJATO,
+                )
+                bedny = list(bedny_qs)
+
+                # Předvalidace všech beden
+                errors = []
+                for bedna in bedny:
+                    original_state = bedna.stav_bedny
+                    bedna.stav_bedny = StavBednyChoice.PRIJATO
+                    try:
+                        bedna.full_clean()
+                    except ValidationError as e:
+                        errors.append((bedna, e))
+                    finally:
+                        bedna.stav_bedny = original_state
+
+                if errors:
+                    for bedna, e in errors:
+                        logger.info(
+                            f"Uživatel {request.user} se pokusil přijmout zakázku {zakazka}, ale bedna {bedna} neprošla validací: {e}."
+                        )
+                        modeladmin.message_user(
+                            request,
+                            f"Nelze přijmout zakázku {zakazka}, bedna {bedna} neprošla validací: {e}",
+                            level=messages.ERROR,
+                        )
+                    preskoceno_count += 1
+                    continue
+
+                # Uložení přechodu stavů
+                for bedna in bedny:
+                    bedna.stav_bedny = StavBednyChoice.PRIJATO
+                    bedna.save()
+
+            prijato_count += 1
+
+        except Exception as e:
+            logger.error(
+                f"Nastala chyba {e} při přijímání zakázky {zakazka}, zakázka nebyla přijata."
+            )
+            modeladmin.message_user(
+                request,
+                f"Nastala chyba {e} při přijímání zakázky {zakazka}.",
+                level=messages.ERROR,
+            )
+
+    if prijato_count:
+        modeladmin.message_user(
+            request,
+            f"Přijato na sklad: {prijato_count} zakázek.",
+            level=messages.SUCCESS,
+        )
+
+    return None
+
 @admin.action(description="Expedice vybraných zakázek")
 def expedice_zakazek_action(modeladmin, request, queryset):
     """

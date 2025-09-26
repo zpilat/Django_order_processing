@@ -33,7 +33,7 @@ from .actions import (
     tisk_proforma_faktury_kamionu_action, oznacit_k_navezeni_action, vratit_bedny_do_stavu_prijato_action, oznacit_navezeno_action,
     oznacit_do_zpracovani_action, oznacit_zakaleno_action, oznacit_zkontrolovano_action, oznacit_k_expedici_action, oznacit_rovna_action,
     oznacit_kriva_action, oznacit_rovna_se_action, oznacit_vyrovnana_action, oznacit_cista_action, oznacit_spinava_action,
-    oznacit_otryskana_action, prijmout_kamion_action
+    oznacit_otryskana_action, prijmout_kamion_action, prijmout_zakazku_action
    )
 from .filters import (
     SklademZakazkaFilter, StavBednyFilter, KompletZakazkaFilter, AktivniPredpisFilter, SkupinaFilter, ZakaznikBednyFilter,
@@ -1292,7 +1292,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     inlines = [BednaInline]
     form = ZakazkaAdminForm
     actions = [tisk_karet_beden_zakazek_action, tisk_karet_kontroly_kvality_zakazek_action, expedice_zakazek_action,
-               vratit_zakazky_z_expedice_action, expedice_zakazek_kamion_action]
+               vratit_zakazky_z_expedice_action, expedice_zakazek_kamion_action, prijmout_zakazku_action]
 
     # Parametry pro zobrazení detailu v administraci
     readonly_fields = ('expedovano', 'get_komplet')
@@ -1577,20 +1577,40 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
         vratit_zakazky_z_expedice_action, expedice_zakazek_kamion_action]        
         Pokud je filtr skladem == expedovano, zruší se akce expedice_zakazek_action a expedice_zakazek_kamion_action
         Pokud není filtr skladem aktivovan, zruší se akce vratit_zakazky_z_expedice_action.
+        Pokud je filtr skladem != neprijato, zruší se akce prijmout_zakazku_action.
         """
         actions = super().get_actions(request)
-
         actions_to_remove = []
 
         if request.method == "GET":
-            if request.GET.get('skladem', None) == 'expedovano':
+            skladem = request.GET.get('skladem', None)
+            if not skladem:
                 actions_to_remove = [
-                    'expedice_zakazek_action', 'expedice_zakazek_kamion_action'
+                    'vratit_zakazky_z_expedice_action', 'delete_selected'
                 ]
             else:
-                actions_to_remove = [
-                    'vratit_zakazky_z_expedice_action',
-                ]
+                if skladem == 'neprijato':
+                    actions_to_remove = [
+                        'tisk_karet_beden_zakazek_action', 'tisk_karet_kontroly_kvality_zakazek_action',
+                        'vratit_zakazky_z_expedice_action', 'expedice_zakazek_kamion_action',
+                        'expedice_zakazek_action'
+                    ]
+                elif skladem == 'bez_beden':
+                    actions_to_remove = [
+                        'tisk_karet_beden_zakazek_action', 'tisk_karet_kontroly_kvality_zakazek_action',
+                        'vratit_zakazky_z_expedice_action', 'expedice_zakazek_kamion_action',
+                        'expedice_zakazek_action', 'prijmout_zakazku_action'
+                    ]
+                elif skladem == 'expedovano':
+                    actions_to_remove = [
+                        'expedice_zakazek_action', 'expedice_zakazek_kamion_action', 'prijmout_zakazku_action',
+                        'delete_selected'
+                    ]
+                else:
+                    actions_to_remove = ['tisk_karet_beden_zakazek_action', 'tisk_karet_kontroly_kvality_zakazek_action',
+                        'vratit_zakazky_z_expedice_action', 'expedice_zakazek_kamion_action',
+                        'expedice_zakazek_action', 'prijmout_zakazku_action', 'delete_selected'
+                        ]
 
         for action in actions_to_remove:
             if action in actions:
@@ -1611,13 +1631,14 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
             return default_choices
 
         group_map = {
-            'tisk_karet_beden_zakazek_action': 'Tisk / Export',
-            'tisk_karet_kontroly_kvality_zakazek_action': 'Tisk / Export',
+            'prijmout_zakazku_action': 'Příjem',
+            'tisk_karet_beden_zakazek_action': 'Tisk',
+            'tisk_karet_kontroly_kvality_zakazek_action': 'Tisk',
             'expedice_zakazek_action': 'Expedice',
             'expedice_zakazek_kamion_action': 'Expedice',
             'vratit_zakazky_z_expedice_action': 'Expedice',
         }
-        order = ['Tisk / Export', 'Expedice']
+        order = ['Příjem','Tisk', 'Expedice']
         grouped = {g: [] for g in order}
 
         for name, (_func, _action_name, desc) in actions.items():
