@@ -40,7 +40,7 @@ from .filters import (
     OberflacheFilter, TypHlavyBednyFilter, TypHlavyZakazkyFilter, CelozavitBednyFilter, CelozavitZakazkyFilter, DelkaFilter, PozastavenoFilter,
     OdberatelFilter, ZakaznikPredpisFilter
 )
-from .forms import ZakazkaAdminForm, BednaAdminForm, ImportZakazekForm, ZakazkaInlineForm
+from .forms import BednaAdminForm, BednaChangeListForm, ImportZakazekForm, ZakazkaInlineForm, ZakazkaAdminForm
 from .choices import StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice, stav_bedny_rozpracovanost, stav_bedny_skladem
 from .utils import utilita_validate_excel_upload
 
@@ -1914,7 +1914,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         """
         Vytvoří vlastní form pro ChangeList, který omezuje volby stav_bedny, tryskat a rovnat podle instance.
         """
-        return BednaAdminForm
+        return BednaChangeListForm
 
     def changelist_view(self, request, extra_context=None):
         """

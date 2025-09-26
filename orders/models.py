@@ -14,6 +14,9 @@ from .choices import (
     StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice, KodChoice
 )
 
+import logging
+logger = logging.getLogger('orders')
+
 class Zakaznik(models.Model):
     nazev = models.CharField(max_length=100, verbose_name='Název zákazníka', unique=True)
     zkraceny_nazev = models.CharField(max_length=15, verbose_name='Zkrácený název', unique=True,
@@ -538,6 +541,7 @@ class Bedna(models.Model):
         - Pokud je stav bedny K_EXPEDICI nebo EXPEDOVANO, musí být tryskání buď Čistá nebo Otryskaná
         - Pokud je stav bedny K_EXPEDICI nebo EXPEDOVANO, musí být rovnání buď Rovná nebo Vyrovnaná.
         - Pokud je stav bedny K_NAVEZENI nebo NAVEZENO, musí být zadána pozice.
+        - Pokud stav bedny jakýkoliv jiný než NEPRIJATO, musí být zadána hmotnost, tára a množství a tyto nesmí být nula.
         """
         super().clean()    
         if self.stav_bedny in [StavBednyChoice.K_EXPEDICI, StavBednyChoice.EXPEDOVANO]:
@@ -553,6 +557,18 @@ class Bedna(models.Model):
             if not self.pozice:
                 raise ValidationError(_("Pro stav 'K navezení' a 'Navezeno' musí být zadána pozice."))
                 logger.warning(f'Uzivatel se pokusil uložit bednu ve stavu {self.stav_bedny} bez pozice.')
+
+        if self.stav_bedny != StavBednyChoice.NEPRIJATO:
+            warning_list = []
+            if self.hmotnost is None or self.hmotnost <= 0:
+                warning_list.append(f'neplatná hmotnost: {self.hmotnost}')
+            if self.tara is None or self.tara <= 0:
+                warning_list.append(f'neplatná tára: {self.tara}')
+            if self.mnozstvi is None or self.mnozstvi <= 0:
+                warning_list.append(f'neplatné množství: {self.mnozstvi}')
+            if warning_list:
+                logger.warning(f'Uživatel se pokusil uložit bednu ve stavu {self.stav_bedny} s neplatnými hodnotami: {", ".join(warning_list)}.')
+                raise ValidationError(_(f'V jiném stavu než "NEPŘIJATO" nelze uložit bednu bez hmotnosti, táry a množství: {", ".join(warning_list)}.'))
 
     def save(self, *args, **kwargs):
         """

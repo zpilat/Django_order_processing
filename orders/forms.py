@@ -138,7 +138,7 @@ class ZakazkaInlineForm(ZakazkaPredpisValidatorMixin, forms.ModelForm):
 
 class BednaAdminForm(forms.ModelForm):
     """
-    Formulář pro model Bedna v Django Adminu.
+    Formulář pro model Bedna v Django Adminu. Použití v detailu bedny i v inline bedny.
 
     Omezuje výběr stavu bedny polí stav_bedny, tryskani a rovnani podle pravidel
     v modelu Bedna v metodách `get_allowed_xxxxx_choices`):
@@ -170,7 +170,8 @@ class BednaAdminForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
 
         # Pokud je stav_bedny EXPEDOVANO, zobrazí se v detailu kvůli has_change_permission v adminu bedny ne jako formulář, ale pouze čistý text.
-        # Objekt pak nemá fields ve formuláři, takže není potřeba ho inicializovat.
+        # Objekt pak nemá fields ve formuláři, takže není potřeba ho inicializovat. Nefunguje kvůli nemodelovému poli,
+        # je potřeba ještě další validace existence jednotlivých polí v self.fields.
         if not self.fields:
             return
 
@@ -182,26 +183,26 @@ class BednaAdminForm(forms.ModelForm):
         if not self.instance or not self.instance.pk:
             # Nastaví pro stav bedny všechny možné stavy kromě EXPEDOVANO
             allowed_stav_bedny = [choice for choice in StavBednyChoice.choices if choice[0] != StavBednyChoice.EXPEDOVANO]
-            field_stav_bedny.choices = allowed_stav_bedny
-            field_stav_bedny.initial = StavBednyChoice.NEPRIJATO
-            field_tryskat.initial = TryskaniChoice.NEZADANO
-            field_rovnat.initial = RovnaniChoice.NEZADANO
+            if field_stav_bedny:
+                field_stav_bedny.choices = allowed_stav_bedny
+                field_stav_bedny.initial = StavBednyChoice.NEPRIJATO
+            if field_tryskat:
+                field_tryskat.initial = TryskaniChoice.NEZADANO
+            if field_rovnat:
+                field_rovnat.initial = RovnaniChoice.NEZADANO
 
         # editace: vrátí dle logiky v modelu v případě, že existují příslušná pole
         else:
             if field_stav_bedny:
-                allowed_stav_bedny = self.instance.get_allowed_stav_bedny_choices()
-                field_stav_bedny.choices = allowed_stav_bedny
+                field_stav_bedny.choices = self.instance.get_allowed_stav_bedny_choices()
                 field_stav_bedny.initial = self.instance.stav_bedny
 
             if field_tryskat:
-                allowed_tryskat = self.instance.get_allowed_tryskat_choices()
-                field_tryskat.choices = allowed_tryskat
+                field_tryskat.choices = self.instance.get_allowed_tryskat_choices()
                 field_tryskat.initial = self.instance.tryskat
 
             if field_rovnat:
-                allowed_rovnat = self.instance.get_allowed_rovnat_choices()
-                field_rovnat.choices = allowed_rovnat
+                field_rovnat.choices = self.instance.get_allowed_rovnat_choices()
                 field_rovnat.initial = self.instance.rovnat
 
         if 'zakazka' in self.fields:
@@ -210,9 +211,7 @@ class BednaAdminForm(forms.ModelForm):
 
     def clean(self):
         """
-        Validace a výpočet pro formulář BednaAdminForm s ohledem na to, že v changelistu
-        nemusí být všechna pole přítomná (list_editable). Pokud pole ve formuláři chybí,
-        použijí se hodnoty z instance.
+        Validace a výpočet táry pro formulář BednaAdminForm.
 
         Pravidla:
         1) Hmotnost (hmotnost) musí existovat a být > 0 (z formuláře nebo z instance).
@@ -285,6 +284,46 @@ class BednaAdminForm(forms.ModelForm):
                 pass
 
         return cleaned
+
+
+class BednaChangeListForm(forms.ModelForm):
+    """
+    Formulář pro model Bedna v Changelistu Django Adminu.
+
+    Omezuje výběr stavu bedny polí stav_bedny, tryskani a rovnani podle pravidel
+    v modelu Bedna v metodách `get_allowed_xxxxx_choices`):
+
+       - Pro stav_bedny nabídne všechny možné stavy, které jsou povoleny pro danou bednu a nastaví `initial` na aktuální stav.
+       - Pro tryskat a rovnat nabídne všechny možné stavy, které jsou povoleny pro danou bednu a nastaví `initial` na aktuální stav.
+    """
+    class Meta:
+        model = Bedna
+        fields = "__all__"
+        
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Pokud je stav_bedny EXPEDOVANO, zobrazí se v detailu kvůli has_change_permission v adminu bedny ne jako formulář, ale pouze čistý text.
+        # Objekt pak nemá fields ve formuláři, takže není potřeba ho inicializovat.
+        if not self.fields:
+            return
+
+        field_stav_bedny = self.fields.get("stav_bedny")
+        field_tryskat = self.fields.get("tryskat")
+        field_rovnat = self.fields.get("rovnat")
+
+        # V changelistu vždy pouze editace: vrátí dle logiky v modelu v případě, že existují příslušná pole
+        if field_stav_bedny:
+            field_stav_bedny.choices = self.instance.get_allowed_stav_bedny_choices()
+            field_stav_bedny.initial = self.instance.stav_bedny
+
+        if field_tryskat:
+            field_tryskat.choices = self.instance.get_allowed_tryskat_choices()
+            field_tryskat.initial = self.instance.tryskat
+
+        if field_rovnat:
+            field_rovnat.choices = self.instance.get_allowed_rovnat_choices()
+            field_rovnat.initial = self.instance.rovnat
 
 
 class VyberKamionVydejForm(forms.Form):
