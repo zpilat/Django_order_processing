@@ -1939,12 +1939,18 @@ class BednaAdmin(SimpleHistoryAdmin):
         Jinak platí standardní change_bedna.
         """
         if obj is not None:
-            if getattr(obj, 'stav_bedny', None) == StavBednyChoice.EXPEDOVANO and not request.user.has_perm('orders.change_expedovana_bedna'):
-                return False
-            if getattr(obj, 'stav_bedny', None) == StavBednyChoice.NEPRIJATO and not request.user.has_perm('orders.change_neprijata_bedna'):
-                return False
-            if getattr(obj, 'pozastaveno', False) and not request.user.has_perm('orders.change_pozastavena_bedna'):
-                return False
+            # Pozastavení má prioritu: pokud je bedna pozastavená, vyžaduj speciální oprávnění
+            # a neblokuj kvůli jiným stavům (např. NEPRIJATO), pokud ho uživatel má.
+            if getattr(obj, 'pozastaveno', False):
+                return request.user.has_perm('orders.change_pozastavena_bedna')
+
+            # Expedovaná vyžaduje speciální oprávnění
+            if getattr(obj, 'stav_bedny', None) == StavBednyChoice.EXPEDOVANO:
+                return request.user.has_perm('orders.change_expedovana_bedna')
+
+            # Neprijatá vyžaduje speciální oprávnění
+            if getattr(obj, 'stav_bedny', None) == StavBednyChoice.NEPRIJATO:
+                return request.user.has_perm('orders.change_neprijata_bedna')
             
         return super().has_change_permission(request, obj)
     

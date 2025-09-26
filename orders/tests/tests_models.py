@@ -68,11 +68,13 @@ class ModelsBase(TestCase):
             zakazka=cls.zakazka,
             hmotnost=Decimal("2"),
             tara=Decimal("1"),
+            mnozstvi=1,
         )
         cls.bedna2 = Bedna.objects.create(
             zakazka=cls.zakazka,
             hmotnost=Decimal("2"),
             tara=Decimal("1"),
+            mnozstvi=1,
         )
 
 

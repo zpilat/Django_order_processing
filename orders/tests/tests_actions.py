@@ -3,6 +3,8 @@ from django.contrib.auth import get_user_model
 from django.contrib.messages.storage.fallback import FallbackStorage
 from django.contrib.admin.sites import AdminSite
 from django.http import HttpResponse
+
+from decimal import Decimal
 from unittest.mock import patch
 from datetime import date
 
@@ -42,7 +44,7 @@ class ActionsBase(TestCase):
             predpis=cls.predpis, typ_hlavy=cls.typ_hlavy,
             popis='p'
         )
-        cls.bedna = Bedna.objects.create(zakazka=cls.zakazka, hmotnost=1, tara=1)
+        cls.bedna = Bedna.objects.create(zakazka=cls.zakazka, hmotnost=Decimal(1), tara=Decimal(1), mnozstvi=1)
 
     def get_request(self, method='get', data=None):
         req = getattr(self.factory, method)('/', data or {})
@@ -291,7 +293,7 @@ class KNavezeniActionTests(ActionsBase):
 
     def test_get_renders_formset(self):
         # Přidá druhou bednu ve stavu PRIJATO
-        Bedna.objects.create(zakazka=self.zakazka, hmotnost=2, tara=1)
+        Bedna.objects.create(zakazka=self.zakazka, hmotnost=Decimal(2), tara=Decimal(1), mnozstvi=1)
         req = self.get_request('get')
         admin_obj = self._minimal_admin()
         qs = Bedna.objects.all().order_by('id')

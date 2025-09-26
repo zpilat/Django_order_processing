@@ -1,5 +1,6 @@
 from django.test import TestCase
 from datetime import date, timedelta
+from decimal import Decimal
 
 from orders.forms import (
     ZakazkaAdminForm,
@@ -93,8 +94,9 @@ class FormsBase(TestCase):
         )
         cls.bedna = Bedna.objects.create(
             zakazka=cls.zakazka_edit,
-            hmotnost=1,
-            tara=1,
+            hmotnost=Decimal(1),
+            tara=Decimal(1),
+            mnozstvi=1,
             stav_bedny=StavBednyChoice.K_NAVEZENI,
             tryskat=TryskaniChoice.CISTA,
             rovnat=RovnaniChoice.ROVNA,

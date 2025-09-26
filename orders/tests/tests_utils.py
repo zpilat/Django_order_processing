@@ -75,7 +75,13 @@ class UtilitaTiskDokumentaceTests(UtilsBase):
 
 class UtilitaExpediceZakazekTests(UtilsBase):
     def test_expedice_beden(self):
-        self.bedna1.stav_bedny = StavBednyChoice.K_EXPEDICI
+        self.bedna1 = Bedna.objects.create(
+            zakazka=self.zakazka,
+            hmotnost=Decimal(2),
+            tara=Decimal(1),
+            mnozstvi=1,
+            stav_bedny=StavBednyChoice.K_EXPEDICI,
+        )
         self.bedna1.save()
 
         original_create = Zakazka.objects.create
@@ -129,7 +135,13 @@ class UtilitaKontrolaZakazekTests(UtilsBase):
     def test_pouze_komplet(self):
         self.zakaznik.pouze_komplet = True
         self.zakaznik.save()
-        self.bedna1.stav_bedny = StavBednyChoice.K_EXPEDICI
+        self.bedna1 = Bedna.objects.create(
+            zakazka=self.zakazka,
+            hmotnost=Decimal(2),
+            tara=Decimal(1),
+            mnozstvi=1,
+            stav_bedny=StavBednyChoice.K_EXPEDICI,
+        )
         self.bedna1.save()
         req = self.get_request('post')
         utilita_kontrola_zakazek(None, req, Zakazka.objects.filter(id=self.zakazka.id))

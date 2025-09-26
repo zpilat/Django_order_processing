@@ -5,6 +5,7 @@ from django.contrib.auth.models import Permission
 from django.contrib.messages.storage.fallback import FallbackStorage
 from django.core.files.uploadedfile import SimpleUploadedFile
 
+from decimal import Decimal
 from datetime import date
 from unittest.mock import patch
 
@@ -187,7 +188,7 @@ class KamionAdminTests(AdminBase):
             predpis=self.predpis, typ_hlavy=self.typ_hlavy,
             popis='p',
         )
-        Bedna.objects.create(zakazka=zakazka, hmotnost=1, tara=1)
+        Bedna.objects.create(zakazka=zakazka, hmotnost=Decimal(2), tara=Decimal(1), mnozstvi=1)
 
         admin_form = type('F', (), {'instance': kamion})()
 
@@ -223,8 +224,9 @@ class ZakazkaAdminTests(AdminBase):
         )
         cls.bedna = Bedna.objects.create(
             zakazka=cls.zakazka,
-            hmotnost=1,
-            tara=1,
+            hmotnost=Decimal(2),
+            tara=Decimal(1),
+            mnozstvi=1,
             )
 
     def setUp(self):
@@ -284,8 +286,9 @@ class BednaAdminTests(AdminBase):
         )
         cls.bedna = Bedna.objects.create(
             zakazka=cls.zakazka,
-            hmotnost=1,
-            tara=1,
+            hmotnost=Decimal(2),
+            tara=Decimal(1),
+            mnozstvi=1,
         )
 
     def setUp(self):
@@ -311,8 +314,9 @@ class BednaAdminTests(AdminBase):
 
         bed_ex = Bedna.objects.create(
             zakazka=self.zakazka,
-            hmotnost=1,
-            tara=1,
+            hmotnost=Decimal(2),
+            tara=Decimal(1),
+            mnozstvi=1,
             stav_bedny=StavBednyChoice.EXPEDOVANO,
         )
 
@@ -325,8 +329,9 @@ class BednaAdminTests(AdminBase):
 
         bed_poz = Bedna.objects.create(
             zakazka=self.zakazka,
-            hmotnost=1,
-            tara=1,
+            hmotnost=Decimal(2),
+            tara=Decimal(1),
+            mnozstvi=1,
             pozastaveno=True,
         )
         self.assertFalse(self.admin.has_change_permission(req, bed_poz))
@@ -391,7 +396,7 @@ class BednaInlineGetFieldsTests(AdminBase):
             typ_hlavy=self.typ_hlavy,
             popis='p',
         )
-        bedna = Bedna.objects.create(zakazka=zakazka, hmotnost=1, tara=1, pozastaveno=True)
+        bedna = Bedna.objects.create(zakazka=zakazka, hmotnost=1, tara=1, mnozstvi=1, pozastaveno=True)
         setattr(bedna, 'kamion_prijem', zakazka.kamion_prijem)
         return bedna
 
