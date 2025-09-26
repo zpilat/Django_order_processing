@@ -36,7 +36,7 @@ from .actions import (
     oznacit_otryskana_action, prijmout_kamion_action
    )
 from .filters import (
-    ExpedovanaZakazkaFilter, StavBednyFilter, KompletZakazkaFilter, AktivniPredpisFilter, SkupinaFilter, ZakaznikBednyFilter,
+    SklademZakazkaFilter, StavBednyFilter, KompletZakazkaFilter, AktivniPredpisFilter, SkupinaFilter, ZakaznikBednyFilter,
     ZakaznikZakazkyFilter, ZakaznikKamionuFilter, PrijemVydejFilter, TryskaniFilter, RovnaniFilter, PrioritaBednyFilter, PrioritaZakazkyFilter,
     OberflacheFilter, TypHlavyBednyFilter, TypHlavyZakazkyFilter, CelozavitBednyFilter, CelozavitZakazkyFilter, DelkaFilter, PozastavenoFilter,
     OdberatelFilter, ZakaznikPredpisFilter
@@ -1307,7 +1307,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     search_fields = ('artikl',)
     search_help_text = "Dle artiklu"
     list_filter = (ZakaznikZakazkyFilter, OdberatelFilter, KompletZakazkaFilter, PrioritaZakazkyFilter, CelozavitZakazkyFilter, TypHlavyZakazkyFilter,
-                   OberflacheFilter, ExpedovanaZakazkaFilter,)
+                   OberflacheFilter, SklademZakazkaFilter,)
     ordering = ('id',)
     date_hierarchy = 'kamion_prijem__datum'
     list_per_page = 25

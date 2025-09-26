@@ -478,7 +478,7 @@ class OdberatelFilter(DynamicTitleFilter):
             return queryset.none()
 
 
-class ExpedovanaZakazkaFilter(DynamicTitleFilter):
+class SklademZakazkaFilter(DynamicTitleFilter):
     """
     Filtrovat zakázky podle stavu expedice.
     """
@@ -487,7 +487,7 @@ class ExpedovanaZakazkaFilter(DynamicTitleFilter):
     parameter_name = "skladem"
 
     def __init__(self, request, params, model, model_admin):
-        self.label_dict = {'expedovano': "Expedováno"}
+        self.label_dict = {'neprijato': "Nepřijato", 'bez_beden': "Bez beden", 'expedovano': "Expedováno"}
         super().__init__(request, params, model, model_admin)
 
     def lookups(self, request, model_admin):
@@ -511,8 +511,29 @@ class ExpedovanaZakazkaFilter(DynamicTitleFilter):
 
     def queryset(self, request, queryset):
         value = self.value()
+        # Subquery pro kontrolu, zda zakázka má nějakou bednu ve stavu NEPRIJATO
+        neprijato_subquery = Bedna.objects.filter(
+            zakazka=OuterRef('pk'),
+            stav_bedny=StavBednyChoice.NEPRIJATO,
+        )
+        # Subquery pro kontrolu, zda zakázka má aspoň jednu bednu s jiným stavem než NEPRIJATO
+        non_neprijato_subquery = Bedna.objects.filter(
+            zakazka=OuterRef('pk'),
+        ).exclude(stav_bedny=StavBednyChoice.NEPRIJATO)
+
         if value is None:
-            return queryset.filter(expedovano=False)
+            # "Vše skladem": neexpedováno AND existuje aspoň jedna bedna, která není NEPRIJATO.
+            # Tím se automaticky vyřadí expedované, bez beden i zakázky, kde jsou všechny bedny NEPRIJATO.
+            return queryset.filter(
+                expedovano=False,
+            ).filter(
+                Exists(non_neprijato_subquery)
+            ).distinct()
+        elif value == 'neprijato':
+            # Zakázky, které mají aspoň jednu bednu ve stavu NEPRIJATO
+            return queryset.filter(Exists(neprijato_subquery))
+        elif value == 'bez_beden':
+            return queryset.filter(bedny__isnull=True)
         elif value == 'expedovano':
             return queryset.filter(expedovano=True)
         return queryset
