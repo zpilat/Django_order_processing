@@ -1214,7 +1214,7 @@ class BednaInline(admin.TabularInline):
             `dodavatel_materialu`. 
         - Pokud je obj (tj. edit_view) a zákazník kamionu příjmu je 'SSH', 'SWG', 'HPM', 'FIS',
             vyloučí se pole `behalter_nr`, `dodatecne_info`, `dodavatel_materialu` a `vyrobni_zakazka`.
-        - Pokud je obj (tj. edit_view) a alespoň jedna bedna zakázky má vyplněné pole `tara`, vyloučí se pole `brutto`.
+        - Pokud je obj (tj. edit_view) a všechny bedny zakázky mají vyplněné pole `tara` větší než nula, vyloučí se pole `brutto`.
         """
         fields = list(super().get_fields(request, obj))
         exclude_fields = []
@@ -1228,12 +1228,11 @@ class BednaInline(admin.TabularInline):
                 exclude_fields.extend(['dodatecne_info', 'dodavatel_materialu'])
             elif zkratka in ('SSH', 'SWG', 'HPM', 'FIS'):
                 exclude_fields.extend(['behalter_nr', 'dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka'])
-            if zakazka_inst and hasattr(zakazka_inst, 'bedny'):
-                try:
-                    if zakazka_inst.bedny.filter(tara__gt=0).exists():
-                        exclude_fields.append('brutto')
-                except Exception:
-                    pass
+                
+            # Pokud všechny bedny zakázky mají vyplněnou taru větší než nula, vyloučit brutto
+            if zakazka_inst and hasattr(zakazka_inst, 'bedny') and zakazka_inst.bedny.exists():
+                if not zakazka_inst.bedny.exclude(tara__gt=0).exists():
+                    exclude_fields.append('brutto')
         else:  # add view
             exclude_fields.append('cislo_bedny')
         return [f for f in fields if f not in exclude_fields]
