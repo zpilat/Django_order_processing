@@ -32,7 +32,8 @@ from .actions import (
     tisk_karet_kontroly_kvality_action, tisk_karet_kontroly_kvality_zakazek_action, tisk_karet_kontroly_kvality_kamionu_action,
     tisk_proforma_faktury_kamionu_action, oznacit_k_navezeni_action, vratit_bedny_do_stavu_prijato_action, oznacit_navezeno_action,
     oznacit_do_zpracovani_action, oznacit_zakaleno_action, oznacit_zkontrolovano_action, oznacit_k_expedici_action, oznacit_rovna_action,
-    oznacit_kriva_action, oznacit_rovna_se_action, oznacit_vyrovnana_action, oznacit_cista_action, oznacit_spinava_action, oznacit_otryskana_action,
+    oznacit_kriva_action, oznacit_rovna_se_action, oznacit_vyrovnana_action, oznacit_cista_action, oznacit_spinava_action,
+    oznacit_otryskana_action, prijmout_kamion_action
    )
 from .filters import (
     ExpedovanaZakazkaFilter, StavBednyFilter, KompletZakazkaFilter, AktivniPredpisFilter, SkupinaFilter, ZakaznikBednyFilter,
@@ -313,7 +314,7 @@ class KamionAdmin(SimpleHistoryAdmin):
     """
     # Použité akce
     actions = [import_kamionu_action, tisk_karet_beden_kamionu_action, tisk_karet_kontroly_kvality_kamionu_action, tisk_dodaciho_listu_kamionu_action,
-               tisk_proforma_faktury_kamionu_action]
+               tisk_proforma_faktury_kamionu_action, prijmout_kamion_action]
     # Parametry pro zobrazení detailu v administraci
     fields = ('zakaznik', 'datum', 'poradove_cislo', 'cislo_dl', 'prijem_vydej', 'odberatel',) # další úpravy v get_fields
     readonly_fields = ('prijem_vydej', 'poradove_cislo',) # další úpravy v get_readonly_fields
@@ -511,17 +512,29 @@ class KamionAdmin(SimpleHistoryAdmin):
         """
         actions = super().get_actions(request)
 
-        if (request.GET.get('prijem_vydej') == 'V'):
+        if (request.GET.get('prijem_vydej') == 'PB'):
+            actions_to_remove = [
+                'tisk_karet_beden_kamionu_action',
+                'tisk_karet_kontroly_kvality_kamionu_action',
+                'tisk_dodaciho_listu_kamionu_action',
+                'tisk_proforma_faktury_kamionu_action',
+                'prijmout_kamion_action'
+            ]
+        elif (request.GET.get('prijem_vydej') == 'PN'):
             actions_to_remove = [
                 'import_kamionu_action',
                 'tisk_karet_beden_kamionu_action',
-                'tisk_karet_kontroly_kvality_kamionu_action'
+                'tisk_karet_kontroly_kvality_kamionu_action',
+                'tisk_dodaciho_listu_kamionu_action',
+                'tisk_proforma_faktury_kamionu_action'
             ]
-        elif (request.GET.get('prijem_vydej') == 'PS'):
+        elif (request.GET.get('prijem_vydej') == 'PK'):
             actions_to_remove = [
                 'import_kamionu_action',                
                 'tisk_dodaciho_listu_kamionu_action',
-                'tisk_proforma_faktury_kamionu_action'
+                'tisk_proforma_faktury_kamionu_action',
+                'prijmout_kamion_action',
+                'delete_selected'
             ]
         elif (request.GET.get('prijem_vydej') == 'PV'):
             actions_to_remove = [
@@ -529,24 +542,28 @@ class KamionAdmin(SimpleHistoryAdmin):
                 'tisk_karet_beden_kamionu_action',
                 'tisk_karet_kontroly_kvality_kamionu_action',
                 'tisk_dodaciho_listu_kamionu_action',
-                'tisk_proforma_faktury_kamionu_action'
+                'tisk_proforma_faktury_kamionu_action',
+                'prijmout_kamion_action',
+                'delete_selected'
             ]
-        elif (request.GET.get('prijem_vydej') == 'PB'):
+        elif (request.GET.get('prijem_vydej') == 'V'):
             actions_to_remove = [
+                'import_kamionu_action',
                 'tisk_karet_beden_kamionu_action',
                 'tisk_karet_kontroly_kvality_kamionu_action',
-                'tisk_dodaciho_listu_kamionu_action',
-                'tisk_proforma_faktury_kamionu_action'
-            ]
+                'prijmout_kamion_action',
+                'delete_selected'
+            ]            
         else:
-            actions_to_remove = []
+            return {}  # Pokud není filtr, neukazuj žádné akce
 
         # Vždy nahraď "delete_selected" obálkou s kontrolou 1 položky
-        actions['delete_selected'] = (
-            self.__class__.delete_selected_one,
-            'delete_selected',
-            getattr(admin_delete_selected, 'short_description', 'Smazat vybrané'),
-        )
+        if 'delete_selected' in actions:
+            actions['delete_selected'] = (
+                self.__class__.delete_selected_one,
+                'delete_selected',
+                getattr(admin_delete_selected, 'short_description', 'Smazat vybrané'),
+            )
 
         for action in actions_to_remove:
             if action in actions:
@@ -577,6 +594,7 @@ class KamionAdmin(SimpleHistoryAdmin):
 
         group_map = {
             'import_kamionu_action': 'Import / Příjem',
+            'prijmout_kamion_action': 'Import / Příjem',
             'tisk_karet_beden_kamionu_action': 'Tisk karet',
             'tisk_karet_kontroly_kvality_kamionu_action': 'Tisk karet',
             'tisk_dodaciho_listu_kamionu_action': 'Tisk dokladů',
@@ -1228,7 +1246,7 @@ class BednaInline(admin.TabularInline):
                 exclude_fields.extend(['dodatecne_info', 'dodavatel_materialu'])
             elif zkratka in ('SSH', 'SWG', 'HPM', 'FIS'):
                 exclude_fields.extend(['behalter_nr', 'dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka'])
-                
+
             # Pokud všechny bedny zakázky mají vyplněnou taru větší než nula, vyloučit brutto
             if zakazka_inst and hasattr(zakazka_inst, 'bedny') and zakazka_inst.bedny.exists():
                 if not zakazka_inst.bedny.exclude(tara__gt=0).exists():

@@ -5,6 +5,7 @@ from django.urls import reverse
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.db.models import Sum
+from django.db.models import Q
 
 from simple_history.models import HistoricalRecords
 
@@ -511,6 +512,11 @@ class Bedna(models.Model):
             ('change_pozastavena_bedna', 'Může upravovat a uvolnit pozastavené bedny'),
             ('change_neprijata_bedna', 'Může upravovat bedny ve stavu NEPŘIJATO'),
         )
+        constraints = [models.CheckConstraint(
+            name="bedna_valid_when_not_neprijato",
+            check= Q(stav_bedny=StavBednyChoice.NEPRIJATO) | ( Q(hmotnost__isnull=False, tara__isnull=False, mnozstvi__isnull=False) & Q(hmotnost__gt=0, tara__gt=0, mnozstvi__gt=0) ),
+            ),
+        ]
 
     def __str__(self):
         return f'{self.zakazka.kamion_prijem.zakaznik.zkratka} {self.zakazka.kamion_prijem.datum.strftime("%d.%m.%y")}-{self.zakazka.artikl}-{self.zakazka.prumer}x{self.zakazka.delka}-{self.cislo_bedny}'

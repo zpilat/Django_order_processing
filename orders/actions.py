@@ -8,6 +8,7 @@ from django import forms
 from django.forms import formset_factory
 from django.template.response import TemplateResponse
 from django.utils.translation import gettext_lazy as _
+from django.core.exceptions import ValidationError
 
 import datetime
 from weasyprint import HTML
@@ -669,7 +670,82 @@ def import_kamionu_action(modeladmin, request, queryset):
         logger.info(f"Uživatel {request.user} se pokusil importovat kamion {kamion.cislo_dl}, ale není to kamion pro zákazníka Eurotec.")
         modeladmin.message_user(request, "Import je zatím možný pouze pro zákazníka Eurotec.", level=messages.ERROR)
         return
+    
+@admin.action(description="Přijmout kamion na sklad")
+def prijmout_kamion_action(modeladmin, request, queryset):
+    """
+    Přijme vybraný kamion na sklad.
+    Předpokládá, že je vybrán pouze jeden kamion a to kamion s příznakem příjem, který obsahuje aspoň 
+    jednu bednu ve stavu bedny NEPRIJATO. Převede všechny bedny ze stavu NEPRIJATO do stavu PRIJATO.
+    Pokud je vybráno více kamionů, zobrazí se chybová zpráva.
+    """
+    # Pokud je vybráno více kamionů, zobrazí se chybová zpráva
+    if queryset.count() != 1:
+        logger.info(f"Uživatel {request.user} se pokusil přijmout kamion, ale vybral více než jeden kamion.")
+        modeladmin.message_user(request, "Vyber pouze jeden kamion.", level=messages.ERROR)
+        return
+    kamion = queryset.first()
+    # Zkontroluje, zda je kamion s příznakem příjem
+    if kamion.prijem_vydej != 'P':
+        logger.info(f"Uživatel {request.user} se pokusil přijmout kamion {kamion.cislo_dl}, ale není to kamion s příznakem příjem.")
+        modeladmin.message_user(request, "Přijmout kamion je možné pouze u kamionů příjem.", level=messages.ERROR)
+        return
+    # Zkontroluje, zda kamion obsahuje aspoň jednu bednu ve stavu NEPRIJATO
+    if not Bedna.objects.filter(zakazka__kamion_prijem=kamion, stav_bedny=StavBednyChoice.NEPRIJATO).exists():
+        logger.info(f"Uživatel {request.user} se pokusil přijmout kamion {kamion.cislo_dl}, ale neobsahuje žádné bedny ve stavu NEPRIJATO.")
+        modeladmin.message_user(request, "Kamion neobsahuje žádné bedny ve stavu NEPRIJATO.", level=messages.ERROR)
+        return
+    # Předvalidace a uložení v jedné transakci pod řádkovým zámkem
+    with transaction.atomic():
+        bedny_qs = Bedna.objects.select_for_update().filter(
+            zakazka__kamion_prijem=kamion,
+            stav_bedny=StavBednyChoice.NEPRIJATO,
+        )
+        bedny = list(bedny_qs)
 
+        # Nejprve všechny zvalidovat pro přechod do PRIJATO
+        errors = []
+        for bedna in bedny:
+            original_state = bedna.stav_bedny
+            bedna.stav_bedny = StavBednyChoice.PRIJATO
+            try:
+                bedna.full_clean()
+            except ValidationError as e:
+                errors.append((bedna, e))
+            finally:
+                bedna.stav_bedny = original_state
+
+        if errors:
+            for bedna, e in errors:
+                logger.info(
+                    f"Uživatel {request.user} se pokusil přijmout kamion {kamion.cislo_dl}, ale bedna {bedna} neprošla validací: {e}."
+                )
+                modeladmin.message_user(
+                    request,
+                    f"Nelze přijmout kamion, bedna {bedna} neprošla validací: {e}",
+                    level=messages.ERROR,
+                )
+            return
+
+        # Vše OK – proveď přechod stavu a ulož všechny
+        for bedna in bedny:
+            try:
+                bedna.stav_bedny = StavBednyChoice.PRIJATO
+                bedna.save()
+            except Exception as e:
+                logger.error(
+                    f"Nastala chyba {e} při přijímání bedny {bedna} z kamionu {kamion.cislo_dl}, kamion nebyl přijat."
+                )
+                modeladmin.message_user(
+                    request,
+                    f"Nastala chyba {e} při přijímání bedny {bedna} z kamionu {kamion.cislo_dl}.",
+                    level=messages.ERROR,
+                )
+                return
+            
+    logger.info(f"Uživatel {request.user} přijal kamion {kamion.cislo_dl} na sklad.")
+    modeladmin.message_user(request, f"Kamion {kamion.cislo_dl} byl přijat na sklad.", level=messages.SUCCESS)
+    return
 
 @admin.action(description="Vytisknout dodací list vybraného kamionu výdej")
 def tisk_dodaciho_listu_kamionu_action(modeladmin, request, queryset):
