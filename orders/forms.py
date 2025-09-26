@@ -157,8 +157,10 @@ class BednaAdminForm(forms.ModelForm):
     brutto = forms.DecimalField(
         label="Brutto kg",
         min_value=0.0,
+        decimal_places=1,
+        max_digits=5,
         required=False,
-        help_text="Zadejte brutto pouze pro výpočet táry v případě, že není zadána.",
+        help_text="Zadejte brutto pro výpočet táry pouze v případě, že není zadána.",
         widget=forms.TextInput(attrs={'size': '8', 'style': 'width: 60px;'})
     )
 
@@ -169,9 +171,10 @@ class BednaAdminForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # Pokud je stav_bedny EXPEDOVANO, zobrazí se v detailu kvůli has_change_permission v adminu bedny ne jako formulář, ale pouze čistý text.
-        # Objekt pak nemá fields ve formuláři, takže není potřeba ho inicializovat. Nefunguje kvůli nemodelovému poli,
-        # je potřeba ještě další validace existence jednotlivých polí v self.fields.
+        # Pokud je stav_bedny EXPEDOVANO, zobrazí se v detailu kvůli has_change_permission v adminu bedny ne jako formulář,
+        # ale pouze čistý text. Objekt pak nemá fields ve formuláři, takže není potřeba ho inicializovat.
+        # Pozor: Nefunguje v případě, že existuje nemodelové pole (brutto), proto je potřeba ještě další validace
+        # existence jednotlivých polí v self.fields.
         if not self.fields:
             return
 
@@ -211,77 +214,38 @@ class BednaAdminForm(forms.ModelForm):
 
     def clean(self):
         """
-        Validace a výpočet táry pro formulář BednaAdminForm.
-
-        Pravidla:
-        1) Hmotnost (hmotnost) musí existovat a být > 0 (z formuláře nebo z instance).
-        2) Musí být k dispozici buď platná tára (>0), nebo platné brutto (>0 a brutto > hmotnost).
-           - Pokud ani jedno, chyba (u pole 'tara' pokud je ve formu, jinak non-field).
-           - Pokud se používá brutto (tára není) a není > hmotnost => chyba 'brutto'.
-        3) Množství (mnozstvi) musí být > 0 (z formuláře nebo z instance).
-        4) Nesmí být současně zadána platná tára i brutto (pokud jsou obě pole ve formuláři).
-        5) Výpočet táry:
-           - Proběhne jen pokud nejsou jiné chyby.
-           - Výsledek se zaokrouhlí na 1 desetinné místo (ROUND_HALF_UP).
-
-        Chyby na polích, která ve formuláři nejsou, se hlásí jako non-field (add_error(None, ...)),
-        aby nedošlo k ValueError.
+        Výpočet táry pro formulář BednaAdminForm.
         """
         cleaned = super().clean()
 
-        # Zjištění, která pole jsou ve formuláři (detail vs. changelist)
-        has_hmotnost = 'hmotnost' in self.fields
-        has_tara = 'tara' in self.fields
-        has_mnozstvi = 'mnozstvi' in self.fields
-        has_brutto = 'brutto' in self.fields  # nemodelové
+        # Pole 'brutto' se díky get_fieldsets zobrazuje pouze v případě, že zatím není v db uložena tára
+        if 'brutto' in self.fields:
+            # Načtení hodnot pro výpočet táry
+            hmotnost = cleaned.get('hmotnost')
+            tara = cleaned.get('tara')
+            brutto = cleaned.get('brutto')
 
-        # Načtení hodnot – pokud pole není ve formu, použij hodnotu z instance
-        hmotnost = cleaned.get('hmotnost') if has_hmotnost else getattr(self.instance, 'hmotnost', None)
-        tara = cleaned.get('tara') if has_tara else getattr(self.instance, 'tara', None)
-        mnozstvi = cleaned.get('mnozstvi') if has_mnozstvi else getattr(self.instance, 'mnozstvi', None)
-        brutto = cleaned.get('brutto') if has_brutto else None  # pouze pokud pole existuje
+            # Pokud není zadáno brutto, není co počítat, vrátí se
+            if brutto is None or brutto <= 0:
+                return cleaned
 
-        # 1) Hmotnost > 0
-        if hmotnost is None or hmotnost <= 0:
-            if has_hmotnost:
-                self.add_error('hmotnost', "Musí být zadána hmotnost > 0.")
-            else:
-                self.add_error(None, "Uložená hmotnost není platná (>0).")
+            # Výpočet táry z brutto hmotnosti proběhne pouze v případě, že tára není zadána nebo není nula
+            # Pokud je zadána tára > 0, je to chyba, protože nesmí být zadáno současně brutto i tára. 
+            if tara is not None and tara > 0:
+                self.add_error('brutto', "Pokud je zadána tára, nesmí být zadáno brutto.")
+            
+            # Pokud není zadána hmotnost, dá chybovou hlášku, protože bez hmotnosti nelze táru spočítat
+            if hmotnost is None or hmotnost <= 0:
+                self.add_error('hmotnost', "Pro výpočet táry z brutto musí být zadána platná hmotnost (>0).")
 
-        tara_ok = (tara is not None and tara > 0)
-        brutto_ok = (brutto is not None and brutto > 0)
-        hm_ok = (hmotnost is not None and hmotnost > 0)
-
-        # 2) Musí být tára nebo (brutto a brutto > hmotnost)
-        if not tara_ok and not brutto_ok:
-            if has_tara:
-                self.add_error('tara', "Zadejte buď táru nebo brutto.")
-            else:
-                self.add_error(None, "Chybí platná tára nebo brutto.")
-        elif not tara_ok and brutto_ok and hm_ok and brutto <= hmotnost:
-            # brutto je zadáno, ale není větší než hmotnost
-            self.add_error('brutto', "Brutto musí být větší než hmotnost nebo zadejte táru.")
-
-        # 3) Množství > 0
-        if mnozstvi is None or mnozstvi <= 0:
-            if has_mnozstvi:
-                self.add_error('mnozstvi', "Množství musí být větší než 0.")
-            else:
-                self.add_error(None, "Uložené množství není platné (musí být větší než 0).")
-
-        # 4) Současně tára i brutto (jen pokud obě pole existují)
-        if has_tara and has_brutto and tara_ok and brutto_ok:
-            self.add_error('brutto', "Pokud je zadána tára, nesmí být zadáno brutto.")
-
-        # 5) Výpočet táry (jen pokud lze uložit a dává smysl)
-        if not self.errors:
-            try:
+            # Pokud je brutto menší nebo rovno hmotnosti, je to chyba, protože tára by byla záporná nebo nula
+            if hmotnost is not None and brutto <= hmotnost:
+                self.add_error('brutto', "Brutto musí být větší než hmotnost pro výpočet kladné táry.")
+            
+            # Výpočet táry pokud nebyly nalezeny chyby
+            if not self.errors:
                 vypocet = brutto - hmotnost
-                if vypocet > 0:
-                    cleaned['tara'] = (vypocet).quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)
-            except Exception:
-                # tiše ignorovat numerické chyby
-                pass
+                cleaned['tara'] = (vypocet).quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)
 
         return cleaned
 
