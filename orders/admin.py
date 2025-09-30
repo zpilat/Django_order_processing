@@ -555,7 +555,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                 'delete_selected'
             ]            
         else:
-            return {}  # Pokud není filtr, neukazuj žádné akce
+            actions_to_remove = []
 
         # Vždy nahraď "delete_selected" obálkou s kontrolou 1 položky
         if 'delete_selected' in actions:
