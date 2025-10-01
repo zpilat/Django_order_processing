@@ -141,7 +141,7 @@ def utilita_zkraceni_popisu_beden(bedna):
     """
     match = re.match(r"^(.*?)(\s+\d+.*)?$", bedna.zakazka.popis)    
     if match:
-        bedna.zakazka.popis = match.group(1).strip()
+        bedna.zakazka.zkraceny_popis = match.group(1).strip()
 
 
 def utilita_validate_excel_upload(uploaded_file):
