@@ -26,25 +26,46 @@ logger = logging.getLogger('orders')
 @admin.action(description="Vytisknout karty bedny")
 def tisk_karet_beden_action(modeladmin, request, queryset):
     """
-    Vytvoří PDF s kartou bedny pro označené bedny.
+    Vytvoří PDF s kartou bedny pro označené bedny. Bedny musí být od jednoho zákazníka.
     """
-    # Upraví popis zakázky na zkrácenou verzi, aby se vlezla do pole v kartě bedny.
-    filename = "karty_beden.pdf"
-    html_path = "orders/karta_bedny_eur.html"
-    logger.info(f"Uživatel {request.user} tiskne karty beden pro {queryset.count()} vybraných beden.")
-    return utilita_tisk_dokumentace(modeladmin, request, queryset, html_path, filename)
+    if queryset.values('zakazka__kamion_prijem__zakaznik').distinct().count() != 1:
+        logger.error(f"Uživatel {request.user} se pokusil tisknout karty beden, ale vybral bedny od více zákazníků.")
+        modeladmin.message_user(request, "Pro tisk karet beden musí být vybrány bedny od jednoho zákazníka.", level=messages.ERROR)
+        return None
+
+    zakaznik_zkratka = queryset.first().zakazka.kamion_prijem.zakaznik.zkratka
+    if zakaznik_zkratka:
+        filename = f"karty_beden_{zakaznik_zkratka.lower()}.pdf"
+        html_path = f"orders/karta_bedny_{zakaznik_zkratka.lower()}.html"
+        response = utilita_tisk_dokumentace(modeladmin, request, queryset, html_path, filename)
+        logger.info(f"Uživatel {request.user} tiskne karty beden pro {queryset.count()} vybraných beden.")
+        return response
+    else:
+        logger.error(f"Bedna {queryset.first()} nemá přiřazeného zákazníka nebo zákazník nemá zkratku.")
+        modeladmin.message_user(request, "Bedna nemá přiřazeného zákazníka nebo zákazník nemá zkratku.", level=messages.ERROR)
+        return None
 
 @admin.action(description="Vytisknout KKK")
 def tisk_karet_kontroly_kvality_action(modeladmin, request, queryset):
     """
-    Vytvoří PDF s kartou kontroly kvality pro označené bedny.
+    Vytvoří PDF s kartou kontroly kvality pro označené bedny. Bedny musít být od jednoho zákazníka.
     """
-    # Upraví popis zakázky na zkrácenou verzi, aby se vlezla do pole v kartě bedny.
-    filename = "karty_kontroly_kvality.pdf"
-    html_path = "orders/karta_kontroly_kvality_eur.html"
-    response = utilita_tisk_dokumentace(modeladmin, request, queryset, html_path, filename)
-    logger.info(f"Uživatel {request.user} tiskne karty kontroly kvality pro {queryset.count()} vybraných beden.")
-    return response
+    if queryset.values('zakazka__kamion_prijem__zakaznik').distinct().count() != 1:
+        logger.error(f"Uživatel {request.user} se pokusil tisknout karty beden, ale vybral bedny od více zákazníků.")
+        modeladmin.message_user(request, "Pro tisk karet beden musí být vybrány bedny od jednoho zákazníka.", level=messages.ERROR)
+        return None
+
+    zakaznik_zkratka = queryset.first().zakazka.kamion_prijem.zakaznik.zkratka
+    if zakaznik_zkratka:
+        filename = f"karty_kontroly_kvality_{zakaznik_zkratka.lower()}.pdf"
+        html_path = f"orders/karta_kontroly_kvality_{zakaznik_zkratka.lower()}.html"
+        response = utilita_tisk_dokumentace(modeladmin, request, queryset, html_path, filename)
+        logger.info(f"Uživatel {request.user} tiskne karty kontroly kvality pro {queryset.count()} vybraných beden.")
+        return response        
+    else:
+        logger.error(f"Bedna {queryset.first()} nemá přiřazeného zákazníka nebo zákazník nemá zkratku.")
+        modeladmin.message_user(request, "Bedna nemá přiřazeného zákazníka nebo zákazník nemá zkratku.", level=messages.ERROR)
+        return None
 
 def _render_oznacit_k_navezeni(modeladmin, request, queryset, formset):
     """
@@ -670,32 +691,60 @@ def expedice_zakazek_kamion_action(modeladmin, request, queryset):
 @admin.action(description="Vytisknout karty beden z vybraných zakázek")
 def tisk_karet_beden_zakazek_action(modeladmin, request, queryset):
     """
-    Vytvoří PDF s kartami beden ze zvolených zakázkách.
+    Vytvoří PDF s kartami beden ze zvolených zakázkách. Zakázky mohou být pouze od jednoho zákazníka.
+    Zakázky musí obsahovat alespoň jednu bednu.
     """
+    if queryset.values_list('kamion_prijem__zakaznik', flat=True).distinct().count() != 1:
+        logger.info(f"Uživatel {request.user} se pokusil tisknout karty beden z více zákazníků.")
+        modeladmin.message_user(request, "Zakázky musí být od jednoho zákazníka.", level=messages.ERROR)
+        return None
+    
     bedny = Bedna.objects.filter(zakazka__in=queryset)
     if not bedny.exists():
         logger.info(f"Uživatel {request.user} se pokusil tisknout karty beden, ale v označených zakázkách nejsou žádné bedny.")
         modeladmin.message_user(request, "V označených zakázkách nejsou žádné bedny.", level=messages.ERROR)
         return None
-    filename = "karty_beden.pdf"
-    html_path = "orders/karta_bedny_eur.html"
-    logger.info(f"Uživatel {request.user} tiskne karty beden pro {bedny.count()} vybraných beden.")
-    return utilita_tisk_dokumentace(modeladmin, request, bedny, html_path, filename)
+
+    zakaznik_zkratka = queryset.first().kamion_prijem.zakaznik.zkratka
+    if zakaznik_zkratka:
+        filename = f"karty_beden_{zakaznik_zkratka.lower()}.pdf"
+        html_path = f"orders/karta_bedny_{zakaznik_zkratka.lower()}.html"
+        response = utilita_tisk_dokumentace(modeladmin, request, bedny, html_path, filename)
+        logger.info(f"Uživatel {request.user} tiskne karty beden pro {bedny.count()} vybraných beden.")
+        return response
+    else:
+        logger.error(f"Zakázka {queryset.first()} nemá přiřazeného zákazníka nebo zákazník nemá zkratku.")
+        modeladmin.message_user(request, "Zakázka nemá přiřazeného zákazníka nebo zákazník nemá zkratku.", level=messages.ERROR)
+        return None
 
 @admin.action(description="Vytisknout KKK z vybraných zakázek")
 def tisk_karet_kontroly_kvality_zakazek_action(modeladmin, request, queryset):
     """
-    Vytvoří PDF s kartami kontroly kvality ze zvolených zakázkách.
+    Vytvoří PDF s kartami kontroly kvality ze zvolených zakázkách. Zakázky musí být od jednoho zákazníka.
+    Vybrané zakázky musí obsahovat alespoň jednu bednu.
     """
+    if queryset.values_list('kamion_prijem__zakaznik', flat=True).distinct().count() != 1:
+        logger.info(f"Uživatel {request.user} se pokusil tisknout karty beden z více zákazníků.")
+        modeladmin.message_user(request, "Zakázky musí být od jednoho zákazníka.", level=messages.ERROR)
+        return None
+    
     bedny = Bedna.objects.filter(zakazka__in=queryset)
     if not bedny.exists():
         logger.info(f"Uživatel {request.user} se pokusil tisknout karty kontroly kvality, ale v označených zakázkách nejsou žádné bedny.")
         modeladmin.message_user(request, "V označených zakázkách nejsou žádné bedny.", level=messages.ERROR)
         return None
-    filename = "karty_kontroly_kvality.pdf"
-    string = "orders/karta_kontroly_kvality_eur.html"
-    logger.info(f"Uživatel {request.user} tiskne karty kontroly kvality pro {bedny.count()} vybraných beden.")
-    return utilita_tisk_dokumentace(modeladmin, request, bedny, string, filename)
+    
+    zakaznik_zkratka = queryset.first().kamion_prijem.zakaznik.zkratka
+    if zakaznik_zkratka:
+        filename = f"karty_kontroly_kvality_{zakaznik_zkratka.lower()}.pdf"
+        html_path = f"orders/karta_kontroly_kvality_{zakaznik_zkratka.lower()}.html"
+        response = utilita_tisk_dokumentace(modeladmin, request, bedny, html_path, filename)
+        logger.info(f"Uživatel {request.user} tiskne karty kontroly kvality pro {bedny.count()} vybraných beden.")
+        return response
+    else:
+        logger.error(f"Zakázka {queryset.first()} nemá přiřazeného zákazníka nebo zákazník nemá zkratku.")
+        modeladmin.message_user(request, "Zakázka nemá přiřazeného zákazníka nebo zákazník nemá zkratku.", level=messages.ERROR)
+        return None
 
 @admin.action(description="Vrácení vybraných zakázek z expedice")
 def vratit_zakazky_z_expedice_action(modeladmin, request, queryset):
@@ -845,7 +894,6 @@ def tisk_dodaciho_listu_kamionu_action(modeladmin, request, queryset):
     Vytiskne dodací list pro vybraný kamion do PDF.
     Předpokládá, že je vybrán pouze jeden kamion a to kamion s příznakem výdej.
     Pokud je vybráno více kamionů, zobrazí se chybová zpráva.
-    Zatím je tisk pouze pro zákazníka Eurotec (EUR).
     """
     # Pokud je vybráno více kamionů, zobrazí se chybová zpráva
     if queryset.count() != 1:
@@ -858,18 +906,18 @@ def tisk_dodaciho_listu_kamionu_action(modeladmin, request, queryset):
         logger.info(f"Uživatel {request.user} se pokusil tisknout dodací list kamionu {kamion.cislo_dl}, ale není to kamion s příznakem výdej.")
         modeladmin.message_user(request, "Tisk DL je možný pouze pro kamiony výdej.", level=messages.ERROR)
         return
-    # Zkontroluje, zda je kamion pro zákazníka Eurotec
-    if kamion.zakaznik.zkratka == "EUR":
-        zkratka = kamion.zakaznik.zkratka.lower()
-        html_path = f"orders/dodaci_list_{zkratka}.html"
+
+    zakaznik_zkratka = kamion.zakaznik.zkratka
+    if zakaznik_zkratka:
+        html_path = f"orders/dodaci_list_{zakaznik_zkratka.lower()}.html"
         filename = f'dodaci_list_{kamion.cislo_dl}.pdf'
-        logger.info(f"Uživatel {request.user} tiskne dodací list kamionu {kamion.cislo_dl} pro zákazníka Eurotec.")
-        return utilita_tisk_dl_a_proforma_faktury(modeladmin, request, kamion, html_path, filename)
-    # Pokud není pro zákazníka zatím tisk DL umožněn, zobrazí se chybová zpráva
+        response = utilita_tisk_dl_a_proforma_faktury(modeladmin, request, kamion, html_path, filename)
+        logger.info(f"Uživatel {request.user} tiskne dodací list kamionu {kamion.cislo_dl} pro zákazníka {zakaznik_zkratka}.")
+        return response
     else:
-        logger.info(f"Uživatel {request.user} se pokusil tisknout dodací list kamionu {kamion.cislo_dl}, ale pro tohoto zákazníka není tisk DL zatím možný.")
-        modeladmin.message_user(request, f"Tisk DL zatím pro zákazníka {kamion.zakaznik.zkraceny_nazev} není možný", level=messages.ERROR)
-        return
+        logger.error(f"Kamion {kamion} nemá přiřazeného zákazníka nebo zákazník nemá zkratku.")
+        modeladmin.message_user(request, "Kamion nemá přiřazeného zákazníka nebo zákazník nemá zkratku.", level=messages.ERROR)
+        return None
 
 @admin.action(description="Vytisknout proforma fakturu vybraného kamionu výdej")
 def tisk_proforma_faktury_kamionu_action(modeladmin, request, queryset):
@@ -877,7 +925,6 @@ def tisk_proforma_faktury_kamionu_action(modeladmin, request, queryset):
     Vytiskne proforma fakturu pro vybraný kamion do PDF.
     Předpokládá, že je vybrán pouze jeden kamion a to kamion s příznakem výdej.
     Pokud je vybráno více kamionů, zobrazí se chybová zpráva.
-    Zatím je tisk pouze pro zákazníka Eurotec (EUR).
     """
     # Pokud je vybráno více kamionů, zobrazí se chybová zpráva
     if queryset.count() != 1:
@@ -890,18 +937,15 @@ def tisk_proforma_faktury_kamionu_action(modeladmin, request, queryset):
         logger.info(f"Uživatel {request.user} se pokusil tisknout proforma fakturu kamionu {kamion.cislo_dl}, ale není to kamion s příznakem výdej.")
         modeladmin.message_user(request, "Tisk proforma faktury je možný pouze pro kamiony výdej.", level=messages.ERROR)
         return
-    # Zkontroluje, zda je kamion pro zákazníka Eurotec
-    if kamion.zakaznik.zkratka == "EUR":
-        zkratka = kamion.zakaznik.zkratka.lower()
-        html_path = f"orders/proforma_faktura_{zkratka}.html"
+
+    zakaznik_zkratka = kamion.zakaznik.zkratka
+    if zakaznik_zkratka:
+        html_path = f"orders/proforma_faktura_{zakaznik_zkratka.lower()}.html"
         filename = f'proforma_faktura_{kamion.cislo_dl}.pdf'
-        logger.info(f"Uživatel {request.user} tiskne proforma fakturu kamionu {kamion.cislo_dl} pro zákazníka Eurotec.")
-        return utilita_tisk_dl_a_proforma_faktury(modeladmin, request, kamion, html_path, filename)
-    # Pokud není pro zákazníka zatím tisk proforma faktury umožněn, zobrazí se chybová zpráva
-    else:
-        logger.info(f"Uživatel {request.user} se pokusil tisknout proforma fakturu kamionu {kamion.cislo_dl}, ale pro tohoto zákazníka není tisk proforma faktury zatím možný.")
-        modeladmin.message_user(request, f"Tisk proforma faktury zatím pro zákazníka {kamion.zakaznik.zkraceny_nazev} není možný", level=messages.ERROR)
-        return
+        response = utilita_tisk_dl_a_proforma_faktury(modeladmin, request, kamion, html_path, filename)
+        logger.info(f"Uživatel {request.user} tiskne proforma fakturu kamionu {kamion.cislo_dl} pro zákazníka {zakaznik_zkratka}.")
+        return response
+
 
 @admin.action(description="Vytisknout karty beden z vybraného kamionu příjem se zakázkami")
 def tisk_karet_beden_kamionu_action(modeladmin, request, queryset):
@@ -910,6 +954,7 @@ def tisk_karet_beden_kamionu_action(modeladmin, request, queryset):
     Musí být vybrán pouze jeden kamion, jinak se zobrazí chybová zpráva.
     Musí se jednat o kamion s příznakem příjem, jinak se zobrazí chybová zpráva.
     Tisknou se pouze karty beden, které nejsou již expedovány.
+    Pokud jsou v kamionu bedny nepřijaté, zobrazí se chybová zpráva a tisk se přeruší.
     """
     if queryset.count() != 1:
         logger.info(f"Uživatel {request.user} se pokusil tisknout karty beden, ale vybral více než jeden kamion.")
@@ -921,13 +966,26 @@ def tisk_karet_beden_kamionu_action(modeladmin, request, queryset):
         return None
     bedny = Bedna.objects.filter(zakazka__kamion_prijem__in=queryset).exclude(stav_bedny=StavBednyChoice.EXPEDOVANO)
     if not bedny.exists():
-        logger.info(f"Uživatel {request.user} se pokusil tisknout karty beden, ale v označeném kamionu nejsou žádné bedny.")
-        modeladmin.message_user(request, "V označeném kamionu nejsou žádné bedny.", level=messages.ERROR)
+        logger.info(f"Uživatel {request.user} se pokusil tisknout karty beden, ale v označeném kamionu nejsou žádné bedny skladem.")
+        modeladmin.message_user(request, "V označeném kamionu nejsou žádné bedny skladem.", level=messages.ERROR)
         return None
-    filename = "karty_beden.pdf"
-    html_path = "orders/karta_bedny_eur.html"
-    logger.info(f"Uživatel {request.user} tiskne karty beden pro {bedny.count()} vybraných beden.")
-    return utilita_tisk_dokumentace(modeladmin, request, bedny, html_path, filename)
+    
+    if bedny.filter(stav_bedny=StavBednyChoice.NEPRIJATO).exists():
+        logger.info(f"Uživatel {request.user} se pokusil tisknout karty beden kamionu {queryset.first().cislo_dl}, ale některé bedny nejsou přijaty.")
+        modeladmin.message_user(request, "Některé bedny v označeném kamionu nejsou přijaty, lze tisknout pouze komplet přijatý kamion.", level=messages.ERROR)
+        return None
+
+    zakaznik_zkratka = queryset.first().zakaznik.zkratka
+    if zakaznik_zkratka:
+        filename = f"karty_beden_{zakaznik_zkratka.lower()}.pdf"
+        html_path = f"orders/karta_bedny_{zakaznik_zkratka.lower()}.html"
+        response = utilita_tisk_dokumentace(modeladmin, request, bedny, html_path, filename)
+        logger.info(f"Uživatel {request.user} tiskne karty beden pro {bedny.count()} vybraných beden.")
+        return response
+    else:
+        logger.error(f"Kamion {queryset.first()} nemá přiřazeného zákazníka nebo zákazník nemá zkratku.")
+        modeladmin.message_user(request, "Kamion nemá přiřazeného zákazníka nebo zákazník nemá zkratku.", level=messages.ERROR)
+        return None
 
 @admin.action(description="Vytisknout KKK z vybraného kamionu příjem se zakázkami")
 def tisk_karet_kontroly_kvality_kamionu_action(modeladmin, request, queryset):
@@ -936,6 +994,7 @@ def tisk_karet_kontroly_kvality_kamionu_action(modeladmin, request, queryset):
     Musí být vybrán pouze jeden kamion, jinak se zobrazí chybová zpráva.
     Musí se jednat o kamion s příznakem příjem, jinak se zobrazí chybová zpráva.
     Tisknou se pouze karty beden, které nejsou již expedovány.
+    Pokud jsou v kamionu bedny nepřijaté, zobrazí se chybová zpráva a tisk se přeruší.
     """
     if queryset.count() != 1:
         logger.info(f"Uživatel {request.user} se pokusil tisknout karty kontroly kvality, ale vybral více než jeden kamion.")
@@ -950,7 +1009,20 @@ def tisk_karet_kontroly_kvality_kamionu_action(modeladmin, request, queryset):
         logger.info(f"Uživatel {request.user} se pokusil tisknout karty kontroly kvality, ale v označeném kamionu nejsou žádné bedny.")
         modeladmin.message_user(request, "V označeném kamionu nejsou žádné bedny.", level=messages.ERROR)
         return None
-    filename = "karty_kontroly_kvality.pdf"
-    html_path = "orders/karta_kontroly_kvality_eur.html"
-    logger.info(f"Uživatel {request.user} tiskne karty kontroly kvality pro {bedny.count()} vybraných beden.")
-    return utilita_tisk_dokumentace(modeladmin, request, bedny, html_path, filename)
+    
+    if bedny.filter(stav_bedny=StavBednyChoice.NEPRIJATO).exists():
+        logger.info(f"Uživatel {request.user} se pokusil tisknout karty kontroly kvality kamionu {queryset.first().cislo_dl}, ale některé bedny nejsou přijaty.")
+        modeladmin.message_user(request, "Některé bedny v označeném kamionu nejsou přijaty, lze tisknout pouze komplet přijatý kamion.", level=messages.ERROR)
+        return None    
+    
+    zakaznik_zkratka = queryset.first().zakaznik.zkratka
+    if zakaznik_zkratka:
+        filename = f"karty_kontroly_kvality_{zakaznik_zkratka.lower()}.pdf"
+        html_path = f"orders/karta_kontroly_kvality_{zakaznik_zkratka.lower()}.html"
+        response = utilita_tisk_dokumentace(modeladmin, request, bedny, html_path, filename)
+        logger.info(f"Uživatel {request.user} tiskne karty kontroly kvality pro {bedny.count()} vybraných beden.")
+        return response
+    else:
+        logger.error(f"Kamion {queryset.first()} nemá přiřazeného zákazníka nebo zákazník nemá zkratku.")
+        modeladmin.message_user(request, "Kamion nemá přiřazeného zákazníka nebo zákazník nemá zkratku.", level=messages.ERROR)
+        return None
