@@ -161,15 +161,15 @@
                 </tr>
                 <tr>
                     <td colspan="2">
-                        ARTIKL<br>
-                        Art. Nr.
+                        ŠARŽE<br>
+                        Charge
                     </td>
                 </tr>
                 <tr style="height: 50px;">
                     <td colspan="2" class="fs-11 fw-bold">
                         <div style="display: flex; justify-content: space-between; width: 100%;">
                             <span style="padding: 0 5px;">{{ bedna.zakazka.popis|slice:":22" }}</span>
-                            <span style="padding: 0 5px;">{{ bedna.zakazka.artikl }}-{{ bedna.sarze }}</span>
+                            <span style="padding: 0 5px;">{{ bedna.zakazka.artikl }}</span>
                         </div>
                     </td>
                 </tr>           
@@ -251,11 +251,10 @@
                     <td colspan="2" style="height: 30px;"></td>
                 </tr>                  
                 <tr style="height: 1px;">
-                    <td colspan="2" class="text-start fs-07" style="padding: 0px 2px; line-height: 1;">
-                        HPM - F 73c<br>
-                        Eurotec - F.3
+                    <td colspan="2" class="text-start fs-07" style="padding: 0px 2px; line-height: 2;">
+                        HPM - F 76b
                     </td>             
-                </tr>  
+                </tr>
             </tbody>
         </table>
         <table class="table table-bordered" style="width: 64%; table-layout: fixed; font-family: 'Arial';">
@@ -279,14 +278,11 @@
                             {{ bedna.zakazka.predpis.krut }}
                         </span>
                     </td>
-                    <td rowspan="2" class="text-center fs-09 fw-bold" style="width: 19.6%;">
+                    <td colspan="3" class="text-center fs-09 fw-bold" style="width: 19.6%;">
                         KONTROLA PROHYBU<br>
                         Abweichung Geradheit<br>
                         <span class="fs-07 fw-normal">
-                            Mind. 5 Prüfmuster
-                            <div style="height: 30px;"></div>
-                            L ≤ 150mm: λ ≤  0,005L [mm]<br>
-                            L > 150mm: λ ≤  0,006L [mm]
+                            Mind. 3 Prüfmuster
                         </span>
                     </td>
                     <td colspan="2" class="text-center fs-09 fw-bold" style="width: 20%;">
@@ -294,7 +290,25 @@
                         Härteprüfung
                     </td>                         
                 </tr>
-                <tr>              
+                <tr>         
+                    <td class="text-center fs-08 fw-bold" style="width: 9.8%;">
+                        PO<br>TZ<br>
+                        <span class="fs-07 fw-normal">
+                            Nach der Wärmebeh.
+                        </span>
+                    </td>
+                    <td class="text-center fs-08 fw-bold" style="width: 9.8%;">
+                        PO<br>KOULENÍ
+                        <span class="fs-07 fw-normal">
+                            Nach dem Rollen
+                        </span>
+                    </td>                    
+                    <td class="text-center fs-08 fw-bold" style="width: 9.8%;">
+                        PO<br>ROVNÁNÍ
+                        <span class="fs-07 fw-normal">
+                            Nach dem Richten
+                        </span>
+                    </td>
                     <td class="text-center fs-09 fw-bold" style="width: 10%;">
                         POVRCH<br>
                         Oberfläche<br>
@@ -314,81 +328,18 @@
                         </span>
                     </td>                
                 </tr>
-                <tr style="height: 50px;">
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
+                {% for _ in "x"|ljust:"10" %}
+                <tr style="height: 48px;">
+                    {% for _ in "x"|ljust:"7" %}
+                        <td></td>
+                    {% endfor %}
                 </tr>
-                <tr style="height: 50px;">
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                </tr>
-                <tr style="height: 50px;">
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                </tr>
-                <tr style="height: 50px;">
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                </tr>
-                <tr style="height: 50px;">
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                </tr>
-                <tr style="height: 50px;">
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                </tr>
-                <tr style="height: 50px;">
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                </tr>
-                <tr style="height: 50px;">
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                </tr>
-                <tr style="height: 50px;">
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                </tr>
-                <tr style="height: 50px;">
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                </tr>                                                                                                                                           
+                {% endfor %}                                                                                                                                         
                 <tr style="height: 1px;">
                     <td colspan="2" class="text-start fs-10 fw-bold" style="padding: 3px 2px; line-height: 1;">
                         Kontrolliert
                     </td>
-                    <td class="text-start fs-10 fw-bold" style="padding: 3px 2px; line-height: 1;">
+                    <td colspan="3" class="text-start fs-10 fw-bold" style="padding: 3px 2px; line-height: 1;">
                         Kontrolliert
                     </td>
                     <td colspan="2" class="text-start fs-10 fw-bold" style="padding: 3px 2px; line-height: 1;">
