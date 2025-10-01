@@ -265,7 +265,7 @@ class Predpis(models.Model):
     sarzovani = models.CharField(max_length=50, verbose_name='Šaržování', blank=True, null=True)
     pletivo = models.CharField(max_length=50, verbose_name='Pletivo', blank=True, null=True)
     popis_povrch = models.CharField(max_length=50, verbose_name='Povrch - popis', blank=True, null=True)
-    popis_povrch_2 = models.CharField(max_length=50, verbose_name='Povrch - popis', blank=True, null=True)
+    popis_povrch_2 = models.CharField(max_length=50, verbose_name='Povrch - popis 2', blank=True, null=True)
     popis_jadro = models.CharField(max_length=50, verbose_name='Jádro - popis', blank=True, null=True)
     popis_jadro_2 = models.CharField(max_length=50, verbose_name='Jádro - popis 2', blank=True, null=True)
     popis_vrstva = models.CharField(max_length=50, verbose_name='Vrstva - popis', blank=True, null=True)

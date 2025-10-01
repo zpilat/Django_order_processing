@@ -242,15 +242,15 @@
                                 </td>
                                 <td class="fs-08">
                                     {{ bedna.zakazka.predpis.popis_povrch|linebreaksbr }}
-                                    {{ bedna.zakazka.predpis.popis_povrch_2|linebreaksbr }}
+                                    {{ bedna.zakazka.predpis.popis_povrch_2|default:"" }}
                                 </td>
                                 <td class="fs-08">
                                     {{ bedna.zakazka.predpis.popis_jadro|linebreaksbr }}
-                                    {{ bedna.zakazka.predpis.popis_jadro_2|linebreaksbr }}
+                                    {{ bedna.zakazka.predpis.popis_jadro_2|default:"" }}
                                 </td>
                                 <td class="fs-08">
                                     {{ bedna.zakazka.predpis.popis_vrstva|linebreaksbr }}
-                                    {{ bedna.zakazka.predpis.popis_vrstva_2|linebreaksbr }}
+                                    {{ bedna.zakazka.predpis.popis_vrstva_2|default:"" }}
                                 </td>
                             </tr>
                             <tr>
@@ -268,7 +268,7 @@
                                 </td>
                                 <td class="fs-08 fw-bold">
                                     {{ bedna.zakazka.predpis.vrstva|linebreaksbr }}
-                                    {{ bedna.zakazka.predpis.vrstva_2|linebreaksbr }}
+                                    {{ bedna.zakazka.predpis.vrstva_2|default:"" }}
                                 </td>
                             </tr>
                         </table>
