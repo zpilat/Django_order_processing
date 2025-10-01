@@ -44,7 +44,7 @@ class ActionsBase(TestCase):
             predpis=cls.predpis, typ_hlavy=cls.typ_hlavy,
             popis='p'
         )
-        cls.bedna = Bedna.objects.create(zakazka=cls.zakazka, hmotnost=Decimal(1), tara=Decimal(1), mnozstvi=1)
+        cls.bedna = Bedna.objects.create(zakazka=cls.zakazka, hmotnost=Decimal(1), tara=Decimal(1), mnozstvi=1, stav_bedny=StavBednyChoice.PRIJATO)
 
     def get_request(self, method='get', data=None):
         req = getattr(self.factory, method)('/', data or {})
@@ -85,7 +85,7 @@ class ActionsTests(ActionsBase):
         qs = Bedna.objects.all()
         resp = actions.tisk_karet_beden_action(self.admin, req, qs)
         mock_util.assert_called_once_with(self.admin, req, qs,
-                                          'orders/karta_bedny_eur.html', 'karty_beden.pdf')
+                                          'orders/karta_bedny_eur.html', 'karty_beden_eur.pdf')
         self.assertIsInstance(resp, HttpResponse)
 
     def test_tisk_karet_beden_action_empty(self):
