@@ -42,7 +42,10 @@ from .filters import (
     OdberatelFilter, ZakaznikPredpisFilter
 )
 from .forms import BednaAdminForm, BednaChangeListForm, ImportZakazekForm, ZakazkaInlineForm, ZakazkaAdminForm
-from .choices import StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice, stav_bedny_rozpracovanost, stav_bedny_skladem
+from .choices import (
+    StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice, PrijemVydejChoice, SklademZakazkyChoice,
+    stav_bedny_rozpracovanost, stav_bedny_skladem
+    )
 from .utils import utilita_validate_excel_upload
 
 import logging
@@ -475,6 +478,18 @@ class KamionAdmin(SimpleHistoryAdmin):
         if allowed_ids:
             super().delete_queryset(request, queryset.filter(pk__in=allowed_ids))
         # Pokud nic nepovoleno, jen vrátí – akce skončí s vypsanými hláškami
+
+    def get_list_display(self, request):
+        """
+        Přizpůsobení zobrazení sloupců v seznamu zakázek podle aktivního filtru.
+        Pokud je vybraný filtr PrijemVydejFilter a má hodnoty PRIJEM_NEPRIJATY nebo PRIJEM_KOMPLET_PRIJATY, 
+        odebere se sloupec get_pocet_beden_skladem.
+        """
+        ld = list(super().get_list_display(request))
+        if request.GET.get('prijem_vydej') not in (None, PrijemVydejChoice.PRIJEM_NEPRIJATY, PrijemVydejChoice.PRIJEM_KOMPLET_PRIJATY):
+            if 'get_pocet_beden_skladem' in ld:
+                ld.remove('get_pocet_beden_skladem')
+        return ld
 
     def get_fields(self, request, obj=None):
         """
@@ -1534,14 +1549,16 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
                 # Pokud je zakázka expedovaná, kvůli has_permission v modelu ZakazkaAdmin nelze měnit, zobrazí i kamion výdej
                 my_fieldsets = [
                     ('Expedovaná zakázka:', {
-                        'fields': ['kamion_prijem', 'kamion_vydej', 'artikl', 'typ_hlavy', 'celozavit', 'prumer', 'delka', 'predpis', 'priorita', 'popis', 'odberatel', 'get_komplet',],
+                        'fields': ['kamion_prijem', 'kamion_vydej', 'artikl', 'typ_hlavy', 'celozavit', 'prumer', 'delka', 'predpis',
+                                   'priorita', 'popis', 'odberatel', 'get_komplet', 'expedovano'],
                         'description': 'Zakázka je expedovaná a nelze ji měnit.',
                     }),
                 ]
             else:  # Pokud zakázka není expedovaná, zobrazí se základní pole pro editaci
                 my_fieldsets = [
                     ('Zakázka skladem:', {
-                        'fields': ['kamion_prijem', 'artikl', 'typ_hlavy', 'celozavit', 'prumer', 'delka', 'predpis', 'priorita', 'popis', 'odberatel', 'get_komplet',],
+                        'fields': ['kamion_prijem', 'artikl', 'typ_hlavy', 'celozavit', 'prumer', 'delka', 'predpis',
+                                   'priorita', 'popis', 'odberatel', 'get_komplet', 'expedovano'],
                     }),
                 ]
                
@@ -1589,19 +1606,19 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
                     'vratit_zakazky_z_expedice_action', 'delete_selected'
                 ]
             else:
-                if skladem == 'neprijato':
+                if skladem == SklademZakazkyChoice.NEPRIJATO:
                     actions_to_remove = [
                         'tisk_karet_beden_zakazek_action', 'tisk_karet_kontroly_kvality_zakazek_action',
                         'vratit_zakazky_z_expedice_action', 'expedice_zakazek_kamion_action',
                         'expedice_zakazek_action'
                     ]
-                elif skladem == 'bez_beden':
+                elif skladem == SklademZakazkyChoice.BEZ_BEDEN:
                     actions_to_remove = [
                         'tisk_karet_beden_zakazek_action', 'tisk_karet_kontroly_kvality_zakazek_action',
                         'vratit_zakazky_z_expedice_action', 'expedice_zakazek_kamion_action',
                         'expedice_zakazek_action', 'prijmout_zakazku_action'
                     ]
-                elif skladem == 'expedovano':
+                elif skladem == SklademZakazkyChoice.EXPEDOVANO:
                     actions_to_remove = [
                         'expedice_zakazek_action', 'expedice_zakazek_kamion_action', 'prijmout_zakazku_action',
                         'delete_selected'
@@ -1664,10 +1681,10 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     def get_list_display(self, request):
         """
         Přizpůsobení zobrazení sloupců v seznamu zakázek podle aktivního filtru.
-        Pokud není aktivní filtr "skladem=Expedováno", odebere se sloupec kamion_vydej.
+        Pokud není aktivní filtr "skladem=SklademZakazkyChoice.EXPEDOVANO", odebere se sloupec kamion_vydej.
         """
         ld = list(super().get_list_display(request))
-        if not request.GET.get('skladem'):
+        if request.GET.get('skladem') != SklademZakazkyChoice.EXPEDOVANO:
             if 'kamion_vydej_link' in ld:
                 ld.remove('kamion_vydej_link')
         return ld
@@ -1675,9 +1692,9 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     def get_list_editable(self, request):
         """
         Přizpůsobení zobrazení sloupců pro editaci v seznamu zakázek podle aktivního filtru.
-        Pokud není aktivní filtr "skladem=Expedováno", přidá se do list_editable pole priorita.
+        Pokud není aktivní filtr "skladem=SklademZakazkyChoice.EXPEDOVANO", přidá se do list_editable pole priorita.
         """
-        if request.GET.get('skladem') != 'expedovano':
+        if request.GET.get('skladem') != SklademZakazkyChoice.EXPEDOVANO:
             return ['priorita']
         return []
 

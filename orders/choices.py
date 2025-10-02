@@ -69,3 +69,15 @@ class AlphabetChoice(models.TextChoices):
     X = 'X', 'X'
     Y = 'Y', 'Y'
     Z = 'Z', 'Z'
+
+class PrijemVydejChoice(models.TextChoices):
+    PRIJEM_BEZ_ZAKAZEK = 'PB', 'Příjem - Bez zakázek'
+    PRIJEM_NEPRIJATY = 'PN', 'Příjem - Nepřijatý'
+    PRIJEM_KOMPLET_PRIJATY = 'PK', 'Příjem - Komplet přijatý'
+    PRIJEM_VYEXPEDOVANY = 'PV', 'Příjem - Vyexpedovaný'
+    VYDEJ = 'V', 'Výdej'
+
+class SklademZakazkyChoice(models.TextChoices):
+    NEPRIJATO = 'neprijato', 'Nepřijato'
+    BEZ_BEDEN = 'bez_beden', 'Bez beden'
+    EXPEDOVANO = 'expedovano', 'Expedováno'

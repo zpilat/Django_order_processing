@@ -7,7 +7,10 @@ from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 
 from .models import Zakazka, Bedna, Zakaznik, Kamion, TypHlavy, Predpis, Odberatel
-from .choices import StavBednyChoice, TryskaniChoice, RovnaniChoice, PrioritaChoice, stav_bedny_rozpracovanost, stav_bedny_skladem
+from .choices import (
+    StavBednyChoice, TryskaniChoice, RovnaniChoice, PrioritaChoice, PrijemVydejChoice, SklademZakazkyChoice,
+    stav_bedny_rozpracovanost, stav_bedny_skladem
+    )
 
 class DynamicTitleFilter(SimpleListFilter):
     """
@@ -487,7 +490,7 @@ class SklademZakazkaFilter(DynamicTitleFilter):
     parameter_name = "skladem"
 
     def __init__(self, request, params, model, model_admin):
-        self.label_dict = {'neprijato': "Nepřijato", 'bez_beden': "Bez beden", 'expedovano': "Expedováno"}
+        self.label_dict = {**dict(SklademZakazkyChoice.choices)}
         super().__init__(request, params, model, model_admin)
 
     def lookups(self, request, model_admin):
@@ -529,12 +532,12 @@ class SklademZakazkaFilter(DynamicTitleFilter):
             ).filter(
                 Exists(non_neprijato_subquery)
             ).distinct()
-        elif value == 'neprijato':
+        elif value == SklademZakazkyChoice.NEPRIJATO:
             # Zakázky, které mají aspoň jednu bednu ve stavu NEPRIJATO
             return queryset.filter(Exists(neprijato_subquery))
-        elif value == 'bez_beden':
+        elif value == SklademZakazkyChoice.BEZ_BEDEN:
             return queryset.filter(bedny__isnull=True)
-        elif value == 'expedovano':
+        elif value == SklademZakazkyChoice.EXPEDOVANO:
             return queryset.filter(expedovano=True)
         return queryset
       
@@ -704,13 +707,7 @@ class PrijemVydejFilter(DynamicTitleFilter):
     parameter_name = "prijem_vydej"
 
     def __init__(self, request, params, model, model_admin):
-        self.label_dict = {
-            'PB': 'Příjem - Bez zakázek',
-            'PN': 'Příjem - Nepřijatý',
-            'PK': 'Příjem - Komplet přijatý',
-            'PV': 'Příjem - Vyexpedovaný',            
-            'V': 'Výdej',
-        }
+        self.label_dict = {**dict(PrijemVydejChoice.choices)}
         super().__init__(request, params, model, model_admin)
 
     def lookups(self, request, model_admin):
@@ -721,24 +718,24 @@ class PrijemVydejFilter(DynamicTitleFilter):
         if not value:
             return queryset
         # PB Bez zakázek - kamion, který je typu příjem a nemá žádné zakázky
-        elif value == 'PB':
+        elif value == PrijemVydejChoice.PRIJEM_BEZ_ZAKAZEK:
             return queryset.filter(prijem_vydej='P', zakazky_prijem__isnull=True)
         # PN Nepřijatý - kamion, který obsahuje bedny, ale aspoň jedna bedna je ve stavu StavBednyChoices.NEPRIJATO
-        elif value == 'PN':
+        elif value == PrijemVydejChoice.PRIJEM_NEPRIJATY:
             return queryset.filter(prijem_vydej='P', zakazky_prijem__bedny__stav_bedny=StavBednyChoice.NEPRIJATO).distinct()
         # PK Komplet přijatý - kamion, který neobsahuje ani jednu bednu ve stavu StavBednyChoices.NEPRIJATO
         # a alespoň jedna bedna je ve stavu uvedeném ve stav_bedny_skladem.
-        elif value == 'PK':
+        elif value == PrijemVydejChoice.PRIJEM_KOMPLET_PRIJATY:
             return queryset.filter(prijem_vydej='P', zakazky_prijem__isnull=False
             ).exclude(zakazky_prijem__bedny__stav_bedny=StavBednyChoice.NEPRIJATO
             ).filter(zakazky_prijem__bedny__stav_bedny__in=stav_bedny_skladem).distinct()  
         # PV Vyexpedovaný - kamion, který má všechny bedny ve stavu StavBednyChoices.EXPEDOVANO      
-        elif value == 'PV':
+        elif value == PrijemVydejChoice.PRIJEM_VYEXPEDOVANY:
             zakazka_qs = Zakazka.objects.filter(kamion_prijem=OuterRef('pk'), expedovano=False)
             return queryset.filter(prijem_vydej='P', zakazky_prijem__isnull=False).annotate(ma_neexpedovanou=Exists(zakazka_qs)
             ).filter(ma_neexpedovanou=False).distinct()
         # V Výdej - kamion, který je typu výdej
-        elif value == 'V':
+        elif value == PrijemVydejChoice.VYDEJ:
             return queryset.filter(prijem_vydej='V')
         return queryset.none()    
           
