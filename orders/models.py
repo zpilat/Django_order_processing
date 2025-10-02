@@ -281,7 +281,6 @@ class Predpis(models.Model):
     vrstva_2 = models.CharField(max_length=50, verbose_name='Vrstva 2', blank=True, null=True)
     popousteni = models.CharField(max_length=50, verbose_name='Popouštění', blank=True, null=True)
     sarzovani = models.CharField(max_length=50, verbose_name='Šaržování', blank=True, null=True)
-    pletivo = models.CharField(max_length=50, verbose_name='Pletivo', blank=True, null=True)
     pletivo_fk = models.ForeignKey(Pletivo, on_delete=models.SET_NULL, related_name='predpisy', verbose_name='Pletivo', blank=True, null=True)
     popis_povrch = models.CharField(max_length=50, verbose_name='Povrch - popis', blank=True, null=True)
     popis_povrch_2 = models.CharField(max_length=50, verbose_name='Povrch - popis 2', blank=True, null=True)
