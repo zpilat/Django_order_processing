@@ -235,10 +235,12 @@
                         <table class="table table-secondary text-center mb-0 fs-07" style="width: 100%;">
                             <tr>
                                 <td class="fs-08">
-                                    Ohyb
+                                    {{ bedna.zakazka.predpis.ohyb }}
+                                    {{ bedna.zakazka.predpis.ohyb_2|default:"" }}
                                 </td>
                                 <td class="fs-08">
-                                    Krut
+                                    {{ bedna.zakazka.predpis.krut }}
+                                    {{ bedna.zakazka.predpis.krut_2|default:"" }}
                                 </td>
                                 <td class="fs-08">
                                     {{ bedna.zakazka.predpis.popis_povrch|linebreaksbr }}
