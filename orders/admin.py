@@ -2254,7 +2254,7 @@ class PredpisAdmin(SimpleHistoryAdmin):
     """
     save_as = True
     list_display = ('nazev', 'skupina', 'zakaznik__zkraceny_nazev', 'ohyb', 'krut', 'povrch', 'jadro', 'vrstva', 'popousteni',
-                    'sarzovani', 'pletivo_fk', 'poznamka', 'aktivni')
+                    'sarzovani', 'pletivo', 'poznamka', 'aktivni')
     list_display_links = ('nazev',)
     search_fields = ('nazev',)
     search_help_text = "Dle názvu předpisu"
@@ -2263,7 +2263,7 @@ class PredpisAdmin(SimpleHistoryAdmin):
     list_per_page = 25
 
     history_list_display = ('nazev', 'skupina', 'zakaznik__zkraceny_nazev', 'ohyb', 'krut', 'povrch', 'jadro', 'vrstva', 'popousteni',
-                            'sarzovani', 'pletivo_fk', 'poznamka', 'aktivni')
+                            'sarzovani', 'pletivo', 'poznamka', 'aktivni')
     history_search_fields = ['nazev']
     history_list_filter = ['zakaznik__zkraceny_nazev']
     history_list_per_page = 20
