@@ -154,4 +154,4 @@ class UtilitaZkraceniPopisuTests(UtilsBase):
     def test_zkraceni_popisu(self):
         self.zakazka.popis = 'abc def 1234 xxx'
         utilita_zkraceni_popisu_beden(self.bedna1)
-        self.assertEqual(self.zakazka.popis, 'abc def')
+        self.assertEqual(self.zakazka.zkraceny_popis, 'abc def')
