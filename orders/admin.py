@@ -322,7 +322,7 @@ class KamionAdmin(SimpleHistoryAdmin):
     fields = ('zakaznik', 'datum', 'poradove_cislo', 'cislo_dl', 'prijem_vydej', 'odberatel',) # další úpravy v get_fields
     readonly_fields = ('prijem_vydej', 'poradove_cislo',) # další úpravy v get_readonly_fields
     # Parametry pro zobrazení seznamu v administraci
-    list_display = ('get_kamion_str', 'get_zakaznik_zkraceny_nazev', 'get_datum', 'poradove_cislo', 'cislo_dl', 'prijem_vydej',
+    list_display = ('get_kamion_str', 'get_zakaznik_zkraceny_nazev', 'get_datum', 'poradove_cislo', 'cislo_dl', 'get_typ_kamionu',
                     'odberatel', 'get_pocet_beden_skladem', 'get_celkova_hmotnost_netto', 'get_celkova_hmotnost_brutto',)
     list_select_related = ('zakaznik',)
     list_filter = (ZakaznikKamionuFilter, PrijemVydejFilter)
@@ -353,6 +353,36 @@ class KamionAdmin(SimpleHistoryAdmin):
                 return [ZakazkaAutomatizovanyPrijemInline]
             return [ZakazkaKamionPrijemInline]
         return []
+    
+    @admin.display(description='Typ kamiónu', empty_value='-')
+    def get_typ_kamionu(self, obj):
+        """
+        Získá typ kamionu dle stavů zakázek a beden v kamionu.
+        Stavy jsou podle PrijemVydejChoice a dle níže uvedených pravidel z filtru PrijemVydejFilter.
+
+        1. Bez zakázek - kamion, který je typu příjem a nemá žádné zakázky
+        2. Nepřijatý - kamion příjem, který obsahuje bedny, ale aspoň jedna bedna je ve stavu StavBednyChoices.NEPRIJATO
+        3. Komplet přijatý - kamion příjem, který neobsahuje ani jednu bednu ve stavu StavBednyChoices.NEPRIJATO
+            a alespoň jedna bedna je ve stavu uvedeném ve stav_bedny_skladem.
+        4. Vyexpedovaný - kamion příjem, který má všechny bedny ve stavu StavBednyChoices.EXPEDOVANO
+        5. Výdej - kamion, který je typu výdej
+        """
+        if not obj or obj.prijem_vydej not in (KamionChoice.PRIJEM, KamionChoice.VYDEJ):
+            return '-'
+        if obj.prijem_vydej == KamionChoice.PRIJEM:
+            if not obj.zakazky_prijem.exists():
+                return 'Bez zakázek'
+            elif obj.zakazky_prijem.filter(bedny__stav_bedny=StavBednyChoice.NEPRIJATO).exists():
+                return 'Nepřijatý'
+            elif (not obj.zakazky_prijem.filter(bedny__stav_bedny=StavBednyChoice.NEPRIJATO).exists() and
+                  obj.zakazky_prijem.filter(bedny__stav_bedny__in=stav_bedny_skladem).exists()):
+                return 'Komplet přijatý'
+            elif not obj.zakazky_prijem.filter(expedovano=False).exists():
+                return 'Vyexpedovaný'
+            else:
+                return '-'
+        elif obj.prijem_vydej == KamionChoice.VYDEJ:
+            return 'Výdej'
     
     @admin.display(description='Zákazník', ordering='zakaznik__zkraceny_nazev', empty_value='-')
     def get_zakaznik_zkraceny_nazev(self, obj):

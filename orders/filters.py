@@ -729,11 +729,10 @@ class PrijemVydejFilter(DynamicTitleFilter):
             return queryset.filter(prijem_vydej='P', zakazky_prijem__isnull=False
             ).exclude(zakazky_prijem__bedny__stav_bedny=StavBednyChoice.NEPRIJATO
             ).filter(zakazky_prijem__bedny__stav_bedny__in=stav_bedny_skladem).distinct()  
-        # PV Vyexpedovaný - kamion, který má všechny bedny ve stavu StavBednyChoices.EXPEDOVANO      
+        # PV Vyexpedovaný - kamion, který má všechny zakázky ve stavu expedovano=True      
         elif value == PrijemVydejChoice.PRIJEM_VYEXPEDOVANY:
-            zakazka_qs = Zakazka.objects.filter(kamion_prijem=OuterRef('pk'), expedovano=False)
-            return queryset.filter(prijem_vydej='P', zakazky_prijem__isnull=False).annotate(ma_neexpedovanou=Exists(zakazka_qs)
-            ).filter(ma_neexpedovanou=False).distinct()
+            return queryset.filter(prijem_vydej='P', zakazky_prijem__isnull=False
+            ).exclude(zakazky_prijem__expedovano=False).distinct()
         # V Výdej - kamion, který je typu výdej
         elif value == PrijemVydejChoice.VYDEJ:
             return queryset.filter(prijem_vydej='V')
