@@ -25,7 +25,7 @@ from django import forms
 from django.contrib.admin.helpers import ActionForm
 from django.contrib.admin.actions import delete_selected as admin_delete_selected
 
-from .models import Zakaznik, Kamion, Zakazka, Bedna, Predpis, Odberatel, TypHlavy, Cena, Pozice
+from .models import Zakaznik, Kamion, Zakazka, Bedna, Predpis, Odberatel, TypHlavy, Cena, Pozice, Pletivo
 from .actions import (
     expedice_zakazek_action, import_kamionu_action, tisk_karet_beden_action, tisk_karet_beden_zakazek_action,
     tisk_karet_beden_kamionu_action, tisk_dodaciho_listu_kamionu_action, vratit_zakazky_z_expedice_action, expedice_zakazek_kamion_action,
@@ -2254,7 +2254,8 @@ class PredpisAdmin(SimpleHistoryAdmin):
     """
     save_as = True
     list_display = ('nazev', 'skupina', 'zakaznik__zkraceny_nazev', 'ohyb', 'krut', 'povrch', 'jadro', 'vrstva', 'popousteni',
-                    'sarzovani', 'pletivo', 'poznamka', 'aktivni')
+                    'sarzovani', 'pletivo', 'pletivo_fk', 'poznamka', 'aktivni')
+    list_editable = ('pletivo', 'pletivo_fk')
     list_display_links = ('nazev',)
     search_fields = ('nazev',)
     search_help_text = "Dle názvu předpisu"
@@ -2396,6 +2397,21 @@ class PoziceAdmin(admin.ModelAdmin):
     def seznam_beden(self, obj):
         bedny_na_pozici = obj.bedny.values_list("cislo_bedny", flat=True)
         return f"{', '.join(map(str, bedny_na_pozici))}" if bedny_na_pozici else "-"
+
+
+@admin.register(Pletivo)
+class PletivoAdmin(SimpleHistoryAdmin):
+    """
+    Správa pletiv v administraci.
+    """
+    list_display = ('nazev', 'rozmer_oka', 'tloustka_dratu')
+    list_display_links = ('nazev',)
+    ordering = ['nazev']
+    list_per_page = 25
+
+    history_list_display = ['nazev', 'rozmer_oka', 'tloustka_dratu']
+    history_search_fields = ['nazev']
+    history_list_per_page = 20
 
 
 # Nastavení atributů AdminSite

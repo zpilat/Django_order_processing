@@ -3,7 +3,7 @@ from django.db.models.deletion import ProtectedError
 from django.utils.translation import gettext_lazy as _
 from django.urls import reverse
 from django.core.exceptions import ValidationError
-from django.core.validators import MinValueValidator
+from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db.models import Sum
 from django.db.models import Q
 
@@ -12,7 +12,7 @@ from simple_history.models import HistoricalRecords
 from decimal import Decimal, ROUND_HALF_UP
 
 from .choices import (
-    StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice, KodChoice
+    StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice, AlphabetChoice
 )
 
 import logging
@@ -249,6 +249,24 @@ class Kamion(models.Model):
         return super().delete(using=using, keep_parents=keep_parents)
     
 
+class Pletivo(models.Model):
+    """
+    Pletivo použité v předpisech.
+    """
+    nazev = models.CharField(max_length=1, verbose_name='Název pletiva', choices=AlphabetChoice.choices, unique=True)
+    rozmer_oka = models.PositiveSmallIntegerField(verbose_name='Rozměr oka', validators=[MaxValueValidator(30)], blank=True, null=True)
+    tloustka_dratu = models.DecimalField(verbose_name='Tloušťka drátu', max_digits=3, decimal_places=1, blank=True, null=True)
+    history = HistoricalRecords()
+
+    class Meta:
+        verbose_name = 'Pletivo'
+        verbose_name_plural = 'pletiva'
+        ordering = ['nazev']
+
+    def __str__(self):
+        return self.nazev
+
+
 class Predpis(models.Model):
     """
     Předpis zákazníka pro tepelné zpracování pro přiřazení skupiny TZ.
@@ -264,6 +282,7 @@ class Predpis(models.Model):
     popousteni = models.CharField(max_length=50, verbose_name='Popouštění', blank=True, null=True)
     sarzovani = models.CharField(max_length=50, verbose_name='Šaržování', blank=True, null=True)
     pletivo = models.CharField(max_length=50, verbose_name='Pletivo', blank=True, null=True)
+    pletivo_fk = models.ForeignKey(Pletivo, on_delete=models.SET_NULL, related_name='predpisy', verbose_name='Pletivo', blank=True, null=True)
     popis_povrch = models.CharField(max_length=50, verbose_name='Povrch - popis', blank=True, null=True)
     popis_povrch_2 = models.CharField(max_length=50, verbose_name='Povrch - popis 2', blank=True, null=True)
     popis_jadro = models.CharField(max_length=50, verbose_name='Jádro - popis', blank=True, null=True)
@@ -459,7 +478,7 @@ class Cena(models.Model):
 
 
 class Pozice(models.Model):
-    kod = models.CharField(max_length=1, choices=KodChoice.choices, verbose_name='Kód pozice', unique=True)
+    kod = models.CharField(max_length=1, choices=AlphabetChoice.choices, verbose_name='Kód pozice', unique=True)
     kapacita = models.PositiveIntegerField(verbose_name='Kapacita', default=15)
 
     class Meta:

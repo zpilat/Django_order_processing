@@ -42,7 +42,7 @@ class KamionChoice(models.TextChoices):
     PRIJEM = 'P', 'Přijem'
     VYDEJ = 'V', 'Výdej'
 
-class KodChoice(models.TextChoices):
+class AlphabetChoice(models.TextChoices):
     A = 'A', 'A'
     B = 'B', 'B'
     C = 'C', 'C'
