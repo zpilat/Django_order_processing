@@ -39,7 +39,7 @@ class StavBednyFilter(DynamicTitleFilter):
 
     def __init__(self, request, params, model, model_admin):
         self.label_dict = {**dict(StavBednyChoice.choices)}
-        self.label_dict['RO'] = 'Rozpracované'
+        self.label_dict['RO'] = 'Rozpracováno'
         self.label_dict['PE'] = 'Bedny po expiraci'
         super().__init__(request, params, model, model_admin)
 
