@@ -269,7 +269,7 @@
                                     {{ bedna.zakazka.predpis.jadro|linebreaksbr }}
                                 </td>
                                 <td class="fs-08 fw-bold">
-                                    {{ bedna.zakazka.predpis.vrstva|linebreaksbr }}
+                                    {{ bedna.zakazka.predpis.vrstva|linebreaksbr }}<br>
                                     {{ bedna.zakazka.predpis.vrstva_2|default:"" }}
                                 </td>
                             </tr>
@@ -323,15 +323,21 @@
                     <td colspan="9" rowspan="6" style="padding: 0;">
                         <table class="table mb-0 fs-06" style="width: 100%;">
                             <tr>
-                                <td colspan="2" rowspan="6" class="align-top text-center small">Mezioperační kontrola</td>
-                                <td colspan="3" class="text-center fs-10 fw-bold">TRYSKÁNÍ</td>
-                                <td colspan="2" rowspan="6" class="align-top text-center small">Výstupní kontrola</td>
-                                <td colspan="2" rowspan="6" class="align-top text-center bg-body-secondary small">Uvolněno k expedici</td>
+                                <td colspan="2" class="text-center small">
+                                    Mezioperační kontrola                                  
+                                </td>
+                                <td colspan="2" class="text-center fs-10 fw-bold">TRYSKÁNÍ ano:</td>
+                                <td>&nbsp;</td>
+                                <td colspan="2" class="text-center small">Výstupní kontrola</td>
+                                <td colspan="2" class="text-center bg-body-secondary small">Uvolněno k expedici</td>
                             </tr>
                             <tr>
+                                <td colspan="2" rowspan ="5" class="text-center fs-20 fw-bold">-</td>
                                 <td>&nbsp;</td>
                                 <td>&nbsp;</td>
                                 <td>&nbsp;</td>
+                                <td colspan="2" rowspan="5">&nbsp;</td>
+                                <td colspan="2" rowspan="5" class="bg-body-secondary">&nbsp;</td>
                             </tr>
                             <tr>
                                 <td class="text-center">1 2 3 4 5</td>
