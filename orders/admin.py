@@ -322,7 +322,7 @@ class KamionAdmin(SimpleHistoryAdmin):
     fields = ('zakaznik', 'datum', 'poradove_cislo', 'cislo_dl', 'prijem_vydej', 'odberatel',) # další úpravy v get_fields
     readonly_fields = ('prijem_vydej', 'poradove_cislo',) # další úpravy v get_readonly_fields
     # Parametry pro zobrazení seznamu v administraci
-    list_display = ('get_kamion_str', 'get_zakaznik_zkraceny_nazev', 'get_datum', 'poradove_cislo', 'cislo_dl', 'get_typ_kamionu',
+    list_display = ('get_kamion_str', 'get_zakaznik_zkraceny_nazev', 'get_datum', 'cislo_dl', 'get_typ_kamionu',
                     'odberatel', 'get_pocet_beden_skladem', 'get_celkova_hmotnost_netto', 'get_celkova_hmotnost_brutto',)
     list_select_related = ('zakaznik',)
     list_filter = (ZakaznikKamionuFilter, PrijemVydejFilter)
@@ -519,6 +519,9 @@ class KamionAdmin(SimpleHistoryAdmin):
         if request.GET.get('prijem_vydej') not in (None, PrijemVydejChoice.PRIJEM_NEPRIJATY, PrijemVydejChoice.PRIJEM_KOMPLET_PRIJATY):
             if 'get_pocet_beden_skladem' in ld:
                 ld.remove('get_pocet_beden_skladem')
+        if request.GET.get('prijem_vydej') not in (None, PrijemVydejChoice.VYDEJ):
+            if 'odberatel' in ld:
+                ld.remove('odberatel')
         return ld
 
     def get_fields(self, request, obj=None):
