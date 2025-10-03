@@ -11,7 +11,8 @@ from unittest.mock import patch
 
 from orders.admin import KamionAdmin, ZakazkaAdmin, BednaAdmin, BednaInline
 from orders.models import Zakaznik, Kamion, Zakazka, Bedna, Predpis, TypHlavy, Odberatel, Cena
-from orders.choices import StavBednyChoice, SklademZakazkyChoice
+from orders.choices import StavBednyChoice, SklademZakazkyChoice, PrijemVydejChoice, KamionChoice
+from orders.filters import DelkaFilter
 
 
 class AdminBase(TestCase):
@@ -207,6 +208,81 @@ class KamionAdminTests(AdminBase):
         self.assertTrue(fs.saved)
         self.assertEqual(Bedna.objects.count(), 1)
 
+    def test_get_typ_kamionu_variants(self):
+        # Bez zakázek
+        self.kamion.prijem_vydej = KamionChoice.PRIJEM
+        self.kamion.save()
+        self.assertEqual(self.admin.get_typ_kamionu(self.kamion), 'Bez zakázek')
+
+        # Nepřijatý: aspoň jedna bedna NEPRIJATO
+        z1 = Zakazka.objects.create(
+            kamion_prijem=self.kamion,
+            artikl='A2', prumer=1, delka=1,
+            predpis=self.predpis, typ_hlavy=self.typ_hlavy, popis='p'
+        )
+        Bedna.objects.create(zakazka=z1, hmotnost=1, tara=1, mnozstvi=1, stav_bedny=StavBednyChoice.NEPRIJATO)
+        self.assertEqual(self.admin.get_typ_kamionu(self.kamion), 'Nepřijatý')
+
+        # Komplet přijatý: žádná NEPRIJATO, aspoň jedna "skladem" (např. PRIJATO)
+        z1.bedny.update(stav_bedny=StavBednyChoice.PRIJATO)
+        self.assertEqual(self.admin.get_typ_kamionu(self.kamion), 'Komplet přijatý')
+
+        # Vyexpedovaný: všechny zakázky expedovány a všechny bedny ve stavu EXPEDOVANO
+        z1.bedny.update(stav_bedny=StavBednyChoice.EXPEDOVANO)
+        z1.expedovano = True
+        z1.save()
+        self.assertEqual(self.admin.get_typ_kamionu(self.kamion), 'Vyexpedovaný')
+
+        # Výdej
+        self.kamion.prijem_vydej = KamionChoice.VYDEJ
+        self.kamion.save()
+        self.assertEqual(self.admin.get_typ_kamionu(self.kamion), 'Výdej')
+
+    def test_kamionadmin_get_list_display_by_filter(self):
+        # default: bez filtru – ponechá odberatel a ponechá get_pocet_beden_skladem
+        ld_default = self.admin.get_list_display(self.get_request())
+        self.assertIn('odberatel', ld_default)
+        self.assertIn('get_pocet_beden_skladem', ld_default)
+
+        # Vydej filtr => odstraní get_pocet_beden_skladem a zachová odberatel
+        ld_v = self.admin.get_list_display(self.get_request('get', '/', {'prijem_vydej': PrijemVydejChoice.VYDEJ}))
+        self.assertIn('odberatel', ld_v)
+        self.assertNotIn('get_pocet_beden_skladem', ld_v)
+
+        # Příjem – Nepřijatý: ponechá get_pocet_beden_skladem, odstraní odberatel
+        ld_pn = self.admin.get_list_display(self.get_request('get', '/', {'prijem_vydej': PrijemVydejChoice.PRIJEM_NEPRIJATY}))
+        self.assertIn('get_pocet_beden_skladem', ld_pn)
+        self.assertNotIn('odberatel', ld_pn)
+
+        # Příjem – Komplet přijatý: ponechá get_pocet_beden_skladem, odstraní odberatel
+        ld_pk = self.admin.get_list_display(self.get_request('get', '/', {'prijem_vydej': PrijemVydejChoice.PRIJEM_KOMPLET_PRIJATY}))
+        self.assertIn('get_pocet_beden_skladem', ld_pk)
+        self.assertNotIn('odberatel', ld_pk)
+
+    def test_kamionadmin_delete_permissions_and_bulk(self):
+        # Kamion P: blokován, pokud má bedny mimo NEPRIJATO
+        kam_p = Kamion.objects.create(zakaznik=self.zakaznik, datum=date.today())
+        z = Zakazka.objects.create(kamion_prijem=kam_p, artikl='X', prumer=1, delka=1, predpis=self.predpis, typ_hlavy=self.typ_hlavy, popis='x')
+        Bedna.objects.create(zakazka=z, hmotnost=1, tara=1, mnozstvi=1, stav_bedny=StavBednyChoice.PRIJATO)
+        req = self.get_request()
+        # zapnout messages
+        req.session = {}
+        req._messages = FallbackStorage(req)
+        self.assertFalse(self.admin.has_delete_permission(req, kam_p))
+
+        # Kamion P: povolen, pokud všechny bedny NEPRIJATO
+        kam_ok = Kamion.objects.create(zakaznik=self.zakaznik, datum=date.today())
+        z_ok = Zakazka.objects.create(kamion_prijem=kam_ok, artikl='Y', prumer=1, delka=1, predpis=self.predpis, typ_hlavy=self.typ_hlavy, popis='y')
+        Bedna.objects.create(zakazka=z_ok, hmotnost=1, tara=0, mnozstvi=1, stav_bedny=StavBednyChoice.NEPRIJATO)
+        self.assertTrue(self.admin.has_delete_permission(req, kam_ok))
+
+        # Bulk delete: smaže jen povolené, pro blokované vypíše hlášky
+        qs = Kamion.objects.filter(id__in=[kam_p.id, kam_ok.id])
+        before = Kamion.objects.count()
+        self.admin.delete_queryset(req, qs)
+        after = Kamion.objects.count()
+        self.assertEqual(after, before - 1)
+
 
 class ZakazkaAdminTests(AdminBase):
     """
@@ -268,6 +344,42 @@ class ZakazkaAdminTests(AdminBase):
         user.user_permissions.add(Permission.objects.get(codename='change_expedovana_zakazka'))
         req.user = User.objects.get(pk=req.user.pk)
         self.assertTrue(self.admin.has_change_permission(req, self.zakazka))
+
+    def test_get_list_editable_by_filter(self):
+        # Bez filtru skladem => priorita je editovatelná
+        le_default = self.admin.get_list_editable(self.get_request())
+        self.assertEqual(le_default, ['priorita'])
+        # Expedováno => nic editovatelného
+        le_ex = self.admin.get_list_editable(self.get_request({'skladem': SklademZakazkyChoice.EXPEDOVANO}))
+        self.assertEqual(le_ex, [])
+
+    def test_zakazka_delete_permissions(self):
+        # Zakázka s bednou ve stavu PRIJATO – blokováno
+        z_block = Zakazka.objects.create(
+            kamion_prijem=self.kamion,
+            artikl='B1', prumer=1, delka=1,
+            predpis=self.predpis, typ_hlavy=self.typ_hlavy, popis='b'
+        )
+        Bedna.objects.create(zakazka=z_block, hmotnost=1, tara=1, mnozstvi=1, stav_bedny=StavBednyChoice.PRIJATO)
+        req = self.get_request()
+        req.session = {}
+        req._messages = FallbackStorage(req)
+        self.assertFalse(self.admin.has_delete_permission(req, z_block))
+
+        # Zakázka s bednou pouze NEPRIJATO – povoleno
+        z_ok = Zakazka.objects.create(
+            kamion_prijem=self.kamion,
+            artikl='B2', prumer=1, delka=1,
+            predpis=self.predpis, typ_hlavy=self.typ_hlavy, popis='b2'
+        )
+        Bedna.objects.create(zakazka=z_ok, hmotnost=1, tara=0, mnozstvi=1, stav_bedny=StavBednyChoice.NEPRIJATO)
+        self.assertTrue(self.admin.has_delete_permission(req, z_ok))
+
+        # Hromadné mazání – smaže jen povolené a zapíše hlášky
+        before = Zakazka.objects.count()
+        self.admin.delete_queryset(req, Zakazka.objects.filter(id__in=[z_block.id, z_ok.id]))
+        after = Zakazka.objects.count()
+        self.assertEqual(after, before - 1)
 
 
 class BednaAdminTests(AdminBase):
@@ -364,6 +476,77 @@ class BednaAdminTests(AdminBase):
         ld = self.admin.get_list_display(req)
         self.assertNotIn('kamion_vydej_link', ld)        
 
+    def test_has_change_permission_neprijato_regular_user(self):
+        """NEPRIJATO vyžaduje speciální oprávnění."""
+        User = get_user_model()
+        user = User.objects.create_user('user_bn', 'bn@example.com', 'pass', is_staff=True)
+        user.user_permissions.add(Permission.objects.get(codename='change_bedna'))
+
+        bed_np = Bedna.objects.create(
+            zakazka=self.zakazka,
+            hmotnost=Decimal(2),
+            tara=Decimal(0),
+            mnozstvi=1,
+            stav_bedny=StavBednyChoice.NEPRIJATO,
+        )
+
+        req = self.factory.get('/')
+        req.user = user
+        self.assertFalse(self.admin.has_change_permission(req, bed_np))
+        user.user_permissions.add(Permission.objects.get(codename='change_neprijata_bedna'))
+        req.user = User.objects.get(pk=req.user.pk)
+        self.assertTrue(self.admin.has_change_permission(req, bed_np))
+
+    def test_get_list_editable_neprijato_requires_perm(self):
+        # Bez oprávnění – prázdné
+        req = self.get_request({'stav_bedny': StavBednyChoice.NEPRIJATO})
+        req.user = get_user_model().objects.create_user('user_le', 'le@example.com', 'pass', is_staff=True)
+        self.assertEqual(self.admin.get_list_editable(req), [])
+        # S oprávněním – defaultní sada
+        req.user.user_permissions.add(Permission.objects.get(codename='change_neprijata_bedna'))
+        req.user = get_user_model().objects.get(pk=req.user.pk)
+        editable = self.admin.get_list_editable(req)
+        self.assertEqual(editable, ['stav_bedny', 'tryskat', 'rovnat', 'hmotnost', 'tara', 'poznamka'])
+
+    def test_bedna_list_display_pozice_toggle(self):
+        # Pro PR, KN, NV je sloupec pozice vidět
+        for code in (StavBednyChoice.PRIJATO, StavBednyChoice.K_NAVEZENI, StavBednyChoice.NAVEZENO):
+            with self.subTest(stav=code):
+                ld = self.admin.get_list_display(self.get_request({'stav_bedny': code}))
+                self.assertIn('pozice', ld)
+        # Pro jiné stavy není (např. EX)
+        ld_ex = self.admin.get_list_display(self.get_request({'stav_bedny': StavBednyChoice.EXPEDOVANO}))
+        self.assertNotIn('pozice', ld_ex)
+        # A pro EX zůstává kamion_vydej_link
+        self.assertIn('kamion_vydej_link', ld_ex)
+
+    def test_bedna_get_list_filter_delka_removed_outside_states(self):
+        # mimo NEPRIJATO/PRIJATO
+        lf = self.admin.get_list_filter(self.get_request({'stav_bedny': StavBednyChoice.K_NAVEZENI}))
+        self.assertNotIn(DelkaFilter, lf)
+        # v NEPRIJATO
+        lf2 = self.admin.get_list_filter(self.get_request({'stav_bedny': StavBednyChoice.NEPRIJATO}))
+        self.assertIn(DelkaFilter, lf2)
+        # v PRIJATO
+        lf3 = self.admin.get_list_filter(self.get_request({'stav_bedny': StavBednyChoice.PRIJATO}))
+        self.assertIn(DelkaFilter, lf3)
+
+    def test_bedna_delete_queryset_only_neprijato(self):
+        # Připrav 2 bedny – jedna PRIJATO (blok), jedna NEPRIJATO (povoleno)
+        b_block = Bedna.objects.create(
+            zakazka=self.zakazka, hmotnost=1, tara=1, mnozstvi=1, stav_bedny=StavBednyChoice.PRIJATO
+        )
+        b_ok = Bedna.objects.create(
+            zakazka=self.zakazka, hmotnost=1, tara=0, mnozstvi=1, stav_bedny=StavBednyChoice.NEPRIJATO
+        )
+        req = self.get_request()
+        req.session = {}
+        req._messages = FallbackStorage(req)
+        before = Bedna.objects.count()
+        self.admin.delete_queryset(req, Bedna.objects.filter(id__in=[b_block.id, b_ok.id]))
+        after = Bedna.objects.count()
+        self.assertEqual(after, before - 1)
+
 
 class BednaInlineGetFieldsTests(AdminBase):
     """
@@ -451,3 +634,17 @@ class BednaInlineGetFieldsTests(AdminBase):
         form = fs.forms[0]
         for field in form.fields:
             self.assertFalse(form.fields[field].disabled)
+
+    def test_brutto_excluded_when_all_tara_positive(self):
+        bedna = self.create_bedna('ROT')
+        # Vytvoř ještě jednu bednu se stejnou zakázkou a kladnou tarou
+        Bedna.objects.create(zakazka=bedna.zakazka, hmotnost=1, tara=1, mnozstvi=1)
+        fields = self.inline.get_fields(self.get_request(), bedna.zakazka)
+        self.assertNotIn('brutto', fields)
+
+        # Uprav jednu bednu tak, aby tara nebyla > 0, 'brutto' se má objevit
+        b_any = bedna.zakazka.bedny.first()
+        b_any.tara = None
+        b_any.save()
+        fields2 = self.inline.get_fields(self.get_request(), bedna.zakazka)
+        self.assertIn('brutto', fields2)
