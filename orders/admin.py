@@ -2303,7 +2303,7 @@ class PredpisAdmin(SimpleHistoryAdmin):
     Správa předpisů v administraci.
     """
     save_as = True
-    list_display = ('nazev', 'skupina', 'zakaznik__zkraceny_nazev', 'ohyb', 'krut', 'povrch', 'jadro', 'vrstva', 'popousteni',
+    list_display = ('nazev', 'skupina', 'get_zakaznik_zkraceny_nazev', 'ohyb', 'krut', 'povrch', 'jadro', 'vrstva', 'popousteni',
                     'sarzovani', 'pletivo', 'poznamka', 'aktivni')
     list_display_links = ('nazev',)
     search_fields = ('nazev',)
@@ -2317,6 +2317,10 @@ class PredpisAdmin(SimpleHistoryAdmin):
     history_search_fields = ['nazev']
     history_list_filter = ['zakaznik__zkraceny_nazev']
     history_list_per_page = 20
+
+    @admin.display(description='Zákazník', ordering='zakaznik__zkraceny_nazev', empty_value='-')
+    def get_zakaznik_zkraceny_nazev(self, obj):
+        return obj.zakaznik.zkraceny_nazev if obj.zakaznik else '-'
 
 
 @admin.register(Odberatel)
