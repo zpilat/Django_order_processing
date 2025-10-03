@@ -12,7 +12,7 @@ from orders.models import (
     Zakaznik, Kamion, Zakazka, Bedna, Predpis, TypHlavy,
     Odberatel, Pozice
 )
-from orders.choices import KamionChoice, StavBednyChoice
+from orders.choices import KamionChoice, StavBednyChoice, RovnaniChoice, TryskaniChoice
 from orders import actions
 
 
@@ -356,3 +356,104 @@ class KNavezeniActionTests(ActionsBase):
         resp = actions.oznacit_k_navezeni_action(admin_obj, req, qs)
         from django.template.response import TemplateResponse
         self.assertIsInstance(resp, TemplateResponse)
+
+
+class StatusChangeActionsTests(ActionsBase):
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+
+    def _messaging_admin(self):
+        from django.contrib import messages as dj_messages
+
+        class _Admin:
+            def message_user(self, request, message, level=None):
+                dj_messages.add_message(request, level or dj_messages.INFO, message)
+
+        return _Admin()
+
+    def _messages_texts(self, request):
+        return [m.message for m in list(request._messages)]
+
+    def test_oznacit_navezeno_action_wrong_state(self):
+        # připraví bednu, která není v K_NAVEZENI
+        admin_obj = self._messaging_admin()
+        self.bedna.stav_bedny = StavBednyChoice.PRIJATO
+        self.bedna.save()
+        req = self.get_request('post')
+        resp = actions.oznacit_navezeno_action(admin_obj, req, Bedna.objects.filter(id=self.bedna.id))
+        self.assertIsNone(resp)
+        msgs = self._messages_texts(req)
+        self.assertTrue(any('nejsou ve stavu K NAVEZENÍ' in m for m in msgs))
+
+    def test_oznacit_navezeno_action_success(self):
+        admin_obj = self._messaging_admin()
+        # nastaví správný počáteční stav
+        self.bedna.stav_bedny = StavBednyChoice.K_NAVEZENI
+        self.bedna.save()
+        req = self.get_request('post')
+        resp = actions.oznacit_navezeno_action(admin_obj, req, Bedna.objects.filter(id=self.bedna.id))
+        self.assertIsNone(resp)
+        self.bedna.refresh_from_db()
+        self.assertEqual(self.bedna.stav_bedny, StavBednyChoice.NAVEZENO)
+
+    def test_prijmout_kamion_action_success(self):
+        admin_obj = self._messaging_admin()
+        # vytvoří NEPRIJATO bednu s platnými daty pro přechod do PRIJATO
+        from decimal import Decimal
+        b = Bedna.objects.create(
+            zakazka=self.zakazka,
+            hmotnost=Decimal('1'),
+            tara=Decimal('1'),
+            mnozstvi=1,
+            stav_bedny=StavBednyChoice.NEPRIJATO,
+        )
+        req = self.get_request('post')
+        resp = actions.prijmout_kamion_action(admin_obj, req, Kamion.objects.filter(id=self.kamion_prijem.id))
+        self.assertIsNone(resp)
+        b.refresh_from_db()
+        self.assertEqual(b.stav_bedny, StavBednyChoice.PRIJATO)
+
+    def test_prijmout_kamion_action_validation_error(self):
+        admin_obj = self._messaging_admin()
+        # vytvoří NEPRIJATO bednu bez hmotnosti/tary/mnozstvi (validní pro NEPRIJATO, neprojde validací při přechodu)
+        b = Bedna.objects.create(
+            zakazka=self.zakazka,
+            hmotnost=None,
+            tara=None,
+            mnozstvi=None,
+            stav_bedny=StavBednyChoice.NEPRIJATO,
+        )
+        req = self.get_request('post')
+        resp = actions.prijmout_kamion_action(admin_obj, req, Kamion.objects.filter(id=self.kamion_prijem.id))
+        self.assertIsNone(resp)
+        msgs = self._messages_texts(req)
+        self.assertTrue(any('neprošla validací' in m for m in msgs))
+        b.refresh_from_db()
+        self.assertEqual(b.stav_bedny, StavBednyChoice.NEPRIJATO)
+
+    def test_oznacit_k_expedici_action_invalid_conditions(self):
+        admin_obj = self._messaging_admin()
+        # nastaví stav tak, aby nesplňoval podmínku rovnání
+        self.bedna.stav_bedny = StavBednyChoice.NAVEZENO
+        self.bedna.rovnat = RovnaniChoice.NEZADANO
+        self.bedna.tryskat = TryskaniChoice.CISTA
+        self.bedna.save()
+        req = self.get_request('post')
+        resp = actions.oznacit_k_expedici_action(admin_obj, req, Bedna.objects.filter(id=self.bedna.id))
+        self.assertIsNone(resp)
+        msgs = self._messages_texts(req)
+        self.assertTrue(any("'K expedici'" in m for m in msgs))
+
+    def test_oznacit_k_expedici_action_success(self):
+        admin_obj = self._messaging_admin()
+        # splní podmínky: stav v rozpracovanosti + rovnání a tryskání v povolených hodnotách
+        self.bedna.stav_bedny = StavBednyChoice.ZKONTROLOVANO
+        self.bedna.rovnat = RovnaniChoice.ROVNA
+        self.bedna.tryskat = TryskaniChoice.CISTA
+        self.bedna.save()
+        req = self.get_request('post')
+        resp = actions.oznacit_k_expedici_action(admin_obj, req, Bedna.objects.filter(id=self.bedna.id))
+        self.assertIsNone(resp)
+        self.bedna.refresh_from_db()
+        self.assertEqual(self.bedna.stav_bedny, StavBednyChoice.K_EXPEDICI)
