@@ -5,13 +5,16 @@ from django.contrib.messages.storage.fallback import FallbackStorage
 from django.contrib.messages import get_messages
 from django.http import HttpResponse
 from unittest.mock import patch
+from django.core.files.uploadedfile import SimpleUploadedFile
 
 from orders.utils import (
     get_verbose_name_for_column,
     utilita_tisk_dokumentace,
+    utilita_tisk_dl_a_proforma_faktury,
     utilita_expedice_zakazek,
     utilita_kontrola_zakazek,
     utilita_zkraceni_popisu_beden,
+    utilita_validate_excel_upload,
 )
 from orders.models import Bedna, Zakazka, Kamion
 from orders.choices import StavBednyChoice, KamionChoice
@@ -70,6 +73,42 @@ class UtilitaTiskDokumentaceTests(UtilsBase):
         self.assertIsInstance(resp, HttpResponse)
         self.assertEqual(resp.content, b'PDF')
         self.assertEqual(mock_render.call_count, qs.count())
+        mock_pdf.assert_called_once()
+
+    def test_tisk_dokumentace_empty_queryset(self):
+        req = self.get_request()
+        resp = utilita_tisk_dokumentace(
+            None,
+            req,
+            Bedna.objects.none(),
+            'path.html',
+            'file.pdf'
+        )
+        # Vrací None a zapíše chybovou hlášku
+        self.assertIsNone(resp)
+        msgs = list(get_messages(req))
+        self.assertEqual(len(msgs), 1)
+        self.assertIn('Není vybrána žádná bedna k tisku', msgs[0].message)
+
+
+class UtilitaTiskDLProformaTests(UtilsBase):
+    @patch('orders.utils.render_to_string')
+    @patch('orders.utils.HTML.write_pdf')
+    def test_tisk_dl_a_proforma(self, mock_pdf, mock_render):
+        mock_render.return_value = 'HTML'
+        mock_pdf.return_value = b'PDF2'
+        req = self.get_request()
+        resp = utilita_tisk_dl_a_proforma_faktury(
+            None,
+            req,
+            self.kamion_prijem,
+            'tpl.html',
+            'doklad.pdf'
+        )
+        self.assertIsInstance(resp, HttpResponse)
+        self.assertEqual(resp.content, b'PDF2')
+        self.assertIn('inline; filename="doklad.pdf"', resp['Content-Disposition'])
+        mock_render.assert_called_once()
         mock_pdf.assert_called_once()
 
 
@@ -149,9 +188,60 @@ class UtilitaKontrolaZakazekTests(UtilsBase):
         self.assertEqual(len(msgs), 1)
         self.assertIn('Pouze kompletní zakázky', msgs[0].message)
 
+    def test_ok_when_has_at_least_one_k_expedici(self):
+        # Bez příznaku pouze_komplet a s 1 bednou v K_EXPEDICI → bez chybové hlášky
+        b = Bedna.objects.create(
+            zakazka=self.zakazka,
+            hmotnost=Decimal(1),
+            tara=Decimal(1),
+            mnozstvi=1,
+            stav_bedny=StavBednyChoice.K_EXPEDICI,
+        )
+        req = self.get_request('post')
+        utilita_kontrola_zakazek(None, req, Zakazka.objects.filter(id=self.zakazka.id))
+        msgs = list(get_messages(req))
+        self.assertEqual(len(msgs), 0)
+
+    def test_ok_when_pouze_komplet_and_all_k_expedici(self):
+        # S příznakem pouze_komplet a všechny bedny v K_EXPEDICI → bez chybové hlášky
+        self.zakaznik.pouze_komplet = True
+        self.zakaznik.save()
+        Bedna.objects.filter(zakazka=self.zakazka).update(stav_bedny=StavBednyChoice.K_EXPEDICI)
+        req = self.get_request('post')
+        utilita_kontrola_zakazek(None, req, Zakazka.objects.filter(id=self.zakazka.id))
+        msgs = list(get_messages(req))
+        self.assertEqual(len(msgs), 0)
+
 
 class UtilitaZkraceniPopisuTests(UtilsBase):
     def test_zkraceni_popisu(self):
         self.zakazka.popis = 'abc def 1234 xxx'
         utilita_zkraceni_popisu_beden(self.bedna1)
         self.assertEqual(self.zakazka.zkraceny_popis, 'abc def')
+
+    def test_zkraceni_popisu_bez_cisel(self):
+        self.zakazka.popis = 'bez cisla v popisu'
+        utilita_zkraceni_popisu_beden(self.bedna1)
+        self.assertEqual(self.zakazka.zkraceny_popis, 'bez cisla v popisu')
+
+
+class UtilitaValidateExcelUploadTests(UtilsBase):
+    def test_missing_file(self):
+        errs = utilita_validate_excel_upload(None)
+        self.assertEqual(errs, ["Soubor chybí."])
+
+    def test_wrong_extension(self):
+        f = SimpleUploadedFile('data.txt', b'abc')
+        errs = utilita_validate_excel_upload(f)
+        self.assertEqual(errs, ["Soubor musí mít příponu .xlsx."])
+
+    def test_empty_file(self):
+        f = SimpleUploadedFile('file.xlsx', b'')
+        errs = utilita_validate_excel_upload(f)
+        self.assertEqual(errs, ["Soubor je prázdný."])
+
+    def test_valid_xlsx_like_bytes_passes(self):
+        # Není to skutečné XLSX, ale utilita chybu jen zaloguje a vrátí bez erroru
+        f = SimpleUploadedFile('file.xlsx', b'not-a-real-xlsx')
+        errs = utilita_validate_excel_upload(f)
+        self.assertEqual(errs, [])
