@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 from orders.admin import KamionAdmin, ZakazkaAdmin, BednaAdmin, BednaInline
 from orders.models import Zakaznik, Kamion, Zakazka, Bedna, Predpis, TypHlavy, Odberatel, Cena
-from orders.choices import StavBednyChoice
+from orders.choices import StavBednyChoice, SklademZakazkyChoice
 
 
 class AdminBase(TestCase):
@@ -247,7 +247,7 @@ class ZakazkaAdminTests(AdminBase):
     def test_get_list_display(self):
         ld = self.admin.get_list_display(self.get_request())
         self.assertNotIn('kamion_vydej_link', ld)
-        ld2 = self.admin.get_list_display(self.get_request({'skladem': '1'}))
+        ld2 = self.admin.get_list_display(self.get_request({'skladem': SklademZakazkyChoice.EXPEDOVANO}))
         self.assertIn('kamion_vydej_link', ld2)
 
     def test_has_change_permission_regular_user(self):
