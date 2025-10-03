@@ -7,6 +7,7 @@ from orders.forms import (
     ZakazkaInlineForm,
     BednaAdminForm,
     VyberKamionVydejForm,
+    BednaChangeListForm,
 )
 from orders.models import Zakaznik, Kamion, Zakazka, Predpis, TypHlavy, Bedna
 from orders.choices import (
@@ -14,6 +15,7 @@ from orders.choices import (
     TryskaniChoice,
     RovnaniChoice,
     KamionChoice,
+    PrioritaChoice,
 )
 
 
@@ -137,6 +139,21 @@ class ZakazkaAdminFormTests(FormsBase):
             {self.kamion_active, self.kamion_other},
         )
 
+    def test_validator_positive_when_zakaznik_matches(self):
+        data = {
+            "kamion_prijem": self.kamion_active.pk,
+            "predpis": self.pred1.pk,
+            "artikl": "X",
+            "prumer": "1",
+            "delka": "1",
+            "typ_hlavy": self.typ.pk,
+            "popis": "p",
+            "celozavit": False,
+            "priorita": PrioritaChoice.NIZKA,
+        }
+        form = ZakazkaAdminForm(data)
+        self.assertTrue(form.is_valid())
+
 
 class ZakazkaInlineFormTests(FormsBase):
     def test_querysets_default_and_with_zakaznik(self):
@@ -164,8 +181,96 @@ class BednaAdminFormTests(FormsBase):
         self.assertEqual(form_existing.fields["tryskat"].initial, self.bedna.tryskat)
         self.assertEqual(form_existing.fields["rovnat"].initial, self.bedna.rovnat)
 
+    def test_clean_computes_tara_from_brutto(self):
+        form = BednaAdminForm(data={
+            "zakazka": self.zakazka_edit.pk,
+            "hmotnost": "2.0",
+            "tara": "",
+            "mnozstvi": 1,
+            "stav_bedny": StavBednyChoice.NEPRIJATO,
+            "brutto": "3.1",
+            "tryskat": TryskaniChoice.NEZADANO,
+            "rovnat": RovnaniChoice.NEZADANO,
+        })
+        self.assertTrue(form.is_valid())
+        self.assertEqual(form.cleaned_data["tara"], Decimal("1.1"))
+
+    def test_clean_errors_when_tara_already_set(self):
+        form = BednaAdminForm(data={
+            "zakazka": self.zakazka_edit.pk,
+            "hmotnost": "2.0",
+            "tara": "1.0",
+            "mnozstvi": 1,
+            "stav_bedny": StavBednyChoice.NEPRIJATO,
+            "brutto": "3.0",
+            "tryskat": TryskaniChoice.NEZADANO,
+            "rovnat": RovnaniChoice.NEZADANO,
+        })
+        self.assertFalse(form.is_valid())
+        self.assertIn("brutto", form.errors)
+
+    def test_clean_errors_when_missing_hmotnost(self):
+        form = BednaAdminForm(data={
+            "zakazka": self.zakazka_edit.pk,
+            "hmotnost": "",
+            "tara": "",
+            "mnozstvi": 1,
+            "stav_bedny": StavBednyChoice.NEPRIJATO,
+            "brutto": "1.0",
+            "tryskat": TryskaniChoice.NEZADANO,
+            "rovnat": RovnaniChoice.NEZADANO,
+        })
+        self.assertFalse(form.is_valid())
+        self.assertIn("hmotnost", form.errors)
+
+    def test_clean_errors_when_brutto_le_than_hmotnost(self):
+        form = BednaAdminForm(data={
+            "zakazka": self.zakazka_edit.pk,
+            "hmotnost": "2.0",
+            "tara": "",
+            "mnozstvi": 1,
+            "stav_bedny": StavBednyChoice.NEPRIJATO,
+            "brutto": "2.0",
+            "tryskat": TryskaniChoice.NEZADANO,
+            "rovnat": RovnaniChoice.NEZADANO,
+        })
+        self.assertFalse(form.is_valid())
+        self.assertIn("brutto", form.errors)
+
+    def test_zakazka_queryset_excludes_expedovano(self):
+        # Přidej další zakázku expedovanou pro ověření filtru
+        Zakazka.objects.create(
+            kamion_prijem=self.kamion_active,
+            artikl="C",
+            prumer=1,
+            delka=1,
+            predpis=self.pred1,
+            typ_hlavy=self.typ,
+            popis="p",
+            expedovano=True,
+        )
+        form = BednaAdminForm()
+        qs = form.fields["zakazka"].queryset
+        # Očekáváme pouze neexpedované zakázky
+        self.assertTrue(all(not z.expedovano for z in qs))
+
+
+class BednaChangeListFormTests(FormsBase):
+    def test_choices_follow_model_rules(self):
+        form = BednaChangeListForm(instance=self.bedna)
+        self.assertEqual(form.fields["stav_bedny"].choices, self.bedna.get_allowed_stav_bedny_choices())
+        self.assertEqual(form.fields["stav_bedny"].initial, self.bedna.stav_bedny)
+        self.assertEqual(form.fields["tryskat"].choices, self.bedna.get_allowed_tryskat_choices())
+        self.assertEqual(form.fields["tryskat"].initial, self.bedna.tryskat)
+        self.assertEqual(form.fields["rovnat"].choices, self.bedna.get_allowed_rovnat_choices())
+        self.assertEqual(form.fields["rovnat"].initial, self.bedna.rovnat)
+
 
 class VyberKamionVydejFormTests(FormsBase):
     def test_queryset_filtered_by_customer_and_date(self):
         form = VyberKamionVydejForm(zakaznik=self.z1)
         self.assertEqual(list(form.fields["kamion"].queryset), [self.kamion_vydej_ok])
+
+    def test_no_customer_yields_empty_queryset(self):
+        form = VyberKamionVydejForm()
+        self.assertEqual(list(form.fields["kamion"].queryset), [])
