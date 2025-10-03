@@ -111,6 +111,30 @@ else:
         }
     }
 
+    # Security settings for production (DEBUG=False)
+    # HSTS: enable only if your entire site is served over HTTPS
+    SECURE_HSTS_SECONDS = int(os.getenv('DJANGO_SECURE_HSTS_SECONDS', '0'))  # později postupně navyšovat a nakonec '31536000' = 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = os.getenv('DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS', 'False') == 'True' # později 'True' jako výchozí hodnota
+    SECURE_HSTS_PRELOAD = os.getenv('DJANGO_SECURE_HSTS_PRELOAD', 'False') == 'True'
+
+    # Redirect HTTP -> HTTPS (behind proxy set SECURE_PROXY_SSL_HEADER below)
+    SECURE_SSL_REDIRECT = os.getenv('DJANGO_SECURE_SSL_REDIRECT', 'True') == 'True'
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+    # Cookies over HTTPS only
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+
+    # CSRF trusted origins (comma-separated, must include scheme, e.g. https://app.example.com)
+    _csrf_trusted = os.getenv('DJANGO_CSRF_TRUSTED_ORIGINS', '')
+    if _csrf_trusted:
+        CSRF_TRUSTED_ORIGINS = [o.strip() for o in _csrf_trusted.split(',') if o.strip()]
+
+    # Additional hardening
+    SECURE_REFERRER_POLICY = os.getenv('DJANGO_SECURE_REFERRER_POLICY', 'strict-origin-when-cross-origin')
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = os.getenv('DJANGO_X_FRAME_OPTIONS', 'DENY')
+
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
