@@ -33,7 +33,7 @@ from .actions import (
     tisk_proforma_faktury_kamionu_action, oznacit_k_navezeni_action, vratit_bedny_do_stavu_prijato_action, oznacit_navezeno_action,
     oznacit_do_zpracovani_action, oznacit_zakaleno_action, oznacit_zkontrolovano_action, oznacit_k_expedici_action, oznacit_rovna_action,
     oznacit_kriva_action, oznacit_rovna_se_action, oznacit_vyrovnana_action, oznacit_cista_action, oznacit_spinava_action,
-    oznacit_otryskana_action, prijmout_kamion_action, prijmout_zakazku_action
+    oznacit_otryskana_action, prijmout_kamion_action, prijmout_zakazku_action, prijmout_bedny_action
    )
 from .filters import (
     SklademZakazkaFilter, StavBednyFilter, KompletZakazkaFilter, AktivniPredpisFilter, SkupinaFilter, ZakaznikBednyFilter,
@@ -1753,7 +1753,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         tisk_karet_beden_action, tisk_karet_kontroly_kvality_action, oznacit_k_navezeni_action, oznacit_navezeno_action,
         vratit_bedny_do_stavu_prijato_action, oznacit_do_zpracovani_action, oznacit_zakaleno_action, oznacit_zkontrolovano_action,
         oznacit_k_expedici_action, oznacit_rovna_action, oznacit_kriva_action, oznacit_rovna_se_action, oznacit_vyrovnana_action,
-        oznacit_cista_action, oznacit_spinava_action, oznacit_otryskana_action,
+        oznacit_cista_action, oznacit_spinava_action, oznacit_otryskana_action, prijmout_bedny_action
     ]
     form = BednaAdminForm
 
@@ -1762,9 +1762,12 @@ class BednaAdmin(SimpleHistoryAdmin):
     autocomplete_fields = ('zakazka',)
 
     # Parametry pro zobrazení seznamu v administraci
-    list_display = ('get_cislo_bedny', 'get_behalter_nr', 'zakazka_link', 'kamion_prijem_link', 'kamion_vydej_link',
-                    'rovnat', 'tryskat', 'stav_bedny', 'get_prumer', 'get_delka_int','get_skupina_TZ', 'get_typ_hlavy',
-                    'get_celozavit', 'zkraceny_popis', 'hmotnost', 'tara', 'pozice', 'get_priorita', 'get_datum', 'poznamka',)
+    list_display = (
+        'get_cislo_bedny', 'get_behalter_nr', 'zakazka_link', 'kamion_prijem_link', 'kamion_vydej_link',
+        'rovnat', 'tryskat', 'stav_bedny', 'get_prumer', 'get_delka_int','get_skupina_TZ', 'get_typ_hlavy',
+        'get_celozavit', 'zkraceny_popis', 'hmotnost', 'tara', 'mnozstvi', 'pozice', 'get_priorita', 'get_datum',
+        'poznamka',
+        )
     # list_editable nastavován dynamicky v get_list_editable
     list_display_links = ('get_cislo_bedny', )
     list_select_related = ("zakazka", "zakazka__kamion_prijem", "zakazka__kamion_vydej")
@@ -1780,6 +1783,9 @@ class BednaAdmin(SimpleHistoryAdmin):
         models.DecimalField: {
             'widget': TextInput(attrs={ 'size': '3'}),
             'localize': True
+        },
+        models.IntegerField: {
+            'widget': TextInput(attrs={ 'size': '3'}),
         },
         models.BooleanField: {'widget': RadioSelect(choices=[(True, 'Ano'), (False, 'Ne')])}
     }
@@ -1962,6 +1968,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         - Pokud je filtr stav_bedny = StavBednyChoice.EXPEDOVANO nebo pozastaveno=True => žádná inline editace.
         - Pokud je filtr stav_bedny = StavBednyChoice.NEPRIJATO a uživatel nemá oprávnění change_neprijata_bedna => žádná inline editace.
         - Jinak standardně: stav_bedny, tryskat, rovnat, hmotnost, poznamka.
+        - Pokud je stav_bedny == StavBednyChoice.NEPRIJATO a uživatel má oprávnění change_neprijata_bedna, přidá se i mnozstvi.
         - Pokud je stav_bedny v (StavBednyChoice.PRIJATO, StavBednyChoice.K_NAVEZENI, StavBednyChoice.NAVEZENO) přidá se i pozice.
         """
         if request.GET.get('stav_bedny') == StavBednyChoice.EXPEDOVANO or request.GET.get('pozastaveno') == 'True':
@@ -1971,6 +1978,9 @@ class BednaAdmin(SimpleHistoryAdmin):
             return []
 
         editable = ['stav_bedny', 'tryskat', 'rovnat', 'hmotnost', 'tara', 'poznamka']
+        if request.GET.get('stav_bedny') == StavBednyChoice.NEPRIJATO and request.user.has_perm('orders.change_neprijata_bedna'):
+            editable.append('mnozstvi')
+
         if request.GET.get('stav_bedny') in (
             StavBednyChoice.PRIJATO,
             StavBednyChoice.K_NAVEZENI,
@@ -2013,8 +2023,13 @@ class BednaAdmin(SimpleHistoryAdmin):
     def changelist_view(self, request, extra_context=None):
         """
         Přizpůsobení zobrazení seznamu beden podle aktivního filtru.
+        Dynamicky nastaví list_editable podle get_list_editable, ověří, zda jsou tyto pole v list_display nebo v list_display_links.
+        Pokud není některé pole z list_editable v list_display nebo je v list_display_links, odstraní ho z list_editable.
         """
-        self.list_editable = self.get_list_editable(request)
+        editable = self.get_list_editable(request)
+        links = self.get_list_display_links(request, self.get_list_display(request))
+        display = self.get_list_display(request)
+        self.list_editable = [f for f in editable if f in display and f not in links]
         return super().changelist_view(request, extra_context)
 
     def get_changelist_formset(self, request, **kwargs):
@@ -2040,9 +2055,10 @@ class BednaAdmin(SimpleHistoryAdmin):
         Přizpůsobení zobrazení sloupců v seznamu Bedna.
         Pokud není aktivní filtr stav bedny Expedováno, vyloučí se zobrazení sloupce kamion_vydej_link.
         Pokud není aktivní filtr stav bedny Prijato, K_navezeni, Navezeno, vyloučí se zobrazení sloupce pozice.
+        Pokud není aktivní filtr stav bedny Neprijato, vyloučí se zobrazení sloupce mnozstvi.
         """
         list_display = list(super().get_list_display(request))
-        if request.GET.get('stav_bedny', None) != 'EX':
+        if request.GET.get('stav_bedny', None) != StavBednyChoice.EXPEDOVANO:
             if 'kamion_vydej_link' in list_display:
                 list_display.remove('kamion_vydej_link')
         if request.GET.get('stav_bedny', None) not in (
@@ -2052,6 +2068,9 @@ class BednaAdmin(SimpleHistoryAdmin):
         ):
             if 'pozice' in list_display:
                 list_display.remove('pozice')
+        if request.GET.get('stav_bedny', None) != StavBednyChoice.NEPRIJATO:
+            if 'mnozstvi' in list_display:
+                list_display.remove('mnozstvi')
         return list_display
     
     def get_list_filter(self, request):
@@ -2067,6 +2086,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     def get_actions(self, request):
         """
         Přizpůsobí dostupné akce v administraci podle filtru stavu bedny, rovnat a tryskat.
+        Pokud není aktivní filtr stav bedny NEPRIJATO, zruší se akce pro přijetí bedny.
         Pokud není aktivní filtr stav bedny PRIJATO, zruší se akce pro změnu stavu bedny na K_NAVEZENI.
         Pokud není aktivní filtr stav bedny K_NAVEZENI, zruší akci pro změnu stavu bedny na NAVEZENO a pro vrácení stavu bedny na PRIJATO.
         Pokud není aktivní filtr stav bedny NAVEZENO, zruší akci pro změnu stavu bedny na DO_ZPRACOVANI.
@@ -2085,8 +2105,13 @@ class BednaAdmin(SimpleHistoryAdmin):
         actions_to_remove = []
 
         if request.method == "GET":
+            if request.GET.get('stav_bedny', None) != StavBednyChoice.NEPRIJATO:
+                actions_to_remove += [
+                    'prijmout_bedny_action',
+                ]
+
             if request.GET.get('stav_bedny', None) != StavBednyChoice.PRIJATO:
-                actions_to_remove = [
+                actions_to_remove += [
                     'oznacit_k_navezeni_action',
                 ]
             if request.GET.get('stav_bedny', None) != StavBednyChoice.K_NAVEZENI:
@@ -2153,6 +2178,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         group_map = {
             'tisk_karet_beden_action': 'Tisk / Export',
             'tisk_karet_kontroly_kvality_action': 'Tisk / Export',
+            'prijmout_bedny_action': 'Stav bedny',
             'oznacit_k_navezeni_action': 'Stav bedny',
             'oznacit_navezeno_action': 'Stav bedny',
             'vratit_bedny_do_stavu_prijato_action': 'Stav bedny',

@@ -83,6 +83,59 @@ def _render_oznacit_k_navezeni(modeladmin, request, queryset, formset):
     }
     return TemplateResponse(request, "admin/bedna/oznacit_k_navezeni.html", context)    
 
+@admin.action(description="Přijmout vybrané bedny na sklad")
+def prijmout_bedny_action(modeladmin, request, queryset):
+    """
+    Přijme vybrané bedny na sklad (změní stav bedny z NEPRIJATO na PRIJATO).
+    Nejdříve zkontroluje, že jsou všechny bedny ve stavu NEPRIJATO, pokud ne, informuje uživatele a nic nezmění.
+    Pro každou bednu se provede:
+    - V jedné transakci a pod řádkovým zámkem (select_for_update) předvaliduje přechod všech beden
+      ze stavu NEPRIJATO do stavu PRIJATO pomocí full_clean.
+    - Pokud validace projde, uloží změnu stavu všech těchto beden na PRIJATO.
+    - Pokud validace neprojde, žádná bedna se nezmění a uživatel je informován o chybě.
+    """
+    if queryset.exclude(stav_bedny=StavBednyChoice.NEPRIJATO).exists():
+        logger.info(f"Uživatel {request.user} se pokusil přijmout bedny, ale některé nejsou ve stavu NEPRIJATO.")
+        modeladmin.message_user(request, "Některé vybrané bedny nejsou ve stavu NEPRIJATO.", level=messages.ERROR)
+        return None
+
+    with transaction.atomic():
+        # Předvalidace všech beden
+        locked = list(queryset.select_for_update())
+        errors = []
+        for bedna in locked:
+            current_state = bedna.stav_bedny
+            bedna.stav_bedny = StavBednyChoice.PRIJATO
+            try:
+                bedna.full_clean()
+            except ValidationError as e:
+                errors.append((bedna, e))
+            finally:
+                bedna.stav_bedny = current_state
+
+        if errors:
+            for bedna, e in errors:
+                # Použije se e.messages (seznam chybových zpráv), aby odpadl slovník s __all__a podobně
+                logger.info(
+                    f"Uživatel {request.user} se pokusil přijmout bednu {bedna}, ale neprošla validací: {e.messages}."
+                )
+                modeladmin.message_user(
+                    request,
+                    f"Nelze přijmout bednu {bedna}, neprošla validací: {e.messages}",
+                    level=messages.ERROR,
+                )
+            modeladmin.message_user(request, "Žádná bedna nebyla přijata kvůli výše uvedeným chybám.", level=messages.ERROR)
+            return None            
+
+        # Vše OK, provede se uložení přechodu stavů
+        for bedna in locked:
+            bedna.stav_bedny = StavBednyChoice.PRIJATO
+            bedna.save()
+
+        modeladmin.message_user(request, f"Přijato na sklad: {len(locked)} beden.", level=messages.SUCCESS)
+
+    return None
+
 @admin.action(description="Změna stavu bedny na K_NAVEZENI")
 def oznacit_k_navezeni_action(modeladmin, request, queryset):
     """
@@ -553,12 +606,13 @@ def prijmout_zakazku_action(modeladmin, request, queryset):
 
                 if errors:
                     for bedna, e in errors:
+                        # Použije se e.messages (seznam chybových zpráv), aby odpadl slovník s __all__a podobně
                         logger.info(
-                            f"Uživatel {request.user} se pokusil přijmout zakázku {zakazka}, ale bedna {bedna} neprošla validací: {e}."
+                            f"Uživatel {request.user} se pokusil přijmout zakázku {zakazka}, ale bedna {bedna} neprošla validací: {e.messages}."
                         )
                         modeladmin.message_user(
                             request,
-                            f"Nelze přijmout zakázku {zakazka}, bedna {bedna} neprošla validací: {e}",
+                            f"Nelze přijmout zakázku {zakazka}, bedna {bedna} neprošla validací: {e.messages}",
                             level=messages.ERROR,
                         )
                     preskoceno_count += 1
@@ -586,6 +640,13 @@ def prijmout_zakazku_action(modeladmin, request, queryset):
             request,
             f"Přijato na sklad: {prijato_count} zakázek.",
             level=messages.SUCCESS,
+        )
+        
+    if preskoceno_count:
+        modeladmin.message_user(
+            request,
+            f"Přeskočeno: {preskoceno_count} zakázek.",
+            level=messages.WARNING,
         )
 
     return None
@@ -857,13 +918,14 @@ def prijmout_kamion_action(modeladmin, request, queryset):
                 bedna.stav_bedny = original_state
 
         if errors:
+            # Použije se e.messages (seznam chybových zpráv), aby odpadl slovník s __all__a podobně
             for bedna, e in errors:
                 logger.info(
-                    f"Uživatel {request.user} se pokusil přijmout kamion {kamion.cislo_dl}, ale bedna {bedna} neprošla validací: {e}."
+                    f"Uživatel {request.user} se pokusil přijmout kamion {kamion.cislo_dl}, ale bedna {bedna} neprošla validací: {e.messages}."
                 )
                 modeladmin.message_user(
                     request,
-                    f"Nelze přijmout kamion, bedna {bedna} neprošla validací: {e}",
+                    f"Nelze přijmout kamion, bedna {bedna} neprošla validací: {e.messages}",
                     level=messages.ERROR,
                 )
             return

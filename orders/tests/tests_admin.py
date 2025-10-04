@@ -502,11 +502,11 @@ class BednaAdminTests(AdminBase):
         req = self.get_request({'stav_bedny': StavBednyChoice.NEPRIJATO})
         req.user = get_user_model().objects.create_user('user_le', 'le@example.com', 'pass', is_staff=True)
         self.assertEqual(self.admin.get_list_editable(req), [])
-        # S oprávněním – defaultní sada
+        # S oprávněním – defaultní sada, přidán i mnozstvi, pokud je stav bedny NEPRIJATO
         req.user.user_permissions.add(Permission.objects.get(codename='change_neprijata_bedna'))
         req.user = get_user_model().objects.get(pk=req.user.pk)
         editable = self.admin.get_list_editable(req)
-        self.assertEqual(editable, ['stav_bedny', 'tryskat', 'rovnat', 'hmotnost', 'tara', 'poznamka'])
+        self.assertEqual(editable, ['stav_bedny', 'tryskat', 'rovnat', 'hmotnost', 'tara', 'poznamka', 'mnozstvi'])
 
     def test_bedna_list_display_pozice_toggle(self):
         # Pro PR, KN, NV je sloupec pozice vidět
