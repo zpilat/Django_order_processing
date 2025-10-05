@@ -80,4 +80,5 @@ class PrijemVydejChoice(models.TextChoices):
 class SklademZakazkyChoice(models.TextChoices):
     NEPRIJATO = 'neprijato', 'Nepřijato'
     BEZ_BEDEN = 'bez_beden', 'Bez beden'
+    PO_EXSPIRACI = 'po_exspiraci', 'Po exspiraci'
     EXPEDOVANO = 'expedovano', 'Expedováno'

@@ -539,6 +539,15 @@ class SklademZakazkaFilter(DynamicTitleFilter):
             return queryset.filter(bedny__isnull=True)
         elif value == SklademZakazkyChoice.EXPEDOVANO:
             return queryset.filter(expedovano=True)
+        elif value == SklademZakazkyChoice.PO_EXSPIRACI:
+            expiration_date = timezone.localdate() - timedelta(days=28)
+            # Zakázky, které mají alespoň jednu bednu, která není expedována a není ve stavu NEPRIJATO
+            # a zároveň datum příjmu kamionu je starší než 28 dní
+            return queryset.filter(
+                Exists(non_neprijato_subquery),
+                expedovano=False,
+                kamion_prijem__datum__lt=expiration_date
+            ).distinct()
         return queryset
       
 

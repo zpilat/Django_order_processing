@@ -1656,6 +1656,10 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
                         'expedice_zakazek_action', 'expedice_zakazek_kamion_action', 'prijmout_zakazku_action',
                         'delete_selected'
                     ]
+                elif skladem == SklademZakazkyChoice.PO_EXSPIRACI:
+                    actions_to_remove = [
+                        'vratit_zakazky_z_expedice_action', 'prijmout_zakazku_action', 'delete_selected'
+                    ]
                 else:
                     actions_to_remove = ['tisk_karet_beden_zakazek_action', 'tisk_karet_kontroly_kvality_zakazek_action',
                         'vratit_zakazky_z_expedice_action', 'expedice_zakazek_kamion_action',
