@@ -34,7 +34,7 @@ class DynamicTitleFilter(SimpleListFilter):
 class StavBednyFilter(DynamicTitleFilter):
     """
     Filtrovat bedny podle stavu.
-    Bedny po expiraci - bedny, které jsou skladem déle než 28 dní.
+    Bedny po exspiraci - bedny, které jsou skladem déle než 28 dní.
     """
     title = "Stav bedny"
     parameter_name = "stav_bedny"
@@ -43,7 +43,7 @@ class StavBednyFilter(DynamicTitleFilter):
     def __init__(self, request, params, model, model_admin):
         self.label_dict = {**dict(StavBednyChoice.choices)}
         self.label_dict['RO'] = 'Rozpracováno'
-        self.label_dict['PE'] = 'Bedny po expiraci'
+        self.label_dict['PE'] = 'Bedny po exspiraci'
         super().__init__(request, params, model, model_admin)
 
     def lookups(self, request, model_admin):

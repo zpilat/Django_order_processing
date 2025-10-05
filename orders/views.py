@@ -12,7 +12,7 @@ import django.utils.timezone as timezone
 
 from .utils import get_verbose_name_for_column
 from .models import Bedna, Zakazka, Kamion, Zakaznik, TypHlavy, Predpis, Odberatel, Cena
-from .choices import  StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice
+from .choices import  StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice, stav_bedny_rozpracovanost, stav_bedny_skladem
 from weasyprint import HTML
 
 import logging
@@ -53,6 +53,7 @@ def dashboard_bedny_view(request):
         'Surové': {'stav_bedny__in': [StavBednyChoice.PRIJATO, StavBednyChoice.K_NAVEZENI, StavBednyChoice.NAVEZENO, StavBednyChoice.DO_ZPRACOVANI]},
         'Navezené': {'stav_bedny': StavBednyChoice.NAVEZENO},
         'Nepřijaté': {'stav_bedny': StavBednyChoice.NEPRIJATO},
+        'Po exspiraci': {'stav_bedny__in': stav_bedny_skladem, 'zakazka__kamion_prijem__datum__lt': timezone.now().date() - timezone.timedelta(days=28)},
     }
 
     zakaznici = list(Zakaznik.objects.values_list('zkraceny_nazev', flat=True).order_by('zkraceny_nazev')) + ['CELKEM']
