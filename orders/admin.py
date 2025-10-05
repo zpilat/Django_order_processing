@@ -2451,11 +2451,31 @@ class CenaAdmin(SimpleHistoryAdmin):
         return obj.popis
     
 
+class BednaPoziceInline(admin.TabularInline):
+    """
+    Inline pro správu beden v rámci pozice.
+    """
+    model = Bedna
+    extra = 0
+    fields = ('cislo_bedny', 'behalter_nr', 'hmotnost', 'tara', 'mnozstvi', 'material', 'sarze', 'dodatecne_info',
+              'dodavatel_materialu', 'vyrobni_zakazka', 'odfosfatovat', 'tryskat', 'rovnat', 'stav_bedny', 'poznamka',)
+    readonly_fields = ('cislo_bedny', 'behalter_nr', 'hmotnost', 'tara', 'mnozstvi', 'material', 'sarze', 'dodatecne_info',
+                       'dodavatel_materialu', 'vyrobni_zakazka', 'odfosfatovat', 'tryskat', 'rovnat', 'stav_bedny', 'poznamka',)
+    show_change_link = True
+
+
 @admin.register(Pozice)
 class PoziceAdmin(admin.ModelAdmin):
+    """
+    Správa pozic v administraci.
+    """
+    fields = ('kod', 'kapacita',)
+    readonly_fields = ('kod',)
     list_display = ("kod", "get_pocet_beden", "get_vyuziti", "seznam_beden")
     list_per_page = 20
     search_fields = ("kod",)
+    ordering = ("kod",)
+    inlines = [BednaPoziceInline]
 
     @admin.display(description="Obsazenost")
     def get_pocet_beden(self, obj: Pozice):
