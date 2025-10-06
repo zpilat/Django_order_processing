@@ -117,6 +117,10 @@ else:
     SECURE_HSTS_INCLUDE_SUBDOMAINS = os.getenv('DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS', 'False') == 'True' # později 'True' jako výchozí hodnota
     SECURE_HSTS_PRELOAD = os.getenv('DJANGO_SECURE_HSTS_PRELOAD', 'False') == 'True'
 
+    # Cookies names
+    SESSION_COOKIE_NAME = "sessionid_orders"
+    CSRF_COOKIE_NAME    = "csrftoken_orders"
+
     # Redirect HTTP -> HTTPS (behind proxy set SECURE_PROXY_SSL_HEADER below)
     SECURE_SSL_REDIRECT = os.getenv('DJANGO_SECURE_SSL_REDIRECT', 'True') == 'True'
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
@@ -145,7 +149,7 @@ AUTH_PASSWORD_VALIDATORS = [
     },
     {
         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
+    },    ipconfig /flushdns
     {
         'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
     },
