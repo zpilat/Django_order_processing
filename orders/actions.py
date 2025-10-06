@@ -3,7 +3,7 @@ from django.shortcuts import redirect
 from django.http import HttpResponse
 from django.template.loader import render_to_string
 from django.shortcuts import render
-from django.db import transaction
+from django.db import transaction, IntegrityError, DataError
 from django import forms
 from django.forms import formset_factory
 from django.template.response import TemplateResponse
@@ -86,55 +86,82 @@ def _render_oznacit_k_navezeni(modeladmin, request, queryset, formset):
 @admin.action(description="Přijmout vybrané bedny na sklad")
 def prijmout_bedny_action(modeladmin, request, queryset):
     """
-    Přijme vybrané bedny na sklad (změní stav bedny z NEPRIJATO na PRIJATO).
-    Nejdříve zkontroluje, že jsou všechny bedny ve stavu NEPRIJATO, pokud ne, informuje uživatele a nic nezmění.
-    Pro každou bednu se provede:
-    - V jedné transakci a pod řádkovým zámkem (select_for_update) předvaliduje přechod všech beden
-      ze stavu NEPRIJATO do stavu PRIJATO pomocí full_clean.
-    - Pokud validace projde, uloží změnu stavu všech těchto beden na PRIJATO.
-    - Pokud validace neprojde, žádná bedna se nezmění a uživatel je informován o chybě.
+    Přijme vybrané bedny (NEPRIJATO -> PRIJATO).
+    Cíl: Nasbírat všechny kolizní/validační chyby (včetně DB constraintů). Pokud existuje alespoň jedna,
+    NIC se neuloží. Jinak se změny trvale provedou.
+
+    Postup:
+      1) Ověření, že všechny jsou NEPRIJATO.
+      2) atomic + select_for_update (řádkový zámek).
+      3) Savepoint: pokusně všechny uložit (full_clean + save) a chytat ValidationError / IntegrityError / DataError.
+      4) Pokud chyby -> rollback savepointu (nic nezůstane změněno), vypsat všechny chyby a skončit.
+      5) Bez chyb -> commit savepointu (změny zůstávají).
     """
-    if queryset.exclude(stav_bedny=StavBednyChoice.NEPRIJATO).exists():
-        logger.info(f"Uživatel {request.user} se pokusil přijmout bedny, ale některé nejsou ve stavu NEPRIJATO.")
-        modeladmin.message_user(request, "Některé vybrané bedny nejsou ve stavu NEPRIJATO.", level=messages.ERROR)
+    # 1) Předběžná kontrola výběru
+    not_starting = queryset.exclude(stav_bedny=StavBednyChoice.NEPRIJATO)
+    if not_starting.exists():
+        modeladmin.message_user(
+            request,
+            "Některé vybrané bedny nejsou ve stavu NEPRIJATO.",
+            level=messages.ERROR
+        )
         return None
 
     with transaction.atomic():
-        # Předvalidace všech beden
+        # 2) Zamknout řádky
         locked = list(queryset.select_for_update())
+        if not locked:
+            return None
+
         errors = []
+        original_states = {b.pk: b.stav_bedny for b in locked}  # (vše NEPRIJATO, ale pro robustnost)
+
+        # 3) Savepoint – pokusný zápis
+        sp = transaction.savepoint()
         for bedna in locked:
-            current_state = bedna.stav_bedny
             bedna.stav_bedny = StavBednyChoice.PRIJATO
             try:
-                bedna.full_clean()
+                bedna.full_clean()         # model + pole + unique (aktuální DB stav)
+                bedna.save()               # zde se mohou projevit DB constrainty (IntegrityError / DataError)
             except ValidationError as e:
-                errors.append((bedna, e))
-            finally:
-                bedna.stav_bedny = current_state
+                # Získat čisté zprávy
+                for msg in e.messages:
+                    errors.append((bedna, msg))
+            except (IntegrityError, DataError) as e:
+                errors.append((bedna, str(e)))
+            except Exception as e:
+                errors.append((bedna, f"Neočekávaná chyba: {e}"))
 
         if errors:
-            for bedna, e in errors:
-                # Použije se e.messages (seznam chybových zpráv), aby odpadl slovník s __all__a podobně
-                logger.info(
-                    f"Uživatel {request.user} se pokusil přijmout bednu {bedna}, ale neprošla validací: {e.messages}."
-                )
+            # 4) Revert – rollback savepointu (nic nebylo trvale uloženo)
+            transaction.savepoint_rollback(sp)
+            # Vrátit hodnoty v instancích (pro konzistenci při dalším použití objektů v requestu)
+            for b in locked:
+                b.stav_bedny = original_states.get(b.pk, StavBednyChoice.NEPRIJATO)
+
+            # Vypsat všechny chyby jednotlivě
+            for bedna, msg in errors:
+                logger.info(f"Chyba při přijímání bedny {bedna}: {msg}")
                 modeladmin.message_user(
                     request,
-                    f"Nelze přijmout bednu {bedna}, neprošla validací: {e.messages}",
-                    level=messages.ERROR,
+                    f"Nelze přijmout bednu {bedna}: {msg}",
+                    level=messages.ERROR
                 )
-            modeladmin.message_user(request, "Žádná bedna nebyla přijata kvůli výše uvedeným chybám.", level=messages.ERROR)
-            return None            
+            modeladmin.message_user(
+                request,
+                "Žádná bedna nebyla přijata (došlo k chybám).",
+                level=messages.ERROR
+            )
+            return None
 
-        # Vše OK, provede se uložení přechodu stavů
-        for bedna in locked:
-            bedna.stav_bedny = StavBednyChoice.PRIJATO
-            bedna.save()
-
-        modeladmin.message_user(request, f"Přijato na sklad: {len(locked)} beden.", level=messages.SUCCESS)
-
-    return None
+        # 5) Commit savepointu – změny potvrzeny
+        transaction.savepoint_commit(sp)
+        modeladmin.message_user(
+            request,
+            f"Přijato na sklad: {len(locked)} beden.",
+            level=messages.SUCCESS
+        )
+        return None
 
 @admin.action(description="Změna stavu bedny na K_NAVEZENI")
 def oznacit_k_navezeni_action(modeladmin, request, queryset):
