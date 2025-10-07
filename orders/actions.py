@@ -181,87 +181,123 @@ def prijmout_bedny_action(modeladmin, request, queryset):
 @admin.action(description="Změna stavu bedny na K_NAVEZENI")
 def oznacit_k_navezeni_action(modeladmin, request, queryset):
     """
-    Přijme vybrané bedny (NEPRIJATO -> PRIJATO) v režimu ČÁSTEČNÉHO ÚSPĚCHU.
-
-    - Každá bedna je validována a ukládána samostatně.
-    - Chybné bedny se přeskočí a zobrazí se pro ně chybové zprávy.
-    - Úspěšné se přepnou do stavu PRIJATO ihned (bez globálního rollbacku).
-    - Bedny, které nejsou ve stavu NEPRIJATO, jsou hlášeny jako chyba a ponechány beze změny.
+    Změní stav vybraných beden na K_NAVEZENI a přidá k bedně zvolenou pozici.
+    1) GET: zobrazí formset s výběrem pozice pro každou vybranou bednu.
+    2) POST (apply): validace kapacit + uložení (stav PRIJATO -> K_NAVEZENI a přiřazení pozice).
     """
-    logger.debug("Starting prijmout_bedny_action (partial mode)")
-
-    success = 0
-    failures = 0
-
-    # Pro deterministiku pořadí (stabilita logů) seřadíme podle PK
-    for bedna in queryset.order_by('pk'):
-        if bedna.stav_bedny != StavBednyChoice.NEPRIJATO:
-            modeladmin.message_user(
-                request,
-                f"Bedna {bedna} není ve stavu NEPRIJATO.",
-                level=messages.ERROR,
-            )
-            failures += 1
+    for bedna in queryset:
+        if bedna.stav_bedny != StavBednyChoice.PRIJATO:
+            logger.info(f"Uživatel {request.user} se pokusil změnit stav bedny {bedna}, ale ta není v stavu PRIJATO.")
+            modeladmin.message_user(request, f"Bedna {bedna} není v stavu PRIJATO.", level=messages.ERROR)
             continue
 
-        original_state = bedna.stav_bedny
-        bedna.stav_bedny = StavBednyChoice.PRIJATO
-        try:
-            bedna.full_clean()
-            bedna.save()
-            success += 1
-            logger.debug(f"Bedna {bedna.pk} -> PRIJATO OK")
-        except ValidationError as e:
-            bedna.stav_bedny = original_state
-            for msg in e.messages:
-                modeladmin.message_user(
-                    request,
-                    f"Bedna {bedna}: {msg}",
-                    level=messages.ERROR,
-                )
-            logger.debug(f"Bedna {bedna.pk} validation failed: {e.messages}")
-            failures += 1
-        except (IntegrityError, DataError) as e:
-            bedna.stav_bedny = original_state
-            modeladmin.message_user(
+    KNavezeniFormSet = formset_factory(KNavezeniForm, extra=0)
+
+    if request.method == "POST" and "apply" in request.POST:
+        select_ids = request.POST.getlist(admin.helpers.ACTION_CHECKBOX_NAME)
+        qs = Bedna.objects.filter(pk__in=select_ids)            
+        initial = [
+            {
+                "bedna_id": bedna.pk,
+                "cislo": bedna.cislo_bedny,
+                "prumer": bedna.zakazka.prumer,
+                "delka": bedna.zakazka.delka,
+                "hmotnost": bedna.hmotnost,
+                "zakazka_id": bedna.zakazka.pk,
+                "artikl": bedna.zakazka.artikl,
+                "typ_hlavy": bedna.zakazka.typ_hlavy,
+                "popis": bedna.zakazka.popis,
+                "poznamka_k_navezeni": bedna.poznamka_k_navezeni,
+                "pozice": bedna.pozice
+            } for bedna in qs
+        ]
+        formset = KNavezeniFormSet(data=request.POST, initial=initial, prefix="ozn")
+
+        # Pokud formset není validní, znovu se vykreslí s hodnotami
+        if not formset.is_valid():           
+            messages.error(request, "Formulář není validní.")
+            return _render_oznacit_k_navezeni(modeladmin, request, qs, formset)
+        
+        # Pokud není uvedena pozice u první bedny, znovu se vykreslí s hodnotami a chybou
+        aktualni_pozice = formset.forms[0].cleaned_data.get("pozice")
+        if not aktualni_pozice:
+            messages.error(request, "Je potřeba vybrat alespoň první pozici.")
+            return _render_oznacit_k_navezeni(modeladmin, request, qs, formset)
+
+        # Předpočítáme aktuální obsazenost/kapacity pro varování
+        kapacita = {}
+        obsazenost = {}
+        for p in Pozice.objects.all():
+            kapacita[p.pk] = p.kapacita
+            obsazenost[p.pk] = p.bedny.count()
+
+        uspesne = 0
+        prekrocena_kapacita = 0
+
+        with transaction.atomic():
+            vybrane_ids = [f.cleaned_data["bedna_id"] for f in formset.forms]
+            bedny_map = {
+                b.pk: b for b in Bedna.objects.select_for_update().filter(pk__in=vybrane_ids)
+            }
+
+            for form in formset.forms:
+                bedna_id = form.cleaned_data["bedna_id"]
+                poznamka_k_navezeni = form.cleaned_data["poznamka_k_navezeni"]
+                pozice = form.cleaned_data["pozice"] #co zadal uživatel na tomto řádku
+
+                # pokud uživatel zadal na řádku pozici, stane se aktuální pozicí, jinak se použije poslední zadaná pozice
+                if pozice:
+                    aktualni_pozice = pozice
+                else:
+                    pozice = aktualni_pozice               
+
+                bedna = bedny_map.get(bedna_id)
+                if not bedna:
+                    continue
+
+                pid = pozice.pk
+                # Pokud by přiřazení přesáhlo kapacitu, jen poznačíme pro warning
+                if obsazenost[pid] + 1 > kapacita[pid]:
+                    prekrocena_kapacita += 1
+
+                # Přesun + změna stavu (bez ohledu na kapacitu)
+                bedna.pozice = pozice
+                bedna.poznamka_k_navezeni = poznamka_k_navezeni
+                bedna.stav_bedny = StavBednyChoice.K_NAVEZENI
+                bedna.save()
+
+                obsazenost[pid] += 1
+                uspesne += 1
+
+        if uspesne:
+            messages.success(request, f"Připraveno k navezení: {uspesne} beden.")
+        if prekrocena_kapacita:
+            messages.warning(
                 request,
-                f"Bedna {bedna}: {e}",
-                level=messages.ERROR,
+                f"U {prekrocena_kapacita} beden byla překročena kapacita cílové pozice, přesto byly přiřazeny."
             )
-            logger.debug(f"Bedna {bedna.pk} DB error: {e}")
-            failures += 1
-        except Exception as e:  # Neočekávané
-            bedna.stav_bedny = original_state
-            logger.exception(f"Neočekávaná chyba při přijímání bedny {bedna}")
-            modeladmin.message_user(
-                request,
-                f"Bedna {bedna}: Neočekávaná chyba: {e}",
-                level=messages.ERROR,
-            )
-            failures += 1
 
-    if success:
-        modeladmin.message_user(
-            request,
-            f"Přijato na sklad: {success} beden.",
-            level=messages.SUCCESS,
-        )
-        logger.info(f"Uživatel {request.user} přijal na sklad {success} beden (partial mode).")
+        # návrat na changelist
+        return None
 
-    if failures and success:
-        modeladmin.message_user(
-            request,
-            f"Nepřijato: {failures} beden – viz chybové zprávy výše.",
-            level=messages.WARNING,
-        )
-    elif failures and not success:
-        modeladmin.message_user(
-            request,
-            "Žádná bedna nebyla přijata (všechny měly chybu).",
-            level=messages.ERROR,
-        )
-
-    return None
+    # GET – předvyplň formset
+    initial = [
+        {
+            "bedna_id": bedna.pk,
+            "cislo": bedna.cislo_bedny,
+            "prumer": bedna.zakazka.prumer,
+            "delka": bedna.zakazka.delka,
+            "hmotnost": bedna.hmotnost,
+            "artikl": bedna.zakazka.artikl,
+            "zakazka_id": bedna.zakazka.pk,
+            "typ_hlavy": bedna.zakazka.typ_hlavy,
+            "popis": bedna.zakazka.popis,
+            "poznamka_k_navezeni": bedna.poznamka_k_navezeni,
+            "pozice": bedna.pozice
+        } for bedna in queryset
+    ]
+    formset = KNavezeniFormSet(initial=initial, prefix="ozn")
+    return _render_oznacit_k_navezeni(modeladmin, request, queryset, formset)       
 
 @admin.action(description="Změna stavu bedny na NAVEZENO")
 def oznacit_navezeno_action(modeladmin, request, queryset):
