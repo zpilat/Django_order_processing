@@ -569,6 +569,7 @@ class Bedna(models.Model):
     def postup_vyroby(self):
         """
         Vrací procenta postupu výroby bedny na základě stavu bedny, případně stavu rovnání a tryskání.
+        Po změně této property aktualizovat i funkci build_postup_vyroby_cases v utils.py!!!
         - NEPRIJATO a PRIJATO: 0%
         - K_NAVEZENI: 10%
         - NAVEZENO: 20%

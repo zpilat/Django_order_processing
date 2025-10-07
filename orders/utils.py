@@ -4,7 +4,8 @@ from django.template.loader import render_to_string
 from django.forms.models import model_to_dict
 from django.db import transaction
 
-from .choices import StavBednyChoice
+from .choices import StavBednyChoice, RovnaniChoice, TryskaniChoice
+from django.db.models import When, Value
 from .models import Zakazka, Bedna
 
 import pandas as pd
@@ -15,6 +16,34 @@ import re
 import gc
 import logging
 logger = logging.getLogger('orders')
+
+
+def build_postup_vyroby_cases():
+    """Vrátí seznam Django ORM `When(...)` výrazů replikujících logiku property `Bedna.postup_vyroby`.
+
+    Použití v adminu:
+        from django.db.models import Case, Value, IntegerField
+        qs.annotate(
+            postup_vyroby_value=Case(*build_postup_vyroby_cases(), default=Value(0), output_field=IntegerField())
+        )
+
+    Udržuje jediný zdroj pravdy pro výpočet postupu (SQL ekvivalent). Po změně property aktualizovat i tuto funkci.
+    """
+    good_rovnat = [RovnaniChoice.ROVNA, RovnaniChoice.VYROVNANA]
+    good_tryskat = [TryskaniChoice.CISTA, TryskaniChoice.OTRYSKANA]
+    return [
+        When(stav_bedny__in=[StavBednyChoice.NEPRIJATO, StavBednyChoice.PRIJATO], then=Value(0)),
+        When(stav_bedny=StavBednyChoice.K_NAVEZENI, then=Value(10)),
+        When(stav_bedny=StavBednyChoice.NAVEZENO, then=Value(20)),
+        When(stav_bedny=StavBednyChoice.DO_ZPRACOVANI, then=Value(30)),
+        When(stav_bedny=StavBednyChoice.ZAKALENO, then=Value(50)),
+        # ZKONTROLOVANO varianty (od nejužší po obecnou)
+        When(stav_bedny=StavBednyChoice.ZKONTROLOVANO, rovnat__in=good_rovnat, tryskat__in=good_tryskat, then=Value(90)),
+        When(stav_bedny=StavBednyChoice.ZKONTROLOVANO, rovnat__in=good_rovnat, then=Value(75)),
+        When(stav_bedny=StavBednyChoice.ZKONTROLOVANO, tryskat__in=good_tryskat, then=Value(75)),
+        When(stav_bedny=StavBednyChoice.ZKONTROLOVANO, then=Value(60)),
+        When(stav_bedny__in=[StavBednyChoice.K_EXPEDICI, StavBednyChoice.EXPEDOVANO], then=Value(100)),
+    ]
 
 
 def get_verbose_name_for_column(model, field_chain):

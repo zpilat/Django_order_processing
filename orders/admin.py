@@ -47,7 +47,7 @@ from .choices import (
     StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice, PrijemVydejChoice, SklademZakazkyChoice,
     stav_bedny_rozpracovanost, stav_bedny_skladem
     )
-from .utils import utilita_validate_excel_upload
+from .utils import utilita_validate_excel_upload, build_postup_vyroby_cases
 
 import logging
 logger = logging.getLogger('orders')
@@ -1918,7 +1918,7 @@ class BednaAdmin(SimpleHistoryAdmin):
             return obj.zakazka.predpis.skupina
         return '-'
 
-    @admin.display(description='Postup', ordering='stav_bedny_order', empty_value='-')
+    @admin.display(description='Postup', ordering='postup_vyroby_value', empty_value='-')
     def get_postup(self, obj):
         """
         Zobrazí postup bedny pomocí progress barupodle stavu bedny a umožní třídění podle hlavičky pole.
@@ -1934,21 +1934,13 @@ class BednaAdmin(SimpleHistoryAdmin):
         return format_html(bar)
 
     def get_queryset(self, request):  # noqa: D401
-        """Rozšíří queryset o anotaci 'stav_bedny_order' pro vlastní řazení podle pořadí StavBednyChoice."""
+        """Rozšíří queryset o anotaci postup_vyroby_value (SQL ekvivalent property postup_vyroby)."""
         qs = super().get_queryset(request)
-        order_seq = [
-            StavBednyChoice.NEPRIJATO,
-            StavBednyChoice.PRIJATO,
-            StavBednyChoice.K_NAVEZENI,
-            StavBednyChoice.NAVEZENO,
-            StavBednyChoice.DO_ZPRACOVANI,
-            StavBednyChoice.ZAKALENO,
-            StavBednyChoice.ZKONTROLOVANO,
-            StavBednyChoice.K_EXPEDICI,
-            StavBednyChoice.EXPEDOVANO,
-        ]
-        whens = [When(stav_bedny=code, then=Value(idx)) for idx, code in enumerate(order_seq)]
-        return qs.annotate(stav_bedny_order=Case(*whens, default=Value(999), output_field=IntegerField()))
+
+        # Replikace logiky property postup_vyroby do SQL CASE
+        return qs.annotate(
+            postup_vyroby_value=Case(*build_postup_vyroby_cases(), default=Value(0), output_field=IntegerField())
+        )
 
     def get_fieldsets(self, request, obj=None):
         """
