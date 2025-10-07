@@ -110,35 +110,43 @@ def prijmout_bedny_action(modeladmin, request, queryset):
     with transaction.atomic():
         # 2) Zamknout řádky
         locked = list(queryset.select_for_update())
+        logger.debug(f"Locked {len(locked)} rows for updating bedny to PRIJATO.")
         if not locked:
             return None
 
         errors = []
         original_states = {b.pk: b.stav_bedny for b in locked}  # (vše NEPRIJATO, ale pro robustnost)
+        logger.debug(f"Original states before update: {original_states}")
 
         # 3) Savepoint – pokusný zápis
         sp = transaction.savepoint()
         for bedna in locked:
+            logger.debug(f"Updating bedna {bedna} to PRIJATO")      
             bedna.stav_bedny = StavBednyChoice.PRIJATO
             try:
                 bedna.full_clean()         # model + pole + unique (aktuální DB stav)
                 bedna.save()               # zde se mohou projevit DB constrainty (IntegrityError / DataError)
+                logger.debug(f"Bedna {bedna} successfully updated to PRIJATO.")
             except ValidationError as e:
                 # Získat čisté zprávy
                 for msg in e.messages:
                     errors.append((bedna, msg))
+                    logger.debug(f"ValidationError for bedna {bedna}: {msg}")
             except (IntegrityError, DataError) as e:
                 errors.append((bedna, str(e)))
+                logger.debug(f"IntegrityError/DataError for bedna {bedna}: {e}")
             except Exception as e:
                 errors.append((bedna, f"Neočekávaná chyba: {e}"))
+                logger.debug(f"Unexpected error for bedna {bedna}: {e}")
 
         if errors:
+            logger.debug(f"Errors found for bedny: {errors}")
             # 4) Revert – rollback savepointu (nic nebylo trvale uloženo)
             transaction.savepoint_rollback(sp)
             # Vrátit hodnoty v instancích (pro konzistenci při dalším použití objektů v requestu)
             for b in locked:
                 b.stav_bedny = original_states.get(b.pk, StavBednyChoice.NEPRIJATO)
-
+            logger.debug(f"Reverted bedny to original states: {original_states}")
             # Vypsat všechny chyby jednotlivě
             for bedna, msg in errors:
                 logger.info(f"Chyba při přijímání bedny {bedna}: {msg}")
@@ -155,12 +163,14 @@ def prijmout_bedny_action(modeladmin, request, queryset):
             return None
 
         # 5) Commit savepointu – změny potvrzeny
+        logger.debug(f"Committing savepoint {sp}")
         transaction.savepoint_commit(sp)
         modeladmin.message_user(
             request,
             f"Přijato na sklad: {len(locked)} beden.",
             level=messages.SUCCESS
         )
+        logger.info(f"Uživatel {request.user} přijal na sklad {len(locked)} beden.")
         return None
 
 @admin.action(description="Změna stavu bedny na K_NAVEZENI")
