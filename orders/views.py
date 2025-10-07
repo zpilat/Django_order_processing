@@ -44,15 +44,16 @@ def dashboard_bedny_view(request):
         return data_dict
 
     stavy = {
-        'Zakalené': {'stav_bedny__in': [StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO, StavBednyChoice.K_EXPEDICI]},
-        'Ke kontrole': {'stav_bedny': StavBednyChoice.ZAKALENO},
-        'Křivé': {'rovnat': RovnaniChoice.KRIVA},
-        'Rovná se': {'rovnat': RovnaniChoice.ROVNA_SE},
-        'K tryskání': {'tryskat': TryskaniChoice.SPINAVA, 'stav_bedny__in': [StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO]},
-        'K expedici': {'stav_bedny': StavBednyChoice.K_EXPEDICI},
+        'Nepřijaté': {'stav_bedny': StavBednyChoice.NEPRIJATO},        
         'Surové': {'stav_bedny__in': [StavBednyChoice.PRIJATO, StavBednyChoice.K_NAVEZENI, StavBednyChoice.NAVEZENO, StavBednyChoice.DO_ZPRACOVANI]},
-        'Navezené': {'stav_bedny': StavBednyChoice.NAVEZENO},
-        'Nepřijaté': {'stav_bedny': StavBednyChoice.NEPRIJATO},
+        '-> K navezení': {'stav_bedny': StavBednyChoice.K_NAVEZENI},
+        '-> Navezené': {'stav_bedny': StavBednyChoice.NAVEZENO},
+        'Zpracované': {'stav_bedny__in': [StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO, StavBednyChoice.K_EXPEDICI]},
+        '-> Ke kontrole': {'stav_bedny': StavBednyChoice.ZAKALENO},
+        '-> K tryskání': {'tryskat': TryskaniChoice.SPINAVA, 'stav_bedny__in': [StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO]},        
+        '-> Křivé': {'rovnat': RovnaniChoice.KRIVA, 'stav_bedny__in': [StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO]},
+        '-> Rovná se': {'rovnat': RovnaniChoice.ROVNA_SE, 'stav_bedny__in': [StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO]},
+        '-> K expedici': {'stav_bedny': StavBednyChoice.K_EXPEDICI},
         'Po exspiraci': {'stav_bedny__in': stav_bedny_skladem, 'zakazka__kamion_prijem__datum__lt': timezone.now().date() - timezone.timedelta(days=28)},
     }
 
