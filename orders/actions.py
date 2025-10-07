@@ -93,8 +93,6 @@ def prijmout_bedny_action(modeladmin, request, queryset):
     - Úspěšné se přepnou do stavu PRIJATO ihned (bez globálního rollbacku).
     - Bedny, které nejsou ve stavu NEPRIJATO, jsou hlášeny jako chyba a ponechány beze změny.
     """
-    logger.debug("Starting prijmout_bedny_action (partial mode)")
-
     success = 0
     failures = 0
 
@@ -115,7 +113,6 @@ def prijmout_bedny_action(modeladmin, request, queryset):
             bedna.full_clean()
             bedna.save()
             success += 1
-            logger.debug(f"Bedna {bedna.pk} -> PRIJATO OK")
         except ValidationError as e:
             bedna.stav_bedny = original_state
             for msg in e.messages:
@@ -124,7 +121,6 @@ def prijmout_bedny_action(modeladmin, request, queryset):
                     f"Bedna {bedna}: {msg}",
                     level=messages.ERROR,
                 )
-            logger.debug(f"Bedna {bedna.pk} validation failed: {e.messages}")
             failures += 1
         except (IntegrityError, DataError) as e:
             bedna.stav_bedny = original_state
@@ -133,7 +129,6 @@ def prijmout_bedny_action(modeladmin, request, queryset):
                 f"Bedna {bedna}: {e}",
                 level=messages.ERROR,
             )
-            logger.debug(f"Bedna {bedna.pk} DB error: {e}")
             failures += 1
         except Exception as e:  # Neočekávané
             bedna.stav_bedny = original_state
@@ -151,7 +146,6 @@ def prijmout_bedny_action(modeladmin, request, queryset):
             f"Přijato na sklad: {success} beden.",
             level=messages.SUCCESS,
         )
-        logger.info(f"Uživatel {request.user} přijal na sklad {success} beden (partial mode).")
 
     if failures and success:
         modeladmin.message_user(
@@ -159,12 +153,14 @@ def prijmout_bedny_action(modeladmin, request, queryset):
             f"Nepřijato: {failures} beden – viz chybové zprávy výše.",
             level=messages.WARNING,
         )
+        logger.info(f"Uživatel {request.user} přijal na sklad {success} beden (částečný režim), {failures} mělo chybu.")
     elif failures and not success:
         modeladmin.message_user(
             request,
             "Žádná bedna nebyla přijata (všechny měly chybu).",
             level=messages.ERROR,
         )
+        logger.info(f"Uživatel {request.user} se pokusil přijmout bedny na sklad, ale žádná nebyla přijata (všechny měly chybu).")
 
     return None
 
