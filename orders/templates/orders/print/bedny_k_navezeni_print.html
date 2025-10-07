@@ -42,11 +42,12 @@
       <table class="group-table">
         <tbody>
           <tr>
-            <th colspan="6">POZICE {{ group.pozice }}</th>
+            <th colspan="7">POZICE {{ group.pozice }}</th>
           </tr>
           <tr class="subhead">
             <th>Artikl</th>
             <th>Číslo bedny</th>
+            <th>Zákazník</th>
             <th>Č.b. zák.</th>
             <th>Rozměr</th>
             <th>Popis</th>
@@ -63,6 +64,7 @@
                     <td rowspan="{{ zakazka_group.bedny|length }}">{{ zakazka_group.zakazka.artikl }}</td>
                   {% endif %}
                   <td>{{ bedna.cislo_bedny }}</td>
+                  <td>{{ bedna.zakazka.kamion_prijem.zakaznik.zkraceny_nazev }}</td>
                   <td>{{ bedna.behalter_nr }}</td>
                   <td>{{ zakazka_group.zakazka.prumer }} x {{ zakazka_group.zakazka.delka }}</td>
                   <td>{{ zakazka_group.zakazka.popis }}</td>
