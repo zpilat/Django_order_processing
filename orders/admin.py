@@ -1,6 +1,7 @@
 from django.contrib import admin, messages
 from django.contrib.auth.models import Permission
 from django.db import models, transaction
+from django.db.models import Case, When, Value, IntegerField
 from django.forms import TextInput, RadioSelect
 from django.forms.models import BaseInlineFormSet
 from django.utils.safestring import mark_safe
@@ -1770,7 +1771,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         'get_cislo_bedny', 'get_behalter_nr', 'zakazka_link', 'kamion_prijem_link', 'kamion_vydej_link',
         'rovnat', 'tryskat', 'stav_bedny', 'get_prumer', 'get_delka_int','get_skupina_TZ', 'get_typ_hlavy',
         'get_celozavit', 'zkraceny_popis', 'hmotnost', 'tara', 'mnozstvi', 'pozice', 'get_priorita', 'get_datum',
-        'poznamka',
+        'poznamka', 'get_postup'
         )
     # list_editable nastavován dynamicky v get_list_editable
     list_display_links = ('get_cislo_bedny', )
@@ -1917,6 +1918,38 @@ class BednaAdmin(SimpleHistoryAdmin):
             return obj.zakazka.predpis.skupina
         return '-'
 
+    @admin.display(description='Postup', ordering='stav_bedny_order', empty_value='-')
+    def get_postup(self, obj):
+        """
+        Zobrazí postup bedny pomocí progress barupodle stavu bedny a umožní třídění podle hlavičky pole.
+        """
+        # jednoduchý progress bar
+        postup = obj.postup_vyroby
+        pozadi = "#ef4444" if postup < 50 else ("#eab308" if postup <= 75 else "#22c55e")
+        bar = f"""
+        <div style="width:120px;border:1px solid #ddd;height:12px;border-radius:6px;overflow:hidden;">
+            <div style="width:{postup}%;height:100%;background:{pozadi};"></div>
+        </div>
+        """
+        return format_html(bar)
+
+    def get_queryset(self, request):  # noqa: D401
+        """Rozšíří queryset o anotaci 'stav_bedny_order' pro vlastní řazení podle pořadí StavBednyChoice."""
+        qs = super().get_queryset(request)
+        order_seq = [
+            StavBednyChoice.NEPRIJATO,
+            StavBednyChoice.PRIJATO,
+            StavBednyChoice.K_NAVEZENI,
+            StavBednyChoice.NAVEZENO,
+            StavBednyChoice.DO_ZPRACOVANI,
+            StavBednyChoice.ZAKALENO,
+            StavBednyChoice.ZKONTROLOVANO,
+            StavBednyChoice.K_EXPEDICI,
+            StavBednyChoice.EXPEDOVANO,
+        ]
+        whens = [When(stav_bedny=code, then=Value(idx)) for idx, code in enumerate(order_seq)]
+        return qs.annotate(stav_bedny_order=Case(*whens, default=Value(999), output_field=IntegerField()))
+
     def get_fieldsets(self, request, obj=None):
         """
         Sestaví fieldsety podle požadavku a zachová logiku vylučování polí dle zákazníka a toho, zda se jedná o editaci.
@@ -2060,6 +2093,8 @@ class BednaAdmin(SimpleHistoryAdmin):
         Pokud není aktivní filtr stav bedny Expedováno, vyloučí se zobrazení sloupce kamion_vydej_link.
         Pokud není aktivní filtr stav bedny Prijato, K_navezeni, Navezeno, vyloučí se zobrazení sloupce pozice.
         Pokud není aktivní filtr stav bedny Neprijato, vyloučí se zobrazení sloupce mnozstvi.
+        Pokud není aktivní filtr stav bedny Vizualizace, vyloučí se zobrazení sloupce get_postup.
+        Pokud je aktivní filtr stav bedny Vizualizace, vyloučí se zobrazení sloupce poznamka.
         """
         list_display = list(super().get_list_display(request))
         if request.GET.get('stav_bedny', None) != StavBednyChoice.EXPEDOVANO:
@@ -2075,6 +2110,12 @@ class BednaAdmin(SimpleHistoryAdmin):
         if request.GET.get('stav_bedny', None) != StavBednyChoice.NEPRIJATO:
             if 'mnozstvi' in list_display:
                 list_display.remove('mnozstvi')
+        if request.GET.get('stav_bedny', None) != 'VI':
+            if 'get_postup' in list_display:
+                list_display.remove('get_postup')
+        else:
+            if 'poznamka' in list_display:
+                list_display.remove('poznamka')
         return list_display
     
     def get_list_filter(self, request):

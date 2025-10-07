@@ -565,6 +565,42 @@ class Bedna(models.Model):
             
         return 0  # pokud není nalezeno, vrací 0
     
+    @property
+    def postup_vyroby(self):
+        """
+        Vrací procenta postupu výroby bedny na základě stavu bedny, případně stavu rovnání a tryskání.
+        - NEPRIJATO a PRIJATO: 0%
+        - K_NAVEZENI: 10%
+        - NAVEZENO: 20%
+        - DO_ZPRACOVANI: 30%
+        - ZAKALENO: 50%
+        - ZKONTROLOVANO, rovnat není ROVNA nebo VYROVNANA a tryskat není CISTA nebo OTRYSKANA: 60%
+        - ZKONTROLOVANO, rovnat není ROVNA nebo VYROVNANA nebo tryskat není CISTA nebo OTRYSKANA: 75%
+        - ZKONTROLOVANO, rovnat je ROVNA nebo VYROVNANA a tryskat není CISTA nebo OTRYSKANA: 90%
+        - K_EXPEDICI nebo EXPEDOVANO: 100%
+        """
+        if self.stav_bedny in [StavBednyChoice.NEPRIJATO, StavBednyChoice.PRIJATO]:
+            return 0
+        elif self.stav_bedny == StavBednyChoice.K_NAVEZENI:
+            return 10
+        elif self.stav_bedny == StavBednyChoice.NAVEZENO:
+            return 20
+        elif self.stav_bedny == StavBednyChoice.DO_ZPRACOVANI:
+            return 30
+        elif self.stav_bedny == StavBednyChoice.ZAKALENO:
+            return 50
+        elif self.stav_bedny == StavBednyChoice.ZKONTROLOVANO:
+            if self.rovnat not in [RovnaniChoice.ROVNA, RovnaniChoice.VYROVNANA] and self.tryskat not in [TryskaniChoice.CISTA, TryskaniChoice.OTRYSKANA]:
+                return 60
+            elif self.rovnat not in [RovnaniChoice.ROVNA, RovnaniChoice.VYROVNANA] or self.tryskat not in [TryskaniChoice.CISTA, TryskaniChoice.OTRYSKANA]:
+                return 75
+            else:  # rovnat je ROVNA nebo VYROVNANA a tryskat je CISTA nebo OTRYSKANA
+                return 90
+        elif self.stav_bedny in [StavBednyChoice.K_EXPEDICI, StavBednyChoice.EXPEDOVANO]:
+            return 100
+        else:
+            return 0  # Pro případ neznámého stavu bedny vrací 0%
+    
     def clean(self):
         """
         Validace stavu bedny a tryskání/rovnání.
