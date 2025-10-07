@@ -86,97 +86,87 @@ def _render_oznacit_k_navezeni(modeladmin, request, queryset, formset):
 @admin.action(description="Přijmout vybrané bedny na sklad")
 def prijmout_bedny_action(modeladmin, request, queryset):
     """
-    Přijme vybrané bedny (NEPRIJATO -> PRIJATO).
-    Cíl: Nasbírat všechny kolizní/validační chyby (včetně DB constraintů). Pokud existuje alespoň jedna,
-    NIC se neuloží. Jinak se změny trvale provedou.
+    Přijme vybrané bedny (NEPRIJATO -> PRIJATO) v režimu ČÁSTEČNÉHO ÚSPĚCHU.
 
-    Postup:
-      1) Ověření, že všechny jsou NEPRIJATO.
-      2) atomic + select_for_update (řádkový zámek).
-      3) Savepoint: pokusně všechny uložit (full_clean + save) a chytat ValidationError / IntegrityError / DataError.
-      4) Pokud chyby -> rollback savepointu (nic nezůstane změněno), vypsat všechny chyby a skončit.
-      5) Bez chyb -> commit savepointu (změny zůstávají).
+    - Každá bedna je validována a ukládána samostatně.
+    - Chybné bedny se přeskočí a zobrazí se pro ně chybové zprávy.
+    - Úspěšné se přepnou do stavu PRIJATO ihned (bez globálního rollbacku).
+    - Bedny, které nejsou ve stavu NEPRIJATO, jsou hlášeny jako chyba a ponechány beze změny.
     """
-    # 1) Předběžná kontrola výběru
-    logger.debug("Starting prijmout_bedny_action")
-    not_starting = queryset.exclude(stav_bedny=StavBednyChoice.NEPRIJATO)
-    logger.debug(f"Bedny not in NEPRIJATO state: {list(not_starting)}")
-    if not_starting.exists():
-        modeladmin.message_user(
-            request,
-            "Některé vybrané bedny nejsou ve stavu NEPRIJATO.",
-            level=messages.ERROR
-        )
-        return None
+    logger.debug("Starting prijmout_bedny_action (partial mode)")
 
-    with transaction.atomic():
-        # 2) Zamknout řádky
-        logger.debug("Locking rows for updating bedny to PRIJATO.")
-        queryset_selected = queryset.select_for_update()
-        logger.debug(f"Selected rows for update: {list(queryset_selected)}")
-        locked = list(queryset_selected)
-        logger.debug(f"Locked {len(locked)} rows for updating bedny to PRIJATO.")
-        if not locked:
-            return None
+    success = 0
+    failures = 0
 
-        errors = []
-        original_states = {b.pk: b.stav_bedny for b in locked}  # (vše NEPRIJATO, ale pro robustnost)
-        logger.debug(f"Original states before update: {original_states}")
-
-        # 3) Savepoint – pokusný zápis
-        sp = transaction.savepoint()
-        for bedna in locked:
-            logger.debug(f"Updating bedna {bedna} to PRIJATO")      
-            bedna.stav_bedny = StavBednyChoice.PRIJATO
-            try:
-                bedna.full_clean()         # model + pole + unique (aktuální DB stav)
-                bedna.save()               # zde se mohou projevit DB constrainty (IntegrityError / DataError)
-                logger.debug(f"Bedna {bedna} successfully updated to PRIJATO.")
-            except ValidationError as e:
-                # Získat čisté zprávy
-                for msg in e.messages:
-                    errors.append((bedna, msg))
-                    logger.debug(f"ValidationError for bedna {bedna}: {msg}")
-            except (IntegrityError, DataError) as e:
-                errors.append((bedna, str(e)))
-                logger.debug(f"IntegrityError/DataError for bedna {bedna}: {e}")
-            except Exception as e:
-                errors.append((bedna, f"Neočekávaná chyba: {e}"))
-                logger.debug(f"Unexpected error for bedna {bedna}: {e}")
-
-        if errors:
-            logger.debug(f"Errors found for bedny: {errors}")
-            # 4) Revert – rollback savepointu (nic nebylo trvale uloženo)
-            transaction.savepoint_rollback(sp)
-            # Vrátit hodnoty v instancích (pro konzistenci při dalším použití objektů v requestu)
-            for b in locked:
-                b.stav_bedny = original_states.get(b.pk, StavBednyChoice.NEPRIJATO)
-            logger.debug(f"Reverted bedny to original states: {original_states}")
-            # Vypsat všechny chyby jednotlivě
-            for bedna, msg in errors:
-                logger.info(f"Chyba při přijímání bedny {bedna}: {msg}")
-                modeladmin.message_user(
-                    request,
-                    f"Nelze přijmout bednu {bedna}: {msg}",
-                    level=messages.ERROR
-                )
+    # Pro deterministiku pořadí (stabilita logů) seřadíme podle PK
+    for bedna in queryset.order_by('pk'):
+        if bedna.stav_bedny != StavBednyChoice.NEPRIJATO:
             modeladmin.message_user(
                 request,
-                "Žádná bedna nebyla přijata (došlo k chybám).",
-                level=messages.ERROR
+                f"Bedna {bedna} není ve stavu NEPRIJATO.",
+                level=messages.ERROR,
             )
-            return None
+            failures += 1
+            continue
 
-        # 5) Commit savepointu – změny potvrzeny
-        logger.debug(f"Committing savepoint {sp}")
-        transaction.savepoint_commit(sp)
+        original_state = bedna.stav_bedny
+        bedna.stav_bedny = StavBednyChoice.PRIJATO
+        try:
+            bedna.full_clean()
+            bedna.save()
+            success += 1
+            logger.debug(f"Bedna {bedna.pk} -> PRIJATO OK")
+        except ValidationError as e:
+            bedna.stav_bedny = original_state
+            for msg in e.messages:
+                modeladmin.message_user(
+                    request,
+                    f"Bedna {bedna}: {msg}",
+                    level=messages.ERROR,
+                )
+            logger.debug(f"Bedna {bedna.pk} validation failed: {e.messages}")
+            failures += 1
+        except (IntegrityError, DataError) as e:
+            bedna.stav_bedny = original_state
+            modeladmin.message_user(
+                request,
+                f"Bedna {bedna}: {e}",
+                level=messages.ERROR,
+            )
+            logger.debug(f"Bedna {bedna.pk} DB error: {e}")
+            failures += 1
+        except Exception as e:  # Neočekávané
+            bedna.stav_bedny = original_state
+            logger.exception(f"Neočekávaná chyba při přijímání bedny {bedna}")
+            modeladmin.message_user(
+                request,
+                f"Bedna {bedna}: Neočekávaná chyba: {e}",
+                level=messages.ERROR,
+            )
+            failures += 1
+
+    if success:
         modeladmin.message_user(
             request,
-            f"Přijato na sklad: {len(locked)} beden.",
-            level=messages.SUCCESS
+            f"Přijato na sklad: {success} beden.",
+            level=messages.SUCCESS,
         )
-        logger.info(f"Uživatel {request.user} přijal na sklad {len(locked)} beden.")
-        return None
+        logger.info(f"Uživatel {request.user} přijal na sklad {success} beden (partial mode).")
+
+    if failures and success:
+        modeladmin.message_user(
+            request,
+            f"Nepřijato: {failures} beden – viz chybové zprávy výše.",
+            level=messages.WARNING,
+        )
+    elif failures and not success:
+        modeladmin.message_user(
+            request,
+            "Žádná bedna nebyla přijata (všechny měly chybu).",
+            level=messages.ERROR,
+        )
+
+    return None
 
 @admin.action(description="Změna stavu bedny na K_NAVEZENI")
 def oznacit_k_navezeni_action(modeladmin, request, queryset):
