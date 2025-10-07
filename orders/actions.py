@@ -67,22 +67,6 @@ def tisk_karet_kontroly_kvality_action(modeladmin, request, queryset):
         modeladmin.message_user(request, "Bedna nemá přiřazeného zákazníka nebo zákazník nemá zkratku.", level=messages.ERROR)
         return None
 
-def _render_oznacit_k_navezeni(modeladmin, request, queryset, formset):
-    """
-    Interní funkce vykreslení mezikroku akce (formset s volbou pozic).
-    """
-    action = request.POST.get("action") or request.GET.get("action") or "oznacit_k_navezeni_action"
-    context = {
-        **modeladmin.admin_site.each_context(request),
-        "title": "Zvol pozice pro vybrané bedny",
-        "queryset": queryset,
-        "formset": formset,
-        "opts": modeladmin.model._meta,
-        "action_name": action,
-        "action_checkbox_name": admin.helpers.ACTION_CHECKBOX_NAME,
-    }
-    return TemplateResponse(request, "admin/bedna/oznacit_k_navezeni.html", context)    
-
 @admin.action(description="Přijmout vybrané bedny na sklad")
 def prijmout_bedny_action(modeladmin, request, queryset):
     """
@@ -163,6 +147,24 @@ def prijmout_bedny_action(modeladmin, request, queryset):
         logger.info(f"Uživatel {request.user} se pokusil přijmout bedny na sklad, ale žádná nebyla přijata (všechny měly chybu).")
 
     return None
+
+def _render_oznacit_k_navezeni(modeladmin, request, queryset, formset):
+    """
+    Interní funkce vykreslení mezikroku akce (formset s volbou pozic).
+    """
+    action = request.POST.get("action") or request.GET.get("action") or "oznacit_k_navezeni_action"
+    pozice = Pozice.objects.all().order_by('kod')
+    context = {
+        **modeladmin.admin_site.each_context(request),
+        "title": "Zvol pozice pro vybrané bedny",
+        "queryset": queryset,
+        "formset": formset,
+        "vsechny_pozice": pozice,
+        "opts": modeladmin.model._meta,
+        "action_name": action,
+        "action_checkbox_name": admin.helpers.ACTION_CHECKBOX_NAME,
+    }
+    return TemplateResponse(request, "admin/bedna/oznacit_k_navezeni.html", context)    
 
 @admin.action(description="Změna stavu bedny na K_NAVEZENI")
 def oznacit_k_navezeni_action(modeladmin, request, queryset):

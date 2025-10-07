@@ -2,6 +2,53 @@
 {% load i18n admin_urls static %}
 
 {% block content %}
+<p>Aktuální stav na jednotlivých pozicích:</p>
+<table class="adminlist">
+  <thead>
+    <tr>
+      <th style="background-color: #214290; color: #ffde17;">Pozice</th>
+      <th style="background-color: #214290; color: #ffde17;">Obsazenost</th>
+      <th style="text-align:center; background-color: #214290; color: #ffde17;">Využití</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for pozice in vsechny_pozice %}
+      {% with v=pozice.vyuziti_procent %}
+      <tr>
+        <td style="font-weight:bold;">{{ pozice.kod }}</td>
+        <td>{{ pozice.pocet_beden }} / {{ pozice.kapacita }}</td>
+        <td>
+          {% if v is None %}
+            <em>--</em>
+          {% else %}
+            {# Určení barvy podle prahů #}
+            {% if v < 80 %}
+              {% with '#22c55e' as bar_color %}
+                {% with '#155e34' as bar_color_border %}
+                  {% include "admin/bedna/partials/_progress_bar.html" %}
+                {% endwith %}
+              {% endwith %}
+            {% elif v < 100 %}
+              {% with '#eab308' as bar_color %}
+                {% with '#7a6004' as bar_color_border %}
+                  {% include "admin/bedna/partials/_progress_bar.html" %}
+                {% endwith %}
+              {% endwith %}
+            {% else %}
+              {% with '#ef4444' as bar_color %}
+                {% with '#7f1d1d' as bar_color_border %}
+                  {% include "admin/bedna/partials/_progress_bar.html" %}
+                {% endwith %}
+              {% endwith %}
+            {% endif %}
+          {% endif %}
+        </td>
+      </tr>
+      {% endwith %}
+    {% endfor %}
+  </tbody>
+</table>
+<br>
 <p>Stačí označit vždy první stejnou pozici, další se přiřadí automaticky až do další zadané pozice.</p>
 <form method="post">{% csrf_token %}
   {# udržení kontextu akce #}
@@ -12,21 +59,29 @@
     <input type="hidden" name="{{ action_checkbox_name }}" value="{{ obj.pk }}">
   {% endfor %}
 
+  {# management form pro formset #}
   {{ formset.management_form }}
 
   <table class="adminlist">
     <thead>
       <tr>
-        <th>Bedna</th><th>Hmotnost</th><th>Rozměr</th><th>Artikl</th><th>Typ hlavy</th><th>Popis</th><th>Poznámka k navezení</th><th>Pozice</th>
+        <th style="background-color: #214290; color: #ffde17;">Bedna</th>
+        <th style="background-color: #214290; color: #ffde17;">Hmotnost</th>
+        <th style="background-color: #214290; color: #ffde17;">Rozměr</th>
+        <th style="background-color: #214290; color: #ffde17;">Artikl</th>
+        <th style="background-color: #214290; color: #ffde17;">Typ hlavy</th>
+        <th style="background-color: #214290; color: #ffde17;">Popis</th>
+        <th style="background-color: #214290; color: #ffde17;">Poznámka k navezení</th>
+        <th style="background-color: #214290; color: #ffde17;">Pozice</th>
       </tr>
     </thead>
     <tbody>
       {% for form in formset.forms %}
         {% ifchanged form.initial.zakazka_id %}
-          <tr style="border-top: 2px solid #cac8c8ff;">
+          <tr style="border-top: 2px solid #214290;">
         {% else %}
           {% if forloop.last %}
-            <tr style="border-bottom: 2px solid #cac8c8ff;">
+            <tr style="border-bottom: 2px solid #214290;">
           {% else %}
             <tr>
           {% endif %}

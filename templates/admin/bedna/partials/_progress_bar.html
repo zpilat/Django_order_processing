@@ -1,0 +1,20 @@
+{# Očekává proměnné: v (procenta), bar_color, bar_color_border #}
+{# Normalizace: zaokrouhlení na celé číslo, odstranění lokalizační čárky, clamp 0–100 #}
+{% with v|floatformat:0 as pct_raw %}
+  {% with pct_raw|stringformat:"s" as pct_txt %}
+    {% with pct_txt|cut:"," as pct_clean %}
+      {% with pct_clean|add:0 as pct_num %}
+        {% if pct_num < 0 %}{% with 0 as pct_final %}
+          {% include "admin/bedna/partials/_progress_bar_inner.html" %}
+        {% endwith %}
+        {% elif pct_num > 100 %}{% with 100 as pct_final %}
+          {% include "admin/bedna/partials/_progress_bar_inner.html" %}
+        {% endwith %}
+        {% else %}{% with pct_num as pct_final %}
+          {% include "admin/bedna/partials/_progress_bar_inner.html" %}
+        {% endwith %}
+        {% endif %}
+      {% endwith %}
+    {% endwith %}
+  {% endwith %}
+{% endwith %}

@@ -1,0 +1,7 @@
+{# Očekává: pct_final, pct_raw, bar_color, bar_color_border #}
+<div style="display:flex;align-items:center;gap:.5rem;min-width:160px;">
+  <div style="flex:1;position:relative;height:14px;border:1px solid #ccc;border-radius:7px;overflow:hidden;background:#f5f5f5;">
+    <div style="height:100%;width:{{ pct_final }}%;background:{{ bar_color }};transition:width .35s ease;"></div>
+  </div>
+  <span style="font-size:.75rem;padding:0 .25rem;border:1px solid {{ bar_color_border }};border-radius:4px;color:#222;min-width:44px;text-align:center;background:#fff;">{{ pct_raw }}%</span>
+</div>
