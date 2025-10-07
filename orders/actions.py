@@ -98,7 +98,9 @@ def prijmout_bedny_action(modeladmin, request, queryset):
       5) Bez chyb -> commit savepointu (změny zůstávají).
     """
     # 1) Předběžná kontrola výběru
+    logger.debug("Starting prijmout_bedny_action")
     not_starting = queryset.exclude(stav_bedny=StavBednyChoice.NEPRIJATO)
+    logger.debug(f"Bedny not in NEPRIJATO state: {list(not_starting)}")
     if not_starting.exists():
         modeladmin.message_user(
             request,
