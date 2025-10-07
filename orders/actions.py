@@ -111,7 +111,10 @@ def prijmout_bedny_action(modeladmin, request, queryset):
 
     with transaction.atomic():
         # 2) Zamknout řádky
-        locked = list(queryset.select_for_update())
+        logger.debug("Locking rows for updating bedny to PRIJATO.")
+        queryset_selected = queryset.select_for_update()
+        logger.debug(f"Selected rows for update: {list(queryset_selected)}")
+        locked = list(queryset_selected)
         logger.debug(f"Locked {len(locked)} rows for updating bedny to PRIJATO.")
         if not locked:
             return None
