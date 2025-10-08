@@ -2113,7 +2113,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         Pokud není aktivní filtr stav bedny PRIJATO, zruší se filtr delkafilter.
         """
         actual_filters = super().get_list_filter(request)
-        if request.GET.get('stav_bedny', None) not in (StavBednyChoice.NEPRIJATO, StavBednyChoice.PRIJATO):
+        if request.GET.get('stav_bedny', None) != StavBednyChoice.PRIJATO:
             actual_filters = [f for f in actual_filters if f != DelkaFilter]
         return actual_filters
 
