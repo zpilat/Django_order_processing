@@ -1927,7 +1927,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         postup = obj.postup_vyroby
         pozadi = "#ef4444" if postup < 50 else ("#eab308" if postup <= 75 else "#22c55e")
         bar = f"""
-        <div style="width:120px;border:1px solid #ddd;height:12px;border-radius:6px;overflow:hidden;">
+        <div style="width:60px;border:1px solid #ddd;height:12px;border-radius:6px;overflow:hidden;">
             <div style="width:{postup}%;height:100%;background:{pozadi};"></div>
         </div>
         """
@@ -2082,32 +2082,27 @@ class BednaAdmin(SimpleHistoryAdmin):
     def get_list_display(self, request):
         """
         Přizpůsobení zobrazení sloupců v seznamu Bedna.
-        Pokud není aktivní filtr stav bedny Expedováno, vyloučí se zobrazení sloupce kamion_vydej_link.
-        Pokud není aktivní filtr stav bedny Prijato, K_navezeni, Navezeno, vyloučí se zobrazení sloupce pozice.
-        Pokud není aktivní filtr stav bedny Neprijato, vyloučí se zobrazení sloupce mnozstvi.
-        Pokud není aktivní filtr stav bedny Vizualizace, vyloučí se zobrazení sloupce get_postup.
-        Pokud je aktivní filtr stav bedny Vizualizace, vyloučí se zobrazení sloupce poznamka.
+        Pokud je aktivní filtr stav bedny, vyloučí se zobrazení sloupce get_postup.        
+        Pokud není aktivní filtr stav bedny == Expedováno, vyloučí se zobrazení sloupce kamion_vydej_link.
+        Pokud není aktivní filtr stav bedny == Prijato, K_navezeni, Navezeno, vyloučí se zobrazení sloupce pozice.
+        Pokud není aktivní filtr stav bedny == Neprijato, vyloučí se zobrazení sloupce mnozstvi.
         """
         list_display = list(super().get_list_display(request))
-        if request.GET.get('stav_bedny', None) != StavBednyChoice.EXPEDOVANO:
-            if 'kamion_vydej_link' in list_display:
-                list_display.remove('kamion_vydej_link')
-        if request.GET.get('stav_bedny', None) not in (
-            StavBednyChoice.PRIJATO,
-            StavBednyChoice.K_NAVEZENI,
-            StavBednyChoice.NAVEZENO,
-        ):
-            if 'pozice' in list_display:
-                list_display.remove('pozice')
-        if request.GET.get('stav_bedny', None) != StavBednyChoice.NEPRIJATO:
-            if 'mnozstvi' in list_display:
-                list_display.remove('mnozstvi')
-        if request.GET.get('stav_bedny', None) != 'VI':
+        stav_bedny = request.GET.get('stav_bedny', None)
+
+        # Podmínky pro odstranění sloupců z list_display
+        if stav_bedny:
             if 'get_postup' in list_display:
                 list_display.remove('get_postup')
-        else:
-            if 'poznamka' in list_display:
-                list_display.remove('poznamka')
+        if stav_bedny != StavBednyChoice.EXPEDOVANO:
+            if 'kamion_vydej_link' in list_display:
+                list_display.remove('kamion_vydej_link')
+        if stav_bedny not in (StavBednyChoice.PRIJATO, StavBednyChoice.K_NAVEZENI, StavBednyChoice.NAVEZENO):
+            if 'pozice' in list_display:
+                list_display.remove('pozice')
+        if stav_bedny != StavBednyChoice.NEPRIJATO:
+            if 'mnozstvi' in list_display:
+                list_display.remove('mnozstvi')
         return list_display
     
     def get_list_filter(self, request):

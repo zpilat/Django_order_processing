@@ -41,9 +41,7 @@ class StavBednyFilter(DynamicTitleFilter):
     vse = 'Vše skladem'
 
     def __init__(self, request, params, model, model_admin):
-        self.label_dict = {}
-        self.label_dict['VI'] = 'Vše skladem s vizualizací'
-        self.label_dict |= {**dict(StavBednyChoice.choices)}
+        self.label_dict = {**dict(StavBednyChoice.choices)}
         self.label_dict['RO'] = 'Rozpracováno'
         self.label_dict['PE'] = 'Bedny po exspiraci'
         super().__init__(request, params, model, model_admin)
@@ -69,7 +67,7 @@ class StavBednyFilter(DynamicTitleFilter):
 
     def queryset(self, request, queryset):
         value = self.value()
-        if value is None or value == 'VI':
+        if value is None:
             return queryset.filter(stav_bedny__in=stav_bedny_skladem)
         elif value == 'RO':
             return queryset.filter(stav_bedny__in=stav_bedny_rozpracovanost)
