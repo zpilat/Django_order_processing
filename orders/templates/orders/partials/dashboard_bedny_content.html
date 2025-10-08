@@ -17,8 +17,8 @@
             <thead>
               <tr>
                 <th style="background-color: #214290; color: #ffde17;">Stav bedny</th>
-                <th style="background-color: #214290; color: #ffde17;">Počet</th>
-                <th style="background-color: #214290; color: #ffde17;">Hm. (kg)</th>
+                <th style="background-color: #214290; color: #ffde17;">Beden</th>
+                <th style="background-color: #214290; color: #ffde17;">Váha</th>
               </tr>
             </thead>
             <tbody class="table-striped">
@@ -34,7 +34,7 @@
                       <td>{{ bedna_row.0 }}</td>
                       <td>
                         {% if bedna_row.1 %}
-                          {{ bedna_row.1|floatformat:1 }}
+                          {{ bedna_row.1|floatformat:0 }}
                         {% else %}
                           0
                         {% endif %}
