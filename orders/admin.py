@@ -1771,7 +1771,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         'get_cislo_bedny', 'get_behalter_nr', 'zakazka_link', 'kamion_prijem_link', 'kamion_vydej_link',
         'rovnat', 'tryskat', 'stav_bedny', 'get_prumer', 'get_delka_int','get_skupina_TZ', 'get_typ_hlavy',
         'get_celozavit', 'zkraceny_popis', 'hmotnost', 'tara', 'mnozstvi', 'pozice', 'get_priorita', 'get_datum',
-        'poznamka', 'get_postup'
+        'get_postup', 'poznamka',
         )
     # list_editable nastavován dynamicky v get_list_editable
     list_display_links = ('get_cislo_bedny', )
@@ -1933,7 +1933,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         """
         return format_html(bar)
 
-    def get_queryset(self, request):  # noqa: D401
+    def get_queryset(self, request):
         """Rozšíří queryset o anotaci postup_vyroby_value (SQL ekvivalent property postup_vyroby)."""
         qs = super().get_queryset(request)
 
@@ -2103,6 +2103,8 @@ class BednaAdmin(SimpleHistoryAdmin):
         if stav_bedny != StavBednyChoice.NEPRIJATO:
             if 'mnozstvi' in list_display:
                 list_display.remove('mnozstvi')
+            if 'tara' in list_display:
+                list_display.remove('tara')
         return list_display
     
     def get_list_filter(self, request):
