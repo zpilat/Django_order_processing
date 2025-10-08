@@ -31,16 +31,19 @@ def dashboard_bedny_view(request):
             'zakazka__kamion_prijem__zakaznik__zkraceny_nazev'
         ).annotate(
             pocet=Count('id'),
-            hmotnost=Sum('hmotnost')
+            hmotnost=Sum('hmotnost')/1000 # převod na tuny (z kg)
         )
         data_dict = {
             item['zakazka__kamion_prijem__zakaznik__zkraceny_nazev']: (item['pocet'], item['hmotnost']) for item in data
         }
         total = Bedna.objects.filter(**filter_kwargs).aggregate(
             pocet=Count('id'),
-            hmotnost=Sum('hmotnost')
+            hmotnost=Sum('hmotnost')/1000  # také převod na tuny pro řádek CELKEM
         )
-        data_dict['CELKEM'] = (total['pocet'], total['hmotnost'])
+        data_dict['CELKEM'] = (
+            total['pocet'] or 0,
+            (total['hmotnost'] or 0)  # už v tunách
+        )
         return data_dict
 
     stavy = {
