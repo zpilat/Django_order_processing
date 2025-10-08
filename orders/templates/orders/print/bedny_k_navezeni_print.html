@@ -7,8 +7,8 @@
   <style>
     @page { size: A4 landscape; margin: 12mm; }
     :root {
-      --primary: #214290;
-      --accent: #ffde17;
+      --primary: #7c7c7cff;
+      --accent: #ffffffff;
       --text: #111;
       --border: #c7c7c7;
     }
@@ -17,7 +17,7 @@
     header { padding: 6px 8px 10px; margin: 0 0 8px 0; }
     header h1 { margin: 0 0 4px 0; font-size: 18px; color: var(--primary); }
     header .meta { font-size: 12px; color: #555; }
-  table { width: 100%; border-collapse: collapse; }
+    table { width: 100%; border-collapse: collapse; }
     thead th { background: var(--accent); color: var(--primary); font-size: 14px; border: 1px solid var(--border); padding: 6px 8px; }
     tbody th { background: var(--accent); color: var(--primary); text-align: left; border: 1px solid var(--border); padding: 6px 8px; }
     td { border: 1px solid var(--border); padding: 6px 8px; font-size: 12px; }
@@ -26,10 +26,10 @@
     .text-center { text-align: center; }
     .border-top { border-top: 2px solid var(--primary); }
 
-  /* Zabraň nepěkným lomům uvnitř tabulek/řádků */
-  table, tr, td, th { break-inside: avoid; page-break-inside: avoid; }
-  /* Drž tabulku skupiny pohromadě, zalom až když se nevejde */
-  .group-table { break-inside: avoid; page-break-inside: avoid; }
+    /* Zabraň nepěkným lomům uvnitř tabulek/řádků */
+    table, tr, td, th { break-inside: avoid; page-break-inside: avoid; }
+    /* Drž tabulku skupiny pohromadě, zalom až když se nevejde */
+    .group-table { break-inside: avoid; page-break-inside: avoid; }
 
     @media screen {
       body { padding: 12px; }
@@ -42,12 +42,12 @@
       <table class="group-table">
         <tbody>
           <tr>
-            <th colspan="7">POZICE {{ group.pozice }}</th>
+            <th colspan="7">NA POZICI {{ group.pozice }}</th>
           </tr>
           <tr class="subhead">
             <th>Artikl</th>
-            <th>Č. bedny</th>
             <th>Zákazník</th>
+            <th>Č. bedny</th>
             <th>Č.b. zák.</th>
             <th>Rozměr</th>
             <th>Popis</th>
@@ -62,12 +62,14 @@
               {% endif %}
                   {% if forloop.first %}
                     <td rowspan="{{ zakazka_group.bedny|length }}">{{ zakazka_group.zakazka.artikl }}</td>
+                    <td rowspan="{{ zakazka_group.bedny|length }}">{{ zakazka_group.zakazka.kamion_prijem.zakaznik.zkraceny_nazev }}</td>
                   {% endif %}
                   <td>{{ bedna.cislo_bedny }}</td>
-                  <td>{{ bedna.zakazka.kamion_prijem.zakaznik.zkraceny_nazev }}</td>
                   <td>{{ bedna.behalter_nr }}</td>
-                  <td>{{ zakazka_group.zakazka.prumer }} x {{ zakazka_group.zakazka.delka }}</td>
-                  <td>{{ zakazka_group.zakazka.popis }}</td>
+                  {% if forloop.first %}
+                    <td rowspan="{{ zakazka_group.bedny|length }}">{{ zakazka_group.zakazka.prumer }} x {{ zakazka_group.zakazka.delka }}</td>
+                    <td rowspan="{{ zakazka_group.bedny|length }}">{{ zakazka_group.zakazka.popis }}</td>
+                  {% endif %}                  
                   <td>{{ bedna.poznamka_k_navezeni|default:"" }}</td>
                 </tr>
             {% endfor %}
