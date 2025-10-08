@@ -454,10 +454,9 @@ class BednaAdminTests(AdminBase):
     def test_changelist_view_and_list_display(self):
         req = self.get_request()
         self.admin.changelist_view(req)
-        # Nově zahrnujeme i 'tara' v inline editaci a defaultní sada obsahuje tato pole
         self.assertEqual(
             self.admin.list_editable,
-            ['stav_bedny', 'tryskat', 'rovnat', 'hmotnost', 'tara', 'poznamka']
+            ['stav_bedny', 'tryskat', 'rovnat', 'hmotnost', 'poznamka']
         )
 
         req = self.get_request({'stav_bedny': 'EX'})
@@ -521,12 +520,13 @@ class BednaAdminTests(AdminBase):
         self.assertIn('kamion_vydej_link', ld_ex)
 
     def test_bedna_get_list_filter_delka_removed_outside_states(self):
-        # mimo NEPRIJATO/PRIJATO
+        # delka filter pouze v případě, že je filter stav bedny == PRIJATO
+        # v K_NAVEZENI
         lf = self.admin.get_list_filter(self.get_request({'stav_bedny': StavBednyChoice.K_NAVEZENI}))
         self.assertNotIn(DelkaFilter, lf)
         # v NEPRIJATO
         lf2 = self.admin.get_list_filter(self.get_request({'stav_bedny': StavBednyChoice.NEPRIJATO}))
-        self.assertIn(DelkaFilter, lf2)
+        self.assertNotIn(DelkaFilter, lf2)
         # v PRIJATO
         lf3 = self.admin.get_list_filter(self.get_request({'stav_bedny': StavBednyChoice.PRIJATO}))
         self.assertIn(DelkaFilter, lf3)
