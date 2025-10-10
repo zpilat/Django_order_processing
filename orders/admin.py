@@ -1379,6 +1379,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
         js = (
             'orders/zakazky_hmotnost_sum.js',
             'orders/admin_actions_target_blank.js',
+            'orders/changelist_dirty_guard.js',
             )
 
     # --- UX blokace mazání zakázky ---
@@ -1822,7 +1823,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     history_list_per_page = 20
 
     class Media:
-        js = ('orders/admin_actions_target_blank.js',)    
+        js = ('orders/admin_actions_target_blank.js', 'orders/changelist_dirty_guard.js',)
 
     @admin.display(description='Č. bedny', ordering='cislo_bedny')
     def get_cislo_bedny(self, obj):
@@ -2472,6 +2473,10 @@ class CenaAdmin(SimpleHistoryAdmin):
             'localize': True
             },
     }    
+
+    class Media:
+        js = ('orders/changelist_dirty_guard.js',)
+
 
     @admin.display(description='Předpisy', ordering='predpis__nazev', empty_value='-')
     def get_predpisy(self, obj):
