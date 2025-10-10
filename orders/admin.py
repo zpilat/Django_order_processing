@@ -1348,15 +1348,15 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     
     # Parametry pro zobrazení seznamu v administraci
     list_display = ('artikl', 'get_datum', 'kamion_prijem_link', 'kamion_vydej_link', 'get_prumer', 'get_delka_int', 'predpis_link',
-                    'typ_hlavy_link', 'get_skupina', 'get_celozavit', 'zkraceny_popis', 'priorita', 'hmotnost_zakazky_k_expedici_brutto',
-                    'pocet_beden_k_expedici', 'celkovy_pocet_beden', 'get_komplet',)
+                    'typ_hlavy_link', 'get_skupina', 'get_celozavit', 'zkraceny_popis', 'priorita', 'get_odberatel',
+                    'hmotnost_zakazky_k_expedici_brutto', 'pocet_beden_k_expedici', 'celkovy_pocet_beden', 'get_komplet',)
     list_display_links = ('artikl',)
     # list_editable = nastavováno dynamicky v get_list_editable
     list_select_related = ("kamion_prijem", "kamion_vydej")
     search_fields = ('artikl',)
     search_help_text = "Dle artiklu"
-    list_filter = (ZakaznikZakazkyFilter, SklademZakazkaFilter, OdberatelFilter, KompletZakazkaFilter, PrioritaZakazkyFilter, CelozavitZakazkyFilter, TypHlavyZakazkyFilter,
-                   OberflacheFilter,)
+    list_filter = (ZakaznikZakazkyFilter, SklademZakazkaFilter, OdberatelFilter, KompletZakazkaFilter, PrioritaZakazkyFilter,
+                   CelozavitZakazkyFilter, TypHlavyZakazkyFilter,)
     ordering = ('id',)
     date_hierarchy = 'kamion_prijem__datum'
     list_per_page = 25
@@ -1491,6 +1491,26 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
         Zobrazí boolean, jestli je vrut celozávitový a umožní třídění podle hlavičky pole.
         """
         return obj.celozavit
+    
+    @admin.display(description='Povrch', ordering='povrch', empty_value='-')
+    def get_povrch(self, obj):
+        """
+        Zobrazí povrch zakázky a umožní třídění podle hlavičky pole.
+        """
+        if obj.povrch:
+            return obj.povrch
+        return '-'
+
+    @admin.display(description='Odběratel', ordering='odberatel__zkraceny_nazev', empty_value='-')
+    def get_odberatel(self, obj):
+        """
+        Zobrazí určeného odběratele zakázky a umožní třídění podle hlavičky pole.
+        """
+        if obj.odberatel and obj.odberatel.zkraceny_nazev:
+            return obj.odberatel.zkraceny_nazev
+        elif obj.odberatel:
+            return obj.odberatel.nazev
+        return '-'
     
     @admin.display(description='Hlava', ordering='typ_hlavy', empty_value='-')
     def typ_hlavy_link(self, obj):
