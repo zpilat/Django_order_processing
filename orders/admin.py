@@ -1784,7 +1784,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     form = BednaAdminForm
 
     # Parametry pro zobrazení detailu v administraci (použijeme get_fieldsets)
-    readonly_fields = ('cislo_bedny',)
+    readonly_fields = ('cislo_bedny', 'cena_za_kg', 'cena_za_bednu',)
     autocomplete_fields = ('zakazka',)
 
     # Parametry pro zobrazení seznamu v administraci
@@ -1983,6 +1983,9 @@ class BednaAdmin(SimpleHistoryAdmin):
             ("Speciální informace", (
                 'dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka'
             )),
+            ('Prodejní cena', (
+                'cena_za_kg', 'cena_za_bednu'
+            )),
         ]
 
         # Logika vyloučení polí z původního get_fields
@@ -1999,6 +2002,9 @@ class BednaAdmin(SimpleHistoryAdmin):
             # Pokud je vyplněna tara a je větší než 0, skryje se pole brutto
             if obj.tara is not None and obj.tara > 0:
                 exclude_fields.append('brutto')
+            # Pokud není stav bedny v stav_bedny_skladem, skryje se pole cena_za_kg a cena_za_bednu
+            if obj.stav_bedny and obj.stav_bedny not in stav_bedny_skladem:
+                exclude_fields.extend(['cena_za_kg', 'cena_za_bednu'])
         else:
             # add_view: cislo_bedny se generuje automaticky
             exclude_fields = ['cislo_bedny']

@@ -9,16 +9,12 @@
 
   function ensureWarning() {
     const content = document.getElementById('content') || document.body;
-
-    // Najdi nebo vytvoř UL.messagelist
     let list = content.querySelector('ul.messagelist');
     if (!list) {
       list = document.createElement('ul');
       list.className = 'messagelist';
       content.insertBefore(list, content.firstChild);
     }
-
-    // Najdi nebo vytvoř naše LI.warning
     let item = document.getElementById('dirty-warning');
     if (!item) {
       item = document.createElement('li');
@@ -41,12 +37,26 @@
     if (item) item.style.display = 'none';
   }
 
+  function isDataField(el) {
+    const name = el && el.name ? el.name : '';
+    if (!name) return false;
+    if (el.type === 'hidden') return false;
+    // management fields formsetu
+    if (/-TOTAL_FORMS$|-INITIAL_FORMS$|-MIN_NUM_FORMS$|-MAX_NUM_FORMS$/.test(name)) return false;
+    // admin akční pole a výběry řádků
+    if (name === 'action' || name === '_selected_action' || name === 'select_across' || name === 'index') return false;
+    return true;
+  }
+
   $(function () {
     const $form = $(formSel);
     if ($form.length === 0) return;
 
-    // Označit “dirty” při změně libovolného vstupu v changelistu
-    $(document).on('change input', formSel + ' :input', function () {
+    // Dirty jen při uživatelské změně skutečných datových polí
+    $(document).on('change', formSel + ' :input', function (e) {
+      const trusted = (e.originalEvent && e.originalEvent.isTrusted === true);
+      if (!trusted) return;
+      if (!isDataField(e.target)) return;
       dirty = true;
       showWarning();
     });
