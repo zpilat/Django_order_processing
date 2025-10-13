@@ -51,8 +51,9 @@
   }
 }
 
-/* Posune tlačítko "Přidat" (object-tools) na changelistu Bedna o pár px nahoru */
-body.app-orders.model-bedna.change-list #content .object-tools {
+/* Posune tlačítko "Přidat" (object-tools) na changelistu Bedna o pár px nahoru
+pouze pro model bedna by bylo: body.app-orders.model-bedna.change-list #content .object-tools { */
+.change-list #content .object-tools {
   position: relative;
   top: -8px;
 }
