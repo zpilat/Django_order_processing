@@ -50,3 +50,9 @@
     top: auto;
   }
 }
+
+/* Posune tlačítko "Přidat" (object-tools) na changelistu Bedna o pár px nahoru */
+body.app-orders.model-bedna.change-list #content .object-tools {
+  position: relative;
+  top: -8px;
+}
