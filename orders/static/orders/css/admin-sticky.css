@@ -1,0 +1,52 @@
+/* Sticky toolbar (vyhledávání/akce) v changelistu */
+#changelist #toolbar,
+#toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 5; /* nad hlavičkou tabulky */
+  background: var(--body-bg, #fff);
+}
+
+/* Sticky date_hierarchy (časová lišta) - třída toplinks pod toolbarem */
+#changelist .toplinks,
+.toplinks {
+  position: sticky;
+  top: 2.75rem; /* drž pod toolbarem – upravte dle skutečné výšky toolbaru */
+  z-index: 4;   /* pod toolbar, nad obsahem */
+  background: var(--body-bg, #fff);
+  border-bottom: 1px solid rgba(0,0,0,.08);
+  padding: 0.25rem 0;
+}
+
+/* Sticky akce (.actions) – default pod toolbarem */
+#changelist .actions,
+.actions {
+  position: sticky;
+  top: 2.75rem; /* default: hned pod toolbarem */
+  z-index: 4;   /* pod toolbar, nad obsahem */
+  background: var(--body-bg, #fff);
+  border-bottom: 1px solid rgba(0,0,0,.08);
+  padding: 0.25rem 0;
+}
+
+/* Pokud je přítomna toplinks/date_hierarchy NAD formulářem, posuň akce níž */
+#changelist .toplinks ~ #changelist-form .actions {
+  top: 4rem;
+}
+
+/* Sticky panel filtrů vpravo */
+#changelist-filter,
+.filters {
+  position: sticky;
+  top: 0rem;
+  align-self: start;
+}
+
+/* Lepší chování jen na širších displejích, na mobilu nelepíme */
+@media (max-width: 767.98px) {
+  #changelist-filter,
+  .filters {
+    position: static;
+    top: auto;
+  }
+}
