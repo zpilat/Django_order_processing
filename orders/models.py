@@ -143,19 +143,20 @@ class Kamion(models.Model):
         """
         Vrací cenu za kamion výdej na základě zákazníka, předpisu a délky, pouze pro kamionu výdej.
         Celkovou cenu vypočte podle property cena_za_zakazku pro jednotlivé zakázky v kamionu.
+        Všechny zakázky musí mít nenulovou cenu_za_zakazku, jinak je celková cena 0, aby bylo jasné, že něco chybí.
         Pokud není cena nalezena, vrací 0.
         """
-        if self.prijem_vydej == KamionChoice.VYDEJ:
-            # Získá všechny zakázky obsažené v kamionu.
-            zakazky = self.zakazky_vydej.all()
-            if not zakazky.exists():
-                return 0
-            return Decimal(
-                sum(
-                    Decimal(zakazka.cena_za_zakazku) for zakazka in zakazky if zakazka.cena_za_zakazku
-                ).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-            )
-        return 0
+        # Získá všechny zakázky obsažené v kamionu.        
+        zakazky = self.zakazky_vydej.all()
+        if zakazky.exists() and self.prijem_vydej == KamionChoice.VYDEJ:
+            # Zkontroluje, zda všechny zakázky mají cenu_za_zakazku nastavenou a větší než 0. Pokud ne, vrací 0.
+            if all(zakazka.cena_za_zakazku and zakazka.cena_za_zakazku > 0 for zakazka in zakazky):
+                return Decimal(
+                    sum(
+                        Decimal(zakazka.cena_za_zakazku) for zakazka in zakazky
+                    ).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                )
+        return Decimal('0.00')
 
     @property
     def pocet_beden_skladem(self):
