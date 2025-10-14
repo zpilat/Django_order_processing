@@ -565,6 +565,15 @@ class Bedna(models.Model):
                 return i 
             
         return 0  # pokud není nalezeno, vrací 0
+    @property
+    def hmotnost_brutto(self):
+        """
+        Vrací hmotnost brutto bedny (hmotnost + tára).
+        Pokud není hmotnost nebo tára zadána, vrací 0.
+        """
+        if self.hmotnost is not None and self.hmotnost > 0 and self.tara is not None and self.tara > 0:
+            return self.hmotnost + self.tara
+        return 0
     
     @property
     def postup_vyroby(self):

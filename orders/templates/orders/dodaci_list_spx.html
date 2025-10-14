@@ -76,35 +76,35 @@
         <table class="table table-bordered border-black" style="width: 100%; table-layout: fixed;">
             <thead>
                 <tr class="text-center fw-bold fs-pdf-05">
-                    <td class="bg-body-secondary" style="width: 10%;">Bestellnr.</td>
-                    <td class="bg-body-secondary" style="width: 15%;">Bezeichnung</td>                    
-                    <td class="bg-body-secondary" style="width: 6%;">Artikel-Nr.</td>
-                    <td class="bg-body-secondary" style="width: 3%;">&sum;</td>
-                    <td class="bg-body-secondary" style="width: 5%;">Gewicht</td>
-                    <td class="bg-body-secondary" style="width: 5%;">Tara</td>
+                    <td class="bg-body-secondary" style="width: 8%;">Bestellnr.</td>
                     <td class="bg-body-secondary" style="width: 4%;">Abmess.</td> 
-                    <td class="bg-body-secondary" style="width: 3%;">Kopf</td>
+                    <td class="bg-body-secondary" style="width: 3%;">Kopf</td>                      
+                    <td class="bg-body-secondary" style="width: 15%;">Bezeichnung</td>                    
+                    <td class="bg-body-secondary" style="width: 5%;">Netto</td>
+                    <td class="bg-body-secondary" style="width: 5%;">Brutto</td>
                     <td class="bg-body-secondary" style="width: 5%;">Behälter-Nr.</td>
                     <td class="bg-body-secondary" style="width: 6%;">Richten</td>
+                    <td class="bg-body-secondary" style="width: 6%;">Charge</td>
+                    <td class="bg-body-secondary" style="width: 3%;">&sum;</td>                    
                 </tr>
             </thead>
             <tbody>
                 {% for zakazka in kamion.zakazky_vydej.all %}
                     {% for bedna in zakazka.bedny.all %}
                         <tr class="text-center fs-pdf-05">
-                            <td>{{ bedna.vyrobni_zakazka }}</td>
-                            <td>{{ zakazka.popis }}</td>                            
-                            <td>{{ zakazka.artikl }}</td>
-                            {% comment %} Pokud je první běh cyklu, zobrazí se celková hmotnost všech beden v zakázce přes všechny řádky této zakázky {% endcomment %}
-                            {% if forloop.first %}
-                                <td rowspan="{{ zakazka.bedny.count }}">{{ zakazka.celkova_hmotnost|floatformat:1 }}kg</td>
-                            {% endif %}
-                            <td>{{ bedna.hmotnost }}kg</td>
-                            <td>{{ bedna.tara }}kg</td>
+                            <td>{{ bedna.vyrobni_zakazka }}</td>   
                             <td>{{ zakazka.prumer }}x{{ zakazka.delka|floatformat:0 }}</td>
-                            <td>{{ zakazka.typ_hlavy }}</td>
+                            <td>{{ zakazka.typ_hlavy }}</td>                               
+                            <td>{{ zakazka.popis }}</td>                            
+                            <td>{{ bedna.hmotnost }}kg</td>
+                            <td>{{ bedna.hmotnost_brutto }}kg</td>
                             <td>{{ bedna.behalter_nr }}</td>
                             <td>{% if bedna.rovnat == 'VY' %}GERICHTET{% else %}--{% endif %}</td>
+                            {% comment %} Pokud je první běh cyklu, zobrazí se celková hmotnost a artikl(charge) v zakázce přes všechny řádky této zakázky {% endcomment %}
+                            {% if forloop.first %}
+                                <td rowspan="{{ zakazka.bedny.count }}">{{ zakazka.artikl }}</td>                            
+                                <td rowspan="{{ zakazka.bedny.count }}">{{ zakazka.celkova_hmotnost|floatformat:1 }}kg</td>
+                            {% endif %}                            
                         </tr>
                     {% endfor %}
                 {% endfor %}
