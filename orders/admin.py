@@ -96,7 +96,8 @@ class ZakaznikAdmin(SimpleHistoryAdmin):
         """
         currently_readonly = list(super().get_readonly_fields(request, obj)) or []
         if obj is None:
-            currently_readonly.remove('zkratka')
+            if 'zkratka' in currently_readonly:
+                currently_readonly.remove('zkratka')
         return currently_readonly
 
     # Povolit smazání jen 1 položky i když se zobrazuje "Smazat vybrané"
@@ -2452,6 +2453,17 @@ class OdberatelAdmin(SimpleHistoryAdmin):
     history_list_display = ['nazev', 'zkraceny_nazev', 'zkratka', 'adresa', 'mesto', 'psc', 'stat', 'zkratka_statu', 'kontaktni_osoba', 'telefon', 'email']
     history_search_fields = ['nazev']
     history_list_per_page = 20    
+
+    def get_readonly_fields(self, request, obj = None):
+        """
+        Přizpůsobení readonly_fields pro detail zákazníka.
+        V případě, že se vytváří nový zákazník (obj je None), pole 'zkratka' není readonly.
+        """
+        currently_readonly = list(super().get_readonly_fields(request, obj)) or []
+        if obj is None:
+            if 'zkratka' in currently_readonly:
+                currently_readonly.remove('zkratka')
+        return currently_readonly    
 
 
 @admin.register(TypHlavy)
