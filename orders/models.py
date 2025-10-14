@@ -390,35 +390,28 @@ class Zakazka(models.Model):
     def cena_za_zakazku(self):
         """
         Vrací cenu zboží v zakázce v EUR/bednu.
-        Výpočet ceny se provádí na základě předpisu, délky a zákazníka.
+        Výpočet ceny se provádí na základě property cena_za_kg a celkové hmotnosti zakázky.
+        Výpočet ceny nezávisí na zákazníkovi, narozdíl od ceny za kg, kde pro různé zákazníky může být výpočet ceny různý.
+        Pokud není cena nebo hmotnost větší než 0, vrací 0.
         """
-        predpis = self.predpis
-        zakaznik = self.kamion_prijem.zakaznik
-        delka = self.delka
+        if self.celkova_hmotnost > 0 and self.cena_za_kg > 0:
+            return Decimal(
+                (self.celkova_hmotnost * self.cena_za_kg).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            )
+        return Decimal('0.00')
 
-        # Pokud není předpis nebo zákazník, vrací 0
-        if not predpis or not zakaznik:
-            return 0
-
-        # Zákazník Eurotec
-        if zakaznik.zkratka == 'EUR':
-            cena = Cena.objects.filter(
-                predpis=predpis,
-                delka_min__lte=delka,
-                delka_max__gt=delka,
-                zakaznik=zakaznik
-            ).first()
-            cena_za_zakazku = Decimal(cena.cena_za_kg * self.celkova_hmotnost).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP) if cena else 0
-            return cena_za_zakazku
-        # Pro ostatní zákazníky zatím není výpočet ceny implementován
-        else:
-            return 0
-        
     @property
     def cena_za_kg(self):
         """
         Vrací cenu zboží v zakázce v EUR/kg.
         Výpočet ceny se provádí na základě předpisu, délky a zákazníka.
+        Zatím výpočet funguje pouze pro zákazníky Eurotec a SPAX.
+        1. Najde se předpis, zákazník a délka z bedny/zakázky.
+        2. Pokud není předpis nebo zákazník, vrací 0.
+        3. Pokud je zákazník Eurotec nebo SPAX, najde se cena v tabulce Cena podle předpisu, délky a zákazníka.
+        4. Pokud je cena nalezena, vrátí se cena_za_kg, jinak 0.
+        5. Pro ostatní zákazníky zatím není výpočet ceny implementován, vrací 0.
+        6. Pokud by bylo potřeba přidat další zákazníky, je třeba upravit tento property a přidat podmínky pro nové zákazníky.
         """
         predpis = self.predpis
         zakaznik = self.kamion_prijem.zakaznik
@@ -426,21 +419,21 @@ class Zakazka(models.Model):
 
         # Pokud není předpis nebo zákazník, vrací 0
         if not predpis or not zakaznik:
-            return 0
+            return Decimal('0.00')
 
-        # Zákazník Eurotec      
-        if zakaznik.zkratka == 'EUR':
+        # Zákazník Eurotec a SPAX - stejný způsob výpočtu ceny
+        if zakaznik.zkratka in ['EUR', 'SPAX']:
             cena = Cena.objects.filter(
                 predpis=predpis,
                 delka_min__lte=delka,
                 delka_max__gt=delka,
                 zakaznik=zakaznik
             ).first()
-            return cena.cena_za_kg if cena else 0
+            return cena.cena_za_kg if cena else Decimal('0.00')
         # Pro ostatní zákazníky zatím není výpočet ceny implementován
         else:
-            return 0
-        
+            return Decimal('0.00')
+
     # --- Delete guards ---
     def delete(self, using=None, keep_parents=False):
         """
@@ -787,35 +780,10 @@ class Bedna(models.Model):
     def cena_za_kg(self):
         """
         Vrací cenu zboží v bedně v EUR/kg.
-        Výpočet ceny se provádí na základě předpisu, délky a zákazníka.
-        Zatím výpočet funguje pouze pro zákazníky Eurotec a SPAX.
-        1. Najde se předpis, zákazník a délka z bedny/zakázky.
-        2. Pokud není předpis nebo zákazník, vrací 0.
-        3. Pokud je zákazník Eurotec nebo SPAX, najde se cena v tabulce Cena podle předpisu, délky a zákazníka.
-        4. Pokud je cena nalezena, vrátí se cena_za_kg, jinak 0.
-        5. Pro ostatní zákazníky zatím není výpočet ceny implementován, vrací 0.
-        6. Pokud by bylo potřeba přidat další zákazníky, je třeba upravit tento property a přidat podmínky pro nové zákazníky.
+        Výpočet pouze přebírá hodnotu z property cena_za_kg zakázky.
+        Implementace výpočtu ceny_za_kg je závislá na zákazníkovi, pro každého zákazníka může být jiná.
         """
-        predpis = self.zakazka.predpis
-        zakaznik = self.zakazka.kamion_prijem.zakaznik
-        delka = self.zakazka.delka
-
-        # Pokud není předpis nebo zákazník, vrací 0
-        if not predpis or not zakaznik:
-            return Decimal('0.00')
-
-        # Zákazník Eurotec a SPAX
-        if zakaznik.zkratka in ['EUR', 'SPX']:
-            cena = Cena.objects.filter(
-                predpis=predpis,
-                delka_min__lte=delka,
-                delka_max__gt=delka,
-                zakaznik=zakaznik
-            ).first()
-            return cena.cena_za_kg if cena else Decimal('0.00')
-        # Pro ostatní zákazníky zatím není výpočet ceny implementován
-        else:
-            return Decimal('0.00')
+        return self.zakazka.cena_za_kg
 
     @property
     def cena_za_bednu(self):
