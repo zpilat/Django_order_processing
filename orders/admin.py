@@ -1991,8 +1991,8 @@ class BednaAdmin(SimpleHistoryAdmin):
         # Logika vyloučení polí z původního get_fields
         exclude_fields = []
         if obj:
-            zkratka_zakaznika = getattr(getattr(getattr(obj, 'zakazka', None), 'kamion_prijem', None), 'zakaznik', None)
-            zkratka = getattr(zkratka_zakaznika, 'zkratka', None)
+            zakaznik = getattr(getattr(getattr(obj, 'zakazka', None), 'kamion_prijem', None), 'zakaznik', None)
+            zkratka = getattr(zakaznik, 'zkratka', None)
             if zkratka == 'ROT':
                 exclude_fields = ['dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka']
             elif zkratka in ('SSH', 'SWG', 'HPM', 'FIS'):
@@ -2016,7 +2016,19 @@ class BednaAdmin(SimpleHistoryAdmin):
                 fieldsets.append((title, {'fields': tuple(kept)}))
 
         return fieldsets
-    
+
+    def get_readonly_fields(self, request, obj = None):
+        current_readonly_fields = list(super().get_readonly_fields(request, obj))
+        added_readonly_fields = []
+        if obj and obj.stav_bedny == StavBednyChoice.EXPEDOVANO:
+            # Expedovanou bednu kvůli has_permission v modelu BednaAdmin normálně nelze měnit,
+            # ale pokud uživatel má speciální oprávnění, povolíme zobrazení některých polí jako readonly.
+            added_readonly_fields = [
+                'zakazka', 'cislo_bedny', 'tryskat', 'rovnat', 'stav_bedny', 'pozastaveno',
+                'pozice', 'poznamka_k_navezeni',
+            ]
+        return current_readonly_fields + added_readonly_fields
+
     def get_list_editable(self, request):
         """
         Dynamicky určí, která pole jsou inline-editovatelná v changelistu.
