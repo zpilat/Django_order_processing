@@ -711,7 +711,7 @@ class Bedna(models.Model):
         """
         Vrátí seznam tuple (value,label) pro pole `tryskat` podle aktuálního stavu.
         Pravidla pro výběr:
-        - Pokud je stav_bedny K_EXPEDICI, nabídne pouze aktuální stav, stav tryskání už nejde měnit.
+        - Pokud je stav_bedny K_EXPEDICI nebo EXPEDOVANO, nabídne pouze aktuální stav, stav tryskání už nejde měnit.
         - Pokud je tryskání nezadáno ('-------'), nabídne všechny možnosti (může přijít z výroby rovnou otryskaná).
         - Pokud je tryskání špinavá, nabídne nezadáno, špinavá a otryskaná.
         - Pokud je tryskání čistá, nabídne nezadáno a čistá.
@@ -721,7 +721,7 @@ class Bedna(models.Model):
         curr_choice = (curr, dict(TryskaniChoice.choices).get(curr, 'Neznámý stav'))
 
         # stav bedny K_EXPEDICI
-        if self.stav_bedny == StavBednyChoice.K_EXPEDICI:
+        if self.stav_bedny == StavBednyChoice.K_EXPEDICI or self.stav_bedny == StavBednyChoice.EXPEDOVANO:
             return [curr_choice]
         # NEZADANO
         if curr == TryskaniChoice.NEZADANO:
@@ -743,7 +743,7 @@ class Bedna(models.Model):
         Vrátí seznam tuple (value,label) pro pole `rovnat`
         podle aktuálního stavu.
         Pravidla pro výběr:
-        - Pokud je stav_bedny K_EXPEDICI, nabídne pouze aktuální stav, stav rovnání už nejde měnit.
+        - Pokud je stav_bedny K_EXPEDICI nebo EXPEDOVANO, nabídne pouze aktuální stav, stav rovnání už nejde měnit.
         - Pokud je rovnat nezadáno ('--------'), nabídne možnosti nezadáno, rovná a křivá.
         - Pokud je rovnat křivá, nabídne nezadáno, křivá a vyrovnaná.
         - Pokud je rovnat rovná, nabídne nezadáno a rovná.
@@ -753,7 +753,7 @@ class Bedna(models.Model):
         curr_choice = (curr, dict(RovnaniChoice.choices).get(curr, 'Neznámý stav'))
 
         # stav bedny K_EXPEDICI
-        if self.stav_bedny == StavBednyChoice.K_EXPEDICI:
+        if self.stav_bedny == StavBednyChoice.K_EXPEDICI or self.stav_bedny == StavBednyChoice.EXPEDOVANO:
             return [curr_choice]        
         # NEZADANO
         if curr == RovnaniChoice.NEZADANO:

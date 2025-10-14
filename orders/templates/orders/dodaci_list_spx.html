@@ -76,6 +76,7 @@
         <table class="table table-bordered border-black" style="width: 100%; table-layout: fixed;">
             <thead>
                 <tr class="text-center fw-bold fs-pdf-05">
+                    <td class="bg-body-secondary" style="width: 10%;">Bestellnr.</td>
                     <td class="bg-body-secondary" style="width: 15%;">Bezeichnung</td>                    
                     <td class="bg-body-secondary" style="width: 6%;">Artikel-Nr.</td>
                     <td class="bg-body-secondary" style="width: 3%;">&sum;</td>
@@ -84,14 +85,14 @@
                     <td class="bg-body-secondary" style="width: 4%;">Abmess.</td> 
                     <td class="bg-body-secondary" style="width: 3%;">Kopf</td>
                     <td class="bg-body-secondary" style="width: 5%;">Behälter-Nr.</td>
-                    <td class="bg-body-secondary" style="width: 5%;">Nr.</td>
                     <td class="bg-body-secondary" style="width: 6%;">Richten</td>
                 </tr>
             </thead>
             <tbody>
                 {% for zakazka in kamion.zakazky_vydej.all %}
                     {% for bedna in zakazka.bedny.all %}
-                        <tr class="text-center fs-pdf-05">  
+                        <tr class="text-center fs-pdf-05">
+                            <td>{{ bedna.vyrobni_zakazka }}</td>
                             <td>{{ zakazka.popis }}</td>                            
                             <td>{{ zakazka.artikl }}</td>
                             {% comment %} Pokud je první běh cyklu, zobrazí se celková hmotnost všech beden v zakázce přes všechny řádky této zakázky {% endcomment %}
@@ -103,8 +104,7 @@
                             <td>{{ zakazka.prumer }}x{{ zakazka.delka|floatformat:0 }}</td>
                             <td>{{ zakazka.typ_hlavy }}</td>
                             <td>{{ bedna.behalter_nr }}</td>
-                            <td>{{ bedna.cislo_bedny }}</td>
-                            <td>{% if bedna.rovnat == 'VY' %}YES{% else %}--{% endif %}</td>
+                            <td>{% if bedna.rovnat == 'VY' %}GERICHTET{% else %}--{% endif %}</td>
                         </tr>
                     {% endfor %}
                 {% endfor %}
