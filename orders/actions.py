@@ -884,7 +884,7 @@ def import_kamionu_action(modeladmin, request, queryset):
         return
     kamion = queryset.first()
     # Zkontroluje, zda je kamion s příznakem příjem
-    if kamion.prijem_vydej != 'P':
+    if kamion.prijem_vydej != KamionChoice.PRIJEM:
         logger.info(f"Uživatel {request.user} se pokusil importovat kamion {kamion.cislo_dl}, ale není to kamion s příznakem příjem.")
         modeladmin.message_user(request, "Import je možný pouze pro kamiony příjem.", level=messages.ERROR)
         return
@@ -918,7 +918,7 @@ def prijmout_kamion_action(modeladmin, request, queryset):
         return
     kamion = queryset.first()
     # Zkontroluje, zda je kamion s příznakem příjem
-    if kamion.prijem_vydej != 'P':
+    if kamion.prijem_vydej != KamionChoice.PRIJEM:
         logger.info(f"Uživatel {request.user} se pokusil přijmout kamion {kamion.cislo_dl}, ale není to kamion s příznakem příjem.")
         modeladmin.message_user(request, "Přijmout kamion je možné pouze u kamionů příjem.", level=messages.ERROR)
         return
@@ -994,7 +994,7 @@ def tisk_dodaciho_listu_kamionu_action(modeladmin, request, queryset):
         return
     kamion = queryset.first()
     # Zkontroluje, zda je kamion s příznakem výdej
-    if kamion.prijem_vydej != 'V':
+    if kamion.prijem_vydej != KamionChoice.VYDEJ:
         logger.info(f"Uživatel {request.user} se pokusil tisknout dodací list kamionu {kamion.cislo_dl}, ale není to kamion s příznakem výdej.")
         modeladmin.message_user(request, "Tisk DL je možný pouze pro kamiony výdej.", level=messages.ERROR)
         return
@@ -1025,7 +1025,7 @@ def tisk_proforma_faktury_kamionu_action(modeladmin, request, queryset):
         return
     kamion = queryset.first()
     # Zkontroluje, zda je kamion s příznakem výdej
-    if kamion.prijem_vydej != 'V':
+    if kamion.prijem_vydej != KamionChoice.VYDEJ:
         logger.info(f"Uživatel {request.user} se pokusil tisknout proforma fakturu kamionu {kamion.cislo_dl}, ale není to kamion s příznakem výdej.")
         modeladmin.message_user(request, "Tisk proforma faktury je možný pouze pro kamiony výdej.", level=messages.ERROR)
         return
@@ -1052,7 +1052,7 @@ def tisk_karet_beden_kamionu_action(modeladmin, request, queryset):
         logger.info(f"Uživatel {request.user} se pokusil tisknout karty beden, ale vybral více než jeden kamion.")
         modeladmin.message_user(request, "Vyberte pouze jeden kamion.", level=messages.ERROR)
         return None
-    if queryset.first().prijem_vydej != 'P':
+    if queryset.first().prijem_vydej != KamionChoice.PRIJEM:
         logger.info(f"Uživatel {request.user} se pokusil tisknout karty beden kamionu {queryset.first().cislo_dl}, ale není to kamion s příznakem příjem.")
         modeladmin.message_user(request, "Tisk karet beden je možný pouze pro kamiony příjem.", level=messages.ERROR)
         return None
@@ -1092,7 +1092,7 @@ def tisk_karet_kontroly_kvality_kamionu_action(modeladmin, request, queryset):
         logger.info(f"Uživatel {request.user} se pokusil tisknout karty kontroly kvality, ale vybral více než jeden kamion.")
         modeladmin.message_user(request, "Vyberte pouze jeden kamion.", level=messages.ERROR)
         return None
-    if queryset.first().prijem_vydej != 'P':
+    if queryset.first().prijem_vydej != KamionChoice.PRIJEM:
         logger.info(f"Uživatel {request.user} se pokusil tisknout karty kontroly kvality kamionu {queryset.first().cislo_dl}, ale není to kamion s příznakem příjem.")
         modeladmin.message_user(request, "Tisk karet beden je možný pouze pro kamiony příjem.", level=messages.ERROR)
         return None
