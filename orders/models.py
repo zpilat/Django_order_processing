@@ -422,7 +422,7 @@ class Zakazka(models.Model):
             return Decimal('0.00')
 
         # Zákazník Eurotec a SPAX - stejný způsob výpočtu ceny
-        if zakaznik.zkratka in ['EUR', 'SPAX']:
+        if zakaznik.zkratka in ['EUR', 'SPX']:
             cena = Cena.objects.filter(
                 predpis=predpis,
                 delka_min__lte=delka,
