@@ -1641,6 +1641,15 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
                     'description': 'Pro Eurotec musí být vyplněno: Tloušťka vrstvy, Povrchová úprava a Průběh.',
                 }),                 
             ]                    
+        
+    def get_readonly_fields(self, request, obj = None):
+        current_readonly_fields = list(super().get_readonly_fields(request, obj))
+        added_readonly_fields = []
+        if obj and obj.expedovano:
+            # Expedovanou zakázku kvůli has_permission v modelu ZakazkaAdmin normálně nelze měnit,
+            # ale pokud uživatel má speciální oprávnění, povolíme zobrazení některých polí pouze jako readonly.
+            added_readonly_fields = ['kamion_prijem', 'kamion_vydej',]
+        return current_readonly_fields + added_readonly_fields        
    
     def get_actions(self, request):
         """
