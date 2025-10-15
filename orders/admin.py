@@ -1791,7 +1791,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     # Parametry pro zobrazení seznamu v administraci
     list_display = (
         'get_cislo_bedny', 'get_behalter_nr', 'zakazka_link', 'kamion_prijem_link', 'kamion_vydej_link',
-        'rovnat', 'tryskat', 'stav_bedny', 'get_prumer', 'get_delka_int','get_skupina_TZ', 'get_typ_hlavy',
+        'stav_bedny', 'rovnat', 'tryskat', 'get_prumer', 'get_delka_int','get_skupina_TZ', 'get_typ_hlavy',
         'get_celozavit', 'zkraceny_popis', 'hmotnost', 'tara', 'mnozstvi', 'pozice', 'get_priorita', 'get_datum',
         'get_postup', 'poznamka',
         )
