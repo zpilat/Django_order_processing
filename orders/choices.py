@@ -23,6 +23,12 @@ STAV_BEDNY_ROZPRACOVANOST = [
     StavBednyChoice.ZKONTROLOVANO,
 ]
 
+STAV_BEDNY_PRO_NAVEZENI = [
+    StavBednyChoice.PRIJATO,
+    StavBednyChoice.K_NAVEZENI,
+    StavBednyChoice.NAVEZENO,
+]
+
 class RovnaniChoice(models.TextChoices):
     NEZADANO = '--', '--------'
     ROVNA = 'RO', 'Rovná'

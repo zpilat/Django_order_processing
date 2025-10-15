@@ -45,7 +45,7 @@ from .filters import (
 from .forms import BednaAdminForm, BednaChangeListForm, ImportZakazekForm, ZakazkaInlineForm, ZakazkaAdminForm
 from .choices import (
     StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice, PrijemVydejChoice, SklademZakazkyChoice,
-    STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM,
+    STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM, STAV_BEDNY_PRO_NAVEZENI
 )
 from .utils import utilita_validate_excel_upload, build_postup_vyroby_cases
 
@@ -2038,7 +2038,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         - Pokud je filtr stav_bedny = StavBednyChoice.NEPRIJATO a uživatel nemá oprávnění change_neprijata_bedna => žádná inline editace.
         - Jinak standardně: stav_bedny, tryskat, rovnat, hmotnost, poznamka.
         - Pokud je stav_bedny == StavBednyChoice.NEPRIJATO a uživatel má oprávnění change_neprijata_bedna, přidá se i mnozstvi.
-        - Pokud je stav_bedny v (StavBednyChoice.PRIJATO, StavBednyChoice.K_NAVEZENI, StavBednyChoice.NAVEZENO) přidá se i pozice.
+        - Pokud je stav_bedny v STAV_BEDNY_PRO_NAVEZENI, přidá se i pozice.
         """
         if request.GET.get('stav_bedny') == StavBednyChoice.EXPEDOVANO or request.GET.get('pozastaveno') == 'True':
             return []
@@ -2050,11 +2050,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         if request.GET.get('stav_bedny') == StavBednyChoice.NEPRIJATO and request.user.has_perm('orders.change_neprijata_bedna'):
             editable.append('mnozstvi')
 
-        if request.GET.get('stav_bedny') in (
-            StavBednyChoice.PRIJATO,
-            StavBednyChoice.K_NAVEZENI,
-            StavBednyChoice.NAVEZENO,
-        ):
+        if request.GET.get('stav_bedny') in STAV_BEDNY_PRO_NAVEZENI:
             editable.append('pozice')
 
         return editable
