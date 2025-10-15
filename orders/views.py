@@ -6,7 +6,7 @@ from django.views.generic import ListView
 from django.views.generic.edit import CreateView, UpdateView, DeleteView
 from django.views.generic.detail import DetailView
 from django.urls import reverse_lazy
-from django.db.models import Q, Sum, Count
+from django.db.models import Q, Sum, Count, F
 from django.utils.translation import gettext_lazy as _
 import django.utils.timezone as timezone
 
@@ -46,6 +46,21 @@ def dashboard_bedny_view(request):
         )
         return data_dict
 
+    kompletni_zakazky = (
+        Zakazka.objects
+        .annotate(
+            pocet_beden_celkem=Count('bedny'),
+            pocet_beden_k_expedici=Count(
+                'bedny',
+                filter=Q(bedny__stav_bedny=StavBednyChoice.K_EXPEDICI),
+            ),
+        )
+        .filter(
+            pocet_beden_celkem__gt=0,
+            pocet_beden_celkem=F('pocet_beden_k_expedici'),
+        )
+    )
+
     stavy = {
         'Nepřijaté': {'stav_bedny': StavBednyChoice.NEPRIJATO},        
         'Surové': {'stav_bedny__in': [StavBednyChoice.PRIJATO, StavBednyChoice.K_NAVEZENI, StavBednyChoice.NAVEZENO, StavBednyChoice.DO_ZPRACOVANI]},
@@ -56,8 +71,9 @@ def dashboard_bedny_view(request):
         '-> K tryskání': {'tryskat': TryskaniChoice.SPINAVA, 'stav_bedny__in': [StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO]},        
         '-> Křivé': {'rovnat': RovnaniChoice.KRIVA, 'stav_bedny__in': [StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO]},
         '-> Rovná se': {'rovnat': RovnaniChoice.ROVNA_SE, 'stav_bedny__in': [StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO]},
-        '-> K expedici': {'stav_bedny': StavBednyChoice.K_EXPEDICI},
-    'Po exspiraci': {'stav_bedny__in': STAV_BEDNY_SKLADEM, 'zakazka__kamion_prijem__datum__lt': timezone.now().date() - timezone.timedelta(days=28)},
+        '-> K exp. část.': {'stav_bedny': StavBednyChoice.K_EXPEDICI},
+        '-> K exp. komplet': {'stav_bedny': StavBednyChoice.K_EXPEDICI, 'zakazka__in': kompletni_zakazky},
+        'Po exspiraci': {'stav_bedny__in': STAV_BEDNY_SKLADEM, 'zakazka__kamion_prijem__datum__lt': timezone.now().date() - timezone.timedelta(days=28)},
     }
 
     zakaznici = list(Zakaznik.objects.values_list('zkraceny_nazev', flat=True).order_by('zkraceny_nazev')) + ['CELKEM']
