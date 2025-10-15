@@ -2153,7 +2153,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         if stav_bedny != StavBednyChoice.EXPEDOVANO:
             if 'kamion_vydej_link' in list_display:
                 list_display.remove('kamion_vydej_link')
-        if stav_bedny not in (StavBednyChoice.PRIJATO, StavBednyChoice.K_NAVEZENI, StavBednyChoice.NAVEZENO):
+        if stav_bedny not in STAV_BEDNY_PRO_NAVEZENI:
             if 'pozice' in list_display:
                 list_display.remove('pozice')
         if stav_bedny != StavBednyChoice.NEPRIJATO:
