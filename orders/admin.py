@@ -1643,11 +1643,14 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
             ]                    
         
     def get_readonly_fields(self, request, obj = None):
+        """
+        Přizpůsobí readonly_fields podle toho, zda je zakázka expedovaná.
+        Pokud je zakázka expedovaná a uživatel má oprávnění 'orders.change_expedovana_zakazka',
+        přidají se další pole jako readonly, kvůli případným vzniklým nekonzistencím po změně těchto polí.
+        """
         current_readonly_fields = list(super().get_readonly_fields(request, obj))
         added_readonly_fields = []
         if obj and obj.expedovano:
-            # Expedovanou zakázku kvůli has_permission v modelu ZakazkaAdmin normálně nelze měnit,
-            # ale pokud uživatel má speciální oprávnění, povolíme zobrazení některých polí pouze jako readonly.
             added_readonly_fields = ['kamion_prijem', 'kamion_vydej',]
         return current_readonly_fields + added_readonly_fields        
    
@@ -2031,6 +2034,11 @@ class BednaAdmin(SimpleHistoryAdmin):
         return fieldsets
 
     def get_readonly_fields(self, request, obj = None):
+        """
+        Přizpůsobí readonly_fields podle toho, zda je bedna expedovaná.
+        Pokud je bedna expedovaná a uživatel má oprávnění 'orders.change_expedovana_bedna',
+        přidají se další pole jako readonly, kvůli případným vzniklým nekonzistencím po změně těchto polí.
+        """
         current_readonly_fields = list(super().get_readonly_fields(request, obj))
         added_readonly_fields = []
         if obj and obj.stav_bedny == StavBednyChoice.EXPEDOVANO:
