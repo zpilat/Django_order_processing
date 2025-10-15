@@ -54,6 +54,9 @@ logger = logging.getLogger('orders')
 
 @admin.register(Permission)
 class PermissionAdmin(admin.ModelAdmin):
+    """
+    Správa oprávnění v administraci.
+    """
     list_display = ('name', 'codename', 'content_type')
     search_fields = ('name', 'codename')
     list_filter = ('content_type',)
@@ -100,8 +103,11 @@ class ZakaznikAdmin(SimpleHistoryAdmin):
                 currently_readonly.remove('zkratka')
         return currently_readonly
 
-    # Povolit smazání jen 1 položky i když se zobrazuje "Smazat vybrané"
     def delete_selected_one(self, request, queryset):
+        """
+        Obálka pro akci smazání, která umožňuje smazat pouze jeden vybraný záznam.
+        Pokud je vybráno více nebo méně záznamů, zobrazí chybovou zprávu.
+        """
         count = queryset.count()
         if count != 1:
             self.message_user(request, f"Pro smazání vyberte právě jednu položku (vybráno: {count}).", messages.ERROR)
@@ -109,6 +115,10 @@ class ZakaznikAdmin(SimpleHistoryAdmin):
         return admin_delete_selected(self, request, queryset)
 
     def get_actions(self, request):
+        """
+        Přizpůsobení dostupných akcí v administraci.
+        Nahrazení výchozí akce delete_selected vlastní obálkou s kontrolou počtu vybraných záznamů.
+        """
         actions = super().get_actions(request)
         # Nahraď defaultní delete_selected obálkou s kontrolou počtu
         actions['delete_selected'] = (
@@ -195,7 +205,7 @@ class ZakazkaAutomatizovanyPrijemInline(admin.TabularInline):
 
 class ZakazkaKamionPrijemInline(admin.TabularInline):
     """
-    Inline pro správu zakázek v rámci kamionu.
+    Inline pro správu zakázek v rámci kamionu příjem.
     """
     model = Zakazka
     form = ZakazkaAdminForm
@@ -301,7 +311,7 @@ class ZakazkaKamionVydejInline(admin.TabularInline):
         },
     }
 
-    @admin.display(description='Beden')
+    @admin.display(description='Beden', ordering='bedny__count')
     def celkovy_pocet_beden(self, obj):
         """
         Vrací počet beden v zakázce a umožní třídění podle hlavičky pole.
@@ -316,6 +326,9 @@ class ZakazkaKamionVydejInline(admin.TabularInline):
 class KamionAdmin(SimpleHistoryAdmin):
     """
     Správa kamionů v administraci.
+    Kamiony mohou být typu příjem nebo výdej.
+    Inline pro správu zakázek kamionu se mění dle typu kamionu (příjem/výdej) a dle toho, zda se jedná o přidání nebo editaci.
+    Akce dostupné v administraci umožňují import kamionu, tisk karet beden, tisk dodacího listu, tisk proforma faktury a přijetí kamionu.
     """
     # Použité akce
     actions = [import_kamionu_action, tisk_karet_beden_kamionu_action, tisk_karet_kontroly_kvality_kamionu_action, tisk_dodaciho_listu_kamionu_action,
@@ -516,6 +529,7 @@ class KamionAdmin(SimpleHistoryAdmin):
         Přizpůsobení zobrazení sloupců v seznamu zakázek podle aktivního filtru.
         Pokud je vybraný filtr PrijemVydejFilter a má hodnoty PRIJEM_NEPRIJATY nebo PRIJEM_KOMPLET_PRIJATY, 
         odebere se sloupec get_pocet_beden_skladem.
+        Pokud je vybraný filtr PrijemVydejFilter a má hodnotu VYDEJ, odebere se sloupec odberatel.
         """
         ld = list(super().get_list_display(request))
         if request.GET.get('prijem_vydej') not in (None, PrijemVydejChoice.PRIJEM_NEPRIJATY, PrijemVydejChoice.PRIJEM_KOMPLET_PRIJATY):
@@ -607,7 +621,7 @@ class KamionAdmin(SimpleHistoryAdmin):
         else:
             actions_to_remove = []
 
-        # Vždy nahraď "delete_selected" obálkou s kontrolou 1 položky
+        # Vždy nahradí "delete_selected" obálkou s kontrolou 1 položky
         if 'delete_selected' in actions:
             actions['delete_selected'] = (
                 self.__class__.delete_selected_one,
@@ -621,8 +635,11 @@ class KamionAdmin(SimpleHistoryAdmin):
 
         return actions
 
-    # Povolit smazání jen 1 položky i když se zobrazuje "Smazat vybrané"
     def delete_selected_one(self, request, queryset):
+        """
+        Obálka pro akci smazání, která umožňuje smazat pouze jeden vybraný záznam.
+        Pokud je vybráno více nebo méně záznamů, zobrazí chybovou zprávu.
+        """
         count = queryset.count()
         if count != 1:
             self.message_user(request, f"Pro smazání vyberte právě jednu položku (vybráno: {count}).", messages.ERROR)
@@ -635,7 +652,7 @@ class KamionAdmin(SimpleHistoryAdmin):
         Skupiny:
         - Import / Příjem
         - Tisk karet
-        - Doklady
+        - Tisk dokladů
         Ostatní (delete_selected) spadne do 'Ostatní'.
         """
         actions = self.get_actions(request)
@@ -843,7 +860,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                                     f"neodpovídá datumu kamionu ({kamion.datum.strftime('%d.%m.%Y')}). Import pokračuje."
                                 )      
 
-                    # Přidání prumer a delka
+                    # Přidání prumer a delka rozdělením sloupce rozmer
                     def rozdel_rozmer(row):
                         try:
                             text = str(row.get('rozmer', '') or '')
@@ -1218,6 +1235,7 @@ class KamionAdmin(SimpleHistoryAdmin):
 class BednaInline(admin.TabularInline):
     """
     Inline pro správu beden v rámci zakázky.
+    Zobrazuje a umožňuje upravovat bedny patřící k zakázce.
     """
     model = Bedna
     form = BednaAdminForm
@@ -1337,6 +1355,8 @@ class BednaInline(admin.TabularInline):
 class ZakazkaAdmin(SimpleHistoryAdmin):
     """
     Správa zakázek v administraci.
+    Umožňuje správu zakázek, jejich inline beden, tisk karet beden a kontroly kvality,
+    expedici zakázek a další akce.
     """
     # Použité inline, formuláře a akce
     inlines = [BednaInline]
@@ -1708,9 +1728,10 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
         return actions
 
     def get_action_choices(self, request, default_choices=models.BLANK_CHOICE_DASH):
-        """Seskupení akcí zakázek do optgroup a formátování placeholderů.
-
+        """
+        Seskupení akcí zakázek do optgroup a formátování placeholderů.
         Skupiny:
+        - Příjem
         - Tisk / Export
         - Expedice
         Ostatní akce (např. delete_selected) spadnou do 'Ostatní'.
@@ -1787,6 +1808,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     - Seznam (change_list): list_editable pro stav_bedny, tryskat, rovnat a poznamka.
     - Pro každý řádek dropdown omezí na povolené volby podle stejné logiky.
     - Číslo bedny se generuje automaticky a je readonly
+    - Akce pro tisk karet beden, označení stavu bedny, vrácení beden do stavu přijato a přijetí beden.
     """
     actions = [
         tisk_karet_beden_action, tisk_karet_kontroly_kvality_action, oznacit_k_navezeni_action, oznacit_navezeno_action,
@@ -1979,6 +2001,14 @@ class BednaAdmin(SimpleHistoryAdmin):
     def get_fieldsets(self, request, obj=None):
         """
         Sestaví fieldsety podle požadavku a zachová logiku vylučování polí dle zákazníka a toho, zda se jedná o editaci.
+        Pokud se jedná o přidání nové bedny (obj je None), vyloučí se pole cislo_bedny, které se generuje automaticky.
+        Pokud se jedná o editaci (obj není None), vyloučí se pole dle zákazníka a dalších podmínek:
+        - ROT: dodatecne_info, dodavatel_materialu, vyrobni_zakazka
+        - SSH, SWG, HPM, FIS: behalter_nr, dodatecne_info, dodavatel_materialu, vyrobni_zakazka
+        - SPX: dodatecne_info, dodavatel_materialu
+        - Pokud je vyplněna tara a je větší než 0, skryje se pole brutto
+        - Pokud není stav bedny ve STAV_BEDNY_SKLADEM, skryje se pole cena_za_kg a cena_za_bednu
+        - Pokud není stav bedny ve STAV_BEDNY_PRO_NAVEZENI, skryje se pole pozice a poznamka_k_navezeni
         """
         groups = [
             ("Základní údaje", (
@@ -2138,10 +2168,10 @@ class BednaAdmin(SimpleHistoryAdmin):
     def get_list_display(self, request):
         """
         Přizpůsobení zobrazení sloupců v seznamu Bedna.
-        Pokud je aktivní filtr stav bedny, vyloučí se zobrazení sloupce get_postup.        
-        Pokud není aktivní filtr stav bedny == Expedováno, vyloučí se zobrazení sloupce kamion_vydej_link.
-        Pokud není aktivní filtr stav bedny == Prijato, K_navezeni, Navezeno, vyloučí se zobrazení sloupce pozice.
-        Pokud není aktivní filtr stav bedny == Neprijato, vyloučí se zobrazení sloupce mnozstvi.
+        Pokud je aktivní filtr stav bedny a zároveň stav bedny != Po exspiraci, vyloučí se zobrazení sloupce get_postup.        
+        Pokud není filtr stav bedny == Expedováno, vyloučí se zobrazení sloupce kamion_vydej_link.
+        Pokud není filtr stav bedny v STAV_BEDNY_PRO_NAVEZENI, vyloučí se zobrazení sloupce pozice.
+        Pokud není filtr stav bedny == Neprijato, vyloučí se zobrazení sloupce mnozstvi a tara.
         """
         list_display = list(super().get_list_display(request))
         stav_bedny = request.GET.get('stav_bedny', None)
@@ -2166,7 +2196,9 @@ class BednaAdmin(SimpleHistoryAdmin):
     def get_list_filter(self, request):
         """
         Přizpůsobení dostupných filtrů v administraci podle filtru stavu bedny.
-        Pokud není aktivní filtr stav bedny PRIJATO, zruší se filtr delkafilter.
+        Pokud není aktivní filtr stav bedny PRIJATO, zruší se filtr DelkaFilter,
+        SkupinaFilter, TypHlavyBednyFilter a CelozavitBednyFilter,
+        jinak se zruší filtry TryskaniFilter, RovnaniFilter a PozastavenoFilter.
         """
         actual_filters = super().get_list_filter(request)
         filters_to_remove = []
@@ -2324,6 +2356,8 @@ class BednaAdmin(SimpleHistoryAdmin):
     def formfield_for_dbfield(self, db_field, request, **kwargs):
         """
         Přizpůsobení widgetů pro pole v administraci.
+        - Pro ForeignKey pole zruší zobrazení ikon pro přidání, změnu, smazání a zobrazení souvisejících objektů.
+        - Pro pole 'poznamka' použije TextInput s menším fontem a velikostí.
         """
         if isinstance(db_field, models.ForeignKey):
             # Zruší zobrazení ikon pro ForeignKey pole v administraci, nepřidá RelatedFieldWidgetWrapper.
@@ -2591,7 +2625,9 @@ class PoziceAdmin(admin.ModelAdmin):
 
     @admin.display(description="Využití")
     def get_vyuziti(self, obj: Pozice):
-        # jednoduchý progress bar
+        """
+        Zobrazí procentuální využití pozice jako barevný progress bar.
+        """
         vyuziti = obj.vyuziti_procent
         pozadi = "#22c55e" if vyuziti < 80 else ("#eab308" if vyuziti < 100 else "#ef4444")
         bar = f"""
