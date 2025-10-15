@@ -9,8 +9,8 @@ from decimal import Decimal, InvalidOperation
 from .models import Zakazka, Bedna, Zakaznik, Kamion, TypHlavy, Predpis, Odberatel
 from .choices import (
     StavBednyChoice, TryskaniChoice, RovnaniChoice, PrioritaChoice, PrijemVydejChoice, SklademZakazkyChoice,
-    stav_bedny_rozpracovanost, stav_bedny_skladem
-    )
+    STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM,
+)
 
 class DynamicTitleFilter(SimpleListFilter):
     """
@@ -68,9 +68,9 @@ class StavBednyFilter(DynamicTitleFilter):
     def queryset(self, request, queryset):
         value = self.value()
         if value is None:
-            return queryset.filter(stav_bedny__in=stav_bedny_skladem)
+            return queryset.filter(stav_bedny__in=STAV_BEDNY_SKLADEM)
         elif value == 'RO':
-            return queryset.filter(stav_bedny__in=stav_bedny_rozpracovanost)
+            return queryset.filter(stav_bedny__in=STAV_BEDNY_ROZPRACOVANOST)
         elif value == 'PE':
             expiration_date = timezone.localdate() - timedelta(days=28)
             return queryset.exclude(stav_bedny=StavBednyChoice.EXPEDOVANO).filter(zakazka__kamion_prijem__datum__lt=expiration_date)
@@ -733,11 +733,11 @@ class PrijemVydejFilter(DynamicTitleFilter):
         elif value == PrijemVydejChoice.PRIJEM_NEPRIJATY:
             return queryset.filter(prijem_vydej='P', zakazky_prijem__bedny__stav_bedny=StavBednyChoice.NEPRIJATO).distinct()
         # PK Komplet přijatý - kamion, který neobsahuje ani jednu bednu ve stavu StavBednyChoices.NEPRIJATO
-        # a alespoň jedna bedna je ve stavu uvedeném ve stav_bedny_skladem.
+    # a alespoň jedna bedna je ve stavu uvedeném ve STAV_BEDNY_SKLADEM.
         elif value == PrijemVydejChoice.PRIJEM_KOMPLET_PRIJATY:
             return queryset.filter(prijem_vydej='P', zakazky_prijem__isnull=False
             ).exclude(zakazky_prijem__bedny__stav_bedny=StavBednyChoice.NEPRIJATO
-            ).filter(zakazky_prijem__bedny__stav_bedny__in=stav_bedny_skladem).distinct()  
+            ).filter(zakazky_prijem__bedny__stav_bedny__in=STAV_BEDNY_SKLADEM).distinct()  
         # PV Vyexpedovaný - kamion, který má všechny zakázky ve stavu expedovano=True      
         elif value == PrijemVydejChoice.PRIJEM_VYEXPEDOVANY:
             return queryset.filter(prijem_vydej='P', zakazky_prijem__isnull=False

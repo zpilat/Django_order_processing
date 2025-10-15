@@ -12,7 +12,14 @@ from simple_history.models import HistoricalRecords
 from decimal import Decimal, ROUND_HALF_UP
 
 from .choices import (
-    StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice, AlphabetChoice, stav_bedny_skladem, stav_bedny_rozpracovanost
+    StavBednyChoice,
+    RovnaniChoice,
+    TryskaniChoice,
+    PrioritaChoice,
+    KamionChoice,
+    AlphabetChoice,
+    STAV_BEDNY_SKLADEM,
+    STAV_BEDNY_ROZPRACOVANOST,
 )
 
 import logging
@@ -160,15 +167,14 @@ class Kamion(models.Model):
 
     @property
     def pocet_beden_skladem(self):
-        '''
-        Vrací celkový počet beden spojených s tímto kamionem, které jsou ve stavu stav_bedny_skladem.
-        '''
+        """
+        Vrací celkový počet beden spojených s tímto kamionem, které jsou ve stavu STAV_BEDNY_SKLADEM.
+        """
         if self.prijem_vydej == KamionChoice.PRIJEM:
             return Bedna.objects.filter(
-                zakazka__kamion_prijem=self
-                ).filter(
-                stav_bedny__in=stav_bedny_skladem
-                ).count()
+                zakazka__kamion_prijem=self,
+                stav_bedny__in=STAV_BEDNY_SKLADEM,
+            ).count()
         return 0
 
     @property

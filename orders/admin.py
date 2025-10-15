@@ -45,8 +45,8 @@ from .filters import (
 from .forms import BednaAdminForm, BednaChangeListForm, ImportZakazekForm, ZakazkaInlineForm, ZakazkaAdminForm
 from .choices import (
     StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice, PrijemVydejChoice, SklademZakazkyChoice,
-    stav_bedny_rozpracovanost, stav_bedny_skladem
-    )
+    STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM,
+)
 from .utils import utilita_validate_excel_upload, build_postup_vyroby_cases
 
 import logging
@@ -365,7 +365,7 @@ class KamionAdmin(SimpleHistoryAdmin):
         1. Bez zakázek - kamion, který je typu příjem a nemá žádné zakázky
         2. Nepřijatý - kamion příjem, který obsahuje bedny, ale aspoň jedna bedna je ve stavu StavBednyChoices.NEPRIJATO
         3. Komplet přijatý - kamion příjem, který neobsahuje ani jednu bednu ve stavu StavBednyChoices.NEPRIJATO
-            a alespoň jedna bedna je ve stavu uvedeném ve stav_bedny_skladem.
+            a alespoň jedna bedna je ve stavu uvedeném ve STAV_BEDNY_SKLADEM.
         4. Vyexpedovaný - kamion příjem, který má všechny bedny ve stavu StavBednyChoices.EXPEDOVANO
         5. Výdej - kamion, který je typu výdej
         """
@@ -377,7 +377,7 @@ class KamionAdmin(SimpleHistoryAdmin):
             elif obj.zakazky_prijem.filter(bedny__stav_bedny=StavBednyChoice.NEPRIJATO).exists():
                 return 'Nepřijatý'
             elif (not obj.zakazky_prijem.filter(bedny__stav_bedny=StavBednyChoice.NEPRIJATO).exists() and
-                  obj.zakazky_prijem.filter(bedny__stav_bedny__in=stav_bedny_skladem).exists()):
+                  obj.zakazky_prijem.filter(bedny__stav_bedny__in=STAV_BEDNY_SKLADEM).exists()):
                 return 'Komplet přijatý'
             elif not obj.zakazky_prijem.filter(expedovano=False).exists():
                 return 'Vyexpedovaný'
@@ -2003,8 +2003,8 @@ class BednaAdmin(SimpleHistoryAdmin):
             # Pokud je vyplněna tara a je větší než 0, skryje se pole brutto
             if obj.tara is not None and obj.tara > 0:
                 exclude_fields.append('brutto')
-            # Pokud není stav bedny v stav_bedny_skladem, skryje se pole cena_za_kg a cena_za_bednu
-            if obj.stav_bedny and obj.stav_bedny not in stav_bedny_skladem:
+            # Pokud není stav bedny ve STAV_BEDNY_SKLADEM, skryje se pole cena_za_kg a cena_za_bednu
+            if obj.stav_bedny and obj.stav_bedny not in STAV_BEDNY_SKLADEM:
                 exclude_fields.extend(['cena_za_kg', 'cena_za_bednu'])
         else:
             # add_view: cislo_bedny se generuje automaticky

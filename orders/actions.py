@@ -16,7 +16,14 @@ from weasyprint import HTML
 from .models import Zakazka, Bedna, Kamion, Zakaznik, Pozice
 from .utils import utilita_tisk_dokumentace, utilita_expedice_zakazek, utilita_kontrola_zakazek, utilita_tisk_dl_a_proforma_faktury
 from .forms import VyberKamionVydejForm, OdberatelForm, KNavezeniForm
-from .choices import KamionChoice, StavBednyChoice, RovnaniChoice, TryskaniChoice, stav_bedny_skladem, stav_bedny_rozpracovanost
+from .choices import (
+    KamionChoice,
+    StavBednyChoice,
+    RovnaniChoice,
+    TryskaniChoice,
+    STAV_BEDNY_SKLADEM,
+    STAV_BEDNY_ROZPRACOVANOST,
+)
 
 import logging
 logger = logging.getLogger('orders')
@@ -399,7 +406,7 @@ def oznacit_k_expedici_action(modeladmin, request, queryset):
     Změní stav vybraných beden z NAVEZENO, DO_ZPRACOVANI, ZAKALENO nebo ZKONTROLOVANO na K_EXPEDICI.
     """
     # kontrola, zda jsou všechny bedny v querysetu ve stavu NAVEZENO, DO_ZPRACOVANI, ZAKALENO nebo ZKONTROLOVANO
-    if queryset.exclude(stav_bedny__in=stav_bedny_rozpracovanost).exists():
+    if queryset.exclude(stav_bedny__in=STAV_BEDNY_ROZPRACOVANOST).exists():
         logger.info(f"Uživatel {request.user} se pokusil změnit stav na K_EXPEDICI, ale některé bedny nejsou ve stavu NAVEZENO, DO_ZPRACOVANI, ZAKALENO nebo ZKONTROLOVANO.")
         modeladmin.message_user(request, "Některé vybrané bedny nejsou ve stavu NAVEZENO, DO_ZPRACOVANI, ZAKALENO nebo ZKONTROLOVANO.", level=messages.ERROR)
         return None

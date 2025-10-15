@@ -12,7 +12,7 @@ import django.utils.timezone as timezone
 
 from .utils import get_verbose_name_for_column
 from .models import Bedna, Zakazka, Kamion, Zakaznik, TypHlavy, Predpis, Odberatel, Cena
-from .choices import  StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice, stav_bedny_rozpracovanost, stav_bedny_skladem
+from .choices import  StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice, STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM
 from weasyprint import HTML
 
 import logging
@@ -57,7 +57,7 @@ def dashboard_bedny_view(request):
         '-> Křivé': {'rovnat': RovnaniChoice.KRIVA, 'stav_bedny__in': [StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO]},
         '-> Rovná se': {'rovnat': RovnaniChoice.ROVNA_SE, 'stav_bedny__in': [StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO]},
         '-> K expedici': {'stav_bedny': StavBednyChoice.K_EXPEDICI},
-        'Po exspiraci': {'stav_bedny__in': stav_bedny_skladem, 'zakazka__kamion_prijem__datum__lt': timezone.now().date() - timezone.timedelta(days=28)},
+    'Po exspiraci': {'stav_bedny__in': STAV_BEDNY_SKLADEM, 'zakazka__kamion_prijem__datum__lt': timezone.now().date() - timezone.timedelta(days=28)},
     }
 
     zakaznici = list(Zakaznik.objects.values_list('zkraceny_nazev', flat=True).order_by('zkraceny_nazev')) + ['CELKEM']

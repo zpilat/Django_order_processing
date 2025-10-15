@@ -12,13 +12,16 @@ class StavBednyChoice(models.TextChoices):
     K_EXPEDICI = 'KE', 'K expedici'
     EXPEDOVANO = 'EX', 'Expedováno'
 
-stav_bedny_skladem = [
+STAV_BEDNY_SKLADEM = [
     stavbedny for stavbedny in StavBednyChoice if stavbedny not in (StavBednyChoice.NEPRIJATO, StavBednyChoice.EXPEDOVANO)
-    ]
+]
 
-stav_bedny_rozpracovanost = [
-    StavBednyChoice.NAVEZENO, StavBednyChoice.DO_ZPRACOVANI, StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO
-    ]    
+STAV_BEDNY_ROZPRACOVANOST = [
+    StavBednyChoice.NAVEZENO,
+    StavBednyChoice.DO_ZPRACOVANI,
+    StavBednyChoice.ZAKALENO,
+    StavBednyChoice.ZKONTROLOVANO,
+]
 
 class RovnaniChoice(models.TextChoices):
     NEZADANO = '--', '--------'
