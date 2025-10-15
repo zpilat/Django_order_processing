@@ -2006,6 +2006,9 @@ class BednaAdmin(SimpleHistoryAdmin):
             # Pokud není stav bedny ve STAV_BEDNY_SKLADEM, skryje se pole cena_za_kg a cena_za_bednu
             if obj.stav_bedny and obj.stav_bedny not in STAV_BEDNY_SKLADEM:
                 exclude_fields.extend(['cena_za_kg', 'cena_za_bednu'])
+            # Pokud není stav bedny ve STAV_BEDNY_PRO_NAVEZENI, skryje se pole pozice a poznamka_k_navezeni
+            if obj.stav_bedny and obj.stav_bedny not in STAV_BEDNY_PRO_NAVEZENI:
+                exclude_fields.extend(['pozice', 'poznamka_k_navezeni'])
         else:
             # add_view: cislo_bedny se generuje automaticky
             exclude_fields = ['cislo_bedny']
