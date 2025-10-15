@@ -43,7 +43,7 @@ class StavBednyFilter(DynamicTitleFilter):
     def __init__(self, request, params, model, model_admin):
         self.label_dict = {**dict(StavBednyChoice.choices)}
         self.label_dict['RO'] = 'Rozpracováno'
-        self.label_dict['PE'] = 'Bedny po exspiraci'
+        self.label_dict['PE'] = 'Po exspiraci'
         super().__init__(request, params, model, model_admin)
 
     def lookups(self, request, model_admin):
@@ -216,15 +216,14 @@ class TryskaniFilter(DynamicTitleFilter):
 
     def __init__(self, request, params, model, model_admin):
         self.label_dict = {**dict(TryskaniChoice.choices)}
-        self.label_dict['hotovo'] = 'Hotovo'
+        self.label_dict.pop(TryskaniChoice.CISTA)  # Odstraní čistá z možností filtru
+        self.label_dict.pop(TryskaniChoice.OTRYSKANA)  # Odstraní otryskaná z možností filtru
+        self.label_dict[TryskaniChoice.NEZADANO] = 'Nezadáno'
+        self.label_dict['hotovo'] = 'Čistá & Otryskaná'
         super().__init__(request, params, model, model_admin)
 
     def lookups(self, request, model_admin):
-        return [
-            (k, f"{v} (Nezadáno)") if k == TryskaniChoice.NEZADANO
-            else (k, f"{v} (Čistá & Otryskaná)") if k == 'hotovo'
-            else  (k, v) for k, v in self.label_dict.items()
-        ]
+        return [(k, v) for k, v in self.label_dict.items()]
 
     def queryset(self, request, queryset):
         value = self.value()
@@ -244,15 +243,14 @@ class RovnaniFilter(DynamicTitleFilter):
 
     def __init__(self, request, params, model, model_admin):
         self.label_dict = {**dict(RovnaniChoice.choices)}
-        self.label_dict['hotovo'] = 'Hotovo'
+        self.label_dict.pop(RovnaniChoice.ROVNA)  # Odstraní rovná z možností filtru
+        self.label_dict.pop(RovnaniChoice.VYROVNANA)  # Odstraní vyrovnaná z možností filtru
+        self.label_dict[RovnaniChoice.NEZADANO] = 'Nezadáno'
+        self.label_dict['hotovo'] = 'Rovná & Vyrovnaná'
         super().__init__(request, params, model, model_admin)
 
     def lookups(self, request, model_admin):
-        return [
-            (k, f"{v} (Nezadáno)") if k == RovnaniChoice.NEZADANO
-            else (k, f"{v} (Rovná & Vyrovnaná)") if k == 'hotovo'
-            else (k, v) for k, v in self.label_dict.items()
-            ]
+        return [(k, v) for k, v in self.label_dict.items()]
 
     def queryset(self, request, queryset):
         value = self.value()
