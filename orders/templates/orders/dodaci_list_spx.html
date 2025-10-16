@@ -33,65 +33,66 @@
 </head>
 <body>
     <div class="container-fluid">
-        <div class="row text-start lh-1">
+        <div class="fs-pdf-07 row text-start lh-1">
             <div class="col-7">
-                <p class="fs-pdf-06 fw-bold mb-0">HPM HEAT SK s.r.o.</p>
-                <p class="fs-pdf-06 mb-0">Naftárska 1413</p>
-                <p class="fs-pdf-06 mb-0">908 45 Gbely</p>
-                <p class="fs-pdf-06 mb-0">IČO 36341029</p>
+                <p class="fw-bold mb-0">HPM HEAT SK s.r.o.</p>
+                <p class="mb-0">Naftárska 1413</p>
+                <p class="mb-0">908 45 Gbely</p>
+                <p>IČO 36341029</p>
             </div>
             <div class="col-5">
-                <p class="fs-pdf-06 mb-0">&nbsp;</p>
-                <p class="fs-pdf-06 mb-0">&nbsp;</p>
-                <p class="fs-pdf-06 mb-0">Mob. 00421/902847613</p>
+                <p class="mb-0">&nbsp;</p>
+                <p class="mb-0">&nbsp;</p>
+                <p class="mb-0">Mob. 00421/902847613</p>
+                <p class="mb-0">&nbsp;</p>
             </div>
         </div>
-        <hr class="my-1">
-        <div class="row text-start lh-1">
+        <hr class="mt-0 mb-1">
+        <div class="fs-pdf-07 row text-start lh-1">
             <div class="col-7">
-                <p class="fs-pdf-06 mb-0">Besitzer der Ware:</p>
-                <p class="fs-pdf-06 fw-bold mb-0">{{ kamion.zakaznik.nazev }}</p>
-                <p class="fs-pdf-06 mb-0">{{ kamion.zakaznik.adresa }}</p>
-                <p class="fs-pdf-06 mb-0">{{ kamion.zakaznik.zkratka_statu }}-{{ kamion.zakaznik.psc }} {{ kamion.zakaznik.mesto }}</p>
+                <p class="mb-0">Besitzer der Ware:</p>
+                <p class="fw-bold mb-0">{{ kamion.zakaznik.nazev }}</p>
+                <p class="mb-0">{{ kamion.zakaznik.adresa }}</p>
+                <p class="mb-0">{{ kamion.zakaznik.zkratka_statu }}-{{ kamion.zakaznik.psc }} {{ kamion.zakaznik.mesto }}</p>
             </div>
             <div class="col-5">
-                <p class="fs-pdf-06 mb-0">Adresse der Abgabe:</p>
-                <p class="fs-pdf-06 mb-0">{{ kamion.odberatel.nazev }}</p>
-                <p class="fs-pdf-06 mb-0">{{ kamion.odberatel.adresa }}</p>
-                <p class="fs-pdf-06 mb-0">{{ kamion.odberatel.zkratka_statu }}-{{ kamion.odberatel.psc }} {{ kamion.odberatel.mesto }}</p>
+                <p class="mb-0">Adresse der Abgabe:</p>
+                <p class="mb-0">{{ kamion.odberatel.nazev }}</p>
+                <p class="mb-0">{{ kamion.odberatel.adresa }}</p>
+                <p class="mb-0">{{ kamion.odberatel.zkratka_statu }}-{{ kamion.odberatel.psc }} {{ kamion.odberatel.mesto }}</p>
             </div>
         </div>
-        <div class="row text-start mt-2 lh-1">
+        <div class="fs-pdf-07 row text-start mt-2 lh-1">
             <div class="col-3">
-                <p class="fs-pdf-06 fw-bold my-0">LIEFERSCHEIN</p>
+                <p class="fw-bold my-0">LIEFERSCHEIN</p>
             </div>
             <div class="col-4">
-                <p class="fs-pdf-06 my-0">{{ kamion.cislo_dl|nahrada_pomlcky_za_lomitko }}</p>
+                <p class="my-0">{{ kamion.cislo_dl|nahrada_pomlcky_za_lomitko }}</p>
             </div>
             <div class="col-5">
-                <p class="fs-pdf-06 my-0">Gbely dňa: {{ kamion.datum|date:"d. m. Y" }}</p>
+                <p class="my-0">Gbely dňa: {{ kamion.datum|date:"d. m. Y" }}</p>
             </div>
         </div>
 
         <table class="table table-bordered border-black" style="width: 100%; table-layout: fixed;">
             <thead>
-                <tr class="text-center fw-bold fs-pdf-05">
-                    <td class="bg-body-secondary" style="width: 8%;">Bestellnr.</td>
-                    <td class="bg-body-secondary" style="width: 4%;">Abmess.</td> 
-                    <td class="bg-body-secondary" style="width: 3%;">Kopf</td>                      
-                    <td class="bg-body-secondary" style="width: 15%;">Bezeichnung</td>                    
-                    <td class="bg-body-secondary" style="width: 5%;">Netto</td>
-                    <td class="bg-body-secondary" style="width: 5%;">Brutto</td>
-                    <td class="bg-body-secondary" style="width: 5%;">Behälter-Nr.</td>
-                    <td class="bg-body-secondary" style="width: 6%;">Richten</td>
-                    <td class="bg-body-secondary" style="width: 6%;">Charge</td>
-                    <td class="bg-body-secondary" style="width: 3%;">&sum;</td>                    
+                <tr class="text-center fw-bold fs-pdf-07">
+                    <td class="bg-body-secondary" style="width: 10%;">Bestellnr.</td>
+                    <td class="bg-body-secondary" style="width: 8%;">Abmess.</td> 
+                    <td class="bg-body-secondary" style="width: 5%;">Kopf</td>                      
+                    <td class="bg-body-secondary" style="width: 30%;">Bezeichnung</td>                    
+                    <td class="bg-body-secondary" style="width: 8%;">Netto</td>
+                    <td class="bg-body-secondary" style="width: 8%;">Brutto</td>
+                    <td class="bg-body-secondary" style="width: 8%;">Behälter-Nr.</td>
+                    <td class="bg-body-secondary" style="width: 8%;">Richten</td>
+                    <td class="bg-body-secondary" style="width: 8%;">Charge</td>
+                    <td class="bg-body-secondary" style="width: 7%;">&sum;</td>                    
                 </tr>
             </thead>
             <tbody>
                 {% for zakazka in kamion.zakazky_vydej.all %}
                     {% for bedna in zakazka.bedny.all %}
-                        <tr class="text-center fs-pdf-05">
+                        <tr class="text-center fs-pdf-07">
                             <td>{{ bedna.vyrobni_zakazka }}</td>   
                             <td>{{ zakazka.prumer }}x{{ zakazka.delka|floatformat:0 }}</td>
                             <td>{{ zakazka.typ_hlavy }}</td>                               
@@ -99,7 +100,7 @@
                             <td>{{ bedna.hmotnost }}kg</td>
                             <td>{{ bedna.hmotnost_brutto }}kg</td>
                             <td>{{ bedna.behalter_nr }}</td>
-                            <td>{% if bedna.rovnat == 'VY' %}GERICHTET{% else %}--{% endif %}</td>
+                            <td>{% if bedna.rovnat == 'VY' %}gerichtet{% else %}--{% endif %}</td>
                             {% comment %} Pokud je první běh cyklu, zobrazí se celková hmotnost a artikl(charge) v zakázce přes všechny řádky této zakázky {% endcomment %}
                             {% if forloop.first %}
                                 <td rowspan="{{ zakazka.bedny.count }}">{{ zakazka.artikl }}</td>                            
@@ -111,35 +112,32 @@
             </tbody>
         </table>
 
-        <div class="row text-start lh-1">
+        <div class="fs-pdf-07 row text-start lh-1">
             <div class="col-2">
-                <p class="fs-pdf-06 mb-0">Hodnota materiálu:</p>
-                <p class="fs-pdf-06 mb-0">Celní zařazení</p>
-                <p class="fs-pdf-06 mb-0">Země původu:</p>
-                <p class="fs-pdf-06 mb-0">Dodací podmínky:</p>
+                <p class="mb-0">Hodnota materiálu:</p>
+                <p class="mb-0">Celní zařazení:</p>
             </div>
-            <div class="col-5">
-                <p class="fs-pdf-06 mb-0">{{ kamion.cena_za_kamion_vydej }} €</p>
-                <p class="fs-pdf-06 mb-0">73 181 558</p>
-                <p class="fs-pdf-06 mb-0">{{ kamion.zakaznik.zkratka_statu }}</p>
-                <p class="fs-pdf-06 mb-0">DDU</p>
-            </div>
-            <div class="col-5">
-                <p class="fs-pdf-06 mb-0"></p>
-            </div>
-        </div>        
-        <div class="row text-start mt-2 lh-1">
             <div class="col-2">
-                <p class="fs-pdf-06 mb-0"></p>
+                <p class="mb-0">{{ kamion.cena_za_kamion_vydej }} €</p>
+                <p class="mb-0">73 181 558</p>
             </div>
-            <div class="col-5">
-                <p class="fs-pdf-06 mb-0">NETTO: {{ kamion.celkova_hmotnost_netto|floatformat:1 }} kg</p>
-                <p class="fs-pdf-06 mb-0">BRUTTO: {{ kamion.celkova_hmotnost_brutto|floatformat:1 }} kg</p>
+            <div class="col-2">
+                <p class="mb-0">Země původu:</p>
+                <p class="mb-0">Dodací podmínky:</p>            
             </div>
-            <div class="col-5">
-                <p class="fs-pdf-06 mb-0"></p>
+            <div class="col-2">
+                <p class="mb-0">{{ kamion.zakaznik.zkratka_statu }}</p>
+                <p class="mb-0">DDU</p>
             </div>
-        </div>     
+            <div class="col-2">
+                <p class="mb-0">Hmotnost NETTO:</p>
+                <p class="mb-0">Hmotnost BRUTTO:</p>
+            </div>      
+            <div class="col-1">
+                <p class="mb-0">{{ kamion.celkova_hmotnost_netto|floatformat:1 }} kg</p>
+                <p class="mb-0">{{ kamion.celkova_hmotnost_brutto|floatformat:1 }} kg</p>
+            </div>              
+        </div>           
     </div>
 </body>
 </html>
