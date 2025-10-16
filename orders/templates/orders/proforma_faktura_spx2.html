@@ -97,6 +97,7 @@
             {% endfor %}
             <tr class="text-center fs-10 fw-bold">
                 <td></td>
+                <td></td>                
                 <td>
                     {{ kamion.celkova_hmotnost_netto|floatformat:1 }} kg
                 </td>
@@ -107,10 +108,11 @@
                 <td>
                     {{ kamion.cena_za_kamion_vydej|floatformat:2 }} €
                 </td>
-                <td>
-                    {{ kamion.pocet_beden_expedovano }} ks
-                </td>
             </tr>
+            <tr class="text-center fs-10 fw-normal">
+                <td colspan="8">
+                    Celkový počet beden: {{ kamion.pocet_beden_expedovano }} ks
+                </td>
         </tbody>
     </table>    
 </body>
