@@ -1,13 +1,13 @@
 {% load custom_filters %}
 
-<div class="alert" role="alert" style="background-color: #214290; color: #ffde17; font-family: 'Segoe UI';">
+<div class="alert" role="alert" style="background-color: #214290; color: #ffde17; font-family: 'Segoe UI', Arial;">
     <h3>Přehled stavu beden podle zákazníků</h3>
     <h6>Naposledy aktualizováno {{ current_time|date:"d.m.Y H:i" }}</h6>
 </div>
 
 <div class="row">
   {% for zakaznik, bedny_stavy in prehled_beden_zakaznika.items %}
-    <div class="col-xxl-2 col-xl-3 col-lg-4 col-md-6 col-sm-12 mb-4" style="font-family: 'Segoe UI';">
+    <div class="col-xxl-2 col-xl-3 col-lg-4 col-md-6 col-sm-12 mb-4" style="font-family: 'Segoe UI', Arial;">
       <div class="card h-100 shadow-sm">
         <div class="card-header fw-bold" style="background-color: #ffde17; color: #214290;">
           {{ zakaznik }}
