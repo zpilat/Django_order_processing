@@ -1,4 +1,5 @@
 from django import template
+from decimal import Decimal, ROUND_HALF_UP
 
 register = template.Library()
 
@@ -59,3 +60,15 @@ def nahrada_pomlcky_za_lomitko(cislo_dl):
     Nahradí pomlčky v čísle dodacího listu lomítky.
     """
     return cislo_dl.replace('-', '/') if isinstance(cislo_dl, str) else cislo_dl
+
+@register.filter
+def multiply(value, arg):
+    """
+    Vynásobí value * arg a vrátí Decimal zaokrouhlený na 2 desetinná místa.
+    Funguje i když value je Decimal a arg je float/int.
+    """
+    try:
+        result = Decimal(str(value)) * Decimal(str(arg))
+        return result.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    except (ValueError, TypeError, AttributeError):
+        return Decimal('0.00')
