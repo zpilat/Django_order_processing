@@ -1827,7 +1827,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         'get_cislo_bedny', 'get_behalter_nr', 'zakazka_link', 'kamion_prijem_link', 'kamion_vydej_link',
         'stav_bedny', 'rovnat', 'tryskat', 'get_prumer', 'get_delka_int','get_skupina_TZ', 'get_typ_hlavy',
         'get_celozavit', 'zkraceny_popis', 'hmotnost', 'tara', 'mnozstvi', 'pozice', 'get_priorita', 'get_datum',
-        'get_postup', 'poznamka',
+        'get_postup', 'cena_za_kg', 'poznamka',
         )
     # list_editable nastavován dynamicky v get_list_editable
     list_display_links = ('get_cislo_bedny', )
@@ -2172,6 +2172,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         Pokud není filtr stav bedny == Expedováno, vyloučí se zobrazení sloupce kamion_vydej_link.
         Pokud není filtr stav bedny v STAV_BEDNY_PRO_NAVEZENI, vyloučí se zobrazení sloupce pozice.
         Pokud není filtr stav bedny == Neprijato, vyloučí se zobrazení sloupce mnozstvi a tara.
+        Pokud není filtr stav bedny == K_expedici, vyloučí se zobrazení sloupce cena_za_kg.
         """
         list_display = list(super().get_list_display(request))
         stav_bedny = request.GET.get('stav_bedny', None)
@@ -2191,6 +2192,9 @@ class BednaAdmin(SimpleHistoryAdmin):
                 list_display.remove('mnozstvi')
             if 'tara' in list_display:
                 list_display.remove('tara')
+        if stav_bedny != StavBednyChoice.K_EXPEDICI:
+            if 'cena_za_kg' in list_display:
+                list_display.remove('cena_za_kg')
         return list_display
     
     def get_list_filter(self, request):
