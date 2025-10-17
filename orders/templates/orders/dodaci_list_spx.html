@@ -118,7 +118,7 @@
                 <p class="mb-0">Celní zařazení:</p>
             </div>
             <div class="col-2">
-                <p class="mb-0">{{ kamion.cena_za_kamion_vydej }} €</p>
+                <p class="mb-0">10 798,50 €</p>
                 <p class="mb-0">73 181 558</p>
             </div>
             <div class="col-2">
@@ -132,10 +132,12 @@
             <div class="col-2">
                 <p class="mb-0">Hmotnost NETTO:</p>
                 <p class="mb-0">Hmotnost BRUTTO:</p>
+                <p class="mb-0">Počet beden:</p>
             </div>      
             <div class="col-1">
                 <p class="mb-0">{{ kamion.celkova_hmotnost_netto|floatformat:1 }} kg</p>
                 <p class="mb-0">{{ kamion.celkova_hmotnost_brutto|floatformat:1 }} kg</p>
+                <p class="mb-0">{{ kamion.pocet_beden_expedovano }} ks</p>
             </div>              
         </div>           
     </div>
