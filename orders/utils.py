@@ -69,8 +69,6 @@ def utilita_tisk_dokumentace(modeladmin, request, queryset, html_path, filename)
         pdf_buffer = BytesIO()
         all_html = ""
         for bedna in queryset:
-            # Zkrátí popis pro každou bednu do prvního slova začínajícího číslicí.
-            utilita_zkraceni_popisu_beden(bedna)
             context = {"bedna": bedna}
             html = render_to_string(html_path, context)
             all_html += html + '<p style="page-break-after: always"></p>'  # Oddělí stránky
@@ -163,15 +161,6 @@ def utilita_kontrola_zakazek(modeladmin, request, queryset):
                 logger.warning(f"Zakázka {zakazka} pro zákazníka s příznakem 'Pouze kompletní zakázky' musí mít všechny bedny ve stavu K_EXPEDICI.")
                 messages.error(request, f"Zakázka {zakazka} pro zákazníka s nastaveným příznakem 'Pouze kompletní zakázky' musí mít všechny bedny ve stavu K_EXPEDICI.")
                 return
-            
-def utilita_zkraceni_popisu_beden(bedna):
-    """
-    Zkrátí popis zakázky do prvního slova začínající číslicí.
-    """
-    match = re.match(r"^(.*?)(\s+\d+.*)?$", bedna.zakazka.popis)    
-    if match:
-        bedna.zakazka.zkraceny_popis = match.group(1).strip()
-
 
 def utilita_validate_excel_upload(uploaded_file):
     """

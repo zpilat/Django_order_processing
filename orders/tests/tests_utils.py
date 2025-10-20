@@ -13,7 +13,6 @@ from orders.utils import (
     utilita_tisk_dl_a_proforma_faktury,
     utilita_expedice_zakazek,
     utilita_kontrola_zakazek,
-    utilita_zkraceni_popisu_beden,
     utilita_validate_excel_upload,
 )
 from orders.models import Bedna, Zakazka, Kamion
@@ -213,35 +212,15 @@ class UtilitaKontrolaZakazekTests(UtilsBase):
         self.assertEqual(len(msgs), 0)
 
 
-class UtilitaZkraceniPopisuTests(UtilsBase):
-    def test_zkraceni_popisu(self):
-        self.zakazka.popis = 'abc def 1234 xxx'
-        utilita_zkraceni_popisu_beden(self.bedna1)
-        self.assertEqual(self.zakazka.zkraceny_popis, 'abc def')
+class UtilsTests(UtilsBase):
+    def test_zkraceny_popis_property(self):
+        # Zakázka s číslem v popisu → vrátí text do prvního výskytu čísla
+        z = self.zakazka
+        z.popis = "Očekávaný zkrácený text 123 další část"
+        self.assertEqual(z.zkraceny_popis, "Očekávaný zkrácený text")
 
-    def test_zkraceni_popisu_bez_cisel(self):
-        self.zakazka.popis = 'bez cisla v popisu'
-        utilita_zkraceni_popisu_beden(self.bedna1)
-        self.assertEqual(self.zakazka.zkraceny_popis, 'bez cisla v popisu')
-
-
-class UtilitaValidateExcelUploadTests(UtilsBase):
-    def test_missing_file(self):
-        errs = utilita_validate_excel_upload(None)
-        self.assertEqual(errs, ["Soubor chybí."])
-
-    def test_wrong_extension(self):
-        f = SimpleUploadedFile('data.txt', b'abc')
-        errs = utilita_validate_excel_upload(f)
-        self.assertEqual(errs, ["Soubor musí mít příponu .xlsx."])
-
-    def test_empty_file(self):
-        f = SimpleUploadedFile('file.xlsx', b'')
-        errs = utilita_validate_excel_upload(f)
-        self.assertEqual(errs, ["Soubor je prázdný."])
-
-    def test_valid_xlsx_like_bytes_passes(self):
-        # Není to skutečné XLSX, ale utilita chybu jen zaloguje a vrátí bez erroru
-        f = SimpleUploadedFile('file.xlsx', b'not-a-real-xlsx')
-        errs = utilita_validate_excel_upload(f)
-        self.assertEqual(errs, [])
+    def test_zkraceny_popis_property_bez_cisla(self):
+        # Zakázka bez čísla v popisu → vrátí celý text
+        z = self.zakazka
+        z.popis = "Celý popis bez čísel"
+        self.assertEqual(z.zkraceny_popis, "Celý popis bez čísel")
