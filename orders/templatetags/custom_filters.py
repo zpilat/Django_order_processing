@@ -72,3 +72,17 @@ def multiply(value, arg):
         return result.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
     except (ValueError, TypeError, AttributeError):
         return Decimal('0.00')
+
+@register.simple_tag
+def flatten_bedny(zakazky):
+    """
+    Sloučí všechny bedny ze všech zakázek do jednoho seznamu s čísly pozic.
+    Vrací list tuplů: (pozice, bedna, zakazka)
+    """
+    result = []
+    pos = 1
+    for zakazka in zakazky:
+        for bedna in zakazka.bedny.all():
+            result.append((pos, bedna, zakazka))
+            pos += 1
+    return result

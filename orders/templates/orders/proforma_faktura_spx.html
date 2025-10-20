@@ -72,47 +72,38 @@
     <table class="table table-striped text-center fs-09" style="width: 100%; table-layout: fixed;">
         <tbody>
             <tr>
-                <th style="width: 10%;">Č. zakázky</th>
-                <th style="width: 10%;">Šarže</th>
-                <th style="width: 10%;">Hmotnost</th>
-                <th style="width: 10%;">Rozměr</th>
-                <th style="width: 30%;">Typ</th>                                
-                <th style="width: 10%;">Hlava</th>
-                <th style="width: 10%;">Jed. cena</th>
-                <th style="width: 10%;">Netto cena</th>                                            
+                <th style="width: 5%;">Pos.</th>
+                <th style="width: 12%;">Order no.</th>
+                <th style="width: 12%;">Item no.</th>
+                <th style="width: 31%;">Description</th>                
+                <th style="width: 10%;">Dimension</th>                
+                <th style="width: 10%;">Weight</th>
+                <th style="width: 10%;">Price</th>
+                <th style="width: 10%;">Price total</th>                                            
             </tr>
-            {% for zakazka in kamion.zakazky_vydej.all %}
-                {% for bedna in zakazka.bedny.all %}
-                    <tr class="text-center fs-10">
-                        <td>{{ bedna.vyrobni_zakazka }}</td>
-                        <td>{{ zakazka.artikl }}</td>
-                        <td>{{ bedna.hmotnost|floatformat:1 }}</td>
-                        <td>{{ zakazka.prumer }}x{{ zakazka.delka|floatformat:0 }}</td>
-                        <td>{{ zakazka.popis }}</td>
-                        <td>{{ zakazka.typ_hlavy.nazev }}</td>
-                        <td>{{ bedna.cena_za_kg|floatformat:2 }}</td>
-                        <td>{{ bedna.cena_za_bednu|floatformat:2 }}</td>
-                    </tr>
-                {% endfor %}
+            {% flatten_bedny kamion.zakazky_vydej.all as bedny_list %}
+            {% for pos, bedna, zakazka in bedny_list %}
+                <tr class="text-center fs-10">
+                    <td>{{ pos }}</td>
+                    <td>{{ bedna.vyrobni_zakazka }}</td>
+                    <td>{{ bedna.material }}</td>
+                    <td>{{ zakazka.popis }}</td>               
+                    <td>{{ zakazka.prumer }}x{{ zakazka.delka|floatformat:0 }}</td>                         
+                    <td>{{ bedna.hmotnost|floatformat:1 }} kg</td>
+                    <td>{{ bedna.cena_za_kg|floatformat:2 }} €</td>
+                    <td>{{ bedna.cena_za_bednu|floatformat:2 }} €</td>
+                </tr>
             {% endfor %}
             <tr class="text-center fs-10 fw-bold">
                 <td></td>
-                <td></td>                
-                <td>
-                    {{ kamion.celkova_hmotnost_netto|floatformat:1 }} kg
-                </td>
+                <td></td>
+                <td></td>               
                 <td></td>
                 <td></td>
+                <td>{{ kamion.celkova_hmotnost_netto|floatformat:1 }} kg</td>                
                 <td></td>
-                <td></td>
-                <td>
-                    {{ kamion.cena_za_kamion_vydej|floatformat:2 }} €
-                </td>
+                <td>{{ kamion.cena_za_kamion_vydej|floatformat:2 }} €</td>
             </tr>
-            <tr class="text-center fs-10 fw-normal">
-                <td colspan="8">
-                    Celkový počet beden: {{ kamion.pocet_beden_expedovano }} ks
-                </td>
         </tbody>
     </table>    
 </body>
