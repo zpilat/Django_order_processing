@@ -9,6 +9,7 @@ from django.db.models import Q
 
 from simple_history.models import HistoricalRecords
 
+import re
 from decimal import Decimal, ROUND_HALF_UP
 
 from .choices import (
@@ -391,6 +392,14 @@ class Zakazka(models.Model):
         Vrací URL pro zobrazení detailu zakázky v administraci.
         """
         return reverse("admin:orders_zakazka_change", args=[self.pk])
+    
+    @property
+    def zkraceny_popis(self):
+        """
+        Vrátí vše do prvního výskytu čísla v popisu zakázky.
+        """
+        match = re.match(r"^(.*?)(\s+\d+.*)?$", self.popis)
+        return match.group(1).strip() if match else self.popis
 
     @property
     def cena_za_zakazku(self):

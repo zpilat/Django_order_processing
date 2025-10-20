@@ -1369,7 +1369,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     
     # Parametry pro zobrazení seznamu v administraci
     list_display = ('artikl', 'get_datum', 'kamion_prijem_link', 'kamion_vydej_link', 'get_prumer', 'get_delka_int', 'predpis_link',
-                    'typ_hlavy_link', 'get_skupina', 'get_celozavit', 'zkraceny_popis', 'priorita', 'get_odberatel',
+                    'typ_hlavy_link', 'get_skupina', 'get_celozavit', 'get_zkraceny_popis', 'priorita', 'get_odberatel',
                     'hmotnost_zakazky_k_expedici_brutto', 'pocet_beden_k_expedici', 'celkovy_pocet_beden', 'get_komplet',)
     list_display_links = ('artikl',)
     # list_editable = nastavováno dynamicky v get_list_editable
@@ -1543,12 +1543,12 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
             return mark_safe(f'<a href="{obj.typ_hlavy.get_admin_url()}">{obj.typ_hlavy.nazev}</a>')
 
     @admin.display(description="Popis zkr.", ordering='popis')
-    def zkraceny_popis(self, obj):
-        # Vrátí vše do prvního výskytu čísla (včetně předchozí mezery)
-        match = re.match(r"^(.*?)(\s+\d+.*)?$", obj.popis)    
-        if not match:
-            return obj.popis
-        return format_html('<span title="{}">{}</span>', obj.popis, match.group(1))        
+    def get_zkraceny_popis(self, obj):
+        """
+        Zobrazí zkrácený popis zakázky (první část před čísly) s tooltipem celého popisu
+        a umožní třídění podle hlavičky pole.
+        """        
+        return format_html('<span title="{}">{}</span>', obj.popis, obj.zkraceny_popis)        
 
     @admin.display(description='Brutto k exp.')
     def hmotnost_zakazky_k_expedici_brutto(self, obj):
@@ -1826,7 +1826,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     list_display = (
         'get_cislo_bedny', 'get_behalter_nr', 'zakazka_link', 'kamion_prijem_link', 'kamion_vydej_link',
         'stav_bedny', 'rovnat', 'tryskat', 'get_prumer', 'get_delka_int','get_skupina_TZ', 'get_typ_hlavy',
-        'get_celozavit', 'zkraceny_popis', 'hmotnost', 'tara', 'mnozstvi', 'pozice', 'get_priorita', 'get_datum',
+        'get_celozavit', 'get_zkraceny_popis', 'hmotnost', 'tara', 'mnozstvi', 'pozice', 'get_priorita', 'get_datum',
         'get_postup', 'cena_za_kg', 'poznamka',
         )
     # list_editable nastavován dynamicky v get_list_editable
@@ -1910,14 +1910,12 @@ class BednaAdmin(SimpleHistoryAdmin):
         return obj.zakazka.celozavit
     
     @admin.display(description="Zkrácený popis", ordering='zakazka__popis')
-    def zkraceny_popis(self, obj):
+    def get_zkraceny_popis(self, obj):
         """
-        Vrátí vše do prvního výskytu čísla (včetně předchozí mezery)
+        Vrátí zkrácený popis zakázky (první část před čísly) s tooltipem celého popisu
+        a umožní třídění podle hlavičky pole.
         """
-        match = re.match(r"^(.*?)(\s+\d+.*)?$", obj.zakazka.popis)    
-        if not match:
-            return obj.zakazka.popis
-        return format_html('<span title="{}">{}</span>', obj.zakazka.popis, match.group(1))        
+        return format_html('<span title="{}">{}</span>', obj.zakazka.popis, obj.zakazka.zkraceny_popis)        
 
     @admin.display(description='Kam. příjem', ordering='zakazka__kamion_prijem__id', empty_value='-')
     def kamion_prijem_link(self, obj):
