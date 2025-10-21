@@ -3,6 +3,7 @@ from django.http import HttpResponse
 from django.template.loader import render_to_string
 from django.forms.models import model_to_dict
 from django.db import transaction
+from django.contrib.staticfiles import finders
 
 from .choices import StavBednyChoice, RovnaniChoice, TryskaniChoice
 from django.db.models import When, Value
@@ -10,7 +11,7 @@ from .models import Zakazka, Bedna
 
 import pandas as pd
 
-from weasyprint import HTML
+from weasyprint import HTML, CSS
 
 import re
 import gc
@@ -73,7 +74,15 @@ def utilita_tisk_dokumentace(modeladmin, request, queryset, html_path, filename)
             html = render_to_string(html_path, context)
             all_html += html + '<p style="page-break-after: always"></p>'  # Oddělí stránky
 
-        pdf_file = HTML(string=all_html).write_pdf()
+        stylesheets = []
+        css_path = finders.find('orders/css/pdf_shared.css')
+        if css_path:
+            stylesheets.append(CSS(filename=css_path))
+        else:
+            logger.warning("Nepodařilo se najít CSS 'orders/css/pdf_shared.css' pro tisk dokumentace.")
+
+        base_url = request.build_absolute_uri('/') if request else None
+        pdf_file = HTML(string=all_html, base_url=base_url).write_pdf(stylesheets=stylesheets)
         response = HttpResponse(pdf_file, content_type="application/pdf")
         response['Content-Disposition'] = f'inline; filename={filename}'
         logger.info(f"Uživatel {request.user} vygeneroval PDF dokumentaci pro {queryset.count()} beden.")
@@ -89,7 +98,15 @@ def utilita_tisk_dl_a_proforma_faktury(modeladmin, request, kamion, html_path, f
     """
     context = {"kamion": kamion}
     html_string = render_to_string(html_path, context)
-    pdf_file = HTML(string=html_string).write_pdf()
+    stylesheets = []
+    css_path = finders.find('orders/css/pdf_shared.css')
+    if css_path:
+        stylesheets.append(CSS(filename=css_path))
+    else:
+        logger.warning("Nepodařilo se najít CSS 'orders/css/pdf_shared.css' pro tisk DL/proforma.")
+
+    base_url = request.build_absolute_uri('/') if request else None
+    pdf_file = HTML(string=html_string, base_url=base_url).write_pdf(stylesheets=stylesheets)
     response = HttpResponse(pdf_file, content_type="application/pdf")
     response['Content-Disposition'] = f'inline; filename="{filename}"'
     logger.info(f"Uživatel {request.user} vygeneroval PDF dokumentaci pro kamion {kamion}.")
