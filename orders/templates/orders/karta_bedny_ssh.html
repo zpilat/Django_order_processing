@@ -217,37 +217,28 @@
                 <tr>
                     <td colspan="2" rowspan="2" class="align-top text-start fs-06" style="height: 34px;">vrch [%]</td>
                     <td rowspan="2" class="text-center fs-10 fw-bold">E</td>
-                    <td colspan="9" rowspan="6" style="padding: 0;">
-                        <table class="table mb-0 fs-06" style="width: 100%;">
-                            <tr>
-                                <td colspan="2" rowspan="6" class="align-top text-center small">Mezioperační kontrola</td>
-                                <td colspan="3" class="text-center fs-10 fw-bold">TRYSKÁNÍ</td>
-                                <td colspan="2" rowspan="6" class="align-top text-center small">Výstupní kontrola</td>
-                                <td colspan="2" rowspan="6" class="align-top text-center bg-body-secondary small">Uvolněno k expedici</td>
-                            </tr>
-                            <tr>
-                                <td>&nbsp;</td>
-                                <td>&nbsp;</td>
-                                <td>&nbsp;</td>
-                            </tr>
-                            <tr>
-                                <td class="text-center">1 2 3 4 5</td>
-                                <td class="text-center">1 2 3 4 5</td>
-                                <td class="text-center">1 2 3 4 5</td>
-                            </tr>        
-                            <tr>
-                                <td>&nbsp;</td>
-                                <td>&nbsp;</td>
-                                <td>&nbsp;</td>
-                            </tr>
-                            <tr>
-                                <td class="text-center">1 2 3 4 5</td>
-                                <td class="text-center">1 2 3 4 5</td>
-                                <td class="text-center">1 2 3 4 5</td>
-                            </tr> 
-                            <tr>
-                                <td colspan="3" style="font-size: 0.3rem;">&nbsp;</td>
-                            </tr>
+                    <td colspan="9" rowspan="6" class="h-100" style="padding: 0; height: 100%;">
+                        <table class="table mb-0 fs-06 h-100" style="width: 100%; height: 100%;">
+                            <tbody class="h-100">
+                                <tr>
+                                    <td rowspan="2" class="text-center fs-10 fw-bold" style="width: 34%; height: 55px;">Uvolněno ke zpracování:</td>
+                                    <td class="align-top text-start small" style="width: 33%;">Datum:</td>
+                                    <td class="align-top text-start small" style="width: 33%;">Podpis:</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-center fs-10">{{ generated_at|date:"d.m.Y" }}</td>
+                                    <td class="text-center fs-10">{{ user_last_name }}</td>
+                                </tr>
+                                <tr>
+                                    <td rowspan="2" class="text-center fs-10 fw-bold" style="width: 34%; height: 55px;">Uvolněno k expedici:</td>
+                                    <td class="align-top text-start small" style="width: 33%;">Datum:</td>
+                                    <td class="align-top text-start small" style="width: 33%;">Podpis:</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-center fs-10">&nbsp;</td>
+                                    <td class="text-center fs-10">&nbsp;</td>
+                                </tr>
+                            </tbody>                            
                         </table>
                     </td>
                 </tr>

@@ -4,6 +4,7 @@ from django.template.loader import render_to_string
 from django.forms.models import model_to_dict
 from django.db import transaction
 from django.contrib.staticfiles import finders
+from django.utils import timezone
 
 from .choices import StavBednyChoice, RovnaniChoice, TryskaniChoice
 from django.db.models import When, Value
@@ -69,8 +70,19 @@ def utilita_tisk_dokumentace(modeladmin, request, queryset, html_path, filename)
         from io import BytesIO
         pdf_buffer = BytesIO()
         all_html = ""
+        generated_at = timezone.now()
+        user_last_name = ""
+        if request and hasattr(request, "user") and request.user.is_authenticated:
+            user_last_name = (
+                request.user.last_name
+                or request.user.get_full_name()
+                or request.user.get_username()
+            )
+
         for bedna in queryset:
             context = {"bedna": bedna}
+            context["generated_at"] = generated_at
+            context["user_last_name"] = user_last_name
             html = render_to_string(html_path, context)
             all_html += html + '<p style="page-break-after: always"></p>'  # Oddělí stránky
 
