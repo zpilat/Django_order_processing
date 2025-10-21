@@ -150,7 +150,7 @@ class ZakazkaAutomatizovanyPrijemInline(admin.TabularInline):
     verbose_name_plural = 'Zakázky - automatizovaný příjem'
     extra = 5
     fields = ('artikl', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit', 'popis',
-              'priorita', 'pocet_beden', 'celkova_hmotnost', 'celkove_mnozstvi', 'tara', 'material',)
+              'priorita', 'pocet_beden', 'celkova_hmotnost', 'celkove_mnozstvi', 'tara', 'material', 'odfosfatovat',)
     select_related = ('predpis',)
     show_change_link = True
     formfield_overrides = {
@@ -196,7 +196,7 @@ class ZakazkaAutomatizovanyPrijemInline(admin.TabularInline):
                 can_add_related=False,
                 can_change_related=False,
                 can_delete_related=False,
-                can_view_related=True,
+                can_view_related=False,
             )
             return formfield
 
@@ -1154,6 +1154,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                     pocet_beden = inline_form.cleaned_data.get("pocet_beden")
                     tara = inline_form.cleaned_data.get("tara")
                     material = inline_form.cleaned_data.get("material")
+                    odfosfatovat = inline_form.cleaned_data.get("odfosfatovat")
 
                     # Vytvoření beden zakázky, pokud je zadán počet beden 
                     if pocet_beden and pocet_beden > 0:
@@ -1205,6 +1206,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                                 tara=tara,
                                 material=material,
                                 mnozstvi=mnozstvi_bedny,
+                                odfosfatovat=odfosfatovat,
                                 # cislo_bedny se dopočítá v metodě save() modelu Bedna
                             )
 

@@ -115,6 +115,11 @@ class ZakazkaInlineForm(ZakazkaPredpisValidatorMixin, forms.ModelForm):
         required=False,
         widget=forms.TextInput(attrs={'size': '10', 'style': 'width: 60px;'})
     )
+    odfosfatovat = forms.BooleanField(
+        label="Odfos.",
+        required=False,
+        widget=forms.CheckboxInput()
+    )
 
     class Meta:
         model = Zakazka
