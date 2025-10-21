@@ -65,6 +65,10 @@ body {
     background-color: rgb(221, 222, 224) !important;
 }
 
+.bg-body-yellow {
+    background-color: rgb(255, 255, 204) !important;
+}
+
 .mb-0 {
     margin-bottom: 0 !important;
 }

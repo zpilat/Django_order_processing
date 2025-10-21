@@ -102,7 +102,7 @@
                     <td colspan="7" rowspan="4" class="text-center text-danger fw-bold fs-35 no-border-start">
                         {{ bedna.zakazka.prumer }}x{{ bedna.zakazka.delka|floatformat:0 }}
                     </td>
-                    <td colspan="8" rowspan="14" class="text-center text-danger fw-bold no-border-top fs-80 n">
+                    <td colspan="8" rowspan="14" class="text-center text-danger {% if bedna.odfosfatovat %}bg-body-yellow{% endif %} fw-bold no-border-top fs-80 n">
                         {{ bedna.cislo_bedny }}
                     </td>
                 </tr>
