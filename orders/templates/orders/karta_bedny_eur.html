@@ -234,12 +234,14 @@
                     <td colspan="10" rowspan="6" style="padding: 0;">
                         <table class="table table-secondary text-center mb-0 fs-07" style="width: 100%;">
                             <tr>
-                                <td class="fs-08">
-                                    Ohyb
+                              <td class="fs-08">
+                                    {{ bedna.zakazka.predpis.popis_ohyb|default:"Ohyb" }}<br>
+                                    {{ bedna.zakazka.predpis.popis_ohyb_2|default:"" }}
                                 </td>
                                 <td class="fs-08">
-                                    Krut
-                                </td>
+                                    {{ bedna.zakazka.predpis.popis_krut|default:"Krut" }}<br>
+                                    {{ bedna.zakazka.predpis.popis_krut_2|default:"" }}
+                                </td>                              
                                 <td class="fs-08">
                                     {{ bedna.zakazka.predpis.popis_povrch|linebreaksbr }}
                                     {{ bedna.zakazka.predpis.popis_povrch_2|default:"" }}
