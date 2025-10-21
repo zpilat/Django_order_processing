@@ -2213,7 +2213,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     def get_actions(self, request):
         """
         Přizpůsobí dostupné akce v administraci podle filtru stavu bedny, rovnat a tryskat.
-        Pokud není aktivní filtr stav bedny NEPRIJATO, zruší se akce pro přijetí bedny.
+        Pokud není aktivní filtr stav bedny NEPRIJATO, zruší se akce pro přijetí bedny, jinak se zruší akce pro tisk karet beden a kontroly kvality.
         Pokud není aktivní filtr stav bedny PRIJATO, zruší se akce pro změnu stavu bedny na K_NAVEZENI.
         Pokud není aktivní filtr stav bedny K_NAVEZENI, zruší akci pro změnu stavu bedny na NAVEZENO a pro vrácení stavu bedny na PRIJATO.
         Pokud není aktivní filtr stav bedny NAVEZENO, zruší akci pro změnu stavu bedny na DO_ZPRACOVANI.
@@ -2235,6 +2235,10 @@ class BednaAdmin(SimpleHistoryAdmin):
             if request.GET.get('stav_bedny', None) != StavBednyChoice.NEPRIJATO:
                 actions_to_remove += [
                     'prijmout_bedny_action',
+                ]
+            else:
+                actions_to_remove += [
+                    'tisk_karet_beden_action', 'tisk_karet_kontroly_kvality_action',
                 ]
 
             if request.GET.get('stav_bedny', None) != StavBednyChoice.PRIJATO:
