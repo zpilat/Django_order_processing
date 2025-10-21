@@ -32,6 +32,12 @@ body {
     vertical-align: middle;
 }
 
+ /* odlišný padding pro tabulky pro tisk KKK */
+.quality-card td,
+.quality-card tr {
+    padding: 5px 0px;
+}
+
 .table-bordered {
     border: 2px solid #000 !important;
     border-collapse: collapse;

@@ -5,117 +5,10 @@
 <head>
     <meta charset="UTF-8">
     <title>Karta kontroly kvality</title>
-    <style>
-        @page {
-            size: A4 landscape;
-            margin: 10mm;
-        }
-
-        body {
-            font-size: 0.9rem;
-            font-family: 'Liberation Sans', 'Arial';            
-            margin: 0;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
-        }
-
-        .table {
-            width: 100%;
-            border-collapse: collapse;
-            color: #212529;
-        }
-
-        .table th,
-        .table td {
-            border: 1px solid #000;
-            padding: 5px 0px;
-            vertical-align: middle;
-        }
-
-        .table-bordered {
-            border: 2px solid #000 !important;
-            border-collapse: collapse;
-        }
-
-        .text-center {
-            text-align: center !important;
-        }
-
-        .text-start {
-            text-align: left !important;
-        }
-
-        .text-danger {
-            color: #dc3545 !important;
-        }
-
-        .fw-bold {
-            font-weight: bold !important;
-        }
-
-        .fw-normal {
-            font-weight: normal !important;
-        }
-
-        .small {
-            font-size: 0.875em !important;
-        }
-
-        .bg-body-secondary {
-            background-color: rgb(221, 222, 224) !important;
-        }
-
-        .mb-0 {
-            margin-bottom: 0 !important;
-        }
-
-        .align-top {
-            vertical-align: top !important;
-        }
-
-        .align-center {
-            vertical-align: middle !important;
-        }
-
-        /* PDF velikosti textu */
-        .fs-80 { font-size: 8rem; }
-        .fs-50 { font-size: 5rem; }
-        .fs-35 { font-size: 3.5rem; }
-        .fs-30 { font-size: 3rem; }
-        .fs-25 { font-size: 2.5rem; }
-        .fs-20 { font-size: 2rem; }
-        .fs-17 { font-size: 1.75rem; }
-        .fs-15 { font-size: 1.5rem; }
-        .fs-12 { font-size: 1.25rem; }
-        .fs-11 { font-size: 1.125rem; }
-        .fs-10 { font-size: 1rem; }
-        .fs-09 { font-size: 0.9rem; }
-        .fs-08 { font-size: 0.8rem; }
-        .fs-07 { font-size: 0.7rem; }
-        .fs-06 { font-size: 0.6rem; }
-
-        /* tabulka ve vnoření bez rušení hlavní tabulky */
-        .table-secondary {
-            background-color:rgb(221, 222, 224);
-        }
-
-        /* Zrušení hranicc pro pole tabulky */
-        .no-border-bottom {
-            border-bottom: none !important;
-        }
-        .no-border-top {
-            border-top: none !important;
-        }
-        .no-border-end {
-            border-right: none !important;
-        }
-        .no-border-start {
-            border-left: none !important;
-        }
-    </style>
+    <link rel="stylesheet" href="{% static 'orders/css/pdf_shared.css' %}">
 </head>
 <body>
-    <table class="table table-bordered" style="width: 100%; table-layout: fixed; margin-bottom: 1mm; margin-top: 0;">
+    <table class="table table-bordered quality-card" style="width: 100%; table-layout: fixed; margin-bottom: 1mm; margin-top: 0;">
         <tbody>
             <tr>
                 <td class="text-center fs-20 fw-bold" style="width: 27%;">
@@ -132,7 +25,7 @@
         </tbody>
     </table>
     <div style="display: flex; width: 100%;">
-        <table class="table table-bordered text-center fs-09 fw-bold" style="width: 36%; table-layout: fixed; font-family: 'Arial';">
+        <table class="table table-bordered quality-card text-center fs-09 fw-bold" style="width: 36%; table-layout: fixed; font-family: 'Arial';">
             <tbody>
                 <tr>
                     <td  style="width: 50%;">
@@ -258,7 +151,7 @@
                 </tr>  
             </tbody>
         </table>
-        <table class="table table-bordered" style="width: 64%; table-layout: fixed; font-family: 'Arial';">
+        <table class="table table-bordered quality-card" style="width: 64%; table-layout: fixed; font-family: 'Arial';">
             <tbody>
                 <tr>
                     <td rowspan="2" class="text-center fs-09 fw-bold" style="width: 12%;">
