@@ -606,7 +606,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                         (
                             bedna.get_admin_url(),
                             bedna.cislo_bedny,
-                            f' ({bedna.behalter_nr})' if bedna.behalter_nr else '',
+                            f' (#{bedna.behalter_nr})' if bedna.behalter_nr else '',
                             fmt_decimal(bedna.hmotnost),
                             fmt_decimal(bedna.tara),
                             bedna.get_stav_bedny_display(),
@@ -641,9 +641,11 @@ class KamionAdmin(SimpleHistoryAdmin):
             '<ul class="kamion-structure__orders">{}</ul>',
             format_html_join('', '{}', ((block,) for block in order_blocks))
         )
-        summary = _('Zobrazit strukturu kamionu ({orders} zakázek / {boxes} beden)').format(
+        summary = _('Zobrazit strukturu kamionu ({orders} zakázek / {boxes} beden / {netto} kg netto / {brutto} kg brutto)').format(
             orders=len(zakazky),
             boxes=total_bedny,
+            netto=fmt_decimal(obj.celkova_hmotnost_netto),
+            brutto=fmt_decimal(obj.celkova_hmotnost_brutto),
         )
 
         return format_html(
