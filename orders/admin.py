@@ -2,7 +2,7 @@ from django.contrib import admin, messages
 from django.contrib.auth.models import Permission
 from django.db import models, transaction
 from django.db.models import Case, When, Value, IntegerField, Prefetch
-from django.forms import TextInput, RadioSelect
+from django.forms import TextInput, RadioSelect, ModelChoiceField
 from django.forms.models import BaseInlineFormSet
 from django.utils.safestring import mark_safe
 from django.utils.translation import gettext_lazy as _
@@ -1445,8 +1445,18 @@ class BednaInline(admin.TabularInline):
                 for form in self_inner.forms:
                     bedna = form.instance
                     if bedna.pozastaveno and not request.user.has_perm('orders.change_pozastavena_bedna'):
-                        for field in form.fields:
-                            form.fields[field].disabled = True
+                        for fname, field in form.fields.items():
+                            # Vizuální zvýraznění pozastavených polí
+                            try:
+                                existing = field.widget.attrs.get('class', '')
+                                field.widget.attrs['class'] = (existing + ' paused-row').strip()
+                            except Exception:
+                                pass
+                            # Stejná logika jako v BednaAdmin: všechna pole kromě ModelChoiceField (FK) vypnout
+                            not_model_choice = not isinstance(field, ModelChoiceField)
+                            if not_model_choice:
+                                field.required = False
+                                field.disabled = True
 
         return CustomFormset
     
@@ -1502,6 +1512,9 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
             'orders/admin_actions_target_blank.js',
             'orders/changelist_dirty_guard.js',
             )
+        css = {
+            'all': ('orders/admin_paused_rows.css',)
+        }
 
     # --- UX blokace mazání zakázky ---
     def _delete_blockers(self, obj):
@@ -1959,6 +1972,9 @@ class BednaAdmin(SimpleHistoryAdmin):
 
     class Media:
         js = ('orders/admin_actions_target_blank.js', 'orders/changelist_dirty_guard.js',)
+        css = {
+            'all': ('orders/admin_paused_rows.css',)
+        }
 
     @admin.display(description='Č. bedny', ordering='cislo_bedny')
     def get_cislo_bedny(self, obj):
@@ -2258,8 +2274,19 @@ class BednaAdmin(SimpleHistoryAdmin):
                 for form in self_inner.forms:
                     obj = form.instance
                     if obj.pozastaveno and not request.user.has_perm('orders.change_pozastavena_bedna'):
-                        for field in form.fields:
-                            form.fields[field].disabled = True
+                        for fname, field in form.fields.items():
+                            # Vizuální zvýraznění pozastavených polí v changelistu
+                            try:
+                                existing = field.widget.attrs.get('class', '')
+                                field.widget.attrs['class'] = (existing + ' paused-row').strip()
+                            except Exception:
+                                pass
+                            # Zakáže editaci všech polí kromě modelových voleb (ModelChoiceField)
+                            not_model_choice = not isinstance(field, ModelChoiceField)
+
+                            if not_model_choice:
+                                field.required = False
+                                field.disabled = True
 
         return CustomFormset
     

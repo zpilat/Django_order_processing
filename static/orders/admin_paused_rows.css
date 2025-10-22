@@ -1,0 +1,12 @@
+/* Visual highlight for paused Bedna rows */
+input.paused-row,
+select.paused-row,
+textarea.paused-row {
+  background-color: #fff7d6 !important; /* soft yellow */
+  border-color: #f4d06f !important;
+}
+
+/* Slightly dim labels next to paused fields */
+.paused-row-label {
+  opacity: 0.85;
+}
