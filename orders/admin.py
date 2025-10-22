@@ -1513,7 +1513,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
             'orders/changelist_dirty_guard.js',
             )
         css = {
-            'all': ('orders/admin_paused_rows.css',)
+            'all': ('orders/css/admin_paused_rows.css',)
         }
 
     # --- UX blokace mazání zakázky ---
@@ -1973,7 +1973,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     class Media:
         js = ('orders/admin_actions_target_blank.js', 'orders/changelist_dirty_guard.js',)
         css = {
-            'all': ('orders/admin_paused_rows.css',)
+            'all': ('orders/css/admin_paused_rows.css',)
         }
 
     @admin.display(description='Č. bedny', ordering='cislo_bedny')

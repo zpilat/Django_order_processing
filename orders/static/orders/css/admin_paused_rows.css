@@ -1,0 +1,18 @@
+/* Visual highlight for paused Bedna fields/containers (app-static version) */
+input.paused-row,
+select.paused-row,
+textarea.paused-row,
+/* when the widget renders a container (e.g., RadioSelect -> ul/div) */
+.paused-row,
+.paused-row input,
+.paused-row select,
+.paused-row textarea {
+  background-color: #fff7d6 !important; /* soft yellow */
+  border-color: #f4d06f !important;
+}
+
+/* Slightly dim labels next to paused fields */
+.paused-row-label,
+.paused-row label {
+  opacity: 0.85;
+}
