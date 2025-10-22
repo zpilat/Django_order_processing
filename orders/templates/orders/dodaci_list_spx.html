@@ -77,37 +77,31 @@
         <table class="table table-bordered border-black" style="width: 100%; table-layout: fixed;">
             <thead>
                 <tr class="text-center fw-bold fs-pdf-07">
-                    <td class="bg-body-secondary" style="width: 10%;">Bestellnr.</td>
-                    <td class="bg-body-secondary" style="width: 8%;">Abmess.</td> 
-                    <td class="bg-body-secondary" style="width: 5%;">Kopf</td>                      
+                    <td class="bg-body-secondary" style="width: 5%;">Pos.</td>
+                    <td class="bg-body-secondary" style="width: 10%;">Bestell-Nr.</td>
+                    <td class="bg-body-secondary" style="width: 10%;">Artikel-Nr.</td>
+                    <td class="bg-body-secondary" style="width: 10%;">Abmess.</td>                  
                     <td class="bg-body-secondary" style="width: 30%;">Bezeichnung</td>                    
                     <td class="bg-body-secondary" style="width: 8%;">Netto</td>
-                    <td class="bg-body-secondary" style="width: 8%;">Brutto</td>
+                    <td class="bg-body-secondary" style="width: 9%;">Brutto</td>
                     <td class="bg-body-secondary" style="width: 8%;">Behälter-Nr.</td>
-                    <td class="bg-body-secondary" style="width: 8%;">Richten</td>
-                    <td class="bg-body-secondary" style="width: 8%;">Charge</td>
-                    <td class="bg-body-secondary" style="width: 7%;">&sum;</td>                    
+                    <td class="bg-body-secondary" style="width: 10%;">Richten</td>                 
                 </tr>
             </thead>
             <tbody>
-                {% for zakazka in kamion.zakazky_vydej.all %}
-                    {% for bedna in zakazka.bedny.all %}
-                        <tr class="text-center fs-pdf-07">
-                            <td>{{ bedna.vyrobni_zakazka }}</td>   
-                            <td>{{ zakazka.prumer }}x{{ zakazka.delka|floatformat:0 }}</td>
-                            <td>{{ zakazka.typ_hlavy }}</td>                               
-                            <td>{{ zakazka.popis }}</td>                            
-                            <td>{{ bedna.hmotnost }}kg</td>
-                            <td>{{ bedna.hmotnost_brutto }}kg</td>
-                            <td>{{ bedna.behalter_nr }}</td>
-                            <td>{% if bedna.rovnat == 'VY' %}gerichtet{% else %}--{% endif %}</td>
-                            {% comment %} Pokud je první běh cyklu, zobrazí se celková hmotnost a artikl(charge) v zakázce přes všechny řádky této zakázky {% endcomment %}
-                            {% if forloop.first %}
-                                <td rowspan="{{ zakazka.bedny.count }}">{{ zakazka.artikl }}</td>                            
-                                <td rowspan="{{ zakazka.bedny.count }}">{{ zakazka.celkova_hmotnost|floatformat:1 }}kg</td>
-                            {% endif %}                            
-                        </tr>
-                    {% endfor %}
+                {% flatten_bedny kamion.zakazky_vydej.all as bedny_list %}
+                {% for pos, bedna, zakazka in bedny_list %}
+                    <tr class="text-center fs-pdf-07">
+                        <td>{{ pos }}</td>
+                        <td>{{ bedna.vyrobni_zakazka }}</td>
+                        <td>{{ bedna.artikl }}</td>
+                        <td>{{ zakazka.prumer }}x{{ zakazka.delka|floatformat:0 }}</td>                          
+                        <td>{{ zakazka.popis }}</td>                            
+                        <td>{{ bedna.hmotnost }}kg</td>
+                        <td>{{ bedna.hmotnost_brutto }}kg</td>
+                        <td>{{ bedna.behalter_nr }}</td>
+                        <td>{% if bedna.rovnat == 'VY' %}gerichtet{% else %}--{% endif %}</td>                          
+                    </tr>
                 {% endfor %}
             </tbody>
         </table>
@@ -137,7 +131,6 @@
             <div class="col-1">
                 <p class="mb-0">{{ kamion.celkova_hmotnost_netto|floatformat:1 }} kg</p>
                 <p class="mb-0">{{ kamion.celkova_hmotnost_brutto|floatformat:1 }} kg</p>
-                <p class="mb-0">{{ kamion.pocet_beden_expedovano }}</p>
             </div>              
         </div>           
     </div>
