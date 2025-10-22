@@ -601,11 +601,12 @@ class KamionAdmin(SimpleHistoryAdmin):
             if bedny:
                 bedny_list = format_html_join(
                     '',
-                    '<li><a href="{0}">#{1}</a> · hmotnost: {2} kg · tára: {3} kg · stav: {4}{5}</li>',
+                    '<li><a href="{0}">#{1}{2}</a> · hmotnost: {3} kg · tára: {4} kg · stav: {5}{6}</li>',
                     (
                         (
                             bedna.get_admin_url(),
                             bedna.cislo_bedny,
+                            f' ({bedna.behalter_nr})' if bedna.behalter_nr else '',
                             fmt_decimal(bedna.hmotnost),
                             fmt_decimal(bedna.tara),
                             bedna.get_stav_bedny_display(),
