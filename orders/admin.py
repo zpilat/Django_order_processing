@@ -1,7 +1,7 @@
 from django.contrib import admin, messages
 from django.contrib.auth.models import Permission
 from django.db import models, transaction
-from django.db.models import Case, When, Value, IntegerField
+from django.db.models import Case, When, Value, IntegerField, Prefetch
 from django.forms import TextInput, RadioSelect
 from django.forms.models import BaseInlineFormSet
 from django.utils.safestring import mark_safe
@@ -11,7 +11,7 @@ from django.contrib.admin.views.main import ChangeList
 from django.contrib.admin.widgets import RelatedFieldWidgetWrapper
 from django.urls import path, reverse
 from django.shortcuts import redirect, render
-from django.utils.html import format_html
+from django.utils.html import format_html, format_html_join
 from django.db.models import Count
 from django.core.exceptions import ValidationError
 from django.db.models.deletion import ProtectedError
@@ -334,8 +334,8 @@ class KamionAdmin(SimpleHistoryAdmin):
     actions = [import_kamionu_action, tisk_karet_beden_kamionu_action, tisk_karet_kontroly_kvality_kamionu_action, tisk_dodaciho_listu_kamionu_action,
                tisk_proforma_faktury_kamionu_action, prijmout_kamion_action]
     # Parametry pro zobrazení detailu v administraci
-    fields = ('zakaznik', 'datum', 'poradove_cislo', 'cislo_dl', 'prijem_vydej', 'odberatel',) # další úpravy v get_fields
-    readonly_fields = ('prijem_vydej', 'poradove_cislo',) # další úpravy v get_readonly_fields
+    fields = ('zakaznik', 'datum', 'poradove_cislo', 'cislo_dl', 'prijem_vydej', 'odberatel', 'get_struktura_kamionu',) # další úpravy v get_fields
+    readonly_fields = ('prijem_vydej', 'poradove_cislo', 'get_struktura_kamionu',) # další úpravy v get_readonly_fields
     # Parametry pro zobrazení seznamu v administraci
     list_display = ('get_kamion_str', 'get_zakaznik_zkraceny_nazev', 'get_datum', 'cislo_dl', 'get_typ_kamionu',
                     'odberatel', 'get_pocet_beden_skladem', 'get_celkova_hmotnost_netto', 'get_celkova_hmotnost_brutto',)
@@ -550,10 +550,9 @@ class KamionAdmin(SimpleHistoryAdmin):
         fields = list(super().get_fields(request, obj))
 
         if not obj:  # Pokud se jedná o přidání nového kamionu
-            fields = [f for f in fields if f not in ('prijem_vydej', 'odberatel')]
+            fields = [f for f in fields if f not in ('prijem_vydej', 'odberatel', 'get_struktura_kamionu')]
         if obj and obj.prijem_vydej == KamionChoice.PRIJEM:
             fields = [f for f in fields if f != 'odberatel']
-
         return fields
 
     def get_readonly_fields(self, request, obj=None):
@@ -567,6 +566,102 @@ class KamionAdmin(SimpleHistoryAdmin):
         if obj and obj.prijem_vydej == KamionChoice.VYDEJ:
             rof.append('cislo_dl')
         return rof
+
+    @admin.display(description='Struktura kamionu')
+    def get_struktura_kamionu(self, obj):
+        """Vrátí HTML strukturu kamionu s podřízenými zakázkami a bednami."""
+        if not obj:
+            return _('Struktura bude dostupná po uložení kamionu.')
+
+        relation_name = 'zakazky_prijem' if obj.prijem_vydej == KamionChoice.PRIJEM else 'zakazky_vydej'
+        zakazky_qs = (
+            getattr(obj, relation_name)
+            .all()
+            .select_related('predpis')
+            .order_by('id')
+            .prefetch_related(
+                Prefetch('bedny', queryset=Bedna.objects.select_related('pozice').order_by('cislo_bedny'))
+            )
+        )
+        zakazky = list(zakazky_qs)
+        if not zakazky:
+            return _('Kamion neobsahuje žádné zakázky.')
+
+        def fmt_decimal(value):
+            if value is None:
+                return '–'
+            formatted = format(value, 'f').rstrip('0').rstrip('.')
+            return formatted or '0'
+
+        order_blocks = []
+        total_bedny = 0
+        for zakazka in zakazky:
+            bedny = list(zakazka.bedny.all())
+            total_bedny += len(bedny)
+            if bedny:
+                bedny_list = format_html_join(
+                    '',
+                    '<li><a href="{0}">#{1}</a> · hmotnost: {2} kg · tára: {3} kg · stav: {4}{5}</li>',
+                    (
+                        (
+                            bedna.get_admin_url(),
+                            bedna.cislo_bedny,
+                            fmt_decimal(bedna.hmotnost),
+                            fmt_decimal(bedna.tara),
+                            bedna.get_stav_bedny_display(),
+                            f' · pozice: {bedna.pozice.kod}' if bedna.pozice else ''
+                        )
+                        for bedna in bedny
+                    )
+                )
+            else:
+                bedny_list = format_html('<li><em>Žádné bedny</em></li>')
+
+            order_blocks.append(
+                format_html(
+                    '<li>'
+                    '<div class="kamion-structure__order-header">'
+                    '<strong><a href="{0}">{1}</a></strong>'
+                    '<span class="kamion-structure__order-meta"> · Ø {2} × {3} · předpis: {4} · bedny: {5}</span>'
+                    '</div>'
+                    '<ul class="kamion-structure__boxes">{6}</ul>'
+                    '</li>',
+                    zakazka.get_admin_url(),
+                    zakazka.artikl,
+                    fmt_decimal(zakazka.prumer),
+                    fmt_decimal(zakazka.delka),
+                    zakazka.predpis.nazev if zakazka.predpis else '–',
+                    len(bedny),
+                    bedny_list,
+                )
+            )
+
+        orders_html = format_html(
+            '<ul class="kamion-structure__orders">{}</ul>',
+            format_html_join('', '{}', ((block,) for block in order_blocks))
+        )
+        summary = _('Zobrazit strukturu kamionu ({orders} zakázek / {boxes} beden)').format(
+            orders=len(zakazky),
+            boxes=total_bedny,
+        )
+
+        return format_html(
+            '<details class="kamion-structure">'
+            '<summary>{0}</summary>'
+            '<div class="kamion-structure__content">'
+            '<style>'
+            '.kamion-structure__content ul{{margin:0;padding-left:1.2em;}}'
+            '.kamion-structure__order-header{{margin:0.25em 0;}}'
+            '.kamion-structure__orders>li{{margin-bottom:0.75em;}}'
+            '.kamion-structure__boxes{{margin-top:0.3em;}}'
+            '.kamion-structure__boxes li{{margin-bottom:0.2em;}}'
+            '</style>'
+            '{1}'
+            '</div>'
+            '</details>',
+            summary,
+            orders_html,
+        )
     
     def get_actions(self, request):
         """
