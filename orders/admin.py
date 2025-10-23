@@ -2,7 +2,7 @@ from django.contrib import admin, messages
 from django.contrib.auth.models import Permission
 from django.db import models, transaction
 from django.db.models import Case, When, Value, IntegerField, Prefetch
-from django.forms import TextInput, RadioSelect, ModelChoiceField
+from django.forms import TextInput, RadioSelect
 from django.forms.models import BaseInlineFormSet
 from django.utils.safestring import mark_safe
 from django.utils.translation import gettext_lazy as _
@@ -1445,18 +1445,18 @@ class BednaInline(admin.TabularInline):
                 for form in self_inner.forms:
                     bedna = form.instance
                     if bedna.pozastaveno and not request.user.has_perm('orders.change_pozastavena_bedna'):
-                        for fname, field in form.fields.items():
+                        for _, field in form.fields.items():
                             # Vizuální zvýraznění pozastavených polí
                             try:
                                 existing = field.widget.attrs.get('class', '')
                                 field.widget.attrs['class'] = (existing + ' paused-row').strip()
                             except Exception:
                                 pass
-                            # Stejná logika jako v BednaAdmin: všechna pole kromě ModelChoiceField (FK) vypnout
-                            not_model_choice = not isinstance(field, ModelChoiceField)
-                            if not_model_choice:
-                                field.required = False
-                                field.disabled = True
+                            # Hidden pole se přeskočí, jinak by zmizela hodnota ID bedny a nastala chyba při uložení
+                            if field.widget.is_hidden:
+                                continue
+                            field.required = False
+                            field.disabled = True
 
         return CustomFormset
     
@@ -2274,19 +2274,18 @@ class BednaAdmin(SimpleHistoryAdmin):
                 for form in self_inner.forms:
                     obj = form.instance
                     if obj.pozastaveno and not request.user.has_perm('orders.change_pozastavena_bedna'):
-                        for fname, field in form.fields.items():
+                        for _, field in form.fields.items():
                             # Vizuální zvýraznění pozastavených polí v changelistu
                             try:
                                 existing = field.widget.attrs.get('class', '')
                                 field.widget.attrs['class'] = (existing + ' paused-row').strip()
                             except Exception:
                                 pass
-                            # Zakáže editaci všech polí kromě modelových voleb (ModelChoiceField)
-                            not_model_choice = not isinstance(field, ModelChoiceField)
-
-                            if not_model_choice:
-                                field.required = False
-                                field.disabled = True
+                            # Hidden pole se přeskočí, jinak by zmizela hodnota ID bedny a nastala chyba při uložení
+                            if field.widget.is_hidden:
+                                continue
+                            field.required = False
+                            field.disabled = True
 
         return CustomFormset
     

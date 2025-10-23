@@ -7,8 +7,8 @@ textarea.paused-row,
 .paused-row input,
 .paused-row select,
 .paused-row textarea {
-  background-color: #ffe1e1 !important; /* soft yellow */
-  border-color: #f46f6f !important;
+  background-color: #ffecec !important; /* soft yellow */
+  border-color: #f78c8c !important;
 }
 
 /* Slightly dim labels next to paused fields */
