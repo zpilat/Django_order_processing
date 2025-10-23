@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', function () {
         'tisk_karet_kontroly_kvality_action',
         'tisk_karet_kontroly_kvality_zakazek_action',
         'tisk_karet_kontroly_kvality_kamionu_action',
+        'oznacit_rovna_se_action',
     ];
 
     // Najdi hlavní formulář v adminu podle id (nejbezpečnější)
