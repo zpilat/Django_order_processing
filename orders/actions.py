@@ -4,14 +4,18 @@ from django.http import HttpResponse
 from django.template.loader import render_to_string
 from django.shortcuts import render
 from django.db import transaction, IntegrityError, DataError
+from django.utils import timezone
 from django import forms
 from django.forms import formset_factory
 from django.template.response import TemplateResponse
 from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
+from django.contrib.staticfiles import finders
 
 import datetime
+from decimal import Decimal
 from weasyprint import HTML
+from weasyprint import CSS
 
 from .models import Zakazka, Bedna, Kamion, Zakaznik, Pozice
 from .utils import utilita_tisk_dokumentace, utilita_expedice_zakazek, utilita_kontrola_zakazek, utilita_tisk_dl_a_proforma_faktury
@@ -480,26 +484,88 @@ def oznacit_kriva_action(modeladmin, request, queryset):
     logger.info(f"Uživatel {request.user} změnil stav rovnání na KRIVA u {queryset.count()} beden.")
     return None
 
-@admin.action(description="Změna stavu rovnání na ROVNÁ SE")
+@admin.action(description="Přesun beden na rovnání (KŘIVÁ --> ROVNÁ SE)")
 def oznacit_rovna_se_action(modeladmin, request, queryset):
     """
     Změní stav rovnání vybraných beden z KRIVA na ROVNA_SE.
+    Vytiskne seznam beden k rovnání.
     """
-    # kontrola, zda jsou všechny bedny v querysetu ve stavu KRIVA
-    if queryset.exclude(rovnat=RovnaniChoice.KRIVA).exists():
-        logger.info(f"Uživatel {request.user} se pokusil změnit stav na ROVNA SE, ale některé bedny nejsou ve stavu KRIVA.")
+    bedny = list(queryset.select_related("zakazka__kamion_prijem__zakaznik"))
+    if not bedny:
+        messages.error(request, "Nebyla vybrána žádná bedna.")
+        logger.warning("Akce 'oznacit_rovna_se' byla spuštěna bez vybraných beden.")
+        return None
+
+    if any(bedna.rovnat != RovnaniChoice.KRIVA for bedna in bedny):
+        logger.info(
+            "Uživatel %s se pokusil změnit stav na ROVNA SE, ale alespoň jedna bedna není ve stavu KRIVA.",
+            request.user,
+        )
         modeladmin.message_user(request, "Některé vybrané bedny nejsou ve stavu KRIVA.", level=messages.ERROR)
         return None
 
-    with transaction.atomic():
-        for bedna in queryset:
-            if bedna.rovnat == RovnaniChoice.KRIVA:
+    try:
+        with transaction.atomic():
+            for bedna in bedny:
                 bedna.rovnat = RovnaniChoice.ROVNA_SE
                 bedna.save()
+        logger.info(
+            "Uživatel %s změnil stav rovnání na ROVNA SE u %s beden.",
+            request.user,
+            len(bedny),
+        )
+        modeladmin.message_user(request, f"Změněno: {len(bedny)} beden.", level=messages.SUCCESS)
 
-    messages.success(request, f"Změněno: {queryset.count()} beden.")
-    logger.info(f"Uživatel {request.user} změnil stav rovnání na ROVNA SE u {queryset.count()} beden.")
-    return None
+    except Exception as e:
+        logger.error(f"Chyba při změně stavu rovnání na ROVNA SE: {e}")
+        modeladmin.message_user(request, "Došlo k chybě při změně stavu rovnání.", level=messages.ERROR)
+        return None
+
+    generated_at = timezone.now()
+    user_last_name = ""
+    if request.user.is_authenticated:
+        user_last_name = (
+            request.user.last_name
+            or request.user.get_full_name()
+            or request.user.get_username()
+        )
+
+    total_weight = sum(
+        (bedna.hmotnost if bedna.hmotnost is not None else Decimal("0"))
+        for bedna in bedny
+    )
+    total_count = len(bedny)
+
+    context = {
+        "bedny": bedny,
+        "generated_at": generated_at,
+        "user_last_name": user_last_name,
+        "total_weight": total_weight,
+        "total_count": total_count,
+    }
+
+    html_path = "orders/seznam_beden_k_rovnani.html"
+    html_string = render_to_string(html_path, context)
+
+    stylesheets = []
+    css_path = finders.find('orders/css/pdf_shared.css')
+    if css_path:
+        stylesheets.append(CSS(filename=css_path))
+    else:
+        logger.warning("Nepodařilo se najít CSS 'orders/css/pdf_shared.css' pro tisk seznamu beden k rovnání.")
+
+    base_url = request.build_absolute_uri('/')
+    pdf_file = HTML(string=html_string, base_url=base_url).write_pdf(stylesheets=stylesheets)
+
+    filename = "seznam_beden_k_rovnani.pdf"
+    response = HttpResponse(pdf_file, content_type="application/pdf")
+    response['Content-Disposition'] = f'inline; filename={filename}'
+    logger.info(
+        "Uživatel %s tiskne seznam beden k rovnání (%s ks).",
+        request.user,
+        total_count,
+    )
+    return response
 
 @admin.action(description="Změna stavu rovnání na VYROVNANÁ")
 def oznacit_vyrovnana_action(modeladmin, request, queryset):

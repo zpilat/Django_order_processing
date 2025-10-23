@@ -3,7 +3,7 @@
 <html lang="cs">
 <head>
     <meta charset="UTF-8">
-    <title>Seznam beden k rovnání</title>
+    <title>Seznam beden pro převoz na rovnání</title>
     <link rel="stylesheet" href="{% static 'orders/css/pdf_shared.css' %}">
     <style>
         .header {
@@ -39,7 +39,7 @@
                     <th style="width: 20%;">Artikl</th>
                     <th style="width: 15%;">Rozměr</th>
                     <th style="width: 10%;">Celozávit</th>
-                    <th class="text-end" style="width: 15%;">Hmotnost netto [kg]</th>
+                    <th class="text-center" style="width: 15%;">Netto [kg]</th>
                 </tr>
             </thead>
             <tbody>
@@ -53,7 +53,7 @@
                     <td class="text-center">
                         {% if bedna.zakazka.celozavit %}ANO{% else %}NE{% endif %}
                     </td>
-                    <td class="text-end">
+                    <td class="text-center">
                         {% if bedna.hmotnost %}
                             {{ bedna.hmotnost|floatformat:0 }}
                         {% else %}-{% endif %}
@@ -67,12 +67,8 @@
             </tbody>
             <tfoot>
                 <tr>
-                    <td colspan="6" class="text-end fw-bold">Celkový počet beden</td>
-                    <td class="text-end fw-bold">{{ total_count }}</td>
-                </tr>
-                <tr>
-                    <td colspan="6" class="text-end fw-bold">Celková hmotnost netto [kg]</td>
-                    <td class="text-end fw-bold">{{ total_weight|floatformat:0 }}</td>
+                    <td colspan="6" class="fw-bold">Celková hmotnost netto [kg]</td>
+                    <td class="text-center fw-bold">{{ total_weight|floatformat:0 }}</td>
                 </tr>
             </tfoot>
         </table>
