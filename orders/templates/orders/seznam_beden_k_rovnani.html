@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <title>Seznam beden k rovnání</title>
+    <link rel="stylesheet" href="{% static 'orders/css/pdf_shared.css' %}">
+    <style>
+        .header {
+            margin-bottom: 1.5rem;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 1.6rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .meta {
+            font-size: 0.85rem;
+            color: #444;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="header text-center">
+            <h1>Seznam beden k rovnání</h1>
+            <p class="meta">
+                Vygenerováno: {{ generated_at|date:"d.m.Y H:i" }}
+                {% if user_last_name %}| Připravil: {{ user_last_name }}{% endif %}
+            </p>
+        </div>
+        <table class="table table-bordered table-striped align-middle">
+            <thead>
+                <tr>
+                    <th class="text-center" style="width: 5%;">#</th>
+                    <th style="width: 15%;">Číslo bedny</th>
+                    <th style="width: 20%;">Zákazník</th>
+                    <th style="width: 20%;">Artikl</th>
+                    <th style="width: 15%;">Rozměr</th>
+                    <th style="width: 10%;">Celozávit</th>
+                    <th class="text-end" style="width: 15%;">Hmotnost netto [kg]</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for bedna in bedny %}
+                <tr>
+                    <td class="text-center">{{ forloop.counter }}</td>
+                    <td>{{ bedna.cislo_bedny }}</td>
+                    <td>{{ bedna.zakazka.kamion_prijem.zakaznik.zkraceny_nazev }}</td>
+                    <td>{{ bedna.zakazka.artikl }}</td>
+                    <td>{{ bedna.zakazka.prumer }} x {{ bedna.zakazka.delka|floatformat:0 }}</td>
+                    <td class="text-center">
+                        {% if bedna.zakazka.celozavit %}ANO{% else %}NE{% endif %}
+                    </td>
+                    <td class="text-end">
+                        {% if bedna.hmotnost %}
+                            {{ bedna.hmotnost|floatformat:0 }}
+                        {% else %}-{% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center">Nebyla nalezena žádná bedna.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="6" class="text-end fw-bold">Celkový počet beden</td>
+                    <td class="text-end fw-bold">{{ total_count }}</td>
+                </tr>
+                <tr>
+                    <td colspan="6" class="text-end fw-bold">Celková hmotnost netto [kg]</td>
+                    <td class="text-end fw-bold">{{ total_weight|floatformat:0 }}</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</body>
+</html>
