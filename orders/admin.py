@@ -1445,18 +1445,27 @@ class BednaInline(admin.TabularInline):
                 for form in self_inner.forms:
                     bedna = form.instance
                     if bedna.pozastaveno and not request.user.has_perm('orders.change_pozastavena_bedna'):
-                        for _, field in form.fields.items():
+                        for field_name, field in form.fields.items():
                             # Vizuální zvýraznění pozastavených polí
                             try:
                                 existing = field.widget.attrs.get('class', '')
                                 field.widget.attrs['class'] = (existing + ' paused-row').strip()
                             except Exception:
                                 pass
+                            # Pole DELETE se dá disabled pouze pokud je bedna v stavu NEPRIJATO, protože dále v kódu se disablují i mimo stavy nepřijato
+                            if field_name == 'DELETE' and bedna.pk and bedna.stav_bedny != StavBednyChoice.NEPRIJATO:
+                                continue
                             # Hidden pole se přeskočí, jinak by zmizela hodnota ID bedny a nastala chyba při uložení
                             if field.widget.is_hidden:
                                 continue
                             field.required = False
                             field.disabled = True
+
+                    delete_field = form.fields.get('DELETE')
+                    if delete_field and bedna.pk and bedna.stav_bedny != StavBednyChoice.NEPRIJATO:
+                        delete_field.disabled = True
+                        delete_field.initial = False
+                        delete_field.help_text = _('Mazání je povoleno pouze pro bedny ve stavu NEPRIJATO.')
 
         return CustomFormset
     
