@@ -77,15 +77,16 @@
         <table class="table table-bordered border-black" style="width: 100%; table-layout: fixed;">
             <thead>
                 <tr class="text-center fw-bold fs-pdf-07">
-                    <td class="bg-body-secondary" style="width: 5%;">Pos.</td>
+                    <td class="bg-body-secondary" style="width: 4%;">Pos.</td>
                     <td class="bg-body-secondary" style="width: 10%;">Bestell-Nr.</td>
                     <td class="bg-body-secondary" style="width: 10%;">Artikel-Nr.</td>
-                    <td class="bg-body-secondary" style="width: 10%;">Abmess.</td>                  
+                    <td class="bg-body-secondary" style="width: 8%;">Abmess.</td>                  
                     <td class="bg-body-secondary" style="width: 30%;">Bezeichnung</td>                    
-                    <td class="bg-body-secondary" style="width: 8%;">Netto</td>
-                    <td class="bg-body-secondary" style="width: 9%;">Brutto</td>
+                    <td class="bg-body-secondary" style="width: 8%;">Netto kg</td>
+                    <td class="bg-body-secondary" style="width: 8%;">Brutto kg</td>
                     <td class="bg-body-secondary" style="width: 8%;">Behälter-Nr.</td>
-                    <td class="bg-body-secondary" style="width: 10%;">Richten</td>                 
+                    <td class="bg-body-secondary" style="width: 8%;">#</td>
+                    <td class="bg-body-secondary" style="width: 8%;">Richten</td>                 
                 </tr>
             </thead>
             <tbody>
@@ -97,9 +98,10 @@
                         <td>{{ bedna.zakazka.artikl }}</td>
                         <td>{{ zakazka.prumer }}x{{ zakazka.delka|floatformat:0 }}</td>                          
                         <td>{{ zakazka.popis }}</td>                            
-                        <td>{{ bedna.hmotnost }}kg</td>
-                        <td>{{ bedna.hmotnost_brutto }}kg</td>
+                        <td>{{ bedna.hmotnost }}</td>
+                        <td>{{ bedna.hmotnost_brutto }}</td>
                         <td>{{ bedna.behalter_nr }}</td>
+                        <td>{{ bedna.cislo_bedny }}</td>
                         <td>{% if bedna.rovnat == 'VY' %}gerichtet{% else %}--{% endif %}</td>                          
                     </tr>
                 {% endfor %}
