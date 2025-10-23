@@ -1435,6 +1435,7 @@ class BednaInline(admin.TabularInline):
     def get_formset(self, request, obj=None, **kwargs):
         """
         Přizpůsobení formsetu pro inline Bedna.
+        - Pokud je bedna pozastavena a uživatel má příslušná oprávnění, dojde pouze k vizuálnímu zvýraznění polí.
         - Pokud je bedna pozastavena a uživatel nemá oprávnění, zakáže se možnost změny polí.
         """
         Formset = super().get_formset(request, obj, **kwargs)
@@ -1444,7 +1445,7 @@ class BednaInline(admin.TabularInline):
                 super().__init__(*args, **kwargs)
                 for form in self_inner.forms:
                     bedna = form.instance
-                    if bedna.pozastaveno and not request.user.has_perm('orders.change_pozastavena_bedna'):
+                    if bedna.pozastaveno:
                         for field_name, field in form.fields.items():
                             # Vizuální zvýraznění pozastavených polí
                             try:
@@ -1452,14 +1453,16 @@ class BednaInline(admin.TabularInline):
                                 field.widget.attrs['class'] = (existing + ' paused-row').strip()
                             except Exception:
                                 pass
-                            # Pole DELETE se dá disabled pouze pokud je bedna v stavu NEPRIJATO, protože dále v kódu se disablují i mimo stavy nepřijato
-                            if field_name == 'DELETE' and bedna.pk and bedna.stav_bedny != StavBednyChoice.NEPRIJATO:
-                                continue
-                            # Hidden pole se přeskočí, jinak by zmizela hodnota ID bedny a nastala chyba při uložení
-                            if field.widget.is_hidden:
-                                continue
-                            field.required = False
-                            field.disabled = True
+                            if not request.user.has_perm('orders.change_pozastavena_bedna'):
+                                # Pole DELETE se dá disabled pouze pokud je bedna v stavu NEPRIJATO,
+                                # protože dále v kódu se disablují pole DELETE pro všechny bedny mimo stav NEPRIJATO
+                                if field_name == 'DELETE' and bedna.pk and bedna.stav_bedny != StavBednyChoice.NEPRIJATO:
+                                    continue
+                                # Hidden pole se přeskočí, jinak by zmizela hodnota ID bedny a nastala chyba při uložení
+                                if field.widget.is_hidden:
+                                    continue
+                                field.required = False
+                                field.disabled = True
 
                     delete_field = form.fields.get('DELETE')
                     if delete_field and bedna.pk and bedna.stav_bedny != StavBednyChoice.NEPRIJATO:
@@ -2273,6 +2276,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     def get_changelist_formset(self, request, **kwargs):
         """
         Vytvoří vlastní formset pro ChangeList, který zakáže editaci polí v závislosti na stavu bedny a oprávněních uživatele.
+        Pokud je bedna pozastavena a uživatel má příslušná oprávnění, dojde pouze k vizuálnímu zvýraznění polí.
         Pokud je bedna pozastavena a uživatel nemá příslušná oprávnění, zakáže se editace polí.
         """
         formset = super().get_changelist_formset(request, **kwargs)
@@ -2282,7 +2286,7 @@ class BednaAdmin(SimpleHistoryAdmin):
                 super().__init__(*args, **kwargs)
                 for form in self_inner.forms:
                     obj = form.instance
-                    if obj.pozastaveno and not request.user.has_perm('orders.change_pozastavena_bedna'):
+                    if obj.pozastaveno:
                         for _, field in form.fields.items():
                             # Vizuální zvýraznění pozastavených polí v changelistu
                             try:
@@ -2290,11 +2294,12 @@ class BednaAdmin(SimpleHistoryAdmin):
                                 field.widget.attrs['class'] = (existing + ' paused-row').strip()
                             except Exception:
                                 pass
-                            # Hidden pole se přeskočí, jinak by zmizela hodnota ID bedny a nastala chyba při uložení
-                            if field.widget.is_hidden:
-                                continue
-                            field.required = False
-                            field.disabled = True
+                            if not request.user.has_perm('orders.change_pozastavena_bedna'):
+                                # Hidden pole se přeskočí, jinak by zmizela hodnota ID bedny a nastala chyba při uložení
+                                if field.widget.is_hidden:
+                                    continue
+                                field.required = False
+                                field.disabled = True
 
         return CustomFormset
     
