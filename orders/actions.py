@@ -32,6 +32,51 @@ from .choices import (
 import logging
 logger = logging.getLogger('orders')
 
+
+def _abort_if_paused_bedny(modeladmin, request, queryset, action_label):
+    """Vrátí True, pokud výběr obsahuje pozastavené bedny a vypíše chybovou hlášku."""
+    paused_qs = queryset.filter(pozastaveno=True)
+    if paused_qs.exists():
+        paused_count = paused_qs.count()
+        logger.info(
+            f"Uživatel {request.user} se pokusil provést akci '{action_label}', ale výběr obsahuje {paused_count} pozastavených beden."
+        )
+        message = _(f"Akci \"{action_label}\" nelze provést, protože výběr obsahuje {paused_count} pozastavených beden.")
+        modeladmin.message_user(request, message, level=messages.ERROR)
+        return True
+    return False
+
+
+def _abort_if_zakazky_maji_pozastavene_bedny(modeladmin, request, queryset, action_label):
+    """Vrátí True, pokud vybrané zakázky obsahují pozastavené bedny."""
+    paused_qs = Bedna.objects.filter(zakazka__in=queryset, pozastaveno=True)
+    if paused_qs.exists():
+        paused_count = paused_qs.count()
+        zakazka_count = paused_qs.values("zakazka_id").distinct().count()
+        logger.info(
+            f"Uživatel {request.user} se pokusil provést akci '{action_label}', ale vybrané zakázky obsahují {paused_count} pozastavených beden ve {zakazka_count} zakázkách."
+        )
+        message = _(f"Akci \"{action_label}\" nelze provést, protože vybrané zakázky obsahují {paused_count} pozastavených beden (celkem {zakazka_count} zakázek).")
+        modeladmin.message_user(request, message, level=messages.ERROR)
+        return True
+    return False
+
+
+def _abort_if_kamiony_maji_pozastavene_bedny(modeladmin, request, queryset, action_label):
+    """Vrátí True, pokud vybrané kamiony obsahují zakázky s pozastavenými bednami."""
+    paused_qs = Bedna.objects.filter(zakazka__kamion_prijem__in=queryset, pozastaveno=True)
+    if paused_qs.exists():
+        paused_count = paused_qs.count()
+        kamion_count = paused_qs.values("zakazka__kamion_prijem_id").distinct().count()
+        logger.info(
+            f"Uživatel {request.user} se pokusil provést akci '{action_label}', ale vybrané kamiony obsahují {paused_count} pozastavených beden ve {kamion_count} kamionech."
+        )
+        message = _(f"Akci \"{action_label}\" nelze provést, protože vybrané kamiony obsahují {paused_count} pozastavených beden (celkem {kamion_count} kamionů).")
+        modeladmin.message_user(request, message, level=messages.ERROR)
+        return True
+    return False
+
+
 # Akce pro bedny:
 
 @admin.action(description="Vytisknout karty bedny")
@@ -88,6 +133,9 @@ def prijmout_bedny_action(modeladmin, request, queryset):
     - Úspěšné se přepnou do stavu PRIJATO ihned (bez globálního rollbacku).
     - Bedny, které nejsou ve stavu NEPRIJATO, jsou hlášeny jako chyba a ponechány beze změny.
     """
+    if _abort_if_paused_bedny(modeladmin, request, queryset, "Přijmout bedny na sklad"):
+        return None
+
     success = 0
     failures = 0
 
@@ -184,6 +232,9 @@ def oznacit_k_navezeni_action(modeladmin, request, queryset):
     1) GET: zobrazí formset s výběrem pozice pro každou vybranou bednu.
     2) POST (apply): validace kapacit + uložení (stav PRIJATO -> K_NAVEZENI a přiřazení pozice).
     """
+    if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna stavu na K_NAVEZENÍ"):
+        return None
+
     for bedna in queryset:
         if bedna.stav_bedny != StavBednyChoice.PRIJATO:
             logger.info(f"Uživatel {request.user} se pokusil změnit stav bedny {bedna}, ale ta není v stavu PRIJATO.")
@@ -195,6 +246,9 @@ def oznacit_k_navezeni_action(modeladmin, request, queryset):
     if request.method == "POST" and "apply" in request.POST:
         select_ids = request.POST.getlist(admin.helpers.ACTION_CHECKBOX_NAME)
         qs = Bedna.objects.filter(pk__in=select_ids)            
+        if _abort_if_paused_bedny(modeladmin, request, qs, "Změna stavu na K_NAVEZENÍ"):
+            return None
+
         initial = [
             {
                 "bedna_id": bedna.pk,
@@ -303,6 +357,9 @@ def oznacit_navezeno_action(modeladmin, request, queryset):
     """
     Změní stav vybraných beden z K_NAVEZENI na NAVEZENO.
     """
+    if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna stavu na NAVEZENO"):
+        return None
+
     # kontrola, zda jsou všechny bedny v querysetu ve stavu K_NAVEZENI
     if queryset.exclude(stav_bedny=StavBednyChoice.K_NAVEZENI).exists():
         logger.info(f"Uživatel {request.user} se pokusil změnit stav na NAVEZENO, ale některé bedny nejsou ve stavu K NAVEZENÍ.")
@@ -324,6 +381,9 @@ def vratit_bedny_do_stavu_prijato_action(modeladmin, request, queryset):
     """
     Vrátí vybrané bedny ze stavu K NAVEZENÍ do PŘIJATO.
     """
+    if _abort_if_paused_bedny(modeladmin, request, queryset, "Vrácení beden do stavu PŘIJATO"):
+        return None
+
     # kontrola, zda jsou všechny zakázky v querysetu ve stavu K_NAVEZENI
     if queryset.exclude(stav_bedny=StavBednyChoice.K_NAVEZENI).exists():
         logger.info(f"Uživatel {request.user} se pokusil vrátit bedny do stavu PŘIJATO, ale některé nejsou ve stavu K NAVEZENÍ.")
@@ -345,6 +405,9 @@ def oznacit_do_zpracovani_action(modeladmin, request, queryset):
     """
     Změní stav vybraných beden z NAVEZENO na DO_ZPRACOVANI.
     """
+    if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna stavu na DO ZPRACOVÁNÍ"):
+        return None
+
     # kontrola, zda jsou všechny bedny v querysetu ve stavu NAVEZENO
     if queryset.exclude(stav_bedny=StavBednyChoice.NAVEZENO).exists():
         logger.info(f"Uživatel {request.user} se pokusil změnit stav na DO ZPRACOVÁNÍ, ale některé bedny nejsou ve stavu NAVEZENO.")
@@ -366,6 +429,9 @@ def oznacit_zakaleno_action(modeladmin, request, queryset):
     """
     Změní stav vybraných beden z DO ZPRACOVÁNÍ na ZAKALENO.
     """
+    if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna stavu na ZAKALENO"):
+        return None
+
     # kontrola, zda jsou všechny bedny v querysetu ve stavu DO_ZPRACOVANI
     if queryset.exclude(stav_bedny=StavBednyChoice.DO_ZPRACOVANI).exists():
         logger.info(f"Uživatel {request.user} se pokusil změnit stav na ZAKALENO, ale některé bedny nejsou ve stavu DO ZPRACOVÁNÍ.")
@@ -387,6 +453,9 @@ def oznacit_zkontrolovano_action(modeladmin, request, queryset):
     """
     Změní stav vybraných beden ze ZAKALENO na ZKONTROLOVANO.
     """
+    if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna stavu na ZKONTROLOVÁNO"):
+        return None
+
     # kontrola, zda jsou všechny bedny v querysetu ve stavu NAVEZENO
     if queryset.exclude(stav_bedny=StavBednyChoice.ZAKALENO).exists():
         logger.info(f"Uživatel {request.user} se pokusil změnit stav na ZKONTROLOVANO, ale některé bedny nejsou ve stavu ZAKALENO.")
@@ -409,6 +478,9 @@ def oznacit_k_expedici_action(modeladmin, request, queryset):
     """
     Změní stav vybraných beden z NAVEZENO, DO_ZPRACOVANI, ZAKALENO nebo ZKONTROLOVANO na K_EXPEDICI.
     """
+    if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna stavu na K EXPEDICI"):
+        return None
+
     # kontrola, zda jsou všechny bedny v querysetu ve stavu NAVEZENO, DO_ZPRACOVANI, ZAKALENO nebo ZKONTROLOVANO
     if queryset.exclude(stav_bedny__in=STAV_BEDNY_ROZPRACOVANOST).exists():
         logger.info(f"Uživatel {request.user} se pokusil změnit stav na K_EXPEDICI, ale některé bedny nejsou ve stavu NAVEZENO, DO_ZPRACOVANI, ZAKALENO nebo ZKONTROLOVANO.")
@@ -447,6 +519,9 @@ def oznacit_rovna_action(modeladmin, request, queryset):
     """
     Změní stav rovnání vybraných beden z NEZADANO na ROVNA.
     """
+    if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna rovnání na ROVNÁ"):
+        return None
+
     # kontrola, zda jsou všechny bedny v querysetu ve stavu NEZADANO
     if queryset.exclude(rovnat=RovnaniChoice.NEZADANO).exists():
         logger.info(f"Uživatel {request.user} se pokusil změnit stav na ROVNA, ale některé bedny nejsou ve stavu NEZADANO.")
@@ -468,6 +543,9 @@ def oznacit_kriva_action(modeladmin, request, queryset):
     """
     Změní stav rovnání vybraných beden z NEZADANO na KRIVA.
     """
+    if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna rovnání na KŘIVÁ"):
+        return None
+
     # kontrola, zda jsou všechny bedny v querysetu ve stavu NEZADANO
     if queryset.exclude(rovnat=RovnaniChoice.NEZADANO).exists():
         logger.info(f"Uživatel {request.user} se pokusil změnit stav na KRIVA, ale některé bedny nejsou ve stavu NEZADANO.")
@@ -490,6 +568,9 @@ def oznacit_rovna_se_action(modeladmin, request, queryset):
     Změní stav rovnání vybraných beden z KRIVA na ROVNA_SE.
     Vytiskne seznam beden k rovnání.
     """
+    if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna rovnání na ROVNÁ SE"):
+        return None
+
     bedny = list(queryset.select_related("zakazka__kamion_prijem__zakaznik"))
     if not bedny:
         messages.error(request, "Nebyla vybrána žádná bedna.")
@@ -572,6 +653,9 @@ def oznacit_vyrovnana_action(modeladmin, request, queryset):
     """
     Změní stav rovnání vybraných beden z ROVNA_SE na VYROVNANA.
     """
+    if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna rovnání na VYROVNANÁ"):
+        return None
+
     # kontrola, zda jsou všechny bedny v querysetu ve stavu ROVNA_SE
     if queryset.exclude(rovnat=RovnaniChoice.ROVNA_SE).exists():
         logger.info(f"Uživatel {request.user} se pokusil změnit stav na VYROVNANA, ale některé bedny nejsou ve stavu ROVNA_SE.")
@@ -593,6 +677,9 @@ def oznacit_cista_action(modeladmin, request, queryset):
     """
     Změní stav tryskání vybraných beden z NEZADANO na CISTA.
     """
+    if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna tryskání na ČISTÁ"):
+        return None
+
     # kontrola, zda jsou všechny bedny v querysetu ve stavu NEZADANO
     if queryset.exclude(tryskat=TryskaniChoice.NEZADANO).exists():
         logger.info(f"Uživatel {request.user} se pokusil změnit stav tryskání na CISTA, ale některé bedny nejsou ve stavu NEZADANO.")
@@ -614,6 +701,9 @@ def oznacit_spinava_action(modeladmin, request, queryset):
     """
     Změní stav tryskání vybraných beden z NEZADANO na SPINAVA.
     """
+    if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna tryskání na ŠPINAVÁ"):
+        return None
+
     # kontrola, zda jsou všechny bedny v querysetu ve stavu NEZADANO
     if queryset.exclude(tryskat=TryskaniChoice.NEZADANO).exists():
         logger.info(f"Uživatel {request.user} se pokusil změnit stav tryskání na SPINAVA, ale některé bedny nejsou ve stavu NEZADANO.")
@@ -635,6 +725,9 @@ def oznacit_otryskana_action(modeladmin, request, queryset):
     """
     Změní stav tryskání vybraných beden ze SPINAVA na OTRYSKANA.
     """
+    if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna tryskání na OTRYSKANÁ"):
+        return None
+
     # kontrola, zda jsou všechny bedny v querysetu ve stavu SPINAVA
     if queryset.exclude(tryskat=TryskaniChoice.SPINAVA).exists():
         logger.info(f"Uživatel {request.user} se pokusil změnit stav tryskání na OTRYSKANÁ, ale některé bedny nejsou ve stavu SPINAVA.")
@@ -668,6 +761,9 @@ def prijmout_zakazku_action(modeladmin, request, queryset):
     Jednotlivé zakázky se zpracují nezávisle; pokud u některé validace selže, přeskočí se a pokračuje se další.
     """
     if not queryset.exists():
+        return None
+
+    if _abort_if_zakazky_maji_pozastavene_bedny(modeladmin, request, queryset, "Přijmout vybrané zakázky na sklad"):
         return None
     
     prijato_count = 0
@@ -778,6 +874,9 @@ def expedice_zakazek_action(modeladmin, request, queryset):
     if not queryset.exists():
         return None
 
+    if _abort_if_zakazky_maji_pozastavene_bedny(modeladmin, request, queryset, "Expedice zakázek do nového kamionu"):
+        return None
+
     utilita_kontrola_zakazek(modeladmin, request, queryset)
 
     zakaznici = Zakaznik.objects.filter(kamiony__zakazky_prijem__in=queryset).distinct()
@@ -829,6 +928,9 @@ def expedice_zakazek_kamion_action(modeladmin, request, queryset):
         modeladmin.message_user(request, "Všechny vybrané zakázky musí patřit jednomu zákazníkovi.", level=messages.ERROR)
         return
     
+    if _abort_if_zakazky_maji_pozastavene_bedny(modeladmin, request, queryset, "Expedice zakázek do existujícího kamionu"):
+        return None
+
     utilita_kontrola_zakazek(modeladmin, request, queryset)
 
     zakaznik_id = zakaznici[0]
@@ -994,6 +1096,9 @@ def prijmout_kamion_action(modeladmin, request, queryset):
     if kamion.prijem_vydej != KamionChoice.PRIJEM:
         logger.info(f"Uživatel {request.user} se pokusil přijmout kamion {kamion.cislo_dl}, ale není to kamion s příznakem příjem.")
         modeladmin.message_user(request, "Přijmout kamion je možné pouze u kamionů příjem.", level=messages.ERROR)
+        return
+
+    if _abort_if_kamiony_maji_pozastavene_bedny(modeladmin, request, queryset, "Přijmout kamion na sklad"):
         return
     # Zkontroluje, zda kamion obsahuje aspoň jednu bednu ve stavu NEPRIJATO
     if not Bedna.objects.filter(zakazka__kamion_prijem=kamion, stav_bedny=StavBednyChoice.NEPRIJATO).exists():
