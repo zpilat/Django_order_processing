@@ -38,7 +38,9 @@
                   <td>{{ bedna.cislo_bedny }}</td>
                   <td>{{ zakazka_group.zakazka.prumer }} x {{ zakazka_group.zakazka.delka }}</td>
                   <td>{{ zakazka_group.zakazka.popis }}</td>
-                  <td>{{ bedna.poznamka_k_navezeni|default:"" }}</td>
+                  {% if forloop.first %}
+                    <td rowspan="{{ zakazka_group.bedny|length }}">{{ bedna.poznamka_k_navezeni|default:"vše" }}</td>
+                  {% endif %}
                 </tr>
               {% endfor %}
             {% endfor %}
