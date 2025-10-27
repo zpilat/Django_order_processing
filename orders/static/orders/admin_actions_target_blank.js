@@ -16,11 +16,17 @@ document.addEventListener('DOMContentLoaded', function () {
     const actionForm = document.getElementById('changelist-form');
     if (!actionForm) return;
 
-    actionForm.addEventListener('submit', function(e) {
-        const actionSelect = actionForm.querySelector('select[name="action"]');
-        if (!actionSelect) return;
+    actionForm.addEventListener('submit', function() {
+        const actionSelects = actionForm.querySelectorAll('select[name="action"]');
+        if (!actionSelects.length) return;
 
-        const selectedAction = actionSelect.value;
+        let selectedAction = '';
+        actionSelects.forEach(select => {
+            if (select && select.value && select.value !== '__model__' && select.value !== '') {
+                selectedAction = select.value;
+            }
+        });
+
         if (actionsTargetBlank.includes(selectedAction)) {
             actionForm.setAttribute('target', '_blank');
         } else {
