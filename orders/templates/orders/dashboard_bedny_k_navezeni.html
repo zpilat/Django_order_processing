@@ -3,6 +3,17 @@
 {% block header %}{% endblock%}
 
 {% block content %}
+  {# Flash messages (PRG) #}
+  {% if messages %}
+    <div class="mt-2">
+      {% for message in messages %}
+        <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
   <div id="dashboard-content"
        hx-get="{% url 'dashboard_bedny_k_navezeni' %}"
        hx-trigger="every 60m"

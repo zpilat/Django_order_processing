@@ -511,6 +511,30 @@ class Pozice(models.Model):
         return round((self.pocet_beden / self.kapacita) * 100, 1)
 
 
+class PoziceZakazkaOrder(models.Model):
+    """
+    Ukládá preferované umístění a pořadí zakázky v rámci konkrétní pozice
+    pro potřeby řazení v dashboardu "Bedny k navezení" a tisku.
+
+    Unikátní pro dvojici (pozice, zakazka).
+    """
+    pozice = models.ForeignKey('Pozice', on_delete=models.CASCADE, related_name='zakazky_poradi')
+    zakazka = models.ForeignKey('Zakazka', on_delete=models.CASCADE, related_name='pozice_poradi')
+    poradi = models.PositiveIntegerField(default=1, verbose_name='Pořadí v pozici')
+
+    class Meta:
+        verbose_name = 'Pořadí zakázky v pozici'
+        verbose_name_plural = 'Pořadí zakázek v pozici'
+        constraints = [
+            models.UniqueConstraint(fields=['pozice', 'zakazka'], name='uniq_pozice_zakazka'),
+            models.UniqueConstraint(fields=['pozice', 'poradi'], name='uniq_pozice_poradi'),
+        ]
+        ordering = ['pozice__kod', 'poradi', 'zakazka_id']
+
+    def __str__(self):
+        return f"{self.pozice.kod if self.pozice_id else '?'} – {self.zakazka_id}: #{self.poradi}"
+
+
 hmotnost_validator = MinValueValidator(Decimal('0.0'), message='Hmotnost a tára musí být kladné číslo.')
 
 class Bedna(models.Model):

@@ -9,9 +9,11 @@ from django.urls import reverse_lazy
 from django.db.models import Q, Sum, Count, F
 from django.utils.translation import gettext_lazy as _
 import django.utils.timezone as timezone
+from django.db import transaction
+from django.contrib import messages
 
 from .utils import get_verbose_name_for_column
-from .models import Bedna, Zakazka, Kamion, Zakaznik, TypHlavy, Predpis, Odberatel, Cena
+from .models import Bedna, Zakazka, Kamion, Zakaznik, TypHlavy, Predpis, Odberatel, Cena, PoziceZakazkaOrder
 from .choices import  StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice, STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM
 from weasyprint import HTML
 
@@ -194,6 +196,10 @@ def _get_bedny_k_navezeni_groups():
 
     groups = []
     pozice_map = {}
+    # Načti existující mapu pořadí pro (pozice, zakazka)
+    order_map = {}
+    for pzo in PoziceZakazkaOrder.objects.all():
+        order_map[(pzo.pozice_id, pzo.zakazka_id)] = pzo.poradi
 
     for bedna in qs:
         pozice_kod = bedna.pozice.kod if bedna.pozice else None
@@ -210,11 +216,24 @@ def _get_bedny_k_navezeni_groups():
         # Najde nebo vytvoří podskupinu pro zakázku
         zakazka_group = next((z for z in pozice_group['zakazky_group'] if z['zakazka'].id == zakazka_id), None)
         if not zakazka_group:
-            zakazka_group = {'zakazka': bedna.zakazka, 'bedny': []}
+            # Získání pořadí z mapy, případně default 0
+            poradi = order_map.get((bedna.pozice_id, zakazka_id), 0)
+            zakazka_group = {
+                'zakazka': bedna.zakazka,
+                'bedny': [],
+                'poradi': poradi,
+                'pozice_id': bedna.pozice_id,
+            }
             pozice_group['zakazky_group'].append(zakazka_group)
 
         # Přidá bednu do správné zakázky
         zakazka_group['bedny'].append(bedna)
+
+    # Seřadí zakázky v rámci každé pozice dle pořadí
+    for pozice_group in groups:
+        pozice_group['zakazky_group'].sort(
+            key=lambda z: (z.get('poradi', 0), z['zakazka'].id)
+        )
 
     return groups
 
@@ -224,9 +243,88 @@ def dashboard_bedny_k_navezeni_view(request):
     """
     Zobrazí všechny bedny se stavem K_NAVEZENI, seskupené podle pozice a zakázky.
 
-    Sloupce: číslo bedny, rozměr (průměr × délka), popis, poznámka.
+    Sloupce: artikl, číslo bedny, rozměr (průměr × délka), popis, poznámka.
     Seskupeno podle pozice (kód pozice), setříděno podle pozice a čísla bedny.
     """
+    # Umožní aktualizaci pořadí pro konkrétní zakázku v pozici
+    if request.method == 'POST':
+        try:
+            pozice_id = int(request.POST.get('pozice_id'))
+            zakazka_id = int(request.POST.get('zakazka_id'))
+        except (TypeError, ValueError):
+            pozice_id = zakazka_id = None
+        move = (request.POST.get('move') or '').lower()
+        poradi = request.POST.get('poradi')
+        try:
+            poradi = int(poradi) if poradi is not None and poradi != '' else 0
+        except ValueError:
+            poradi = 0
+
+        if pozice_id and zakazka_id:
+            # Zajistí unikátní pořadí v rámci pozice: dvoufázově přenastaví pořadí, aby se předešlo kolizím UNIQUE(pozice, poradi)
+            with transaction.atomic():
+                # Zamkni všechny záznamy v dané pozici a pracuj nad snapshotem
+                qs = list(
+                    PoziceZakazkaOrder.objects
+                    .select_for_update()
+                    .filter(pozice_id=pozice_id)
+                    .order_by('poradi', 'zakazka_id')
+                )
+
+                # Spočti cílovou pozici (1-based)
+                if move in ('up', 'down'):
+                    n = len(qs)
+                    cur_idx = next((i for i, p in enumerate(qs) if p.zakazka_id == zakazka_id), None)
+                    if cur_idx is None:
+                        poradi = n + 1  # neexistuje -> vlož na konec
+                    else:
+                        if move == 'up' and cur_idx > 0:
+                            poradi = cur_idx  # posun o 1 nahoru
+                        elif move == 'down' and cur_idx < n - 1:
+                            poradi = cur_idx + 2  # posun o 1 dolů
+                        else:
+                            poradi = cur_idx + 1  # bez změny (okraj)
+
+                # Dvoufázové přenastavení pro eliminaci kolizí:
+                # 1) dočasně posuň všechna existující pořadí mimo rozsah (např. +1000)
+                PoziceZakazkaOrder.objects.filter(pozice_id=pozice_id).update(poradi=F('poradi') + 1000)
+
+                # 2) sestav nové pořadí bez kolizí a přepiš 1..M
+                qs_others = [p for p in qs if p.zakazka_id != zakazka_id]
+                count = len(qs_others)
+                desired = poradi if poradi and poradi > 0 else (count + 1)
+                if desired > count + 1:
+                    desired = count + 1
+                if desired < 1:
+                    desired = 1
+
+                new_order = []
+                inserted = False
+                for idx, p in enumerate(qs_others, start=1):
+                    if not inserted and idx == desired:
+                        new_order.append(('CURRENT', zakazka_id))
+                        inserted = True
+                    new_order.append((p.pk, p.zakazka_id))
+                if not inserted:
+                    new_order.append(('CURRENT', zakazka_id))
+
+                pos = 1
+                for pk, z_id in new_order:
+                    if pk == 'CURRENT':
+                        PoziceZakazkaOrder.objects.update_or_create(
+                            pozice_id=pozice_id,
+                            zakazka_id=zakazka_id,
+                            defaults={'poradi': pos}
+                        )
+                    else:
+                        PoziceZakazkaOrder.objects.filter(pk=pk).update(poradi=pos)
+                    pos += 1
+            messages.success(request, "Pořadí bylo upraveno.")
+            return redirect('dashboard_bedny_k_navezeni')
+
+        # I při neplatném POSTu přesměruj zpět (PRG), ať se neodesílá formulář znovu po refreshi
+        return redirect('dashboard_bedny_k_navezeni')
+
     context = {
         'groups': _get_bedny_k_navezeni_groups(),
         'db_table': 'bedny_k_navezeni',

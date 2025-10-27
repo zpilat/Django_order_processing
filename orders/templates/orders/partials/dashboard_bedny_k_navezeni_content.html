@@ -26,6 +26,7 @@
               <th style="background-color: #214290; color: #ffde17;">Poznámka k navezení</th>
             </tr>          
             {% for zakazka_group in group.zakazky_group %}
+              {% with zg_index=forloop.counter0 zg_last=forloop.last %}
               {% for bedna in zakazka_group.bedny %}
                 {% if forloop.first %}
                   <tr style="border-top: 2px solid #214290;">
@@ -33,7 +34,33 @@
                   <tr>
                 {% endif %}
                   {% if forloop.first %}
-                    <td rowspan="{{ zakazka_group.bedny|length }}">{{ zakazka_group.zakazka.artikl }}</td>
+                    <td rowspan="{{ zakazka_group.bedny|length }}">
+                      <div class="d-flex flex-column align-items-start gap-1">
+                        <div class="fw-bold">{{ zakazka_group.zakazka.artikl }}</div>
+                        <div class="d-flex align-items-center gap-1">
+                          <!-- Pro ladění zobrazení aktuálního pořadí v pozici -->
+                          <span class="text-muted">{{ zakazka_group.poradi|default:0 }}</span>
+                          {% if zg_index > 0 %}
+                          <form method="post" action="{% url 'dashboard_bedny_k_navezeni' %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="pozice_id" value="{{ zakazka_group.pozice_id }}" />
+                            <input type="hidden" name="zakazka_id" value="{{ zakazka_group.zakazka.id }}" />
+                            <input type="hidden" name="move" value="up" />
+                            <button type="submit" class="btn btn-sm btn-outline-primary" title="Posunout výš">▲</button>
+                          </form>
+                          {% endif %}
+                          {% if not zg_last %}
+                          <form method="post" action="{% url 'dashboard_bedny_k_navezeni' %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="pozice_id" value="{{ zakazka_group.pozice_id }}" />
+                            <input type="hidden" name="zakazka_id" value="{{ zakazka_group.zakazka.id }}" />
+                            <input type="hidden" name="move" value="down" />
+                            <button type="submit" class="btn btn-sm btn-outline-primary" title="Posunout níž">▼</button>
+                          </form>
+                          {% endif %}
+                        </div>
+                      </div>
+                    </td>
                   {% endif %}
                   <td>{{ bedna.cislo_bedny }}</td>
                   <td>{{ zakazka_group.zakazka.prumer }} x {{ zakazka_group.zakazka.delka }}</td>
@@ -43,6 +70,7 @@
                   {% endif %}
                 </tr>
               {% endfor %}
+              {% endwith %}
             {% endfor %}
           {% endfor %}
         {% else %}
