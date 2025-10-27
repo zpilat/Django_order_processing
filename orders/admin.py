@@ -351,7 +351,7 @@ class KamionAdmin(SimpleHistoryAdmin):
     history_list_per_page = 20
 
     class Media:
-        js = ('orders/admin_actions_target_blank.js',)
+        js = ('orders/js/admin_actions_target_blank.js',)
 
     def get_inlines(self, request, obj):
         """
@@ -1520,9 +1520,9 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
 
     class Media:
         js = (
-            'orders/zakazky_hmotnost_sum.js',
-            'orders/admin_actions_target_blank.js',
-            'orders/changelist_dirty_guard.js',
+            'orders/js/zakazky_hmotnost_sum.js',
+            'orders/js/admin_actions_target_blank.js',
+            'orders/js/changelist_dirty_guard.js',
             )
         css = {
             'all': ('orders/css/admin_paused_rows.css',)
@@ -1984,9 +1984,9 @@ class BednaAdmin(SimpleHistoryAdmin):
 
     class Media:
         js = (
-            'orders/admin_actions_target_blank.js',
-            'orders/changelist_dirty_guard.js',
-            'orders/admin_bedna_group_separator.js',
+            'orders/js/admin_actions_target_blank.js',
+            'orders/js/changelist_dirty_guard.js',
+            'orders/js/admin_bedna_group_separator.js',
         )
         css = {
             'all': ('orders/css/admin_paused_rows.css',)
@@ -2708,7 +2708,7 @@ class CenaAdmin(SimpleHistoryAdmin):
     }    
 
     class Media:
-        js = ('orders/changelist_dirty_guard.js',)
+        js = ('orders/js/changelist_dirty_guard.js',)
 
 
     @admin.display(description='Předpisy', ordering='predpis__nazev', empty_value='-')

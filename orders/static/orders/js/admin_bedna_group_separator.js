@@ -20,7 +20,7 @@
       return;
     }
 
-    var lastZakazkaText = null;
+    var lastGroupKey = null;
     rows.forEach(function (row, index) {
       var zakazkaCell = row.querySelector("td.field-zakazka_link");
       if (!zakazkaCell) {
@@ -28,15 +28,18 @@
       }
 
       var currentZakazkaText = zakazkaCell.textContent.trim();
+      var kamionCell = row.querySelector("td.field-kamion_prijem_link");
+      var currentKamionText = kamionCell ? kamionCell.textContent.trim() : "";
+      var currentGroupKey = currentZakazkaText + "||" + currentKamionText;
 
       if (index === 0) {
-        lastZakazkaText = currentZakazkaText;
+        lastGroupKey = currentGroupKey;
         return;
       }
 
-      if (currentZakazkaText !== lastZakazkaText) {
+      if (currentGroupKey !== lastGroupKey) {
         row.classList.add("bedna-group-separator");
-        lastZakazkaText = currentZakazkaText;
+        lastGroupKey = currentGroupKey;
       }
     });
   }

@@ -5,7 +5,7 @@
   <meta charset="utf-8">
   <title>Bedny k navezení – tisk</title>
   <style>
-    @page { size: A4 landscape; margin: 12mm; }
+    @page { size: A4 portrait; margin: 12mm; }
     :root {
       --primary: #7c7c7cff;
       --accent: #ffffffff;
@@ -21,74 +21,74 @@
     thead th { background: var(--accent); color: var(--primary); font-size: 14px; border: 1px solid var(--border); padding: 6px 8px; }
     tbody th { background: var(--accent); color: var(--primary); text-align: left; border: 1px solid var(--border); padding: 6px 8px; }
     td { border: 1px solid var(--border); padding: 6px 8px; font-size: 12px; }
-    .subhead th { background: var(--primary); color: var(--accent); text-align: center; }
-    .spacer { height: 6px; }
+    .pozice-cell { background: var(--primary); color: var(--accent); font-weight: 600; text-align: center; }
     .text-center { text-align: center; }
-    .border-top { border-top: 2px solid var(--primary); }
+    tr.border-top td,
+    tr.border-top th { border-top: 1px solid var(--primary); }
+    tr.border-group-top td,
+    tr.border-group-top th { border-top: 2px solid var(--text); }
 
-    /* Zabraň nepěkným lomům uvnitř tabulek/řádků */
-    table, tr, td, th { break-inside: avoid; page-break-inside: avoid; }
-    /* Drž tabulku skupiny pohromadě, zalom až když se nevejde */
-    .group-table { break-inside: avoid; page-break-inside: avoid; }
+    /* Zabrání nevhodnému lámání uvnitř jedné zakázky */
+    tbody.zakazka-group { break-inside: avoid; page-break-inside: avoid; }
 
     @media screen {
-      body { padding: 12px; }
+      body { padding: 6px; }
     }
   </style>
 </head>
 <body>
+  <header>
+    <h4 class="text-center">Přehled beden k navezení vygenerován: {{ current_time|date:"d.m.Y H:i" }}</h4>
+  </header>
   {% if groups %}
-    {% for group in groups %}
-      <table class="group-table">
-        <tbody>
-          <tr>
-            <th colspan="7">NA POZICI {{ group.pozice }}</th>
-          </tr>
-          <tr class="subhead">
-            <th>Artikl</th>
-            <th>Zákazník</th>
-            <th>Č. bedny</th>
-            <th>Č.b. zák.</th>
-            <th>Rozměr</th>
-            <th>Popis</th>
-            <th>Pozn. k navezení</th>
-          </tr>
-          {% for zakazka_group in group.zakazky_group %}
-            {% for bedna in zakazka_group.bedny %}
-              {% if forloop.first %}
-                <tr class="border-top">
-              {% else %}
-                <tr>
-              {% endif %}
-                  {% if forloop.first %}
-                    <td rowspan="{{ zakazka_group.bedny|length }}">{{ zakazka_group.zakazka.artikl }}</td>
-                    <td rowspan="{{ zakazka_group.bedny|length }}">{{ zakazka_group.zakazka.kamion_prijem.zakaznik.zkraceny_nazev }}</td>
-                  {% endif %}
-                  <td>{{ bedna.cislo_bedny }}</td>
-                  <td>{{ bedna.behalter_nr }}</td>
-                  {% if forloop.first %}
-                    <td rowspan="{{ zakazka_group.bedny|length }}">{{ zakazka_group.zakazka.prumer }} x {{ zakazka_group.zakazka.delka }}</td>
-                    <td rowspan="{{ zakazka_group.bedny|length }}">{{ zakazka_group.zakazka.popis }}</td>
-                  {% endif %}                  
-                  <td>{{ bedna.poznamka_k_navezeni|default:"" }}</td>
-                </tr>
-            {% endfor %}
-          {% endfor %}
+    <table class="group-table">
+      <thead>
+        <tr class="text-center">
+          <th>Pozice</th>
+          <th>Artikl</th>
+          <th>Zák.</th>
+          <th>Rozměr</th>
+          <th>Pozn. k navezení</th>
+          <th>Č. bedny</th>
+          <th>Navezeno?</th>
+        </tr>
+      </thead>
+      {% for group in groups %}
+        <tbody class="group-body">
+          <tr class="border-group-top"></tr>
         </tbody>
-      </table>
-    {% endfor %}
+        {% for zakazka_group in group.zakazky_group %}
+          {% with bedny_list=zakazka_group.bedny %}
+            <tbody class="zakazka-group">
+              {% for bedna in bedny_list %}
+                <tr class="text-center{% if forloop.first %} border-top{% endif %}">
+                  {% if forloop.first %}
+                    <td rowspan="{{ bedny_list|length }}" style="font-weight: bold; font-size: 14px;">{{ group.pozice|default:"-" }}</td>
+                    <td rowspan="{{ bedny_list|length }}" style="font-weight: bold; font-size: 14px;">{{ zakazka_group.zakazka.artikl }}</td>
+                    <td rowspan="{{ bedny_list|length }}">{{ zakazka_group.zakazka.kamion_prijem.zakaznik.zkratka }}</td>
+                    <td rowspan="{{ bedny_list|length }}">{{ zakazka_group.zakazka.prumer }} x {{ zakazka_group.zakazka.delka }}</td>
+                    <td rowspan="{{ bedny_list|length }}" class="text-center" style="font-weight: bold;">{{ bedna.poznamka_k_navezeni|default:"vše" }}</td>
+                    <td style="background: var(--border);"><span style="font-weight: bold;">{{ bedna.cislo_bedny }}</span>{% if bedna.behalter_nr %} ({{ bedna.behalter_nr }}){% endif %}</td>
+                    <td></td>                  
+                  {% else %}
+                    <td><span style="font-weight: bold;">{{ bedna.cislo_bedny }}</span>{% if bedna.behalter_nr %} ({{ bedna.behalter_nr }}){% endif %}</td>
+                    <td></td>     
+                  {% endif %}             
+                </tr>
+              {% endfor %}
+            </tbody>
+          {% endwith %}
+        {% endfor %}
+      {% endfor %}
+    </table>
   {% else %}
     <table>
       <tbody>
         <tr>
-          <th colspan="5" class="text-center">Žádné bedny ve stavu K_NAVEZENI.</th>
+          <th colspan="8" class="text-center">Žádné bedny ve stavu K_NAVEZENI.</th>
         </tr>
       </tbody>
     </table>
   {% endif %}
-  <br>
-  <footer>
-    <div class="meta">Přehled beden k navezení vygenerován: {{ current_time|date:"d.m.Y H:i" }}</div>
-  </footer>
 </body>
 </html>
