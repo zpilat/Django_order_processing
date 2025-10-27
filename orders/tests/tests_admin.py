@@ -86,7 +86,7 @@ class KamionAdminTests(AdminBase):
         self.assertIn('odberatel', fields_edit)
 
         rof_add = self.admin.get_readonly_fields(self.get_request(), None)
-        self.assertEqual(rof_add, ['prijem_vydej', 'poradove_cislo'])
+        self.assertEqual(rof_add, ['prijem_vydej', 'poradove_cislo', 'get_struktura_kamionu'])
         rof_edit = self.admin.get_readonly_fields(self.get_request(), self.kamion)
         self.assertIn('zakaznik', rof_edit)
 
@@ -622,8 +622,11 @@ class BednaInlineGetFieldsTests(AdminBase):
         Formset = self.inline.get_formset(req, zakazka)
         fs = Formset(queryset=Bedna.objects.filter(id=bedna.id), instance=zakazka)
         form = fs.forms[0]
-        for field in form.fields:
-            self.assertTrue(form.fields[field].disabled)
+        # Všechny ne-skrývané widgety mají být disabled, hidden pole (např. id) musí zůstat aktivní kvůli uložení
+        for name, field in form.fields.items():
+            if getattr(field.widget, 'is_hidden', False):
+                continue
+            self.assertTrue(field.disabled, msg=f"Field '{name}' should be disabled for paused bedna without permission")
 
         req = self.factory.get('/')
         req.user = user
@@ -632,8 +635,10 @@ class BednaInlineGetFieldsTests(AdminBase):
         Formset = self.inline.get_formset(req, zakazka)
         fs = Formset(queryset=Bedna.objects.filter(id=bedna.id), instance=zakazka)
         form = fs.forms[0]
-        for field in form.fields:
-            self.assertFalse(form.fields[field].disabled)
+        for name, field in form.fields.items():
+            if getattr(field.widget, 'is_hidden', False):
+                continue
+            self.assertFalse(field.disabled, msg=f"Field '{name}' should be enabled for paused bedna with permission")
 
     def test_brutto_excluded_when_all_tara_positive(self):
         bedna = self.create_bedna('ROT')

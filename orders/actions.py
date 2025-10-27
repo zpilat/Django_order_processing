@@ -34,14 +34,22 @@ logger = logging.getLogger('orders')
 
 
 def _abort_if_paused_bedny(modeladmin, request, queryset, action_label):
-    """Vrátí True, pokud výběr obsahuje pozastavené bedny a vypíše chybovou hlášku."""
-    paused_qs = queryset.filter(pozastaveno=True)
-    if paused_qs.exists():
-        paused_count = paused_qs.count()
+    """Vrátí True, pokud výběr obsahuje pozastavené bedny a vypíše chybovou hlášku.
+
+    Pozn.: queryset může být již oříznut (slice) a pak nelze volat .filter().
+    V takovém případě spadne do Python fallbacku.
+    """
+    try:
+        paused_count = queryset.filter(pozastaveno=True).count()
+    except TypeError:
+        paused_count = sum(1 for obj in queryset if getattr(obj, 'pozastaveno', False))
+    if paused_count:
         logger.info(
             f"Uživatel {request.user} se pokusil provést akci '{action_label}', ale výběr obsahuje {paused_count} pozastavených beden."
         )
-        message = _(f"Akci \"{action_label}\" nelze provést, protože výběr obsahuje {paused_count} pozastavených beden.")
+        message = _(
+            f"Akci \"{action_label}\" nelze provést, protože výběr obsahuje {paused_count} pozastavených beden."
+        )
         modeladmin.message_user(request, message, level=messages.ERROR)
         return True
     return False

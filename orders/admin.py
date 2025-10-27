@@ -1252,7 +1252,8 @@ class KamionAdmin(SimpleHistoryAdmin):
                     pocet_beden = inline_form.cleaned_data.get("pocet_beden")
                     tara = inline_form.cleaned_data.get("tara")
                     material = inline_form.cleaned_data.get("material")
-                    odfosfatovat = inline_form.cleaned_data.get("odfosfatovat")
+                    # BooleanField nepřenáší False, když není zaškrtnuto -> může být None
+                    odfosfatovat = bool(inline_form.cleaned_data.get("odfosfatovat") or False)
 
                     # Vytvoření beden zakázky, pokud je zadán počet beden 
                     if pocet_beden and pocet_beden > 0:
