@@ -16,3 +16,9 @@ textarea.paused-row,
 .paused-row label {
   opacity: 0.85;
 }
+
+/* Separate zakazka groups in Bedna changelist */
+tr.bedna-group-separator td,
+tr.bedna-group-separator th {
+  border-top: 2px solid #bbbbbb;
+}

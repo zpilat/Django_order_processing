@@ -1983,7 +1983,11 @@ class BednaAdmin(SimpleHistoryAdmin):
     history_list_per_page = 20
 
     class Media:
-        js = ('orders/admin_actions_target_blank.js', 'orders/changelist_dirty_guard.js',)
+        js = (
+            'orders/admin_actions_target_blank.js',
+            'orders/changelist_dirty_guard.js',
+            'orders/admin_bedna_group_separator.js',
+        )
         css = {
             'all': ('orders/css/admin_paused_rows.css',)
         }
