@@ -329,7 +329,11 @@ class KNavezeniActionTests(ActionsBase):
 
         req = self.get_request('post', data)
         resp = actions.oznacit_k_navezeni_action(admin_obj, req, qs)
-        self.assertIsNone(resp)
+        # Akce po úspěchu nyní provádí redirect na dashboard k navezení (PRG)
+        from django.http import HttpResponseRedirect
+        from django.urls import reverse
+        self.assertIsInstance(resp, HttpResponseRedirect)
+        self.assertEqual(resp.url, reverse('dashboard_bedny_k_navezeni'))
         # Ověření aktualizací
         for b in qs:
             b.refresh_from_db()
