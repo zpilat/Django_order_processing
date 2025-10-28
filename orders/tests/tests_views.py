@@ -4,9 +4,10 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 
 from orders.models import (
-	Zakaznik, Odberatel, Kamion, Zakazka, Bedna, Predpis, TypHlavy, Pozice
+	Zakaznik, Odberatel, Kamion, Zakazka, Bedna, Predpis, TypHlavy, Pozice, PoziceZakazkaOrder
 )
 from orders.choices import StavBednyChoice, KamionChoice, TryskaniChoice, RovnaniChoice, PrioritaChoice
+from orders.views import _get_bedny_k_navezeni_groups
 
 
 class ViewsTestBase(TestCase):
@@ -200,6 +201,68 @@ class BednyKNavezeniViewTests(ViewsTestBase):
 		self.assertEqual(pdf_resp.status_code, 200)
 		self.assertEqual(pdf_resp["Content-Type"], "application/pdf")
 		self.assertIn("inline; filename=\"bedny_k_navezeni.pdf\"", pdf_resp["Content-Disposition"]) 
+
+	def test_get_groups_syncs_pozice_zakazka_order_table(self):
+		# vytvoř ruční pořadí: jedno platné s dírou, jedno zastaralé bez beden
+		PoziceZakazkaOrder.objects.create(
+			pozice=self.poz_a,
+			zakazka=self.zak_eur,
+			poradi=3,
+		)
+		PoziceZakazkaOrder.objects.create(
+			pozice=self.poz_b,
+			zakazka=self.zak_eur,
+			poradi=1,
+		)
+
+		groups = _get_bedny_k_navezeni_groups()
+
+		orders = list(
+			PoziceZakazkaOrder.objects.order_by("pozice__kod", "zakazka_id").values_list("pozice__kod", "zakazka_id", "poradi")
+		)
+		expected = [
+			("A", self.zak_eur.id, 1),
+			("B", self.zak_abc.id, 1),
+		]
+		self.assertEqual(orders, expected)
+		# a groups reflektují aktualizovaná pořadí
+		pozice_map = {group["pozice"]: group for group in groups}
+		a_zakazky = pozice_map["A"]["zakazky_group"]
+		self.assertEqual(a_zakazky[0]["poradi"], 1)
+		b_zakazky = pozice_map["B"]["zakazky_group"]
+		self.assertEqual(b_zakazky[0]["zakazka"].id, self.zak_abc.id)
+		self.assertEqual(b_zakazky[0]["poradi"], 1)
+
+	def test_dashboard_post_reorders_sequence(self):
+		# přidej druhou zakázku do stejné pozice, aby bylo co posouvat
+		Bedna.objects.create(
+			zakazka=self.zak_abc,
+			pozice=self.poz_a,
+			stav_bedny=StavBednyChoice.K_NAVEZENI,
+			hmotnost=1,
+			tara=1,
+			mnozstvi=1,
+		)
+		_get_bedny_k_navezeni_groups()
+		order_eur = PoziceZakazkaOrder.objects.get(pozice=self.poz_a, zakazka=self.zak_eur)
+		order_abc = PoziceZakazkaOrder.objects.get(pozice=self.poz_a, zakazka=self.zak_abc)
+		self.assertEqual(order_eur.poradi, 1)
+		self.assertEqual(order_abc.poradi, 2)
+
+		resp = self.client.post(
+			reverse("dashboard_bedny_k_navezeni"),
+			{
+				"pozice_id": self.poz_a.id,
+				"zakazka_id": self.zak_abc.id,
+				"move": "up",
+			},
+		)
+		self.assertEqual(resp.status_code, 302)
+		self.assertEqual(resp["Location"], reverse("dashboard_bedny_k_navezeni"))
+		order_eur.refresh_from_db()
+		order_abc.refresh_from_db()
+		self.assertEqual(order_abc.poradi, 1)
+		self.assertEqual(order_eur.poradi, 2)
 
 
 class BednyListViewTests(ViewsTestBase):
