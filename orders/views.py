@@ -193,15 +193,69 @@ def _get_bedny_k_navezeni_groups():
         .select_related('pozice', 'zakazka')
         .order_by('pozice__kod', 'zakazka', 'cislo_bedny')
     )
+    bedny = list(qs)
+
+    active_pairs = {
+        (bedna.pozice_id, bedna.zakazka_id)
+        for bedna in bedny
+        if bedna.pozice_id is not None and bedna.zakazka_id is not None
+    }
+    orders_by_position = {}
+    # Keep PoziceZakazkaOrder synced with current bedny state.
+    with transaction.atomic():
+        existing_orders = list(
+            PoziceZakazkaOrder.objects.order_by('pozice_id', 'poradi', 'pk')
+        )
+
+        stale_ids = {
+            order.pk for order in existing_orders
+            if (order.pozice_id, order.zakazka_id) not in active_pairs
+        }
+        if stale_ids:
+            PoziceZakazkaOrder.objects.filter(pk__in=stale_ids).delete()
+            existing_orders = [order for order in existing_orders if order.pk not in stale_ids]
+
+        for order in existing_orders:
+            if order.pozice_id is None:
+                continue
+            orders_by_position.setdefault(order.pozice_id, []).append(order)
+
+        for pozice_id, order_list in orders_by_position.items():
+            for idx, order in enumerate(order_list, start=1):
+                if order.poradi != idx:
+                    PoziceZakazkaOrder.objects.filter(pk=order.pk).update(poradi=idx)
+                    order.poradi = idx
+
+        seen_pairs = set()
+        for bedna in bedny:
+            pozice_id = bedna.pozice_id
+            zakazka_id = bedna.zakazka_id
+            if pozice_id is None or zakazka_id is None:
+                continue
+            pair = (pozice_id, zakazka_id)
+            if pair in seen_pairs:
+                continue
+            seen_pairs.add(pair)
+
+            order_list = orders_by_position.setdefault(pozice_id, [])
+            if not any(order.zakazka_id == zakazka_id for order in order_list):
+                poradi = len(order_list) + 1
+                new_order = PoziceZakazkaOrder.objects.create(
+                    pozice_id=pozice_id,
+                    zakazka_id=zakazka_id,
+                    poradi=poradi,
+                )
+                order_list.append(new_order)
+
+    order_map = {}
+    for order_list in orders_by_position.values():
+        for order in order_list:
+            order_map[(order.pozice_id, order.zakazka_id)] = order.poradi
 
     groups = []
     pozice_map = {}
-    # Načti existující mapu pořadí pro (pozice, zakazka)
-    order_map = {}
-    for pzo in PoziceZakazkaOrder.objects.all():
-        order_map[(pzo.pozice_id, pzo.zakazka_id)] = pzo.poradi
 
-    for bedna in qs:
+    for bedna in bedny:
         pozice_kod = bedna.pozice.kod if bedna.pozice else None
         zakazka_id = bedna.zakazka.id if bedna.zakazka else None
 
