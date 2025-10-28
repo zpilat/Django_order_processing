@@ -39,7 +39,7 @@
                         <div class="fw-bold">{{ zakazka_group.zakazka.artikl }}</div>
                         <div class="d-flex align-items-center gap-1">
                           <!-- Pro ladění zobrazení aktuálního pořadí v pozici -->
-                          <span class="text-muted">{{ zakazka_group.poradi|default:0 }}</span>
+                          <!--<span class="text-muted">{{ zakazka_group.poradi|default:0 }}</span>-->
                           {% if zg_index > 0 %}
                           <form method="post" action="{% url 'dashboard_bedny_k_navezeni' %}">
                             {% csrf_token %}

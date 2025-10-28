@@ -66,7 +66,6 @@
                     <td rowspan="{{ bedny_list|length }}" style="font-weight: bold; font-size: 14px;">
                       {{ group.pozice|default:"-" }}
                       {% if zakazka_group.poradi %}
-                        <span style="font-size: 10px; font-weight: normal;">({{ zakazka_group.poradi }})</span>
                         {% if zakazka_group.poradi == 1 %}
                           <br>
                           <span style="font-size: 12px; font-weight: normal;">(KE ZDI)</span>
