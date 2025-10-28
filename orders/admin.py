@@ -1021,10 +1021,11 @@ class KamionAdmin(SimpleHistoryAdmin):
                     logger.info(f"Uživatel {request.user} úspěšně načetl data z Excel souboru pro import zakázek.")
 
                     # Připravení náhledu (robustnější práce s datem / čísly)
+                    error_values = '!!!!!!'
                     preview = []
                     for _, r in df.iterrows():
                         raw_datum = r.get('datum')
-                        datum_fmt = '!!!!!!'
+                        datum_fmt = error_values
                         if pd.notna(raw_datum):
                             try:
                                 if hasattr(raw_datum, 'strftime'):
@@ -1034,29 +1035,29 @@ class KamionAdmin(SimpleHistoryAdmin):
                                     if pd.notna(dconv):
                                         datum_fmt = dconv.strftime('%d.%m.%Y')
                             except Exception:
-                                datum_fmt = '!!!!!!'
+                                datum_fmt = error_values
                         try:
-                            beh_nr = int(r.get('behalter_nr')) if pd.notna(r.get('behalter_nr')) else '!!!!!!'
+                            beh_nr = int(r.get('behalter_nr')) if pd.notna(r.get('behalter_nr')) else error_values
                         except Exception:
-                            beh_nr = '!!!!!!'
+                            beh_nr = error_values
                         try:
-                            predpis_val = int(r.get('predpis')) if pd.notna(r.get('predpis')) else '!!!!!!'
+                            predpis_val = int(r.get('predpis')) if pd.notna(r.get('predpis')) else error_values
                         except Exception:
-                            predpis_val = '!!!!!!'
+                            predpis_val = error_values
                         preview.append({
                             'datum': datum_fmt,
                             'behalter_nr': beh_nr,
-                            'artikl': r.get('artikl') if pd.notna(r.get('artikl')) else '!!!!!!',
-                            'prumer': r.get('prumer') if pd.notna(r.get('prumer')) else '!!!!!!',
-                            'delka': r.get('delka') if pd.notna(r.get('delka')) else '!!!!!!',
+                            'artikl': r.get('artikl') if pd.notna(r.get('artikl')) else error_values,
+                            'prumer': r.get('prumer') if pd.notna(r.get('prumer')) else error_values,
+                            'delka': r.get('delka') if pd.notna(r.get('delka')) else error_values,
                             'predpis': predpis_val,
-                            'typ_hlavy': r.get('typ_hlavy') if pd.notna(r.get('typ_hlavy')) else '!!!!!!',
-                            'popis': r.get('popis') if pd.notna(r.get('popis')) else '!!!!!!',
-                            'material': r.get('material') if pd.notna(r.get('material')) else '!!!!!!',
-                            'sarze': r.get('sarze') if pd.notna(r.get('sarze')) else '!!!!!!',
-                            'hmotnost': r.get('hmotnost') if pd.notna(r.get('hmotnost')) else '!!!!!!',
-                            'mnozstvi': r.get('mnozstvi') if pd.notna(r.get('mnozstvi')) else '!!!!!!',
-                            'tara': r.get('tara') if pd.notna(r.get('tara')) else '!!!!!!',
+                            'typ_hlavy': r.get('typ_hlavy') if pd.notna(r.get('typ_hlavy')) else error_values,
+                            'popis': r.get('popis') if pd.notna(r.get('popis')) else error_values,
+                            'material': r.get('material') if pd.notna(r.get('material')) else error_values,
+                            'sarze': r.get('sarze') if pd.notna(r.get('sarze')) else error_values,
+                            'hmotnost': r.get('hmotnost') if pd.notna(r.get('hmotnost')) else error_values,
+                            'mnozstvi': r.get('mnozstvi') if pd.notna(r.get('mnozstvi')) else error_values,
+                            'tara': r.get('tara') if pd.notna(r.get('tara')) else error_values,
                         })
 
                     # Pokud jsou chyby po parsování, zobrazit náhled a chyby (bez uložení)
