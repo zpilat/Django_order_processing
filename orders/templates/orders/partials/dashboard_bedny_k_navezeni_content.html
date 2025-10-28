@@ -20,10 +20,10 @@
             </tr>
             <tr>
               <th style="background-color: #214290; color: #ffde17;">Artikl</th>
-              <th style="background-color: #214290; color: #ffde17;">Číslo bedny</th>
               <th style="background-color: #214290; color: #ffde17;">Rozměr</th>
               <th style="background-color: #214290; color: #ffde17;">Popis</th>
               <th style="background-color: #214290; color: #ffde17;">Poznámka k navezení</th>
+              <th style="background-color: #214290; color: #ffde17;">Číslo bedny</th>              
             </tr>          
             {% for zakazka_group in group.zakazky_group %}
               {% with zg_index=forloop.counter0 zg_last=forloop.last %}
@@ -61,13 +61,11 @@
                         </div>
                       </div>
                     </td>
+                    <td rowspan="{{ zakazka_group.bedny|length }}">{{ zakazka_group.zakazka.prumer }} x {{ zakazka_group.zakazka.delka }}</td>
+                    <td rowspan="{{ zakazka_group.bedny|length }}">{{ zakazka_group.zakazka.popis }}</td>          
+                    <td rowspan="{{ zakazka_group.bedny|length }}">{{ bedna.poznamka_k_navezeni|default:"vše" }}</td>                              
                   {% endif %}
                   <td>{{ bedna.cislo_bedny }}</td>
-                  <td>{{ zakazka_group.zakazka.prumer }} x {{ zakazka_group.zakazka.delka }}</td>
-                  <td>{{ zakazka_group.zakazka.popis }}</td>
-                  {% if forloop.first %}
-                    <td rowspan="{{ zakazka_group.bedny|length }}">{{ bedna.poznamka_k_navezeni|default:"vše" }}</td>
-                  {% endif %}
                 </tr>
               {% endfor %}
               {% endwith %}
