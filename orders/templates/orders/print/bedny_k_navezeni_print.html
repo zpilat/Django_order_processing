@@ -11,6 +11,8 @@
       --accent: #ffffffff;
       --text: #111;
       --border: #c7c7c7;
+      --highlight: #ffff99;
+      --first-row: #ebebebff;
     }
     * { box-sizing: border-box; }
     body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; color: var(--text); margin: 0; }
@@ -75,8 +77,8 @@
                     <td rowspan="{{ bedny_list|length }}" style="font-weight: bold; font-size: 14px;">{{ zakazka_group.zakazka.artikl }}</td>
                     <td rowspan="{{ bedny_list|length }}">{{ zakazka_group.zakazka.kamion_prijem.zakaznik.zkratka }}</td>
                     <td rowspan="{{ bedny_list|length }}">{{ zakazka_group.zakazka.prumer }} x {{ zakazka_group.zakazka.delka }}</td>
-                    <td rowspan="{{ bedny_list|length }}" class="text-center" style="font-weight: bold;">{{ bedna.poznamka_k_navezeni|default:"vše" }}</td>
-                    <td style="background: var(--border);"><span style="font-weight: bold;">{{ bedna.cislo_bedny }}</span>{% if bedna.behalter_nr %} ({{ bedna.behalter_nr }}){% endif %}</td>
+                    <td rowspan="{{ bedny_list|length }}" class="text-center" style="font-weight: bold;{% if bedna.poznamka_k_navezeni %} background: var(--highlight); {% endif %}">{{ bedna.poznamka_k_navezeni|default:"vše" }}</td>
+                    <td style="background: var(--first-row);"><span style="font-weight: bold;">{{ bedna.cislo_bedny }}</span>{% if bedna.behalter_nr %} ({{ bedna.behalter_nr }}){% endif %}</td>
                     <td></td>                  
                   {% else %}
                     <td><span style="font-weight: bold;">{{ bedna.cislo_bedny }}</span>{% if bedna.behalter_nr %} ({{ bedna.behalter_nr }}){% endif %}</td>
