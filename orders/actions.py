@@ -338,8 +338,8 @@ def oznacit_k_navezeni_action(modeladmin, request, queryset):
                 f"U {prekrocena_kapacita} beden byla překročena kapacita cílové pozice, přesto byly přiřazeny."
             )
 
-        # návrat na changelist
-        return None
+        # přesun na dashboard beden k navezení
+        return redirect("dashboard_bedny_k_navezeni")
 
     # GET – předvyplň formset
     initial = [
