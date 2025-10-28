@@ -375,6 +375,99 @@ class StatusChangeActionsTests(ActionsBase):
     def _messages_texts(self, request):
         return [m.message for m in list(request._messages)]
 
+    def test_abort_if_paused_bedny_blocks_queryset(self):
+        admin_obj = self._messaging_admin()
+        self.bedna.stav_bedny = StavBednyChoice.NEPRIJATO
+        self.bedna.pozastaveno = True
+        self.bedna.save()
+        req = self.get_request('post')
+        result = actions._abort_if_paused_bedny(admin_obj, req, Bedna.objects.all(), "Test akce")
+        self.assertTrue(result)
+        msgs = self._messages_texts(req)
+        self.assertTrue(any('pozastavených beden' in m for m in msgs))
+
+    def test_abort_if_paused_bedny_allows_clean_queryset(self):
+        admin_obj = self._messaging_admin()
+        self.bedna.stav_bedny = StavBednyChoice.NEPRIJATO
+        self.bedna.pozastaveno = False
+        self.bedna.save()
+        req = self.get_request('post')
+        result = actions._abort_if_paused_bedny(admin_obj, req, Bedna.objects.all(), "Test akce")
+        self.assertFalse(result)
+        self.assertEqual(self._messages_texts(req), [])
+
+    def test_abort_if_paused_bedny_handles_iterable_without_filter(self):
+        admin_obj = self._messaging_admin()
+        self.bedna.pozastaveno = True
+        self.bedna.save()
+        req = self.get_request('post')
+        class _Broken(list):
+            def filter(self, *args, **kwargs):
+                raise TypeError("no filter on plain iterable")
+        broken = _Broken([self.bedna])
+        result = actions._abort_if_paused_bedny(admin_obj, req, broken, "Test akce")
+        self.assertTrue(result)
+        msgs = self._messages_texts(req)
+        self.assertTrue(any('pozastavených beden' in m for m in msgs))
+
+    def test_abort_if_zakazky_maji_pozastavene_bedny_blocks(self):
+        admin_obj = self._messaging_admin()
+        self.bedna.pozastaveno = True
+        self.bedna.save()
+        req = self.get_request('post')
+        result = actions._abort_if_zakazky_maji_pozastavene_bedny(
+            admin_obj,
+            req,
+            Zakazka.objects.filter(id=self.zakazka.id),
+            "Test akce",
+        )
+        self.assertTrue(result)
+        msgs = self._messages_texts(req)
+        self.assertTrue(any('pozastavených beden' in m for m in msgs))
+
+    def test_abort_if_zakazky_maji_pozastavene_bedny_allows_clean(self):
+        admin_obj = self._messaging_admin()
+        self.bedna.pozastaveno = False
+        self.bedna.save()
+        req = self.get_request('post')
+        result = actions._abort_if_zakazky_maji_pozastavene_bedny(
+            admin_obj,
+            req,
+            Zakazka.objects.filter(id=self.zakazka.id),
+            "Test akce",
+        )
+        self.assertFalse(result)
+        self.assertEqual(self._messages_texts(req), [])
+
+    def test_abort_if_kamiony_maji_pozastavene_bedny_blocks(self):
+        admin_obj = self._messaging_admin()
+        self.bedna.pozastaveno = True
+        self.bedna.save()
+        req = self.get_request('post')
+        result = actions._abort_if_kamiony_maji_pozastavene_bedny(
+            admin_obj,
+            req,
+            Kamion.objects.filter(id=self.kamion_prijem.id),
+            "Test akce",
+        )
+        self.assertTrue(result)
+        msgs = self._messages_texts(req)
+        self.assertTrue(any('pozastavených beden' in m for m in msgs))
+
+    def test_abort_if_kamiony_maji_pozastavene_bedny_allows_clean(self):
+        admin_obj = self._messaging_admin()
+        self.bedna.pozastaveno = False
+        self.bedna.save()
+        req = self.get_request('post')
+        result = actions._abort_if_kamiony_maji_pozastavene_bedny(
+            admin_obj,
+            req,
+            Kamion.objects.filter(id=self.kamion_prijem.id),
+            "Test akce",
+        )
+        self.assertFalse(result)
+        self.assertEqual(self._messages_texts(req), [])
+
     def test_oznacit_navezeno_action_wrong_state(self):
         # připraví bednu, která není v K_NAVEZENI
         admin_obj = self._messaging_admin()
@@ -396,6 +489,69 @@ class StatusChangeActionsTests(ActionsBase):
         self.assertIsNone(resp)
         self.bedna.refresh_from_db()
         self.assertEqual(self.bedna.stav_bedny, StavBednyChoice.NAVEZENO)
+
+    def test_prijmout_bedny_action_blocked_by_paused(self):
+        admin_obj = self._messaging_admin()
+        self.bedna.stav_bedny = StavBednyChoice.NEPRIJATO
+        self.bedna.pozastaveno = True
+        self.bedna.save()
+        req = self.get_request('post')
+        resp = actions.prijmout_bedny_action(admin_obj, req, Bedna.objects.filter(id=self.bedna.id))
+        self.assertIsNone(resp)
+        self.bedna.refresh_from_db()
+        self.assertEqual(self.bedna.stav_bedny, StavBednyChoice.NEPRIJATO)
+        msgs = self._messages_texts(req)
+        self.assertTrue(any('pozastavených beden' in m for m in msgs))
+
+    def test_prijmout_zakazku_action_blocked_by_paused_bedna(self):
+        admin_obj = self._messaging_admin()
+        self.bedna.stav_bedny = StavBednyChoice.NEPRIJATO
+        self.bedna.pozastaveno = True
+        self.bedna.save()
+        req = self.get_request('post')
+        resp = actions.prijmout_zakazku_action(admin_obj, req, Zakazka.objects.filter(id=self.zakazka.id))
+        self.assertIsNone(resp)
+        self.bedna.refresh_from_db()
+        self.assertEqual(self.bedna.stav_bedny, StavBednyChoice.NEPRIJATO)
+        msgs = self._messages_texts(req)
+        self.assertTrue(any('pozastavených beden' in m for m in msgs))
+
+    @patch('orders.actions.utilita_kontrola_zakazek')
+    def test_expedice_zakazek_action_blocked_by_paused_bedna(self, mock_kontrola):
+        admin_obj = self._messaging_admin()
+        self.bedna.pozastaveno = True
+        self.bedna.save()
+        req = self.get_request('get')
+        resp = actions.expedice_zakazek_action(admin_obj, req, Zakazka.objects.filter(id=self.zakazka.id))
+        self.assertIsNone(resp)
+        mock_kontrola.assert_not_called()
+        msgs = self._messages_texts(req)
+        self.assertTrue(any('pozastavených beden' in m for m in msgs))
+
+    @patch('orders.actions.utilita_kontrola_zakazek')
+    def test_expedice_zakazek_kamion_action_blocked_by_paused_bedna(self, mock_kontrola):
+        admin_obj = self._messaging_admin()
+        self.bedna.pozastaveno = True
+        self.bedna.save()
+        req = self.get_request('get')
+        resp = actions.expedice_zakazek_kamion_action(admin_obj, req, Zakazka.objects.filter(id=self.zakazka.id))
+        self.assertIsNone(resp)
+        mock_kontrola.assert_not_called()
+        msgs = self._messages_texts(req)
+        self.assertTrue(any('pozastavených beden' in m for m in msgs))
+
+    def test_prijmout_kamion_action_blocked_by_paused_bedna(self):
+        admin_obj = self._messaging_admin()
+        self.bedna.stav_bedny = StavBednyChoice.NEPRIJATO
+        self.bedna.pozastaveno = True
+        self.bedna.save()
+        req = self.get_request('post')
+        resp = actions.prijmout_kamion_action(admin_obj, req, Kamion.objects.filter(id=self.kamion_prijem.id))
+        self.assertIsNone(resp)
+        self.bedna.refresh_from_db()
+        self.assertEqual(self.bedna.stav_bedny, StavBednyChoice.NEPRIJATO)
+        msgs = self._messages_texts(req)
+        self.assertTrue(any('pozastavených beden' in m for m in msgs))
 
     def test_prijmout_kamion_action_success(self):
         admin_obj = self._messaging_admin()
