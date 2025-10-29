@@ -3,6 +3,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.messages.storage.fallback import FallbackStorage
 from django.contrib.admin.sites import AdminSite
 from django.http import HttpResponse
+from django.urls import reverse
 
 from decimal import Decimal
 from unittest.mock import patch
@@ -308,11 +309,9 @@ class KNavezeniActionTests(ActionsBase):
     def test_post_success_updates_bedny(self):
         admin_obj = self._minimal_admin()
         qs = Bedna.objects.all().order_by('id')
-        # Vytvoří platný formset POST
         from django.contrib import admin as dj_admin
         data = {
             'apply': '1',
-            # management form
             'ozn-TOTAL_FORMS': str(qs.count()),
             'ozn-INITIAL_FORMS': str(qs.count()),
             'ozn-MIN_NUM_FORMS': '0',
@@ -322,24 +321,46 @@ class KNavezeniActionTests(ActionsBase):
             data[f'ozn-{i}-bedna_id'] = str(b.id)
             data[f'ozn-{i}-pozice'] = str(self.pozice_A.id)
             data[f'ozn-{i}-poznamka_k_navezeni'] = 'pozn'
-        # Označení vybraných ID pomocí názvu zaškrtávacího políčka akce
         for b in qs:
             data.setdefault(dj_admin.helpers.ACTION_CHECKBOX_NAME, [])
             data[dj_admin.helpers.ACTION_CHECKBOX_NAME].append(str(b.id))
 
         req = self.get_request('post', data)
         resp = actions.oznacit_k_navezeni_action(admin_obj, req, qs)
-        # Akce po úspěchu nyní provádí redirect na dashboard k navezení (PRG)
-        from django.http import HttpResponseRedirect
-        from django.urls import reverse
-        self.assertIsInstance(resp, HttpResponseRedirect)
-        self.assertEqual(resp.url, reverse('dashboard_bedny_k_navezeni'))
-        # Ověření aktualizací
+        self.assertIsNone(resp)
         for b in qs:
             b.refresh_from_db()
             self.assertEqual(b.stav_bedny, StavBednyChoice.K_NAVEZENI)
             self.assertEqual(b.pozice_id, self.pozice_A.id)
             self.assertEqual(b.poznamka_k_navezeni, 'pozn')
+
+    def test_post_redirects_to_dashboard_when_requested(self):
+        admin_obj = self._minimal_admin()
+        qs = Bedna.objects.all().order_by('id')
+        from django.contrib import admin as dj_admin
+        data = {
+            'apply_open_dashboard': '1',
+            'ozn-TOTAL_FORMS': str(qs.count()),
+            'ozn-INITIAL_FORMS': str(qs.count()),
+            'ozn-MIN_NUM_FORMS': '0',
+            'ozn-MAX_NUM_FORMS': '1000',
+        }
+        for i, b in enumerate(qs):
+            data[f'ozn-{i}-bedna_id'] = str(b.id)
+            data[f'ozn-{i}-pozice'] = str(self.pozice_A.id)
+            data[f'ozn-{i}-poznamka_k_navezeni'] = 'pozn'
+        for b in qs:
+            data.setdefault(dj_admin.helpers.ACTION_CHECKBOX_NAME, [])
+            data[dj_admin.helpers.ACTION_CHECKBOX_NAME].append(str(b.id))
+
+        req = self.get_request('post', data)
+        resp = actions.oznacit_k_navezeni_action(admin_obj, req, qs)
+        self.assertIsNotNone(resp)
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp['Location'], reverse('dashboard_bedny_k_navezeni'))
+        for b in qs:
+            b.refresh_from_db()
+            self.assertEqual(b.stav_bedny, StavBednyChoice.K_NAVEZENI)
 
     def test_post_invalid_form_returns_template(self):
         admin_obj = self._minimal_admin()

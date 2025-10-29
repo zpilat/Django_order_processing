@@ -251,7 +251,8 @@ def oznacit_k_navezeni_action(modeladmin, request, queryset):
 
     KNavezeniFormSet = formset_factory(KNavezeniForm, extra=0)
 
-    if request.method == "POST" and "apply" in request.POST:
+    if request.method == "POST" and ("apply" in request.POST or "apply_open_dashboard" in request.POST):
+        redirect_requested = "apply_open_dashboard" in request.POST
         select_ids = request.POST.getlist(admin.helpers.ACTION_CHECKBOX_NAME)
         qs = Bedna.objects.filter(pk__in=select_ids)            
         if _abort_if_paused_bedny(modeladmin, request, qs, "Změna stavu na K_NAVEZENÍ"):
@@ -338,8 +339,9 @@ def oznacit_k_navezeni_action(modeladmin, request, queryset):
                 f"U {prekrocena_kapacita} beden byla překročena kapacita cílové pozice, přesto byly přiřazeny."
             )
 
-        # přesun na dashboard beden k navezení
-        return redirect("dashboard_bedny_k_navezeni")
+        if redirect_requested:
+            return redirect("dashboard_bedny_k_navezeni")
+        return None
 
     # GET – předvyplň formset
     initial = [
