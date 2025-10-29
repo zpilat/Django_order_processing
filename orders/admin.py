@@ -2152,7 +2152,7 @@ class BednaAdmin(SimpleHistoryAdmin):
                 'hmotnost', 'tara', 'brutto', 'mnozstvi'
             )),
             ("Stavy bedny", (
-                'tryskat', 'rovnat', 'stav_bedny', 'pozastaveno'
+                'stav_bedny', 'tryskat', 'rovnat', 'pozastaveno'
             )),
             ("K navezení", (
                 'pozice', 'poznamka_k_navezeni'
