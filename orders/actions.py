@@ -163,10 +163,6 @@ def export_bedny_to_csv_action(modeladmin, request, queryset):
     stav_pro_o_x = {
         StavBednyChoice.K_NAVEZENI: 'o',
         StavBednyChoice.NAVEZENO: 'x',
-        StavBednyChoice.DO_ZPRACOVANI: 'x',
-        StavBednyChoice.ZAKALENO: 'x',
-        StavBednyChoice.ZKONTROLOVANO: 'x',
-        StavBednyChoice.K_EXPEDICI: 'x',
     }
     do_zpracovani_states = {
         StavBednyChoice.DO_ZPRACOVANI,
