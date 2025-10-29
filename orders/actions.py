@@ -160,15 +160,9 @@ def export_bedny_to_csv_action(modeladmin, request, queryset):
     ]
     writer.writerow(header)
 
-    stav_pro_o_x = {
-        StavBednyChoice.NEPRIJATO: '',
-        StavBednyChoice.PRIJATO: '',
+    stav_pro_navezene_x = {
         StavBednyChoice.K_NAVEZENI: 'o',
         StavBednyChoice.NAVEZENO: 'x',
-        StavBednyChoice.DO_ZPRACOVANI: '',
-        StavBednyChoice.ZAKALENO: '',
-        StavBednyChoice.ZKONTROLOVANO: '',
-        StavBednyChoice.K_EXPEDICI: '',
     }
     do_zpracovani_states = {
         StavBednyChoice.DO_ZPRACOVANI,
@@ -214,7 +208,7 @@ def export_bedny_to_csv_action(modeladmin, request, queryset):
             rozmer = ''
 
         stav = bedna.stav_bedny
-        sloupec_o = stav_pro_o_x.get(stav, '')
+        navezene = stav_pro_navezene_x.get(stav, '')
         do_zpracovani = 'x' if stav in do_zpracovani_states else ''
         zakaleno = 'x' if stav in zakaleno_states else ''
         zkontrolovano = 'x' if stav in zkontrolovano_states else ''
@@ -239,7 +233,7 @@ def export_bedny_to_csv_action(modeladmin, request, queryset):
             getattr(zakazka, 'artikl', '') if zakazka else '',
             bedna.cislo_bedny,
             bedna.behalter_nr or '',
-            sloupec_o,
+            navezene,
             rozmer,
             do_zpracovani,
             zakaleno,
