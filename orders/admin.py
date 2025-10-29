@@ -2395,19 +2395,26 @@ class BednaAdmin(SimpleHistoryAdmin):
                 actions_to_remove += [
                     'vratit_bedny_do_stavu_prijato_action', 'oznacit_navezeno_action',
                 ]
-            if request.GET.get('stav_bedny', None) != StavBednyChoice.NAVEZENO:
+            if request.GET.get('stav_bedny', None) not in [StavBednyChoice.NAVEZENO, 'RO']:
                 actions_to_remove += [
                     'oznacit_do_zpracovani_action',
                 ]
-            if request.GET.get('stav_bedny', None) != StavBednyChoice.DO_ZPRACOVANI:
+            if request.GET.get('stav_bedny', None) not in [
+                StavBednyChoice.NAVEZENO, StavBednyChoice.DO_ZPRACOVANI, 'RO'
+                ]:
                 actions_to_remove += [
                     'oznacit_zakaleno_action',
                 ]
-            if request.GET.get('stav_bedny', None) != StavBednyChoice.ZAKALENO:
+            if request.GET.get('stav_bedny', None) not in [
+                StavBednyChoice.NAVEZENO, StavBednyChoice.DO_ZPRACOVANI, StavBednyChoice.ZAKALENO, 'RO'
+                ]:
                 actions_to_remove += [
                     'oznacit_zkontrolovano_action',
                 ]
-            if request.GET.get('stav_bedny', None) not in [StavBednyChoice.ZKONTROLOVANO, 'RO']:
+            if request.GET.get('stav_bedny', None) not in [
+                StavBednyChoice.NAVEZENO, StavBednyChoice.DO_ZPRACOVANI, StavBednyChoice.ZAKALENO,
+                StavBednyChoice.ZKONTROLOVANO, 'RO'
+                ]:
                 actions_to_remove += [
                     'oznacit_k_expedici_action',
                 ]
@@ -2494,7 +2501,10 @@ class BednaAdmin(SimpleHistoryAdmin):
         for g in order + [g for g in grouped.keys() if g not in order]:
             opts = grouped.get(g)
             if opts:
-                choices.append((g, sorted(opts, key=lambda x: x[1].lower())))
+                if g == 'Stav bedny':
+                    choices.append((g, opts))  # zachovat pořadí akcí ve skupině Stav bedny
+                else:
+                    choices.append((g, sorted(opts, key=lambda x: x[1].lower())))
         return choices
     
     def formfield_for_foreignkey(self, db_field, request=None, **kwargs):
