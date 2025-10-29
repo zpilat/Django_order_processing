@@ -8,6 +8,8 @@ from django.urls import reverse
 from decimal import Decimal
 from unittest.mock import patch
 from datetime import date
+import csv
+import io
 
 from orders.models import (
     Zakaznik, Kamion, Zakazka, Bedna, Predpis, TypHlavy,
@@ -15,6 +17,7 @@ from orders.models import (
 )
 from orders.choices import KamionChoice, StavBednyChoice, RovnaniChoice, TryskaniChoice
 from orders import actions
+from orders.admin import BednaAdmin
 
 
 class ActionsBase(TestCase):
@@ -267,6 +270,73 @@ class ActionsTests(ActionsBase):
         self.assertIsNone(resp)
         msgs = self._messages_texts(req)
         self.assertTrue(any('Všechny vybrané zakázky musí patřit jednomu zákazníkovi' in m for m in msgs))
+
+
+class ExportBednyCsvActionTests(ActionsBase):
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+
+    def setUp(self):
+        super().setUp()
+        self.bedna_admin = BednaAdmin(Bedna, self.site)
+
+    def test_export_bedny_to_csv_action_generates_expected_rows(self):
+        bedna = self.bedna
+        bedna.stav_bedny = StavBednyChoice.K_EXPEDICI
+        bedna.rovnat = RovnaniChoice.ROVNA
+        bedna.tryskat = TryskaniChoice.CISTA
+        bedna.poznamka = 'Pozn'
+        bedna.behalter_nr = 42
+        bedna.save()
+
+        self.zakazka.celozavit = True
+        self.zakazka.popis = 'Plny popis'
+        self.zakazka.save()
+
+        Bedna.objects.create(
+            zakazka=self.zakazka,
+            hmotnost=Decimal('2.5'),
+            tara=Decimal('1.0'),
+            mnozstvi=1,
+            stav_bedny=StavBednyChoice.DO_ZPRACOVANI,
+        )
+
+        request = self.get_request('post', data={'select_across': '1', 'action': 'export_bedny_to_csv_action'})
+        response = actions.export_bedny_to_csv_action(self.bedna_admin, request, Bedna.objects.all())
+
+        self.assertIsInstance(response, HttpResponse)
+        content = response.content.decode('utf-8-sig')
+        rows = list(csv.reader(io.StringIO(content), delimiter=';'))
+
+        self.assertGreaterEqual(len(rows), 2)
+        expected_header = [
+            'Zákazník', 'Zakázka', 'Číslo bedny', 'Č.b. zák.', 'Navezené', 'Rozměr', 'Do zprac.',
+            'Zakal.', 'Kontrol.', 'Křivost', 'Čistota', 'K expedici', 'Hmotnost', 'Poznámka',
+            'Hlava + závit', 'Název', 'Skupina',
+        ]
+        self.assertEqual(rows[0], expected_header)
+
+        expected_row = [
+            'T',
+            'A1',
+            str(bedna.cislo_bedny),
+            '42',
+            'x',
+            '1 x 1',
+            'x',
+            'x',
+            'x',
+            'x',
+            'x',
+            '0',
+            '1',
+            'Pozn',
+            'SK + VG',
+            'Plny popis',
+            '1',
+        ]
+        self.assertEqual(rows[1], expected_row)
 
 
 class KNavezeniActionTests(ActionsBase):

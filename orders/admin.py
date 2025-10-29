@@ -34,8 +34,9 @@ from .actions import (
     tisk_proforma_faktury_kamionu_action, oznacit_k_navezeni_action, vratit_bedny_do_stavu_prijato_action, oznacit_navezeno_action,
     oznacit_do_zpracovani_action, oznacit_zakaleno_action, oznacit_zkontrolovano_action, oznacit_k_expedici_action, oznacit_rovna_action,
     oznacit_kriva_action, oznacit_rovna_se_action, oznacit_vyrovnana_action, oznacit_cista_action, oznacit_spinava_action,
-    oznacit_otryskana_action, prijmout_kamion_action, prijmout_zakazku_action, prijmout_bedny_action
-   )
+    oznacit_otryskana_action, prijmout_kamion_action, prijmout_zakazku_action, prijmout_bedny_action,
+    export_bedny_to_csv_action,
+)
 from .filters import (
     SklademZakazkaFilter, StavBednyFilter, KompletZakazkaFilter, AktivniPredpisFilter, SkupinaFilter, ZakaznikBednyFilter,
     ZakaznikZakazkyFilter, ZakaznikKamionuFilter, PrijemVydejFilter, TryskaniFilter, RovnaniFilter, PrioritaBednyFilter, PrioritaZakazkyFilter,
@@ -1938,6 +1939,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     - Akce pro tisk karet beden, označení stavu bedny, vrácení beden do stavu přijato a přijetí beden.
     """
     actions = [
+        export_bedny_to_csv_action,
         tisk_karet_beden_action, tisk_karet_kontroly_kvality_action, oznacit_k_navezeni_action, oznacit_navezeno_action,
         vratit_bedny_do_stavu_prijato_action, oznacit_do_zpracovani_action, oznacit_zakaleno_action, oznacit_zkontrolovano_action,
         oznacit_k_expedici_action, oznacit_rovna_action, oznacit_kriva_action, oznacit_rovna_se_action, oznacit_vyrovnana_action,
@@ -2460,6 +2462,7 @@ class BednaAdmin(SimpleHistoryAdmin):
             return default_choices
 
         group_map = {
+            'export_bedny_to_csv_action': 'Tisk / Export',
             'tisk_karet_beden_action': 'Tisk / Export',
             'tisk_karet_kontroly_kvality_action': 'Tisk / Export',
             'prijmout_bedny_action': 'Stav bedny',

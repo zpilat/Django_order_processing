@@ -11,7 +11,9 @@ from django.template.response import TemplateResponse
 from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
 from django.contrib.staticfiles import finders
+from django.db.models import Count, Q
 
+import csv
 import datetime
 from decimal import Decimal
 from weasyprint import HTML
@@ -54,7 +56,6 @@ def _abort_if_paused_bedny(modeladmin, request, queryset, action_label):
         return True
     return False
 
-
 def _abort_if_zakazky_maji_pozastavene_bedny(modeladmin, request, queryset, action_label):
     """Vrátí True, pokud vybrané zakázky obsahují pozastavené bedny."""
     paused_qs = Bedna.objects.filter(zakazka__in=queryset, pozastaveno=True)
@@ -68,7 +69,6 @@ def _abort_if_zakazky_maji_pozastavene_bedny(modeladmin, request, queryset, acti
         modeladmin.message_user(request, message, level=messages.ERROR)
         return True
     return False
-
 
 def _abort_if_kamiony_maji_pozastavene_bedny(modeladmin, request, queryset, action_label):
     """Vrátí True, pokud vybrané kamiony obsahují zakázky s pozastavenými bednami."""
@@ -84,8 +84,178 @@ def _abort_if_kamiony_maji_pozastavene_bedny(modeladmin, request, queryset, acti
         return True
     return False
 
+def _format_decimal(value):
+    """Vrátí číslo s desetinnou čárkou; prázdný řetězec pro None."""
+    if value is None:
+        return ''
+    try:
+        decimal_value = Decimal(value)
+    except Exception:
+        return str(value)
+    text = format(decimal_value, 'f')
+    if '.' in text:
+        text = text.rstrip('0').rstrip('.')
+    return text.replace('.', ',')
 
 # Akce pro bedny:
+
+@admin.action(description="Export vyfiltrovaných beden do CSV")
+def export_bedny_to_csv_action(modeladmin, request, queryset):
+    """Exportuje aktuálně vyfiltrované bedny do CSV (celý queryset, ne jen stránku)."""
+    select_across = request.POST.get('select_across') == '1'
+    selected_ids = request.POST.getlist(admin.helpers.ACTION_CHECKBOX_NAME)
+
+    try:
+        initial_count = queryset.count()
+    except Exception:
+        initial_count = len(list(queryset))
+
+    queryset = queryset.select_related(
+        'zakazka',
+        'zakazka__kamion_prijem',
+        'zakazka__kamion_prijem__zakaznik',
+        'zakazka__typ_hlavy',
+        'zakazka__predpis',
+    )
+
+    zakazka_ids = list(queryset.values_list('zakazka_id', flat=True).distinct())
+    all_ke_map = {}
+    if zakazka_ids:
+        aggregation = (
+            Bedna.objects.filter(zakazka_id__in=zakazka_ids)
+            .values('zakazka_id')
+            .annotate(
+                total=Count('id'),
+                ke_total=Count('id', filter=Q(stav_bedny=StavBednyChoice.K_EXPEDICI)),
+            )
+        )
+        all_ke_map = {row['zakazka_id']: row['total'] == row['ke_total'] and row['total'] > 0 for row in aggregation}
+
+    rows = list(queryset.order_by('pk'))
+
+    response = HttpResponse(content_type='text/csv; charset=utf-8')
+    filename = f"bedny_export_{timezone.now().strftime('%Y%m%d_%H%M%S')}.csv"
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    response.write('\ufeff')  # BOM pro korektní otevření v Excelu
+    writer = csv.writer(response, delimiter=';', quoting=csv.QUOTE_MINIMAL)
+
+    header = [
+        'Zákazník',
+        'Zakázka',
+        'Číslo bedny',
+        'Č.b. zák.',
+        'Navezené',
+        'Rozměr',
+        'Do zprac.',
+        'Zakal.',
+        'Kontrol.',
+        'Křivost',
+        'Čistota',
+        'K expedici',
+        'Hmotnost',
+        'Poznámka',
+        'Hlava + závit',
+        'Název',
+        'Skupina',
+    ]
+    writer.writerow(header)
+
+    stav_pro_o_x = {
+        StavBednyChoice.K_NAVEZENI: 'o',
+        StavBednyChoice.NAVEZENO: 'x',
+        StavBednyChoice.DO_ZPRACOVANI: 'x',
+        StavBednyChoice.ZAKALENO: 'x',
+        StavBednyChoice.ZKONTROLOVANO: 'x',
+        StavBednyChoice.K_EXPEDICI: 'x',
+    }
+    do_zpracovani_states = {
+        StavBednyChoice.DO_ZPRACOVANI,
+        StavBednyChoice.ZAKALENO,
+        StavBednyChoice.ZKONTROLOVANO,
+        StavBednyChoice.K_EXPEDICI,
+    }
+    zakaleno_states = {
+        StavBednyChoice.ZAKALENO,
+        StavBednyChoice.ZKONTROLOVANO,
+        StavBednyChoice.K_EXPEDICI,
+    }
+    zkontrolovano_states = {
+        StavBednyChoice.ZKONTROLOVANO,
+        StavBednyChoice.K_EXPEDICI,
+    }
+    rovnat_map = {
+        RovnaniChoice.ROVNA: 'x',
+        RovnaniChoice.KRIVA: 'křivá',
+        RovnaniChoice.ROVNA_SE: 'rovná se',
+        RovnaniChoice.VYROVNANA: 'vyrovnaná',
+    }
+    tryskat_map = {
+        TryskaniChoice.CISTA: 'x',
+        TryskaniChoice.SPINAVA: 'špinavá',
+        TryskaniChoice.OTRYSKANA: 'otryskaná',
+    }
+
+    for bedna in rows:
+        zakazka = getattr(bedna, 'zakazka', None)
+        kamion_prijem = getattr(zakazka, 'kamion_prijem', None) if zakazka else None
+        zakaznik = getattr(kamion_prijem, 'zakaznik', None) if kamion_prijem else None
+
+        prumer = _format_decimal(getattr(zakazka, 'prumer', None)) if zakazka else ''
+        delka = _format_decimal(getattr(zakazka, 'delka', None)) if zakazka else ''
+        if prumer and delka:
+            rozmer = f'{prumer} x {delka}'
+        elif prumer:
+            rozmer = prumer
+        elif delka:
+            rozmer = delka
+        else:
+            rozmer = ''
+
+        stav = bedna.stav_bedny
+        sloupec_o = stav_pro_o_x.get(stav, '')
+        do_zpracovani = 'x' if stav in do_zpracovani_states else ''
+        zakaleno = 'x' if stav in zakaleno_states else ''
+        zkontrolovano = 'x' if stav in zkontrolovano_states else ''
+
+        rovnat_value = rovnat_map.get(bedna.rovnat, '')
+        tryskat_value = tryskat_map.get(bedna.tryskat, '')
+
+        all_ke = all_ke_map.get(getattr(zakazka, 'id', None), False)
+        if stav == StavBednyChoice.K_EXPEDICI:
+            k_expedici = 'x' if all_ke else '0'
+        else:
+            k_expedici = ''
+
+        typ_hlavy = ''
+        if zakazka and zakazka.typ_hlavy:
+            typ_hlavy = str(zakazka.typ_hlavy)
+        if zakazka and zakazka.celozavit:
+            typ_hlavy = f"{typ_hlavy} + VG" if typ_hlavy else 'VG'
+
+        writer.writerow([
+            str(zakaznik) if zakaznik else '',
+            getattr(zakazka, 'artikl', '') if zakazka else '',
+            bedna.cislo_bedny,
+            bedna.behalter_nr or '',
+            sloupec_o,
+            rozmer,
+            do_zpracovani,
+            zakaleno,
+            zkontrolovano,
+            rovnat_value,
+            tryskat_value,
+            k_expedici,
+            _format_decimal(bedna.hmotnost),
+            bedna.poznamka or '',
+            typ_hlavy,
+            getattr(zakazka, 'zkraceny_popis', '') if zakazka else '',
+            getattr(getattr(zakazka, 'predpis', None), 'skupina', '') if zakazka else '',
+        ])
+
+    logger.info(
+        f"Uživatel {getattr(request, 'user', None)} exportoval {len(rows)} beden do CSV.",
+    )
+    return response
 
 @admin.action(description="Vytisknout karty bedny")
 def tisk_karet_beden_action(modeladmin, request, queryset):
