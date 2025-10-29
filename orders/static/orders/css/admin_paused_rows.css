@@ -9,6 +9,7 @@ textarea.paused-row,
 .paused-row textarea {
   background-color: #ffecec !important; /* soft yellow */
   border-color: #f78c8c !important;
+  color: #808080 !important;
 }
 
 /* Slightly dim labels next to paused fields */
