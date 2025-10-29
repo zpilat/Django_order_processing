@@ -161,8 +161,14 @@ def export_bedny_to_csv_action(modeladmin, request, queryset):
     writer.writerow(header)
 
     stav_pro_o_x = {
+        StavBednyChoice.NEPRIJATO: '',
+        StavBednyChoice.PRIJATO: '',
         StavBednyChoice.K_NAVEZENI: 'o',
         StavBednyChoice.NAVEZENO: 'x',
+        StavBednyChoice.DO_ZPRACOVANI: '',
+        StavBednyChoice.ZAKALENO: '',
+        StavBednyChoice.ZKONTROLOVANO: '',
+        StavBednyChoice.K_EXPEDICI: '',
     }
     do_zpracovani_states = {
         StavBednyChoice.DO_ZPRACOVANI,
