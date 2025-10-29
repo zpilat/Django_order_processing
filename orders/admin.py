@@ -2829,11 +2829,11 @@ class PoziceZakazkaOrderAdmin(admin.ModelAdmin):
     """
     list_display = ('zakazka', 'pozice', 'poradi')
     list_display_links = ('zakazka',)
-    ordering = ['zakazka', 'pozice']
+    ordering = ['pozice', 'poradi']
     list_per_page = 25
 
     search_fields = ['zakazka__nazev', 'pozice__kod']
-    list_filter = ['zakazka', 'pozice']
+    list_filter = ['pozice']
 
 # Nastavení atributů AdminSite
 admin.site.index_title = "Správa zakázek"
