@@ -34,6 +34,7 @@ from .actions import (
     expedice_zakazek_action, import_kamionu_action, tisk_karet_beden_action, tisk_karet_beden_zakazek_action,
     tisk_karet_beden_kamionu_action, tisk_dodaciho_listu_kamionu_action, vratit_zakazky_z_expedice_action, expedice_zakazek_kamion_action,
     tisk_karet_kontroly_kvality_action, tisk_karet_kontroly_kvality_zakazek_action, tisk_karet_kontroly_kvality_kamionu_action,
+    tisk_karet_bedny_a_kontroly_action,
     tisk_proforma_faktury_kamionu_action, oznacit_k_navezeni_action, vratit_bedny_do_stavu_prijato_action, oznacit_navezeno_action,
     oznacit_do_zpracovani_action, oznacit_zakaleno_action, oznacit_zkontrolovano_action, oznacit_k_expedici_action, oznacit_rovna_action,
     oznacit_kriva_action, oznacit_rovna_se_action, oznacit_vyrovnana_action, oznacit_cista_action, oznacit_spinava_action,
@@ -1944,8 +1945,9 @@ class BednaAdmin(SimpleHistoryAdmin):
     change_list_template = 'admin/orders/bedna/change_list.html'
     poll_interval_ms = 30000
     actions = [
-        export_bedny_to_csv_action,
-        tisk_karet_beden_action, tisk_karet_kontroly_kvality_action, oznacit_k_navezeni_action, oznacit_navezeno_action,
+    export_bedny_to_csv_action,
+    tisk_karet_beden_action, tisk_karet_kontroly_kvality_action, tisk_karet_bedny_a_kontroly_action,
+    oznacit_k_navezeni_action, oznacit_navezeno_action,
         vratit_bedny_do_stavu_prijato_action, oznacit_do_zpracovani_action, oznacit_zakaleno_action, oznacit_zkontrolovano_action,
         oznacit_k_expedici_action, oznacit_rovna_action, oznacit_kriva_action, oznacit_rovna_se_action, oznacit_vyrovnana_action,
         oznacit_cista_action, oznacit_spinava_action, oznacit_otryskana_action, prijmout_bedny_action
@@ -2033,7 +2035,12 @@ class BednaAdmin(SimpleHistoryAdmin):
 
         changed = False
         if last_change and since_value:
-            changed = last_change > since_value
+            if last_change > since_value:
+                changed = True
+            elif last_change == since_value:
+                history_model = Bedna.history.model
+                duplicates = history_model.objects.filter(history_date=last_change).count()
+                changed = duplicates > 1
 
         logger.debug(
             f"Bedna poll: user={getattr(request, 'user', None)} since={since_value} last={last_change} changed={changed}",

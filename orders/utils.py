@@ -62,9 +62,19 @@ def get_verbose_name_for_column(model, field_chain):
     return field_chain  # fallback
 
 def utilita_tisk_dokumentace(modeladmin, request, queryset, html_path, filename):
+    """Utilita pro tisk dokumentace s jednou šablonou na bednu."""
+    return utilita_tisk_dokumentace_sablony(modeladmin, request, queryset, [html_path], filename)
+
+
+def utilita_tisk_dokumentace_sablony(modeladmin, request, queryset, html_paths, filename):
     """
-    Utilita pro tisk dokumentace.
+    Vytvoří PDF, které na každou bednu rendruje všechny dodané šablony za sebou.
     """
+    if not html_paths:
+        logger.error("Chybí šablony pro tisk dokumentace.")
+        messages.error(request, "Není k dispozici žádná šablona pro tisk dokumentace.")
+        return None
+
     gc.collect()  # Uvolní paměť před generováním PDF
     if queryset.count() > 0:
         from io import BytesIO
@@ -83,8 +93,9 @@ def utilita_tisk_dokumentace(modeladmin, request, queryset, html_path, filename)
             context = {"bedna": bedna}
             context["generated_at"] = generated_at
             context["user_last_name"] = user_last_name
-            html = render_to_string(html_path, context)
-            all_html += html + '<p style="page-break-after: always"></p>'  # Oddělí stránky
+            for html_path in html_paths:
+                html = render_to_string(html_path, context)
+                all_html += html + '<p style="page-break-after: always"></p>'  # Oddělí stránky
 
         stylesheets = []
         css_path = finders.find('orders/css/pdf_shared.css')
@@ -97,10 +108,18 @@ def utilita_tisk_dokumentace(modeladmin, request, queryset, html_path, filename)
         pdf_file = HTML(string=all_html, base_url=base_url).write_pdf(stylesheets=stylesheets)
         response = HttpResponse(pdf_file, content_type="application/pdf")
         response['Content-Disposition'] = f'inline; filename={filename}'
-        logger.info(f"Uživatel {request.user} vygeneroval PDF dokumentaci pro {queryset.count()} beden.")
+        logger.info(
+            "Uživatel %s vygeneroval PDF dokumentaci pro %s beden (%s šablon na bednu).",
+            getattr(request, 'user', None),
+            queryset.count(),
+            len(html_paths),
+        )
         return response
     else:
-        logger.warning(f"Uživatel {request.user} se pokusil tisknout dokumentaci, ale nebyly vybrány žádné bedny.")
+        logger.warning(
+            "Uživatel %s se pokusil tisknout dokumentaci, ale nebyly vybrány žádné bedny.",
+            getattr(request, 'user', None),
+        )
         messages.error(request, "Není vybrána žádná bedna k tisku.")
         return None
 

@@ -104,6 +104,24 @@ class ActionsTests(ActionsBase):
         mock_util.assert_called_once()
         self.assertIsInstance(resp, HttpResponse)
 
+    @patch('orders.actions.utilita_tisk_dokumentace_sablony')
+    def test_tisk_karet_bedny_a_kontroly_action(self, mock_util):
+        mock_util.return_value = HttpResponse('ok')
+        req = self.get_request()
+        qs = Bedna.objects.all()
+        resp = actions.tisk_karet_bedny_a_kontroly_action(self.admin, req, qs)
+        self.assertIsInstance(resp, HttpResponse)
+        mock_util.assert_called_once_with(
+            self.admin,
+            req,
+            qs,
+            [
+                'orders/karta_bedny_eur.html',
+                'orders/karta_kontroly_kvality_eur.html',
+            ],
+            'karty_bedny_a_kontroly_eur.pdf',
+        )
+
     @patch('orders.actions.utilita_expedice_zakazek')
     @patch('orders.actions.utilita_kontrola_zakazek')
     def test_expedice_zakazek_action(self, mock_kontrola, mock_expedice):

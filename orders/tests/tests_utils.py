@@ -10,6 +10,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from orders.utils import (
     get_verbose_name_for_column,
     utilita_tisk_dokumentace,
+    utilita_tisk_dokumentace_sablony,
     utilita_tisk_dl_a_proforma_faktury,
     utilita_expedice_zakazek,
     utilita_kontrola_zakazek,
@@ -88,6 +89,39 @@ class UtilitaTiskDokumentaceTests(UtilsBase):
         msgs = list(get_messages(req))
         self.assertEqual(len(msgs), 1)
         self.assertIn('Není vybrána žádná bedna k tisku', msgs[0].message)
+
+    @patch('orders.utils.render_to_string')
+    @patch('orders.utils.HTML.write_pdf')
+    def test_tisk_dokumentace_sablony(self, mock_pdf, mock_render):
+        qs = Bedna.objects.all()
+        mock_render.side_effect = ['A', 'B'] * qs.count()
+        mock_pdf.return_value = b'PDF'
+        resp = utilita_tisk_dokumentace_sablony(
+            None,
+            self.get_request(),
+            qs,
+            ['path-one.html', 'path-two.html'],
+            'combined.pdf',
+        )
+        self.assertIsInstance(resp, HttpResponse)
+        self.assertEqual(resp.content, b'PDF')
+        # Dvakrát volání renderu na jednu bednu a dvě šablony
+        self.assertEqual(mock_render.call_count, qs.count() * 2)
+        mock_pdf.assert_called_once()
+
+    def test_tisk_dokumentace_sablony_missing_templates(self):
+        req = self.get_request()
+        resp = utilita_tisk_dokumentace_sablony(
+            None,
+            req,
+            Bedna.objects.all(),
+            [],
+            'combined.pdf',
+        )
+        self.assertIsNone(resp)
+        msgs = list(get_messages(req))
+        self.assertEqual(len(msgs), 1)
+        self.assertIn('Není k dispozici žádná šablona pro tisk dokumentace.', msgs[0].message)
 
 
 class UtilitaTiskDLProformaTests(UtilsBase):

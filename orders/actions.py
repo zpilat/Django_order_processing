@@ -20,7 +20,13 @@ from weasyprint import HTML
 from weasyprint import CSS
 
 from .models import Zakazka, Bedna, Kamion, Zakaznik, Pozice
-from .utils import utilita_tisk_dokumentace, utilita_expedice_zakazek, utilita_kontrola_zakazek, utilita_tisk_dl_a_proforma_faktury
+from .utils import (
+    utilita_tisk_dokumentace,
+    utilita_tisk_dokumentace_sablony,
+    utilita_expedice_zakazek,
+    utilita_kontrola_zakazek,
+    utilita_tisk_dl_a_proforma_faktury,
+)
 from .forms import VyberKamionVydejForm, OdberatelForm, KNavezeniForm
 from .choices import (
     KamionChoice,
@@ -296,6 +302,54 @@ def tisk_karet_kontroly_kvality_action(modeladmin, request, queryset):
         logger.error(f"Bedna {queryset.first()} nemá přiřazeného zákazníka nebo zákazník nemá zkratku.")
         modeladmin.message_user(request, "Bedna nemá přiřazeného zákazníka nebo zákazník nemá zkratku.", level=messages.ERROR)
         return None
+
+
+@admin.action(description="Vytisknout karty bedny + KKK")
+def tisk_karet_bedny_a_kontroly_action(modeladmin, request, queryset):
+    """Vytvoří PDF, kde má každá bedna svoji kartu a navazující kartu kontroly kvality."""
+    if queryset.values('zakazka__kamion_prijem__zakaznik').distinct().count() != 1:
+        logger.error(
+            "Uživatel %s se pokusil tisknout kombinované karty beden, ale vybral bedny od více zákazníků.",
+            getattr(request, 'user', None),
+        )
+        modeladmin.message_user(
+            request,
+            "Pro tisk kombinovaných karet musí být vybrány bedny od jednoho zákazníka.",
+            level=messages.ERROR,
+        )
+        return None
+
+    first_bedna = queryset.first()
+    if not first_bedna or not first_bedna.zakazka or not first_bedna.zakazka.kamion_prijem:
+        logger.error("Tisk kombinovaných karet selhal: chybí zakázka nebo kamion příjem u vybrané bedny.")
+        modeladmin.message_user(request, "Bedna nemá kompletní vazby pro tisk.", level=messages.ERROR)
+        return None
+
+    zakaznik = first_bedna.zakazka.kamion_prijem.zakaznik
+    zakaznik_zkratka = getattr(zakaznik, 'zkratka', None)
+    if zakaznik_zkratka:
+        zkratka_lower = zakaznik_zkratka.lower()
+        filename = f"karty_bedny_a_kontroly_{zkratka_lower}.pdf"
+        html_paths = [
+            f"orders/karta_bedny_{zkratka_lower}.html",
+            f"orders/karta_kontroly_kvality_{zkratka_lower}.html",
+        ]
+        response = utilita_tisk_dokumentace_sablony(modeladmin, request, queryset, html_paths, filename)
+        if response:
+            logger.info(
+                "Uživatel %s tiskne kombinované karty bedny+KKK pro %s vybraných beden.",
+                getattr(request, 'user', None),
+                queryset.count(),
+            )
+        return response
+
+    logger.error("Bedna %s nemá přiřazeného zákazníka nebo zákazník nemá zkratku.", first_bedna)
+    modeladmin.message_user(
+        request,
+        "Bedna nemá přiřazeného zákazníka nebo zákazník nemá zkratku.",
+        level=messages.ERROR,
+    )
+    return None
 
 @admin.action(description="Přijmout vybrané bedny na sklad")
 def prijmout_bedny_action(modeladmin, request, queryset):
