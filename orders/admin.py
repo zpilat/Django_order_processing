@@ -2428,7 +2428,7 @@ class BednaAdmin(SimpleHistoryAdmin):
                 actions_to_remove += [
                     'oznacit_rovna_se_action',
                 ]
-            if request.GET.get('rovnani', None) != RovnaniChoice.ROVNA_SE:
+            if request.GET.get('rovnani', None) not in [RovnaniChoice.KRIVA, RovnaniChoice.ROVNA_SE]:
                 actions_to_remove += [
                     'oznacit_vyrovnana_action',
                 ]
@@ -2451,7 +2451,8 @@ class BednaAdmin(SimpleHistoryAdmin):
         """
         Seskupení akcí beden do optgroup a formátování placeholderů.
         Skupiny:
-        - Tisk / Export
+        - Tisk
+        - Export
         - Stav bedny
         - Rovnání
         - Tryskání
@@ -2462,9 +2463,9 @@ class BednaAdmin(SimpleHistoryAdmin):
             return default_choices
 
         group_map = {
-            'export_bedny_to_csv_action': 'Tisk / Export',
-            'tisk_karet_beden_action': 'Tisk / Export',
-            'tisk_karet_kontroly_kvality_action': 'Tisk / Export',
+            'export_bedny_to_csv_action': 'Export',
+            'tisk_karet_beden_action': 'Tisk',
+            'tisk_karet_kontroly_kvality_action': 'Tisk',
             'prijmout_bedny_action': 'Stav bedny',
             'oznacit_k_navezeni_action': 'Stav bedny',
             'oznacit_navezeno_action': 'Stav bedny',
@@ -2481,7 +2482,7 @@ class BednaAdmin(SimpleHistoryAdmin):
             'oznacit_spinava_action': 'Tryskání',
             'oznacit_otryskana_action': 'Tryskání',
         }
-        order = ['Tisk / Export', 'Stav bedny', 'Rovnání', 'Tryskání']
+        order = ['Tisk', 'Export', 'Stav bedny', 'Rovnání', 'Tryskání']
         grouped = {g: [] for g in order}
 
         for name, (_func, _action_name, desc) in actions.items():
@@ -2504,10 +2505,10 @@ class BednaAdmin(SimpleHistoryAdmin):
         for g in order + [g for g in grouped.keys() if g not in order]:
             opts = grouped.get(g)
             if opts:
-                if g == 'Stav bedny':
-                    choices.append((g, opts))  # zachovat pořadí akcí ve skupině Stav bedny
-                else:
-                    choices.append((g, sorted(opts, key=lambda x: x[1].lower())))
+                # Přidat skupinu akcí bez řazení akcí uvnitř skupiny
+                choices.append((g, opts))
+                # # Seřadit akce podle názvu
+                # choices.append((g, sorted(opts, key=lambda x: x[1].lower())))
         return choices
     
     def formfield_for_foreignkey(self, db_field, request=None, **kwargs):

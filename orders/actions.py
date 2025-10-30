@@ -738,7 +738,7 @@ def oznacit_kriva_action(modeladmin, request, queryset):
     logger.info(f"Uživatel {request.user} změnil stav rovnání na KRIVA u {queryset.count()} beden.")
     return None
 
-@admin.action(description="Přesun beden na rovnání (KŘIVÁ --> ROVNÁ SE)")
+@admin.action(description="Přesun beden na rovnání (ROVNÁ SE)")
 def oznacit_rovna_se_action(modeladmin, request, queryset):
     """
     Změní stav rovnání vybraných beden z KRIVA na ROVNA_SE.
