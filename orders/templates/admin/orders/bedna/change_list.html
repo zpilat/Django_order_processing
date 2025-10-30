@@ -1,0 +1,18 @@
+{% extends "admin/change_list.html" %}
+{% load static %}
+
+{% block extrahead %}
+{{ block.super }}
+<script>
+window.bednaPollConfig = {
+    pollUrl: "{{ bedna_poll_url|escapejs }}",
+    lastChange: {% if bedna_last_change %}"{{ bedna_last_change|escapejs }}"{% else %}null{% endif %},
+    intervalMs: {{ bedna_poll_interval|default:30000 }},
+};
+</script>
+<script src="{% static 'orders/js/admin_bedna_change_poll.js' %}" defer></script>
+{% endblock %}
+
+{% block content %}
+{{ block.super }}
+{% endblock %}

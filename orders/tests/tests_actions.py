@@ -10,6 +10,7 @@ from unittest.mock import patch
 from datetime import date
 import csv
 import io
+import json
 
 from orders.models import (
     Zakaznik, Kamion, Zakazka, Bedna, Predpis, TypHlavy,
@@ -322,7 +323,7 @@ class ExportBednyCsvActionTests(ActionsBase):
             'A1',
             str(bedna.cislo_bedny),
             '42',
-            'x',
+            '',
             '1 x 1',
             'x',
             'x',
@@ -338,6 +339,43 @@ class ExportBednyCsvActionTests(ActionsBase):
         ]
         self.assertEqual(rows[1], expected_row)
 
+
+class BednaAdminPollingTests(ActionsBase):
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+
+    def setUp(self):
+        super().setUp()
+        self.bedna_admin = BednaAdmin(Bedna, self.site)
+
+    def test_poll_changes_view_without_since(self):
+        request = self.get_request('get')
+        response = self.bedna_admin.poll_changes_view(request)
+        self.assertEqual(response.status_code, 200)
+        payload = json.loads(response.content.decode('utf-8'))
+        self.assertIn('timestamp', payload)
+        self.assertIn('changed', payload)
+        self.assertFalse(payload['changed'])
+
+    def test_poll_changes_view_detects_updates(self):
+        initial_request = self.get_request('get')
+        initial_payload = json.loads(
+            self.bedna_admin.poll_changes_view(initial_request).content.decode('utf-8')
+        )
+        baseline_timestamp = initial_payload.get('timestamp')
+        self.assertIsNotNone(baseline_timestamp)
+
+        # Provede změnu na bedně, aby vznikl nový historický záznam
+        self.bedna.poznamka = 'Změna pro polling'
+        self.bedna.save()
+
+        request = self.get_request('get', data={'since': baseline_timestamp})
+        response = self.bedna_admin.poll_changes_view(request)
+        payload = json.loads(response.content.decode('utf-8'))
+        self.assertIn('timestamp', payload)
+        self.assertTrue(payload['changed'])
+        self.assertIsNotNone(payload['timestamp'])
 
 class KNavezeniActionTests(ActionsBase):
     @classmethod

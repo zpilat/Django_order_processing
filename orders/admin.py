@@ -12,9 +12,12 @@ from django.contrib.admin.widgets import RelatedFieldWidgetWrapper
 from django.urls import path, reverse
 from django.shortcuts import redirect, render
 from django.utils.html import format_html, format_html_join
-from django.db.models import Count
+from django.db.models import Count, Max
 from django.core.exceptions import ValidationError
 from django.db.models.deletion import ProtectedError
+from django.http import JsonResponse
+from django.utils import timezone
+from datetime import datetime
 
 from simple_history.admin import SimpleHistoryAdmin
 from decimal import Decimal, ROUND_HALF_UP, ROUND_DOWN
@@ -1938,6 +1941,8 @@ class BednaAdmin(SimpleHistoryAdmin):
     - Číslo bedny se generuje automaticky a je readonly
     - Akce pro tisk karet beden, označení stavu bedny, vrácení beden do stavu přijato a přijetí beden.
     """
+    change_list_template = 'admin/orders/bedna/change_list.html'
+    poll_interval_ms = 30000
     actions = [
         export_bedny_to_csv_action,
         tisk_karet_beden_action, tisk_karet_kontroly_kvality_action, oznacit_k_navezeni_action, oznacit_navezeno_action,
@@ -1991,10 +1996,53 @@ class BednaAdmin(SimpleHistoryAdmin):
             'orders/js/admin_actions_target_blank.js',
             'orders/js/changelist_dirty_guard.js',
             'orders/js/admin_bedna_group_separator.js',
+            'orders/js/admin_bedna_change_poll.js',
         )
         css = {
             'all': ('orders/css/admin_paused_rows.css',)
         }
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                'changes/poll/',
+                self.admin_site.admin_view(self.poll_changes_view),
+                name='orders_bedna_poll',
+            ),
+        ]
+        return custom_urls + urls
+
+    def _get_latest_change_timestamp(self):
+        latest = Bedna.history.aggregate(last=Max('history_date'))['last']
+        return latest
+
+    def poll_changes_view(self, request):
+        last_change = self._get_latest_change_timestamp()
+        since_raw = request.GET.get('since')
+        since_value = None
+
+        if since_raw:
+            try:
+                normalized = since_raw.replace(' ', '+')
+                since_value = datetime.fromisoformat(normalized)
+                if timezone.is_naive(since_value):
+                    since_value = timezone.make_aware(since_value, timezone.get_current_timezone())
+            except ValueError:
+                since_value = None
+
+        changed = False
+        if last_change and since_value:
+            changed = last_change > since_value
+
+        logger.debug(
+            f"Bedna poll: user={getattr(request, 'user', None)} since={since_value} last={last_change} changed={changed}",
+        )
+        payload = {
+            'changed': changed,
+            'timestamp': last_change.isoformat() if last_change else None,
+        }
+        return JsonResponse(payload)
 
     @admin.display(description='Č. bedny', ordering='cislo_bedny')
     def get_cislo_bedny(self, obj):
@@ -2279,7 +2327,15 @@ class BednaAdmin(SimpleHistoryAdmin):
         links = self.get_list_display_links(request, self.get_list_display(request))
         display = self.get_list_display(request)
         self.list_editable = [f for f in editable if f in display and f not in links]
-        return super().changelist_view(request, extra_context)
+        extra_context = extra_context or {}
+        last_change = self._get_latest_change_timestamp()
+        extra_context.update({
+            'bedna_poll_url': reverse('admin:orders_bedna_poll'),
+            'bedna_last_change': last_change.isoformat() if last_change else '',
+            'bedna_poll_interval': self.poll_interval_ms,
+        })
+        response = super().changelist_view(request, extra_context)
+        return response
 
     def get_changelist_formset(self, request, **kwargs):
         """
