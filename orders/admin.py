@@ -2387,7 +2387,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         stav_bedny = request.GET.get('stav_bedny', None)
 
         # Podmínky pro odstranění sloupců z list_display
-        if stav_bedny and stav_bedny != 'PE':
+        if stav_bedny and stav_bedny not in ['PE', 'RO']:
             if 'get_postup' in list_display:
                 list_display.remove('get_postup')
         if stav_bedny != StavBednyChoice.EXPEDOVANO:

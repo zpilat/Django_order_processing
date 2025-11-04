@@ -67,11 +67,9 @@
                   {% if forloop.first %}
                     <td rowspan="{{ bedny_list|length }}" style="font-weight: bold; font-size: 14px;">
                       {{ group.pozice|default:"-" }}
-                      {% if zakazka_group.poradi %}
-                        {% if zakazka_group.poradi == 1 %}
-                          <br>
-                          <span style="font-size: 12px; font-weight: normal;">(KE ZDI)</span>
-                        {% endif %}                        
+                      {% if forloop.parentloop and forloop.parentloop.last %}
+                        <br>
+                        <span style="font-size: 12px; font-weight: normal;">(KE ZDI)</span>
                       {% endif %}
                     </td>
                     <td rowspan="{{ bedny_list|length }}" style="font-weight: bold; font-size: 14px;">{{ zakazka_group.zakazka.artikl }}</td>
