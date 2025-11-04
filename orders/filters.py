@@ -86,8 +86,8 @@ class DelkaFilter(DynamicTitleFilter):
 
     def __init__(self, request, params, model, model_admin):
         """
-        Využije ostatní aktivní filtry (kromě délky) pro získání dostupných délek a celkových hmotností a množství
-        pro zobrazení v lookupech.
+        Využije ostatní aktivní filtry (kromě délky) pro získání dostupných délek a celkových hmotností a množství a
+        počtu beden pro zobrazení v lookupech.
         """
         self.label_dict = {}
         # Pokud není aktivován filtr stav_bedny nebo není vybrán "Neprijato" či "Prijato", filtr DelkaFilter se neaplikuje
@@ -145,7 +145,7 @@ class DelkaFilter(DynamicTitleFilter):
         query_list = list(
             query.values('zakazka__delka')
             .exclude(zakazka__delka__isnull=True)
-            .annotate(celkova_hmotnost=Sum('hmotnost'), celkove_mnozstvi=Sum('mnozstvi'))
+            .annotate(celkova_hmotnost=Sum('hmotnost'), celkove_mnozstvi=Sum('mnozstvi'), pocet_beden=Sum(1))
             .order_by('zakazka__delka')
         )
         
@@ -176,22 +176,22 @@ class DelkaFilter(DynamicTitleFilter):
 
         if all_have_mnozstvi and all_have_hmotnost:
             self.label_dict = {
-                row['zakazka__delka']: f"{int(row['zakazka__delka'])} ({row['celkova_hmotnost']:.0f} kg | {row['celkove_mnozstvi']:.0f} ks)"
+                row['zakazka__delka']: f"{int(row['zakazka__delka'])} ({row['celkova_hmotnost']:.0f} kg | {row['celkove_mnozstvi']:.0f} ks | #{row['pocet_beden']})"
                 for row in query_list
             }
         elif all_have_hmotnost:
             self.label_dict = {
-                row['zakazka__delka']: f"{int(row['zakazka__delka'])} ({row['celkova_hmotnost']:.0f} kg)"
+                row['zakazka__delka']: f"{int(row['zakazka__delka'])} ({row['celkova_hmotnost']:.0f} kg | #{row['pocet_beden']})"
                 for row in query_list
             }
         elif all_have_mnozstvi:
             self.label_dict = {
-                row['zakazka__delka']: f"{int(row['zakazka__delka'])} ({row['celkove_mnozstvi']:.0f} ks)"
+                row['zakazka__delka']: f"{int(row['zakazka__delka'])} ({row['celkove_mnozstvi']:.0f} ks | #{row['pocet_beden']})"
                 for row in query_list
             }
         else:
             self.label_dict = {
-                row['zakazka__delka']: f"{int(row['zakazka__delka'])}"
+                row['zakazka__delka']: f"{int(row['zakazka__delka'])} (#{row['pocet_beden']})"
                 for row in query_list
             }
         
@@ -335,7 +335,7 @@ class SkupinaFilter(DynamicTitleFilter):
 
         # Vytvoří slovník s unikátními názvy skupin pro zobrazení ve filtru ve správném formátu
         label_dict = dict(query.values_list('skupina', 'skupina').distinct().order_by('skupina'))
-        self.label_dict = {k: f'TZ {v}' for k, v in label_dict.items()}
+        self.label_dict = {k: f'SK{v}' for k, v in label_dict.items()}
         super().__init__(request, params, model, model_admin)
 
     def lookups(self, request, model_admin):

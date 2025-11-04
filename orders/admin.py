@@ -1971,8 +1971,8 @@ class BednaAdmin(SimpleHistoryAdmin):
     list_per_page = 33
     search_fields = ('cislo_bedny', 'behalter_nr', 'zakazka__artikl',)
     search_help_text = "Dle čísla bedny, č.b. zákazníka nebo zakázky"
-    list_filter = (ZakaznikBednyFilter, StavBednyFilter, TryskaniFilter, RovnaniFilter, CelozavitBednyFilter,
-                   TypHlavyBednyFilter, PrioritaBednyFilter, PozastavenoFilter, SkupinaFilter, DelkaFilter)
+    list_filter = (ZakaznikBednyFilter, StavBednyFilter, TryskaniFilter, RovnaniFilter, SkupinaFilter, DelkaFilter,
+                   CelozavitBednyFilter, TypHlavyBednyFilter, PrioritaBednyFilter, PozastavenoFilter,)
     ordering = ('id',)
     date_hierarchy = 'zakazka__kamion_prijem__datum'
     formfield_overrides = {
@@ -2409,13 +2409,16 @@ class BednaAdmin(SimpleHistoryAdmin):
     def get_list_filter(self, request):
         """
         Přizpůsobení dostupných filtrů v administraci podle filtru stavu bedny.
-        Pokud není aktivní filtr stav bedny PRIJATO, zruší se filtr DelkaFilter,
+        Pokud není vůbec aktivní filtr stav bedny, zruší se filtr DelkaFilter, TypHlavyBednyFilter a CelozavitBednyFilter,
+        pokud není aktivní filtr stav bedny PRIJATO, zruší se filtr DelkaFilter,
         SkupinaFilter, TypHlavyBednyFilter a CelozavitBednyFilter,
         jinak se zruší filtry TryskaniFilter, RovnaniFilter a PozastavenoFilter.
         """
         actual_filters = super().get_list_filter(request)
         filters_to_remove = []
-        if request.GET.get('stav_bedny', None) != StavBednyChoice.PRIJATO:
+        if request.GET.get('stav_bedny', None) is None:
+            filters_to_remove.extend([DelkaFilter, TypHlavyBednyFilter, CelozavitBednyFilter])
+        elif request.GET.get('stav_bedny', None) != StavBednyChoice.PRIJATO:
             filters_to_remove.extend([DelkaFilter, SkupinaFilter, TypHlavyBednyFilter, CelozavitBednyFilter])
         else:
             filters_to_remove.extend([TryskaniFilter, RovnaniFilter, PozastavenoFilter])
@@ -2425,7 +2428,8 @@ class BednaAdmin(SimpleHistoryAdmin):
         """
         Přizpůsobí dostupné akce v administraci podle filtru stavu bedny, rovnat a tryskat.
         Pokud není aktivní filtr stav bedny NEPRIJATO, zruší se akce pro přijetí bedny, jinak se zruší akce pro tisk karet beden a kontroly kvality.
-        Pokud není aktivní filtr stav bedny PRIJATO, zruší se akce pro změnu stavu bedny na K_NAVEZENI.
+        Pokud není vůbec aktivní filtr stav bedny nebo není aktivní filtr stav bedny PRIJATO,
+        zruší se akce pro změnu stavu bedny na K_NAVEZENI.
         Pokud není aktivní filtr stav bedny K_NAVEZENI, zruší akci pro změnu stavu bedny na NAVEZENO a pro vrácení stavu bedny na PRIJATO.
         Pokud není aktivní filtr stav bedny NAVEZENO, zruší akci pro změnu stavu bedny na DO_ZPRACOVANI.
         Pokud není aktivní filtr stav bedny DO_ZPRACOVANI, zruší akci pro změnu stavu bedny na ZAKALENO.
@@ -2452,7 +2456,7 @@ class BednaAdmin(SimpleHistoryAdmin):
                     'tisk_karet_beden_action', 'tisk_karet_kontroly_kvality_action',
                 ]
 
-            if request.GET.get('stav_bedny', None) != StavBednyChoice.PRIJATO:
+            if request.GET.get('stav_bedny', None) and request.GET.get('stav_bedny', None) != StavBednyChoice.PRIJATO:
                 actions_to_remove += [
                     'oznacit_k_navezeni_action',
                 ]
@@ -2514,9 +2518,9 @@ class BednaAdmin(SimpleHistoryAdmin):
         """
         Seskupení akcí beden do optgroup a formátování placeholderů.
         Skupiny:
-        - Tisk
-        - Export
         - Stav bedny
+        - Tisk
+        - Export        
         - Rovnání
         - Tryskání
         Ostatní akce (např. delete_selected) spadnou do 'Ostatní'.
@@ -2529,6 +2533,7 @@ class BednaAdmin(SimpleHistoryAdmin):
             'export_bedny_to_csv_action': 'Export',
             'tisk_karet_beden_action': 'Tisk',
             'tisk_karet_kontroly_kvality_action': 'Tisk',
+            'tisk_karet_bedny_a_kontroly_action': 'Tisk',
             'prijmout_bedny_action': 'Stav bedny',
             'oznacit_k_navezeni_action': 'Stav bedny',
             'oznacit_navezeno_action': 'Stav bedny',
@@ -2545,7 +2550,7 @@ class BednaAdmin(SimpleHistoryAdmin):
             'oznacit_spinava_action': 'Tryskání',
             'oznacit_otryskana_action': 'Tryskání',
         }
-        order = ['Tisk', 'Export', 'Stav bedny', 'Rovnání', 'Tryskání']
+        order = ['Stav bedny', 'Tisk', 'Export', 'Rovnání', 'Tryskání']
         grouped = {g: [] for g in order}
 
         for name, (_func, _action_name, desc) in actions.items():
