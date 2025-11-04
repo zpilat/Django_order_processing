@@ -622,7 +622,7 @@ class Bedna(models.Model):
         - ZAKALENO: 50%
         - ZKONTROLOVANO, rovnat není ROVNA nebo VYROVNANA a tryskat není CISTA nebo OTRYSKANA: 60%
         - ZKONTROLOVANO, rovnat není ROVNA nebo VYROVNANA nebo tryskat není CISTA nebo OTRYSKANA: 75%
-        - ZKONTROLOVANO, rovnat je ROVNA nebo VYROVNANA a tryskat není CISTA nebo OTRYSKANA: 90%
+        - ZKONTROLOVANO, rovnat je ROVNA nebo VYROVNANA a tryskat je CISTA nebo OTRYSKANA: 90%
         - K_EXPEDICI nebo EXPEDOVANO: 100%
         """
         if self.stav_bedny == StavBednyChoice.NEPRIJATO:

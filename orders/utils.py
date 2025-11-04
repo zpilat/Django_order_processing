@@ -34,10 +34,11 @@ def build_postup_vyroby_cases():
     good_rovnat = [RovnaniChoice.ROVNA, RovnaniChoice.VYROVNANA]
     good_tryskat = [TryskaniChoice.CISTA, TryskaniChoice.OTRYSKANA]
     return [
-        When(stav_bedny__in=[StavBednyChoice.NEPRIJATO, StavBednyChoice.PRIJATO], then=Value(0)),
-        When(stav_bedny=StavBednyChoice.K_NAVEZENI, then=Value(10)),
-        When(stav_bedny=StavBednyChoice.NAVEZENO, then=Value(20)),
-        When(stav_bedny=StavBednyChoice.DO_ZPRACOVANI, then=Value(30)),
+        When(stav_bedny=StavBednyChoice.NEPRIJATO, then=Value(0)),
+        When(stav_bedny=StavBednyChoice.PRIJATO, then=Value(10)),
+        When(stav_bedny=StavBednyChoice.K_NAVEZENI, then=Value(20)),
+        When(stav_bedny=StavBednyChoice.NAVEZENO, then=Value(30)),
+        When(stav_bedny=StavBednyChoice.DO_ZPRACOVANI, then=Value(40)),
         When(stav_bedny=StavBednyChoice.ZAKALENO, then=Value(50)),
         # ZKONTROLOVANO varianty (od nejužší po obecnou)
         When(stav_bedny=StavBednyChoice.ZKONTROLOVANO, rovnat__in=good_rovnat, tryskat__in=good_tryskat, then=Value(90)),
