@@ -614,24 +614,27 @@ class Bedna(models.Model):
 
         PO ZMĚNĚ TÉTO PROPERTY AKTUALIZOVAT I FUNKCI build_postup_vyroby_cases v utils.py!!!
         
-        - NEPRIJATO a PRIJATO: 0%
-        - K_NAVEZENI: 10%
-        - NAVEZENO: 20%
-        - DO_ZPRACOVANI: 30%
+        - NEPRIJATO: 0%
+        - PRIJATO: 10%
+        - K_NAVEZENI: 20%
+        - NAVEZENO: 30%
+        - DO_ZPRACOVANI: 40%
         - ZAKALENO: 50%
         - ZKONTROLOVANO, rovnat není ROVNA nebo VYROVNANA a tryskat není CISTA nebo OTRYSKANA: 60%
         - ZKONTROLOVANO, rovnat není ROVNA nebo VYROVNANA nebo tryskat není CISTA nebo OTRYSKANA: 75%
         - ZKONTROLOVANO, rovnat je ROVNA nebo VYROVNANA a tryskat není CISTA nebo OTRYSKANA: 90%
         - K_EXPEDICI nebo EXPEDOVANO: 100%
         """
-        if self.stav_bedny in [StavBednyChoice.NEPRIJATO, StavBednyChoice.PRIJATO]:
+        if self.stav_bedny == StavBednyChoice.NEPRIJATO:
             return 0
-        elif self.stav_bedny == StavBednyChoice.K_NAVEZENI:
+        elif self.stav_bedny == StavBednyChoice.PRIJATO:
             return 10
-        elif self.stav_bedny == StavBednyChoice.NAVEZENO:
+        elif self.stav_bedny == StavBednyChoice.K_NAVEZENI:
             return 20
-        elif self.stav_bedny == StavBednyChoice.DO_ZPRACOVANI:
+        elif self.stav_bedny == StavBednyChoice.NAVEZENO:
             return 30
+        elif self.stav_bedny == StavBednyChoice.DO_ZPRACOVANI:
+            return 40
         elif self.stav_bedny == StavBednyChoice.ZAKALENO:
             return 50
         elif self.stav_bedny == StavBednyChoice.ZKONTROLOVANO:
@@ -645,7 +648,36 @@ class Bedna(models.Model):
             return 100
         else:
             return 0  # Pro případ neznámého stavu bedny vrací 0%
-    
+
+    @property
+    def barva_postupu_vyroby(self):
+        """
+        Vrací barvu postupu výroby bedny na základě stavu bedny.
+        - NEPRIJATO: bez barvy
+        - PRIJATO: světle zelená
+        - K_NAVEZENI a NAVEZENO: světle modrá
+        - DO_ZPRACOVANI: světle šedá
+        - ZAKALENO: žlutá
+        - ZKONTROLOVANO: oranžová
+        - K_EXPEDICI nebo EXPEDOVANO: černá
+        """
+        if self.stav_bedny == StavBednyChoice.NEPRIJATO:
+            return ''
+        elif self.stav_bedny == StavBednyChoice.PRIJATO:
+            return 'lightgreen'
+        elif self.stav_bedny in [StavBednyChoice.K_NAVEZENI, StavBednyChoice.NAVEZENO]:
+            return 'lightblue'
+        elif self.stav_bedny == StavBednyChoice.DO_ZPRACOVANI:
+            return 'lightgray'
+        elif self.stav_bedny == StavBednyChoice.ZAKALENO:
+            return 'yellow'
+        elif self.stav_bedny == StavBednyChoice.ZKONTROLOVANO:
+            return 'orange'
+        elif self.stav_bedny in [StavBednyChoice.K_EXPEDICI, StavBednyChoice.EXPEDOVANO]:
+            return 'black'
+        else:
+            return ''  # Pro případ neznámého stavu bedny vrací bez barvy
+
     def clean(self):
         """
         Validace stavu bedny a tryskání/rovnání.

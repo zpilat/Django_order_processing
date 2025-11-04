@@ -2170,10 +2170,10 @@ class BednaAdmin(SimpleHistoryAdmin):
         """
         # jednoduchý progress bar
         postup = obj.postup_vyroby
-        pozadi = "#ef4444" if postup < 50 else ("#eab308" if postup <= 75 else "#22c55e")
+        barva = obj.barva_postupu_vyroby
         bar = f"""
         <div style="width:60px;border:1px solid #ddd;height:12px;border-radius:6px;overflow:hidden;">
-            <div style="width:{postup}%;height:100%;background:{pozadi};"></div>
+            <div style="width:{postup}%;height:100%;background:{barva};"></div>
         </div>
         """
         return format_html(bar)
