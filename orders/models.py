@@ -659,7 +659,7 @@ class Bedna(models.Model):
         - DO_ZPRACOVANI: světle šedá
         - ZAKALENO: žlutá
         - ZKONTROLOVANO: oranžová
-        - K_EXPEDICI nebo EXPEDOVANO: černá
+        - K_EXPEDICI nebo EXPEDOVANO: tmavě zelená
         """
         if self.stav_bedny == StavBednyChoice.NEPRIJATO:
             return ''
@@ -674,7 +674,7 @@ class Bedna(models.Model):
         elif self.stav_bedny == StavBednyChoice.ZKONTROLOVANO:
             return 'orange'
         elif self.stav_bedny in [StavBednyChoice.K_EXPEDICI, StavBednyChoice.EXPEDOVANO]:
-            return 'black'
+            return 'darkgreen'
         else:
             return ''  # Pro případ neznámého stavu bedny vrací bez barvy
 
