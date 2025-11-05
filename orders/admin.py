@@ -50,7 +50,7 @@ from .filters import (
 from .forms import BednaAdminForm, BednaChangeListForm, ImportZakazekForm, ZakazkaInlineForm, ZakazkaAdminForm
 from .choices import (
     StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice, PrijemVydejChoice, SklademZakazkyChoice,
-    STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM, STAV_BEDNY_PRO_NAVEZENI
+    BARVA_SKUPINY_TZ, STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM, STAV_BEDNY_PRO_NAVEZENI
 )
 from .utils import utilita_validate_excel_upload, build_postup_vyroby_cases
 
@@ -1498,7 +1498,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     
     # Parametry pro zobrazení seznamu v administraci
     list_display = ('artikl', 'get_datum', 'kamion_prijem_link', 'kamion_vydej_link', 'get_prumer', 'get_delka_int', 'predpis_link',
-                    'typ_hlavy_link', 'get_skupina', 'get_celozavit', 'get_zkraceny_popis', 'priorita', 'get_odberatel',
+                    'typ_hlavy_link', 'get_skupina_TZ', 'get_celozavit', 'get_zkraceny_popis', 'priorita', 'get_odberatel',
                     'hmotnost_zakazky_k_expedici_brutto', 'pocet_beden_k_expedici', 'celkovy_pocet_beden', 'get_komplet',)
     list_display_links = ('artikl',)
     # list_editable = nastavováno dynamicky v get_list_editable
@@ -1631,12 +1631,14 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
         return '-'
 
     @admin.display(description='TZ', ordering='predpis__skupina', empty_value='-')
-    def get_skupina(self, obj):
+    def get_skupina_TZ(self, obj):
         """
         Zobrazí skupinu tepelného zpracování zakázky a umožní třídění podle hlavičky pole.
+        Vrátí html číslo s barvou podle skupiny - BARVA_SKUPINY_TZ.
         """
-        if obj.predpis:
-            return obj.predpis.skupina
+        barva = BARVA_SKUPINY_TZ[obj.predpis.skupina] if obj.predpis and obj.predpis.skupina in BARVA_SKUPINY_TZ else ''
+        if obj.predpis and obj.predpis.skupina:
+            return mark_safe(f'<span style="color: {barva}">{obj.predpis.skupina}</span>')
         return '-'
 
     @admin.display(boolean=True, description='VG', ordering='celozavit')
@@ -2157,11 +2159,13 @@ class BednaAdmin(SimpleHistoryAdmin):
     @admin.display(description='TZ', ordering='zakazka__predpis__skupina', empty_value='-')
     def get_skupina_TZ(self, obj):
         """
-        Zobrazí skupinu tepelného zpracování zakázky a umožní třídění podle hlavičky pole.
+        Zobrazí skupinu tepelného zpracování bedny a umožní třídění podle hlavičky pole.
+        Vrátí html číslo s barvou podle skupiny - BARVA_SKUPINY_TZ.
         """
+        barva = BARVA_SKUPINY_TZ[obj.zakazka.predpis.skupina] if obj.zakazka and obj.zakazka.predpis and obj.zakazka.predpis.skupina in BARVA_SKUPINY_TZ else ''
         if obj.zakazka and obj.zakazka.predpis and obj.zakazka.predpis.skupina:
-            return obj.zakazka.predpis.skupina
-        return '-'
+            return mark_safe(f'<span style="color: {barva}">{obj.zakazka.predpis.skupina}</span>')
+        return '-'        
 
     @admin.display(description='Postup', ordering='postup_vyroby_value', empty_value='-')
     def get_postup(self, obj):

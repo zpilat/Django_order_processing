@@ -92,3 +92,27 @@ class SklademZakazkyChoice(models.TextChoices):
     BEZ_BEDEN = 'bez_beden', 'Bez beden'
     PO_EXSPIRACI = 'po_exspiraci', 'Po exspiraci'
     EXPEDOVANO = 'expedovano', 'Expedováno'
+
+# Mapping skupiny TZ na barvy
+BARVA_SKUPINY_TZ = {
+    1: '#000000',
+    2: '#ea9999',
+    3: '#6d9eeb',
+    4: '#99cc99',
+    5: '#009900',
+    6: '#ff0000',
+    7: '#ffff00',
+    8: '#cccccc',
+    9: '#ff9900',
+    10: '#0000ff',
+    11: '#741b47',
+    12: '#1c4587',
+    13: '#f1c232',
+    14: '#d9ead3',
+    15: '#f4cccc',
+    16: '#11f3f3',
+    17: '#c0c0c0',
+    18: '#ffd700',
+    19: "#B4B45F",
+    20: '#ff7f50',
+}
