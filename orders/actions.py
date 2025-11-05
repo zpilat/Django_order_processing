@@ -457,17 +457,27 @@ def _render_oznacit_k_navezeni(modeladmin, request, queryset, formset):
 def oznacit_k_navezeni_action(modeladmin, request, queryset):
     """
     Změní stav vybraných beden na K_NAVEZENI a přidá k bedně zvolenou pozici.
+    Zkontroluje zda nejsou v querysetu pozastavené bedny a zda jsou všechny ve stavu PRIJATO.
+    Pokud nejsou podmínky splněny, akce se přeruší s chybovou hláškou.
     1) GET: zobrazí formset s výběrem pozice pro každou vybranou bednu.
     2) POST (apply): validace kapacit + uložení (stav PRIJATO -> K_NAVEZENI a přiřazení pozice).
     """
     if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna stavu na K_NAVEZENÍ"):
         return None
 
-    for bedna in queryset:
-        if bedna.stav_bedny != StavBednyChoice.PRIJATO:
-            logger.info(f"Uživatel {request.user} se pokusil změnit stav bedny {bedna}, ale ta není v stavu PRIJATO.")
-            modeladmin.message_user(request, f"Bedna {bedna} není v stavu PRIJATO.", level=messages.ERROR)
-            continue
+
+    bedny_errors = [bedna for bedna in queryset if bedna.stav_bedny != StavBednyChoice.PRIJATO]
+    if bedny_errors:
+        logger.info(
+            f"Uživatel {request.user} se pokusil změnit stav na K_NAVEZENÍ, ale následující bedny nejsou v PRIJATO: {', '.join(str(b) for b in bedny_errors)}"
+        )
+        for bedna in bedny_errors:
+            modeladmin.message_user(
+                request,
+                f"Bedna {bedna} není ve stavu PRIJATO, nelze změnit na K NAVEZENÍ.",
+                level=messages.ERROR,
+            )
+        return None
 
     KNavezeniFormSet = formset_factory(KNavezeniForm, extra=0)
 

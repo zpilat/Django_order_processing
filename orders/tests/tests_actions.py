@@ -420,7 +420,7 @@ class KNavezeniActionTests(ActionsBase):
 
     def test_get_renders_formset(self):
         # Přidá druhou bednu ve stavu PRIJATO
-        Bedna.objects.create(zakazka=self.zakazka, hmotnost=Decimal(2), tara=Decimal(1), mnozstvi=1)
+        Bedna.objects.create(zakazka=self.zakazka, hmotnost=Decimal(2), tara=Decimal(1), mnozstvi=1, stav_bedny=StavBednyChoice.PRIJATO)
         req = self.get_request('get')
         admin_obj = self._minimal_admin()
         qs = Bedna.objects.all().order_by('id')
