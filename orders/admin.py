@@ -2290,12 +2290,16 @@ class BednaAdmin(SimpleHistoryAdmin):
         """
         Dynamicky určí, která pole jsou inline-editovatelná v changelistu.
         Podmínky (podle původní logiky/testů):
+        - Pokud je zařízení mobil => žádná inline editace.
         - Pokud je filtr stav_bedny = StavBednyChoice.EXPEDOVANO nebo pozastaveno=True => žádná inline editace.
         - Pokud je filtr stav_bedny = StavBednyChoice.NEPRIJATO a uživatel nemá oprávnění change_neprijata_bedna => žádná inline editace.
         - Jinak standardně: stav_bedny, tryskat, rovnat, hmotnost, poznamka.
         - Pokud je stav_bedny == StavBednyChoice.NEPRIJATO a uživatel má oprávnění change_neprijata_bedna, přidá se i mnozstvi.
         - Pokud je stav_bedny v STAV_BEDNY_PRO_NAVEZENI, přidá se i pozice.
         """
+        if get_user_agent(request).is_mobile:
+            return []
+
         if request.GET.get('stav_bedny') == StavBednyChoice.EXPEDOVANO or request.GET.get('pozastaveno') == 'True':
             return []
         
@@ -2394,7 +2398,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     def get_list_display(self, request):
         """
         Přizpůsobení zobrazení sloupců v seznamu Bedna.
-        Pokud je django_user_agent.is_mobile, zůstanou pouze sloupce 'get_cislo_bedny', 'stav_bedny',
+        Pokud je zařízení mobil, zůstanou pouze sloupce 'get_cislo_bedny', 'stav_bedny',
         'get_prumer', 'get_delka_int' a 'get_skupina_TZ'.
         Pokud je aktivní filtr stav bedny a zároveň stav bedny != Po exspiraci, vyloučí se zobrazení sloupce get_postup.        
         Pokud není filtr stav bedny == Expedováno, vyloučí se zobrazení sloupce kamion_vydej_link.
