@@ -1604,16 +1604,18 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     def get_delka_int(self, obj):
         """
         Zobrazí délku zakázky jako celé číslo (oříznuté číslice za čárkou) a umožní třídění podle hlavičky pole.
+        Předá hodnotu jako html s typem textu bold.
         Pokud není délka připojena, vrátí prázdný řetězec.
         """
         if obj.delka is not None:
-            return int(obj.delka.to_integral_value(rounding=ROUND_DOWN))
+            return mark_safe(f'<strong>{int(obj.delka.to_integral_value(rounding=ROUND_DOWN))}</strong>')
         return '-'
     
     @admin.display(description='Ø', ordering='prumer', empty_value='-')
     def get_prumer(self, obj):
         """
         Zobrazí průměr zakázky a umožní třídění podle hlavičky pole.
+        Předá hodnotu jako html s typem textu bold.
         Pokud není průměr připojen, vrátí prázdný řetězec.
         """
         if obj.prumer is not None:
@@ -2156,9 +2158,10 @@ class BednaAdmin(SimpleHistoryAdmin):
     def get_delka_int(self, obj):
         """
         Zobrazí délku zakázky jako integer a umožní třídění podle hlavičky pole.
+        Předá jako html s text bold.
         """
         if obj.zakazka and obj.zakazka.delka is not None:
-            return int(obj.zakazka.delka.to_integral_value(rounding=ROUND_DOWN))
+            return mark_safe(f'<strong>{int(obj.zakazka.delka.to_integral_value(rounding=ROUND_DOWN))}</strong>')
         return '-'
     
     @admin.display(description='TZ', ordering='zakazka__predpis__skupina', empty_value='-')
