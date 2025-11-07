@@ -1638,7 +1638,11 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
         """
         barva = BARVA_SKUPINY_TZ[obj.predpis.skupina] if obj.predpis and obj.predpis.skupina in BARVA_SKUPINY_TZ else ''
         if obj.predpis and obj.predpis.skupina:
-            return mark_safe(f'<span style="color: {barva}">{obj.predpis.skupina}</span>')
+            return mark_safe(
+                f'<span style="color: {barva["text"]}; background-color: {barva["pozadi"]}; padding: 0.1rem 0.35rem; border-radius: 0.25rem; display: inline-block;">'
+                f"{obj.predpis.skupina}"
+                "</span>"
+            )            
         return '-'
 
     @admin.display(boolean=True, description='VG', ordering='celozavit')
@@ -2165,7 +2169,11 @@ class BednaAdmin(SimpleHistoryAdmin):
         """
         barva = BARVA_SKUPINY_TZ[obj.zakazka.predpis.skupina] if obj.zakazka and obj.zakazka.predpis and obj.zakazka.predpis.skupina in BARVA_SKUPINY_TZ else ''
         if obj.zakazka and obj.zakazka.predpis and obj.zakazka.predpis.skupina:
-            return mark_safe(f'<span style="color: {barva}">{obj.zakazka.predpis.skupina}</span>')
+            return mark_safe(
+                f'<span style="color: {barva["text"]}; background-color: {barva["pozadi"]}; padding: 0.1rem 0.35rem; border-radius: 0.25rem; display: inline-block;">'
+                f"{obj.zakazka.predpis.skupina}"
+                "</span>"
+            )
         return '-'        
 
     @admin.display(description='Postup', ordering='postup_vyroby_value', empty_value='-')
