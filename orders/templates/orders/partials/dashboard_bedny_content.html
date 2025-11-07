@@ -1,7 +1,10 @@
 {% load custom_filters %}
 
 <div class="alert" role="alert" style="background-color: #214290; color: #ffde17; font-family: 'Liberation Sans', Arial;">
-    <h3>Přehled stavu beden podle zákazníků</h3>
+    <div class="d-flex align-items-center justify-content-between mb-3">
+      <h3 class="mb-0">Přehled stavu beden podle zákazníků</h3>
+      <a class="btn btn-secondary" style="color: #ffde17;" href="{% url 'admin:orders_bedna_changelist' %}">Návrat</a>
+    </div>    
     <h6>Naposledy aktualizováno {{ current_time|date:"d.m.Y H:i" }}</h6>
 </div>
 

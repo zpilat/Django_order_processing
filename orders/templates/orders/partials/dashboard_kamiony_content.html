@@ -3,7 +3,10 @@
 <div class="row flex-nowrap overflow-auto">
   <div class="col-xxl-5 col-xl-6 col-lg-8 col-md-10 col-sm-12 mb-4">
     <div class="alert" role="alert" style="background-color: #214290; color: #ffde17; font-family: 'Liberation Sans', Arial;">
-      <h3>Přehled měsíčních a ročních příjmů a výdejů dle jednotlivých zákazníků.</h3>
+      <div class="d-flex align-items-center justify-content-between mb-2">
+        <h3 class="mb-0">Přehled měsíčních a ročních příjmů a výdejů dle jednotlivých zákazníků.</h3>
+        <a class="btn btn-secondary" style="color: #ffde17;" href="{% url 'admin:orders_bedna_changelist' %}">Návrat</a>
+      </div>      
       <h6>Naposledy aktualizováno: {{ current_time|date:"d.m.Y H:i" }}</h6>
     </div>    
     <table class="table table-sm align-middle mb-0 text-center">
