@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     'django_htmx',  # For HTMX support
     'orders.apps.OrdersConfig',  # Custom app for order processing
     'simple_history',  # For tracking changes in models
+    'django_user_agents',  # For user agent detection
 ]
 
 MIDDLEWARE = [
@@ -65,6 +66,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'django_htmx.middleware.HtmxMiddleware',
     'simple_history.middleware.HistoryRequestMiddleware',
+    'django_user_agents.middleware.UserAgentMiddleware',
 ]
 
 ROOT_URLCONF = 'order_processing.urls'

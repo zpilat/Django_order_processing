@@ -28,6 +28,7 @@ import re
 from django import forms
 from django.contrib.admin.helpers import ActionForm
 from django.contrib.admin.actions import delete_selected as admin_delete_selected
+from django_user_agents.utils import get_user_agent
 
 from .models import Zakaznik, Kamion, Zakazka, Bedna, Predpis, Odberatel, TypHlavy, Cena, Pozice, Pletivo, PoziceZakazkaOrder
 from .actions import (
@@ -2393,6 +2394,8 @@ class BednaAdmin(SimpleHistoryAdmin):
     def get_list_display(self, request):
         """
         Přizpůsobení zobrazení sloupců v seznamu Bedna.
+        Pokud je django_user_agent.is_mobile, zůstanou pouze sloupce 'get_cislo_bedny', 'stav_bedny',
+        'get_prumer', 'get_delka_int' a 'get_skupina_TZ'.
         Pokud je aktivní filtr stav bedny a zároveň stav bedny != Po exspiraci, vyloučí se zobrazení sloupce get_postup.        
         Pokud není filtr stav bedny == Expedováno, vyloučí se zobrazení sloupce kamion_vydej_link.
         Pokud není filtr stav bedny v STAV_BEDNY_PRO_NAVEZENI, vyloučí se zobrazení sloupce pozice.
@@ -2403,6 +2406,10 @@ class BednaAdmin(SimpleHistoryAdmin):
         stav_bedny = request.GET.get('stav_bedny', None)
 
         # Podmínky pro odstranění sloupců z list_display
+        if get_user_agent(request).is_mobile:
+            mobile_fields = {'get_cislo_bedny', 'stav_bedny', 'get_prumer', 'get_delka_int', 'get_skupina_TZ'}
+            list_display_mobile = [field for field in list_display if field in mobile_fields]
+            return list_display_mobile
         if stav_bedny and stav_bedny not in ['PE', 'RO']:
             if 'get_postup' in list_display:
                 list_display.remove('get_postup')
