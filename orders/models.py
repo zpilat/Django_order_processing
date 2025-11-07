@@ -756,6 +756,7 @@ class Bedna(models.Model):
         - Pokud je stav `K_EXPEDICI`, nabídne předchozí stav a aktuální stav.
         - Pokud je stav `ZAKALENO`, `DO_ZPRACOVANI` nebo `NAVEZENO` nabídne předchozí, aktuální stav
           a všechny následující až do K_EXPEDICI.
+        - Pokud je stav `PRIJATO`, nabídne předchozí stav, aktuální stav a dva následující stavy.
         - Pokud je stav `NEPRIJATO`, nabídne tento stav a následující stav.
         - Ve všech ostatních stavech nabídne předchozí, aktuální a následující stav.
         """
@@ -776,6 +777,9 @@ class Bedna(models.Model):
         # ZAKALENO, DO_ZPRACOVANI, NAVEZENO
         if curr in (StavBednyChoice.ZAKALENO, StavBednyChoice.DO_ZPRACOVANI, StavBednyChoice.NAVEZENO):
             return choices[idx - 1 : choices.index((StavBednyChoice.K_EXPEDICI, 'K expedici')) + 1]
+        # PRIJATO
+        if curr == StavBednyChoice.PRIJATO:
+            return choices[idx - 1 : idx + 3]
         # ostatní
         before = [choices[idx - 1]] if idx > 0 else []
         after  = [choices[idx + 1]] if idx < len(choices) - 1 else []

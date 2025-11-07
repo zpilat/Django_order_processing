@@ -1977,6 +1977,7 @@ class BednaAdmin(SimpleHistoryAdmin):
                    CelozavitBednyFilter, TypHlavyBednyFilter, PrioritaBednyFilter, PozastavenoFilter,)
     ordering = ('id',)
     date_hierarchy = 'zakazka__kamion_prijem__datum'
+    save_on_top = True
     formfield_overrides = {
         # models.CharField: {'widget': TextInput(attrs={ 'size': '20', 'style': 'font-size: 10px;'})},
         models.DecimalField: {
@@ -2793,7 +2794,7 @@ class CenaAdmin(SimpleHistoryAdmin):
             'widget': TextInput(attrs={'size': '6'}),
             'localize': True
             },
-    }    
+    }
 
     class Media:
         js = ('orders/js/changelist_dirty_guard.js',)
