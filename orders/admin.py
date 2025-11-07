@@ -2165,6 +2165,18 @@ class BednaAdmin(SimpleHistoryAdmin):
             return mark_safe(f'<strong>{int(obj.zakazka.delka.to_integral_value(rounding=ROUND_DOWN))}</strong>')
         return '-'
     
+    @admin.display(description='Stav bedny', ordering='stav_bedny', empty_value='-')
+    def get_stav_bedny_mobile(self, obj):
+        """Zkrácený popis stavu bedny pro zúžené layouty (např. mobilní)."""
+        if not obj or obj.stav_bedny is None:
+            return '-'
+
+        label = obj.get_stav_bedny_display()
+        max_len = 10
+        if len(label) > max_len:
+            return f"{label[:max_len - 1]}…"
+        return label
+
     @admin.display(description='TZ', ordering='zakazka__predpis__skupina', empty_value='-')
     def get_skupina_TZ(self, obj):
         """
@@ -2398,7 +2410,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     def get_list_display(self, request):
         """
         Přizpůsobení zobrazení sloupců v seznamu Bedna.
-        Pokud je zařízení mobil, zůstanou pouze sloupce 'get_cislo_bedny', 'stav_bedny',
+        Pokud je zařízení mobil, zůstanou pouze sloupce 'get_cislo_bedny', 'get_stav_bedny_mobile',
         'get_prumer', 'get_delka_int' a 'get_skupina_TZ'.
         Pokud je aktivní filtr stav bedny a zároveň stav bedny != Po exspiraci, vyloučí se zobrazení sloupce get_postup.        
         Pokud není filtr stav bedny == Expedováno, vyloučí se zobrazení sloupce kamion_vydej_link.
@@ -2411,9 +2423,7 @@ class BednaAdmin(SimpleHistoryAdmin):
 
         # Podmínky pro odstranění sloupců z list_display
         if get_user_agent(request).is_mobile:
-            mobile_fields = {'get_cislo_bedny', 'stav_bedny', 'get_prumer', 'get_delka_int', 'get_skupina_TZ'}
-            list_display_mobile = [field for field in list_display if field in mobile_fields]
-            return list_display_mobile
+            return ['get_cislo_bedny', 'get_stav_bedny_mobile', 'get_prumer', 'get_delka_int', 'get_skupina_TZ']
         if stav_bedny and stav_bedny not in ['PE', 'RO']:
             if 'get_postup' in list_display:
                 list_display.remove('get_postup')
