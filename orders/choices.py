@@ -95,7 +95,7 @@ class SklademZakazkyChoice(models.TextChoices):
 
 # Mapping skupiny TZ na barvy
 BARVA_SKUPINY_TZ = {
-    1: {'pozadi': '#000000', 'text': '#ffffff'},
+    1: {'pozadi': '#f0f0f0', 'text': '#000000'},
     2: {'pozadi': '#ea9999', 'text': '#000000'},
     3: {'pozadi': '#6d9eeb', 'text': '#000000'},
     4: {'pozadi': '#99cc99', 'text': '#000000'},

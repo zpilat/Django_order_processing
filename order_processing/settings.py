@@ -50,7 +50,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django.forms',
     'django_htmx',  # For HTMX support
-    'orders',  # Custom app for order processing
+    'orders.apps.OrdersConfig',  # Custom app for order processing
     'simple_history',  # For tracking changes in models
 ]
 
