@@ -86,7 +86,7 @@ class Odberatel(models.Model):
         ordering = ['nazev']
 
     def __str__(self):
-        return self.zkraceny_nazev
+        return  f"{self.zkraceny_nazev} ({self.adresa}, {self.zkratka_statu}-{self.psc} {self.mesto})"
 
 
 class Kamion(models.Model):
