@@ -11,9 +11,52 @@
     let lastKnown = config.lastChange || null;
 
     function showBanner() {
-        if (document.getElementById(bannerId)) {
+        // Avoid creating duplicate banners (top or inline)
+        if (document.getElementById(bannerId) || document.getElementById(bannerId + '-inline')) {
             return;
         }
+
+        // If the dedicated inline container exists in the toolbar, show an inline banner there
+        const searchContainer = document.getElementById('bedna-change-container');
+        if (searchContainer) {
+            const inlineId = bannerId + '-inline';
+            if (document.getElementById(inlineId)) return;
+
+
+            const item = document.createElement('div');
+            item.id = inlineId;
+            // use admin-native warning class so it inherits admin styles
+            item.className = 'warning';
+            // make message text red for visibility
+            item.style.color = '#a00';
+
+            const messageText = document.createElement('span');
+            messageText.textContent = 'Data se změnila.';
+
+            const actionButton = document.createElement('button');
+            actionButton.type = 'button';
+            actionButton.className = 'button';
+            actionButton.textContent = 'Obnovit';
+            actionButton.style.marginLeft = '0.75rem';
+            // slightly larger / more prominent button
+            actionButton.style.padding = '0.3rem 0.8rem';
+            actionButton.style.fontSize = '0.85rem';
+            actionButton.style.fontWeight = '400';
+            actionButton.style.borderRadius = '4px';
+            actionButton.addEventListener('click', function (event) {
+                event.preventDefault();
+                window.location.reload();
+            });
+
+            item.appendChild(messageText);
+            item.appendChild(actionButton);
+
+            // Insert into the dedicated container
+            searchContainer.appendChild(item);
+            return;
+        }
+
+        // Fallback: original top-of-content banner
         const content = document.querySelector('#content');
         if (!content) {
             return;
@@ -32,6 +75,11 @@
         actionButton.className = 'button';
         actionButton.textContent = 'Obnovit';
         actionButton.style.marginLeft = '0.75rem';
+        // make fallback button similar style for consistency
+        actionButton.style.padding = '0.3rem 0.9rem';
+        actionButton.style.fontSize = '0.85rem';
+        actionButton.style.fontWeight = '400';
+        actionButton.style.borderRadius = '4px';
         actionButton.addEventListener('click', function (event) {
             event.preventDefault();
             window.location.reload();

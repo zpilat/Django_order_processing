@@ -11,6 +11,10 @@
 {% for pair in cl.params.items %}
     {% if pair.0 != search_var %}<input type="hidden" name="{{ pair.0 }}" value="{{ pair.1 }}">{% endif %}
 {% endfor %}
+{# Kontejner pro inline banner z admin_bedna_change_poll.js - vždy přítomen mimo cl.formset #}
+<div id="bedna-change-container" style="flex:1; text-align:right;">
+    {# sem JS vloží inline banner 'bedna-change-banner-inline' pokud bude potřeba #}
+</div>
 {% if cl.formset %}
     {# Kontejner pro varování o neuložených změnách z changelist_dirty_guard.js - umístěný napravo toolbaru #}
     <div id="dirty-warning-container" style="flex:1; text-align:right;">
