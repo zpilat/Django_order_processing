@@ -8,6 +8,28 @@
   let dirty = false;
 
   function ensureWarning() {
+    // Preferované chování: pokud existuje speciální kontejner ve search baru,
+    // vlož tam jednoduchý inline element. Jinak fallback na původní messagelist nahoře.
+    const searchContainer = document.getElementById('dirty-warning-container');
+    if (searchContainer) {
+      let item = document.getElementById('dirty-warning');
+      if (!item) {
+        // Use admin-native warning class so the message inherits admin styles
+        item = document.createElement('div');
+        item.id = 'dirty-warning';
+        item.className = 'warning';
+  item.textContent = 'Máte neuložené změny. Nezapomeňte uložit.';
+  item.style.display = 'none';
+  // Make the text color red per request
+  item.style.color = '#a00';
+  // keep it inline in the toolbar
+  item.style.display = 'none';
+        searchContainer.appendChild(item);
+      }
+      return item;
+    }
+
+    // Fallback: původní chování v messagelist (horní část stránky)
     const content = document.getElementById('content') || document.body;
     let list = content.querySelector('ul.messagelist');
     if (!list) {
@@ -17,11 +39,14 @@
     }
     let item = document.getElementById('dirty-warning');
     if (!item) {
+      // Create a list item using admin-native 'warning' class
       item = document.createElement('li');
       item.id = 'dirty-warning';
       item.className = 'warning';
       item.textContent = 'Máte neuložené změny. Nezapomeňte uložit.';
       item.style.display = 'none';
+      // Make the text color red for fallback as well
+      item.style.color = '#a00';
       list.appendChild(item);
     }
     return item;
@@ -29,7 +54,12 @@
 
   function showWarning() {
     const item = ensureWarning();
-    item.style.display = 'list-item';
+    // Pokud je to LI (flood do messagelist), zobraz jako list-item, jinak inline-block
+    if (item && item.tagName && item.tagName.toLowerCase() === 'li') {
+      item.style.display = 'list-item';
+    } else if (item) {
+      item.style.display = 'inline-block';
+    }
   }
 
   function hideWarning() {
