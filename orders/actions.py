@@ -643,20 +643,20 @@ def vratit_bedny_do_stavu_prijato_action(modeladmin, request, queryset):
 @admin.action(description="Změna stavu bedny na DO ZPRACOVÁNÍ")
 def oznacit_do_zpracovani_action(modeladmin, request, queryset):
     """
-    Změní stav vybraných beden z NAVEZENO na DO_ZPRACOVANI.
+    Změní stav vybraných beden ze stavu ROZPRACOVANOST (NAVEZENO, DO_ZPRACOVANI, ZAKALENO, ZKONTROLOVANO) na DO_ZPRACOVANI.
     """
     if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna stavu na DO ZPRACOVÁNÍ"):
         return None
 
-    # kontrola, zda jsou všechny bedny v querysetu ve stavu NAVEZENO
-    if queryset.exclude(stav_bedny=StavBednyChoice.NAVEZENO).exists():
-        logger.info(f"Uživatel {request.user} se pokusil změnit stav na DO ZPRACOVÁNÍ, ale některé bedny nejsou ve stavu NAVEZENO.")
-        modeladmin.message_user(request, "Některé vybrané bedny nejsou ve stavu NAVEZENO.", level=messages.ERROR)
+    # kontrola, zda jsou všechny bedny v querysetu ve stavu ROZPRACOVANOST (NAVEZENO, DO_ZPRACOVANI, ZAKALENO, ZKONTROLOVANO)
+    if queryset.exclude(stav_bedny__in=STAV_BEDNY_ROZPRACOVANOST).exists():
+        logger.info(f"Uživatel {request.user} se pokusil změnit stav na DO ZPRACOVÁNÍ, ale některé bedny nejsou ve stavu ROZPRACOVANOST.")
+        modeladmin.message_user(request, "Některé vybrané bedny nejsou ve stavu ROZPRACOVANOST.", level=messages.ERROR)
         return None
 
     with transaction.atomic():
         for bedna in queryset:
-            if bedna.stav_bedny == StavBednyChoice.NAVEZENO:
+            if bedna.stav_bedny in STAV_BEDNY_ROZPRACOVANOST:
                 bedna.stav_bedny = StavBednyChoice.DO_ZPRACOVANI
                 bedna.save()
 
@@ -667,20 +667,20 @@ def oznacit_do_zpracovani_action(modeladmin, request, queryset):
 @admin.action(description="Změna stavu bedny na ZAKALENO")
 def oznacit_zakaleno_action(modeladmin, request, queryset):
     """
-    Změní stav vybraných beden z DO ZPRACOVÁNÍ na ZAKALENO.
+    Změní stav vybraných beden ze stavu ROZPRACOVANOST (NAVEZENO, DO_ZPRACOVANI, ZAKALENO, ZKONTROLOVANO) na ZAKALENO.
     """
     if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna stavu na ZAKALENO"):
         return None
 
-    # kontrola, zda jsou všechny bedny v querysetu ve stavu DO_ZPRACOVANI
-    if queryset.exclude(stav_bedny=StavBednyChoice.DO_ZPRACOVANI).exists():
-        logger.info(f"Uživatel {request.user} se pokusil změnit stav na ZAKALENO, ale některé bedny nejsou ve stavu DO ZPRACOVÁNÍ.")
-        modeladmin.message_user(request, "Některé vybrané bedny nejsou ve stavu DO ZPRACOVÁNÍ.", level=messages.ERROR)
+    # kontrola, zda jsou všechny bedny v querysetu ve stavu ROZPRACOVANOST
+    if queryset.exclude(stav_bedny__in=STAV_BEDNY_ROZPRACOVANOST).exists():
+        logger.info(f"Uživatel {request.user} se pokusil změnit stav na ZAKALENO, ale některé bedny nejsou ve stavu ROZPRACOVANOST.")
+        modeladmin.message_user(request, "Některé vybrané bedny nejsou ve stavu ROZPRACOVANOST.", level=messages.ERROR)
         return None
 
     with transaction.atomic():
         for bedna in queryset:
-            if bedna.stav_bedny == StavBednyChoice.DO_ZPRACOVANI:
+            if bedna.stav_bedny in STAV_BEDNY_ROZPRACOVANOST:
                 bedna.stav_bedny = StavBednyChoice.ZAKALENO
                 bedna.save()
 
@@ -691,20 +691,21 @@ def oznacit_zakaleno_action(modeladmin, request, queryset):
 @admin.action(description="Změna stavu bedny na ZKONTROLOVÁNO")
 def oznacit_zkontrolovano_action(modeladmin, request, queryset):
     """
-    Změní stav vybraných beden ze ZAKALENO na ZKONTROLOVANO.
+    Změní stav vybraných beden na ZKONTROLOVANO.
+    Může měnit všechny bedny ve stavu ROZPRACOVANOST (NAVEZENO, DO_ZPRACOVANI, ZAKALENO, ZKONTROLOVANO) na ZKONTROLOVANO.
     """
     if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna stavu na ZKONTROLOVÁNO"):
         return None
 
-    # kontrola, zda jsou všechny bedny v querysetu ve stavu NAVEZENO
-    if queryset.exclude(stav_bedny=StavBednyChoice.ZAKALENO).exists():
-        logger.info(f"Uživatel {request.user} se pokusil změnit stav na ZKONTROLOVANO, ale některé bedny nejsou ve stavu ZAKALENO.")
-        modeladmin.message_user(request, "Některé vybrané bedny nejsou ve stavu ZAKALENO.", level=messages.ERROR)
+    # kontrola, zda jsou všechny bedny v querysetu ve stavu ROZPRACOVANOST
+    if queryset.exclude(stav_bedny__in=STAV_BEDNY_ROZPRACOVANOST).exists():
+        logger.info(f"Uživatel {request.user} se pokusil změnit stav na ZKONTROLOVANO, ale některé bedny nejsou ve stavu ROZPRACOVANOST.")
+        modeladmin.message_user(request, "Některé vybrané bedny nejsou ve stavu ROZPRACOVANOST.", level=messages.ERROR)
         return None
 
     with transaction.atomic():
         for bedna in queryset:
-            if bedna.stav_bedny == StavBednyChoice.ZAKALENO:
+            if bedna.stav_bedny in STAV_BEDNY_ROZPRACOVANOST:
                 bedna.stav_bedny = StavBednyChoice.ZKONTROLOVANO
                 bedna.save()
 
@@ -716,15 +717,15 @@ def oznacit_zkontrolovano_action(modeladmin, request, queryset):
 @admin.action(description="Změna stavu bedny na K_EXPEDICI")
 def oznacit_k_expedici_action(modeladmin, request, queryset):
     """
-    Změní stav vybraných beden z NAVEZENO, DO_ZPRACOVANI, ZAKALENO nebo ZKONTROLOVANO na K_EXPEDICI.
+    Změní stav vybraných beden ze stavu ROZPRACOVANOST (NAVEZENO, DO_ZPRACOVANI, ZAKALENO nebo ZKONTROLOVANO) na K_EXPEDICI.
     """
     if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna stavu na K EXPEDICI"):
         return None
 
-    # kontrola, zda jsou všechny bedny v querysetu ve stavu NAVEZENO, DO_ZPRACOVANI, ZAKALENO nebo ZKONTROLOVANO
+    # kontrola, zda jsou všechny bedny v querysetu ve stavu ROZPRACOVANOST (NAVEZENO, DO_ZPRACOVANI, ZAKALENO, ZKONTROLOVANO)
     if queryset.exclude(stav_bedny__in=STAV_BEDNY_ROZPRACOVANOST).exists():
-        logger.info(f"Uživatel {request.user} se pokusil změnit stav na K_EXPEDICI, ale některé bedny nejsou ve stavu NAVEZENO, DO_ZPRACOVANI, ZAKALENO nebo ZKONTROLOVANO.")
-        modeladmin.message_user(request, "Některé vybrané bedny nejsou ve stavu NAVEZENO, DO_ZPRACOVANI, ZAKALENO nebo ZKONTROLOVANO.", level=messages.ERROR)
+        logger.info(f"Uživatel {request.user} se pokusil změnit stav na K_EXPEDICI, ale některé bedny nejsou ve stavu ROZPRACOVANOST.")
+        modeladmin.message_user(request, "Některé vybrané bedny nejsou ve stavu ROZPRACOVANOST.", level=messages.ERROR)
         return None
     
     # kontrola, zda všechny bedny splňují podmínky pro přechod do stavu K_EXPEDICI:
@@ -746,7 +747,7 @@ def oznacit_k_expedici_action(modeladmin, request, queryset):
     # pokud nějaká bedna nesplňuje podmínky, akce se přeruší
     with transaction.atomic():
         for bedna in queryset:
-            if bedna.stav_bedny in [StavBednyChoice.NAVEZENO, StavBednyChoice.DO_ZPRACOVANI, StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO]:
+            if bedna.stav_bedny in STAV_BEDNY_ROZPRACOVANOST:
                 bedna.stav_bedny = StavBednyChoice.K_EXPEDICI
                 bedna.save()
 

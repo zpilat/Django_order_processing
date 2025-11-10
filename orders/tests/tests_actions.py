@@ -16,7 +16,13 @@ from orders.models import (
     Zakaznik, Kamion, Zakazka, Bedna, Predpis, TypHlavy,
     Odberatel, Pozice
 )
-from orders.choices import KamionChoice, StavBednyChoice, RovnaniChoice, TryskaniChoice
+from orders.choices import (
+    KamionChoice,
+    StavBednyChoice,
+    RovnaniChoice,
+    TryskaniChoice,
+    STAV_BEDNY_ROZPRACOVANOST,
+)
 from orders import actions
 from orders.admin import BednaAdmin
 
@@ -50,6 +56,21 @@ class ActionsBase(TestCase):
             popis='p'
         )
         cls.bedna = Bedna.objects.create(zakazka=cls.zakazka, hmotnost=Decimal(1), tara=Decimal(1), mnozstvi=1, stav_bedny=StavBednyChoice.PRIJATO)
+
+    def _create_bedna_in_state(self, state, *, rovnat=RovnaniChoice.ROVNA, tryskat=TryskaniChoice.CISTA):
+        kwargs = {
+            'zakazka': self.zakazka,
+            'hmotnost': Decimal('1.0'),
+            'tara': Decimal('1.0'),
+            'mnozstvi': 1,
+            'stav_bedny': state,
+            'rovnat': rovnat,
+            'tryskat': tryskat,
+        }
+        if state in {StavBednyChoice.K_NAVEZENI, StavBednyChoice.NAVEZENO}:
+            pozice, _ = Pozice.objects.get_or_create(kod='Z', defaults={'kapacita': 10})
+            kwargs['pozice'] = pozice
+        return Bedna.objects.create(**kwargs)
 
     def get_request(self, method='get', data=None):
         req = getattr(self.factory, method)('/', data or {})
@@ -764,3 +785,47 @@ class StatusChangeActionsTests(ActionsBase):
         self.assertIsNone(resp)
         self.bedna.refresh_from_db()
         self.assertEqual(self.bedna.stav_bedny, StavBednyChoice.K_EXPEDICI)
+
+    def test_oznacit_do_zpracovani_action_accepts_all_rozpracovanost_states(self):
+        admin_obj = self._messaging_admin()
+        bedny = [self._create_bedna_in_state(state) for state in STAV_BEDNY_ROZPRACOVANOST]
+        ids = [b.id for b in bedny]
+        req = self.get_request('post')
+        resp = actions.oznacit_do_zpracovani_action(admin_obj, req, Bedna.objects.filter(id__in=ids))
+        self.assertIsNone(resp)
+        for bedna in bedny:
+            bedna.refresh_from_db()
+            self.assertEqual(bedna.stav_bedny, StavBednyChoice.DO_ZPRACOVANI)
+
+    def test_oznacit_zakaleno_action_accepts_all_rozpracovanost_states(self):
+        admin_obj = self._messaging_admin()
+        bedny = [self._create_bedna_in_state(state) for state in STAV_BEDNY_ROZPRACOVANOST]
+        ids = [b.id for b in bedny]
+        req = self.get_request('post')
+        resp = actions.oznacit_zakaleno_action(admin_obj, req, Bedna.objects.filter(id__in=ids))
+        self.assertIsNone(resp)
+        for bedna in bedny:
+            bedna.refresh_from_db()
+            self.assertEqual(bedna.stav_bedny, StavBednyChoice.ZAKALENO)
+
+    def test_oznacit_zkontrolovano_action_accepts_all_rozpracovanost_states(self):
+        admin_obj = self._messaging_admin()
+        bedny = [self._create_bedna_in_state(state) for state in STAV_BEDNY_ROZPRACOVANOST]
+        ids = [b.id for b in bedny]
+        req = self.get_request('post')
+        resp = actions.oznacit_zkontrolovano_action(admin_obj, req, Bedna.objects.filter(id__in=ids))
+        self.assertIsNone(resp)
+        for bedna in bedny:
+            bedna.refresh_from_db()
+            self.assertEqual(bedna.stav_bedny, StavBednyChoice.ZKONTROLOVANO)
+
+    def test_oznacit_k_expedici_action_accepts_all_rozpracovanost_states(self):
+        admin_obj = self._messaging_admin()
+        bedny = [self._create_bedna_in_state(state) for state in STAV_BEDNY_ROZPRACOVANOST]
+        ids = [b.id for b in bedny]
+        req = self.get_request('post')
+        resp = actions.oznacit_k_expedici_action(admin_obj, req, Bedna.objects.filter(id__in=ids))
+        self.assertIsNone(resp)
+        for bedna in bedny:
+            bedna.refresh_from_db()
+            self.assertEqual(bedna.stav_bedny, StavBednyChoice.K_EXPEDICI)
