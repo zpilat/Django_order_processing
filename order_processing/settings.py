@@ -168,6 +168,7 @@ LANGUAGE_CODE = 'cs'
 TIME_ZONE = 'Europe/Prague'
 USE_I18N = True
 USE_TZ = True
+FORMAT_MODULE_PATH = 'order_processing.formats'
 
 
 # Static files (CSS, JavaScript, Images)
