@@ -28,6 +28,8 @@ STAV_BEDNY_PRO_NAVEZENI = [
     StavBednyChoice.K_NAVEZENI,
     StavBednyChoice.NAVEZENO,
     StavBednyChoice.DO_ZPRACOVANI,
+    StavBednyChoice.ZAKALENO,
+    StavBednyChoice.ZKONTROLOVANO,
 ]
 
 class RovnaniChoice(models.TextChoices):
