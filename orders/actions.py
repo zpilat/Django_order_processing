@@ -147,9 +147,9 @@ def export_bedny_to_csv_action(modeladmin, request, queryset):
 
     header = [
         'Zákazník',
+        'Datum',
         'Zakázka',
         'Číslo bedny',
-        'Č.b. zák.',
         'Navezené',
         'Rozměr',
         'Do zprac.',
@@ -234,11 +234,15 @@ def export_bedny_to_csv_action(modeladmin, request, queryset):
         if zakazka and zakazka.celozavit:
             typ_hlavy = f"{typ_hlavy} + VG" if typ_hlavy else 'VG'
 
+        datum = ''
+        if zakazka and zakazka.kamion_prijem and zakazka.kamion_prijem.datum:
+            datum = zakazka.kamion_prijem.datum.strftime('%d.%m.%Y')
+
         writer.writerow([
             str(zakaznik) if zakaznik else '',
+            datum,
             getattr(zakazka, 'artikl', '') if zakazka else '',
             bedna.cislo_bedny,
-            bedna.behalter_nr or '',
             navezene,
             rozmer,
             do_zpracovani,
