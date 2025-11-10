@@ -15,15 +15,18 @@
       let item = document.getElementById('dirty-warning');
       if (!item) {
         // Use admin-native warning class so the message inherits admin styles
-        item = document.createElement('div');
-        item.id = 'dirty-warning';
-        item.className = 'warning';
-  item.textContent = 'Máte neuložené změny. Nezapomeňte uložit.';
-  item.style.display = 'none';
-  // Make the text color red per request
-  item.style.color = '#a00';
-  // keep it inline in the toolbar
-  item.style.display = 'none';
+    item = document.createElement('div');
+    item.id = 'dirty-warning';
+    item.className = 'warning';
+    item.textContent = 'Máte neuložené změny.';
+    item.style.display = 'none';
+    // Make the text color red per request
+    item.style.color = '#a00';
+    item.style.border = '1px solid #a00';
+    item.style.padding = '0.25rem 0.5rem';
+    item.style.borderRadius = '4px';
+    // keep it inline in the toolbar
+    item.style.display = 'none';
         searchContainer.appendChild(item);
       }
       return item;

@@ -11,7 +11,7 @@
 #changelist .toplinks,
 .toplinks {
   position: sticky;
-  top: 2.75rem; /* drž pod toolbarem – upravte dle skutečné výšky toolbaru */
+  top: 3rem; /* drž pod toolbarem – upravte dle skutečné výšky toolbaru */
   z-index: 4;   /* pod toolbar, nad obsahem */
   background: var(--body-bg, #fff);
   border-bottom: 1px solid rgba(0,0,0,.08);
@@ -22,7 +22,7 @@
 #changelist .actions,
 .actions {
   position: sticky;
-  top: 2.75rem; /* default: hned pod toolbarem */
+  top: 3rem; /* default: hned pod toolbarem */
   z-index: 4;   /* pod toolbar, nad obsahem */
   background: var(--body-bg, #fff);
   border-bottom: 1px solid rgba(0,0,0,.08);
@@ -31,7 +31,7 @@
 
 /* Pokud je přítomna toplinks/date_hierarchy NAD formulářem, posuň akce níž */
 #changelist .toplinks ~ #changelist-form .actions {
-  top: 4rem;
+  top: 4.25rem;
 }
 
 /* Sticky panel filtrů vpravo */

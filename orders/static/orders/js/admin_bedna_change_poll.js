@@ -27,11 +27,14 @@
             item.id = inlineId;
             // use admin-native warning class so it inherits admin styles
             item.className = 'warning';
-            // make message text red for visibility
             item.style.color = '#a00';
 
             const messageText = document.createElement('span');
-            messageText.textContent = 'Data se změnila.';
+            messageText.textContent = 'Data se změnila.';  
+            messageText.style.display = 'inline-block';
+            messageText.style.border = '1px solid #a00';
+            messageText.style.padding = '0.25rem 0.5rem';
+            messageText.style.borderRadius = '4px';
 
             const actionButton = document.createElement('button');
             actionButton.type = 'button';
@@ -67,8 +70,14 @@
 
         const item = document.createElement('li');
         item.className = 'warning';
+        item.style.color = '#a00';
+
         const messageText = document.createElement('span');
         messageText.textContent = 'Data se změnila.';
+        messageText.style.display = 'inline-block';
+        messageText.style.border = '1px solid #a00';
+        messageText.style.padding = '0.25rem 0.5rem';
+        messageText.style.borderRadius = '4px';
 
         const actionButton = document.createElement('button');
         actionButton.type = 'button';
