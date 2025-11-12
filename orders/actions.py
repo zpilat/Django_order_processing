@@ -355,7 +355,7 @@ def tisk_karet_bedny_a_kontroly_action(modeladmin, request, queryset):
     )
     return None
 
-@admin.action(description="Přijmout vybrané bedny na sklad")
+@admin.action(description="Přijmout vybrané bedny na sklad", permissions=('change',))
 def prijmout_bedny_action(modeladmin, request, queryset):
     """
     Přijme vybrané bedny (NEPRIJATO -> PRIJATO) v režimu ČÁSTEČNÉHO ÚSPĚCHU.
@@ -457,7 +457,7 @@ def _render_oznacit_k_navezeni(modeladmin, request, queryset, formset):
     }
     return TemplateResponse(request, "admin/bedna/oznacit_k_navezeni.html", context)    
 
-@admin.action(description="Změna stavu bedny na K_NAVEZENI")
+@admin.action(description="Změna stavu bedny na K_NAVEZENI", permissions=('change',))
 def oznacit_k_navezeni_action(modeladmin, request, queryset):
     """
     Změní stav vybraných beden na K_NAVEZENI a přidá k bedně zvolenou pozici.
@@ -596,7 +596,7 @@ def oznacit_k_navezeni_action(modeladmin, request, queryset):
     formset = KNavezeniFormSet(initial=initial, prefix="ozn")
     return _render_oznacit_k_navezeni(modeladmin, request, queryset, formset)       
 
-@admin.action(description="Změna stavu bedny na NAVEZENO")
+@admin.action(description="Změna stavu bedny na NAVEZENO", permissions=('change',))
 def oznacit_navezeno_action(modeladmin, request, queryset):
     """
     Změní stav vybraných beden z K_NAVEZENI na NAVEZENO.
@@ -620,7 +620,35 @@ def oznacit_navezeno_action(modeladmin, request, queryset):
     logger.info(f"Uživatel {request.user} změnil stav na NAVEZENO u {queryset.count()} beden.")
     return None
 
-@admin.action(description="Vrátit bedny do stavu PŘIJATO")
+@admin.action(description="Navezení beden (PŘIJATO, K_NAVEZENÍ -> NAVEZENO)", permissions=('mark_bedna_navezeno',))
+def oznacit_prijato_navezeno_action(modeladmin, request, queryset):
+    """
+    Změní stav vybraných beden z PŘIJATO na NAVEZENO, pouze pro uživatele s oprávněním 'mark_bedna_navezeno'.
+    1) Zkontroluje, zda není bedna pozastavena.
+    2) Zkontroluje, zda jsou všechny bedny ve stavu PŘIJATO nebo K_NAVEZENI.
+
+
+    """
+    if _abort_if_paused_bedny(modeladmin, request, queryset, "Navezení beden (PŘIJATO, K_NAVEZENÍ -> NAVEZENO)"):
+        return None
+
+    # kontrola, zda jsou všechny bedny v querysetu ve stavu PŘIJATO
+    if queryset.exclude(stav_bedny__in=[StavBednyChoice.PRIJATO, StavBednyChoice.K_NAVEZENI]).exists():
+        logger.info(f"Uživatel {request.user} se pokusil změnit stav na NAVEZENO, ale některé bedny nejsou ve stavu PŘIJATO nebo K_NAVEZENÍ.")
+        modeladmin.message_user(request, "Některé vybrané bedny nejsou ve stavu PŘIJATO nebo K_NAVEZENÍ.", level=messages.ERROR)
+        return None
+
+    with transaction.atomic():
+        for bedna in queryset:
+            if bedna.stav_bedny in [StavBednyChoice.PRIJATO, StavBednyChoice.K_NAVEZENI]:
+                bedna.stav_bedny = StavBednyChoice.NAVEZENO
+                bedna.save()
+
+    messages.success(request, f"Navezeno: {queryset.count()} beden.")
+    logger.info(f"Uživatel {request.user} změnil stav na NAVEZENO u {queryset.count()} beden.")
+    return None
+
+@admin.action(description="Vrátit bedny do stavu PŘIJATO", permissions=('change',))
 def vratit_bedny_do_stavu_prijato_action(modeladmin, request, queryset):
     """
     Vrátí vybrané bedny ze stavu K NAVEZENÍ do PŘIJATO.
@@ -644,7 +672,7 @@ def vratit_bedny_do_stavu_prijato_action(modeladmin, request, queryset):
     messages.success(request, f"Vráceno do stavu PŘIJATO: {queryset.count()} beden.")
     return None
 
-@admin.action(description="Změna stavu bedny na DO ZPRACOVÁNÍ")
+@admin.action(description="Změna stavu bedny na DO ZPRACOVÁNÍ", permissions=('change',))
 def oznacit_do_zpracovani_action(modeladmin, request, queryset):
     """
     Změní stav vybraných beden ze stavu ROZPRACOVANOST (NAVEZENO, DO_ZPRACOVANI, ZAKALENO, ZKONTROLOVANO) na DO_ZPRACOVANI.
@@ -668,7 +696,7 @@ def oznacit_do_zpracovani_action(modeladmin, request, queryset):
     logger.info(f"Uživatel {request.user} změnil stav na DO ZPRACOVÁNÍ u {queryset.count()} beden.")
     return None
 
-@admin.action(description="Změna stavu bedny na ZAKALENO")
+@admin.action(description="Změna stavu bedny na ZAKALENO", permissions=('change',))
 def oznacit_zakaleno_action(modeladmin, request, queryset):
     """
     Změní stav vybraných beden ze stavu ROZPRACOVANOST (NAVEZENO, DO_ZPRACOVANI, ZAKALENO, ZKONTROLOVANO) na ZAKALENO.
@@ -692,7 +720,7 @@ def oznacit_zakaleno_action(modeladmin, request, queryset):
     logger.info(f"Uživatel {request.user} změnil stav na ZAKALENO u {queryset.count()} beden.")
     return None
 
-@admin.action(description="Změna stavu bedny na ZKONTROLOVÁNO")
+@admin.action(description="Změna stavu bedny na ZKONTROLOVÁNO", permissions=('change',))
 def oznacit_zkontrolovano_action(modeladmin, request, queryset):
     """
     Změní stav vybraných beden na ZKONTROLOVANO.
@@ -718,7 +746,7 @@ def oznacit_zkontrolovano_action(modeladmin, request, queryset):
     return None
 
 
-@admin.action(description="Změna stavu bedny na K_EXPEDICI")
+@admin.action(description="Změna stavu bedny na K_EXPEDICI", permissions=('change',))
 def oznacit_k_expedici_action(modeladmin, request, queryset):
     """
     Změní stav vybraných beden ze stavu ROZPRACOVANOST (NAVEZENO, DO_ZPRACOVANI, ZAKALENO nebo ZKONTROLOVANO) na K_EXPEDICI.
@@ -759,7 +787,7 @@ def oznacit_k_expedici_action(modeladmin, request, queryset):
     logger.info(f"Uživatel {request.user} změnil stav na K_EXPEDICI u {queryset.count()} beden.")
     return None
 
-@admin.action(description="Změna stavu rovnání na ROVNÁ")
+@admin.action(description="Změna stavu rovnání na ROVNÁ", permissions=('change',))
 def oznacit_rovna_action(modeladmin, request, queryset):
     """
     Změní stav rovnání vybraných beden z NEZADANO na ROVNA.
@@ -783,7 +811,7 @@ def oznacit_rovna_action(modeladmin, request, queryset):
     logger.info(f"Uživatel {request.user} změnil stav rovnání na ROVNA u {queryset.count()} beden.")
     return None
 
-@admin.action(description="Změna stavu rovnání na KŘIVÁ")
+@admin.action(description="Změna stavu rovnání na KŘIVÁ", permissions=('change',))
 def oznacit_kriva_action(modeladmin, request, queryset):
     """
     Změní stav rovnání vybraných beden z NEZADANO na KRIVA.
@@ -807,7 +835,7 @@ def oznacit_kriva_action(modeladmin, request, queryset):
     logger.info(f"Uživatel {request.user} změnil stav rovnání na KRIVA u {queryset.count()} beden.")
     return None
 
-@admin.action(description="Přesun beden na rovnání (ROVNÁ SE)")
+@admin.action(description="Přesun beden na rovnání (ROVNÁ SE)", permissions=('change',))
 def oznacit_rovna_se_action(modeladmin, request, queryset):
     """
     Změní stav rovnání vybraných beden z KRIVA na ROVNA_SE.
@@ -893,7 +921,7 @@ def oznacit_rovna_se_action(modeladmin, request, queryset):
     )
     return response
 
-@admin.action(description="Změna stavu rovnání na VYROVNANÁ")
+@admin.action(description="Změna stavu rovnání na VYROVNANÁ", permissions=('change',))
 def oznacit_vyrovnana_action(modeladmin, request, queryset):
     """
     Změní stav rovnání vybraných beden z ROVNA_SE na VYROVNANA.
@@ -917,7 +945,7 @@ def oznacit_vyrovnana_action(modeladmin, request, queryset):
     logger.info(f"Uživatel {request.user} změnil stav rovnání na VYROVNANÁ u {queryset.count()} beden.")
     return None
 
-@admin.action(description="Změna stavu tryskání na ČISTÁ")
+@admin.action(description="Změna stavu tryskání na ČISTÁ", permissions=('change',))
 def oznacit_cista_action(modeladmin, request, queryset):
     """
     Změní stav tryskání vybraných beden z NEZADANO na CISTA.
@@ -941,7 +969,7 @@ def oznacit_cista_action(modeladmin, request, queryset):
     logger.info(f"Uživatel {request.user} změnil stav tryskání na CISTA u {queryset.count()} beden.")
     return None
 
-@admin.action(description="Změna stavu tryskání na ŠPINAVÁ")
+@admin.action(description="Změna stavu tryskání na ŠPINAVÁ", permissions=('change',))
 def oznacit_spinava_action(modeladmin, request, queryset):
     """
     Změní stav tryskání vybraných beden z NEZADANO na SPINAVA.
@@ -965,7 +993,7 @@ def oznacit_spinava_action(modeladmin, request, queryset):
     logger.info(f"Uživatel {request.user} změnil stav tryskání na SPINAVA u {queryset.count()} beden.")
     return None
 
-@admin.action(description="Změna stavu tryskání na OTRYSKANÁ")
+@admin.action(description="Změna stavu tryskání na OTRYSKANÁ", permissions=('change',))
 def oznacit_otryskana_action(modeladmin, request, queryset):
     """
     Změní stav tryskání vybraných beden ze SPINAVA na OTRYSKANA.
@@ -992,7 +1020,7 @@ def oznacit_otryskana_action(modeladmin, request, queryset):
 
 # Akce pro zakázky:
 
-@admin.action(description="Přijmout vybrané zakázky na sklad")
+@admin.action(description="Přijmout vybrané zakázky na sklad", permissions=('change',))
 def prijmout_zakazku_action(modeladmin, request, queryset):
     """
     Přijme vybrané zakázky na sklad.
@@ -1095,7 +1123,7 @@ def prijmout_zakazku_action(modeladmin, request, queryset):
 
     return None
 
-@admin.action(description="Expedice vybraných zakázek")
+@admin.action(description="Expedice vybraných zakázek", permissions=('change',))
 def expedice_zakazek_action(modeladmin, request, queryset):
     """
     Expeduje vybrané zakázky a jejich bedny.
@@ -1162,7 +1190,7 @@ def expedice_zakazek_action(modeladmin, request, queryset):
         'action': "expedice_zakazek_action",
     })
 
-@admin.action(description="Expedice vybraných zakázek do existujícího kamiónu")
+@admin.action(description="Expedice vybraných zakázek do existujícího kamiónu", permissions=('change',))
 def expedice_zakazek_kamion_action(modeladmin, request, queryset):
     """
     Expeduje vybrané zakázky do existujícího kamionu zákazníka.
@@ -1257,7 +1285,7 @@ def tisk_karet_kontroly_kvality_zakazek_action(modeladmin, request, queryset):
         modeladmin.message_user(request, "Zakázka nemá přiřazeného zákazníka nebo zákazník nemá zkratku.", level=messages.ERROR)
         return None
 
-@admin.action(description="Vrácení vybraných zakázek z expedice")
+@admin.action(description="Vrácení vybraných zakázek z expedice", permissions=('change',))
 def vratit_zakazky_z_expedice_action(modeladmin, request, queryset):
     """
     Vrátí vybrané zakázky z expedice.
@@ -1289,7 +1317,7 @@ def vratit_zakazky_z_expedice_action(modeladmin, request, queryset):
 
 # Akce pro kamiony:
 
-@admin.action(description="Importovat dodací list pro vybraný kamion příjem bez zakázek")
+@admin.action(description="Importovat dodací list pro vybraný kamion příjem bez zakázek", permissions=('change',))
 def import_kamionu_action(modeladmin, request, queryset):
     """
     Importuje dodací list pro vybraný kamion.
@@ -1323,7 +1351,7 @@ def import_kamionu_action(modeladmin, request, queryset):
         modeladmin.message_user(request, "Import je zatím možný pouze pro zákazníka Eurotec.", level=messages.ERROR)
         return
     
-@admin.action(description="Přijmout kamion na sklad")
+@admin.action(description="Přijmout kamion na sklad", permissions=('change',))
 def prijmout_kamion_action(modeladmin, request, queryset):
     """
     Přijme vybraný kamion na sklad.

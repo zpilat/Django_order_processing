@@ -37,6 +37,7 @@ from .actions import (
     tisk_karet_kontroly_kvality_action, tisk_karet_kontroly_kvality_zakazek_action, tisk_karet_kontroly_kvality_kamionu_action,
     tisk_karet_bedny_a_kontroly_action,
     tisk_proforma_faktury_kamionu_action, oznacit_k_navezeni_action, vratit_bedny_do_stavu_prijato_action, oznacit_navezeno_action,
+    oznacit_prijato_navezeno_action,
     oznacit_do_zpracovani_action, oznacit_zakaleno_action, oznacit_zkontrolovano_action, oznacit_k_expedici_action, oznacit_rovna_action,
     oznacit_kriva_action, oznacit_rovna_se_action, oznacit_vyrovnana_action, oznacit_cista_action, oznacit_spinava_action,
     oznacit_otryskana_action, prijmout_kamion_action, prijmout_zakazku_action, prijmout_bedny_action,
@@ -119,6 +120,7 @@ class ZakaznikAdmin(SimpleHistoryAdmin):
             self.message_user(request, f"Pro smazání vyberte právě jednu položku (vybráno: {count}).", messages.ERROR)
             return
         return admin_delete_selected(self, request, queryset)
+    delete_selected_one.allowed_permissions = ('delete',)
 
     def get_actions(self, request):
         """
@@ -126,12 +128,12 @@ class ZakaznikAdmin(SimpleHistoryAdmin):
         Nahrazení výchozí akce delete_selected vlastní obálkou s kontrolou počtu vybraných záznamů.
         """
         actions = super().get_actions(request)
-        # Nahraď defaultní delete_selected obálkou s kontrolou počtu
-        actions['delete_selected'] = (
-            self.__class__.delete_selected_one,
-            'delete_selected',
-            getattr(admin_delete_selected, 'short_description', 'Smazat vybrané'),
-        )
+        if 'delete_selected' in actions:
+            actions['delete_selected'] = (
+                self.__class__.delete_selected_one,
+                'delete_selected',
+                getattr(admin_delete_selected, 'short_description', 'Smazat vybrané'),
+            )
         return actions
 
     def has_delete_permission(self, request, obj=None):
@@ -1956,7 +1958,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     actions = [
     export_bedny_to_csv_action,
     tisk_karet_beden_action, tisk_karet_kontroly_kvality_action, tisk_karet_bedny_a_kontroly_action,
-    oznacit_k_navezeni_action, oznacit_navezeno_action,
+    oznacit_k_navezeni_action, oznacit_navezeno_action, oznacit_prijato_navezeno_action,
         vratit_bedny_do_stavu_prijato_action, oznacit_do_zpracovani_action, oznacit_zakaleno_action, oznacit_zkontrolovano_action,
         oznacit_k_expedici_action, oznacit_rovna_action, oznacit_kriva_action, oznacit_rovna_se_action, oznacit_vyrovnana_action,
         oznacit_cista_action, oznacit_spinava_action, oznacit_otryskana_action, prijmout_bedny_action
@@ -2350,6 +2352,9 @@ class BednaAdmin(SimpleHistoryAdmin):
                 return request.user.has_perm('orders.change_neprijata_bedna')
             
         return super().has_change_permission(request, obj)
+
+    def has_mark_bedna_navezeno_permission(self, request):
+        return request.user.has_perm('orders.mark_bedna_navezeno')
     
     def get_changelist_form(self, request, **kwargs):
         """
@@ -2573,6 +2578,7 @@ class BednaAdmin(SimpleHistoryAdmin):
             'tisk_karet_bedny_a_kontroly_action': 'Tisk',
             'prijmout_bedny_action': 'Stav bedny',
             'oznacit_k_navezeni_action': 'Stav bedny',
+            'oznacit_prijato_navezeno_action': 'Stav bedny',            
             'oznacit_navezeno_action': 'Stav bedny',
             'vratit_bedny_do_stavu_prijato_action': 'Stav bedny',
             'oznacit_do_zpracovani_action': 'Stav bedny',
