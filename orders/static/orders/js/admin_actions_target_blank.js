@@ -27,10 +27,34 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
 
+        let explicitTarget = null;
+        if (selectedAction === 'oznacit_rovna_se_action') {
+            try {
+                const windowName = 'bedna_rovnani_print';
+                window.open('', windowName);
+                explicitTarget = windowName;
+            } catch (err) {
+                explicitTarget = null;
+            }
+        }
+
         if (actionsTargetBlank.includes(selectedAction)) {
-            actionForm.setAttribute('target', '_blank');
+            actionForm.setAttribute('target', explicitTarget || '_blank');
         } else {
             actionForm.removeAttribute('target');
+        }
+
+        if (selectedAction === 'oznacit_rovna_se_action') {
+            setTimeout(function () {
+                try {
+                    if (window.sessionStorage) {
+                        window.sessionStorage.removeItem('bedna-reload-after-action');
+                    }
+                } catch (err) {
+                    /* ignore storage errors */
+                }
+                window.location.reload();
+            }, 1000);
         }
     });
 });

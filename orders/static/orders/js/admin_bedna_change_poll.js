@@ -6,7 +6,7 @@
 
     const bannerId = 'bedna-change-banner';
     const storageKey = 'bedna-reload-after-action';
-    const autoReloadActions = ['oznacit_rovna_se_action'];
+    const autoReloadActions = [];
     const interval = typeof config.intervalMs === 'number' && config.intervalMs > 0 ? config.intervalMs : 30000;
     let lastKnown = config.lastChange || null;
 
