@@ -340,3 +340,13 @@ class KNavezeniForm(forms.Form):
         label="Pozice",
         required=False
     )
+
+class NavezenoForm(forms.Form):
+    """
+    Formulář pro výběr pozice pro bednu při změně stavu na NAVEZENO.
+    """
+    bedna_id = forms.IntegerField(widget=forms.HiddenInput())
+    pozice = forms.ModelChoiceField(
+        queryset=Pozice.objects.all(),
+        label="Pozice",
+    )

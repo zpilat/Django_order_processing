@@ -1,0 +1,65 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{% block content %}
+<form method="post">{% csrf_token %}
+  {# udržení kontextu akce #}
+  <input type="hidden" name="action" value="{{ action_name }}">
+
+  {# odeslání všech vybraných PK zpět #}
+  {% for obj in queryset %}
+    <input type="hidden" name="{{ action_checkbox_name }}" value="{{ obj.pk }}">
+  {% endfor %}
+
+  {# management form pro formset #}
+  {{ formset.management_form }}
+  {# zobrazit chyby formsetu nahoře (non_field_errors) #}
+  {% if formset.non_form_errors %}
+    <div class="error">
+      {{ formset.non_form_errors }}
+    </div>
+  {% endif %}
+
+  <table class="adminlist">
+    <thead>
+      <tr>
+        <th style="background-color: #214290; color: #ffde17;">Bedna</th>
+        <th style="background-color: #214290; color: #ffde17;">Pozice</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for form in formset.forms %}
+        {% ifchanged form.initial.zakazka_id %}
+          <tr style="border-top: 2px solid #214290;"{% if form.errors %} class="error"{% endif %}>
+        {% else %}
+          {% if forloop.last %}
+            <tr style="border-bottom: 2px solid #214290;"{% if form.errors %} class="error"{% endif %}>
+          {% else %}
+            <tr{% if form.errors %} class="error"{% endif %}>
+          {% endif %}
+        {% endifchanged %}            
+          <td>
+            {{ form.bedna_id }}  {# hidden input #}
+            {{ form.initial.cislo }}
+            {# zobrazit případné chyby spojené s tímto konkrétním formulářem #}
+            {% if form.non_field_errors %}
+              <div class="error">{{ form.non_field_errors }}</div>
+            {% endif %}
+          </td>
+          <td>
+            {# field errors (např. required) #}
+            {% if form.pozice.errors %}
+              {{ form.pozice.errors }}
+            {% endif %}
+            {{ form.pozice }}
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <br>
+  <div class="submit-row">
+    <input type="submit" name="apply" value="Navézt bedny" class="default">
+  </div>
+</form>
+{% endblock %}
