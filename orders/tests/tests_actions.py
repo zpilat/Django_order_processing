@@ -351,17 +351,31 @@ class ExportBednyCsvActionTests(ActionsBase):
 
         self.assertGreaterEqual(len(rows), 2)
         expected_header = [
-            'Zákazník', 'Zakázka', 'Číslo bedny', 'Č.b. zák.', 'Navezené', 'Rozměr', 'Do zprac.',
-            'Zakal.', 'Kontrol.', 'Křivost', 'Čistota', 'K expedici', 'Hmotnost', 'Poznámka',
-            'Hlava + závit', 'Název', 'Skupina',
+            'Zákazník',
+            'Datum',
+            'Zakázka',
+            'Číslo bedny',
+            'Navezené',
+            'Rozměr',
+            'Do zprac.',
+            'Zakal.',
+            'Kontrol.',
+            'Křivost',
+            'Čistota',
+            'K expedici',
+            'Hmotnost',
+            'Poznámka',
+            'Hlava + závit',
+            'Název',
+            'Skupina',
         ]
         self.assertEqual(rows[0], expected_header)
 
         expected_row = [
             'T',
+            self.kamion_prijem.datum.strftime('%d.%m.%Y'),
             'A1',
             str(bedna.cislo_bedny),
-            '42',
             '',
             '1 x 1',
             'x',
