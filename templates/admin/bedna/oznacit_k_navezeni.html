@@ -61,6 +61,12 @@
 
   {# management form pro formset #}
   {{ formset.management_form }}
+  {# zobrazit chyby formsetu nahoře (non_field_errors) #}
+  {% if formset.non_form_errors %}
+    <div class="error">
+      {{ formset.non_form_errors }}
+    </div>
+  {% endif %}
 
   <table class="adminlist">
     <thead>
@@ -78,12 +84,12 @@
     <tbody>
       {% for form in formset.forms %}
         {% ifchanged form.initial.zakazka_id %}
-          <tr style="border-top: 2px solid #214290;">
+          <tr style="border-top: 2px solid #214290;"{% if form.errors %} class="error"{% endif %}>
         {% else %}
           {% if forloop.last %}
-            <tr style="border-bottom: 2px solid #214290;">
+            <tr style="border-bottom: 2px solid #214290;"{% if form.errors %} class="error"{% endif %}>
           {% else %}
-            <tr>
+            <tr{% if form.errors %} class="error"{% endif %}>
           {% endif %}
         {% endifchanged %}            
           <td>
@@ -96,11 +102,24 @@
             <td><strong>{{ form.initial.artikl }}</strong></td>
             <td><strong>{{ form.initial.typ_hlavy }}</strong></td>
             <td><strong>{{ form.initial.popis }}</strong></td>          
-            <td>{{ form.poznamka_k_navezeni }}</td>                
+            <td>
+              {% if form.poznamka_k_navezeni.errors %}
+                {{ form.poznamka_k_navezeni.errors }}
+              {% endif %}
+              {{ form.poznamka_k_navezeni }}
+            </td>                
           {% else %}
             <td></td><td></td><td></td><td></td><td></td>
           {% endifchanged %}
-          <td>{{ form.pozice }}</td>
+          <td>
+            {% if form.non_field_errors %}
+              <div class="error">{{ form.non_field_errors }}</div>
+            {% endif %}
+            {% if form.pozice.errors %}
+              {{ form.pozice.errors }}
+            {% endif %}
+            {{ form.pozice }}
+          </td>
         </tr>
       {% endfor %}
     </tbody>
