@@ -1956,9 +1956,8 @@ class BednaAdmin(SimpleHistoryAdmin):
     change_list_template = 'admin/orders/bedna/change_list.html'
     poll_interval_ms = 30000
     actions = [
-    export_bedny_to_csv_action,
-    tisk_karet_beden_action, tisk_karet_kontroly_kvality_action, tisk_karet_bedny_a_kontroly_action,
-    oznacit_k_navezeni_action, oznacit_navezeno_action, oznacit_prijato_navezeno_action,
+        export_bedny_to_csv_action, tisk_karet_beden_action, tisk_karet_kontroly_kvality_action, tisk_karet_bedny_a_kontroly_action,
+        oznacit_k_navezeni_action, oznacit_navezeno_action, oznacit_prijato_navezeno_action,
         vratit_bedny_do_stavu_prijato_action, oznacit_do_zpracovani_action, oznacit_zakaleno_action, oznacit_zkontrolovano_action,
         oznacit_k_expedici_action, oznacit_rovna_action, oznacit_kriva_action, oznacit_rovna_se_action, oznacit_vyrovnana_action,
         oznacit_cista_action, oznacit_spinava_action, oznacit_otryskana_action, prijmout_bedny_action
@@ -2000,8 +1999,9 @@ class BednaAdmin(SimpleHistoryAdmin):
     }
 
     # Parametry pro historii změn
-    history_list_display = ["id", "zakazka", "cislo_bedny", "stav_bedny", "typ_hlavy", "poznamka"]
-    history_search_fields = ["zakazka__kamion_prijem__zakaznik__nazev", "cislo_bedny", "stav_bedny", "zakazka__typ_hlavy", "poznamka"]
+    history_list_display = ["cislo_bedny", "behalter_nr", "zakazka_link", "stav_bedny", "rovnat", "tryskat",
+                            "get_prumer", "get_delka_int", "get_skupina_TZ", "poznamka"]
+    history_search_fields = ["zakazka__kamion_prijem__zakaznik__nazev", "cislo_bedny",]
     history_list_filter = ["zakazka__kamion_prijem__zakaznik__nazev", "zakazka__kamion_prijem__datum", "stav_bedny"]
     history_list_per_page = 20
 
