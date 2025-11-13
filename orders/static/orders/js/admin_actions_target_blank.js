@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', function () {
         'tisk_karet_beden_action',
         'tisk_karet_beden_zakazek_action',
         'tisk_karet_beden_kamionu_action',
+        'tisk_karet_bedny_a_kontroly_action',
         'tisk_dodaciho_listu_kamionu_action',
         'tisk_proforma_faktury_kamionu_action',
         'tisk_karet_kontroly_kvality_action',
