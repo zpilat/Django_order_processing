@@ -1504,8 +1504,8 @@ def prijmout_kamion_action(modeladmin, request, queryset):
                 )
                 return
             
-    logger.info(f"Uživatel {request.user} přijal kamion {kamion.cislo_dl} na sklad.")
-    modeladmin.message_user(request, f"Kamion {kamion.cislo_dl} byl přijat na sklad.", level=messages.SUCCESS)
+    logger.info(f"Uživatel {request.user} přijal kamion {kamion} na sklad.")
+    modeladmin.message_user(request, f"Kamion {kamion} byl přijat na sklad.", level=messages.SUCCESS)
     return
 
 @admin.action(description="Vytisknout dodací list vybraného kamionu výdej")
