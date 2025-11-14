@@ -148,6 +148,7 @@ def utilita_tisk_dl_a_proforma_faktury(modeladmin, request, kamion, html_path, f
 def utilita_expedice_zakazek(modeladmin, request, queryset, kamion):
     """
     Expeduje vybrané zakázky a jejich bedny.
+    Pokud zakázka neobsahuje žádné bedny ve stavu K_EXPEDICI, tak tuhle zakázku přeskočí.
     Pokud zakázka obsahuje bedny, které nejsou ve stavu K_EXPEDICI, vytvoří novou zakázku pro tyto bedny.
     Bedny ve stavu K_EXPEDICI jsou expedovány a jejich stav je změněn na EXPEDOVANO.
     Zakázka je poté expedována do zadaného kamionu a její stav expedovano je nastaven na True.
@@ -156,6 +157,10 @@ def utilita_expedice_zakazek(modeladmin, request, queryset, kamion):
         bedny = zakazka.bedny.all()
         bedny_k_expedici = bedny.filter(stav_bedny=StavBednyChoice.K_EXPEDICI)
         bedny_ne_k_expedici = bedny.exclude(stav_bedny=StavBednyChoice.K_EXPEDICI)
+
+        if not bedny_k_expedici.exists():
+            logger.info(f"Zakázka {zakazka} nemá žádné bedny ve stavu K_EXPEDICI, přeskočeno.")
+            continue
 
         if bedny_ne_k_expedici.exists():
             # Vytvoří novou zakázku – robustní klon přes _id pro FK

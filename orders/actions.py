@@ -1218,7 +1218,8 @@ def expedice_zakazek_action(modeladmin, request, queryset):
     5. Pro každou zakázku daného zákazníka:
         - Zkontroluje se, zda všechny bedny v zakázce mají stav `K_EXPEDICI`.
         - Pokud ano, vyexpeduje celou zakázku.
-        - Pokud ne, vyexpeduje bedny K_EXPEDICI a vytvoří novou zakázku se stejnými daty jako původní a převede do ní bedny, které nejsou ve stavu `K_EXPEDICI`.            
+        - Pokud ne, vyexpeduje bedny K_EXPEDICI a vytvoří novou zakázku se stejnými daty jako původní a převede do ní bedny, které nejsou ve stavu `K_EXPEDICI`.      
+        - Pokud nemá žádné bedny ve stavu `K_EXPEDICI`, zakázka se přeskočí.      
     6. Po úspěšném průběhu odešle `messages.success`. V případě nesplnění podmínek vrátí chybu pomocí `messages.error` a akce se přeruší.
     """        
     if not queryset.exists():
