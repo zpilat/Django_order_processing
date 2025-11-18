@@ -114,7 +114,7 @@
                 <p class="mb-0">Celní zařazení:</p>
             </div>
             <div class="col-2">
-                <p class="mb-0">{{ kamion.celkova_hmotnost_netto|multiply:1.5 }}</p>
+                <p class="mb-0">{{ kamion.celkova_hmotnost_netto|multiply:1.5|floatformat:1 }} €</p>
                 <p class="mb-0">73 181 558</p>
             </div>
             <div class="col-2">
