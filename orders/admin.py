@@ -609,7 +609,7 @@ class KamionAdmin(SimpleHistoryAdmin):
             if bedny:
                 bedny_list = format_html_join(
                     '',
-                    '<li><a href="{0}">#{1}{2}</a> · hmotnost: {3} kg · tára: {4} kg · stav: {5}{6}</li>',
+                    '<li><a href="{0}">#{1}{2}</a> · hmotnost: {3} kg · tára: {4} kg{5} · stav: {6}{7}</li>',
                     (
                         (
                             bedna.get_admin_url(),
@@ -617,6 +617,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                             f' (#{bedna.behalter_nr})' if bedna.behalter_nr else '',
                             fmt_decimal(bedna.hmotnost),
                             fmt_decimal(bedna.tara),
+                            f' · FA / Bestell-Nr.: {bedna.vyrobni_zakazka}' if bedna.vyrobni_zakazka else '',
                             bedna.get_stav_bedny_display(),
                             f' · pozice: {bedna.pozice.kod}' if bedna.pozice else ''
                         )
