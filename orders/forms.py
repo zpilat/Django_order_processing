@@ -349,4 +349,5 @@ class NavezenoForm(forms.Form):
     pozice = forms.ModelChoiceField(
         queryset=Pozice.objects.all(),
         label="Pozice",
+        required=False
     )

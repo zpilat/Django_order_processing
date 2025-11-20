@@ -2,6 +2,7 @@
 {% load i18n admin_urls static %}
 
 {% block content %}
+<p>Stačí označit vždy první stejnou pozici, další se přiřadí automaticky až do další zadané pozice.</p>
 <form method="post">{% csrf_token %}
   {# udržení kontextu akce #}
   <input type="hidden" name="action" value="{{ action_name }}">
@@ -59,7 +60,7 @@
   </table>
   <br>
   <div class="submit-row">
-    <input type="submit" name="apply" value="Navézt bedny" class="default">
+    <input type="submit" name="apply" value="Potvrdit navezení" class="default">
   </div>
 </form>
 {% endblock %}

@@ -457,6 +457,22 @@ def _render_oznacit_k_navezeni(modeladmin, request, queryset, formset):
     }
     return TemplateResponse(request, "admin/bedna/oznacit_k_navezeni.html", context)    
 
+def _render_oznacit_prijato_navezeno(modeladmin, request, queryset, formset):
+    """Zobrazení potvrzovací obrazovky pro navezení beden."""
+    action = request.POST.get("action") or request.GET.get("action") or "oznacit_prijato_navezeno_action"
+    pozice = Pozice.objects.all().order_by('kod')
+    context = {
+        **modeladmin.admin_site.each_context(request),
+        "title": "Potvrďte navezení vybraných beden",
+        "queryset": queryset,
+        "formset": formset,
+        "vsechny_pozice": pozice,
+        "opts": modeladmin.model._meta,
+        "action_name": action,
+        "action_checkbox_name": admin.helpers.ACTION_CHECKBOX_NAME,
+    }
+    return TemplateResponse(request, "admin/bedna/oznacit_navezeno.html", context)
+
 @admin.action(description="Změna stavu bedny na K_NAVEZENI", permissions=('change',))
 def oznacit_k_navezeni_action(modeladmin, request, queryset):
     """
@@ -624,18 +640,19 @@ def oznacit_navezeno_action(modeladmin, request, queryset):
 @admin.action(description="Navezení beden (PŘIJATO, K_NAVEZENÍ -> NAVEZENO)")
 def oznacit_prijato_navezeno_action(modeladmin, request, queryset):
     """
-    Změní stav vybraných beden z PŘIJATO na NAVEZENO, pouze pro uživatele s oprávněním 'mark_bedna_navezeno'.
-    1) Zkontroluje, zda není bedna pozastavena.
-    2) Zkontroluje, zda jsou všechny bedny ve stavu PŘIJATO nebo K_NAVEZENI.
-    3) Provede změnu stavu na NAVEZENO.
-    4) Zaznamená akci do logu a zobrazí zprávu o úspěchu.
-    5) Pokud nejsou splněny podmínky, zobrazí chybovou zprávu a akci přeruší.
-    6) Tato akce je určena pro uživatele s oprávněním 'mark_bedna_navezeno' nebo 'change_bedna' - zajišťuje to get_actions v BednaAdmin.
+    Potvrdí navezení beden a přepne stav PŘIJATO/K_NAVEZENÍ na NAVEZENO.
+
+    Akce vyžaduje oprávnění `mark_bedna_navezeno` (nebo obecné `change_bedna`).
+    Nejprve ověří, že žádná bedna není pozastavená a že všechny mají povolený vstupní stav.
+    V potvrzovacím formuláři se pořadí beden drží podle uživatelského výběru:
+    první řádek musí mít ručně zadanou pozici, tu pak akce doplní do dalších
+    prázdných řádků. Celý přechod probíhá v transakci a jednotlivé bedny jsou
+    uzamčeny pomocí `select_for_update`.
     """
     if _abort_if_paused_bedny(modeladmin, request, queryset, "Navezení beden (PŘIJATO, K_NAVEZENÍ -> NAVEZENO)"):
         return None
 
-    # kontrola, zda jsou všechny bedny v querysetu ve stavu PŘIJATO
+    # kontrola, zda jsou všechny bedny v querysetu ve stavu PŘIJATO nebo K_NAVEZENI
     if queryset.exclude(stav_bedny__in=[StavBednyChoice.PRIJATO, StavBednyChoice.K_NAVEZENI]).exists():
         logger.info(f"Uživatel {request.user} se pokusil změnit stav na NAVEZENO, ale některé bedny nejsou ve stavu PŘIJATO nebo K_NAVEZENÍ.")
         modeladmin.message_user(request, "Některé vybrané bedny nejsou ve stavu PŘIJATO nebo K_NAVEZENÍ.", level=messages.ERROR)
@@ -661,44 +678,50 @@ def oznacit_prijato_navezeno_action(modeladmin, request, queryset):
         # Pokud formset není validní, znovu se vykreslí s hodnotami
         if not formset.is_valid():
             messages.error(request, "Formulář není validní.")
-            action = request.POST.get("action") or request.GET.get("action") or "oznacit_prijato_navezeno_action"
-            pozice = Pozice.objects.all().order_by('kod')
-            context = {
-                **modeladmin.admin_site.each_context(request),
-                "title": "Potvrďte navezení vybraných beden",
-                "queryset": qs,
-                "formset": formset,
-                "vsechny_pozice": pozice,
-                "opts": modeladmin.model._meta,
-                "action_name": action,
-                "action_checkbox_name": admin.helpers.ACTION_CHECKBOX_NAME,
-            }
-            return TemplateResponse(request, "admin/bedna/oznacit_navezeno.html", context)
-        
+            return _render_oznacit_prijato_navezeno(modeladmin, request, qs, formset)
 
-        # Pokud je vše validní, provedeme změnu stavu
+        # Pokud není uvedena pozice u první bedny, znovu se vykreslí s hodnotami a chybou
+        aktualni_pozice = formset.forms[0].cleaned_data.get("pozice")
+        if not aktualni_pozice:
+            messages.error(request, "Je potřeba vybrat alespoň první pozici.")
+            return _render_oznacit_prijato_navezeno(modeladmin, request, qs, formset)
+
+        vybrane_ids = [f.cleaned_data["bedna_id"] for f in formset.forms]
+        formularova_data = []
+        for form in formset.forms:
+            bedna_id = form.cleaned_data["bedna_id"]
+            pozice = form.cleaned_data.get("pozice")
+            if pozice:
+                aktualni_pozice = pozice
+            else:
+                pozice = aktualni_pozice
+
+            formularova_data.append((bedna_id, pozice))
+
+        uspesne = 0
+
         with transaction.atomic():
-            vybrane_ids = [f.cleaned_data["bedna_id"] for f in formset.forms]
             bedny_map = {
                 b.pk: b for b in Bedna.objects.select_for_update().filter(pk__in=vybrane_ids)
             }
 
-            for form in formset.forms:
-                bedna_id = form.cleaned_data["bedna_id"]
-                pozice = form.cleaned_data["pozice"]
-
+            for bedna_id, pozice in formularova_data:
                 bedna = bedny_map.get(bedna_id)
                 if not bedna:
                     messages.warning(request, f"Bedna s ID {bedna_id} nebyla nalezena, přeskočena.")
                     continue
 
-                if bedna.stav_bedny in [StavBednyChoice.PRIJATO, StavBednyChoice.K_NAVEZENI]:
-                    bedna.stav_bedny = StavBednyChoice.NAVEZENO
-                    bedna.pozice = pozice
-                    bedna.save()
+                if bedna.stav_bedny not in [StavBednyChoice.PRIJATO, StavBednyChoice.K_NAVEZENI]:
+                    continue
 
-        messages.success(request, f"Navezeno: {qs.count()} beden.")
-        logger.info(f"Uživatel {request.user} změnil stav na NAVEZENO u {qs.count()} beden.")
+                bedna.stav_bedny = StavBednyChoice.NAVEZENO
+                bedna.pozice = pozice
+                bedna.save()
+                uspesne += 1
+
+        if uspesne:
+            messages.success(request, f"Navezeno: {uspesne} beden.")
+            logger.info(f"Uživatel {request.user} změnil stav na NAVEZENO u {uspesne} beden.")
 
         return None
     
@@ -711,19 +734,7 @@ def oznacit_prijato_navezeno_action(modeladmin, request, queryset):
         } for bedna in queryset
     ]
     formset = NavezenoFormSet(initial=initial, prefix="ozn")
-    action = request.POST.get("action") or request.GET.get("action") or "oznacit_prijato_navezeno_action"
-    pozice = Pozice.objects.all().order_by('kod')
-    context = {
-        **modeladmin.admin_site.each_context(request),
-        "title": "Potvrďte navezení vybraných beden",
-        "queryset": queryset,
-        "formset": formset,
-        "vsechny_pozice": pozice,
-        "opts": modeladmin.model._meta,
-        "action_name": action,
-        "action_checkbox_name": admin.helpers.ACTION_CHECKBOX_NAME,
-    }
-    return TemplateResponse(request, "admin/bedna/oznacit_navezeno.html", context)
+    return _render_oznacit_prijato_navezeno(modeladmin, request, queryset, formset)
 
 @admin.action(description="Vrátit bedny do stavu PŘIJATO", permissions=('change',))
 def vratit_bedny_do_stavu_prijato_action(modeladmin, request, queryset):
