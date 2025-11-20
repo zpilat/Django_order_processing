@@ -17,19 +17,34 @@
         <table class="table table-bordered" style="width: 100%; table-layout: fixed;">
             <tbody>
                 <tr>
-                    <td colspan="4" class="text-center small"">
+                    <td rowspan="3" colspan="4" class="text-center small"">
                         Technologický předpis: {{ bedna.zakazka.predpis.nazev }}
                     </td>
-                    <td colspan="6" class="text-center fs-15 fw-bold">
+                    <td rowspan="3" colspan="4" class="text-center fs-15 fw-bold">
                         KARTA BEDNY
                     </td>
-                    <td colspan="3" class="text-center bg-body-secondary fs-12 fw-bold">
+                    <td class="text-center bg-body-secondary fs-06">
+                        nakládání
+                    </td>
+                    <td class="text-center bg-body-secondary fs-06">
+                        pletivo
+                    </td>
+                    <td rowspan="3" colspan="3" class="text-center bg-body-secondary fs-12 fw-bold">
                         POPOUŠTĚNÍ:
                     </td>
-                    <td colspan="5" class="text-center bg-body-secondary fs-12 fw-bold">
+                    <td rowspan="3" colspan="5" class="text-center bg-body-secondary fs-12 fw-bold">
                         {{ bedna.zakazka.predpis.popousteni }}
                     </td>
                 </tr>
+                <tr>
+                    <td rowspan="2" class="text-center bg-body-secondary fw-bold">
+                        {{ bedna.zakazka.predpis.sarzovani }}
+                    </td>
+                    <td rowspan="2" class="text-center bg-body-secondary fs-10 fw-bold">
+                        {{ bedna.zakazka.predpis.pletivo|default:"?" }}
+                    </td>
+                </tr>     
+                <tr></tr>       
                 <tr>
                     <td colspan="3" rowspan="7" class="text-center fw-bold fs-17">
                         HPM HEAT SK
