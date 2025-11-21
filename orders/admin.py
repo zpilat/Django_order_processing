@@ -1238,7 +1238,7 @@ class KamionAdmin(SimpleHistoryAdmin):
             fk_name = getattr(getattr(formset, "fk", None), "name", None)
 
             # Pokud inline nepracuje s kamionem příjem, ukládá se standardně bez automatického vytváření beden.
-            if fk_name != 'kamion_prijem':
+            if fk_name is not None and fk_name != 'kamion_prijem':
                 formset.save()
                 return
 
