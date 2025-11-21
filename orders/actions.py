@@ -1551,6 +1551,55 @@ def tisk_dodaciho_listu_kamionu_action(modeladmin, request, queryset):
         modeladmin.message_user(request, "Kamion nemá přiřazeného zákazníka nebo zákazník nemá zkratku.", level=messages.ERROR)
         return None
 
+
+@admin.action(description="Vytisknout protokol 3.1 kamionu výdej")
+def tisk_protokolu_kamionu_vydej_action(modeladmin, request, queryset):
+    """
+    Vytvoří jednoduchý PDF protokol pro kamion výdej s přehledem naměřených hodnot na zakázkách.
+    """
+    if queryset.count() != 1:
+        logger.info(
+            f"Uživatel {getattr(request, 'user', None)} se pokusil tisknout protokol kamionu výdej, ale vybral více než jednu položku."
+        )
+        modeladmin.message_user(request, "Vyberte pouze jeden kamion.", level=messages.ERROR)
+        return None
+
+    kamion = queryset.first()
+    if kamion.prijem_vydej != KamionChoice.VYDEJ:
+        logger.info(
+            f"Uživatel {getattr(request, 'user', None)} se pokusil tisknout protokol pro kamion {kamion}, ale kamion není typu výdej.",
+        )
+        modeladmin.message_user(request, "Tisk protokolu je možný pouze pro kamiony výdej.", level=messages.ERROR)
+        return None
+
+    zakazky = kamion.zakazky_vydej.all().order_by('id')
+    context = {
+        "kamion": kamion,
+        "zakazky": zakazky,
+        "generated_at": timezone.now(),
+    }
+
+    html_string = render_to_string("orders/protokol_kamion_vydej.html", context)
+
+    stylesheets = []
+    css_path = finders.find('orders/css/pdf_shared.css')
+    if css_path:
+        stylesheets.append(CSS(filename=css_path))
+    else:
+        logger.warning("Nepodařilo se najít CSS 'orders/css/pdf_shared.css' pro tisk protokolu kamionu výdej.")
+
+    base_url = request.build_absolute_uri('/') if request else None
+    pdf_file = HTML(string=html_string, base_url=base_url).write_pdf(stylesheets=stylesheets)
+    cislo_dl = kamion.cislo_dl or f"kamion_{kamion}"
+    filename = f"protokol_{cislo_dl}.pdf"
+    response = HttpResponse(pdf_file, content_type="application/pdf")
+    response['Content-Disposition'] = f'inline; filename="{filename}"'
+
+    logger.info(
+        f"Uživatel {getattr(request, 'user', None)} vygeneroval protokol tvrdostí pro kamion výdej {kamion} ({zakazky.count()} zakázek)."
+    )
+    return response
+
 @admin.action(description="Vytisknout proforma fakturu vybraného kamionu výdej")
 def tisk_proforma_faktury_kamionu_action(modeladmin, request, queryset):
     """

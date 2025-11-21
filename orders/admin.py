@@ -36,6 +36,7 @@ from .actions import (
     tisk_karet_beden_kamionu_action, tisk_dodaciho_listu_kamionu_action, vratit_zakazky_z_expedice_action, expedice_zakazek_kamion_action,
     tisk_karet_kontroly_kvality_action, tisk_karet_kontroly_kvality_zakazek_action, tisk_karet_kontroly_kvality_kamionu_action,
     tisk_karet_bedny_a_kontroly_action,
+    tisk_protokolu_kamionu_vydej_action,
     tisk_proforma_faktury_kamionu_action, oznacit_k_navezeni_action, vratit_bedny_do_stavu_prijato_action, oznacit_navezeno_action,
     oznacit_prijato_navezeno_action,
     oznacit_do_zpracovani_action, oznacit_zakaleno_action, oznacit_zkontrolovano_action, oznacit_k_expedici_action, oznacit_rovna_action,
@@ -338,8 +339,15 @@ class KamionAdmin(SimpleHistoryAdmin):
     Akce dostupné v administraci umožňují import kamionu, tisk karet beden, tisk dodacího listu, tisk proforma faktury a přijetí kamionu.
     """
     # Použité akce
-    actions = [import_kamionu_action, tisk_karet_beden_kamionu_action, tisk_karet_kontroly_kvality_kamionu_action, tisk_dodaciho_listu_kamionu_action,
-               tisk_proforma_faktury_kamionu_action, prijmout_kamion_action]
+    actions = [
+        import_kamionu_action,
+        tisk_karet_beden_kamionu_action,
+        tisk_karet_kontroly_kvality_kamionu_action,
+        tisk_dodaciho_listu_kamionu_action,
+        tisk_proforma_faktury_kamionu_action,
+        tisk_protokolu_kamionu_vydej_action,        
+        prijmout_kamion_action,
+    ]
     # Parametry pro zobrazení detailu v administraci
     fields = ('zakaznik', 'datum', 'poradove_cislo', 'cislo_dl', 'prijem_vydej', 'odberatel', 'get_struktura_kamionu',) # další úpravy v get_fields
     readonly_fields = ('prijem_vydej', 'poradove_cislo', 'get_struktura_kamionu',) # další úpravy v get_readonly_fields
@@ -688,6 +696,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                 'tisk_karet_kontroly_kvality_kamionu_action',
                 'tisk_dodaciho_listu_kamionu_action',
                 'tisk_proforma_faktury_kamionu_action',
+                'tisk_protokolu_kamionu_vydej_action',                
                 'prijmout_kamion_action'
             ]
         elif (request.GET.get('prijem_vydej') == 'PN'):
@@ -697,12 +706,14 @@ class KamionAdmin(SimpleHistoryAdmin):
                 'tisk_karet_kontroly_kvality_kamionu_action',
                 'tisk_dodaciho_listu_kamionu_action',
                 'tisk_proforma_faktury_kamionu_action'
+                'tisk_protokolu_kamionu_vydej_action',                
             ]
         elif (request.GET.get('prijem_vydej') == 'PK'):
             actions_to_remove = [
                 'import_kamionu_action',                
                 'tisk_dodaciho_listu_kamionu_action',
                 'tisk_proforma_faktury_kamionu_action',
+                'tisk_protokolu_kamionu_vydej_action',                
                 'prijmout_kamion_action',
                 'delete_selected'
             ]
@@ -713,6 +724,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                 'tisk_karet_kontroly_kvality_kamionu_action',
                 'tisk_dodaciho_listu_kamionu_action',
                 'tisk_proforma_faktury_kamionu_action',
+                'tisk_protokolu_kamionu_vydej_action',                
                 'prijmout_kamion_action',
                 'delete_selected'
             ]
@@ -770,6 +782,7 @@ class KamionAdmin(SimpleHistoryAdmin):
             'prijmout_kamion_action': 'Import / Příjem',
             'tisk_karet_beden_kamionu_action': 'Tisk karet',
             'tisk_karet_kontroly_kvality_kamionu_action': 'Tisk karet',
+            'tisk_protokolu_kamionu_vydej_action': 'Tisk dokladů',
             'tisk_dodaciho_listu_kamionu_action': 'Tisk dokladů',
             'tisk_proforma_faktury_kamionu_action': 'Tisk dokladů',
         }
