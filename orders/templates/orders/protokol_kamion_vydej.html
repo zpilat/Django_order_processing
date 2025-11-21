@@ -11,7 +11,7 @@
 
         body {
             font-family: sans-serif;
-            font-size: 11pt;
+            font-size: 9pt;
         }
 
         table {
@@ -23,7 +23,7 @@
         td {
             border: 1px solid #000;
             padding: 4px;
-            text-align: left;
+            text-align: center;
         }
     </style>
 </head>
@@ -31,39 +31,39 @@
 <table style="width:100%; border-collapse:collapse;">
     <thead>
         <tr>
-            <th style="border:1px solid #000; padding:4px; text-align:left;">Artikel-Nr.</th>
-            <th style="border:1px solid #000; padding:4px; text-align:left;">Bestell-Nr.</th>
-            <th style="border:1px solid #000; padding:4px; text-align:left;">surface hardness<br>[HV0,3]</th>
-            <th style="border:1px solid #000; padding:4px; text-align:left;">core hardness<br>[HV10]</th>
-            <th style="border:1px solid #000; padding:4px; text-align:left;">bending > 45°</th>
-            <th style="border:1px solid #000; padding:4px; text-align:left;">torsional strenght<br>without breaking</th>
-            <th style="border:1px solid #000; padding:4px; text-align:left;">throwing<br>[mm]</th>
+            <th>Artikel-Nr.</th>
+            <th>Bestell-Nr.</th>
+            <th>surface hardness<br>[HV0,3]</th>
+            <th>core hardness<br>[HV10]</th>
+            <th>bending > 45°</th>
+            <th>torsional strenght<br>without breaking</th>
+            <th>throwing<br>[mm]</th>
         </tr>
     </thead>
     <tbody>
     {% for zakazka in zakazky %}
         <tr>
-            <td style="border:1px solid #000; padding:4px;">{{ zakazka.artikl }}</td>
-            <td style="border:1px solid #000; padding:4px;">
+            <td>{{ zakazka.artikl }}</td>
+            <td>
                 {% if zakazka.bedny.all %}
-                    <ul style="margin:0; padding-left:16px;">
+                    <ul style="margin:0; padding:4px; text-align:center;">
                     {% for bedna in zakazka.bedny.all %}
-                        <li>{{ bedna.vyrobni_zakazka }}</li>
+                        {{ bedna.vyrobni_zakazka }}<br>
                     {% endfor %}
                     </ul>
                 {% else %}
                     -
                 {% endif %}
             </td>
-            <td style="border:1px solid #000; padding:4px;">{{ zakazka.tvrdost_povrchu|default_if_none:"" }}</td>
-            <td style="border:1px solid #000; padding:4px;">{{ zakazka.tvrdost_jadra|default_if_none:"" }}</td>
-            <td style="border:1px solid #000; padding:4px;">{{ zakazka.ohyb|default_if_none:"" }}</td>
-            <td style="border:1px solid #000; padding:4px;">{{ zakazka.krut|default_if_none:"" }}</td>
-            <td style="border:1px solid #000; padding:4px;">{{ zakazka.hazeni|default_if_none:"" }}</td>
+            <td>{{ zakazka.tvrdost_povrchu|default_if_none:"" }}</td>
+            <td>{{ zakazka.tvrdost_jadra|default_if_none:"" }}</td>
+            <td>{{ zakazka.ohyb|default_if_none:"" }}</td>
+            <td>{{ zakazka.krut|default_if_none:"" }}</td>
+            <td>{{ zakazka.hazeni|default_if_none:"" }}</td>
         </tr>
     {% empty %}
         <tr>
-            <td style="border:1px solid #000; padding:4px; text-align:center;" colspan="6">Žádné zakázky k výdeji.</td>
+            <td colspan="7" style="text-align:center;">Žádné zakázky k výdeji.</td>
         </tr>
     {% endfor %}
     </tbody>
