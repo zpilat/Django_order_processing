@@ -305,14 +305,13 @@ class ZakazkaKamionVydejInline(admin.TabularInline):
     verbose_name = "Zakázka - výdej"
     verbose_name_plural = "Zakázky - výdej"
     extra = 0
-    fields = ('artikl', 'kamion_prijem', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit',
-              'popis', 'prubeh', 'priorita', 'celkovy_pocet_beden', 'odberatel',)
-    readonly_fields = ('artikl', 'kamion_prijem', 'prumer', 'delka', 'predpis', 'typ_hlavy',
-                       'celozavit', 'popis', 'prubeh', 'priorita', 'celkovy_pocet_beden', 'odberatel',)
+    fields = ('artikl', 'kamion_prijem', 'prumer', 'delka', 'popis', 'celkovy_pocet_beden',
+              'tvrdost_povrchu', 'tvrdost_jadra', 'ohyb', 'krut', 'hazeni',)
+    readonly_fields = ('artikl', 'kamion_prijem', 'prumer', 'delka', 'popis', 'celkovy_pocet_beden',)
     select_related = ('kamion_prijem', 'predpis',)
     show_change_link = True
     formfield_overrides = {
-        models.CharField: {'widget': TextInput(attrs={'size': '30'})},
+        models.CharField: {'widget': TextInput(attrs={'size': '20'})},
         models.DecimalField: {
             'widget': TextInput(attrs={'size': '8'}),
             'localize': True
@@ -367,10 +366,10 @@ class KamionAdmin(SimpleHistoryAdmin):
         zda se jedná o kamion pro příjem nebo výdej a jestli jde o přidání nebo editaci.
         """
         # Pokud se jedná o editaci kamionu výdej.
-        if obj and obj.prijem_vydej == 'V':
+        if obj and obj.prijem_vydej == KamionChoice.VYDEJ:
             return [ZakazkaKamionVydejInline]
         # Pokud se jedná o editaci kamionu příjem.
-        if obj and obj.prijem_vydej == 'P':        
+        if obj and obj.prijem_vydej == KamionChoice.PRIJEM:        
             # Pokud se jedná o přidání zakázek a beden do prázdného kamionu příjem.
             if obj and not obj.zakazky_prijem.exists():
                 return [ZakazkaAutomatizovanyPrijemInline]
@@ -1236,6 +1235,13 @@ class KamionAdmin(SimpleHistoryAdmin):
                 setattr(formset, _attr, [])
 
         try:
+            fk_name = getattr(getattr(formset, "fk", None), "name", None)
+
+            # Pokud inline nepracuje s kamionem příjem, ukládá se standardně bez automatického vytváření beden.
+            if fk_name != 'kamion_prijem':
+                formset.save()
+                return
+
             # Úprava stávajícího kamionu s již existujícími zakázkami - pouze uloží změny
             if change and formset.instance.zakazky_prijem.exists():
                 formset.save()
@@ -1498,6 +1504,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
                vratit_zakazky_z_expedice_action, expedice_zakazek_kamion_action, prijmout_zakazku_action]
 
     # Parametry pro zobrazení detailu v administraci
+    exclude = ('tvrdost_povrchu', 'tvrdost_jadra', 'ohyb', 'krut', 'hazeni')    
     readonly_fields = ('expedovano', 'get_komplet')
     
     # Parametry pro zobrazení seznamu v administraci

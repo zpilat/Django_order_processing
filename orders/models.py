@@ -361,6 +361,11 @@ class Zakazka(models.Model):
     priorita = models.CharField(choices=PrioritaChoice.choices, max_length=5, default=PrioritaChoice.NIZKA, verbose_name='Priorita')
     odberatel = models.ForeignKey(Odberatel, on_delete=models.SET_NULL, related_name='zakazky', verbose_name='Odběratel', blank=True, null=True)
     expedovano = models.BooleanField(default=False, verbose_name='Expedováno')
+    tvrdost_povrchu = models.CharField(max_length=50, blank=True, null=True, verbose_name='Tvrdost povrchu')
+    tvrdost_jadra = models.CharField(max_length=50, blank=True, null=True, verbose_name='Tvrdost jádra')
+    ohyb = models.CharField(max_length=50, blank=True, null=True, verbose_name='Ohyb')
+    krut = models.CharField(max_length=50, blank=True, null=True, verbose_name='Krut')
+    hazeni = models.CharField(max_length=50, blank=True, null=True, verbose_name='Házení')
     history = HistoricalRecords()
 
     class Meta:
@@ -460,8 +465,6 @@ class Zakazka(models.Model):
                 [self],
             )
         return super().delete(using=using, keep_parents=keep_parents)
-
-
 class Cena(models.Model):
     """
     Model pro cenu zakázky.
