@@ -3,6 +3,29 @@
 <head>
     <meta charset="utf-8">
     <title>Protokol kamionu {{ kamion }}</title>
+    <style>
+        @page {
+            size: A4 portrait;
+            margin: 15mm;
+        }
+
+        body {
+            font-family: sans-serif;
+            font-size: 11pt;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            border: 1px solid #000;
+            padding: 4px;
+            text-align: left;
+        }
+    </style>
 </head>
 <body>
 <table style="width:100%; border-collapse:collapse;">
@@ -31,6 +54,7 @@
                 {% else %}
                     -
                 {% endif %}
+            </td>
             <td style="border:1px solid #000; padding:4px;">{{ zakazka.tvrdost_povrchu|default_if_none:"" }}</td>
             <td style="border:1px solid #000; padding:4px;">{{ zakazka.tvrdost_jadra|default_if_none:"" }}</td>
             <td style="border:1px solid #000; padding:4px;">{{ zakazka.ohyb|default_if_none:"" }}</td>
