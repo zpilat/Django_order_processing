@@ -1552,7 +1552,7 @@ def tisk_dodaciho_listu_kamionu_action(modeladmin, request, queryset):
         return None
 
 
-@admin.action(description="Vytisknout protokol 3.1 kamionu výdej")
+@admin.action(description="Vytisknout certifikát 3.1 kamionu výdej")
 def tisk_protokolu_kamionu_vydej_action(modeladmin, request, queryset):
     """
     Vytvoří jednoduchý PDF protokol pro kamion výdej s přehledem naměřených hodnot na zakázkách.

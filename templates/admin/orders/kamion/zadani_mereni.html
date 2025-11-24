@@ -1,0 +1,86 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}{{ title }} | {{ site_title|default:_("Django site admin") }}{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+{{ media }}
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+    › <a href="{{ changelist_url }}">{{ opts.verbose_name_plural|capfirst }}</a>
+    › <a href="{{ back_url }}">{{ original }}</a>
+    › {{ title }}
+</div>
+{% endblock %}
+
+{% block content %}
+<p class="help">{% trans "Upravte hodnoty měření u všech zakázek vybraného kamionu výdej. Změny se uloží i pro expedované zakázky." %}</p>
+
+{% if formset.forms %}
+<form method="post" novalidate>
+    {% csrf_token %}
+    {{ formset.management_form }}
+    {% if formset.non_form_errors %}
+    <div class="errornote">
+        {{ formset.non_form_errors }}
+    </div>
+    {% endif %}
+    <div class="module">
+        <table class="adminlist">
+            <thead>
+                <tr>
+                    <th scope="col">{% trans "Zakázka" %}</th>
+                    {% for field in formset.forms.0.visible_fields %}
+                    <th scope="col">{{ field.label }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+            {% for form in formset.forms %}
+                <tr {% if form.non_field_errors %} class="row-error"{% endif %}>
+                    <th scope="row" class="nowrap">
+                        <a href="{{ form.instance.get_admin_url }}">{{ form.instance.artikl }}</a>
+                        {% if form.instance.kamion_prijem %}
+                        <br>
+                        <small>{{ form.instance.kamion_prijem }}</small>
+                        {% endif %}
+                        {% if form.non_field_errors %}
+                            <ul class="errorlist">
+                            {% for error in form.non_field_errors %}
+                                <li>{{ error }}</li>
+                            {% endfor %}
+                            </ul>
+                        {% endif %}
+                    </th>
+                    {% for field in form.visible_fields %}
+                    <td class="{% if field.errors %}errors{% endif %}">
+                        {% if field.errors %}
+                        <ul class="errorlist">
+                            {% for error in field.errors %}<li>{{ error }}</li>{% endfor %}
+                        </ul>
+                        {% endif %}
+                        {{ field }}
+                    </td>
+                    {% endfor %}
+                    {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="submit-row">
+        <a href="{{ back_url }}" class="button cancel-link">{% trans "Zpět bez uložení" %}</a>
+        <input type="submit" value="{% trans 'Uložit měření' %}" class="default">
+    </div>
+</form>
+{% else %}
+<div class="module aligned">
+    <p>{% trans "Kamión výdej neobsahuje žádné zakázky k úpravě." %}</p>
+</div>
+<a href="{{ back_url }}" class="button">{% trans "Zpět" %}</a>
+{% endif %}
+{% endblock %}

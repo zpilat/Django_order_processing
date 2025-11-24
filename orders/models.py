@@ -374,6 +374,7 @@ class Zakazka(models.Model):
         ordering = ['id']
         permissions = (
             ('change_expedovana_zakazka', 'Může upravovat expedované zakázky'),
+            ('change_mereni_zakazky', 'Může upravovat měření v zakázce'),
         )
 
     def __str__(self):

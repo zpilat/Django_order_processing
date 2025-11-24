@@ -21,6 +21,21 @@ class ImportZakazekForm(forms.Form):
         }),
     )
 
+
+class ZakazkaMeasurementForm(forms.ModelForm):
+    """Formulář pro zápis měření zakázky v rámci akce kamionu výdej."""
+
+    class Meta:
+        model = Zakazka
+        fields = ("tvrdost_povrchu", "tvrdost_jadra", "ohyb", "krut", "hazeni")
+        widgets = {
+            "tvrdost_povrchu": forms.TextInput(attrs={"size": "20"}),
+            "tvrdost_jadra": forms.TextInput(attrs={"size": "20"}),
+            "ohyb": forms.TextInput(attrs={"size": "20"}),
+            "krut": forms.TextInput(attrs={"size": "20"}),
+            "hazeni": forms.TextInput(attrs={"size": "20"}),
+        }
+
 class ZakazkaPredpisValidatorMixin:
     """
     Mixin pro validaci předpisu v rámci zakázky.

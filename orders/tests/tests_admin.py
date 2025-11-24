@@ -4,6 +4,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
 from django.contrib.messages.storage.fallback import FallbackStorage
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.urls import reverse
 
 from decimal import Decimal
 from datetime import date
@@ -46,6 +47,24 @@ class KamionAdminTests(AdminBase):
         req = getattr(self.factory, method)(path, data=data or {}, **extra)
         req.user = self.user
         return req
+
+    def _create_vydej_kamion_with_order(self):
+        kamion_vydej = Kamion.objects.create(
+            zakaznik=self.zakaznik,
+            datum=date.today(),
+            prijem_vydej=KamionChoice.VYDEJ,
+        )
+        zakazka = Zakazka.objects.create(
+            kamion_prijem=self.kamion,
+            kamion_vydej=kamion_vydej,
+            artikl='ART1',
+            prumer=Decimal('10.0'),
+            delka=Decimal('50.0'),
+            predpis=self.predpis,
+            typ_hlavy=self.typ_hlavy,
+            popis='Test zakázka',
+        )
+        return kamion_vydej, zakazka
 
     def test_get_inlines(self):
         add_inlines = self.admin.get_inlines(self.get_request(), None)
@@ -207,6 +226,111 @@ class KamionAdminTests(AdminBase):
         self.admin.save_formset(self.get_request(), admin_form, fs, True)
         self.assertTrue(fs.saved)
         self.assertEqual(Bedna.objects.count(), 1)
+
+    def test_zadat_mereni_action_requires_permission(self):
+        kamion_vydej, _ = self._create_vydej_kamion_with_order()
+        User = get_user_model()
+        user = User.objects.create_user('staff_no_perm', 'noperm@example.com', 'pass', is_staff=True)
+        user.user_permissions.add(Permission.objects.get(codename='change_kamion'))
+
+        request = self.factory.post('/')
+        request.user = user
+        request.session = {}
+        request._messages = FallbackStorage(request)
+
+        queryset = Kamion.objects.filter(pk=kamion_vydej.pk)
+        response = self.admin.zadat_mereni_action(request, queryset)
+
+        self.assertIsNone(response)
+        messages = [m.message for m in list(request._messages)]
+        self.assertTrue(any("Nemáte oprávnění" in msg for msg in messages))
+
+    def test_zadat_mereni_action_redirects_with_permission(self):
+        kamion_vydej, _ = self._create_vydej_kamion_with_order()
+        User = get_user_model()
+        user = User.objects.create_user('staff_perm', 'perm@example.com', 'pass', is_staff=True)
+        user.user_permissions.add(Permission.objects.get(codename='change_kamion'))
+        user.user_permissions.add(Permission.objects.get(codename='change_mereni_zakazky'))
+        user = User.objects.get(pk=user.pk)
+
+        request = self.factory.post('/')
+        request.user = user
+        request.session = {}
+        request._messages = FallbackStorage(request)
+
+        queryset = Kamion.objects.filter(pk=kamion_vydej.pk)
+        response = self.admin.zadat_mereni_action(request, queryset)
+
+        self.assertIsNotNone(response)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response['Location'], reverse('admin:orders_kamion_zadani_mereni', args=[kamion_vydej.pk]))
+
+    def test_get_actions_toggle_measurement_action_by_permission(self):
+        User = get_user_model()
+        user = User.objects.create_user('actions_user', 'actions@example.com', 'pass', is_staff=True)
+        user.user_permissions.add(Permission.objects.get(codename='change_kamion'))
+
+        request = self.factory.get('/')
+        request.user = user
+        actions_without = self.admin.get_actions(request)
+        self.assertNotIn('zadat_mereni_action', actions_without)
+
+        user.user_permissions.add(Permission.objects.get(codename='change_mereni_zakazky'))
+        request = self.factory.get('/')
+        request.user = User.objects.get(pk=user.pk)
+        actions_with = self.admin.get_actions(request)
+        self.assertIn('zadat_mereni_action', actions_with)
+
+    def test_zadani_mereni_view_requires_permission(self):
+        kamion_vydej, _ = self._create_vydej_kamion_with_order()
+        User = get_user_model()
+        user = User.objects.create_user('view_no_perm', 'viewnoperm@example.com', 'pass', is_staff=True)
+        user.user_permissions.add(Permission.objects.get(codename='change_kamion'))
+        self.client.force_login(user)
+
+        url = reverse('admin:orders_kamion_zadani_mereni', args=[kamion_vydej.pk])
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response['Location'], kamion_vydej.get_admin_url())
+
+    def test_zadani_mereni_view_updates_measurements(self):
+        kamion_vydej, zakazka = self._create_vydej_kamion_with_order()
+        User = get_user_model()
+        user = User.objects.create_user('view_with_perm', 'viewperm@example.com', 'pass', is_staff=True)
+        user.user_permissions.add(Permission.objects.get(codename='view_kamion'))
+        user.user_permissions.add(Permission.objects.get(codename='change_kamion'))
+        user.user_permissions.add(Permission.objects.get(codename='change_mereni_zakazky'))
+        self.client.force_login(User.objects.get(pk=user.pk))
+
+        url = reverse('admin:orders_kamion_zadani_mereni', args=[kamion_vydej.pk])
+        get_response = self.client.get(url)
+        self.assertEqual(get_response.status_code, 200)
+        self.assertContains(get_response, 'form-0-tvrdost_povrchu')
+
+        post_data = {
+            'form-TOTAL_FORMS': '1',
+            'form-INITIAL_FORMS': '1',
+            'form-MIN_NUM_FORMS': '0',
+            'form-MAX_NUM_FORMS': '1000',
+            'form-0-id': str(zakazka.id),
+            'form-0-tvrdost_povrchu': '720 HV',
+            'form-0-tvrdost_jadra': '340 HV',
+            'form-0-ohyb': 'OK',
+            'form-0-krut': 'OK',
+            'form-0-hazeni': '0,1 mm',
+        }
+        response = self.client.post(url, post_data)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response['Location'], kamion_vydej.get_admin_url())
+
+        zakazka.refresh_from_db()
+        self.assertEqual(zakazka.tvrdost_povrchu, '720 HV')
+        self.assertEqual(zakazka.tvrdost_jadra, '340 HV')
+        self.assertEqual(zakazka.ohyb, 'OK')
+        self.assertEqual(zakazka.krut, 'OK')
+        self.assertEqual(zakazka.hazeni, '0,1 mm')
 
     def test_get_typ_kamionu_variants(self):
         # Bez zakázek

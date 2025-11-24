@@ -2,7 +2,7 @@ from django.contrib import admin, messages
 from django.contrib.auth.models import Permission
 from django.db import models, transaction
 from django.db.models import Case, When, Value, IntegerField, Prefetch
-from django.forms import TextInput, RadioSelect
+from django.forms import TextInput, RadioSelect, modelformset_factory
 from django.forms.models import BaseInlineFormSet
 from django.utils.safestring import mark_safe
 from django.utils.translation import gettext_lazy as _
@@ -50,7 +50,14 @@ from .filters import (
     OberflacheFilter, TypHlavyBednyFilter, TypHlavyZakazkyFilter, CelozavitBednyFilter, CelozavitZakazkyFilter, DelkaFilter, PozastavenoFilter,
     OdberatelFilter, ZakaznikPredpisFilter
 )
-from .forms import BednaAdminForm, BednaChangeListForm, ImportZakazekForm, ZakazkaInlineForm, ZakazkaAdminForm
+from .forms import (
+    BednaAdminForm,
+    BednaChangeListForm,
+    ImportZakazekForm,
+    ZakazkaInlineForm,
+    ZakazkaAdminForm,
+    ZakazkaMeasurementForm,
+)
 from .choices import (
     StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice, PrijemVydejChoice, SklademZakazkyChoice,
     BARVA_SKUPINY_TZ, STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM, STAV_BEDNY_PRO_NAVEZENI
@@ -346,6 +353,7 @@ class KamionAdmin(SimpleHistoryAdmin):
         tisk_dodaciho_listu_kamionu_action,
         tisk_proforma_faktury_kamionu_action,
         tisk_protokolu_kamionu_vydej_action,        
+        'zadat_mereni_action',
         prijmout_kamion_action,
     ]
     # Parametry pro zobrazení detailu v administraci
@@ -367,6 +375,34 @@ class KamionAdmin(SimpleHistoryAdmin):
 
     class Media:
         js = ('orders/js/admin_actions_target_blank.js',)
+
+    def zadat_mereni_action(self, request, queryset):
+        """Přesměruje na formulář pro zadání měření po kontrole oprávnění."""
+        if not request.user.has_perm('orders.change_mereni_zakazky'):
+            self.message_user(request, _("Nemáte oprávnění upravovat měření zakázky."), messages.ERROR)
+            return
+
+        count = queryset.count()
+        if count != 1:
+            self.message_user(
+                request,
+                _(f"Vyberte právě jeden kamión (vybráno: {count})."),
+                messages.ERROR,
+            )
+            return
+
+        kamion = queryset.first()
+        if kamion.prijem_vydej != KamionChoice.VYDEJ:
+            self.message_user(request, _("Akce je dostupná pouze pro kamión výdej."), messages.ERROR)
+            return
+
+        return redirect(reverse('admin:orders_kamion_zadani_mereni', args=[kamion.pk]))
+
+    zadat_mereni_action.short_description = _("Zadat / upravit měření vybraného kamionu výdej")
+    zadat_mereni_action.allowed_permissions = ('change_mereni_zakazky',)
+
+    def has_change_mereni_zakazky_permission(self, request):
+        return request.user.has_perm('orders.change_mereni_zakazky')
 
     def get_inlines(self, request, obj):
         """
@@ -696,6 +732,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                 'tisk_karet_kontroly_kvality_kamionu_action',
                 'tisk_dodaciho_listu_kamionu_action',
                 'tisk_proforma_faktury_kamionu_action',
+                'zadat_mereni_action',
                 'tisk_protokolu_kamionu_vydej_action',                
                 'prijmout_kamion_action'
             ]
@@ -705,7 +742,8 @@ class KamionAdmin(SimpleHistoryAdmin):
                 'tisk_karet_beden_kamionu_action',
                 'tisk_karet_kontroly_kvality_kamionu_action',
                 'tisk_dodaciho_listu_kamionu_action',
-                'tisk_proforma_faktury_kamionu_action'
+                'tisk_proforma_faktury_kamionu_action',
+                'zadat_mereni_action',
                 'tisk_protokolu_kamionu_vydej_action',                
             ]
         elif (request.GET.get('prijem_vydej') == 'PK'):
@@ -713,6 +751,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                 'import_kamionu_action',                
                 'tisk_dodaciho_listu_kamionu_action',
                 'tisk_proforma_faktury_kamionu_action',
+                'zadat_mereni_action',
                 'tisk_protokolu_kamionu_vydej_action',                
                 'prijmout_kamion_action',
                 'delete_selected'
@@ -724,6 +763,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                 'tisk_karet_kontroly_kvality_kamionu_action',
                 'tisk_dodaciho_listu_kamionu_action',
                 'tisk_proforma_faktury_kamionu_action',
+                'zadat_mereni_action',
                 'tisk_protokolu_kamionu_vydej_action',                
                 'prijmout_kamion_action',
                 'delete_selected'
@@ -782,11 +822,12 @@ class KamionAdmin(SimpleHistoryAdmin):
             'prijmout_kamion_action': 'Import / Příjem',
             'tisk_karet_beden_kamionu_action': 'Tisk karet',
             'tisk_karet_kontroly_kvality_kamionu_action': 'Tisk karet',
-            'tisk_protokolu_kamionu_vydej_action': 'Tisk dokladů',
             'tisk_dodaciho_listu_kamionu_action': 'Tisk dokladů',
             'tisk_proforma_faktury_kamionu_action': 'Tisk dokladů',
+            'tisk_protokolu_kamionu_vydej_action': 'Tisk dokladů',              
+            'zadat_mereni_action': 'Měření',          
         }
-        order = ['Import / Příjem', 'Tisk karet', 'Tisk dokladů']
+        order = ['Import / Příjem', 'Tisk karet', 'Tisk dokladů', 'Měření']
         grouped = {g: [] for g in order}
 
         for name, (_func, _action_name, desc) in actions.items():
@@ -806,7 +847,10 @@ class KamionAdmin(SimpleHistoryAdmin):
         for g in order + [g for g in grouped.keys() if g not in order]:
             opts = grouped.get(g)
             if opts:
-                choices.append((g, sorted(opts, key=lambda x: x[1].lower())))
+                # Přidat skupinu akcí bez řazení akcí uvnitř skupiny
+                choices.append((g, opts))
+                # # Seřadit akce podle názvu                
+                # choices.append((g, sorted(opts, key=lambda x: x[1].lower())))
         return choices
 
     def get_urls(self):
@@ -815,9 +859,53 @@ class KamionAdmin(SimpleHistoryAdmin):
         """
         urls = super().get_urls()
         custom_urls = [
+            path('<path:object_id>/zadani-mereni/', self.admin_site.admin_view(self.zadani_mereni_view), name='orders_kamion_zadani_mereni'),
             path('import-zakazek/', self.admin_site.admin_view(self.import_view), name='import_zakazek_beden'),
         ]
         return custom_urls + urls
+
+    def zadani_mereni_view(self, request, object_id):
+        """Zobrazí a zpracuje formulář pro zadání měření zakázek kamionu výdej."""
+        kamion = self.get_object(request, object_id)
+        changelist_url = reverse('admin:orders_kamion_changelist')
+
+        if kamion is None:
+            self.message_user(request, _("Kamión nebyl nalezen."), messages.ERROR)
+            return redirect(changelist_url)
+
+        if kamion.prijem_vydej != KamionChoice.VYDEJ:
+            self.message_user(request, _("Akce je dostupná pouze pro kamión výdej."), messages.ERROR)
+            return redirect(kamion.get_admin_url())
+
+        if not request.user.has_perm('orders.change_mereni_zakazky'):
+            self.message_user(request, _("Nemáte oprávnění upravovat měření zakázky."), messages.ERROR)
+            return redirect(kamion.get_admin_url())
+
+        queryset = kamion.zakazky_vydej.all().select_related('kamion_prijem').order_by('id')
+        MeasurementFormSet = modelformset_factory(Zakazka, form=ZakazkaMeasurementForm, extra=0)
+
+        if request.method == 'POST':
+            formset = MeasurementFormSet(request.POST, queryset=queryset)
+            if formset.is_valid():
+                formset.save()
+                self.message_user(request, _("Měření zakázek bylo uloženo."), messages.SUCCESS)
+                return redirect(kamion.get_admin_url())
+            self.message_user(request, _("Zadaná data obsahují chyby. Opravte je prosím."), messages.ERROR)
+        else:
+            formset = MeasurementFormSet(queryset=queryset)
+
+        context = {
+            **self.admin_site.each_context(request),
+            'opts': self.model._meta,
+            'original': kamion,
+            'camion': kamion,
+            'formset': formset,
+            'media': self.media + formset.media,
+            'title': _("Zadat / upravit měření kamionu výdej"),
+            'back_url': kamion.get_admin_url(),
+            'changelist_url': changelist_url,
+        }
+        return render(request, 'admin/orders/kamion/zadani_mereni.html', context)
     
     def _render_import(self, request, form, kamion, preview, errors, warnings, tmp_token,
                        tmp_filename, title=None, status=200):
