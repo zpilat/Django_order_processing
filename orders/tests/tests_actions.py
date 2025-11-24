@@ -104,6 +104,72 @@ class ActionsTests(ActionsBase):
     def _messages_texts(self, request):
         return [m.message for m in list(request._messages)]
 
+    def test_tisk_protokolu_kamionu_vydej_action_success(self):
+        self.kamion_vydej.cislo_dl = 'DL123'
+        self.kamion_vydej.save()
+
+        Zakazka.objects.create(
+            kamion_vydej=self.kamion_vydej,
+            artikl='ART1',
+            prumer=10,
+            delka=100,
+            predpis=self.predpis,
+            typ_hlavy=self.typ_hlavy,
+            popis='Výdej',
+            tvrdost_povrchu='720 HV',
+            tvrdost_jadra='340 HV',
+            ohyb='OK',
+            krut='OK',
+            hazeni='0,1 mm',
+        )
+
+        request = self.get_request('post')
+        queryset = Kamion.objects.filter(pk=self.kamion_vydej.pk)
+
+        with patch('orders.actions.render_to_string', return_value='<html></html>') as render_mock, \
+             patch('orders.actions.finders.find', return_value=None) as find_mock, \
+             patch('orders.actions.HTML') as html_mock:
+            html_instance = html_mock.return_value
+            html_instance.write_pdf.return_value = b'%PDF-1.4%'
+
+            response = actions.tisk_protokolu_kamionu_vydej_action(self.admin, request, queryset)
+
+        self.assertIsNotNone(response)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'application/pdf')
+        self.assertIn('inline; filename="protokol_DL123.pdf"', response['Content-Disposition'])
+        self.assertEqual(response.content, b'%PDF-1.4%')
+
+        render_mock.assert_called_once()
+        html_instance.write_pdf.assert_called_once()
+        find_mock.assert_called_once_with('orders/css/pdf_shared.css')
+
+    def test_tisk_protokolu_kamionu_vydej_action_requires_vydej(self):
+        admin_obj = self._messaging_admin()
+        request = self.get_request('post')
+        queryset = Kamion.objects.filter(pk=self.kamion_prijem.pk)
+
+        response = actions.tisk_protokolu_kamionu_vydej_action(admin_obj, request, queryset)
+
+        self.assertIsNone(response)
+        self.assertIn('Tisk protokolu je možný pouze pro kamiony výdej.', self._messages_texts(request))
+
+    def test_tisk_protokolu_kamionu_vydej_action_requires_single_selection(self):
+        extra_kamion = Kamion.objects.create(
+            zakaznik=self.zakaznik,
+            datum=date.today(),
+            prijem_vydej=KamionChoice.VYDEJ,
+        )
+
+        admin_obj = self._messaging_admin()
+        request = self.get_request('post')
+        queryset = Kamion.objects.filter(pk__in=[self.kamion_vydej.pk, extra_kamion.pk])
+
+        response = actions.tisk_protokolu_kamionu_vydej_action(admin_obj, request, queryset)
+
+        self.assertIsNone(response)
+        self.assertIn('Vyberte pouze jeden kamion.', self._messages_texts(request))
+
     @patch('orders.actions.utilita_tisk_dokumentace')
     def test_tisk_karet_beden_action(self, mock_util):
         mock_util.return_value = HttpResponse('ok')
