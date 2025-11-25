@@ -8,7 +8,7 @@
     <style>
         @page {
             size: A4 portrait;
-            margin: 20mm 15mm 25mm 15mm;
+            margin: 32mm 0 35mm 0;
         }
 
         body {
@@ -16,42 +16,51 @@
             font-size: 9pt;
             color: #1a1a1a;
             margin: 0;
-            padding-top: 26mm;
-            padding-bottom: 30mm;
+            padding: 0;
         }
 
-        .fixed-header,
-        .fixed-footer {
+        .page-header,
+        .page-footer {
             position: fixed;
             left: 0;
             right: 0;
-            padding: 0 15mm;
             width: 100%;
             box-sizing: border-box;
             z-index: 10;
         }
 
-        .fixed-header {
-            top: 0;
+        .page-header {
+            top: -20mm;
+            height: 20mm;
         }
 
-        .fixed-footer {
-            bottom: 0;
+        .page-footer {
+            bottom: -25mm;
+            height: auto;
         }
 
         .page-content {
             margin: 0;
+            padding: 0 15mm;
         }
 
-        .fixed-header .header-table,
-        .fixed-footer .footer-table {
+        .header-inner,
+        .footer-inner {
+            width: 100%;
+            padding: 0 15mm;
+            box-sizing: border-box;
+        }
+
+        .page-header .header-table,
+        .page-footer .footer-table {
             width: 100%;
         }
 
         .header-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 3mm;
+            table-layout: fixed;
+            margin-bottom: 1.5mm;
         }
 
         .header-table td {
@@ -105,6 +114,11 @@
             font-size: 8pt;
         }
 
+        .measurement-table tr {
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+
         .measurement-table th {
             background: #f2f2f2;
             font-weight: 600;
@@ -142,7 +156,8 @@
         }
 
         .footer-table {
-            width: 100%;            
+            width: 100%;
+            table-layout: fixed;
             background-color: #ffd300;
             color:#1e3a8a;
             border-collapse: collapse;
@@ -190,17 +205,19 @@
     </style>
 </head>
 <body>
-<div class="fixed-header">
-    <table class="header-table">
-        <tr>
-            <td style="font-weight:bold; text-align:center; color:#214290;">
-                TEPELNÉ A CHEMICKO-TEPELNÉ<br>SPRACOVANIE KOVOV
-            </td>
-            <td style="text-align:right;">
-                <img src="{{ pdf_static_url }}img/HPM-HEAT.png" alt="HPM HEAT" class="logo-main">
-            </td>
-        </tr>
-    </table>
+<div class="page-header">
+    <div class="header-inner">
+        <table class="header-table">
+            <tr>
+                <td style="font-weight:bold; text-align:center; color:#214290;">
+                    TEPELNÉ A CHEMICKO-TEPELNÉ<br>SPRACOVANIE KOVOV
+                </td>
+                <td style="text-align:right;">
+                    <img src="{{ pdf_static_url }}img/HPM-HEAT.png" alt="HPM HEAT" class="logo-main">
+                </td>
+            </tr>
+        </table>
+    </div>
 </div>
 
 <div class="page-content">
@@ -268,7 +285,7 @@
             <td>{{ zakazka.ohyb|default_if_none:"" }}</td>
             <td>{{ zakazka.krut|default_if_none:"" }}</td>
             <td>{{ zakazka.hazeni|default_if_none:"" }}</td>
-        </tr>
+        </tr>                             
     {% empty %}
         <tr>
             <td colspan="7">Žádné zakázky k výdeji.</td>
@@ -297,22 +314,24 @@
 
 </div>
 
-<div class="fixed-footer">
-    <div class="footer">
-    <table class="footer-table">
-        <tr>
-            <td style="text-align:left;">
-                <img src="{{ pdf_static_url }}img/www-hpmheat-eu.png" alt="www.hpmheat.eu" class="logo-web">
-            </td>    
-            <td>HPM HEAT SK, s.r.o.</td>
-            <td>email: info@hpmheat.eu</td>
-            <td>Naftárska 1413,<br>908 45 Gbely,<br>Slovenská republika</td>
-        </tr>
-    </table>
-    <p>
-        IČO: 36341029, DIČ: 2021920274, IČ DPH: SK2021920274<br>
-        OCHODNÝ REGISTER OKRESNÉHO SÚDU TRNAVA, VLOŽKA Č.: 19786/T
-    </p>
+<div class="page-footer">
+    <div class="footer-inner">
+        <div class="footer">
+        <table class="footer-table">
+            <tr>
+                <td style="text-align:left;">
+                    <img src="{{ pdf_static_url }}img/www-hpmheat-eu.png" alt="www.hpmheat.eu" class="logo-web">
+                </td>    
+                <td>HPM HEAT SK, s.r.o.</td>
+                <td>email: info@hpmheat.eu</td>
+                <td>Naftárska 1413,<br>908 45 Gbely,<br>Slovenská republika</td>
+            </tr>
+        </table>
+        <p>
+            IČO: 36341029, DIČ: 2021920274, IČ DPH: SK2021920274<br>
+            OCHODNÝ REGISTER OKRESNÉHO SÚDU TRNAVA, VLOŽKA Č.: 19786/T
+        </p>
+        </div>
     </div>
 </div>
 </body>
