@@ -8,13 +8,32 @@
     <style>
         @page {
             size: A4 portrait;
-            margin: 15mm;
+            margin: 35mm 15mm 30mm 15mm;
+            @top-center {
+                content: element(page-header);
+            }
+            @bottom-center {
+                content: element(page-footer);
+            }
         }
 
         body {
             font-family: 'Liberation Sans', 'Arial';
             font-size: 9pt;
             color: #1a1a1a;
+            margin: 0;
+        }
+
+        .page-header {
+            position: running(page-header);
+        }
+
+        .page-footer {
+            position: running(page-footer);
+        }
+
+        .page-content {
+            margin-top: 6mm;
         }
 
         .header-table {
@@ -159,7 +178,7 @@
     </style>
 </head>
 <body>
-<table class="header-table">
+<table class="header-table page-header">
     <tr>
         <td style="font-weight:bold; text-align:center; color:#214290;">
             TEPELNÉ A CHEMICKO-TEPELNÉ<br>SPRACOVANIE KOVOV
@@ -169,6 +188,8 @@
         </td>
     </tr>
 </table>
+
+<div class="page-content">
 
 <table class="meta-table">
     <tr>
@@ -260,7 +281,9 @@
     The document was prepared electronically, it is valid even without a stamp and signature.
 </p>
 
-<div class="footer">
+</div>
+
+<div class="footer page-footer">
     <table class="footer-table">
         <tr>
             <td style="text-align:left;">
