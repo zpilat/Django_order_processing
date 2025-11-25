@@ -10,6 +10,7 @@ from django.forms import formset_factory
 from django.template.response import TemplateResponse
 from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
+from django.conf import settings
 from django.contrib.staticfiles import finders
 from django.db.models import Count, Q
 
@@ -1589,7 +1590,9 @@ def tisk_protokolu_kamionu_vydej_action(modeladmin, request, queryset):
     else:
         logger.warning("Nepodařilo se najít CSS 'orders/css/pdf_shared.css' pro tisk protokolu kamionu výdej.")
 
-    base_url = request.build_absolute_uri('/') if request else None
+    base_url = getattr(settings, 'WEASYPRINT_BASEURL', None)
+    if not base_url:
+        base_url = request.build_absolute_uri('/') if request else None
     pdf_file = HTML(string=html_string, base_url=base_url).write_pdf(stylesheets=stylesheets)
     cislo_dl = kamion.cislo_dl or f"kamion_{kamion}"
     filename = f"protokol_{cislo_dl}.pdf"

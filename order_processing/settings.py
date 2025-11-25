@@ -177,6 +177,11 @@ FORMAT_MODULE_PATH = 'order_processing.formats'
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
+# Base URL používané WeasyPrintem pro načítání statických souborů (např. loga v PDF).
+# V produkci (DEBUG=False) přesměrujeme na nasbírané statiky, lokálně ponecháme None, aby se použil HTTP fallback.
+_STATIC_ROOT_RESOLVED = STATIC_ROOT.resolve(strict=False)
+WEASYPRINT_BASEURL = None if DEBUG else _STATIC_ROOT_RESOLVED.as_uri()
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
