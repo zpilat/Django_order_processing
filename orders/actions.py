@@ -1574,11 +1574,21 @@ def tisk_protokolu_kamionu_vydej_action(modeladmin, request, queryset):
         return None
 
     zakazky = kamion.zakazky_vydej.all().order_by('id')
+    base_url = getattr(settings, 'WEASYPRINT_BASEURL', None)
+    if not base_url:
+        base_url = request.build_absolute_uri('/') if request else None
+
+    static_url = settings.STATIC_URL
+    if base_url and base_url.startswith('file:'):
+        if not static_url.startswith('http://') and not static_url.startswith('https://'):
+            static_url = base_url.rstrip('/') + '/'
+
     context = {
         "kamion": kamion,
         "zakazky": zakazky,
         "generated_at": timezone.now(),
-        "issued_by": request.user.get_full_name() if request.user.is_authenticated else ""
+        "issued_by": request.user.get_full_name() if request.user.is_authenticated else "",
+        "pdf_static_url": static_url,
     }
 
     html_string = render_to_string(f"orders/protokol_kamion_vydej_{kamion.zakaznik.zkratka.lower()}.html", context)
@@ -1589,10 +1599,6 @@ def tisk_protokolu_kamionu_vydej_action(modeladmin, request, queryset):
         stylesheets.append(CSS(filename=css_path))
     else:
         logger.warning("Nepodařilo se najít CSS 'orders/css/pdf_shared.css' pro tisk protokolu kamionu výdej.")
-
-    base_url = getattr(settings, 'WEASYPRINT_BASEURL', None)
-    if not base_url:
-        base_url = request.build_absolute_uri('/') if request else None
     pdf_file = HTML(string=html_string, base_url=base_url).write_pdf(stylesheets=stylesheets)
     cislo_dl = kamion.cislo_dl or f"kamion_{kamion}"
     filename = f"protokol_{cislo_dl}.pdf"
