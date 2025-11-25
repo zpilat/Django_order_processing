@@ -8,13 +8,7 @@
     <style>
         @page {
             size: A4 portrait;
-            margin: 35mm 15mm 30mm 15mm;
-            @top-center {
-                content: element(page-header);
-            }
-            @bottom-center {
-                content: element(page-footer);
-            }
+            margin: 20mm 15mm 25mm 15mm;
         }
 
         body {
@@ -22,18 +16,36 @@
             font-size: 9pt;
             color: #1a1a1a;
             margin: 0;
+            padding-top: 26mm;
+            padding-bottom: 30mm;
         }
 
-        .page-header {
-            position: running(page-header);
+        .fixed-header,
+        .fixed-footer {
+            position: fixed;
+            left: 0;
+            right: 0;
+            padding: 0 15mm;
+            width: 100%;
+            box-sizing: border-box;
+            z-index: 10;
         }
 
-        .page-footer {
-            position: running(page-footer);
+        .fixed-header {
+            top: 0;
+        }
+
+        .fixed-footer {
+            bottom: 0;
         }
 
         .page-content {
-            margin-top: 6mm;
+            margin: 0;
+        }
+
+        .fixed-header .header-table,
+        .fixed-footer .footer-table {
+            width: 100%;
         }
 
         .header-table {
@@ -178,16 +190,18 @@
     </style>
 </head>
 <body>
-<table class="header-table page-header">
-    <tr>
-        <td style="font-weight:bold; text-align:center; color:#214290;">
-            TEPELNÉ A CHEMICKO-TEPELNÉ<br>SPRACOVANIE KOVOV
-        </td>
-        <td style="text-align:right;">
-            <img src="{{ pdf_static_url }}img/HPM-HEAT.png" alt="HPM HEAT" class="logo-main">
-        </td>
-    </tr>
-</table>
+<div class="fixed-header">
+    <table class="header-table">
+        <tr>
+            <td style="font-weight:bold; text-align:center; color:#214290;">
+                TEPELNÉ A CHEMICKO-TEPELNÉ<br>SPRACOVANIE KOVOV
+            </td>
+            <td style="text-align:right;">
+                <img src="{{ pdf_static_url }}img/HPM-HEAT.png" alt="HPM HEAT" class="logo-main">
+            </td>
+        </tr>
+    </table>
+</div>
 
 <div class="page-content">
 
@@ -283,7 +297,8 @@
 
 </div>
 
-<div class="footer page-footer">
+<div class="fixed-footer">
+    <div class="footer">
     <table class="footer-table">
         <tr>
             <td style="text-align:left;">
@@ -298,6 +313,7 @@
         IČO: 36341029, DIČ: 2021920274, IČ DPH: SK2021920274<br>
         OCHODNÝ REGISTER OKRESNÉHO SÚDU TRNAVA, VLOŽKA Č.: 19786/T
     </p>
+    </div>
 </div>
 </body>
 </html>
