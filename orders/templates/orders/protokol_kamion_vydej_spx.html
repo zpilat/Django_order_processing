@@ -1,0 +1,279 @@
+{% load static custom_filters %}
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="utf-8">
+    <title>Protokol kamionu {{ kamion }}</title>
+    <style>
+        @page {
+            size: A4 portrait;
+            margin: 15mm;
+        }
+
+        body {
+            font-family: sans-serif, 'Helvetica', 'Arial';
+            font-size: 9pt;
+            color: #1a1a1a;
+        }
+
+        .header-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 3mm;
+        }
+
+        .header-table td {
+            border: none;
+            vertical-align: middle;
+        }
+
+        .header-table .logo-main {
+            height: 14mm;
+        }
+
+        .meta-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 3mm;
+        }
+
+        .meta-table td {
+            border: none;
+            padding: 2px 4px;
+            font-size: 8.5pt;
+        }
+
+        .meta-table td.label {
+            width: 60mm;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+        }
+
+        .meta-table td.separator {
+            width: 4mm;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .meta-table td.value {
+            width: auto;
+        }
+
+        .measurement-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 4mm;
+        }
+
+        .measurement-table th,
+        .measurement-table td {
+            border: 0.2mm solid #000;
+            padding: 4px 6px;
+            text-align: center;
+            font-size: 8pt;
+        }
+
+        .measurement-table th {
+            background: #f2f2f2;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 7.5pt;
+        }
+
+        .measurement-table tbody tr:nth-child(even) {
+            background: #fafafa;
+        }
+
+        .order-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .order-list li {
+            margin: 0;
+            padding: 0;
+        }
+
+        .footer {
+            background-color: #ffd300;
+            margin-top: 2mm;
+            width: 100%;
+            color:#1e3a8a;
+            text-align: center;
+            font-size: 7.5pt;
+            padding-top: 3mm;
+        }
+
+        .footer .signature-label {
+            font-weight: 600;
+        }
+
+        .footer-table {
+            width: 100%;            
+            background-color: #ffd300;
+            color:#1e3a8a;
+            border-collapse: collapse;
+            text-align: center;
+            font-size: 8pt;
+            font-weight: bold;
+        }        
+        .footer-table .logo-web {
+            height: 7mm;
+            text-align: right;
+        }
+        
+        .cert-banner {
+            background-color: #1e3a8a;
+            color: #ffd300;
+            font-weight: 700;
+            text-transform: uppercase;
+            text-align: center;
+            padding: 4px;
+            margin: 3mm 0 3mm 0;
+            letter-spacing: 0.04em;
+        }
+
+        .issuance-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 8pt;
+            margin: 3mm;
+        }
+
+        .issuance-row .left,
+        .issuance-row .right {
+            display: flex;
+            align-items: center;
+            gap: 2mm;
+            white-space: nowrap;
+        }
+
+        .issuance-row strong,
+        .issuance-row span {
+            white-space: nowrap;
+            letter-spacing: 0.03em;
+        }
+    </style>
+</head>
+<body>
+<table class="header-table">
+    <tr>
+        <td style="font-weight:bold; text-align:center; color:#214290;">
+            TEPELNÉ A CHEMICKO-TEPELNÉ<br>SPRACOVANIE KOVOV
+        </td>
+        <td style="text-align:right;">
+            <img src="{% static 'img/HPM-HEAT.png' %}" alt="HPM HEAT" class="logo-main">
+        </td>
+    </tr>
+</table>
+
+<table class="meta-table">
+    <tr>
+        <td colspan="3" class="label">SPAX International GmbH & Co.KG</td>
+        <td class="value">Delivery note no.</td>
+        <td class="separator">:</td>        
+        <td class="value">{{ kamion.cislo_dl|nahrada_pomlcky_za_lomitko }}</td>
+    </tr>
+    <tr>
+        <td colspan="3" class="label">Kölner Straße 71-77</td>
+        <td class="value">Delivery note date</td>
+        <td class="separator">:</td>
+        <td class="value" colspan="2">{{ kamion.datum|date:"d.m.Y" }}</td>
+    </tr>
+    <tr>
+        <td colspan="3" class="label">D-58256 Ennepetal</td>
+        <td class="value">Quantity</td>
+        <td class="separator">:</td>
+        <td class="value">{{ kamion.celkova_hmotnost_netto|floatformat:0 }} kg</td>
+    </tr>
+</table>
+
+<p style="font-weight: bold;">Requirements: Quenching and tempering</p>
+<p>
+    Surface hardness 330 - 410 HV0,3<br>
+    Core hardness 220-380 HV10<br>
+    Bending min. 45°<br>
+    Torsional strength 42 - 46 Nm (Ø10mm); 22 - 25 Nm (Ø8mm)
+</p>
+
+<div class="cert-banner">Inspection certificate EN 10204 3.1</div>
+
+<table class="measurement-table">
+    <thead>
+        <tr>
+            <th>Artikel-Nr.</th>
+            <th>Bestell-Nr.</th>
+            <th>Surface Hardness<br>[HV0,3]</th>
+            <th>Core Hardness<br>[HV10]</th>
+            <th>Bending &gt; 45°</th>
+            <th>Torsional Strength<br>Without Breaking</th>
+            <th>Throwing<br>[mm]</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for zakazka in zakazky %}
+        <tr>
+            <td>{{ zakazka.artikl }}</td>
+            <td>
+                {% if zakazka.bedny.all %}
+                    <ul class="order-list">
+                    {% for bedna in zakazka.bedny.all %}
+                        <li>{{ bedna.vyrobni_zakazka }}</li>
+                    {% endfor %}
+                    </ul>
+                {% else %}
+                    -
+                {% endif %}
+            </td>
+            <td>{{ zakazka.tvrdost_povrchu|default_if_none:"" }}</td>
+            <td>{{ zakazka.tvrdost_jadra|default_if_none:"" }}</td>
+            <td>{{ zakazka.ohyb|default_if_none:"" }}</td>
+            <td>{{ zakazka.krut|default_if_none:"" }}</td>
+            <td>{{ zakazka.hazeni|default_if_none:"" }}</td>
+        </tr>
+    {% empty %}
+        <tr>
+            <td colspan="7">Žádné zakázky k výdeji.</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+<hr>
+
+<div class="issuance-row">
+    <div class="left">
+        <strong>Issued by:</strong>
+        <span>{{ issued_by }}</span>
+    </div>
+    <div class="right">
+        <strong>Date:</strong>
+        <span>{{ generated_at|date:"d.m.Y" }}</span>
+    </div>
+</div>
+
+<hr>
+<p style="font-size:6.5pt; text-align:center;">
+    The document was prepared electronically, it is valid even without a stamp and signature.
+</p>
+
+<div class="footer">
+    <table class="footer-table">
+        <tr>
+            <td style="text-align:left;">
+                <img src="{% static 'img/www-hpmheat-eu.png' %}" alt="www.hpmheat.eu" class="logo-web">
+            </td>    
+            <td>HPM HEAT SK, s.r.o.</td>
+            <td>email: info@hpmheat.eu</td>
+            <td>Naftárska 1413,<br>908 45 Gbely,<br>Slovenská republika</td>
+        </tr>
+    </table>
+    <p>
+        IČO: 36341029, DIČ: 2021920274, IČ DPH: SK2021920274<br>
+        OCHODNÝ REGISTER OKRESNÉHO SÚDU TRNAVA, VLOŽKA Č.: 19786/T
+    </p>
+</div>
+</body>
+</html>

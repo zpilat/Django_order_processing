@@ -1577,9 +1577,10 @@ def tisk_protokolu_kamionu_vydej_action(modeladmin, request, queryset):
         "kamion": kamion,
         "zakazky": zakazky,
         "generated_at": timezone.now(),
+        "issued_by": request.user.get_full_name() if request.user.is_authenticated else ""
     }
 
-    html_string = render_to_string("orders/protokol_kamion_vydej.html", context)
+    html_string = render_to_string(f"orders/protokol_kamion_vydej_{kamion.zakaznik.zkratka.lower()}.html", context)
 
     stylesheets = []
     css_path = finders.find('orders/css/pdf_shared.css')
