@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+{% load static %}
+{% load i18n %}
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <title>Karta kontroly kvality</title>
+    <link rel="stylesheet" href="{% static 'orders/css/pdf_shared.css' %}">
+</head>
+<body>
+    <table class="table table-bordered quality-card" style="width: 100%; table-layout: fixed; margin-bottom: 1mm; margin-top: 0;">
+        <tbody>
+            <tr>
+                <td class="text-center fs-20 fw-bold" style="width: 27%;">
+                    HPM HEAT SK
+                </td>
+                <td class="text-center fs-12 fw-bold" style="width: 73%;">
+                    KARTA KONTROLY KVALITY {{ bedna.zakazka.kamion_prijem.zakaznik.nazev }}
+                    <br>
+                    <span class="fs-10">
+                    Qualitätskontrollkarte {{ bedna.zakazka.kamion_prijem.zakaznik.nazev|title }}
+                    </span>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    <div style="display: flex; width: 100%;">
+        <table class="table table-bordered quality-card text-center fs-09 fw-bold" style="width: 36%; table-layout: fixed; font-family: 'Arial';">
+            <tbody>
+                <tr>
+                    <td  style="width: 50%;">
+                        BEDNA
+                        <br>
+                        <span class="fs-08 fw-normal">Gebinde</span>
+                    </td>
+                    <td style="width: 50%;">
+                        ROZMĚR
+                        <br>
+                        <span class="fs-08 fw-normal">Abmessung</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="fs-12 fw-bold">
+                        <div style="display: flex; justify-content: space-between; width: 100%;">
+                            <span style="padding: 0 5px; ">{{ bedna.cislo_bedny }}</span>
+                            <span style="padding: 0 5px;">{{ bedna.poradi_bedny }}/{{ bedna.zakazka.pocet_beden }}</span>
+                        </div>
+                    </td>
+                    <td class="text-center fs-12 fw-bold">
+                        ø{{ bedna.zakazka.prumer }}x{{ bedna.zakazka.delka|floatformat:0 }}
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="2">
+                        ARTIKL<br>
+                        <span class="fs-08 fw-normal">Artikel-Nr.</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="2" class="fs-12 fw-bold">
+                        <div style="display: flex; justify-content: space-between; width: 100%;">
+                            <span style="padding: 0 5px;">{{ bedna.zakazka.zkraceny_popis|slice:":22" }}</span>
+                            <span style="padding: 0 5px;">{{ bedna.zakazka.artikl }}</span>
+                        </div>
+                    </td>
+                </tr>           
+                <tr>
+                    <td>
+                        ZE DNE<br>
+                        <span class="fs-08 fw-normal">Abholdatum</span>
+                    </td>
+                    <td>
+                        NETTO<br>
+                        <span class="fs-08 fw-normal">Netto</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="fs-12">
+                        {{ bedna.zakazka.kamion_prijem.datum|date:"d.m.Y" }}
+                    </td>
+                    <td class="fs-12">
+                        {{ bedna.hmotnost|floatformat:0 }} kg
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        DATUM KONTROLY<br>
+                        <span class="fs-08 fw-normal">Prüfdatum</span>
+                    </td>
+                    <td>
+                        UVOLNIL<br>
+                        <span class="fs-08 fw-normal">Freigabe</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="height: 30px;"></td>
+                    <td></td>
+                </tr>  
+                <tr>
+                    <td colspan="2">
+                        ZPRACOVAL<br>
+                        <span class="fs-08 fw-normal">Härterei</span><br>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="2" class="fs-12 fw-bold">
+                        HPM HEAT SK, s.r.o.
+                    </td>
+                </tr>                
+                <tr>
+                    <td colspan="2">
+                        ČISTOTA<br>
+                        <span class="fs-08 fw-normal">Reinheit</span>
+                    </td>
+                </tr>                  
+                <tr>
+                    <td>
+                        DOBRÁ<br>
+                        <span class="fs-08 fw-normal">Gut</span>                        
+                        <div style="height: 31px;"></div>
+                    </td>
+                    <td>
+                        ŠPATNÁ<br>
+                        <span class="fs-08 fw-normal">Schlecht</span>                        
+                        <div style="height: 31px;"></div>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="2">
+                        ULOŽENÍ<br>
+                        <span class="fs-08 fw-normal">Aufspeicherung</span>
+                    </td>
+                </tr>     
+                <tr>
+                    <td>
+                        DOBRÉ<br>
+                        <span class="fs-08 fw-normal">Gut</span>                        
+                        <div style="height: 31px;"></div>
+                    </td>
+                    <td>
+                        ŠPATNÉ<br>
+                        <span class="fs-08 fw-normal">Schlecht</span>                        
+                        <div style="height: 31px;"></div>
+                    </td>
+                </tr>                             
+                <tr style="height: 1px;">
+                    <td colspan="2" class="text-start fs-07" style="padding: 0px 2px; line-height: 2;">
+                        HPM - F 11b
+                    </td>             
+                </tr>
+            </tbody>
+        </table>
+        <table class="table table-bordered quality-card" style="width: 64%; table-layout: fixed; font-family: 'Arial';">
+            <tbody>
+                <tr>
+                    <td rowspan="2" class="text-center fs-09 fw-bold" style="width: 12%;">
+                        OHYB<br>
+                        <span class="fs-08 fw-normal">Bruch-<br>biegung<br>[°]</span><br>
+                        <span class="fs-07 fw-normal">
+                            <div style="height: 40px;"></div>
+                            {{ bedna.zakazka.predpis.ohyb }}
+                        </span>
+                    </td>
+                    <td rowspan="2" class="text-center fs-09 fw-bold" style="width: 12%;">
+                        KROUTÍCÍ<br>MOMENT<br>
+                        <span class="fs-08 fw-normal">Bruchdrehmoment<br>[Nm]</span><br>
+                        <span class="fs-07 fw-normal">
+                            <div style="height: 40px;"></div>
+                            {{ bedna.zakazka.predpis.krut }}
+                        </span>                        
+                    </td>
+                    <td colspan="3" class="text-center fs-09 fw-bold" style="width: 19.6%;">
+                        PROHYB<br>
+                        <span class="fs-08 fw-normal">Durchbiegung<br>[mm]</span>
+                    </td>
+                    <td colspan="2" class="text-center fs-09 fw-bold" style="width: 20%;">
+                        ZKOUŠKA TVRDOSTI<br>
+                        <span class="fs-08 fw-normal">Härteprüfung</span>
+                    </td>                         
+                </tr>
+                <tr>         
+                    <td class="text-center fs-08 fw-bold" style="width: 9.8%;">
+                        PO<br>TZ<br>
+                        <span class="fs-07 fw-normal">
+                            Nach der Wärmebeh.
+                        </span>
+                    </td>
+                    <td class="text-center fs-08 fw-bold" style="width: 9.8%;">
+                        PO<br>KOULENÍ
+                        <span class="fs-07 fw-normal">
+                            Nach dem Sortieren
+                        </span>
+                    </td>                    
+                    <td class="text-center fs-08 fw-bold" style="width: 9.8%;">
+                        PO<br>ROVNÁNÍ
+                        <span class="fs-07 fw-normal">
+                            Nach dem Richten
+                        </span>
+                    </td>
+                    <td class="text-center fs-09 fw-bold" style="width: 10%;">
+                        POVRCH<br>
+                        <span class="fs-07 fw-normal">Oberflächenhärte<br>[HV0,3]</span><br>
+                        <span class="fs-07 fw-normal">
+                            <div style="height: 6px;"></div> 
+                            {{ bedna.zakazka.predpis.povrch }}
+                        </span>                        
+                    </td>
+                    <td class="text-center fs-09 fw-bold" style="width: 10%;">
+                        JÁDRO<br>
+                        <span class="fs-07 fw-normal">Kernhärte<br>[HV0,3]</span><br>
+                        <span class="fs-07 fw-normal">
+                            <div style="height: 6px;"></div>
+                            {{ bedna.zakazka.predpis.jadro }}
+                        </span>                        
+                    </td>                
+                </tr>
+                {% for _ in "x"|ljust:"10" %}
+                <tr style="height: 48px;">
+                    {% for _ in "x"|ljust:"7" %}
+                        <td></td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}                                                                                                                                         
+                <tr style="height: 1px;">
+                    <td colspan="2" class="text-start fs-10 fw-bold" style="padding: 5px 2px; line-height: 1;">
+                        Kontrolliert
+                    </td>
+                    <td colspan="3" class="text-start fs-10 fw-bold" style="padding: 4px 2px; line-height: 1;">
+                        Kontrolliert
+                    </td>
+                    <td colspan="2" class="text-start fs-10 fw-bold" style="padding: 4px 2px; line-height: 1;">
+                        Gemessen
+                    </td>                
+                </tr>                 
+            </tbody>
+        </table>
+    </div>    
+</body>
+</html>
