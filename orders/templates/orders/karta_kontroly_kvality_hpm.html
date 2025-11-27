@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+{% load static %}
+{% load i18n %}
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <title>Karta kontroly kvality</title>
+    <link rel="stylesheet" href="{% static 'orders/css/pdf_shared.css' %}">
+</head>
+<body>
+    <table class="table table-bordered quality-card" style="width: 100%; table-layout: fixed; margin-bottom: 1mm; margin-top: 0;">
+        <tbody>
+            <tr>
+                <td class="text-center fs-20 fw-bold" style="width: 27%;">
+                    HPM HEAT SK
+                </td>
+                <td class="text-center fs-12 fw-bold" style="width: 73%;">
+                    KARTA KONTROLY KVALITY {{ bedna.zakazka.kamion_prijem.zakaznik.zkraceny_nazev }} - Rapitec
+                    <br>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    <div style="display: flex; width: 100%;">
+        <table class="table table-bordered quality-card text-center fs-09 fw-bold" style="width: 36%; table-layout: fixed; font-family: 'Arial';">
+            <tbody>
+                <tr>
+                    <td  style="width: 50%;">
+                        BEDNA<br>&nbsp;
+                    </td>
+                    <td style="width: 50%;">
+                        ROZMĚR<br>&nbsp;
+                    </td>
+                </tr>
+                <tr>
+                    <td class="fs-12 fw-bold">
+                        <div style="display: flex; justify-content: space-between; width: 100%;">
+                            <span style="padding: 0 3px;">{{ bedna.cislo_bedny }}</span>
+                            <span style="padding: 0 3px;">{{ bedna.poradi_bedny }}/{{ bedna.zakazka.pocet_beden }}</span>
+                        </div>
+                    </td>
+                    <td class="text-center fs-12 fw-bold">
+                        ø{{ bedna.zakazka.prumer }}x{{ bedna.zakazka.delka|floatformat:0 }}
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="2">
+                        ARTIKL<br>&nbsp;
+                    </td>
+                </tr>
+                <tr style="height: 50px;">
+                    <td colspan="2" class="fs-10 fw-bold">
+                        <div style="display: flex; justify-content: space-between; width: 100%;">
+                            <span style="padding: 0 5px;">{{ bedna.zakazka.zkraceny_popis|slice:":22" }}</span>
+                            <span style="padding: 0 5px;">{{ bedna.zakazka.artikl }}</span>
+                        </div>
+                    </td>
+                </tr>           
+                <tr>
+                    <td>
+                        ZE DNE<br>&nbsp;
+                    </td>
+                    <td>
+                        NETTO<br>&nbsp;
+                    </td>
+                </tr>
+                <tr>
+                    <td class="fs-12">
+                        {{ bedna.zakazka.kamion_prijem.datum|date:"d.m.Y" }}
+                    </td>
+                    <td class="fs-12">
+                        {{ bedna.hmotnost|floatformat:0 }} kg
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        DATUM KONTROLY<br>&nbsp;
+                    </td>
+                    <td>
+                        UVOLNIL<br>&nbsp;
+                    </td>
+                </tr>
+                <tr>
+                    <td style="height: 31px;"></td>
+                    <td></td>
+                </tr>     
+                <tr>
+                    <td colspan="2">
+                        ČISTOTA<br>&nbsp;
+                    </td>
+                </tr>     
+                <tr style="height: 1px;">
+                    <td style="padding: 2px 2px; line-height: 1;">                    
+                        OK
+                    </td>
+                    <td style="padding: 2px 2px; line-height: 1;">
+                        NOK
+                    </td>
+                </tr>                
+                <tr>
+                    <td style="height: 31px;"></td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td colspan="2">
+                        ULOŽENÍ<br>&nbsp;
+                    </td>
+                </tr>     
+                <tr style="height: 1px;">
+                    <td style="padding: 2px 2px; line-height: 1;">                    
+                        OK
+                    </td>
+                    <td style="padding: 2px 2px; line-height: 1;">
+                        NOK
+                    </td>
+                </tr>                
+                <tr>
+                    <td style="height: 30px;"></td>
+                    <td></td>
+                </tr>                
+                <tr>
+                    <td colspan="2">
+                        KONTROLOVAL<br>&nbsp;
+                    </td>
+                </tr>                  
+                <tr>
+                    <td colspan="2" style="height: 31px;"></td>
+                </tr>                  
+                <tr style="height: 1px;">
+                    <td colspan="2" class="text-start fs-07">
+                        HPM - F 86a
+                    </td>             
+                </tr>  
+            </tbody>
+        </table>
+        <table class="table table-bordered quality-card" style="width: 64%; table-layout: fixed; font-family: 'Arial';">
+            <tbody>
+                <tr>
+                    <td rowspan="2" class="text-center fs-09 fw-bold" style="width: 12%;">
+                        ZKOUŠKA<br>OHYBEM<br>
+                        <span class="fs-07 fw-normal">
+                            Min. 5 vzorků
+                            <div style="height: 40px;"></div>
+                            {{ bedna.zakazka.predpis.ohyb }}
+                        </span>
+                    </td>
+                    <td rowspan="2" class="text-center fs-09 fw-bold" style="width: 12%;">
+                        ZKOUŠKA<br>KRUTEM<br>
+                        <span class="fs-07 fw-normal">
+                            Min. 5 vzorků
+                            <div style="height: 40px;"></div>
+                            {{ bedna.zakazka.predpis.krut }}
+                        </span>
+                    </td>
+                    <td rowspan="2" class="text-center fs-09 fw-bold" style="width: 19.6%;">
+                        KONTROLA PROHYBU<br>
+                        <span class="fs-07 fw-normal">
+                            Min. 25 vzorků
+                            <div style="height: 40px;"></div>
+                            L = 90 - 150mm: λ ≤  0,005L [mm]<br>
+                            L > 150mm: λ ≤  0,006L [mm]
+                        </span>
+                    </td>
+                    <td colspan="2" class="text-center fs-09 fw-bold" style="width: 20%;">
+                        ZKOUŠKA TVRDOSTI
+                    </td>                         
+                </tr>
+                <tr>              
+                    <td class="text-center fs-09 fw-bold" style="width: 10%;">
+                        POVRCH<br>
+                        <span class="fs-07 fw-normal">
+                            Min. 3 vzorky
+                            <div style="height: 16px;"></div> 
+                            {{ bedna.zakazka.predpis.povrch }}
+                        </span>
+                    </td>
+                    <td class="text-center fs-09 fw-bold" style="width: 10%;">
+                        JÁDRO<br>
+                        <span class="fs-07 fw-normal">
+                            Min. 3 vzorky
+                            <div style="height: 16px;"></div>
+                            {{ bedna.zakazka.predpis.jadro }}
+                        </span>
+                    </td>                
+                </tr>
+                {% for _ in "x"|ljust:"10" %}
+                    <tr style="height: 51px;">
+                        {% for _ in "x"|ljust:"5" %}
+                            <td></td>
+                        {% endfor %}
+                    </tr>
+                {% endfor %}                                                                                                                                                         
+                <tr style="height: 1px;">
+                    <td colspan="2" class="text-start fs-10 fw-bold" style="padding: 3px 2px; line-height: 1;">
+                        Kontroloval
+                    </td>
+                    <td class="text-start fs-10 fw-bold" style="padding: 3px 2px; line-height: 1;">
+                        Kontroloval
+                    </td>
+                    <td colspan="2" class="text-start fs-10 fw-bold" style="padding: 3px 2px; line-height: 1;">
+                        Kontroloval
+                    </td>                
+                </tr>                 
+            </tbody>
+        </table>
+    </div>    
+</body>
+</html>
