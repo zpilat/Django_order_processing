@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+{% load static %}
+{% load i18n %}
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <title>Karta kontroly kvality</title>
+    <link rel="stylesheet" href="{% static 'orders/css/pdf_shared.css' %}">
+</head>
+<body>
+    <table class="table table-bordered quality-card" style="width: 100%; table-layout: fixed; margin-bottom: 1mm; margin-top: 0;">
+        <tbody>
+            <tr>
+                <td class="text-center fs-20 fw-bold" style="width: 27%;">
+                    HPM HEAT SK
+                </td>
+                <td class="text-center fs-12 fw-bold" style="width: 73%;">
+                    KARTA KONTROLY KVALITY {{ bedna.zakazka.kamion_prijem.zakaznik.zkraceny_nazev }}
+                    <br>
+                    <span class="fs-10">
+                    Qualitätskontrollkarte {{ bedna.zakazka.kamion_prijem.zakaznik.zkraceny_nazev }}
+                    </span>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    <div style="display: flex; width: 100%;">
+        <table class="table table-bordered quality-card text-center fs-09 fw-bold" style="width: 36%; table-layout: fixed; font-family: 'Arial';">
+            <tbody>
+                <tr>
+                    <td  style="width: 50%;">
+                        BEDNA
+                        <br>
+                        <span class="fs-08 fw-normal">Gebinde</span>
+                    </td>
+                    <td style="width: 50%;">
+                        ROZMĚR
+                        <br>
+                        <span class="fs-08 fw-normal">Abmessung</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="fs-12 fw-bold">
+                        <div style="display: flex; justify-content: space-between; width: 100%;">
+                            <span style="padding: 0 5px;">{{ bedna.cislo_bedny }}</span>
+                            <span style="padding: 0 5px;">{{ bedna.poradi_bedny }}/{{ bedna.zakazka.pocet_beden }}</span>
+                        </div>
+                    </td>
+                    <td class="text-center fs-12 fw-bold">
+                        {{ bedna.zakazka.prumer }}x{{ bedna.zakazka.delka|floatformat:0 }}
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="2">
+                        ZAKÁZKA<br>
+                        <span class="fs-08 fw-normal">Auftrag-Nr.</span>
+                    </td>
+                </tr>
+                <tr style="height: 50px;">
+                    <td colspan="2" class="fs-12 fw-bold">
+                            {{ bedna.zakazka.artikl }}
+                    </td>
+                </tr>        
+                <tr>
+                    <td colspan="2">
+                        ŠARŽE DRÁTU<br>
+                        <span class="fs-08 fw-normal">Charge</span>
+                    </td>
+                </tr>
+                <tr style="height: 40px;">
+                    <td colspan="2" class="fs-12 fw-bold">
+                            {{ bedna.sarze|default:"-" }}
+                    </td>
+                </tr>                      
+                <tr>
+                    <td>
+                        ZE DNE<br>
+                        <span class="fs-08 fw-normal">Abholdatum</span>
+                    </td>
+                    <td>
+                        NETTO<br>
+                        <span class="fs-08 fw-normal">Netto</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="fs-12">
+                        {{ bedna.zakazka.kamion_prijem.datum|date:"d.m.Y" }}
+                    </td>
+                    <td class="fs-12">
+                        {{ bedna.hmotnost|floatformat:0 }} kg
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        DATUM KONTROLY<br>
+                        <span class="fs-08 fw-normal">Datum der Kontrolle</span>
+                    </td>
+                    <td>
+                        UVOLNIL<br>
+                        <span class="fs-08 fw-normal">Genehmigt</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="height: 31px;"></td>
+                    <td></td>
+                </tr>     
+                <tr>
+                    <td colspan="2">
+                        ČISTOTA<br>
+                        <span class="fs-08 fw-normal">Reinheit</span>
+                    </td>
+                </tr>     
+                <tr style="height: 1px;">
+                    <td style="padding: 2px 2px; line-height: 1;">                    
+                        OK
+                    </td>
+                    <td style="padding: 2px 2px; line-height: 1;">
+                        NOK
+                    </td>
+                </tr>                
+                <tr>
+                    <td style="height: 31px;"></td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td colspan="2">
+                        ULOŽENÍ<br>
+                        <span class="fs-08 fw-normal">Einlagerung</span>
+                    </td>
+                </tr>     
+                <tr style="height: 1px;">
+                    <td style="padding: 2px 2px; line-height: 1;">                    
+                        OK
+                    </td>
+                    <td style="padding: 2px 2px; line-height: 1;">
+                        NOK
+                    </td>
+                </tr>                
+                <tr>
+                    <td style="height: 30px;"></td>
+                    <td></td>
+                </tr>                 
+                <tr style="height: 1px;">
+                    <td colspan="2" class="text-start fs-07" style="padding: 0px 2px; line-height: 2;">
+                        HPM - F 104a
+                    </td>             
+                </tr>
+            </tbody>
+        </table>
+        <table class="table table-bordered quality-card" style="width: 64%; table-layout: fixed; font-family: 'Arial';">
+            <tbody>
+                <tr>
+                    <td colspan="4" class="text-start fs-08 fw-bold" style="padding: 2px 5px;">
+                        PRACOVIŠTĚ<br>
+                        <span class="fs-07 fw-normal">Arbeitsplatz</span>
+                    </td>
+                    <td colspan="2" class="text-start fs-08 fw-bold" style="padding: 2px 5px;">
+                        PRACOVIŠTĚ<br>
+                        <span class="fs-07 fw-normal">Arbeitsplatz</span>
+                    </td>               
+                </tr>
+                <tr>
+                    <td colspan="2" rowspan="2" class="text-center fs-08 fw-bold" style="width: 19.6%;">
+                        ROVINNOST<br>
+                        <span class="fs-07 fw-normal">Geradheit</span><br>
+                        <span class="fs-06 fw-normal">
+                            min. 25 vzorků<br>
+                            mind. 25 Prüfmuster<br>
+                            (zapsat pouze hodnoty nad tolerancí)<br>
+                            (nur Werte oberhalb der Toleranz schreiben)
+                        </span>                        
+                    </td>                    
+                    <td rowspan="2" class="text-center fs-08 fw-bold" style="width: 12%;">
+                        OHYB<br>
+                        <span class="fs-07 fw-normal">Biegewinkel</span><br>
+                        <span class="fs-06 fw-normal">
+                            min. 5 vzorků<br>
+                            mind. 5 Prüfmuster<br>
+                        </span>
+                    </td>
+                    <td rowspan="2" class="text-center fs-08 fw-bold" style="width: 12%;">
+                        KRUT<br>
+                        <span class="fs-07 fw-normal">Ein Test der<br>Grausamkeit</span><br>
+                        <span class="fs-06 fw-normal">
+                            min. 5 vzorků<br>
+                            mind. 5 Prüfmuster<br>
+                        </span>
+                    </td>
+                    <td colspan="2" class="text-center fs-08 fw-bold" style="width: 20%;">
+                        ZKOUŠKA TVRDOSTI<br>
+                        <span class="fs-07 fw-normal">Härteprüfung</span>
+                    </td>                         
+                </tr>
+                <tr>
+                    <td class="text-center fs-08 fw-bold" style="width: 10%;">
+                        POVRCH<br>
+                        <span class="fs-07 fw-normal">Oberfläche</span><br>
+                        <span class="fs-06 fw-normal">
+                            min. 2 vzorky<br>
+                            mind. 2 Prüfmuster<br>
+                        </span>
+                    </td>
+                    <td class="text-center fs-08 fw-bold" style="width: 10%;">
+                        JÁDRO<br>
+                        <span class="fs-07 fw-normal">Kern</span><br>
+                        <span class="fs-06 fw-normal">
+                            min. 2 vzorky<br>
+                            mind. 2 Prüfmuster<br>
+                        </span>
+                    </td>                
+                </tr>
+                <tr>                 
+                    <td colspan="2" class="text-center fs-07 align-top" style="padding: 2px 3px; height: 58px; border-bottom: 2px solid #000;">
+                        ZADÁNÍ<br>
+                        <span class="fs-06">Bestimmung</span><br>
+                    </td>
+                    <td class="text-center fs-07 align-top" style="padding: 2px 3px; border-bottom: 2px solid #000;">
+                        ZADÁNÍ<br>
+                        <span class="fs-06">Bestimmung</span><br>
+                        &nbsp;<br>
+                        {{ bedna.zakazka.predpis.ohyb|default:"" }}
+                    </td>       
+                    <td class="text-center fs-07 align-top" style="padding: 2px 3px; border-bottom: 2px solid #000;">
+                        ZADÁNÍ<br>
+                        <span class="fs-06">Bestimmung</span><br>
+                        &nbsp;<br>
+                        {{ bedna.zakazka.predpis.krut|default:"" }}
+                    </td>                                   
+                    <td class="text-center fs-07 align-top" style="padding: 2px 3px; border-bottom: 2px solid #000;">
+                        ZADÁNÍ<br>
+                        <span class="fs-06">Bestimmung</span><br>
+                        &nbsp;<br>
+                        {{ bedna.zakazka.predpis.povrch|default:"" }}
+                    </td>
+                    <td class="text-center fs-07 align-top" style="padding: 2px 3px; border-bottom: 2px solid #000;">
+                        ZADÁNÍ<br>
+                        <span class="fs-06">Bestimmung</span><br>
+                        &nbsp;<br>
+                        {{ bedna.zakazka.predpis.jadro|default:"" }}
+                    </td>                        
+                </tr>
+                {% for _ in "x"|ljust:"9" %}
+                <tr style="height: 46px;">
+                    {% for _ in "x"|ljust:"5" %}
+                        <td {% if forloop.first %}colspan="2"{% endif %}></td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}                                                                                                                                         
+                <tr style="height: 1px;">
+                    <td colspan="2" class="text-start fs-10 fw-bold" style="padding: 5px 2px; line-height: 1;">
+                        Kontrolliert
+                    </td>
+                    <td colspan="2" class="text-start fs-10 fw-bold" style="padding: 4px 2px; line-height: 1;">
+                        Kontrolliert
+                    </td>
+                    <td colspan="2" class="text-start fs-10 fw-bold" style="padding: 4px 2px; line-height: 1;">
+                        Kontrolliert
+                    </td>                
+                </tr>                 
+            </tbody>
+        </table>
+    </div>    
+</body>
+</html>
