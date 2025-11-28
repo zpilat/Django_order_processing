@@ -572,7 +572,7 @@ class Bedna(models.Model):
             ('change_expedovana_bedna', 'Může upravovat expedované bedny'),
             ('change_pozastavena_bedna', 'Může upravovat a uvolnit pozastavené bedny'),
             ('change_neprijata_bedna', 'Může upravovat bedny ve stavu NEPŘIJATO'),
-            ('mark_bedna_navezeno', 'Může označit bednu jako navezenou'),
+            ('mark_bedna_navezeno', 'Může označit bednu jako navezenou a vrátit ji zpět na příjem'),
         )
         constraints = [models.CheckConstraint(
             name="bedna_valid_when_not_neprijato",

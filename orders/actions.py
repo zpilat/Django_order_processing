@@ -366,7 +366,7 @@ def prijmout_bedny_action(modeladmin, request, queryset):
     - Úspěšné se přepnou do stavu PRIJATO ihned (bez globálního rollbacku).
     - Bedny, které nejsou ve stavu NEPRIJATO, jsou hlášeny jako chyba a ponechány beze změny.
     """
-    if _abort_if_paused_bedny(modeladmin, request, queryset, "Přijmout bedny na sklad"):
+    if _abort_if_paused_bedny(modeladmin, request, queryset, "Přijmout vybrané bedny na sklad"):
         return None
 
     success = 0
@@ -483,7 +483,7 @@ def oznacit_k_navezeni_action(modeladmin, request, queryset):
     1) GET: zobrazí formset s výběrem pozice pro každou vybranou bednu.
     2) POST (apply): validace kapacit + uložení (stav PRIJATO -> K_NAVEZENI a přiřazení pozice).
     """
-    if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna stavu na K_NAVEZENÍ"):
+    if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna stavu bedny na K_NAVEZENÍ"):
         return None
 
 
@@ -506,7 +506,7 @@ def oznacit_k_navezeni_action(modeladmin, request, queryset):
         redirect_requested = "apply_open_dashboard" in request.POST
         select_ids = request.POST.getlist(admin.helpers.ACTION_CHECKBOX_NAME)
         qs = Bedna.objects.filter(pk__in=select_ids)            
-        if _abort_if_paused_bedny(modeladmin, request, qs, "Změna stavu na K_NAVEZENÍ"):
+        if _abort_if_paused_bedny(modeladmin, request, qs, "Změna stavu bedny na K_NAVEZENÍ"):
             return None
 
         initial = [
@@ -619,7 +619,7 @@ def oznacit_navezeno_action(modeladmin, request, queryset):
     """
     Změní stav vybraných beden z K_NAVEZENI na NAVEZENO.
     """
-    if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna stavu na NAVEZENO"):
+    if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna stavu bedny na NAVEZENO"):
         return None
 
     # kontrola, zda jsou všechny bedny v querysetu ve stavu K_NAVEZENI
@@ -737,12 +737,12 @@ def oznacit_prijato_navezeno_action(modeladmin, request, queryset):
     formset = NavezenoFormSet(initial=initial, prefix="ozn")
     return _render_oznacit_prijato_navezeno(modeladmin, request, queryset, formset)
 
-@admin.action(description="Vrátit bedny do stavu PŘIJATO", permissions=('change',))
+@admin.action(description="Vrátit bedny ze stavu K NAVEZENÍ do stavu PŘIJATO", permissions=('change',))
 def vratit_bedny_do_stavu_prijato_action(modeladmin, request, queryset):
     """
     Vrátí vybrané bedny ze stavu K NAVEZENÍ do PŘIJATO.
     """
-    if _abort_if_paused_bedny(modeladmin, request, queryset, "Vrácení beden do stavu PŘIJATO"):
+    if _abort_if_paused_bedny(modeladmin, request, queryset, "Vrátit bedny ze stavu K NAVEZENÍ do stavu PŘIJATO"):
         return None
 
     # kontrola, zda jsou všechny zakázky v querysetu ve stavu K_NAVEZENI
@@ -761,12 +761,60 @@ def vratit_bedny_do_stavu_prijato_action(modeladmin, request, queryset):
     messages.success(request, f"Vráceno do stavu PŘIJATO: {queryset.count()} beden.")
     return None
 
+@admin.action(description="Vrátit bedny ze stavu NAVEZENO do stavu PŘIJATO", permissions=('mark_bedna_navezeno',))
+def vratit_bedny_ze_stavu_navezeno_do_stavu_prijato_action(modeladmin, request, queryset):
+    """
+    Vrátí vybrané bedny ze stavu NAVEZENO do PŘIJATO.
+    """
+    if _abort_if_paused_bedny(modeladmin, request, queryset, "Vrátit bedny ze stavu NAVEZENO do stavu PŘIJATO"):
+        return None
+
+    # kontrola, zda jsou všechny zakázky v querysetu ve stavu NAVEZENO
+    if queryset.exclude(stav_bedny=StavBednyChoice.NAVEZENO).exists():
+        logger.info(f"Uživatel {request.user} se pokusil vrátit bedny do stavu PŘIJATO, ale některé nejsou ve stavu NAVEZENO.")
+        messages.error(request, "Některé vybrané bedny nejsou ve stavu NAVEZENO.")
+        return None
+
+    with transaction.atomic():
+        for bedna in queryset:
+            if bedna.stav_bedny == StavBednyChoice.NAVEZENO:
+                bedna.stav_bedny = StavBednyChoice.PRIJATO
+                bedna.save()
+
+    logger.info(f"Uživatel {request.user} vrátil do stavu PŘIJATO {queryset.count()} beden.")
+    messages.success(request, f"Vráceno do stavu PŘIJATO: {queryset.count()} beden.")
+    return None    
+
+@admin.action(description="Vrátit bedny z rozpracovanosti do stavu PŘIJATO", permissions=('change',))
+def vratit_bedny_z_rozpracovanosti_do_stavu_prijato_action(modeladmin, request, queryset):
+    """
+    Vrátí vybrané bedny z rozpracovanosti do stavu PŘIJATO.
+    """
+    if _abort_if_paused_bedny(modeladmin, request, queryset, "Vrátit bedny z rozpracovanosti do stavu PŘIJATO"):
+        return None
+
+    # kontrola, zda jsou všechny zakázky v querysetu v rozpracovanosti
+    if queryset.exclude(stav_bedny__in=STAV_BEDNY_ROZPRACOVANOST).exists():
+        logger.info(f"Uživatel {request.user} se pokusil vrátit bedny do stavu PŘIJATO, ale některé nejsou v rozpracovanosti.")
+        messages.error(request, "Některé vybrané bedny nejsou v rozpracovanosti.")
+        return None
+
+    with transaction.atomic():
+        for bedna in queryset:
+            if bedna.stav_bedny in STAV_BEDNY_ROZPRACOVANOST:
+                bedna.stav_bedny = StavBednyChoice.PRIJATO
+                bedna.save()
+
+    logger.info(f"Uživatel {request.user} vrátil do stavu PŘIJATO {queryset.count()} beden.")
+    messages.success(request, f"Vráceno do stavu PŘIJATO: {queryset.count()} beden.")
+    return None    
+
 @admin.action(description="Změna stavu bedny na DO ZPRACOVÁNÍ", permissions=('change',))
 def oznacit_do_zpracovani_action(modeladmin, request, queryset):
     """
     Změní stav vybraných beden ze stavu ROZPRACOVANOST (NAVEZENO, DO_ZPRACOVANI, ZAKALENO, ZKONTROLOVANO) na DO_ZPRACOVANI.
     """
-    if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna stavu na DO ZPRACOVÁNÍ"):
+    if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna stavu bedny na DO ZPRACOVÁNÍ"):
         return None
 
     # kontrola, zda jsou všechny bedny v querysetu ve stavu ROZPRACOVANOST (NAVEZENO, DO_ZPRACOVANI, ZAKALENO, ZKONTROLOVANO)
@@ -790,7 +838,7 @@ def oznacit_zakaleno_action(modeladmin, request, queryset):
     """
     Změní stav vybraných beden ze stavu ROZPRACOVANOST (NAVEZENO, DO_ZPRACOVANI, ZAKALENO, ZKONTROLOVANO) na ZAKALENO.
     """
-    if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna stavu na ZAKALENO"):
+    if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna stavu bedny na ZAKALENO"):
         return None
 
     # kontrola, zda jsou všechny bedny v querysetu ve stavu ROZPRACOVANOST
@@ -815,7 +863,7 @@ def oznacit_zkontrolovano_action(modeladmin, request, queryset):
     Změní stav vybraných beden na ZKONTROLOVANO.
     Může měnit všechny bedny ve stavu ROZPRACOVANOST (NAVEZENO, DO_ZPRACOVANI, ZAKALENO, ZKONTROLOVANO) na ZKONTROLOVANO.
     """
-    if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna stavu na ZKONTROLOVÁNO"):
+    if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna stavu bedny na ZKONTROLOVÁNO"):
         return None
 
     # kontrola, zda jsou všechny bedny v querysetu ve stavu ROZPRACOVANOST
@@ -840,7 +888,7 @@ def oznacit_k_expedici_action(modeladmin, request, queryset):
     """
     Změní stav vybraných beden ze stavu ROZPRACOVANOST (NAVEZENO, DO_ZPRACOVANI, ZAKALENO nebo ZKONTROLOVANO) na K_EXPEDICI.
     """
-    if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna stavu na K EXPEDICI"):
+    if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna stavu bedny na K EXPEDICI"):
         return None
 
     # kontrola, zda jsou všechny bedny v querysetu ve stavu ROZPRACOVANOST (NAVEZENO, DO_ZPRACOVANI, ZAKALENO, ZKONTROLOVANO)
@@ -881,7 +929,7 @@ def oznacit_rovna_action(modeladmin, request, queryset):
     """
     Změní stav rovnání vybraných beden z NEZADANO na ROVNA.
     """
-    if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna rovnání na ROVNÁ"):
+    if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna stavu rovnání na ROVNÁ"):
         return None
 
     # kontrola, zda jsou všechny bedny v querysetu ve stavu NEZADANO
@@ -905,7 +953,7 @@ def oznacit_kriva_action(modeladmin, request, queryset):
     """
     Změní stav rovnání vybraných beden z NEZADANO na KRIVA.
     """
-    if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna rovnání na KŘIVÁ"):
+    if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna stavu rovnání na KŘIVÁ"):
         return None
 
     # kontrola, zda jsou všechny bedny v querysetu ve stavu NEZADANO
@@ -930,7 +978,7 @@ def oznacit_rovna_se_action(modeladmin, request, queryset):
     Změní stav rovnání vybraných beden z KRIVA na ROVNA_SE.
     Vytiskne seznam beden k rovnání.
     """
-    if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna rovnání na ROVNÁ SE"):
+    if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna stavu rovnání na ROVNÁ SE"):
         return None
 
     bedny = list(queryset.select_related("zakazka__kamion_prijem__zakaznik"))
@@ -1015,7 +1063,7 @@ def oznacit_vyrovnana_action(modeladmin, request, queryset):
     """
     Změní stav rovnání vybraných beden z ROVNA_SE na VYROVNANA.
     """
-    if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna rovnání na VYROVNANÁ"):
+    if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna stavu rovnání na VYROVNANÁ"):
         return None
 
     # kontrola, zda jsou všechny bedny v querysetu ve stavu ROVNA_SE
@@ -1039,7 +1087,7 @@ def oznacit_cista_action(modeladmin, request, queryset):
     """
     Změní stav tryskání vybraných beden z NEZADANO na CISTA.
     """
-    if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna tryskání na ČISTÁ"):
+    if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna stavu tryskání na ČISTÁ"):
         return None
 
     # kontrola, zda jsou všechny bedny v querysetu ve stavu NEZADANO
@@ -1063,7 +1111,7 @@ def oznacit_spinava_action(modeladmin, request, queryset):
     """
     Změní stav tryskání vybraných beden z NEZADANO na SPINAVA.
     """
-    if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna tryskání na ŠPINAVÁ"):
+    if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna stavu tryskání na ŠPINAVÁ"):
         return None
 
     # kontrola, zda jsou všechny bedny v querysetu ve stavu NEZADANO
@@ -1087,7 +1135,7 @@ def oznacit_otryskana_action(modeladmin, request, queryset):
     """
     Změní stav tryskání vybraných beden ze SPINAVA na OTRYSKANA.
     """
-    if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna tryskání na OTRYSKANÁ"):
+    if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna stavu tryskání na OTRYSKANÁ"):
         return None
 
     # kontrola, zda jsou všechny bedny v querysetu ve stavu SPINAVA
