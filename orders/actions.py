@@ -738,7 +738,7 @@ def oznacit_prijato_navezeno_action(modeladmin, request, queryset):
     return _render_oznacit_prijato_navezeno(modeladmin, request, queryset, formset)
 
 @admin.action(description="Vrátit bedny ze stavu K NAVEZENÍ do stavu PŘIJATO", permissions=('change',))
-def vratit_bedny_do_stavu_prijato_action(modeladmin, request, queryset):
+def vratit_bedny_ze_stavu_k_navezeni_do_stavu_prijato_action(modeladmin, request, queryset):
     """
     Vrátí vybrané bedny ze stavu K NAVEZENÍ do PŘIJATO.
     """

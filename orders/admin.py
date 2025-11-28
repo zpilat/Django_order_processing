@@ -35,8 +35,8 @@ from .actions import (
     expedice_zakazek_action, import_kamionu_action, tisk_karet_beden_action, tisk_karet_beden_zakazek_action,
     tisk_karet_beden_kamionu_action, tisk_dodaciho_listu_kamionu_action, vratit_zakazky_z_expedice_action, expedice_zakazek_kamion_action,
     tisk_karet_kontroly_kvality_action, tisk_karet_kontroly_kvality_zakazek_action, tisk_karet_kontroly_kvality_kamionu_action,
-    tisk_karet_bedny_a_kontroly_action, tisk_protokolu_kamionu_vydej_action,
-    tisk_proforma_faktury_kamionu_action, oznacit_k_navezeni_action, vratit_bedny_do_stavu_prijato_action, oznacit_navezeno_action,
+    tisk_karet_bedny_a_kontroly_action, tisk_protokolu_kamionu_vydej_action, tisk_proforma_faktury_kamionu_action,
+    oznacit_k_navezeni_action, vratit_bedny_ze_stavu_k_navezeni_do_stavu_prijato_action, oznacit_navezeno_action,
     oznacit_prijato_navezeno_action, vratit_bedny_z_rozpracovanosti_do_stavu_prijato_action, vratit_bedny_ze_stavu_navezeno_do_stavu_prijato_action,
     oznacit_do_zpracovani_action, oznacit_zakaleno_action, oznacit_zkontrolovano_action, oznacit_k_expedici_action, oznacit_rovna_action,
     oznacit_kriva_action, oznacit_rovna_se_action, oznacit_vyrovnana_action, oznacit_cista_action, oznacit_spinava_action,
@@ -2065,9 +2065,10 @@ class BednaAdmin(SimpleHistoryAdmin):
     poll_interval_ms = 30000
     actions = [
         export_bedny_to_csv_action, tisk_karet_beden_action, tisk_karet_kontroly_kvality_action, tisk_karet_bedny_a_kontroly_action,
-        oznacit_k_navezeni_action, oznacit_navezeno_action, oznacit_prijato_navezeno_action, vratit_bedny_ze_stavu_navezeno_do_stavu_prijato_action,
-        vratit_bedny_z_rozpracovanosti_do_stavu_prijato_action, oznacit_do_zpracovani_action, oznacit_zakaleno_action, oznacit_zkontrolovano_action,
-        oznacit_k_expedici_action, oznacit_rovna_action, oznacit_kriva_action, oznacit_rovna_se_action, oznacit_vyrovnana_action,
+        oznacit_k_navezeni_action, oznacit_navezeno_action, oznacit_prijato_navezeno_action, vratit_bedny_ze_stavu_k_navezeni_do_stavu_prijato_action,
+        vratit_bedny_ze_stavu_navezeno_do_stavu_prijato_action, vratit_bedny_z_rozpracovanosti_do_stavu_prijato_action,
+        oznacit_do_zpracovani_action, oznacit_zakaleno_action, oznacit_zkontrolovano_action, oznacit_k_expedici_action,
+        oznacit_rovna_action, oznacit_kriva_action, oznacit_rovna_se_action, oznacit_vyrovnana_action,
         oznacit_cista_action, oznacit_spinava_action, oznacit_otryskana_action, prijmout_bedny_action
     ]
     form = BednaAdminForm
@@ -2616,7 +2617,7 @@ class BednaAdmin(SimpleHistoryAdmin):
                 ]
             if request.GET.get('stav_bedny', None) != StavBednyChoice.K_NAVEZENI:
                 actions_to_remove += [
-                    'vratit_bedny_do_stavu_prijato_action', 'oznacit_navezeno_action',
+                    'vratit_bedny_ze_stavu_k_navezeni_do_stavu_prijato_action', 'oznacit_navezeno_action',
                 ]
             if request.GET.get('stav_bedny', None) not in [StavBednyChoice.NAVEZENO, 'RO']:
                 actions_to_remove += [
@@ -2701,7 +2702,7 @@ class BednaAdmin(SimpleHistoryAdmin):
             'oznacit_k_navezeni_action': 'Stav bedny',
             'oznacit_prijato_navezeno_action': 'Stav bedny',            
             'oznacit_navezeno_action': 'Stav bedny',
-            'vratit_bedny_do_stavu_prijato_action': 'Stav bedny',
+            'vratit_bedny_ze_stavu_k_navezeni_do_stavu_prijato_action': 'Stav bedny',
             'oznacit_do_zpracovani_action': 'Stav bedny',
             'vratit_bedny_ze_stavu_navezeno_do_stavu_prijato_action': 'Stav bedny',
             'oznacit_zakaleno_action': 'Stav bedny',
