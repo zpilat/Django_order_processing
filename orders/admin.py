@@ -30,7 +30,9 @@ from django.contrib.admin.helpers import ActionForm
 from django.contrib.admin.actions import delete_selected as admin_delete_selected
 from django_user_agents.utils import get_user_agent
 
-from .models import Zakaznik, Kamion, Zakazka, Bedna, Predpis, Odberatel, TypHlavy, Cena, Pozice, Pletivo, PoziceZakazkaOrder
+from .models import (
+    Zakaznik, Kamion, Zakazka, Bedna, Predpis, Odberatel, TypHlavy, Cena, Pozice, Pletivo, PoziceZakazkaOrder, Rozpracovanost
+)
 from .actions import (
     expedice_zakazek_action, import_kamionu_action, tisk_karet_beden_action, tisk_karet_beden_zakazek_action,
     tisk_karet_beden_kamionu_action, tisk_dodaciho_listu_kamionu_action, vratit_zakazky_z_expedice_action, expedice_zakazek_kamion_action,
@@ -3070,6 +3072,25 @@ class PoziceZakazkaOrderAdmin(admin.ModelAdmin):
 
     search_fields = ['zakazka__nazev', 'pozice__kod']
     list_filter = ['pozice']
+
+
+@admin.register(Rozpracovanost)
+class RozpracovanostAdmin(admin.ModelAdmin):
+    """
+    Správa měsíční rozpracovanosti v administraci.
+    """
+    list_display = ('cas_zaznamu', 'zakaznik', 'beden_rozpracovanych', 'cena_za_kaleni')
+    list_display_links = None
+    ordering = ['-cas_zaznamu']
+    list_per_page = 25
+    date_hierarchy = 'cas_zaznamu'
+    
+    def has_change_permission(self, request, obj=None):
+        """Zablokuje detail záznamu, ale ponechá přístup k přehledu."""
+        if obj is None:
+            return super().has_change_permission(request, obj)
+        return False
+
 
 # Nastavení atributů AdminSite
 admin.site.index_title = "Správa zakázek"

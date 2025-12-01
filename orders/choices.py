@@ -32,6 +32,12 @@ STAV_BEDNY_PRO_NAVEZENI = [
     StavBednyChoice.ZKONTROLOVANO,
 ]
 
+STAV_BEDNY_VYPOCET_ROZPRACOVANOSTI = [
+    StavBednyChoice.ZAKALENO,
+    StavBednyChoice.ZKONTROLOVANO,
+    StavBednyChoice.K_EXPEDICI,
+]
+
 class RovnaniChoice(models.TextChoices):
     NEZADANO = '--', '--------'
     ROVNA = 'RO', 'Rovná'
