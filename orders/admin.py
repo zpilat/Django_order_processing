@@ -3080,16 +3080,10 @@ class RozpracovanostAdmin(admin.ModelAdmin):
     Správa měsíční rozpracovanosti v administraci.
     """
     list_display = ('cas_zaznamu', 'zakaznik', 'beden_rozpracovanych', 'cena_za_kaleni')
-    list_display_links = None
+    list_display_links = ('cas_zaznamu',)
     ordering = ['-cas_zaznamu']
     list_per_page = 25
     date_hierarchy = 'cas_zaznamu'
-    
-    def has_change_permission(self, request, obj=None):
-        """Zablokuje detail záznamu, ale ponechá přístup k přehledu."""
-        if obj is None:
-            return super().has_change_permission(request, obj)
-        return False
 
 
 # Nastavení atributů AdminSite
