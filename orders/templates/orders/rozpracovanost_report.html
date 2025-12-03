@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <title>Rozpracovanost</title>
+    <link rel="stylesheet" href="{% static 'orders/css/pdf_shared.css' %}">
+    <style>
+        body {
+            font-size: 0.9rem;
+            margin: 0;
+            padding: 10mm;
+        }
+
+        h1 {
+            font-size: 1.4rem;
+            margin: 0 0 4mm 0;
+        }
+
+        h2 {
+            font-size: 1.1rem;
+            margin: 6mm 0 2mm 0;
+        }
+
+        .report-meta {
+            font-size: 0.75rem;
+            margin-bottom: 6mm;
+        }
+
+        .customer-section {
+            break-inside: avoid;
+            page-break-inside: avoid;
+            margin-bottom: 8mm;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 4mm;
+        }
+
+        thead {
+            display: table-header-group;
+        }
+
+        th, td {
+            border: 1px solid #000;
+            padding: 4px 6px;
+        }
+
+        th {
+            background-color: #f0f0f0;
+        }
+
+        td.text-end {
+            text-align: right;
+        }
+
+        td.text-center {
+            text-align: center;
+        }
+
+        .summary-row {
+            font-weight: bold;
+            background-color: #fafafa;
+        }
+
+    </style>
+</head>
+<body>
+    <h1>Přehled rozpracovanosti</h1>
+    
+    {% for section in sections %}
+        <div class="customer-section">
+            <h2>{{ section.zakaznik.nazev }}</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Zakázka</th>
+                        <th>Datum</th>
+                        <th>Hmotnost</th>
+                        <th>Rozměr</th>
+                        <th>Typ</th>
+                        <th class="text-center">Hlava</th>
+                        <th>Jedn. cena</th>
+                        <th>Netto cena</th>
+                        <th>Počet beden</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for zakazka in section.zakazky %}
+                        <tr>
+                            <td>{{ zakazka.artikl }}</td>
+                            <td>{{ zakazka.datum|date:"d.m.y" }}</td>
+                            <td class="text-end">{{ zakazka.hmotnost|floatformat:1 }} kg</td>
+                            <td>{{ zakazka.rozmer }}</td>
+                            <td>{{ zakazka.typ }}</td>
+                            <td class="text-center">{{ zakazka.hlava|default:"-" }}</td>
+                            <td class="text-end">{{ zakazka.cena_kg|floatformat:2 }} €/kg</td>
+                            <td class="text-end">{{ zakazka.cena_netto|floatformat:2 }} €</td>
+                            <td class="text-end">{{ zakazka.pocet_beden }} ks</td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="9" class="text-center">Žádná data k zobrazení.</td>
+                        </tr>
+                    {% endfor %}
+                    <tr class="summary-row">
+                        <td colspan="2">Celkem {{ section.zakaznik.zkraceny_nazev }}</td>
+                        <td class="text-end">{{ section.sum_hmotnost|floatformat:1 }} kg</td>
+                        <td colspan="4"></td>
+                        <td class="text-end">{{ section.sum_cena_netto|floatformat:2 }} €</td>
+                        <td class="text-end">{{ section.sum_beden }} ks</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    {% endfor %}
+
+    <div class="report-meta">
+        <div><strong>Záznam vytvořen:</strong> {{ snapshot.cas_zaznamu|date:"d.m.Y H:i" }}</div>
+        <div><strong>Report generován:</strong> {{ generated_at|date:"d.m.Y H:i" }}</div>
+        {% if prepared_by %}<div><strong>Připravil:</strong> {{ prepared_by }}</div>{% endif %}
+    </div>    
+</body>
+</html>

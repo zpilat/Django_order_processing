@@ -43,7 +43,7 @@ from .actions import (
     oznacit_do_zpracovani_action, oznacit_zakaleno_action, oznacit_zkontrolovano_action, oznacit_k_expedici_action, oznacit_rovna_action,
     oznacit_kriva_action, oznacit_rovna_se_action, oznacit_vyrovnana_action, oznacit_cista_action, oznacit_spinava_action,
     oznacit_otryskana_action, prijmout_kamion_action, prijmout_zakazku_action, prijmout_bedny_action,
-    export_bedny_to_csv_action,
+    export_bedny_to_csv_action, tisk_rozpracovanost_action,
 )
 from .filters import (
     SklademZakazkaFilter, StavBednyFilter, KompletZakazkaFilter, AktivniPredpisFilter, SkupinaFilter, ZakaznikBednyFilter,
@@ -3079,11 +3079,30 @@ class RozpracovanostAdmin(admin.ModelAdmin):
     """
     Správa měsíční rozpracovanosti v administraci.
     """
-    list_display = ('cas_zaznamu', 'zakaznik', 'beden_rozpracovanych', 'cena_za_kaleni')
-    list_display_links = ('cas_zaznamu',)
+    list_display = ('cas_zaznamu', 'pocet_beden', 'cisla_beden_display')
+    list_display_links = None
     ordering = ['-cas_zaznamu']
     list_per_page = 25
     date_hierarchy = 'cas_zaznamu'
+    actions = (tisk_rozpracovanost_action,)
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        bedny_qs = Bedna.objects.only('pk', 'cislo_bedny', 'zakazka').order_by('cislo_bedny')
+        return qs.annotate(_bedny_count=Count('bedny', distinct=True)).prefetch_related(
+            Prefetch('bedny', queryset=bedny_qs)
+        )
+
+    def pocet_beden(self, obj):
+        return getattr(obj, '_bedny_count', obj.pocet_beden)
+
+    pocet_beden.short_description = 'Počet beden'
+
+    def cisla_beden_display(self, obj):
+        cisla = [str(b.cislo_bedny) for b in obj.bedny.all() if b.cislo_bedny is not None]
+        return ", ".join(cisla) if cisla else '-'
+
+    cisla_beden_display.short_description = 'Čísla beden'
 
 
 # Nastavení atributů AdminSite

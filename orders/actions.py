@@ -16,11 +16,11 @@ from django.db.models import Count, Q
 
 import csv
 import datetime
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from weasyprint import HTML
 from weasyprint import CSS
 
-from .models import Zakazka, Bedna, Kamion, Zakaznik, Pozice
+from .models import Zakazka, Bedna, Kamion, Zakaznik, Pozice, Rozpracovanost
 from .utils import (
     utilita_tisk_dokumentace,
     utilita_tisk_dokumentace_sablony,
@@ -103,6 +103,23 @@ def _format_decimal(value):
     if '.' in text:
         text = text.rstrip('0').rstrip('.')
     return text.replace('.', ',')
+
+def _resolve_user_name(user):
+    if not user or not getattr(user, 'is_authenticated', False):
+        return ''
+    full_name = user.get_full_name()
+    if full_name:
+        return full_name
+    if user.last_name:
+        return user.last_name
+    return user.get_username()
+
+def _format_rozmer(zakazka):
+    prumer = _format_decimal(getattr(zakazka, 'prumer', None))
+    delka = _format_decimal(getattr(zakazka, 'delka', None))
+    if prumer and delka:
+        return f"{prumer} x {delka}"
+    return prumer or delka or ''
 
 # Akce pro bedny:
 
@@ -1765,3 +1782,152 @@ def tisk_karet_kontroly_kvality_kamionu_action(modeladmin, request, queryset):
         logger.error(f"Kamion {queryset.first()} nemá přiřazeného zákazníka nebo zákazník nemá zkratku.")
         modeladmin.message_user(request, "Kamion nemá přiřazeného zákazníka nebo zákazník nemá zkratku.", level=messages.ERROR)
         return None
+    
+# Akce pro rozpracovanost
+
+@admin.action(description="Vytisknout rozpracovanost (PDF)")
+def tisk_rozpracovanost_action(modeladmin, request, queryset):
+    if queryset.count() != 1:
+        modeladmin.message_user(request, "Vyberte prosím právě jeden záznam rozpracovanosti.", level=messages.ERROR)
+        return None
+
+    snapshot = queryset.first()
+    if not isinstance(snapshot, Rozpracovanost):
+        modeladmin.message_user(request, "Neplatný výběr pro tisk rozpracovanosti.", level=messages.ERROR)
+        return None
+
+    bedny_qs = snapshot.bedny.select_related(
+        'zakazka',
+        'zakazka__kamion_prijem',
+        'zakazka__kamion_prijem__zakaznik',
+        'zakazka__typ_hlavy',
+    ).order_by(
+        'zakazka__kamion_prijem__zakaznik__nazev',
+        'zakazka__artikl',
+        'cislo_bedny',
+    )
+
+    bedny = list(bedny_qs)
+    if not bedny:
+        modeladmin.message_user(request, "Vybraný záznam rozpracovanosti neobsahuje žádné bedny.", level=messages.WARNING)
+        return None
+
+    customer_map: dict[int, dict] = {}
+    skipped = 0
+    weight_quant = Decimal('0.1')
+    money_quant = Decimal('0.01')
+
+    for bedna in bedny:
+        zakazka = getattr(bedna, 'zakazka', None)
+        kamion_prijem = getattr(zakazka, 'kamion_prijem', None) if zakazka else None
+        zakaznik = getattr(kamion_prijem, 'zakaznik', None) if kamion_prijem else None
+
+        if not zakazka or not zakaznik:
+            skipped += 1
+            continue
+
+        customer_entry = customer_map.setdefault(
+            zakaznik.pk,
+            {
+                'zakaznik': zakaznik,
+                'zakazky': {},
+                'sum_hmotnost': Decimal('0.0'),
+                'sum_beden': 0,
+                'sum_cena_netto': Decimal('0.0'),
+            },
+        )
+
+        zakazka_entry = customer_entry['zakazky'].setdefault(
+            zakazka.pk,
+            {
+                'artikl': zakazka.artikl,
+                'datum': kamion_prijem.datum if kamion_prijem else None,
+                'rozmer': _format_rozmer(zakazka),
+                'typ': zakazka.zkraceny_popis,
+                'hlava': str(zakazka.typ_hlavy) if zakazka.typ_hlavy else '',
+                'cena_kg': Decimal(zakazka.cena_za_kg or 0),
+                'hmotnost': Decimal('0.0'),
+                'pocet_beden': 0,
+            },
+        )
+
+        hmotnost = bedna.hmotnost or Decimal('0')
+        if not isinstance(hmotnost, Decimal):
+            try:
+                hmotnost = Decimal(hmotnost)
+            except Exception:
+                hmotnost = Decimal('0')
+
+        zakazka_entry['hmotnost'] += hmotnost
+        zakazka_entry['pocet_beden'] += 1
+
+        customer_entry['sum_hmotnost'] += hmotnost
+        customer_entry['sum_beden'] += 1
+
+    if not customer_map:
+        modeladmin.message_user(
+            request,
+            "Pro vybraný záznam rozpracovanosti nebyla nalezena kompletní data.",
+            level=messages.ERROR,
+        )
+        if skipped:
+            logger.warning(
+                f"Rozpracovanost PDF: přeskočeno {skipped} beden bez vazby na zakázku/zákazníka.",
+            )
+        return None
+
+    sections = []
+    for customer_entry in sorted(customer_map.values(), key=lambda item: item['zakaznik'].nazev):
+        zakazky_rows = []
+        for zakazka_entry in sorted(customer_entry['zakazky'].values(), key=lambda item: item['artikl']):
+            hm_total = zakazka_entry['hmotnost'].quantize(weight_quant, rounding=ROUND_HALF_UP)
+            cena_kg = zakazka_entry['cena_kg'].quantize(money_quant, rounding=ROUND_HALF_UP) if zakazka_entry['cena_kg'] else Decimal('0.00')
+            cena_netto = (zakazka_entry['hmotnost'] * zakazka_entry['cena_kg']).quantize(money_quant, rounding=ROUND_HALF_UP)
+            customer_entry['sum_cena_netto'] += cena_netto
+            zakazky_rows.append({
+                'artikl': zakazka_entry['artikl'],
+                'datum': zakazka_entry['datum'],
+                'hmotnost': hm_total,
+                'rozmer': zakazka_entry['rozmer'],
+                'typ': zakazka_entry['typ'],
+                'hlava': zakazka_entry['hlava'],
+                'cena_kg': cena_kg,
+                'cena_netto': cena_netto,
+                'pocet_beden': zakazka_entry['pocet_beden'],
+            })
+
+        sections.append({
+            'zakaznik': customer_entry['zakaznik'],
+            'zakazky': zakazky_rows,
+            'sum_hmotnost': customer_entry['sum_hmotnost'].quantize(weight_quant, rounding=ROUND_HALF_UP),
+            'sum_beden': customer_entry['sum_beden'],
+            'sum_cena_netto': customer_entry['sum_cena_netto'].quantize(money_quant, rounding=ROUND_HALF_UP),
+        })
+
+    context = {
+        'snapshot': snapshot,
+        'sections': sections,
+        'generated_at': timezone.now(),
+        'prepared_by': _resolve_user_name(getattr(request, 'user', None)),
+    }
+
+    html = render_to_string('orders/rozpracovanost_report.html', context)
+    stylesheets = []
+    css_path = finders.find('orders/css/pdf_shared.css')
+    if css_path:
+        stylesheets.append(CSS(filename=css_path))
+    else:
+        logger.warning("PDF rozpracovanost: CSS 'orders/css/pdf_shared.css' nebylo nalezeno.")
+
+    base_url = request.build_absolute_uri('/') if request else None
+    pdf_content = HTML(string=html, base_url=base_url).write_pdf(stylesheets=stylesheets)
+
+    filename = f"rozpracovanost_{snapshot.cas_zaznamu:%Y%m%d_%H%M%S}.pdf"
+    response = HttpResponse(pdf_content, content_type='application/pdf')
+    response['Content-Disposition'] = f'inline; filename="{filename}"'
+
+    logger.info(
+        f"Uživatel {getattr(request, 'user', None)} vygeneroval PDF rozpracovanosti ID {snapshot.pk} (beden: {sum(section['sum_beden'] for section in sections)}, přeskočeno: {skipped})."
+    )
+
+    return response

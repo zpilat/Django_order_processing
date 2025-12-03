@@ -14,7 +14,7 @@ import json
 
 from orders.models import (
     Zakaznik, Kamion, Zakazka, Bedna, Predpis, TypHlavy,
-    Odberatel, Pozice
+    Odberatel, Pozice, Rozpracovanost, Cena
 )
 from orders.choices import (
     KamionChoice,
@@ -103,6 +103,121 @@ class ActionsTests(ActionsBase):
 
     def _messages_texts(self, request):
         return [m.message for m in list(request._messages)]
+
+    @patch('orders.actions.render_to_string', return_value='<html></html>')
+    @patch('orders.actions.finders.find', return_value=None)
+    @patch('orders.actions.HTML')
+    def test_tisk_rozpracovanost_action_success(self, html_mock, find_mock, render_mock):
+        cena = Cena.objects.create(
+            popis='Test cena',
+            zakaznik=self.zakaznik,
+            delka_min=Decimal('0.0'),
+            delka_max=Decimal('10.0'),
+            cena_za_kg=Decimal('2.50'),
+        )
+        cena.predpis.add(self.predpis)
+
+        self.zakazka.celozavit = True
+        self.zakazka.popis = 'Popis 123'
+        self.zakazka.save()
+
+        self.bedna.hmotnost = Decimal('3.2')
+        self.bedna.save()
+
+        snapshot = Rozpracovanost.objects.create()
+        snapshot.bedny.add(self.bedna)
+
+        request = self.get_request('post')
+        queryset = Rozpracovanost.objects.filter(pk=snapshot.pk)
+
+        pdf_bytes = b'%PDF-1.4%'
+        html_instance = html_mock.return_value
+        html_instance.write_pdf.return_value = pdf_bytes
+
+        response = actions.tisk_rozpracovanost_action(self.admin, request, queryset)
+
+        self.assertIsNotNone(response)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content, pdf_bytes)
+        self.assertIn('application/pdf', response['Content-Type'])
+        self.assertIn('rozpracovanost_', response['Content-Disposition'])
+
+        render_mock.assert_called_once()
+        html_instance.write_pdf.assert_called_once()
+        find_mock.assert_called_once_with('orders/css/pdf_shared.css')
+
+        context = render_mock.call_args[0][1]
+        self.assertEqual(context['snapshot'], snapshot)
+        self.assertEqual(context['prepared_by'], 'admin')
+        self.assertEqual(len(context['sections']), 1)
+
+        section = context['sections'][0]
+        self.assertEqual(section['zakaznik'], self.zakaznik)
+        self.assertEqual(section['sum_beden'], 1)
+        self.assertEqual(section['sum_hmotnost'], Decimal('3.2').quantize(Decimal('0.1')))
+        self.assertEqual(section['zakazky'][0]['artikl'], self.zakazka.artikl)
+        self.assertEqual(section['zakazky'][0]['cena_netto'], Decimal('8.00'))
+        self.assertEqual(section['sum_cena_netto'], Decimal('8.00'))
+
+    def test_tisk_rozpracovanost_action_requires_single_selection(self):
+        admin_obj = self._messaging_admin()
+        request = self.get_request('post')
+        qset = Rozpracovanost.objects.none()
+
+        response = actions.tisk_rozpracovanost_action(admin_obj, request, qset)
+
+        self.assertIsNone(response)
+        self.assertIn('Vyberte prosím právě jeden', ' '.join(self._messages_texts(request)))
+
+    def test_tisk_rozpracovanost_action_no_bedny(self):
+        admin_obj = self._messaging_admin()
+        snapshot = Rozpracovanost.objects.create()
+        request = self.get_request('post')
+
+        response = actions.tisk_rozpracovanost_action(
+            admin_obj,
+            request,
+            Rozpracovanost.objects.filter(pk=snapshot.pk),
+        )
+
+        self.assertIsNone(response)
+        self.assertTrue(any('neobsahuje žádné bedny' in msg for msg in self._messages_texts(request)))
+
+    def test_tisk_rozpracovanost_action_missing_data(self):
+        admin_obj = self._messaging_admin()
+        orphan_zakazka = Zakazka.objects.create(
+            kamion_prijem=self.kamion_prijem,
+            artikl='OR1',
+            prumer=Decimal('5.0'),
+            delka=Decimal('5.0'),
+            predpis=self.predpis,
+            typ_hlavy=self.typ_hlavy,
+            popis='Bez napojení',
+        )
+        orphan_bedna = Bedna.objects.create(
+            zakazka=orphan_zakazka,
+            hmotnost=Decimal('1.0'),
+            tara=Decimal('1.0'),
+            mnozstvi=1,
+            stav_bedny=StavBednyChoice.PRIJATO,
+        )
+        orphan_zakazka.kamion_prijem = None
+        orphan_zakazka.save(update_fields=['kamion_prijem'])
+        orphan_bedna.refresh_from_db()
+        snapshot = Rozpracovanost.objects.create()
+        snapshot.bedny.add(orphan_bedna)
+
+        request = self.get_request('post')
+
+        response = actions.tisk_rozpracovanost_action(
+            admin_obj,
+            request,
+            Rozpracovanost.objects.filter(pk=snapshot.pk),
+        )
+
+        self.assertIsNone(response)
+        messages = self._messages_texts(request)
+        self.assertTrue(any('nebyla nalezena kompletní data' in msg for msg in messages))
 
     def test_tisk_protokolu_kamionu_vydej_action_success(self):
         self.kamion_vydej.cislo_dl = 'DL123'

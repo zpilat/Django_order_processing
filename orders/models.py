@@ -891,14 +891,16 @@ class Bedna(models.Model):
 
 class Rozpracovanost(models.Model):
     cas_zaznamu = models.DateTimeField(auto_now_add=True, verbose_name='Čas záznamu')
-    zakaznik = models.CharField(max_length=50, verbose_name='Zákazník')
-    beden_rozpracovanych = models.PositiveIntegerField(verbose_name='Počet rozpracovaných beden')
-    cena_za_kaleni = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='Cena za kalení €')
+    bedny = models.ManyToManyField('Bedna', related_name='rozpracovanost_zaznamy', verbose_name='Bedny')
 
     class Meta:
         verbose_name = 'Rozpracovanost'
         verbose_name_plural = 'rozpracovanosti'
         ordering = ['-cas_zaznamu']
-    
+
     def __str__(self):
-        return f'{self.cas_zaznamu:%Y.%m.%d} {self.zakaznik} - {self.cena_za_kaleni} €'
+        return f"{self.cas_zaznamu:%Y.%m.%d %H:%M} – {self.bedny.count()} beden"
+
+    @property
+    def pocet_beden(self):
+        return self.bedny.count()
