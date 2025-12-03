@@ -3078,7 +3078,7 @@ class RozpracovanostBednaInline(admin.TabularInline):
     model = Rozpracovanost.bedny.through
     fk_name = 'rozpracovanost'
     extra = 0
-    can_delete = False
+    can_delete = True
     verbose_name = "Bedna"
     verbose_name_plural = "Bedny v rozpracovanosti"
     fields = ('bedna_link', 'cislo_bedny', 'zakazka', 'stav', 'hmotnost', 'tara', 'mnozstvi')
