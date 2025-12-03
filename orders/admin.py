@@ -3074,17 +3074,69 @@ class PoziceZakazkaOrderAdmin(admin.ModelAdmin):
     list_filter = ['pozice']
 
 
+class RozpracovanostBednaInline(admin.TabularInline):
+    model = Rozpracovanost.bedny.through
+    fk_name = 'rozpracovanost'
+    extra = 0
+    can_delete = False
+    verbose_name = "Bedna"
+    verbose_name_plural = "Bedny v rozpracovanosti"
+    fields = ('bedna_link', 'cislo_bedny', 'zakazka', 'stav', 'hmotnost', 'tara', 'mnozstvi')
+    readonly_fields = fields
+    ordering = ('bedna__cislo_bedny',)
+
+    @admin.display(description='Bedna')
+    def bedna_link(self, obj):
+        bedna = obj.bedna
+        if not bedna:
+            return '-'
+        return format_html('<a href="{}">{}</a>', bedna.get_admin_url(), bedna)
+
+    @admin.display(description='Číslo bedny')
+    def cislo_bedny(self, obj):
+        return getattr(obj.bedna, 'cislo_bedny', '-')
+
+    @admin.display(description='Zakázka')
+    def zakazka(self, obj):
+        bedna = obj.bedna
+        if not bedna or not bedna.zakazka:
+            return '-'
+        return format_html('<a href="{}">{}</a>', bedna.zakazka.get_admin_url(), bedna.zakazka)
+
+    @admin.display(description='Stav')
+    def stav(self, obj):
+        bedna = obj.bedna
+        return bedna.get_stav_bedny_display() if bedna else '-'
+
+    @admin.display(description='Netto kg')
+    def hmotnost(self, obj):
+        bedna = obj.bedna
+        return bedna.hmotnost if bedna and bedna.hmotnost is not None else '-'
+
+    @admin.display(description='Tára kg')
+    def tara(self, obj):
+        bedna = obj.bedna
+        return bedna.tara if bedna and bedna.tara is not None else '-'
+
+    @admin.display(description='Množství ks')
+    def mnozstvi(self, obj):
+        bedna = obj.bedna
+        return bedna.mnozstvi if bedna and bedna.mnozstvi is not None else '-'
+
+
 @admin.register(Rozpracovanost)
 class RozpracovanostAdmin(admin.ModelAdmin):
     """
     Správa měsíční rozpracovanosti v administraci.
     """
-    list_display = ('cas_zaznamu', 'pocet_beden', 'cisla_beden_display')
-    list_display_links = None
+    list_display = ('cas_zaznamu', 'pocet_beden',)
+    list_display_links = ('cas_zaznamu',)
     ordering = ['-cas_zaznamu']
     list_per_page = 25
     date_hierarchy = 'cas_zaznamu'
     actions = (tisk_rozpracovanost_action,)
+    inlines = [RozpracovanostBednaInline]
+    exclude = ('bedny',)
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
@@ -3097,12 +3149,6 @@ class RozpracovanostAdmin(admin.ModelAdmin):
         return getattr(obj, '_bedny_count', obj.pocet_beden)
 
     pocet_beden.short_description = 'Počet beden'
-
-    def cisla_beden_display(self, obj):
-        cisla = [str(b.cislo_bedny) for b in obj.bedny.all() if b.cislo_bedny is not None]
-        return ", ".join(cisla) if cisla else '-'
-
-    cisla_beden_display.short_description = 'Čísla beden'
 
 
 # Nastavení atributů AdminSite
