@@ -602,6 +602,7 @@ class Bedna(models.Model):
                 return i 
             
         return 0  # pokud není nalezeno, vrací 0
+    
     @property
     def hmotnost_brutto(self):
         """
@@ -682,6 +683,39 @@ class Bedna(models.Model):
             return 'darkgreen'
         else:
             return ''  # Pro případ neznámého stavu bedny vrací bez barvy
+
+    def _containers_for_measurement_SSH(self, total):
+        """Vrátí seznam vybraných čísel beden pro měření podle celkového počtu beden u zákazníka SSH."""
+        if total <= 0:
+            return []
+
+        selected = {1, total}
+
+        if total > 8:
+            lower_middle = total // 2
+            selected.update({lower_middle, lower_middle + 1})
+        elif total >= 5:
+            selected.add((total + 1) // 2)
+
+        return sorted(selected)
+
+    @property
+    def bedna_k_mereni_tvrdosti_a_povrchu_SSH(self):
+        """
+        Vrací True, pokud je bedna určena k měření tvrdosti a povrchu pro zákazníka SSH.
+        Výběr beden k měření je založen na celkovém počtu beden v zakázce podle pravidel zákazníka SSH:
+        - Pokud je celkový počet beden menší nebo roven 0, žádná bedna není určena k měření.
+        - Vždy se měří první a poslední bedna.
+        - Pokud je celkový počet beden větší než 8, měří se také dvě střední bedny (dolní a horní střed).
+        - Pokud je celkový počet beden mezi 5 a 8 (včetně), měří se prostřední bedna.
+        """
+        if self.zakazka.kamion_prijem.zakaznik.zkratka != 'SSH':
+            return False
+
+        total_bedny = self.zakazka.pocet_beden
+        selected_bedny = self._containers_for_measurement_SSH(total_bedny)
+
+        return self.poradi_bedny in selected_bedny
 
     def clean(self):
         """

@@ -331,8 +331,7 @@ def tisk_karet_bedny_a_kontroly_action(modeladmin, request, queryset):
     """Vytvoří PDF, kde má každá bedna svoji kartu a navazující kartu kontroly kvality."""
     if queryset.values('zakazka__kamion_prijem__zakaznik').distinct().count() != 1:
         logger.error(
-            "Uživatel %s se pokusil tisknout kombinované karty beden, ale vybral bedny od více zákazníků.",
-            getattr(request, 'user', None),
+            f"Uživatel {getattr(request, 'user', None)} se pokusil tisknout kombinované karty beden, ale vybral bedny od více zákazníků."
         )
         modeladmin.message_user(
             request,
@@ -359,13 +358,11 @@ def tisk_karet_bedny_a_kontroly_action(modeladmin, request, queryset):
         response = utilita_tisk_dokumentace_sablony(modeladmin, request, queryset, html_paths, filename)
         if response:
             logger.info(
-                "Uživatel %s tiskne kombinované karty bedny+KKK pro %s vybraných beden.",
-                getattr(request, 'user', None),
-                queryset.count(),
+                f"Uživatel {getattr(request, 'user', None)} tiskne kombinované karty bedny+KKK pro {queryset.count()} vybraných beden."
             )
         return response
 
-    logger.error("Bedna %s nemá přiřazeného zákazníka nebo zákazník nemá zkratku.", first_bedna)
+    logger.error(f"Bedna {first_bedna} nemá přiřazeného zákazníka nebo zákazník nemá zkratku.")
     modeladmin.message_user(
         request,
         "Bedna nemá přiřazeného zákazníka nebo zákazník nemá zkratku.",
@@ -1006,8 +1003,7 @@ def oznacit_rovna_se_action(modeladmin, request, queryset):
 
     if any(bedna.rovnat != RovnaniChoice.KRIVA for bedna in bedny):
         logger.info(
-            "Uživatel %s se pokusil změnit stav na ROVNA SE, ale alespoň jedna bedna není ve stavu KRIVA.",
-            request.user,
+            f"Uživatel {request.user} se pokusil změnit stav na ROVNA SE, ale alespoň jedna bedna není ve stavu KRIVA."
         )
         modeladmin.message_user(request, "Některé vybrané bedny nejsou ve stavu KRIVA.", level=messages.ERROR)
         return None
@@ -1018,9 +1014,7 @@ def oznacit_rovna_se_action(modeladmin, request, queryset):
                 bedna.rovnat = RovnaniChoice.ROVNA_SE
                 bedna.save()
         logger.info(
-            "Uživatel %s změnil stav rovnání na ROVNA SE u %s beden.",
-            request.user,
-            len(bedny),
+            f"Uživatel {request.user} změnil stav rovnání na ROVNA SE u {len(bedny)} beden."
         )
         modeladmin.message_user(request, f"Změněno: {len(bedny)} beden.", level=messages.SUCCESS)
 
@@ -1069,9 +1063,7 @@ def oznacit_rovna_se_action(modeladmin, request, queryset):
     response = HttpResponse(pdf_file, content_type="application/pdf")
     response['Content-Disposition'] = f'inline; filename={filename}'
     logger.info(
-        "Uživatel %s tiskne seznam beden k rovnání (%s ks).",
-        request.user,
-        total_count,
+        f"Uživatel {request.user} tiskne seznam beden k rovnání ({total_count} ks)."
     )
     return response
 

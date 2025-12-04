@@ -201,8 +201,12 @@
                         POVRCH<br>
                         <span class="fs-07 fw-normal">Oberflächenhärte<br>[HV0,3]</span><br>
                         <span class="fs-07 fw-normal">
-                            <div style="height: 6px;"></div> 
-                            {{ bedna.zakazka.predpis.povrch }}
+                            <div style="height: 6px;"></div>
+                            {% if bedna.bedna_k_mereni_tvrdosti_a_povrchu_SSH %} 
+                                {{ bedna.zakazka.predpis.povrch }}
+                            {% else %}
+                                -
+                            {% endif %}
                         </span>                        
                     </td>
                     <td class="text-center fs-09 fw-bold" style="width: 10%;">
@@ -210,7 +214,11 @@
                         <span class="fs-07 fw-normal">Kernhärte<br>[HV0,3]</span><br>
                         <span class="fs-07 fw-normal">
                             <div style="height: 6px;"></div>
-                            {{ bedna.zakazka.predpis.jadro }}
+                            {% if bedna.bedna_k_mereni_tvrdosti_a_povrchu_SSH %} 
+                                {{ bedna.zakazka.predpis.jadro }}
+                            {% else %}
+                                -
+                            {% endif %}
                         </span>                        
                     </td>                
                 </tr>

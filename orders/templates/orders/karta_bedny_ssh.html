@@ -138,15 +138,20 @@
                                 <td class="fs-08">
                                     {{ bedna.zakazka.predpis.popis_krut|default:"Krut" }}<br>
                                     {{ bedna.zakazka.predpis.popis_krut_2|default:"" }}
-                                </td>                              
-                                <td class="fs-08">
-                                    {{ bedna.zakazka.predpis.popis_povrch|linebreaksbr }}<br>
-                                    {{ bedna.zakazka.predpis.popis_povrch_2|default:"" }}
-                                </td>
-                                <td class="fs-08">
-                                    {{ bedna.zakazka.predpis.popis_jadro|linebreaksbr }}<br>
-                                    {{ bedna.zakazka.predpis.popis_jadro_2|default:"" }}
-                                </td>
+                                </td>             
+                                {% if bedna.bedna_k_mereni_tvrdosti_a_povrchu_SSH %}                 
+                                    <td class="fs-08">                                    
+                                        {{ bedna.zakazka.predpis.popis_povrch|linebreaksbr }}<br>
+                                        {{ bedna.zakazka.predpis.popis_povrch_2|default:"" }}
+                                    </td>
+                                    <td class="fs-08">
+                                        {{ bedna.zakazka.predpis.popis_jadro|linebreaksbr }}<br>
+                                        {{ bedna.zakazka.predpis.popis_jadro_2|default:"" }}
+                                    </td>
+                                {% else %}
+                                    <td style="width: 100px"></td>
+                                    <td style="width: 100px"></td>
+                                {% endif %}
                                 <td class="fs-08">
                                     {{ bedna.zakazka.predpis.popis_vrstva|linebreaksbr }}<br>
                                     {{ bedna.zakazka.predpis.popis_vrstva_2|default:"" }}
@@ -159,12 +164,17 @@
                                 <td class="fs-08 fw-bold">
                                     {{ bedna.zakazka.predpis.krut }}
                                 </td>
-                                <td class="fs-08 fw-bold">
-                                    {{ bedna.zakazka.predpis.povrch|linebreaksbr }}
-                                </td>
-                                <td class="fs-08 fw-bold">
-                                    {{ bedna.zakazka.predpis.jadro|linebreaksbr }}
-                                </td>
+                                {% if bedna.bedna_k_mereni_tvrdosti_a_povrchu_SSH %}                 
+                                    <td class="fs-08 fw-bold">
+                                        {{ bedna.zakazka.predpis.povrch|linebreaksbr }}
+                                    </td>
+                                    <td class="fs-08 fw-bold">
+                                        {{ bedna.zakazka.predpis.jadro|linebreaksbr }}
+                                    </td>
+                                {% else %}
+                                    <td style="width: 100px"></td>
+                                    <td style="width: 100px"></td>
+                                {% endif %}
                                 <td class="fs-08 fw-bold">
                                     {{ bedna.zakazka.predpis.vrstva|linebreaksbr }}<br>
                                     {{ bedna.zakazka.predpis.vrstva_2|default:"" }}
