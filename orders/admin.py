@@ -3136,7 +3136,11 @@ class RozpracovanostAdmin(admin.ModelAdmin):
     date_hierarchy = 'cas_zaznamu'
     actions = (tisk_rozpracovanost_action,)
     inlines = [RozpracovanostBednaInline]
-    exclude = ('bedny',)
+
+    class Media:
+        js = (
+            'orders/js/admin_actions_target_blank.js',
+        )
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
@@ -3144,6 +3148,46 @@ class RozpracovanostAdmin(admin.ModelAdmin):
         return qs.annotate(_bedny_count=Count('bedny', distinct=True)).prefetch_related(
             Prefetch('bedny', queryset=bedny_qs)
         )
+
+    def get_action_choices(self, request, default_choices=models.BLANK_CHOICE_DASH):
+        """Seskupení akcí rozpracovanosti do optgroup + formátování placeholderů.
+        Skupiny:
+        - Tisk dokladů
+        - Ostatní - (delete_selected) spadne do 'Ostatní'.
+        """
+        actions = self.get_actions(request)
+        if not actions:
+            return default_choices
+
+        group_map = {
+            'tisk_rozpracovanost_action': 'Tisk dokladů',
+        }
+        order = ['Tisk dokladů']
+        grouped = {g: [] for g in order}
+
+        for name, (_func, _action_name, desc) in actions.items():
+            g = group_map.get(name, 'Ostatní')
+            # Přetypovat i případný lazy překlad na str
+            text = str(desc) if desc is not None else ''
+            # Formátovat jen pokud obsahuje placeholdery delete_selected (bez toho by % vyhodilo chybu)
+            if '%(verbose_name' in text:
+                try:
+                    text = text % {
+                        'verbose_name': self.model._meta.verbose_name,
+                        'verbose_name_plural': self.model._meta.verbose_name_plural,
+                    }
+                except Exception:
+                    # Při chybě ponechat původní text
+                    pass
+            grouped.setdefault(g, []).append((name, text))
+
+        choices = [default_choices[0]]
+        for g in order + [g for g in grouped.keys() if g not in order]:
+            opts = grouped.get(g)
+            if opts:
+                # Přidat skupinu akcí bez řazení akcí uvnitř skupiny
+                choices.append((g, opts))
+        return choices
 
     def pocet_beden(self, obj):
         return getattr(obj, '_bedny_count', obj.pocet_beden)
