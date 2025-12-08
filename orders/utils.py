@@ -129,6 +129,13 @@ def utilita_tisk_dl_a_proforma_faktury(modeladmin, request, kamion, html_path, f
     Tiskne dodací list a proforma fakturu pro vybraný kamion a daného zákazníka.
     """
     context = {"kamion": kamion}
+    if request and hasattr(request, "user") and request.user.is_authenticated:
+        user_last_name = (
+            request.user.last_name
+            or request.user.get_full_name()
+            or request.user.get_username()
+        )
+        context["user_last_name"] = user_last_name
     html_string = render_to_string(html_path, context)
     stylesheets = []
     css_path = finders.find('orders/css/pdf_shared.css')

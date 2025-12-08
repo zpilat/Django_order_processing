@@ -104,7 +104,7 @@
                             {% if forloop.first %}
                                 <td rowspan="{{ zakazka.bedny.count }}">{{ zakazka.celkova_hmotnost }}</td>
                             {% endif %}
-                            <td>{{ bedna.hmotnost }}kg</td>
+                            <td>{{ bedna.hmotnost|floatformat:1 }} kg</td>
                             <td>{{ zakazka.prumer }}x{{ zakazka.delka|floatformat:0 }}</td>
                             <td>{{ zakazka.typ_hlavy }}</td>
                             <td>{{ zakazka.popis }}</td>
@@ -129,7 +129,7 @@
                 <p class="fs-pdf-06 mb-0">Dodací podmínky:</p>
             </div>
             <div class="col-5">
-                <p class="fs-pdf-06 mb-0">{{ kamion.celkova_hmotnost_netto|multiply:1.5 }} €</p>
+                <p class="fs-pdf-06 mb-0">{{ kamion.celkova_hmotnost_netto|multiply:1.5|floatformat:2 }} €</p>
                 <p class="fs-pdf-06 mb-0">73 181 558</p>
                 <p class="fs-pdf-06 mb-0">{{ kamion.zakaznik.zkratka_statu }}</p>
                 <p class="fs-pdf-06 mb-0">DDU</p>
@@ -143,8 +143,8 @@
                 <p class="fs-pdf-06 mb-0"></p>
             </div>
             <div class="col-5">
-                <p class="fs-pdf-06 mb-0">NETTO: {{ kamion.celkova_hmotnost_netto }} kg</p>
-                <p class="fs-pdf-06 mb-0">BRUTTO: {{ kamion.celkova_hmotnost_brutto }} kg</p>
+                <p class="fs-pdf-06 mb-0">NETTO: {{ kamion.celkova_hmotnost_netto|floatformat:1 }} kg</p>
+                <p class="fs-pdf-06 mb-0">BRUTTO: {{ kamion.celkova_hmotnost_brutto|floatformat:1 }} kg</p>
             </div>
             <div class="col-5">
                 <p class="fs-pdf-06 mb-0"></p>
