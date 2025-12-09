@@ -1,0 +1,37 @@
+{% extends "orders/dodaci_list_spolecny_landscape.html" %}
+
+{% block table-header %}
+<tr class="text-center fw-bold fs-pdf-07">
+    <td class="bg-body-secondary" style="width: 6%;">Pos.</td>
+    <td class="bg-body-secondary" style="width: 10%;">Material</td>
+    <td class="bg-body-secondary" style="width: 14%;">Article</td>
+    <td class="bg-body-secondary" style="width: 11%;">Batch</td>                  
+    <td class="bg-body-secondary" style="width: 7%;">&sum;</td>                    
+    <td class="bg-body-secondary" style="width: 10%;">Weight<br>netto</td>
+    <td class="bg-body-secondary" style="width: 10%;">Weight<br>brutto</td>
+    <td class="bg-body-secondary" style="width: 9%;">Dimension</td>
+    <td class="bg-body-secondary" style="width: 5%;">Head</td>
+    <td class="bg-body-secondary" style="width: 7%;">Box Nr.</td>
+    <td class="bg-body-secondary" style="width: 11%;">Straightening</td>
+</tr>            
+{% endblock %}                
+
+{% block table-body %}
+<tr class="text-center fs-pdf-07">
+    <td>{{ pos }}</td>
+    <td>{{ bedna.material }}</td>
+    <td>{{ zakazka.popis }}</td>
+    <td>{{ zakazka.artikl }}</td>
+    {% comment %} Pokud se jedná o první bednu v zakázce,
+    zobrazí se celková hmotnost všech beden v zakázce přes všechny řádky této zakázky {% endcomment %}
+    {% if bedna.poradi_bedny == 1 %}                           
+        <td rowspan="{{ zakazka.bedny.count }}">{{ zakazka.celkova_hmotnost|floatformat:1 }}</td>
+    {% endif %}                                                        
+    <td>{{ bedna.hmotnost }}</td>
+    <td>{{ bedna.hmotnost_brutto }}</td>
+    <td>{{ zakazka.prumer }}x{{ zakazka.delka|floatformat:0 }}</td>
+    <td>{{ zakazka.typ_hlavy }}</td>
+    <td>{{ bedna.behalter_nr }}</td>
+    <td>{% if bedna.rovnat == 'VY' %}YES{% else %}--{% endif %}</td>
+</tr>                      
+{% endblock %}                    

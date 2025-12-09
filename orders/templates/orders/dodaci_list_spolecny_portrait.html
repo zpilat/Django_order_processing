@@ -80,30 +80,32 @@
                     <td class="bg-body-secondary">Artikel-Nr.</td>
                     <td class="bg-body-secondary">&sum;</td>
                     <td class="bg-body-secondary">Gewicht</td>
+                    {% block head_kopf %}{% endblock %}
                     <td class="bg-body-secondary">Abmess.</td> 
                     <td class="bg-body-secondary" style="width: 30%;">Bezeichnung</td>
                     <td class="bg-body-secondary">Behälter-Nr.</td>
                 </tr>
             </thead>
             <tbody>
-                {% for zakazka in kamion.zakazky_vydej.all %}
-                    {% for bedna in zakazka.bedny.all %}
-                        <tr class="text-center fs-pdf-07">
-                            <td>{{ forloop.counter }}</td>   
-                            <td>{{ zakazka.artikl }}</td>                             
-                            {% comment %} Pokud je první běh cyklu, zobrazí se celková hmotnost všech beden v zakázce přes všechny řádky této zakázky {% endcomment %}
-                            {% if forloop.first %}                           
-                                <td rowspan="{{ zakazka.bedny.count }}">{{ zakazka.celkova_hmotnost|floatformat:1 }} kg</td>
-                            {% endif %}
-                            <td>{{ bedna.hmotnost|floatformat:1 }} kg</td>
-                            <td>{{ zakazka.prumer }}x{{ zakazka.delka|floatformat:0 }}</td>
-                            <td>{{ zakazka.popis }}</td>
-                            <td>{{ bedna.cislo_bedny }}</td>
-                    {% endfor %}
+                {% flatten_bedny kamion.zakazky_vydej.all as bedny_list %}
+                {% for pos, bedna, zakazka in bedny_list %}
+                    <tr class="text-center fs-pdf-07">
+                        <td>{{ pos }}</td>
+                        <td>{{ zakazka.artikl }}</td>
+                        {% comment %} Pokud se jedná o první bednu v zakázce,
+                        zobrazí se celková hmotnost všech beden v zakázce přes všechny řádky této zakázky {% endcomment %}
+                        {% if bedna.poradi_bedny == 1 %}                           
+                            <td rowspan="{{ zakazka.bedny.count }}">{{ zakazka.celkova_hmotnost|floatformat:1 }} kg</td>
+                        {% endif %}
+                        <td>{{ bedna.hmotnost|floatformat:1 }} kg</td>
+                        {% block body_kopf %}{% endblock %}
+                        <td>{{ zakazka.prumer }}x{{ zakazka.delka|floatformat:0 }}</td>
+                        <td>{{ zakazka.popis }}</td>
+                        <td>{{ bedna.cislo_bedny }}</td>                                        
+                    </tr>
                 {% endfor %}
-            </tbody>
+            </tbody>            
         </table>
-
         <div class="row text-start lh-1">
             <div class="col-2">
                 <p class="fs-pdf-07 mb-0">Hodnota materiálu:</p>
