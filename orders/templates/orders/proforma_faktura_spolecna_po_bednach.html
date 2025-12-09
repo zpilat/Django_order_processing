@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+{% load static %}
+{% load custom_filters %}
+{% load i18n %}
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <title>Proforma faktura</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        @media print {
+            @page {
+                size: A4 landscape;
+                margin: 10mm;
+            }
+            body {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+        }
+        body {
+            font-size: 0.9rem;
+            font-family: 'Liberation Sans', 'Arial';
+        }
+        .table td, .table th {
+            padding: 0rem !important;
+            vertical-align: middle;
+        }
+
+        /* PDF velikosti textu */
+        .fs-80 { font-size: 8rem; }
+        .fs-50 { font-size: 5rem; }
+        .fs-35 { font-size: 3.5rem; }
+        .fs-30 { font-size: 3rem; }
+        .fs-25 { font-size: 2.5rem; }
+        .fs-20 { font-size: 2rem; }
+        .fs-17 { font-size: 1.75rem; }
+        .fs-15 { font-size: 1.5rem; }
+        .fs-12 { font-size: 1.25rem; }
+        .fs-11 { font-size: 1.125rem; }
+        .fs-10 { font-size: 1rem; }
+        .fs-09 { font-size: 0.9rem; }
+        .fs-08 { font-size: 0.8rem; }
+        .fs-07 { font-size: 0.7rem; }
+        .fs-06 { font-size: 0.6rem; }
+    </style>
+</head>
+<body>
+    <table class="table" style="width: 100%; table-layout: fixed; margin-bottom: 1mm; margin-top: 0;">
+        <tbody>
+            <tr>
+                <td class="text-start fs-10" style="width: 25%;">
+                    HPM HEAT SK, s.r.o.<br>
+                    Naftárska 1413<br>
+                    908 45 Gbely<br>
+                </td>
+                <td class="text-center fs-15 fw-bold" style="width: 50%;">
+                    HPM HEAT SK<br>
+                    <div class="fs-10 fw-normal">
+                        Proforma faktúra ({{ kamion.zakaznik.nazev }})
+                    </div>
+                    <div class="fs-10">
+                        {{ kamion.cislo_dl|nahrada_pomlcky_za_lomitko }}
+                    </div>
+                </td>
+                <td class="text-end fs-10" style="width: 25%;">
+                    Gbely dňa: {{ kamion.datum|date:"d. m. Y" }}<br>
+                </td>                
+            </tr>
+        </tbody>
+    </table>
+    <table class="table table-striped text-center fs-09" style="width: 100%; table-layout: fixed;">
+        <tbody>
+            <tr>
+                <th style="width: 5%;">Pos.</th>
+                <th style="width: 12%;">Order no.</th>
+                <th style="width: 12%;">Item no.</th>
+                <th style="width: 31%;">Description</th>                
+                <th style="width: 10%;">Dimension</th>                
+                <th style="width: 10%;">Weight</th>
+                <th style="width: 10%;">Price</th>
+                <th style="width: 10%;">Price total</th>                                            
+            </tr>
+            {% flatten_bedny kamion.zakazky_vydej.all as bedny_list %}
+            {% for pos, bedna, zakazka in bedny_list %}
+                <tr class="text-center fs-10">
+                    <td>{{ pos }}</td>
+                    <td>{{ bedna.vyrobni_zakazka }}</td>
+                    <td>{{ zakazka.artikl }}</td>
+                    <td>{{ zakazka.popis }}</td>               
+                    <td>{{ zakazka.prumer }}x{{ zakazka.delka|floatformat:0 }}</td>                         
+                    <td>{{ bedna.hmotnost|floatformat:1 }} kg</td>
+                    <td>{{ bedna.cena_za_kg|floatformat:2 }} €</td>
+                    <td>{{ bedna.cena_za_bednu|floatformat:2 }} €</td>
+                </tr>
+            {% endfor %}
+            <tr class="text-center fs-10 fw-bold">
+                <td></td>
+                <td></td>
+                <td></td>               
+                <td></td>
+                <td></td>
+                <td>{{ kamion.celkova_hmotnost_netto|floatformat:1 }} kg</td>                
+                <td></td>
+                <td>{{ kamion.cena_za_kamion_vydej|floatformat:2 }} €</td>
+            </tr>
+        </tbody>
+    </table>    
+</body>
+</html>
