@@ -104,12 +104,17 @@
                 <p class="fs-pdf-07 mb-0">&nbsp;</p>
                 <p class="fs-pdf-07 mb-0">S pozdravem:</p>                
             </div>      
-            <div class="col-1">
+            <div class="col-2">
                 <p class="mb-0">{{ kamion.celkova_hmotnost_netto|floatformat:1 }} kg</p>
                 <p class="mb-0">{{ kamion.celkova_hmotnost_brutto|floatformat:1 }} kg</p>
                 <p class="fs-pdf-07 mb-0">&nbsp;</p>            
                 <p class="fs-pdf-07 mb-0">{{ user_last_name }}</p>                
             </div>              
+            {% if kamion.poznamka %}
+            <div class="col-2">
+                <p class="fs-pdf-07 mb-0">{{ kamion.poznamka|linebreaksbr }}</p>
+            </div>
+            {% endif %}
         </div>                   
     </div>
 </body>

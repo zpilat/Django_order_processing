@@ -134,7 +134,12 @@
                 <p class="fs-pdf-07 mb-0">&nbsp;</p>            
                 <p class="fs-pdf-07 mb-0">{{ user_last_name }}</p>
             </div>
-        </div>   
+        </div>
+        {% if kamion.poznamka %}
+        <div style="margin-top: 5px; border-top: 1px solid black; padding-top: 2px;">
+            <p class="fs-pdf-07">{{ kamion.poznamka|linebreaksbr }}</p>
+        </div>
+        {% endif %}        
     </div>
 </body>
 </html>

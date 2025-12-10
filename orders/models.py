@@ -96,6 +96,7 @@ class Kamion(models.Model):
     cislo_dl = models.CharField(max_length=50, verbose_name='Číslo DL', blank=True, null=True)
     prijem_vydej = models.CharField(choices=KamionChoice.choices, max_length=1, verbose_name='Přijem/Výdej', default=KamionChoice.PRIJEM)
     poradove_cislo = models.PositiveIntegerField(verbose_name='Pořadové číslo', blank=True, null=True)
+    poznamka = models.TextField(verbose_name='Poznámka do DL', blank=True, null=True)
     history = HistoricalRecords()
 
     class Meta:
