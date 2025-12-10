@@ -103,7 +103,7 @@
                         {{ zakazka.artikl }}
                     </td>
                     <td>
-                        {{ zakazka.celkova_hmotnost|floatformat:1 }}
+                        {{ zakazka.celkova_hmotnost|floatformat:"1g" }}
                     </td>
                     <td>
                         {{ zakazka.prumer }}x{{ zakazka.delka|floatformat:0 }}
@@ -128,14 +128,14 @@
             <tr class="text-center fs-10 fw-bold">
                 <td></td>
                 <td>
-                    {{ kamion.celkova_hmotnost_netto|floatformat:1 }} kg
+                    {{ kamion.celkova_hmotnost_netto|floatformat:"1g" }} kg
                 </td>
                 <td></td>
                 <td></td>
                 <td></td>
                 <td></td>
                 <td>
-                    {{ kamion.cena_za_kamion_vydej|floatformat:2 }} €
+                    {{ kamion.cena_za_kamion_vydej|floatformat:"2g" }} €
                 </td>
                 <td>
                     {{ kamion.pocet_beden_expedovano }} ks

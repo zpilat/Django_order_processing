@@ -93,7 +93,7 @@
                 <p class="mb-0">Dodací podmínky:</p>   
             </div>
             <div class="col-2">
-                <p class="mb-0">{{ kamion.celkova_hmotnost_netto|multiply:1.5|floatformat:1 }} €</p>
+                <p class="mb-0">{{ kamion.celkova_hmotnost_netto|multiply:1.5|floatformat:"2g" }} €</p>
                 <p class="mb-0">73 181 558</p>
                 <p class="mb-0">{{ kamion.zakaznik.zkratka_statu }}</p>
                 <p class="mb-0">DDU</p>
@@ -105,8 +105,8 @@
                 <p class="fs-pdf-07 mb-0">S pozdravem:</p>                
             </div>      
             <div class="col-2">
-                <p class="mb-0">{{ kamion.celkova_hmotnost_netto|floatformat:1 }} kg</p>
-                <p class="mb-0">{{ kamion.celkova_hmotnost_brutto|floatformat:1 }} kg</p>
+                <p class="mb-0">{{ kamion.celkova_hmotnost_netto|floatformat:"1g" }} kg</p>
+                <p class="mb-0">{{ kamion.celkova_hmotnost_brutto|floatformat:"1g" }} kg</p>
                 <p class="fs-pdf-07 mb-0">&nbsp;</p>            
                 <p class="fs-pdf-07 mb-0">{{ user_last_name }}</p>                
             </div>              

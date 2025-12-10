@@ -95,7 +95,7 @@
                         {% comment %} Pokud se jedná o první bednu v zakázce,
                         zobrazí se celková hmotnost všech beden v zakázce přes všechny řádky této zakázky {% endcomment %}
                         {% if bedna.poradi_bedny == 1 %}                           
-                            <td rowspan="{{ zakazka.bedny.count }}">{{ zakazka.celkova_hmotnost|floatformat:1 }} kg</td>
+                            <td rowspan="{{ zakazka.bedny.count }}">{{ zakazka.celkova_hmotnost|floatformat:"1g" }} kg</td>
                         {% endif %}
                         <td>{{ bedna.hmotnost|floatformat:1 }} kg</td>
                         {% block body_kopf %}{% endblock %}
@@ -114,7 +114,7 @@
                 <p class="fs-pdf-07 mb-0">Dodací podmínky:</p>
             </div>
             <div class="col-2">
-                <p class="fs-pdf-07 mb-0">{{ kamion.celkova_hmotnost_netto|multiply:1.5|floatformat:2 }} €</p>
+                <p class="fs-pdf-07 mb-0">{{ kamion.celkova_hmotnost_netto|multiply:1.5|floatformat:"2g" }} €</p>
                 <p class="fs-pdf-07 mb-0">73 181 558</p>
                 <p class="fs-pdf-07 mb-0">{{ kamion.zakaznik.zkratka_statu }}</p>
                 <p class="fs-pdf-07 mb-0">DDU</p>
@@ -129,8 +129,8 @@
                 <p class="fs-pdf-07 mb-0">S pozdravem:</p>
             </div>
             <div class="col-2">
-                <p class="fs-pdf-07 mb-0">{{ kamion.celkova_hmotnost_netto|floatformat:1 }} kg</p>
-                <p class="fs-pdf-07 mb-0">{{ kamion.celkova_hmotnost_brutto|floatformat:1 }} kg</p>
+                <p class="fs-pdf-07 mb-0">{{ kamion.celkova_hmotnost_netto|floatformat:"1g" }} kg</p>
+                <p class="fs-pdf-07 mb-0">{{ kamion.celkova_hmotnost_brutto|floatformat:"1g" }} kg</p>
                 <p class="fs-pdf-07 mb-0">&nbsp;</p>            
                 <p class="fs-pdf-07 mb-0">{{ user_last_name }}</p>
             </div>

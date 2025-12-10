@@ -30,7 +30,7 @@
     {% comment %} Pokud se jedná o první bednu v zakázce,
     zobrazí se celková hmotnost všech beden v zakázce přes všechny řádky této zakázky {% endcomment %}
     {% if bedna.poradi_bedny == 1 %}
-        <td rowspan="{{ zakazka.bedny.count }}">{{ zakazka.celkova_hmotnost }}</td>
+        <td rowspan="{{ zakazka.bedny.count }}">{{ zakazka.celkova_hmotnost|floatformat:"1g" }}</td>
     {% endif %}
     <td>{{ bedna.hmotnost|floatformat:1 }} kg</td>
     <td>{{ zakazka.prumer }}x{{ zakazka.delka|floatformat:0 }}</td>
