@@ -9,6 +9,7 @@ from orders.choices import (
 	SklademZakazkyChoice
 )
 from orders import filters as F
+from orders.templatetags import custom_filters
 
 from datetime import timedelta
 
@@ -335,4 +336,13 @@ class PredpisFiltersTests(FilterTestBase):
 		qs = f.queryset(None, Predpis.objects.all())
 		self.assertIn(self.p1, qs)
 		self.assertNotIn(self.p2, qs)
+
+
+class CustomTemplateFiltersTests(TestCase):
+	def test_splitlines_splits_text(self):
+		value = "line 1\nline 2\r\nline 3"
+		self.assertEqual(custom_filters.splitlines(value), ["line 1", "line 2", "line 3"])
+
+	def test_splitlines_none_returns_empty_list(self):
+		self.assertEqual(custom_filters.splitlines(None), [])
 
