@@ -86,3 +86,10 @@ def flatten_bedny(zakazky):
             result.append((pos, bedna, zakazka))
             pos += 1
     return result
+
+@register.filter(name='splitlines')
+def splitlines(value):
+    """Rozdělí text na řádky, vhodné pro iteraci v šabloně."""
+    if value is None:
+        return []
+    return str(value).splitlines()

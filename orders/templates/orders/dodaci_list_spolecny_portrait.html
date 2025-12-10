@@ -137,7 +137,9 @@
         </div>
         {% if kamion.poznamka %}
         <div style="margin-top: 5px; border-top: 1px solid black; padding-top: 2px;">
-            <p class="fs-pdf-07">{{ kamion.poznamka|linebreaksbr }}</p>
+            {% for line in kamion.poznamka|splitlines %}
+            <p class="fs-pdf-07 mb-0">{{ line }}</p>
+            {% endfor %}
         </div>
         {% endif %}        
     </div>
