@@ -454,7 +454,29 @@ class Zakazka(models.Model):
             return cena.cena_za_kg if cena else Decimal('0.00')
         # Pro ostatní zákazníky zatím není výpočet ceny implementován
         else:
-            return Decimal('0.00')
+            return Decimal('0.00')               
+
+    @property
+    def cena_rovnani_za_zakazku(self):
+        """
+        Vrací cenu rovnání v zakázce v EUR/zakazka.
+        Výpočet se provádí jakou součet ceny rovnani za bednu pro všechny bedny v zakázce.
+        """
+        return sum(
+            (bedna.cena_rovnani_za_bednu for bedna in self.bedny.all()),
+            Decimal('0.00'),
+        )
+    
+    @property
+    def cena_tryskani_za_zakazku(self):
+        """
+        Vrací cenu tryskání v zakázce v EUR/zakazka.
+        Výpočet se provádí jakou součet ceny tryskani za bednu pro všechny bedny v zakázce.
+        """
+        return sum(
+            (bedna.cena_tryskani_za_bednu for bedna in self.bedny.all()),
+            Decimal('0.00'),
+        )
 
     # --- Delete guards ---
     def delete(self, using=None, keep_parents=False):
@@ -478,7 +500,9 @@ class Cena(models.Model):
                                         help_text='Předpisy, ke kterým se cena vztahuje. Může být více předpisů pro daný průměr a cenu.')
     delka_min = models.DecimalField(max_digits=6, decimal_places=1, verbose_name='Délka od (včetně)')
     delka_max = models.DecimalField(max_digits=6, decimal_places=1, verbose_name='Délka do (vyjma)')
-    cena_za_kg = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='Cena (EUR/kg)')
+    cena_za_kg = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='Cena kalení (EUR/kg)')
+    cena_rovnani_za_kg = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name='Cena rovnání (EUR/kg)')
+    cena_tryskani_za_kg = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name='Cena tryskání (EUR/kg)')
     history = HistoricalRecords()
 
     class Meta:
@@ -910,7 +934,95 @@ class Bedna(models.Model):
         Implementace výpočtu ceny_za_kg je závislá na zákazníkovi, pro každého zákazníka může být jiná.
         """
         return Decimal(self.cena_za_kg * self.hmotnost).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP) if self.hmotnost else Decimal('0.00')
-        
+    
+    @property
+    def cena_rovnani_za_kg(self):
+        """
+        Vrací cenu zboží v zakázce v EUR/kg.
+        Výpočet ceny se provádí na základě předpisu, délky a zákazníka.
+        Výpočet funguje pouze pro zákazníka ROT, protože se jim účtuje rovnání zvlášť.
+        1. Najde se předpis, zákazník, délka ze zakázky a zda je stav rovnání bedny VYROVNANA.
+        2. Pokud není předpis nebo zákazník nebo není zákazník ROT nebo není vyrovnaná, vrací 0.
+        3. Pokud je zákazník ROT, najde se cena rovnání v tabulce Cena podle předpisu, délky a zákazníka.
+        4. Pokud je cena nalezena, vrátí se cena_rovnani_za_kg, jinak 0.
+        5. Pokud by bylo potřeba přidat další zákazníky, je třeba upravit tento property a přidat podmínky pro nové zákazníky.
+        """
+        predpis = self.zakazka.predpis
+        zakaznik = self.zakazka.kamion_prijem.zakaznik
+        delka = self.zakazka.delka
+        vyrovnana = self.rovnat == RovnaniChoice.VYROVNANA
+
+        # Pokud není předpis nebo zákazník nebo není zákazník ROT nebo není vyrovnaná, vrací 0
+        if not predpis or not zakaznik or zakaznik.zkratka not in ['ROT'] or not vyrovnana:
+            return Decimal('0.00')
+
+        # Zákazník ROT 
+        if zakaznik.zkratka in ['ROT']:
+            cena = Cena.objects.filter(
+                predpis=predpis,
+                delka_min__lte=delka,
+                delka_max__gt=delka,
+                zakaznik=zakaznik
+            ).first()
+            if cena and cena.cena_rovnani_za_kg is not None:
+                return cena.cena_rovnani_za_kg
+            else:
+                return Decimal('0.00')     
+
+    @property
+    def cena_rovnani_za_bednu(self):
+        """
+        Vrací cenu rovnání bedny v EUR/bedna.
+        Výpočet ceny se provádí na základě property cena_rovnani_za_kg.
+        Výpočet je pro všechny zákazníky stejný, protože závisí pouze na hmotnosti bedny.
+        Implementace výpočtu cena_rovnani_za_kg je závislá na zákazníkovi, pro každého zákazníka může být jiná.
+        """
+        return Decimal(self.cena_rovnani_za_kg * self.hmotnost).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP) if self.hmotnost else Decimal('0.00')
+
+    @property
+    def cena_tryskani_za_kg(self):
+        """
+        Vrací cenu zboží v zakázce v EUR/kg.
+        Výpočet ceny se provádí na základě předpisu, délky a zákazníka.
+        Výpočet funguje pouze pro zákazníka EUR, protože se jim účtuje rovnání zvlášť.
+        1. Najde se předpis, zákazník a délka z bedny/zakázky a zda je stav tryskani bedny OTRYSKANA.
+        2. Pokud není předpis nebo zákazník nebo není zákazník EUR nebo není otryskaná, vrací 0.
+        3. Pokud je zákazník EUR, najde se cena tryskání v tabulce Cena podle předpisu, délky a zákazníka.
+        4. Pokud je cena nalezena, vrátí se cena_tryskani_za_kg, jinak 0.
+        5. Pokud by bylo potřeba přidat další zákazníky, je třeba upravit tento property a přidat podmínky pro nové zákazníky.
+        """
+        predpis = self.zakazka.predpis
+        zakaznik = self.zakazka.kamion_prijem.zakaznik
+        delka = self.zakazka.delka
+        otryskana = self.tryskat == TryskaniChoice.OTRYSKANA
+
+        # Pokud není předpis nebo zákazník nebo není zákazník EUR nebo není otryskaná, vrací 0
+        if not predpis or not zakaznik or zakaznik.zkratka not in ['EUR'] or not otryskana:
+            return Decimal('0.00')
+
+        # Zákazník Eurotec
+        if zakaznik.zkratka in ['EUR']:
+            cena = Cena.objects.filter(
+                predpis=predpis,
+                delka_min__lte=delka,
+                delka_max__gt=delka,
+                zakaznik=zakaznik
+            ).first()
+            if cena and cena.cena_tryskani_za_kg is not None:
+                return cena.cena_tryskani_za_kg
+            else:
+                return Decimal('0.00')
+
+    @property
+    def cena_tryskani_za_bednu(self):
+        """
+        Vrací cenu tryskání bedny v EUR/bedna.
+        Výpočet ceny se provádí na základě property cena_tryskani_za_kg.
+        Výpočet je pro všechny zákazníky stejný, protože závisí pouze na hmotnosti bedny.
+        Implementace výpočtu cena_tryskani_za_kg je závislá na zákazníkovi, pro každého zákazníka může být jiná.
+        """
+        return Decimal(self.cena_tryskani_za_kg * self.hmotnost).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP) if self.hmotnost else Decimal('0.00')
+
     # --- Delete guards ---
     def delete(self, using=None, keep_parents=False):
         """

@@ -2076,7 +2076,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     form = BednaAdminForm
 
     # Parametry pro zobrazení detailu v administraci (použijeme get_fieldsets)
-    readonly_fields = ('cislo_bedny', 'cena_za_kg', 'cena_za_bednu',)
+    readonly_fields = ('cislo_bedny', 'cena_za_kg', 'cena_za_bednu', 'cena_rovnani_za_kg', 'cena_rovnani_za_bednu', 'cena_tryskani_za_kg', 'cena_tryskani_za_bednu')
     autocomplete_fields = ('zakazka',)
 
     # Parametry pro zobrazení seznamu v administraci
@@ -2338,7 +2338,8 @@ class BednaAdmin(SimpleHistoryAdmin):
         - SSH, SWG, HPM, FIS: behalter_nr, dodatecne_info, dodavatel_materialu, vyrobni_zakazka
         - SPX: dodatecne_info, dodavatel_materialu
         - Pokud je vyplněna tara a je větší než 0, skryje se pole brutto
-        - Pokud není stav bedny ve STAV_BEDNY_SKLADEM, skryje se pole cena_za_kg a cena_za_bednu
+        - Pokud není stav bedny ve STAV_BEDNY_SKLADEM, skryje se pole cena_za_kg, cena_za_bednu, cena_rovnani_za_kg,
+          cena_rovnani_za_bednu, cena_tryskani_za_kg a cena_tryskani_za_bednu
         - Pokud není stav bedny ve STAV_BEDNY_PRO_NAVEZENI, skryje se pole pozice a poznamka_k_navezeni
         """
         groups = [
@@ -2358,7 +2359,8 @@ class BednaAdmin(SimpleHistoryAdmin):
                 'dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka'
             )),
             ('Prodejní cena', (
-                'cena_za_kg', 'cena_za_bednu'
+                'cena_za_kg', 'cena_za_bednu', 'cena_rovnani_za_kg', 'cena_rovnani_za_bednu',
+                'cena_tryskani_za_kg', 'cena_tryskani_za_bednu'
             )),
         ]
 
@@ -2376,9 +2378,10 @@ class BednaAdmin(SimpleHistoryAdmin):
             # Pokud je vyplněna tara a je větší než 0, skryje se pole brutto
             if obj.tara is not None and obj.tara > 0:
                 exclude_fields.append('brutto')
-            # Pokud není stav bedny ve STAV_BEDNY_SKLADEM, skryje se pole cena_za_kg a cena_za_bednu
+            # Pokud není stav bedny ve STAV_BEDNY_SKLADEM, skryje se pole cena_za_kg, cena_za_bednu, cena_rovnani_za_kg a cena_tryskani_za_kg
             if obj.stav_bedny and obj.stav_bedny not in STAV_BEDNY_SKLADEM:
-                exclude_fields.extend(['cena_za_kg', 'cena_za_bednu'])
+                exclude_fields.extend(['cena_za_kg', 'cena_za_bednu', 'cena_rovnani_za_kg', 'cena_rovnani_za_bednu',
+                                       'cena_tryskani_za_kg', 'cena_tryskani_za_bednu'])
             # Pokud není stav bedny ve STAV_BEDNY_PRO_NAVEZENI, skryje se pole pozice a poznamka_k_navezeni
             if obj.stav_bedny and obj.stav_bedny not in STAV_BEDNY_PRO_NAVEZENI:
                 exclude_fields.extend(['pozice', 'poznamka_k_navezeni'])
@@ -2939,8 +2942,9 @@ class CenaAdmin(SimpleHistoryAdmin):
     """
     Správa cen v administraci.
     """
-    list_display = ('get_zakaznik', 'popis_s_delkou', 'delka_min', 'delka_max', 'cena_za_kg', 'get_predpisy')
-    list_editable = ('delka_min', 'delka_max', 'cena_za_kg')
+    list_display = ('get_zakaznik', 'popis_s_delkou', 'delka_min', 'delka_max', 'cena_za_kg', 'cena_rovnani_za_kg',
+                    'cena_tryskani_za_kg', 'get_predpisy')
+    list_editable = ('delka_min', 'delka_max', 'cena_za_kg', 'cena_rovnani_za_kg', 'cena_tryskani_za_kg',)
     list_display_links = ('popis_s_delkou',)
     list_filter = ('zakaznik',)
     search_fields = ('popis', 'predpis__nazev',)
