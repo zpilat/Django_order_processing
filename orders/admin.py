@@ -2058,10 +2058,10 @@ class BednaAdmin(SimpleHistoryAdmin):
     Admin pro model Bedna:
     
     - Detail/inline: BednaAdminForm (omezuje stavové volby dle instance).
-    - Seznam (change_list): list_editable pro stav_bedny, tryskat, rovnat a poznamka.
+    - Seznam (change_list): list_editable je nastavován dynamicky v get_list_editable podle aktivního filtru.
     - Pro každý řádek dropdown omezí na povolené volby podle stejné logiky.
     - Číslo bedny se generuje automaticky a je readonly
-    - Akce pro tisk karet beden, označení stavu bedny, vrácení beden do stavu přijato a přijetí beden.
+    - Akce se vybírají dynamicky v get_actions.
     """
     change_list_template = 'admin/orders/bedna/change_list.html'
     poll_interval_ms = 30000
@@ -2076,7 +2076,8 @@ class BednaAdmin(SimpleHistoryAdmin):
     form = BednaAdminForm
 
     # Parametry pro zobrazení detailu v administraci (použijeme get_fieldsets)
-    readonly_fields = ('cislo_bedny', 'cena_za_kg', 'cena_za_bednu', 'cena_rovnani_za_kg', 'cena_rovnani_za_bednu', 'cena_tryskani_za_kg', 'cena_tryskani_za_bednu')
+    readonly_fields = ('cislo_bedny', 'cena_za_kg', 'cena_za_bednu', 'cena_rovnani_za_kg', 'cena_rovnani_za_bednu',
+                       'cena_tryskani_za_kg', 'cena_tryskani_za_bednu')
     autocomplete_fields = ('zakazka',)
 
     # Parametry pro zobrazení seznamu v administraci
@@ -2350,7 +2351,7 @@ class BednaAdmin(SimpleHistoryAdmin):
                 'hmotnost', 'tara', 'brutto', 'mnozstvi'
             )),
             ("Stavy bedny", (
-                'stav_bedny', 'tryskat', 'rovnat', 'pozastaveno'
+                'stav_bedny', 'tryskat', 'rovnat', 'pozastaveno', 'fakturovat'
             )),
             ("K navezení", (
                 'pozice', 'poznamka_k_navezeni'

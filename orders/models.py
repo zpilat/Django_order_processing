@@ -586,6 +586,8 @@ class Bedna(models.Model):
     odfosfatovat = models.BooleanField(default=False, verbose_name='Odfos.?')
     pozastaveno = models.BooleanField(default=False, verbose_name='Pozastaveno?',
                                        help_text='Pokud je bedna pozastavena, nelze s ní pracovat, dokud ji odpovědná osoba neuvolní.')
+    fakturovat = models.BooleanField(default=True, verbose_name='Fakturovat?',
+                                     help_text='Pokud není bedna určena k fakturaci, nebude zahrnuta do proforma faktury pro zákazníka.')    
     poznamka_k_navezeni = models.CharField(max_length=50, blank=True, null=True, verbose_name='Poznámka k navezení')
     history = HistoricalRecords()
 
