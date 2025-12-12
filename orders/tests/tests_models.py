@@ -60,6 +60,7 @@ class ModelsBase(TestCase):
             delka_min=Decimal("50"),
             delka_max=Decimal("150"),
             cena_za_kg=Decimal("2.00"),
+            cena_tryskani_za_kg=Decimal("0.50"),
         )
         cls.cena.predpis.add(cls.predpis)
         cls.zakazka = Zakazka.objects.create(
@@ -83,6 +84,55 @@ class ModelsBase(TestCase):
             hmotnost=Decimal("2"),
             tara=Decimal("1"),
             mnozstvi=1,
+        )
+
+        cls.zakaznik_rot = Zakaznik.objects.create(
+            nazev="Rot",
+            zkraceny_nazev="ROT",
+            zkratka="ROT",
+            ciselna_rada=400000,
+        )
+        cls.kamion_prijem_rot = Kamion.objects.create(
+            zakaznik=cls.zakaznik_rot,
+            datum=date.today(),
+            prijem_vydej=KamionChoice.PRIJEM,
+        )
+        cls.predpis_rot = Predpis.objects.create(
+            nazev="P-ROT",
+            skupina=1,
+            zakaznik=cls.zakaznik_rot,
+        )
+        cls.cena_rot = Cena.objects.create(
+            popis="C-ROT",
+            zakaznik=cls.zakaznik_rot,
+            delka_min=Decimal("50"),
+            delka_max=Decimal("150"),
+            cena_za_kg=Decimal("1.00"),
+            cena_rovnani_za_kg=Decimal("0.30"),
+        )
+        cls.cena_rot.predpis.add(cls.predpis_rot)
+        cls.zakazka_rot = Zakazka.objects.create(
+            kamion_prijem=cls.kamion_prijem_rot,
+            artikl="R1",
+            prumer=Decimal("8"),
+            delka=Decimal("100"),
+            predpis=cls.predpis_rot,
+            typ_hlavy=cls.typ_hlavy,
+            popis="Rotování",
+        )
+        cls.bedna_rot1 = Bedna.objects.create(
+            zakazka=cls.zakazka_rot,
+            hmotnost=Decimal("3"),
+            tara=Decimal("1"),
+            mnozstvi=1,
+            rovnat=RovnaniChoice.VYROVNANA,
+        )
+        cls.bedna_rot2 = Bedna.objects.create(
+            zakazka=cls.zakazka_rot,
+            hmotnost=Decimal("2"),
+            tara=Decimal("1"),
+            mnozstvi=1,
+            rovnat=RovnaniChoice.VYROVNANA,
         )
 
 
@@ -207,6 +257,25 @@ class TestModels(ModelsBase):
 
         # výdej: všechny bedny v kamionu výdej se počítají jako expedované
         self.assertEqual(self.kamion_vydej.pocet_beden_expedovano, 2)
+
+    def test_cena_model_stores_optional_pricing_fields(self):
+        self.assertEqual(self.cena.cena_tryskani_za_kg, Decimal("0.50"))
+        self.assertEqual(self.cena_rot.cena_rovnani_za_kg, Decimal("0.30"))
+
+    def test_bedna_tryskani_pricing_for_eur_customer(self):
+        self.bedna1.tryskat = TryskaniChoice.OTRYSKANA
+        self.bedna1.save(update_fields=["tryskat"])
+        self.bedna2.tryskat = TryskaniChoice.OTRYSKANA
+        self.bedna2.save(update_fields=["tryskat"])
+
+        self.assertEqual(self.bedna1.cena_tryskani_za_kg, Decimal("0.50"))
+        self.assertEqual(self.bedna1.cena_tryskani_za_bednu, Decimal("1.00"))
+        self.assertEqual(self.zakazka.cena_tryskani_za_zakazku, Decimal("2.00"))
+
+    def test_bedna_rovnani_pricing_for_rot_customer(self):
+        self.assertEqual(self.bedna_rot1.cena_rovnani_za_kg, Decimal("0.30"))
+        self.assertEqual(self.bedna_rot1.cena_rovnani_za_bednu, Decimal("0.90"))
+        self.assertEqual(self.zakazka_rot.cena_rovnani_za_zakazku, Decimal("1.50"))
 
     def test_kamion_hmotnost_tryskanych_beden(self):
         # ve výdeji: suma hmotností OTRYSKANA

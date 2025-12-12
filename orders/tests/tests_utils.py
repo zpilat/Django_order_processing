@@ -60,9 +60,9 @@ class UtilitaTiskDokumentaceTests(UtilsBase):
     @patch('orders.utils.render_to_string')
     @patch('orders.utils.HTML.write_pdf')
     def test_tisk_dokumentace(self, mock_pdf, mock_render):
-        mock_render.side_effect = ['H1', 'H2']
-        mock_pdf.return_value = b'PDF'
         qs = Bedna.objects.all()
+        mock_render.side_effect = ['H'] * qs.count()
+        mock_pdf.return_value = b'PDF'
         resp = utilita_tisk_dokumentace(
             None,
             self.get_request(),
