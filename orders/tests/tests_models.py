@@ -277,17 +277,17 @@ class TestModels(ModelsBase):
         self.assertEqual(self.bedna_rot1.cena_rovnani_za_bednu, Decimal("0.90"))
         self.assertEqual(self.zakazka_rot.cena_rovnani_za_zakazku, Decimal("1.50"))
 
-    def test_kamion_hmotnost_tryskanych_beden(self):
+    def test_kamion_hmotnost_otryskanych_beden(self):
         # ve výdeji: suma hmotností OTRYSKANA
         self.bedna1.tryskat = TryskaniChoice.OTRYSKANA
         self.bedna1.save()
         self.bedna2.tryskat = TryskaniChoice.OTRYSKANA
         self.bedna2.save()
-        self.assertEqual(self.kamion_vydej.hmotnost_tryskanych_beden, Decimal("4.0"))
+        self.assertEqual(self.kamion_vydej.hmotnost_otryskanych_beden, Decimal("4.0"))
 
         # v příjmu by měla vyhodit ValidationError
         with self.assertRaises(ValidationError):
-            _ = self.kamion_prijem.hmotnost_tryskanych_beden
+            _ = self.kamion_prijem.hmotnost_otryskanych_beden
 
     def test_kamion_invalid_type_raises_in_aggregates(self):
         k = Kamion.objects.create(zakaznik=self.zakaznik, datum=date.today())

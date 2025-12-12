@@ -61,7 +61,7 @@ from .forms import (
 )
 from .choices import (
     StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice, PrijemVydejChoice, SklademZakazkyChoice,
-    BARVA_SKUPINY_TZ, STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM, STAV_BEDNY_PRO_NAVEZENI
+    BARVA_SKUPINY_TZ, STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM, STAV_BEDNY_PRO_NAVEZENI,
 )
 from .utils import utilita_validate_excel_upload, build_postup_vyroby_cases
 

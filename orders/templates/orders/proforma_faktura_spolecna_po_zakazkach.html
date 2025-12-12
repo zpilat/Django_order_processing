@@ -70,33 +70,20 @@
         </tbody>
     </table>
     <table class="table table-striped text-center fs-09" style="width: 100%; table-layout: fixed;">
-        <tbody>
+        <thead>
+            {% block extra-header %}{% endblock extra-header %}
             <tr>
-                <th  style="width: 10%;">
-                    Zakázka
-                </th>
-                <th style="width: 10%;">
-                    Hmotnost
-                </th>
-                <th style="width: 10%;">
-                    Rozměr
-                </th>
-                <th style="width: 30%;">
-                    Typ
-                </th>                                
-                <th style="width: 10%;">
-                    Hlava
-                </th>
-                <th style="width: 10%;">
-                    Jed. cena
-                </th>
-                <th style="width: 10%;">
-                    Netto cena
-                </th>        
-                <th style="width: 10%;">
-                    Počet beden
-                </th>                                        
-            </tr>
+                <th>Zakázka</th>
+                <th>Hmotnost</th>
+                <th>Rozměr</th>
+                <th style="width: 30%;">Typ</th>                                
+                <th>Hlava</th>
+                <th>EUR / kg</th>
+                <th>Netto cena</th>        
+                <th>Počet beden</th>           
+                {% block rovnani_tryskani_header %}{% endblock rovnani_tryskani_header %}                
+            </tr>            
+        <tbody>
             {% for zakazka in kamion.zakazky_vydej.all %}
                 <tr class="text-center fs-10">
                     <td>
@@ -123,6 +110,7 @@
                     <td>
                         {{ zakazka.pocet_beden }}
                     </td>
+                    {% block rovnani_tryskani_table %}{% endblock rovnani_tryskani_table %}
                 </tr>
             {% endfor %}
             <tr class="text-center fs-10 fw-bold">
@@ -140,10 +128,10 @@
                 <td>
                     {{ kamion.pocet_beden_expedovano }} ks
                 </td>
+                {% block rovnani_tryskani_footer %}{% endblock rovnani_tryskani_footer %}
             </tr>
         </tbody>
     </table>    
-
     {% block extra-rovnani%}{% endblock extra-rovnani %}
     {% block extra-tryskani%}{% endblock extra-tryskani %}
 </body>

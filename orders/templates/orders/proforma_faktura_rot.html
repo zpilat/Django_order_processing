@@ -1,1 +1,33 @@
-{% include "orders/proforma_faktura_spolecna_po_zakazkach.html" %}
+{% extends "orders/proforma_faktura_spolecna_po_zakazkach.html" %}
+
+{% block extra-header %}
+    <th colspan="5"></th>
+    <th colspan="3" class="text-center" style="border-left: 1px solid black; border-right: 1px solid black;">
+        Kalení
+    </th>
+    <th colspan="3" class="text-center" style="border-right: 1px solid black; background-color: #f0f0f0;">
+        Rovnání
+    </th>        
+{% endblock extra-header %}
+
+{% block rovnani_tryskani_header %}
+    <th style="border-left: 1px solid black; background-color: #f0f0f0;">Hmotnost</th>
+    <th style="background-color: #f0f0f0;">EUR / kg</th>
+    <th style="border-right: 1px solid black; background-color: #f0f0f0;">Netto cena</th>
+{% endblock rovnani_tryskani_header %}
+
+{% block rovnani_tryskani_table %}
+    <td>{{ zakazka.hmotnost_vyrovnanych_beden|floatformat:"1"|default:"0,0" }}</td>
+    <td>{{ zakazka.cena_rovnani_za_kg|floatformat:"2"|default:"0,00" }}</td>
+    <td>{{ zakazka.cena_rovnani_za_zakazku|floatformat:"2"|default:"0,00" }}</td>
+{% endblock rovnani_tryskani_table %}
+
+{% block rovnani_tryskani_footer %}
+    <td style="border-left: 1px solid black; background-color: #f0f0f0;">
+        {{ kamion.hmotnost_vyrovnanych_beden|floatformat:"1"|default:"0,0" }} kg
+    </td>
+    <td style="background-color: #f0f0f0;"></td>    
+    <td style="border-right: 1px solid black; background-color: #f0f0f0;">
+        {{ kamion.cena_rovnani_za_kamion_vydej|floatformat:"2"|default:"0,00" }} €
+    </td>
+{% endblock rovnani_tryskani_footer %}

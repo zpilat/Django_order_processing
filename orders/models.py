@@ -21,6 +21,8 @@ from .choices import (
     AlphabetChoice,
     STAV_BEDNY_SKLADEM,
     STAV_BEDNY_ROZPRACOVANOST,
+    ZAKAZNICI_S_FAKTURACI_ROVNANI,
+    ZAKAZNICI_S_FAKTURACI_TRYSKANI,
 )
 
 import logging
@@ -152,19 +154,50 @@ class Kamion(models.Model):
         """
         Vrací cenu za kamion výdej na základě zákazníka, předpisu a délky, pouze pro kamionu výdej.
         Celkovou cenu vypočte podle property cena_za_zakazku pro jednotlivé zakázky v kamionu.
-        Všechny zakázky musí mít nenulovou cenu_za_zakazku, jinak je celková cena 0, aby bylo jasné, že něco chybí.
         Pokud není cena nalezena, vrací 0.
         """
         # Získá všechny zakázky obsažené v kamionu.        
         zakazky = self.zakazky_vydej.all()
         if zakazky.exists() and self.prijem_vydej == KamionChoice.VYDEJ:
-            # Zkontroluje, zda všechny zakázky mají cenu_za_zakazku nastavenou a větší než 0. Pokud ne, vrací 0.
-            if all(zakazka.cena_za_zakazku and zakazka.cena_za_zakazku > 0 for zakazka in zakazky):
-                return Decimal(
-                    sum(
-                        Decimal(zakazka.cena_za_zakazku) for zakazka in zakazky
-                    ).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-                )
+            return Decimal(
+                sum(
+                    Decimal(zakazka.cena_za_zakazku) for zakazka in zakazky
+                ).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            )
+        return Decimal('0.00')
+    
+    @property
+    def cena_rovnani_za_kamion_vydej(self):
+        """
+        Vrací cenu rovnání za kamion výdej na základě zákazníka, předpisu a délky, pouze pro kamionu výdej.
+        Celkovou cenu vypočte podle property cena_rovnani_za_zakazku pro jednotlivé zakázky v kamionu.
+        Pokud není cena nalezena, vrací 0.
+        """
+        # Získá všechny zakázky obsažené v kamionu.        
+        zakazky = self.zakazky_vydej.all()
+        if zakazky.exists() and self.prijem_vydej == KamionChoice.VYDEJ:
+            return Decimal(
+                sum(
+                    Decimal(zakazka.cena_rovnani_za_zakazku) for zakazka in zakazky
+                ).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            )
+        return Decimal('0.00')
+    
+    @property
+    def cena_tryskani_za_kamion_vydej(self):
+        """
+        Vrací cenu tryskání za kamion výdej na základě zákazníka, předpisu a délky, pouze pro kamionu výdej.
+        Celkovou cenu vypočte podle property cena_tryskani_za_zakazku pro jednotlivé zakázky v kamionu.
+        Pokud není cena nalezena, vrací 0.
+        """
+        # Získá všechny zakázky obsažené v kamionu.        
+        zakazky = self.zakazky_vydej.all()
+        if zakazky.exists() and self.prijem_vydej == KamionChoice.VYDEJ:
+            return Decimal(
+                sum(
+                    Decimal(zakazka.cena_tryskani_za_zakazku) for zakazka in zakazky
+                ).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            )
         return Decimal('0.00')
 
     @property
@@ -198,7 +231,7 @@ class Kamion(models.Model):
         raise ValidationError(_("Neplatný typ kamionu. Musí být buď 'Přijem' nebo 'Výdej'."))
 
     @property
-    def hmotnost_tryskanych_beden(self):
+    def hmotnost_otryskanych_beden(self):
         """
         Vrací pro kamion výdej celkovou hmotnost beden, které mají stav tryskání: otryskaná.
         """
@@ -206,7 +239,19 @@ class Kamion(models.Model):
             return Bedna.objects.filter(
                 zakazka__kamion_vydej=self,
                 tryskat=TryskaniChoice.OTRYSKANA
-            ).aggregate(suma=Sum('hmotnost'))['suma'] or 0
+            ).aggregate(suma=Sum('hmotnost'))['suma'] or Decimal('0.0')
+        raise ValidationError(_("Neplatný typ kamionu. Musí být buď 'Přijem' nebo 'Výdej'."))
+
+    @property
+    def hmotnost_vyrovnanych_beden(self):
+        """
+        Vrací pro kamion výdej celkovou hmotnost beden, které mají stav rovnání: vyrovnaná.
+        """
+        if self.prijem_vydej == KamionChoice.VYDEJ:
+            return Bedna.objects.filter(
+                zakazka__kamion_vydej=self,
+                rovnat=RovnaniChoice.VYROVNANA
+            ).aggregate(suma=Sum('hmotnost'))['suma'] or Decimal('0.0')
         raise ValidationError(_("Neplatný typ kamionu. Musí být buď 'Přijem' nebo 'Výdej'."))
 
     def get_admin_url(self):
@@ -409,31 +454,14 @@ class Zakazka(models.Model):
         return match.group(1).strip() if match else self.popis
 
     @property
-    def cena_za_zakazku(self):
-        """
-        Vrací cenu zboží v zakázce v EUR/bednu.
-        Výpočet ceny se provádí na základě property cena_za_kg a celkové hmotnosti zakázky.
-        Výpočet ceny nezávisí na zákazníkovi, narozdíl od ceny za kg, kde pro různé zákazníky může být výpočet ceny různý.
-        Pokud není cena nebo hmotnost větší než 0, vrací 0.
-        """
-        if self.celkova_hmotnost > 0 and self.cena_za_kg > 0:
-            return Decimal(
-                (self.celkova_hmotnost * self.cena_za_kg).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-            )
-        return Decimal('0.00')
-
-    @property
     def cena_za_kg(self):
         """
         Vrací cenu zboží v zakázce v EUR/kg.
         Výpočet ceny se provádí na základě předpisu, délky a zákazníka.
-        Zatím výpočet funguje pouze pro zákazníky Eurotec a SPAX.
         1. Najde se předpis, zákazník a délka z bedny/zakázky.
         2. Pokud není předpis nebo zákazník, vrací 0.
-        3. Pokud je zákazník Eurotec nebo SPAX, najde se cena v tabulce Cena podle předpisu, délky a zákazníka.
+        3. Najde se cena v tabulce Cena podle předpisu, délky a zákazníka.
         4. Pokud je cena nalezena, vrátí se cena_za_kg, jinak 0.
-        5. Pro ostatní zákazníky zatím není výpočet ceny implementován, vrací 0.
-        6. Pokud by bylo potřeba přidat další zákazníky, je třeba upravit tento property a přidat podmínky pro nové zákazníky.
         """
         predpis = self.predpis
         zakaznik = self.kamion_prijem.zakaznik
@@ -443,18 +471,58 @@ class Zakazka(models.Model):
         if not predpis or not zakaznik:
             return Decimal('0.00')
 
-        # Zákazník Eurotec a SPAX - stejný způsob výpočtu ceny
-        if zakaznik.zkratka in ['EUR', 'SPX']:
-            cena = Cena.objects.filter(
-                predpis=predpis,
-                delka_min__lte=delka,
-                delka_max__gt=delka,
-                zakaznik=zakaznik
-            ).first()
-            return cena.cena_za_kg if cena else Decimal('0.00')
-        # Pro ostatní zákazníky zatím není výpočet ceny implementován
+        cena = Cena.objects.filter(
+            predpis=predpis,
+            delka_min__lte=delka,
+            delka_max__gt=delka,
+            zakaznik=zakaznik
+        ).first()
+        return cena.cena_za_kg if cena else Decimal('0.00')
+           
+    @property
+    def cena_za_zakazku(self):
+        """
+        Vrací cenu zboží v zakázce v EUR/bednu.
+        Výpočet ceny se provádí na základě property cena_za_kg a celkové hmotnosti zakázky.
+        Pokud není cena nebo hmotnost větší než 0, vrací 0.
+        """
+        if self.celkova_hmotnost > 0 and self.cena_za_kg > 0:
+            return Decimal(
+                (self.celkova_hmotnost * self.cena_za_kg).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            )
+        return Decimal('0.00')
+
+    @property
+    def cena_rovnani_za_kg(self):
+        """
+        Vrací cenu za rovnání v zakázce v EUR/kg.
+        Výpočet ceny se provádí na základě předpisu, délky a zákazníka.
+        Výpočet funguje pouze pro zákazníky uvedené v seznamu ZAKAZNICI_S_FAKTURACI_ROVNANI, protože se jim účtuje rovnání zvlášť.
+        1. Najde se předpis, zákazník a délka ze zakázky.
+        2. Pokud není předpis nebo zákazník nebo není zákazník v seznamu ZAKAZNICI_S_FAKTURACI_ROVNANI, vrací 0.
+        3. Najde se cena rovnání v tabulce Cena podle předpisu, délky a zákazníka.
+        4. Pokud je cena nalezena, vrátí se cena_rovnani_za_kg, jinak 0.
+        """
+        predpis = self.predpis
+        zakaznik = self.kamion_prijem.zakaznik
+        delka = self.delka
+
+        # Pokud není předpis nebo zákazník nebo není zákazník v seznamu ZAKAZNICI_S_FAKTURACI_ROVNANI, vrací 0
+        if not predpis or not zakaznik or zakaznik.zkratka not in ZAKAZNICI_S_FAKTURACI_ROVNANI:
+            return Decimal('0.00')
+
+        # Zákazníci s fakturací rovnání
+        cena = Cena.objects.filter(
+            predpis=predpis,
+            delka_min__lte=delka,
+            delka_max__gt=delka,
+            zakaznik=zakaznik
+        ).first()
+
+        if cena and cena.cena_rovnani_za_kg is not None:
+            return cena.cena_rovnani_za_kg
         else:
-            return Decimal('0.00')               
+            return Decimal('0.00')    
 
     @property
     def cena_rovnani_za_zakazku(self):
@@ -466,7 +534,39 @@ class Zakazka(models.Model):
             (bedna.cena_rovnani_za_bednu for bedna in self.bedny.all()),
             Decimal('0.00'),
         )
-    
+
+    @property
+    def cena_tryskani_za_kg(self):
+        """
+        Vrací cenu tryskání zboží v zakázce v EUR/kg.
+        Výpočet ceny se provádí na základě předpisu, délky a zákazníka.
+        Výpočet funguje pouze pro zákazníky uvedené v seznamu ZAKAZNICI_S_FAKTURACI_TRYSKANI, protože se jim účtuje tryskání zvlášť.
+        1. Najde se předpis, zákazník a délka z bedny/zakázky.
+        2. Pokud není předpis nebo zákazník nebo není zákazník v seznamu ZAKAZNICI_S_FAKTURACI_TRYSKANI, vrací 0.
+        3. Najde se cena tryskání v tabulce Cena podle předpisu, délky a zákazníka.
+        4. Pokud je cena nalezena, vrátí se cena_tryskani_za_kg, jinak 0.
+        """
+        predpis = self.predpis
+        zakaznik = self.kamion_prijem.zakaznik
+        delka = self.delka
+
+        # Pokud není předpis nebo zákazník nebo není zákazník v seznamu ZAKAZNICI_S_FAKTURACI_TRYSKANI, vrací 0
+        if not predpis or not zakaznik or zakaznik.zkratka not in ZAKAZNICI_S_FAKTURACI_TRYSKANI:
+            return Decimal('0.00')
+
+        # Zákazníci s fakturací tryskání
+        cena = Cena.objects.filter(
+            predpis=predpis,
+            delka_min__lte=delka,
+            delka_max__gt=delka,
+            zakaznik=zakaznik
+        ).first()
+        
+        if cena and cena.cena_tryskani_za_kg is not None:
+            return cena.cena_tryskani_za_kg
+        else:
+            return Decimal('0.00')
+            
     @property
     def cena_tryskani_za_zakazku(self):
         """
@@ -477,6 +577,24 @@ class Zakazka(models.Model):
             (bedna.cena_tryskani_za_bednu for bedna in self.bedny.all()),
             Decimal('0.00'),
         )
+
+    @property
+    def hmotnost_vyrovnanych_beden(self):
+        """
+        Vrací celkovou hmotnost vyrovnaných beden v zakázce.
+        """
+        return self.bedny.filter(
+            rovnat=RovnaniChoice.VYROVNANA
+        ).aggregate(suma=Sum('hmotnost'))['suma'] or Decimal('0.0')
+    
+    @property
+    def hmotnost_otryskanych_beden(self):
+        """
+        Vrací celkovou hmotnost otryskaných beden v zakázce.
+        """
+        return self.bedny.filter(
+            tryskat=TryskaniChoice.OTRYSKANA
+        ).aggregate(suma=Sum('hmotnost'))['suma'] or Decimal('0.0')
 
     # --- Delete guards ---
     def delete(self, using=None, keep_parents=False):
@@ -489,6 +607,8 @@ class Zakazka(models.Model):
                 [self],
             )
         return super().delete(using=using, keep_parents=keep_parents)
+    
+
 class Cena(models.Model):
     """
     Model pro cenu zakázky.
@@ -922,8 +1042,7 @@ class Bedna(models.Model):
     def cena_za_kg(self):
         """
         Vrací cenu zboží v bedně v EUR/kg.
-        Výpočet pouze přebírá hodnotu z property cena_za_kg zakázky.
-        Implementace výpočtu ceny_za_kg je závislá na zákazníkovi, pro každého zákazníka může být jiná.
+        Pouze přebírá hodnotu z property zakazka.cena_za_kg.
         """
         return self.zakazka.cena_za_kg
 
@@ -932,96 +1051,46 @@ class Bedna(models.Model):
         """
         Vrací cenu zboží v bedně v EUR/bednu.
         Výpočet ceny se provádí na základě property cena_za_kg.
-        Výpočet je pro všechny zákazníky stejný, protože závisí pouze na hmotnosti bedny.
-        Implementace výpočtu ceny_za_kg je závislá na zákazníkovi, pro každého zákazníka může být jiná.
         """
         return Decimal(self.cena_za_kg * self.hmotnost).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP) if self.hmotnost else Decimal('0.00')
     
     @property
     def cena_rovnani_za_kg(self):
         """
-        Vrací cenu zboží v zakázce v EUR/kg.
-        Výpočet ceny se provádí na základě předpisu, délky a zákazníka.
-        Výpočet funguje pouze pro zákazníka ROT, protože se jim účtuje rovnání zvlášť.
-        1. Najde se předpis, zákazník, délka ze zakázky a zda je stav rovnání bedny VYROVNANA.
-        2. Pokud není předpis nebo zákazník nebo není zákazník ROT nebo není vyrovnaná, vrací 0.
-        3. Pokud je zákazník ROT, najde se cena rovnání v tabulce Cena podle předpisu, délky a zákazníka.
-        4. Pokud je cena nalezena, vrátí se cena_rovnani_za_kg, jinak 0.
-        5. Pokud by bylo potřeba přidat další zákazníky, je třeba upravit tento property a přidat podmínky pro nové zákazníky.
+        Vrací cenu zboží v bedně v EUR/kg.
+        Přebírá se hodnotu z property cena_rovnani_za_kg zakázky, ale pouze pokud je bedna vyrovnaná, jinak je hodnota 0.
         """
-        predpis = self.zakazka.predpis
-        zakaznik = self.zakazka.kamion_prijem.zakaznik
-        delka = self.zakazka.delka
         vyrovnana = self.rovnat == RovnaniChoice.VYROVNANA
 
-        # Pokud není předpis nebo zákazník nebo není zákazník ROT nebo není vyrovnaná, vrací 0
-        if not predpis or not zakaznik or zakaznik.zkratka not in ['ROT'] or not vyrovnana:
-            return Decimal('0.00')
-
-        # Zákazník ROT 
-        if zakaznik.zkratka in ['ROT']:
-            cena = Cena.objects.filter(
-                predpis=predpis,
-                delka_min__lte=delka,
-                delka_max__gt=delka,
-                zakaznik=zakaznik
-            ).first()
-            if cena and cena.cena_rovnani_za_kg is not None:
-                return cena.cena_rovnani_za_kg
-            else:
-                return Decimal('0.00')     
+        if vyrovnana:
+            return self.zakazka.cena_rovnani_za_kg
+        return Decimal('0.00')  
 
     @property
     def cena_rovnani_za_bednu(self):
         """
         Vrací cenu rovnání bedny v EUR/bedna.
         Výpočet ceny se provádí na základě property cena_rovnani_za_kg.
-        Výpočet je pro všechny zákazníky stejný, protože závisí pouze na hmotnosti bedny.
-        Implementace výpočtu cena_rovnani_za_kg je závislá na zákazníkovi, pro každého zákazníka může být jiná.
         """
         return Decimal(self.cena_rovnani_za_kg * self.hmotnost).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP) if self.hmotnost else Decimal('0.00')
 
     @property
     def cena_tryskani_za_kg(self):
         """
-        Vrací cenu zboží v zakázce v EUR/kg.
-        Výpočet ceny se provádí na základě předpisu, délky a zákazníka.
-        Výpočet funguje pouze pro zákazníka EUR, protože se jim účtuje rovnání zvlášť.
-        1. Najde se předpis, zákazník a délka z bedny/zakázky a zda je stav tryskani bedny OTRYSKANA.
-        2. Pokud není předpis nebo zákazník nebo není zákazník EUR nebo není otryskaná, vrací 0.
-        3. Pokud je zákazník EUR, najde se cena tryskání v tabulce Cena podle předpisu, délky a zákazníka.
-        4. Pokud je cena nalezena, vrátí se cena_tryskani_za_kg, jinak 0.
-        5. Pokud by bylo potřeba přidat další zákazníky, je třeba upravit tento property a přidat podmínky pro nové zákazníky.
+        Vrací cenu zboží v bedně v EUR/kg.
+        Přebírá se hodnotu z property cena_tryskani_za_kg zakázky, ale pouze pokud je bedna otryskaná, jinak je hodnota 0.
         """
-        predpis = self.zakazka.predpis
-        zakaznik = self.zakazka.kamion_prijem.zakaznik
-        delka = self.zakazka.delka
         otryskana = self.tryskat == TryskaniChoice.OTRYSKANA
 
-        # Pokud není předpis nebo zákazník nebo není zákazník EUR nebo není otryskaná, vrací 0
-        if not predpis or not zakaznik or zakaznik.zkratka not in ['EUR'] or not otryskana:
-            return Decimal('0.00')
-
-        # Zákazník Eurotec
-        if zakaznik.zkratka in ['EUR']:
-            cena = Cena.objects.filter(
-                predpis=predpis,
-                delka_min__lte=delka,
-                delka_max__gt=delka,
-                zakaznik=zakaznik
-            ).first()
-            if cena and cena.cena_tryskani_za_kg is not None:
-                return cena.cena_tryskani_za_kg
-            else:
-                return Decimal('0.00')
+        if otryskana:
+            return self.zakazka.cena_tryskani_za_kg
+        return Decimal('0.00')
 
     @property
     def cena_tryskani_za_bednu(self):
         """
         Vrací cenu tryskání bedny v EUR/bedna.
         Výpočet ceny se provádí na základě property cena_tryskani_za_kg.
-        Výpočet je pro všechny zákazníky stejný, protože závisí pouze na hmotnosti bedny.
-        Implementace výpočtu cena_tryskani_za_kg je závislá na zákazníkovi, pro každého zákazníka může být jiná.
         """
         return Decimal(self.cena_tryskani_za_kg * self.hmotnost).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP) if self.hmotnost else Decimal('0.00')
 

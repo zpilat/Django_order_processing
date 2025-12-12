@@ -72,6 +72,19 @@ class ActionsBase(TestCase):
             kwargs['pozice'] = pozice
         return Bedna.objects.create(**kwargs)
 
+    def _add_cena(self, zakaznik, predpis, *, cena_za_kg, cena_rovnani=None, cena_tryskani=None):
+        cena = Cena.objects.create(
+            popis='Test cena',
+            zakaznik=zakaznik,
+            delka_min=Decimal('0.0'),
+            delka_max=Decimal('100.0'),
+            cena_za_kg=Decimal(str(cena_za_kg)),
+            cena_rovnani_za_kg=None if cena_rovnani is None else Decimal(str(cena_rovnani)),
+            cena_tryskani_za_kg=None if cena_tryskani is None else Decimal(str(cena_tryskani)),
+        )
+        cena.predpis.add(predpis)
+        return cena
+
     def get_request(self, method='get', data=None):
         req = getattr(self.factory, method)('/', data or {})
         req.user = self.user
@@ -419,8 +432,17 @@ class ActionsTests(ActionsBase):
     @patch('orders.actions.utilita_tisk_dl_a_proforma_faktury')
     def test_tisk_proforma_faktury_kamionu_action(self, mock_util):
         mock_util.return_value = HttpResponse('ok')
+        self._add_cena(
+            self.zakaznik,
+            self.predpis,
+            cena_za_kg='2.50',
+            cena_tryskani='0.80',
+        )
+        self.zakazka.kamion_vydej = self.kamion_vydej
+        self.zakazka.save()
         resp = actions.tisk_proforma_faktury_kamionu_action(self.site, self.get_request(), Kamion.objects.filter(id=self.kamion_vydej.id))
         self.assertIsInstance(resp, HttpResponse)
+        mock_util.assert_called_once()
 
     def test_tisk_proforma_faktury_kamionu_action_not_vydej_error(self):
         admin_obj = self._messaging_admin()
@@ -429,6 +451,59 @@ class ActionsTests(ActionsBase):
         self.assertIsNone(resp)
         msgs = self._messages_texts(req)
         self.assertTrue(any('Tisk proforma faktury je možný pouze pro kamiony výdej' in m for m in msgs))
+
+    def test_tisk_proforma_faktury_kamionu_action_missing_pricing_error(self):
+        admin_obj = self._messaging_admin()
+        self.zakazka.kamion_vydej = self.kamion_vydej
+        self.zakazka.save()
+        req = self.get_request('get')
+        resp = actions.tisk_proforma_faktury_kamionu_action(admin_obj, req, Kamion.objects.filter(id=self.kamion_vydej.id))
+        self.assertIsNone(resp)
+        msgs = self._messages_texts(req)
+        self.assertTrue(any('cena za kg' in m for m in msgs))
+        self.assertTrue(any('cena tryskání' in m for m in msgs))
+
+    def test_tisk_proforma_faktury_kamionu_action_missing_rovnani_error(self):
+        admin_obj = self._messaging_admin()
+        zak_rot = Zakaznik.objects.create(
+            nazev='ROT s.r.o.',
+            zkraceny_nazev='ROT',
+            zkratka='ROT',
+            ciselna_rada=200000,
+        )
+        kamion_prijem_rot = Kamion.objects.create(zakaznik=zak_rot, datum=date.today())
+        kamion_vydej_rot = Kamion.objects.create(
+            zakaznik=zak_rot,
+            datum=date.today(),
+            prijem_vydej=KamionChoice.VYDEJ,
+        )
+        predpis_rot = Predpis.objects.create(nazev='Predpis ROT', skupina=1, zakaznik=zak_rot)
+        zakazka_rot = Zakazka.objects.create(
+            kamion_prijem=kamion_prijem_rot,
+            kamion_vydej=kamion_vydej_rot,
+            artikl='ROT-1',
+            prumer=Decimal('1.0'),
+            delka=Decimal('1.0'),
+            predpis=predpis_rot,
+            typ_hlavy=self.typ_hlavy,
+            popis='rot',
+        )
+        self._add_cena(
+            zak_rot,
+            predpis_rot,
+            cena_za_kg='5.00',
+            cena_rovnani='0.00',
+        )
+
+        req = self.get_request('get')
+        resp = actions.tisk_proforma_faktury_kamionu_action(
+            admin_obj,
+            req,
+            Kamion.objects.filter(id=kamion_vydej_rot.id),
+        )
+        self.assertIsNone(resp)
+        msgs = self._messages_texts(req)
+        self.assertTrue(any('cena rovnání' in m for m in msgs))
 
     @patch('orders.actions.utilita_tisk_dokumentace')
     def test_tisk_karet_beden_kamionu_action(self, mock_util):

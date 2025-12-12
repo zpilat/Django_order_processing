@@ -1,6 +1,9 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
+ZAKAZNICI_S_FAKTURACI_ROVNANI = ['ROT']
+ZAKAZNICI_S_FAKTURACI_TRYSKANI = ['EUR']
+
 class StavBednyChoice(models.TextChoices):
     NEPRIJATO = 'NE', 'Nepřijato'
     PRIJATO = 'PR', 'Přijato'

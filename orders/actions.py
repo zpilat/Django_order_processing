@@ -36,6 +36,8 @@ from .choices import (
     TryskaniChoice,
     STAV_BEDNY_SKLADEM,
     STAV_BEDNY_ROZPRACOVANOST,
+    ZAKAZNICI_S_FAKTURACI_ROVNANI,
+    ZAKAZNICI_S_FAKTURACI_TRYSKANI,
 )
 
 import logging
@@ -90,6 +92,37 @@ def _abort_if_kamiony_maji_pozastavene_bedny(modeladmin, request, queryset, acti
         modeladmin.message_user(request, message, level=messages.ERROR)
         return True
     return False
+
+
+def _validate_proforma_pricing(kamion):
+    """Vrátí seznam chybových hlášek pro zakázky, které nemají požadované ceny pro tisk proformy."""
+    errors = []
+    zakazky = kamion.zakazky_vydej.select_related('kamion_prijem__zakaznik').all()
+    for zakazka in zakazky:
+        label = f"{zakazka.artikl or zakazka.pk}"
+        kamion_prijem = getattr(zakazka, 'kamion_prijem', None)
+        zakaznik_prijem = getattr(kamion_prijem, 'zakaznik', None) if kamion_prijem else None
+        if not zakaznik_prijem:
+            errors.append(f"Zakázka {label}: chybí kamion příjem se zákazníkem pro výpočet cen.")
+            continue
+
+        customer_code = (zakaznik_prijem.zkratka or '').strip().upper()
+
+        cena_za_kg = zakazka.cena_za_kg
+        if cena_za_kg is None or cena_za_kg <= 0:
+            errors.append(f"Zakázka {label}: cena za kg musí být větší než 0.")
+
+        if customer_code in ZAKAZNICI_S_FAKTURACI_ROVNANI:
+            cena_rovnani = zakazka.cena_rovnani_za_kg
+            if cena_rovnani is None or cena_rovnani <= 0:
+                errors.append(f"Zakázka {label}: cena rovnání za kg musí být větší než 0.")
+
+        if customer_code in ZAKAZNICI_S_FAKTURACI_TRYSKANI:
+            cena_tryskani = zakazka.cena_tryskani_za_kg
+            if cena_tryskani is None or cena_tryskani <= 0:
+                errors.append(f"Zakázka {label}: cena tryskání za kg musí být větší než 0.")
+
+    return errors
 
 def _format_decimal(value):
     """Vrátí číslo s desetinnou čárkou; prázdný řetězec pro None."""
@@ -1688,6 +1721,18 @@ def tisk_proforma_faktury_kamionu_action(modeladmin, request, queryset):
 
     zakaznik_zkratka = kamion.zakaznik.zkratka
     if zakaznik_zkratka:
+        validation_errors = _validate_proforma_pricing(kamion)
+        if validation_errors:
+            joined = '; '.join(validation_errors)
+            logger.warning(
+                f"Proforma faktura pro kamion {kamion.cislo_dl or kamion} nelze vytisknout kvůli neplatným cenám: {joined}",
+            )
+            modeladmin.message_user(
+                request,
+                f"Nelze tisknout proforma fakturu: {joined}",
+                level=messages.ERROR,
+            )
+            return None
         html_path = f"orders/proforma_faktura_{zakaznik_zkratka.lower()}.html"
         filename = f'proforma_faktura_{kamion.cislo_dl}.pdf'
         response = utilita_tisk_dl_a_proforma_faktury(modeladmin, request, kamion, html_path, filename)
