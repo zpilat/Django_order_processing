@@ -1706,6 +1706,8 @@ def tisk_proforma_faktury_kamionu_action(modeladmin, request, queryset):
     Vytiskne proforma fakturu pro vybraný kamion do PDF.
     Předpokládá, že je vybrán pouze jeden kamion a to kamion s příznakem výdej.
     Pokud je vybráno více kamionů, zobrazí se chybová zpráva.
+    Pokud kamion nemá přiřazeného zákazníka nebo zákazník nemá zkratku, zobrazí se chybová zpráva.
+    Validuje ceny na zakázkách kamionu před tiskem. Pokud jsou neplatné ceny, zobrazí se chybová zpráva.
     """
     # Pokud je vybráno více kamionů, zobrazí se chybová zpráva
     if queryset.count() != 1:
