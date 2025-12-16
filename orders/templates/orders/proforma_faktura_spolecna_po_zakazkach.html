@@ -90,7 +90,7 @@
                         {{ zakazka.artikl }}
                     </td>
                     <td>
-                        {{ zakazka.celkova_hmotnost|floatformat:"1g" }}
+                        {{ zakazka.celkova_hmotnost_fakturovanych|floatformat:"1g" }}
                     </td>
                     <td>
                         {{ zakazka.prumer }}x{{ zakazka.delka|floatformat:0 }}
@@ -108,7 +108,7 @@
                         {{ zakazka.cena_za_zakazku|floatformat:2 }}
                     </td>
                     <td>
-                        {{ zakazka.pocet_beden }}
+                        {{ zakazka.pocet_beden_fakturovanych }}
                     </td>
                     {% block rovnani_tryskani_table %}{% endblock rovnani_tryskani_table %}
                 </tr>
@@ -116,7 +116,7 @@
             <tr class="text-center fs-10 fw-bold">
                 <td></td>
                 <td>
-                    {{ kamion.celkova_hmotnost_netto|floatformat:"1g" }} kg
+                    {{ kamion.celkova_hmotnost_fakturovanych_netto|floatformat:"1g" }} kg
                 </td>
                 <td></td>
                 <td></td>
@@ -126,7 +126,7 @@
                     {{ kamion.cena_za_kamion_vydej|floatformat:"2g" }} €
                 </td>
                 <td>
-                    {{ kamion.pocet_beden_expedovano }} ks
+                    {{ kamion.pocet_beden_expedovano_fakturovanych }} ks
                 </td>
                 {% block rovnani_tryskani_footer %}{% endblock rovnani_tryskani_footer %}
             </tr>

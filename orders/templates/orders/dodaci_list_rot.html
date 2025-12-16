@@ -17,7 +17,7 @@
 {% endblock %}                
 
 {% block table-body %}
-<tr class="text-center fs-pdf-07">
+<tr class="text-center fs-pdf-07 {% if bedna.fakturovat == False %}table-warning{% endif %}">
     <td>{{ pos }}</td>
     <td>{{ bedna.material }}</td>
     <td>{{ zakazka.popis }}</td>
@@ -34,4 +34,8 @@
     <td>{{ bedna.behalter_nr }}</td>
     <td>{% if bedna.rovnat == 'VY' %}YES{% else %}--{% endif %}</td>
 </tr>                      
-{% endblock %}                    
+{% endblock %}       
+
+{% block text-fakturace %}
+Not for invoicing
+{% endblock %}

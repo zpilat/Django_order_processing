@@ -121,12 +121,33 @@ class Kamion(models.Model):
         if self.prijem_vydej == KamionChoice.VYDEJ:
             return Bedna.objects.filter(
                 zakazka__kamion_vydej=self
-            ).aggregate(suma=Sum('hmotnost'))['suma'] or 0
+            ).aggregate(suma=Sum('hmotnost'))['suma'] or Decimal('0.0')
         # Pokud je kamion pro příjem, vrací hmotnost beden spojených s příjmem.
         elif self.prijem_vydej == KamionChoice.PRIJEM:
             return Bedna.objects.filter(
                 zakazka__kamion_prijem=self
-            ).aggregate(suma=Sum('hmotnost'))['suma'] or 0
+            ).aggregate(suma=Sum('hmotnost'))['suma'] or Decimal('0.0')
+        else:
+            raise ValidationError(_("Neplatný typ kamionu. Musí být buď 'Přijem' nebo 'Výdej'."))
+        
+    @property
+    def celkova_hmotnost_fakturovanych_netto(self):
+        """
+        Vrací celkovou hmotnost netto všech beden spojených s tímto kamionem,
+        které jsou označeny jako fakturovat == True.
+        """
+        # Pokud je kamion pro výdej, vrací hmotnost beden spojených s výdejem.
+        if self.prijem_vydej == KamionChoice.VYDEJ:
+            return Bedna.objects.filter(
+                zakazka__kamion_vydej=self,
+                fakturovat=True
+            ).aggregate(suma=Sum('hmotnost'))['suma'] or Decimal('0.0')
+        # Pokud je kamion pro příjem, vrací hmotnost beden spojených s příjmem.
+        elif self.prijem_vydej == KamionChoice.PRIJEM:
+            return Bedna.objects.filter(
+                zakazka__kamion_prijem=self,
+                fakturovat=True
+            ).aggregate(suma=Sum('hmotnost'))['suma'] or Decimal('0.0')
         else:
             raise ValidationError(_("Neplatný typ kamionu. Musí být buď 'Přijem' nebo 'Výdej'."))
     
@@ -139,12 +160,12 @@ class Kamion(models.Model):
         if self.prijem_vydej == KamionChoice.VYDEJ:
             celkova_tara = Bedna.objects.filter(
                 zakazka__kamion_vydej=self
-            ).aggregate(suma=Sum('tara'))['suma'] or 0
+            ).aggregate(suma=Sum('tara'))['suma'] or Decimal('0.0')
         # Pokud je kamion pro příjem, vrací hmotnost beden spojených s příjmem.
         elif self.prijem_vydej == KamionChoice.PRIJEM:
             celkova_tara = Bedna.objects.filter(
                 zakazka__kamion_prijem=self
-            ).aggregate(suma=Sum('tara'))['suma'] or 0
+            ).aggregate(suma=Sum('tara'))['suma'] or Decimal('0.0')
         else:
             raise ValidationError(_("Neplatný typ kamionu. Musí být buď 'Přijem' nebo 'Výdej'."))
         return celkova_tara + self.celkova_hmotnost_netto
@@ -154,6 +175,7 @@ class Kamion(models.Model):
         """
         Vrací cenu za kamion výdej na základě zákazníka, předpisu a délky, pouze pro kamionu výdej.
         Celkovou cenu vypočte podle property cena_za_zakazku pro jednotlivé zakázky v kamionu.
+        Neobsahuje bedny, které mají fakturovat=False.
         Pokud není cena nalezena, vrací 0.
         """
         # Získá všechny zakázky obsažené v kamionu.        
@@ -171,6 +193,7 @@ class Kamion(models.Model):
         """
         Vrací cenu rovnání za kamion výdej na základě zákazníka, předpisu a délky, pouze pro kamionu výdej.
         Celkovou cenu vypočte podle property cena_rovnani_za_zakazku pro jednotlivé zakázky v kamionu.
+        Neobsahuje bedny, které mají fakturovat=False.
         Pokud není cena nalezena, vrací 0.
         """
         # Získá všechny zakázky obsažené v kamionu.        
@@ -188,6 +211,7 @@ class Kamion(models.Model):
         """
         Vrací cenu tryskání za kamion výdej na základě zákazníka, předpisu a délky, pouze pro kamionu výdej.
         Celkovou cenu vypočte podle property cena_tryskani_za_zakazku pro jednotlivé zakázky v kamionu.
+        Neobsahuje bedny, které mají fakturovat=False.
         Pokud není cena nalezena, vrací 0.
         """
         # Získá všechny zakázky obsažené v kamionu.        
@@ -229,30 +253,71 @@ class Kamion(models.Model):
                 zakazka__kamion_vydej=self,
             ).count()
         raise ValidationError(_("Neplatný typ kamionu. Musí být buď 'Přijem' nebo 'Výdej'."))
-
+    
     @property
-    def hmotnost_otryskanych_beden(self):
+    def pocet_beden_expedovano_fakturovanych(self):
         """
-        Vrací pro kamion výdej celkovou hmotnost beden, které mají stav tryskání: otryskaná.
+        Vrací počet beden spojených s tímto kamionem, které jsou ve stavu EXPEDOVANO a mají fakturovat=True.
+        """
+        # Pokud je kamion pro příjem, vrací počet beden ve stavu expedováno.
+        if self.prijem_vydej == KamionChoice.PRIJEM:
+            return Bedna.objects.filter(
+                zakazka__kamion_prijem=self,
+                stav_bedny=StavBednyChoice.EXPEDOVANO,
+                fakturovat=True
+            ).count()
+        # Pokud je kamion pro výdej, vrací všechny bedny s fakturovat=True - všechny jsou expedovány.
+        if self.prijem_vydej == KamionChoice.VYDEJ:
+            return Bedna.objects.filter(
+                zakazka__kamion_vydej=self,
+                fakturovat=True
+            ).count()
+        raise ValidationError(_("Neplatný typ kamionu. Musí být buď 'Přijem' nebo 'Výdej'."))
+    
+    @property
+    def obsahuje_bedny_s_priznakem_nefakturovat(self):
+        """
+        Vrací True, pokud kamion obsahuje alespoň jednu bednu, která má fakturovat=False.
+        Jinak vrací False.
         """
         if self.prijem_vydej == KamionChoice.VYDEJ:
             return Bedna.objects.filter(
                 zakazka__kamion_vydej=self,
-                tryskat=TryskaniChoice.OTRYSKANA
+                fakturovat=False
+            ).exists()
+        elif self.prijem_vydej == KamionChoice.PRIJEM:
+            return Bedna.objects.filter(
+                zakazka__kamion_prijem=self,
+                fakturovat=False
+            ).exists()
+        else:
+            raise ValidationError(_("Neplatný typ kamionu. Musí být buď 'Přijem' nebo 'Výdej'."))
+
+    @property
+    def hmotnost_otryskanych_beden(self):
+        """
+        Vrací pro kamion výdej celkovou hmotnost beden, které mají stav tryskání: otryskaná a fakturovat=True.
+        """
+        if self.prijem_vydej == KamionChoice.VYDEJ:
+            return Bedna.objects.filter(
+                zakazka__kamion_vydej=self,
+                tryskat=TryskaniChoice.OTRYSKANA,
+                fakturovat=True
             ).aggregate(suma=Sum('hmotnost'))['suma'] or Decimal('0.0')
         raise ValidationError(_("Neplatný typ kamionu. Musí být buď 'Přijem' nebo 'Výdej'."))
 
     @property
     def hmotnost_vyrovnanych_beden(self):
         """
-        Vrací pro kamion výdej celkovou hmotnost beden, které mají stav rovnání: vyrovnaná.
+        Vrací pro kamion výdej celkovou hmotnost beden, které mají stav rovnání: vyrovnaná a fakturovat=True.
         """
         if self.prijem_vydej == KamionChoice.VYDEJ:
             return Bedna.objects.filter(
                 zakazka__kamion_vydej=self,
-                rovnat=RovnaniChoice.VYROVNANA
+                rovnat=RovnaniChoice.VYROVNANA,
+                fakturovat=True
             ).aggregate(suma=Sum('hmotnost'))['suma'] or Decimal('0.0')
-        raise ValidationError(_("Neplatný typ kamionu. Musí být buď 'Přijem' nebo 'Výdej'."))
+        raise ValidationError(_("Neplatný typ kamionu. Musí být buď 'Přijem' nebo 'Výdej'."))  
 
     def get_admin_url(self):
         """
@@ -431,6 +496,10 @@ class Zakazka(models.Model):
         return self.bedny.aggregate(suma=Sum('hmotnost'))['suma'] or 0
     
     @property
+    def celkova_hmotnost_fakturovanych(self):
+        return self.bedny.filter(fakturovat=True).aggregate(suma=Sum('hmotnost'))['suma'] or 0
+    
+    @property
     def pocet_beden(self):
         """
         Vrací počet beden spojených s touto zakázkou.
@@ -438,6 +507,15 @@ class Zakazka(models.Model):
         if not hasattr(self, 'bedny'):
             return 0
         return self.bedny.count()
+    
+    @property
+    def pocet_beden_fakturovanych(self):
+        """
+        Vrací počet beden spojených s touto zakázkou, které mají fakturovat=True.
+        """
+        if not hasattr(self, 'bedny'):
+            return 0
+        return self.bedny.filter(fakturovat=True).count()
 
     def get_admin_url(self):
         """
@@ -483,14 +561,13 @@ class Zakazka(models.Model):
     def cena_za_zakazku(self):
         """
         Vrací cenu zboží v zakázce v EUR/bednu.
-        Výpočet ceny se provádí na základě property cena_za_kg a celkové hmotnosti zakázky.
-        Pokud není cena nebo hmotnost větší než 0, vrací 0.
+        Výpočet se provádí jakou součet ceny za bednu pro všechny bedny v zakázce,
+        které mají nastaveno fakturovat=True.
         """
-        if self.celkova_hmotnost > 0 and self.cena_za_kg > 0:
-            return Decimal(
-                (self.celkova_hmotnost * self.cena_za_kg).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-            )
-        return Decimal('0.00')
+        return sum(
+            (bedna.cena_za_bednu for bedna in self.bedny.filter(fakturovat=True)),
+            Decimal('0.00'),
+        )
 
     @property
     def cena_rovnani_za_kg(self):
@@ -528,10 +605,11 @@ class Zakazka(models.Model):
     def cena_rovnani_za_zakazku(self):
         """
         Vrací cenu rovnání v zakázce v EUR/zakazka.
-        Výpočet se provádí jakou součet ceny rovnani za bednu pro všechny bedny v zakázce.
+        Výpočet se provádí jakou součet ceny rovnani za bednu pro všechny bedny v zakázce,
+        které mají nastaveno fakturovat=True.
         """
         return sum(
-            (bedna.cena_rovnani_za_bednu for bedna in self.bedny.all()),
+            (bedna.cena_rovnani_za_bednu for bedna in self.bedny.filter(fakturovat=True)),
             Decimal('0.00'),
         )
 
@@ -561,7 +639,7 @@ class Zakazka(models.Model):
             delka_max__gt=delka,
             zakaznik=zakaznik
         ).first()
-        
+
         if cena and cena.cena_tryskani_za_kg is not None:
             return cena.cena_tryskani_za_kg
         else:
@@ -571,20 +649,22 @@ class Zakazka(models.Model):
     def cena_tryskani_za_zakazku(self):
         """
         Vrací cenu tryskání v zakázce v EUR/zakazka.
-        Výpočet se provádí jakou součet ceny tryskani za bednu pro všechny bedny v zakázce.
+        Výpočet se provádí jakou součet ceny tryskani za bednu pro všechny bedny v zakázce,
+        které mají nastaveno fakturovat=True.
         """
         return sum(
-            (bedna.cena_tryskani_za_bednu for bedna in self.bedny.all()),
+            (bedna.cena_tryskani_za_bednu for bedna in self.bedny.filter(fakturovat=True)),
             Decimal('0.00'),
         )
 
     @property
     def hmotnost_vyrovnanych_beden(self):
         """
-        Vrací celkovou hmotnost vyrovnaných beden v zakázce.
+        Vrací celkovou hmotnost vyrovnaných beden v zakázce, které mají nastaveno fakturovat=True.
         """
         return self.bedny.filter(
-            rovnat=RovnaniChoice.VYROVNANA
+            rovnat=RovnaniChoice.VYROVNANA,
+            fakturovat=True
         ).aggregate(suma=Sum('hmotnost'))['suma'] or Decimal('0.0')
     
     @property
@@ -593,7 +673,8 @@ class Zakazka(models.Model):
         Vrací celkovou hmotnost otryskaných beden v zakázce.
         """
         return self.bedny.filter(
-            tryskat=TryskaniChoice.OTRYSKANA
+            tryskat=TryskaniChoice.OTRYSKANA,
+            fakturovat=True
         ).aggregate(suma=Sum('hmotnost'))['suma'] or Decimal('0.0')
 
     # --- Delete guards ---
@@ -1051,7 +1132,10 @@ class Bedna(models.Model):
         """
         Vrací cenu zboží v bedně v EUR/bednu.
         Výpočet ceny se provádí na základě property cena_za_kg.
+        Pokud je bedna označena jako fakturovat == False, vrací 0.
         """
+        if not self.fakturovat:
+            return Decimal('0.00')
         return Decimal(self.cena_za_kg * self.hmotnost).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP) if self.hmotnost else Decimal('0.00')
     
     @property
@@ -1071,7 +1155,10 @@ class Bedna(models.Model):
         """
         Vrací cenu rovnání bedny v EUR/bedna.
         Výpočet ceny se provádí na základě property cena_rovnani_za_kg.
+        Pokud je bedna označena jako fakturovat == False, vrací 0.
         """
+        if not self.fakturovat:
+            return Decimal('0.00')
         return Decimal(self.cena_rovnani_za_kg * self.hmotnost).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP) if self.hmotnost else Decimal('0.00')
 
     @property
@@ -1091,7 +1178,10 @@ class Bedna(models.Model):
         """
         Vrací cenu tryskání bedny v EUR/bedna.
         Výpočet ceny se provádí na základě property cena_tryskani_za_kg.
+        Pokud je bedna označena jako fakturovat == False, vrací 0.
         """
+        if not self.fakturovat:
+            return Decimal('0.00')
         return Decimal(self.cena_tryskani_za_kg * self.hmotnost).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP) if self.hmotnost else Decimal('0.00')
 
     # --- Delete guards ---

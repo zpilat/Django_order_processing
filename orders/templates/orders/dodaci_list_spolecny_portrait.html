@@ -28,7 +28,7 @@
         .fs-pdf-10 { font-size: 1rem; }
         .fs-pdf-07 { font-size: 0.75rem; }
         .fs-pdf-06 { font-size: 0.625rem; }
-        .fs-pdf-05 { font-size: 0.5rem; }
+        .fs-pdf-05 { font-size: 0.5rem; }       
     </style>
 </head>
 <body>
@@ -89,7 +89,7 @@
             <tbody>
                 {% flatten_bedny kamion.zakazky_vydej.all as bedny_list %}
                 {% for pos, bedna, zakazka in bedny_list %}
-                    <tr class="text-center fs-pdf-07">
+                    <tr class="text-center fs-pdf-07 {% if bedna.fakturovat == False %}table-warning{% endif %}">
                         <td>{{ pos }}</td>
                         <td>{{ zakazka.artikl }}</td>
                         {% comment %} Pokud se jedná o první bednu v zakázce,
@@ -135,6 +135,13 @@
                 <p class="fs-pdf-07 mb-0">{{ user_last_name }}</p>
             </div>
         </div>
+        {% if kamion.obsahuje_bedny_s_priznakem_nefakturovat %}
+        <div style="margin-top: 3px; border-top: 1px solid black; padding-top: 2px;">
+            <p class="fs-pdf-07 my-1 text-center" style="background-color: #fff0c2ff !important;">
+                Nicht zum Fakturieren bestimmt
+            </p>
+        </div>
+        {% endif %}
         {% if kamion.poznamka %}
         <div style="margin-top: 5px; border-top: 1px solid black; padding-top: 2px;">
             {% for line in kamion.poznamka|splitlines %}

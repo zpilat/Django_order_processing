@@ -285,6 +285,14 @@ class TestModels(ModelsBase):
         self.bedna2.save()
         self.assertEqual(self.kamion_vydej.hmotnost_otryskanych_beden, Decimal("4.0"))
 
+        # Pokud jedna z beden není fakturovaná, hmotnost se nezapočítá
+        self.bedna2.fakturovat = False
+        self.bedna2.save(update_fields=["fakturovat"])
+        self.assertEqual(self.kamion_vydej.hmotnost_otryskanych_beden, Decimal("2.0"))
+        # restore default for other tests
+        self.bedna2.fakturovat = True
+        self.bedna2.save(update_fields=["fakturovat"])
+
         # v příjmu by měla vyhodit ValidationError
         with self.assertRaises(ValidationError):
             _ = self.kamion_prijem.hmotnost_otryskanych_beden
@@ -383,6 +391,58 @@ class TestModels(ModelsBase):
         b.hmotnost = Decimal("0")
         with self.assertRaises(ValidationError):
             b.full_clean()
+
+    def test_fakturovane_agregace_kamionu_a_zakazky(self):
+        # Výchozí stav: všechny bedny jsou fakturované
+        self.assertEqual(self.kamion_vydej.celkova_hmotnost_fakturovanych_netto, Decimal("4.0"))
+        self.assertEqual(self.kamion_prijem.celkova_hmotnost_fakturovanych_netto, Decimal("4.0"))
+        self.assertEqual(self.kamion_vydej.pocet_beden_expedovano_fakturovanych, 2)
+        self.assertFalse(self.kamion_vydej.obsahuje_bedny_s_priznakem_nefakturovat)
+        self.assertEqual(self.zakazka.celkova_hmotnost_fakturovanych, Decimal("4.0"))
+        self.assertEqual(self.zakazka.pocet_beden_fakturovanych, 2)
+
+        # Jednu bednu označíme jako nefakturovanou
+        self.bedna2.fakturovat = False
+        self.bedna2.save(update_fields=["fakturovat"])
+
+        self.assertEqual(self.kamion_vydej.celkova_hmotnost_fakturovanych_netto, Decimal("2.0"))
+        self.assertEqual(self.kamion_prijem.celkova_hmotnost_fakturovanych_netto, Decimal("2.0"))
+        self.assertEqual(self.kamion_vydej.pocet_beden_expedovano_fakturovanych, 1)
+        self.assertTrue(self.kamion_vydej.obsahuje_bedny_s_priznakem_nefakturovat)
+        self.assertEqual(self.zakazka.celkova_hmotnost_fakturovanych, Decimal("2.0"))
+        self.assertEqual(self.zakazka.pocet_beden_fakturovanych, 1)
+
+        # Ověř, že cenové agregace ignorují nefakturované bedny
+        self.bedna1.tryskat = TryskaniChoice.OTRYSKANA
+        self.bedna1.save(update_fields=["tryskat"])
+        self.bedna2.tryskat = TryskaniChoice.OTRYSKANA
+        self.bedna2.save(update_fields=["tryskat"])
+
+        self.assertEqual(self.bedna1.cena_tryskani_za_bednu, Decimal("1.00"))
+        self.assertEqual(self.bedna2.cena_tryskani_za_bednu, Decimal("0.00"))
+        self.assertEqual(self.zakazka.cena_za_zakazku, Decimal("4.00"))
+        self.assertEqual(self.zakazka.cena_tryskani_za_zakazku, Decimal("1.00"))
+        self.assertEqual(self.kamion_vydej.cena_za_kamion_vydej, Decimal("4.00"))
+
+        # Vrať bednu zpět k fakturaci kvůli dalším testům
+        self.bedna2.fakturovat = True
+        self.bedna2.save(update_fields=["fakturovat"])
+
+    def test_rovnani_agregace_respektuji_fakturovat(self):
+        # Výchozí stav: dvě vyrovnané bedny ROT zákazníka → plná suma
+        self.assertEqual(self.zakazka_rot.cena_rovnani_za_zakazku, Decimal("1.50"))
+        self.assertEqual(self.zakazka_rot.hmotnost_vyrovnanych_beden, Decimal("5.0"))
+
+        # Jednu bednu vyjmeme z fakturace, měla by se odečíst
+        self.bedna_rot1.fakturovat = False
+        self.bedna_rot1.save(update_fields=["fakturovat"])
+
+        self.assertEqual(self.zakazka_rot.cena_rovnani_za_zakazku, Decimal("0.60"))
+        self.assertEqual(self.zakazka_rot.hmotnost_vyrovnanych_beden, Decimal("2.0"))
+
+        # Reset pro ostatní testy
+        self.bedna_rot1.fakturovat = True
+        self.bedna_rot1.save(update_fields=["fakturovat"])
 
     # --- Bedna delete guard ---
     def test_bedna_delete_guard_blocks_when_not_neprijato(self):

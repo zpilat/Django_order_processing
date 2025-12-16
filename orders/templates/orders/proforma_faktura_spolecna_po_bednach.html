@@ -83,16 +83,18 @@
             </tr>
             {% flatten_bedny kamion.zakazky_vydej.all as bedny_list %}
             {% for pos, bedna, zakazka in bedny_list %}
-                <tr class="text-center fs-10">
-                    <td>{{ pos }}</td>
-                    <td>{{ bedna.vyrobni_zakazka }}</td>
-                    <td>{{ zakazka.artikl }}</td>
-                    <td>{{ zakazka.popis }}</td>               
-                    <td>{{ zakazka.prumer }}x{{ zakazka.delka|floatformat:0 }}</td>                         
-                    <td>{{ bedna.hmotnost|floatformat:1 }} kg</td>
-                    <td>{{ bedna.cena_za_kg|floatformat:2 }} €</td>
-                    <td>{{ bedna.cena_za_bednu|floatformat:2 }} €</td>
-                </tr>
+                {% if bedna.fakturovat %}
+                    <tr class="text-center fs-10">
+                        <td>{{ pos }}</td>
+                        <td>{{ bedna.vyrobni_zakazka }}</td>
+                        <td>{{ zakazka.artikl }}</td>
+                        <td>{{ zakazka.popis }}</td>               
+                        <td>{{ zakazka.prumer }}x{{ zakazka.delka|floatformat:0 }}</td>                         
+                        <td>{{ bedna.hmotnost|floatformat:1 }} kg</td>
+                        <td>{{ bedna.cena_za_kg|floatformat:2 }} €</td>
+                        <td>{{ bedna.cena_za_bednu|floatformat:2 }} €</td>
+                    </tr>
+                {% endif %}
             {% endfor %}
             <tr class="text-center fs-10 fw-bold">
                 <td></td>
@@ -100,7 +102,7 @@
                 <td></td>               
                 <td></td>
                 <td></td>
-                <td>{{ kamion.celkova_hmotnost_netto|floatformat:"1g" }} kg</td>                
+                <td>{{ kamion.celkova_hmotnost_fakturovanych_netto|floatformat:"1g" }} kg</td>                
                 <td></td>
                 <td>{{ kamion.cena_za_kamion_vydej|floatformat:"2g" }} €</td>
             </tr>

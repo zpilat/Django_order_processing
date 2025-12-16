@@ -16,7 +16,7 @@
 {% endblock %}                
 
 {% block table-body %}
-<tr class="text-center fs-pdf-07">
+<tr class="text-center fs-pdf-07 {% if bedna.fakturovat == False %}table-warning{% endif %}">
     <td>{{ pos }}</td>
     <td>{{ bedna.vyrobni_zakazka }}</td>
     <td>{{ bedna.zakazka.artikl }}</td>
