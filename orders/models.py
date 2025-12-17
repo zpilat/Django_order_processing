@@ -99,6 +99,7 @@ class Kamion(models.Model):
     prijem_vydej = models.CharField(choices=KamionChoice.choices, max_length=1, verbose_name='Přijem/Výdej', default=KamionChoice.PRIJEM)
     poradove_cislo = models.PositiveIntegerField(verbose_name='Pořadové číslo', blank=True, null=True)
     poznamka = models.TextField(verbose_name='Poznámka do DL', blank=True, null=True)
+    text_upozorneni = models.CharField(max_length=100, verbose_name='Text upozornění na DL', blank=True, null=True,)
     history = HistoricalRecords()
 
     class Meta:

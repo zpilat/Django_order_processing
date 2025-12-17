@@ -137,8 +137,8 @@
         </div>
         {% if kamion.obsahuje_bedny_s_priznakem_nefakturovat %}
         <div style="margin-top: 3px; border-top: 1px solid black; padding-top: 2px;">
-            <p class="fs-pdf-07 my-1 text-center" style="background-color: #fff0c2ff !important;">
-                Nicht zum Fakturieren bestimmt
+            <p class="fs-pdf-07 my-1 text-center" style="background-color: #fff3cd">
+                {{ kamion.text_upozorneni|default:"wird nicht fakturiert" }}
             </p>
         </div>
         {% endif %}
