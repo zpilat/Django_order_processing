@@ -49,13 +49,13 @@
         <hr class="my-1">
         <div class="row text-start lh-1">
             <div class="col-7">
-                <p class="fs-pdf-07 mb-0">Besitzer der Ware:</p>
+                <p class="fs-pdf-07 mb-0">{% block vlastnik_zbozi %}Besitzer der Ware:{% endblock %}</p>
                 <p class="fs-pdf-07 fw-bold mb-0">{{ kamion.zakaznik.nazev }}</p>
                 <p class="fs-pdf-07 mb-0">{{ kamion.zakaznik.adresa }}</p>
                 <p class="fs-pdf-07 mb-0">{{ kamion.zakaznik.zkratka_statu }}-{{ kamion.zakaznik.psc }} {{ kamion.zakaznik.mesto }}</p>
             </div>
             <div class="col-5">
-                <p class="fs-pdf-07 mb-0">Adresse der Abgabe:</p>
+                <p class="fs-pdf-07 mb-0">{% block adresa_odberatele %}Adresse der Abgabe:{% endblock %}</p>
                 <p class="fs-pdf-07 mb-0">{{ kamion.odberatel.nazev }}</p>
                 <p class="fs-pdf-07 mb-0">{{ kamion.odberatel.adresa }}</p>
                 <p class="fs-pdf-07 mb-0">{{ kamion.odberatel.zkratka_statu }}-{{ kamion.odberatel.psc }} {{ kamion.odberatel.mesto }}</p>
@@ -63,7 +63,7 @@
         </div>
         <div class="row text-start mt-2 lh-1">
             <div class="col-3">
-                <p class="fs-pdf-07 fw-bold mb-1">LIEFERSCHEIN</p>
+                <p class="fs-pdf-07 fw-bold mb-1">{% block dodaci_list %}LIEFERSCHEIN{% endblock %}</p>
             </div>
             <div class="col-4">
                 <p class="fs-pdf-07 mb-1">{{ kamion.cislo_dl|nahrada_pomlcky_za_lomitko }}</p>
