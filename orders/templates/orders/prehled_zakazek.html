@@ -1,0 +1,54 @@
+{% load tz %}
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <title>Přehled zakázek</title>
+    <style>
+        @page {
+            size: A4 portrait;
+        }
+    </style>
+</head>
+<body>
+    <h2 class="text-center">PŘEHLED ZAKÁZEK {{ kamion.zakaznik.zkraceny_nazev|upper }}</h2>
+
+    <div class="text-center fw-bold me-3 mb-2">
+        Pro kamion č. {{ kamion.poradove_cislo }} z {{ kamion.datum|date:"d. m. Y" }}
+    </div><br>
+
+    <table class="table table-bordered">
+        <thead>
+            <tr class="text-center">
+                <th>Popis</th>
+                <th>Artikl</th>
+                <th>Počet beden</th>
+                <th>První bedna</th>
+                <th>Vzorek odebrán</th>
+                <th>Protokol</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for zakazka in kamion.zakazky_prijem.all %}
+                <tr class="text-center">
+                    <td>{{ zakazka.popis }}</td>
+                    <td>{{ zakazka.artikl }}</td>
+                    <td>{{ zakazka.pocet_beden }}</td>
+                    <td>{{ zakazka.prvni_bedna_v_zakazce.cislo_bedny|default:"-" }}</td>
+                    <td></td>
+                    <td></td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="6" style="text-align: center;">Žádné zakázky k zobrazení.</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table><br>
+
+    <div class="mt-3 small">
+        Vytisknuto: {% now "d. m. Y H:i" %}<br>
+        Vytiskl: {{ user_last_name|default:"" }}
+    </div>
+</body>
+</html>

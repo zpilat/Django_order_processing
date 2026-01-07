@@ -126,7 +126,7 @@ def utilita_tisk_dokumentace_sablony(modeladmin, request, queryset, html_paths, 
 
 def utilita_tisk_dl_a_proforma_faktury(modeladmin, request, kamion, html_path, filename):
     """
-    Tiskne dodací list a proforma fakturu pro vybraný kamion a daného zákazníka.
+    Tiskne dodací list, proforma fakturu a přehled zakázek pro vybraný kamion a daného zákazníka.
     """
     context = {"kamion": kamion}
     if request and hasattr(request, "user") and request.user.is_authenticated:
@@ -142,7 +142,7 @@ def utilita_tisk_dl_a_proforma_faktury(modeladmin, request, kamion, html_path, f
     if css_path:
         stylesheets.append(CSS(filename=css_path))
     else:
-        logger.warning("Nepodařilo se najít CSS 'orders/css/pdf_shared.css' pro tisk DL/proforma.")
+        logger.warning("Nepodařilo se najít CSS 'orders/css/pdf_shared.css' pro tisk DL/proforma faktury/přehled zakázek.")
 
     base_url = request.build_absolute_uri('/') if request else None
     pdf_file = HTML(string=html_string, base_url=base_url).write_pdf(stylesheets=stylesheets)

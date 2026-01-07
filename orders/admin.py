@@ -43,7 +43,7 @@ from .actions import (
     oznacit_do_zpracovani_action, oznacit_zakaleno_action, oznacit_zkontrolovano_action, oznacit_k_expedici_action, oznacit_rovna_action,
     oznacit_kriva_action, oznacit_rovna_se_action, oznacit_vyrovnana_action, oznacit_cista_action, oznacit_spinava_action,
     oznacit_otryskana_action, prijmout_kamion_action, prijmout_zakazku_action, prijmout_bedny_action,
-    export_bedny_to_csv_action, tisk_rozpracovanost_action,
+    export_bedny_to_csv_action, tisk_rozpracovanost_action, tisk_prehledu_zakazek_kamionu_action,
 )
 from .filters import (
     SklademZakazkaFilter, StavBednyFilter, KompletZakazkaFilter, AktivniPredpisFilter, SkupinaFilter, ZakaznikBednyFilter,
@@ -356,6 +356,7 @@ class KamionAdmin(SimpleHistoryAdmin):
         tisk_protokolu_kamionu_vydej_action,        
         'zadat_mereni_action',
         prijmout_kamion_action,
+        tisk_prehledu_zakazek_kamionu_action,
     ]
     # Parametry pro zobrazení detailu v administraci
     fields = ('zakaznik', 'datum', 'poradove_cislo', 'cislo_dl', 'prijem_vydej', 'odberatel',
@@ -723,22 +724,23 @@ class KamionAdmin(SimpleHistoryAdmin):
     def get_actions(self, request):
         """
         Přizpůsobí dostupné akce v administraci podle filtru typu kamionu
-        (příjem - vyexpedovaný, příjem - skladem, výdej).
+        (příjem - bez zakázek, příjem - nepřijatý, příjem - komplet přijatý, příjem - vyexpedovaný, výdej).
         Odstraní akce, které nejsou relevantní pro daný typ kamionu.
         """
         actions = super().get_actions(request)
 
-        if (request.GET.get('prijem_vydej') == 'PB'):
+        if (request.GET.get('prijem_vydej') == PrijemVydejChoice.PRIJEM_BEZ_ZAKAZEK):
             actions_to_remove = [
                 'tisk_karet_beden_kamionu_action',
                 'tisk_karet_kontroly_kvality_kamionu_action',
                 'tisk_dodaciho_listu_kamionu_action',
                 'tisk_proforma_faktury_kamionu_action',
+                'tisk_prehledu_zakazek_kamionu_action',
                 'zadat_mereni_action',
                 'tisk_protokolu_kamionu_vydej_action',                
                 'prijmout_kamion_action'
             ]
-        elif (request.GET.get('prijem_vydej') == 'PN'):
+        elif (request.GET.get('prijem_vydej') == PrijemVydejChoice.PRIJEM_NEPRIJATY):
             actions_to_remove = [
                 'import_kamionu_action',
                 'tisk_karet_beden_kamionu_action',
@@ -746,9 +748,10 @@ class KamionAdmin(SimpleHistoryAdmin):
                 'tisk_dodaciho_listu_kamionu_action',
                 'tisk_proforma_faktury_kamionu_action',
                 'zadat_mereni_action',
+                'tisk_prehledu_zakazek_kamionu_action',
                 'tisk_protokolu_kamionu_vydej_action',                
             ]
-        elif (request.GET.get('prijem_vydej') == 'PK'):
+        elif (request.GET.get('prijem_vydej') == PrijemVydejChoice.PRIJEM_KOMPLET_PRIJATY):
             actions_to_remove = [
                 'import_kamionu_action',                
                 'tisk_dodaciho_listu_kamionu_action',
@@ -758,7 +761,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                 'prijmout_kamion_action',
                 'delete_selected'
             ]
-        elif (request.GET.get('prijem_vydej') == 'PV'):
+        elif (request.GET.get('prijem_vydej') == PrijemVydejChoice.PRIJEM_VYEXPEDOVANY):
             actions_to_remove = [
                 'import_kamionu_action',
                 'tisk_karet_beden_kamionu_action',
@@ -770,12 +773,13 @@ class KamionAdmin(SimpleHistoryAdmin):
                 'prijmout_kamion_action',
                 'delete_selected'
             ]
-        elif (request.GET.get('prijem_vydej') == 'V'):
+        elif (request.GET.get('prijem_vydej') == PrijemVydejChoice.VYDEJ):
             actions_to_remove = [
                 'import_kamionu_action',
                 'tisk_karet_beden_kamionu_action',
                 'tisk_karet_kontroly_kvality_kamionu_action',
                 'prijmout_kamion_action',
+                'tisk_prehledu_zakazek_kamionu_action',
                 'delete_selected'
             ]            
         else:
@@ -813,6 +817,7 @@ class KamionAdmin(SimpleHistoryAdmin):
         - Import / Příjem
         - Tisk karet
         - Tisk dokladů
+        - Měření
         Ostatní (delete_selected) spadne do 'Ostatní'.
         """
         actions = self.get_actions(request)
@@ -826,7 +831,8 @@ class KamionAdmin(SimpleHistoryAdmin):
             'tisk_karet_kontroly_kvality_kamionu_action': 'Tisk karet',
             'tisk_dodaciho_listu_kamionu_action': 'Tisk dokladů',
             'tisk_proforma_faktury_kamionu_action': 'Tisk dokladů',
-            'tisk_protokolu_kamionu_vydej_action': 'Tisk dokladů',              
+            'tisk_protokolu_kamionu_vydej_action': 'Tisk dokladů',
+            'tisk_prehledu_zakazek_kamionu_action': 'Měření',        
             'zadat_mereni_action': 'Měření',          
         }
         order = ['Import / Příjem', 'Tisk karet', 'Tisk dokladů', 'Měření']

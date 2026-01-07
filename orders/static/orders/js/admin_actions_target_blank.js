@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', function () {
         'tisk_protokolu_kamionu_vydej_action',
         'oznacit_rovna_se_action',
         'tisk_rozpracovanost_action',
+        'tisk_prehledu_zakazek_kamionu_action',
     ];
 
     // Najdi hlavní formulář v adminu podle id (nejbezpečnější)

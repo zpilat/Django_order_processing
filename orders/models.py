@@ -571,6 +571,14 @@ class Zakazka(models.Model):
         )
 
     @property
+    def prvni_bedna_v_zakazce(self):
+        """
+        Vrací první bednu v zakázce podle nejnižšího cisla_bedny.
+        Pokud zakázka nemá žádné bedny, vrací None.
+        """
+        return self.bedny.order_by('cislo_bedny').first()
+
+    @property
     def cena_rovnani_za_kg(self):
         """
         Vrací cenu za rovnání v zakázce v EUR/kg.
