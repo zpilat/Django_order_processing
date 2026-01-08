@@ -11,6 +11,7 @@ from datetime import date
 from unittest.mock import patch
 
 from orders.admin import KamionAdmin, ZakazkaAdmin, BednaAdmin, BednaInline
+from orders.forms import ImportZakazekForm
 from orders.models import Zakaznik, Kamion, Zakazka, Bedna, Predpis, TypHlavy, Odberatel, Cena
 from orders.choices import StavBednyChoice, SklademZakazkyChoice, PrijemVydejChoice, KamionChoice
 from orders.filters import DelkaFilter
@@ -125,23 +126,24 @@ class KamionAdminTests(AdminBase):
         )
         typ_hlavy_import = TypHlavy.objects.create(nazev='TK', popis='Test')
 
+        predpis_column_name = 'n. Zg. / \n' 'as drg'
         df_data = {
-            'Abhol- datum': ['2024-01-01'],
-            'Unnamed: 7': ['10 x 50'],
-            'Bezeichnung': ['desc 1'],
-            'Sonder / Zusatzinfo': [''],
-            'Artikel- nummer': ['A1'],
-            'n. Zg. / \nas drg': ['123'],
-            'Material- charge': ['M1'],
-            'Material': ['steel'],
-            'Ober- fläche': ['ZP'],
-            'Gewicht in kg': [1],
-            'Gew.': [1],
-            'Tara kg': [1],
-            'Behälter-Nr.:': [1],
-            'Lief.': ['L1'],
-            'Fertigungs- auftrags Nr.': ['F1'],
-            'Unnamed: 6': ['TK'],
+            'Abhol- datum': ['2024-01-01', '2024-01-01'],
+            'Unnamed: 7': ['10 x 50', '10 x 50'],
+            'Bezeichnung': ['desc 1', 'desc 2'],
+            'Sonder / Zusatzinfo': ['', ''],
+            'Artikel- nummer': ['A1', 'A1'],
+            predpis_column_name: ['123', '123'],
+            'Material- charge': ['M1', 'M2'],
+            'Material': ['steel', 'steel'],
+            'Ober- fläche': ['ZP', 'ZP'],
+            'Gewicht in kg': [1, 1],
+            'Gew.': [1, 1],
+            'Tara kg': [1, 1],
+            'Behälter-Nr.:': [1, 2],
+            'Lief.': ['L1', 'L1'],
+            'Fertigungs- auftrags Nr.': ['F1', 'F2'],
+            'Unnamed: 6': ['TK', 'TK'],
         }
         import pandas as pandas_mod
         df = pandas_mod.DataFrame(df_data)
@@ -154,14 +156,33 @@ class KamionAdminTests(AdminBase):
         valid_req.session = {}
         valid_req._messages = FallbackStorage(valid_req)
 
-        with patch('orders.admin.pd.read_excel', return_value=df):
+        self.assertTrue(ImportZakazekForm(valid_req.POST, valid_req.FILES).is_valid())
+
+        with patch.object(self.admin, '_render_import', wraps=self.admin._render_import) as render_mock, patch('orders.admin.pd.read_excel', return_value=df):
             zak_before = Zakazka.objects.count()
             bedna_before = Bedna.objects.count()
             resp = self.admin.import_view(valid_req)
 
-        self.assertEqual(resp.status_code, 302)
-        self.assertEqual(Zakazka.objects.count(), zak_before + 1)
-        self.assertEqual(Bedna.objects.count(), bedna_before + 1)
+        if resp.status_code != 302:
+            context = getattr(resp, 'context_data', {}) or {}
+            form_errors = context.get('form').errors if context.get('form') else {}
+            delta_zak = Zakazka.objects.count() - zak_before
+            delta_bedna = Bedna.objects.count() - bedna_before
+            render_args = render_mock.call_args
+            render_errors = render_args[0][4] if render_args else None
+            self.fail(
+                "Import neprovedl redirect (status {status}); chyby: {errors}; form_errors: {form_errors}; "
+                "delta_zak: {delta_zak}; delta_bedna: {delta_bedna}; render_errors: {render_errors}".format(
+                    status=resp.status_code,
+                    errors=context.get('errors'),
+                    form_errors=form_errors,
+                    delta_zak=delta_zak,
+                    delta_bedna=delta_bedna,
+                    render_errors=render_errors,
+                )
+            )
+        self.assertEqual(Zakazka.objects.count(), zak_before + 2)
+        self.assertEqual(Bedna.objects.count(), bedna_before + 2)
 
         # cleanup created objects
         Zakazka.objects.all().delete()

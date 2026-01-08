@@ -28,9 +28,11 @@
       }
 
       var currentZakazkaText = zakazkaCell.textContent.trim();
-      var kamionCell = row.querySelector("td.field-kamion_prijem_link");
-      var currentKamionText = kamionCell ? kamionCell.textContent.trim() : "";
-      var currentGroupKey = currentZakazkaText + "||" + currentKamionText;
+      var zakazkaLink = zakazkaCell.querySelector("a");
+      var zakazkaHref = zakazkaLink ? zakazkaLink.getAttribute("href") : "";
+      var zakazkaIdMatch = zakazkaHref.match(/\/([0-9]+)\/change\/?$/);
+      var zakazkaKey = zakazkaIdMatch ? zakazkaIdMatch[1] : currentZakazkaText;
+      var currentGroupKey = zakazkaKey;
 
       if (index === 0) {
         lastGroupKey = currentGroupKey;

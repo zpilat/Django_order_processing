@@ -933,6 +933,7 @@ class KamionAdmin(SimpleHistoryAdmin):
         """
         Zobrazí formulář pro import zakázek do kamionu a zpracuje nahraný soubor.
         Umožňuje importovat zakázky z Excel souboru a automaticky vytvoří bedny na základě dat v souboru.
+        Zakázky jsou odděleny podle artiklu a šarže, přičemž každá unikátní kombinace tvoří jednu zakázku.
         Zatím funguje pouze pro kamiony Eurotecu.
         """
         kamion_id = request.GET.get("kamion")
@@ -1051,8 +1052,9 @@ class KamionAdmin(SimpleHistoryAdmin):
                     df.rename(columns=column_mapping, inplace=True)              
 
                     # Povinné zdrojové sloupce dle specifikace
-                    required_src = ['sarze', 'popis', 'rozmer', 'artikl', 'predpis', 'typ_hlavy', 'material', 'behalter_nr',
-                                    'hmotnost', 'tara', 'hmotnost_ks', 'datum', 'dodatecne_info'
+                    required_src = [
+                        'sarze', 'popis', 'rozmer', 'artikl', 'predpis', 'typ_hlavy', 'material', 'behalter_nr',
+                        'hmotnost', 'tara', 'hmotnost_ks', 'datum', 'dodatecne_info'
                     ]
                     missing = [c for c in required_src if c not in df.columns]
                     if missing:
@@ -1091,10 +1093,14 @@ class KamionAdmin(SimpleHistoryAdmin):
                         lambda row: pd.Series(rozdel_rozmer(row)), axis=1
                     )
 
-                    # Vytvoří se nový sloupec 'priorita', pokud je ve sloupci dodatecne_info obsaženo 'eilig', vyplní se hodnota 'P1' jako priorita
+                    # Vytvoří se nový sloupec 'priorita', pokud je ve sloupci dodatecne_info obsaženo 'sehr eilig',
+                    # vyplní se hodnota priority VYSOKA, pokud je obsaženo pouze 'eilig' tak je nastavena priorita STREDNI,
+                    # jinak NIZKA
                     def priorita(row):
-                        if pd.notna(row['dodatecne_info']) and 'eilig' in row['dodatecne_info'].lower():
+                        if pd.notna(row['dodatecne_info']) and 'sehr eilig' in row['dodatecne_info'].lower():
                             return PrioritaChoice.VYSOKA
+                        elif pd.notna(row['dodatecne_info']) and 'eilig' in row['dodatecne_info'].lower():
+                            return PrioritaChoice.STREDNI
                         return PrioritaChoice.NIZKA
                     df['priorita'] = df.apply(priorita, axis=1)
 
@@ -1216,8 +1222,11 @@ class KamionAdmin(SimpleHistoryAdmin):
                                     raise ValueError(f"Chyba: Povinné pole '{field}' nesmí být prázdné.")
 
                             artikl = row['artikl']
+                            sarze_raw = row.get('sarze')
+                            sarze_key = None if pd.isna(sarze_raw) else str(sarze_raw).strip()
+                            cache_key = (artikl, sarze_key)
 
-                            if artikl not in zakazky_cache:
+                            if cache_key not in zakazky_cache:
                                 # Získání a formátování průměru pro sestavení názvu předpisu
                                 prumer = row.get('prumer')
                                 # Formátování průměru: '10.0' → '10', '7.5' → '7,5'
@@ -1274,10 +1283,10 @@ class KamionAdmin(SimpleHistoryAdmin):
                                     povrch=row.get('povrch'),
                                     prubeh=row.get('prubeh'),
                                 )
-                                zakazky_cache[artikl] = zakazka
+                                zakazky_cache[cache_key] = zakazka
 
                             Bedna.objects.create(
-                                zakazka=zakazky_cache[artikl],
+                                zakazka=zakazky_cache[cache_key],
                                 hmotnost=row.get('hmotnost'),
                                 tara=row.get('tara'),
                                 mnozstvi=row.get('mnozstvi', 1),
