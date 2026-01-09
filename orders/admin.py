@@ -2078,6 +2078,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     - Pro každý řádek dropdown omezí na povolené volby podle stejné logiky.
     - Číslo bedny se generuje automaticky a je readonly
     - Akce se vybírají dynamicky v get_actions.
+    - Priorita se zobrazuje barevně podle hodnoty (VYSOKA - červená, STREDNI - oranžová, NIZKA - zelená).
     """
     change_list_template = 'admin/orders/bedna/change_list.html'
     poll_interval_ms = 30000
@@ -2275,8 +2276,16 @@ class BednaAdmin(SimpleHistoryAdmin):
     def get_priorita(self, obj):
         """
         Zobrazí prioritu zakázky a umožní třídění podle hlavičky pole.
+        Pro prioritu VYSOKA vrátí červenou barvu, STREDNI oranžovou a NIZKA zelenou.
         """
-        return obj.zakazka.get_priorita_display() if obj.zakazka else "-"
+        priorita = obj.zakazka.get_priorita_display() if obj.zakazka else "-"
+        barva_map = {
+            PrioritaChoice.VYSOKA: 'red',
+            PrioritaChoice.STREDNI: 'orange',
+            PrioritaChoice.NIZKA: 'green',
+        }
+        barva = barva_map.get(obj.zakazka.priorita, 'black') if obj.zakazka else 'black'
+        return format_html('<span style="color: {};">{}</span>', barva, priorita)
 
     @admin.display(description='Ø', ordering='zakazka__prumer')
     def get_prumer(self, obj):

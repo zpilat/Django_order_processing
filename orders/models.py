@@ -791,7 +791,7 @@ class Bedna(models.Model):
     tryskat = models.CharField(choices=TryskaniChoice.choices, max_length=5, default=TryskaniChoice.NEZADANO, verbose_name='Tryskání')
     rovnat = models.CharField(choices=RovnaniChoice.choices, max_length=5, default=RovnaniChoice.NEZADANO, verbose_name='Rovnání')
     stav_bedny = models.CharField(choices=StavBednyChoice.choices, max_length=2, default=StavBednyChoice.NEPRIJATO, verbose_name='Stav bedny')
-    mnozstvi = models.PositiveIntegerField(null=True, blank=True, verbose_name='Množství ks')
+    mnozstvi = models.PositiveIntegerField(null=True, blank=True, verbose_name='Množ. ks')
     poznamka = models.CharField(max_length=100, null=True, blank=True, verbose_name='Poznámka HPM')
     odfosfatovat = models.BooleanField(default=False, verbose_name='Odfos.?')
     pozastaveno = models.BooleanField(default=False, verbose_name='Pozastaveno?',
