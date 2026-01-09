@@ -35,7 +35,11 @@ class ActionsBase(TestCase):
         cls.user = User.objects.create_superuser('admin', 'a@example.com', 'pass')
         cls.site = AdminSite()
         cls.zakaznik = Zakaznik.objects.create(
-            nazev='Test', zkraceny_nazev='T', zkratka='EUR', ciselna_rada=100000
+            nazev='Test',
+            zkraceny_nazev='T',
+            zkratka='EUR',
+            ciselna_rada=100000,
+            fakturovat_tryskani=True,
         )
         cls.odberatel = Odberatel.objects.create(
             nazev='O1', zkraceny_nazev='O1', zkratka='OD1'
@@ -470,6 +474,7 @@ class ActionsTests(ActionsBase):
             zkraceny_nazev='ROT',
             zkratka='ROT',
             ciselna_rada=200000,
+            fakturovat_rovnani=True,
         )
         kamion_prijem_rot = Kamion.objects.create(zakaznik=zak_rot, datum=date.today())
         kamion_vydej_rot = Kamion.objects.create(

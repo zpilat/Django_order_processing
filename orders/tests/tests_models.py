@@ -37,6 +37,7 @@ class ModelsBase(TestCase):
             zkraceny_nazev="EUR",
             zkratka="EUR",
             ciselna_rada=100000,
+            fakturovat_tryskani=True,
         )
         cls.kamion_prijem = Kamion.objects.create(
             zakaznik=cls.zakaznik,
@@ -91,6 +92,7 @@ class ModelsBase(TestCase):
             zkraceny_nazev="ROT",
             zkratka="ROT",
             ciselna_rada=400000,
+            fakturovat_rovnani=True,
         )
         cls.kamion_prijem_rot = Kamion.objects.create(
             zakaznik=cls.zakaznik_rot,

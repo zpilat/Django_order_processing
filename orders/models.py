@@ -21,8 +21,6 @@ from .choices import (
     AlphabetChoice,
     STAV_BEDNY_SKLADEM,
     STAV_BEDNY_ROZPRACOVANOST,
-    ZAKAZNICI_S_FAKTURACI_ROVNANI,
-    ZAKAZNICI_S_FAKTURACI_TRYSKANI,
 )
 
 import logging
@@ -47,6 +45,10 @@ class Zakaznik(models.Model):
                                         help_text='Zákazník požaduje všechny bedny tryskat')
     pouze_komplet = models.BooleanField(default=False, verbose_name='Pouze komplet',
                                         help_text='Zákazník může expedovat pouze kompletní zakázky, které mají všechny bedny ve stavu K_EXPEDICI.')
+    fakturovat_rovnani = models.BooleanField(default=False, verbose_name='Fakturovat rovnání',
+                                             help_text='Zákazníkovi se bude fakturovat rovnání pokud byla bedna vyrovnána.')
+    fakturovat_tryskani = models.BooleanField(default=False, verbose_name='Fakturovat tryskání',
+                                              help_text='Zákazníkovi se bude fakturovat tryskání pokud byla bedna otryskána.')
     ciselna_rada = models.PositiveIntegerField(verbose_name='Číselná řada', default=100000, unique=True,
                                                help_text='Číselná řada pro automatické číslování beden - např. 100000, 200000, 300000 atd.')
     history = HistoricalRecords()
@@ -583,9 +585,9 @@ class Zakazka(models.Model):
         """
         Vrací cenu za rovnání v zakázce v EUR/kg.
         Výpočet ceny se provádí na základě předpisu, délky a zákazníka.
-        Výpočet funguje pouze pro zákazníky uvedené v seznamu ZAKAZNICI_S_FAKTURACI_ROVNANI, protože se jim účtuje rovnání zvlášť.
+        Výpočet funguje pouze pro zákazníky s příznakem fakturovat_rovnani = True, protože se jim účtuje rovnání zvlášť.
         1. Najde se předpis, zákazník a délka ze zakázky.
-        2. Pokud není předpis nebo zákazník nebo není zákazník v seznamu ZAKAZNICI_S_FAKTURACI_ROVNANI, vrací 0.
+        2. Pokud není předpis nebo zákazník nebo zákazník nemá příznak fakturovat_rovnani, vrací 0.
         3. Najde se cena rovnání v tabulce Cena podle předpisu, délky a zákazníka.
         4. Pokud je cena nalezena, vrátí se cena_rovnani_za_kg, jinak 0.
         """
@@ -593,8 +595,8 @@ class Zakazka(models.Model):
         zakaznik = self.kamion_prijem.zakaznik
         delka = self.delka
 
-        # Pokud není předpis nebo zákazník nebo není zákazník v seznamu ZAKAZNICI_S_FAKTURACI_ROVNANI, vrací 0
-        if not predpis or not zakaznik or zakaznik.zkratka not in ZAKAZNICI_S_FAKTURACI_ROVNANI:
+        # Pokud není předpis nebo zákazník nebo nemá příznak fakturovat_rovnani, vrací 0
+        if not predpis or not zakaznik or not zakaznik.fakturovat_rovnani:
             return Decimal('0.00')
 
         # Zákazníci s fakturací rovnání
@@ -627,9 +629,9 @@ class Zakazka(models.Model):
         """
         Vrací cenu tryskání zboží v zakázce v EUR/kg.
         Výpočet ceny se provádí na základě předpisu, délky a zákazníka.
-        Výpočet funguje pouze pro zákazníky uvedené v seznamu ZAKAZNICI_S_FAKTURACI_TRYSKANI, protože se jim účtuje tryskání zvlášť.
+        Výpočet funguje pouze pro zákazníky s příznakem fakturovat_tryskani = True, protože se jim účtuje tryskání zvlášť.
         1. Najde se předpis, zákazník a délka z bedny/zakázky.
-        2. Pokud není předpis nebo zákazník nebo není zákazník v seznamu ZAKAZNICI_S_FAKTURACI_TRYSKANI, vrací 0.
+        2. Pokud není předpis nebo zákazník nebo zákazník nemá příznak fakturovat_tryskani, vrací 0.
         3. Najde se cena tryskání v tabulce Cena podle předpisu, délky a zákazníka.
         4. Pokud je cena nalezena, vrátí se cena_tryskani_za_kg, jinak 0.
         """
@@ -637,8 +639,8 @@ class Zakazka(models.Model):
         zakaznik = self.kamion_prijem.zakaznik
         delka = self.delka
 
-        # Pokud není předpis nebo zákazník nebo není zákazník v seznamu ZAKAZNICI_S_FAKTURACI_TRYSKANI, vrací 0
-        if not predpis or not zakaznik or zakaznik.zkratka not in ZAKAZNICI_S_FAKTURACI_TRYSKANI:
+        # Pokud není předpis nebo zákazník nebo zákazník nemá příznak fakturovat_tryskani, vrací 0
+        if not predpis or not zakaznik or not zakaznik.fakturovat_tryskani:
             return Decimal('0.00')
 
         # Zákazníci s fakturací tryskání

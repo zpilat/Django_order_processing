@@ -36,8 +36,6 @@ from .choices import (
     TryskaniChoice,
     STAV_BEDNY_SKLADEM,
     STAV_BEDNY_ROZPRACOVANOST,
-    ZAKAZNICI_S_FAKTURACI_ROVNANI,
-    ZAKAZNICI_S_FAKTURACI_TRYSKANI,
 )
 
 import logging
@@ -106,18 +104,16 @@ def _validate_proforma_pricing(kamion):
             errors.append(f"Zakázka {label}: chybí kamion příjem se zákazníkem pro výpočet cen.")
             continue
 
-        customer_code = (zakaznik_prijem.zkratka or '').strip().upper()
-
         cena_za_kg = zakazka.cena_za_kg
         if cena_za_kg is None or cena_za_kg <= 0:
             errors.append(f"Zakázka {label}: cena za kg musí být větší než 0.")
 
-        if customer_code in ZAKAZNICI_S_FAKTURACI_ROVNANI:
+        if zakaznik_prijem.fakturovat_rovnani:
             cena_rovnani = zakazka.cena_rovnani_za_kg
             if cena_rovnani is None or cena_rovnani <= 0:
                 errors.append(f"Zakázka {label}: cena rovnání za kg musí být větší než 0.")
 
-        if customer_code in ZAKAZNICI_S_FAKTURACI_TRYSKANI:
+        if zakaznik_prijem.fakturovat_tryskani:
             cena_tryskani = zakazka.cena_tryskani_za_kg
             if cena_tryskani is None or cena_tryskani <= 0:
                 errors.append(f"Zakázka {label}: cena tryskání za kg musí být větší než 0.")
