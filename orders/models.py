@@ -1064,8 +1064,9 @@ class Bedna(models.Model):
             )
             self.cislo_bedny = ((posledni.cislo_bedny + 1) if posledni else zakaznik.ciselna_rada + 1)
 
-            # Pokud je zákazník s příznakem `vse_tryskat`, nastavíme tryskat na SPINAVA
-            if zakaznik.vse_tryskat:
+            # Pokud je zákazník s příznakem `vse_tryskat`, nastavíme tryskat na SPINAVA, ale pouze
+            # v případě, že je délka menší než 900mm - delší díly se nevlezou do tryskače
+            if zakaznik.vse_tryskat and self.zakazka.delka and self.zakazka.delka < 900:
                 self.tryskat = TryskaniChoice.SPINAVA
 
         # Pokud je stav bedny jiný než K_NAVEZENI nebo NAVEZENO, vymaže pozici a poznámku k navezení
