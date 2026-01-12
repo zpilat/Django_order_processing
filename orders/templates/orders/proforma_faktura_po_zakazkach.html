@@ -74,7 +74,43 @@
         {% elif kamion.zakaznik.fakturovat_rovnani or kamion.zakaznik.fakturovat_tryskani %}fs-08
         {% else %}fs-09
         {% endif %}"
-        style="width: 100%; table-layout: fixed;">
+        style="width: 100%; table-layout: fixed;
+        {% if kamion.zakaznik.fakturovat_rovnani and kamion.zakaznik.fakturovat_tryskani %}
+            --w-small: 4%;
+            --w-medium: 6%;
+            --w-large: 10%;
+        {% elif kamion.zakaznik.fakturovat_rovnani or kamion.zakaznik.fakturovat_tryskani %}
+            --w-small: 6%;
+            --w-medium: 8%;
+            --w-large: 12%;
+        {% else %}
+            --w-small: 8%;
+            --w-medium: 12%;
+            --w-large: 20%;
+        {% endif %}
+        ">
+        <colgroup>
+            <col style="width: var(--w-medium);">   {# Zakázka #}
+            <col style="width: var(--w-medium);">  {# Rozměr #}
+            <col style="width: var(--w-large);">    {# Popis #}
+            <col style="width: var(--w-small);">  {# Hlava #}
+            <col style="width: var(--w-small);">  {# Beden #}
+            <col style="width: var(--w-medium);">  {# Hmotnost #}
+            <col style="width: var(--w-small);">   {# EUR/kg #}
+            <col style="width: var(--w-medium);">  {# Netto cena #}
+            {% if kamion.zakaznik.fakturovat_rovnani %}
+                <col style="width: var(--w-small);">  {# Beden #}
+                <col style="width: var(--w-medium);">  {# Hmotnost #}
+                <col style="width: var(--w-small);">   {# EUR/kg #}
+                <col style="width: var(--w-medium);">  {# Netto cena #}
+            {% endif %}
+            {% if kamion.zakaznik.fakturovat_tryskani %}
+                <col style="width: var(--w-small);">  {# Beden #}
+                <col style="width: var(--w-medium);">  {# Hmotnost #}
+                <col style="width: var(--w-small);">   {# EUR/kg #}
+                <col style="width: var(--w-medium);">  {# Netto cena #}
+            {% endif %}
+        </colgroup>        
         <thead>
             {% if kamion.zakaznik.fakturovat_rovnani or kamion.zakaznik.fakturovat_tryskani %}
                 <tr>
@@ -97,7 +133,7 @@
             <tr>
                 <th>Zakázka</th>
                 <th>Rozměr</th>
-                <th>Typ</th>                                
+                <th>Popis</th>                                
                 <th>Hlava</th>
                 <th {% if kamion.zakaznik.fakturovat_rovnani or kamion.zakaznik.fakturovat_tryskani %}style="border-left: 1px solid black;"{% endif %}>Beden</th>                   
                 <th>Hmotnost</th>
@@ -125,7 +161,11 @@
                     <td>
                         {{ zakazka.prumer }}x{{ zakazka.delka|floatformat:0 }}
                     </td>
-                    <td style="white-space: nowrap;">
+                    <td class="
+                    {% if kamion.zakaznik.fakturovat_rovnani and kamion.zakaznik.fakturovat_tryskani %}fs-06
+                    {% elif kamion.zakaznik.fakturovat_rovnani or kamion.zakaznik.fakturovat_tryskani %}fs-07
+                    {% else %}fs-08
+                    {% endif %}" style="white-space: nowrap;">
                         {{ zakazka.zkraceny_popis|truncatechars:20 }}
                     </td>
                     <td>
