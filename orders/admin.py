@@ -2207,9 +2207,6 @@ class BednaAdmin(SimpleHistoryAdmin):
                 duplicates = history_model.objects.filter(history_date=last_change).count()
                 changed = duplicates > 1
 
-        logger.debug(
-            f"Bedna poll: user={getattr(request, 'user', None)} since={since_value} last={last_change} changed={changed}",
-        )
         payload = {
             'changed': changed,
             'timestamp': last_change.isoformat() if last_change else None,
