@@ -161,11 +161,7 @@
                     <td>
                         {{ zakazka.prumer }}x{{ zakazka.delka|floatformat:0 }}
                     </td>
-                    <td class="
-                    {% if kamion.zakaznik.fakturovat_rovnani and kamion.zakaznik.fakturovat_tryskani %}fs-06
-                    {% elif kamion.zakaznik.fakturovat_rovnani or kamion.zakaznik.fakturovat_tryskani %}fs-07
-                    {% else %}fs-08
-                    {% endif %}" style="white-space: nowrap;">
+                    <td style="white-space: nowrap;">
                         {{ zakazka.zkraceny_popis|truncatechars:20 }}
                     </td>
                     <td>

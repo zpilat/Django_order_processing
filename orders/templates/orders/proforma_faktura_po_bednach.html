@@ -155,11 +155,7 @@
                         <td>{{ pos }}</td>
                         <td>{{ bedna.vyrobni_zakazka|default:"" }}</td>
                         <td>{{ zakazka.artikl }}</td>
-                        <td class="
-                        {% if kamion.zakaznik.fakturovat_rovnani and kamion.zakaznik.fakturovat_tryskani %}fs-06
-                        {% elif kamion.zakaznik.fakturovat_rovnani or kamion.zakaznik.fakturovat_tryskani %}fs-07
-                        {% else %}fs-08
-                        {% endif %}" style="white-space: nowrap;">{{ zakazka.zkraceny_popis|truncatechars:20 }}</td>               
+                        <td style="white-space: nowrap;">{{ zakazka.zkraceny_popis|truncatechars:20 }}</td>               
                         <td>{{ zakazka.prumer }}x{{ zakazka.delka|floatformat:0 }}</td>                         
                         <td {% if kamion.zakaznik.fakturovat_rovnani or kamion.zakaznik.fakturovat_tryskani %}style="border-left: 1px solid black;"{% endif %}>{{ bedna.hmotnost|floatformat:1|default:"0,0" }} kg</td>
                         <td>{{ bedna.cena_za_kg|floatformat:2 }} €</td>
