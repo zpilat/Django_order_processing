@@ -92,7 +92,7 @@ class ZakaznikAdmin(SimpleHistoryAdmin):
             'fields': ('kontaktni_osoba', 'telefon', 'email',)
         }),
         ('Podmínky a nastavení', {
-            'fields': ('vse_tryskat', 'pouze_komplet', 'fakturovat_rovnani', 'fakturovat_tryskani',)
+            'fields': ('proforma_po_bednach', 'vse_tryskat', 'pouze_komplet', 'fakturovat_rovnani', 'fakturovat_tryskani',)
         }),
         ('Doplňující parametry', {
             'fields': ('zkraceny_nazev', 'zkratka', 'ciselna_rada',)
@@ -102,7 +102,7 @@ class ZakaznikAdmin(SimpleHistoryAdmin):
     
     # Parametry pro zobrazení seznamu v administraci
     list_display = ('nazev', 'zkraceny_nazev', 'zkratka', 'adresa', 'mesto', 'psc', 'stat', 'kontaktni_osoba', 'telefon',
-                    'email', 'vse_tryskat', 'pouze_komplet', 'get_fakturovat_rovnani', 'get_fakturovat_tryskani', 'ciselna_rada',)
+                    'email', 'get_proforma_po_bednach', 'vse_tryskat', 'pouze_komplet', 'get_fakturovat_rovnani', 'get_fakturovat_tryskani', 'ciselna_rada',)
     ordering = ('nazev',)
     list_per_page = 20
 
@@ -113,11 +113,24 @@ class ZakaznikAdmin(SimpleHistoryAdmin):
 
     @admin.display(boolean=True, description='Fakt. rovn.')
     def get_fakturovat_rovnani(self, obj):
+        """
+        Vrací hodnotu fakturovat_rovnani pro zákazníka.
+        """
         return obj.fakturovat_rovnani
 
     @admin.display(boolean=True, description='Fakt. trysk.')
     def get_fakturovat_tryskani(self, obj):
+        """
+        Vrací hodnotu fakturovat_tryskani pro zákazníka.
+        """
         return obj.fakturovat_tryskani
+
+    @admin.display(boolean=True, description='Po bednách')
+    def get_proforma_po_bednach(self, obj):
+        """
+        Vrací hodnotu proforma_po_bednach pro zákazníka.
+        """
+        return obj.proforma_po_bednach
 
     def get_readonly_fields(self, request, obj = None):
         """

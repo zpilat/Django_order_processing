@@ -1704,6 +1704,7 @@ def tisk_proforma_faktury_kamionu_action(modeladmin, request, queryset):
     Pokud je vybráno více kamionů, zobrazí se chybová zpráva.
     Pokud kamion nemá přiřazeného zákazníka nebo zákazník nemá zkratku, zobrazí se chybová zpráva.
     Validuje ceny na zakázkách kamionu před tiskem. Pokud jsou neplatné ceny, zobrazí se chybová zpráva.
+    Podle příznaku zákazníka proforma_po_bednach se vybere šablona pro tisk po bednách nebo po zakázkách.
     """
     # Pokud je vybráno více kamionů, zobrazí se chybová zpráva
     if queryset.count() != 1:
@@ -1731,7 +1732,10 @@ def tisk_proforma_faktury_kamionu_action(modeladmin, request, queryset):
                 level=messages.ERROR,
             )
             return None
-        html_path = f"orders/proforma_faktura_{zakaznik_zkratka.lower()}.html"
+        if kamion.zakaznik.proforma_po_bednach:
+            html_path = "orders/proforma_faktura_po_bednach.html"
+        else:
+            html_path = "orders/proforma_faktura_po_zakazkach.html"
         filename = f'proforma_faktura_{kamion.cislo_dl}.pdf'
         response = utilita_tisk_dl_a_proforma_faktury(modeladmin, request, kamion, html_path, filename)
         logger.info(f"Uživatel {request.user} tiskne proforma fakturu kamionu {kamion.cislo_dl} pro zákazníka {zakaznik_zkratka}.")

@@ -41,6 +41,8 @@ class Zakaznik(models.Model):
     kontaktni_osoba = models.CharField(max_length=50, blank=True, null=True, verbose_name='Kontaktní osoba')
     telefon = models.CharField(max_length=50, blank=True, null=True, verbose_name='Telefon')
     email = models.EmailField(max_length=100, blank=True, null=True, verbose_name='E-mail')
+    proforma_po_bednach = models.BooleanField(default=False, verbose_name='Proforma po bednách',
+                                              help_text='Zákazník požaduje vystavení faktury po jednotlivých bednách.')
     vse_tryskat = models.BooleanField(default=False, verbose_name='Vše tryskat',
                                         help_text='Zákazník požaduje všechny bedny tryskat')
     pouze_komplet = models.BooleanField(default=False, verbose_name='Pouze komplet',
@@ -208,6 +210,20 @@ class Kamion(models.Model):
                 ).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
             )
         return Decimal('0.00')
+
+    @property
+    def pocet_vyrovnanych_beden(self):
+        """
+        Vrací celkový počet vyrovnaných beden spojených s kamionem výdej.
+        Neobsahuje bedny, které mají fakturovat=False.
+        """
+        if self.prijem_vydej == KamionChoice.VYDEJ:
+            return Bedna.objects.filter(
+                zakazka__kamion_vydej=self,
+                rovnat=RovnaniChoice.VYROVNANA,
+                fakturovat=True
+            ).count()
+        return 0
     
     @property
     def cena_tryskani_za_kamion_vydej(self):
@@ -226,6 +242,20 @@ class Kamion(models.Model):
                 ).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
             )
         return Decimal('0.00')
+    
+    @property
+    def pocet_otryskanych_beden(self):
+        """
+        Vrací celkový počet otryskaných beden spojených s kamionem výdej.
+        Neobsahuje bedny, které mají fakturovat=False.
+        """
+        if self.prijem_vydej == KamionChoice.VYDEJ:
+            return Bedna.objects.filter(
+                zakazka__kamion_vydej=self,
+                tryskat=TryskaniChoice.OTRYSKANA,
+                fakturovat=True
+            ).count()
+        return 0
 
     @property
     def pocet_beden_skladem(self):
@@ -687,6 +717,26 @@ class Zakazka(models.Model):
             tryskat=TryskaniChoice.OTRYSKANA,
             fakturovat=True
         ).aggregate(suma=Sum('hmotnost'))['suma'] or Decimal('0.0')
+
+    @property
+    def pocet_vyrovnanych_beden(self):
+        """
+        Vrací počet vyrovnaných beden v zakázce, které mají nastaveno fakturovat=True.
+        """
+        return self.bedny.filter(
+            rovnat=RovnaniChoice.VYROVNANA,
+            fakturovat=True
+        ).count()
+    
+    @property
+    def pocet_otryskanych_beden(self):
+        """
+        Vrací počet otryskaných beden v zakázce, které mají nastaveno fakturovat=True.
+        """
+        return self.bedny.filter(
+            tryskat=TryskaniChoice.OTRYSKANA,
+            fakturovat=True
+        ).count()
 
     # --- Delete guards ---
     def delete(self, using=None, keep_parents=False):
