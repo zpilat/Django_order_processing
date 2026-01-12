@@ -2220,6 +2220,18 @@ class BednaAdmin(SimpleHistoryAdmin):
         Číslo bedny se generuje automaticky a je readonly.
         """
         return obj.cislo_bedny
+
+    @admin.display(description='#', empty_value='-')
+    def get_poradi_bedny_v_zakazce(self, obj):
+        """
+        Zobrazí pořadí bedny v zakázce (1/7, 2/7, 3/7, ...).
+        Pokud bedna není přiřazena k zakázce, vrátí '-'.
+        """
+        if obj.zakazka:
+            poradi = f"{obj.poradi_bedny}/{obj.zakazka.bedny.count()}"
+            return poradi
+        return '-'
+
     
     @admin.display(description='Datum', ordering='zakazka__kamion_prijem__datum', empty_value='-')
     def get_datum(self, obj):
