@@ -13,6 +13,7 @@ from orders.utils import (
     utilita_tisk_dokumentace_sablony,
     utilita_tisk_dl_a_proforma_faktury,
     utilita_expedice_zakazek,
+    utilita_expedice_beden,
     utilita_kontrola_zakazek,
     utilita_validate_excel_upload,
 )
@@ -181,6 +182,55 @@ class UtilitaExpediceZakazekTests(UtilsBase):
             self.assertNotEqual(self.bedna2.zakazka, self.zakazka)
             self.assertTrue(self.zakazka.expedovano)
             self.assertEqual(self.zakazka.kamion_vydej, kamion)
+
+
+class UtilitaExpediceBedenTests(UtilsBase):
+    def _create_bedna(self, state, zakazka=None):
+        return Bedna.objects.create(
+            zakazka=zakazka or self.zakazka,
+            hmotnost=Decimal("1"),
+            tara=Decimal("0.5"),
+            mnozstvi=1,
+            stav_bedny=state,
+        )
+
+    def test_utilita_expedice_beden_partial_split(self):
+        # Připrav dvě bedny k expedici a jednu ponech neexpedovanou
+        self.bedna1.stav_bedny = StavBednyChoice.K_EXPEDICI
+        self.bedna1.save()
+        self.bedna2.stav_bedny = StavBednyChoice.K_EXPEDICI
+        self.bedna2.save()
+        treti = self._create_bedna(StavBednyChoice.PRIJATO)
+
+        self.zakazka.kamion_vydej = None
+        self.zakazka.expedovano = False
+        self.zakazka.save()
+
+        kamion = Kamion.objects.create(
+            zakaznik=self.zakaznik,
+            datum=self.kamion_prijem.datum,
+            prijem_vydej=KamionChoice.VYDEJ,
+        )
+        qs = Bedna.objects.filter(id__in=[self.bedna1.id, self.bedna2.id])
+
+        utilita_expedice_beden(None, self.get_request('post'), qs, kamion)
+
+        self.bedna1.refresh_from_db()
+        self.bedna2.refresh_from_db()
+        treti.refresh_from_db()
+        self.zakazka.refresh_from_db()
+
+        self.assertEqual(self.bedna1.stav_bedny, StavBednyChoice.EXPEDOVANO)
+        self.assertEqual(self.bedna2.stav_bedny, StavBednyChoice.EXPEDOVANO)
+        self.assertEqual(treti.stav_bedny, StavBednyChoice.PRIJATO)
+        self.assertEqual(self.zakazka.kamion_vydej, kamion)
+        self.assertTrue(self.zakazka.expedovano)
+
+        nove_zakazky = Zakazka.objects.exclude(id=self.zakazka.id)
+        self.assertTrue(nove_zakazky.exists())
+        nova = nove_zakazky.latest('id')
+        self.assertEqual(treti.zakazka, nova)
+        self.assertFalse(nova.expedovano)
 
 
 class UtilitaKontrolaZakazekTests(UtilsBase):

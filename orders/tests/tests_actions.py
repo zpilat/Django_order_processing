@@ -118,6 +118,7 @@ class ActionsTests(ActionsBase):
 
         return _Admin()
 
+
     def _messages_texts(self, request):
         return [m.message for m in list(request._messages)]
 
@@ -365,6 +366,40 @@ class ActionsTests(ActionsBase):
         resp = actions.expedice_zakazek_kamion_action(self.admin, req, qs)
         self.assertIsNone(resp)
         mock_expedice.assert_called_with(self.admin, req, qs, self.kamion_vydej)
+
+    @patch('orders.actions.utilita_expedice_beden')
+    def test_expedice_beden_action_success(self, mock_expedice):
+        self.bedna.stav_bedny = StavBednyChoice.K_EXPEDICI
+        self.bedna.save()
+        data = {'apply': '1', 'odberatel': self.odberatel.id}
+        req = self.get_request('post', data)
+        qs = Bedna.objects.filter(id=self.bedna.id)
+        with patch('orders.actions.Kamion.objects.create', return_value=self.kamion_vydej) as mock_create:
+            resp = actions.expedice_beden_action(self.admin, req, qs)
+        self.assertIsNone(resp)
+        mock_create.assert_called_once()
+        mock_expedice.assert_called_once()
+
+    @patch('orders.actions.Kamion.objects.create')
+    @patch('orders.actions.utilita_expedice_beden')
+    def test_expedice_beden_action_pouze_komplet_must_select_all(self, mock_expedice, mock_create):
+        admin_obj = self._messaging_admin()
+        self.zakaznik.pouze_komplet = True
+        self.zakaznik.save()
+        # Přidej druhou bednu v K_EXPEDICI a vyber jen jednu
+        self.bedna.stav_bedny = StavBednyChoice.K_EXPEDICI
+        self.bedna.save()
+        self._create_bedna_in_state(StavBednyChoice.K_EXPEDICI)
+
+        data = {'apply': '1', 'odberatel': self.odberatel.id}
+        req = self.get_request('post', data)
+        qs = Bedna.objects.filter(id=self.bedna.id)  # jen jedna z více
+        resp = actions.expedice_beden_action(admin_obj, req, qs)
+        self.assertIsNone(resp)
+        msgs = self._messages_texts(req)
+        self.assertTrue(any('musí být expedována celá' in m for m in msgs))
+        mock_create.assert_not_called()
+        mock_expedice.assert_not_called()
 
     @patch('orders.actions.utilita_tisk_dokumentace')
     def test_tisk_karet_beden_zakazek_action(self, mock_util):
