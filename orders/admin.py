@@ -43,7 +43,7 @@ from .actions import (
     oznacit_do_zpracovani_action, oznacit_zakaleno_action, oznacit_zkontrolovano_action, oznacit_k_expedici_action, oznacit_rovna_action,
     oznacit_kriva_action, oznacit_rovna_se_action, oznacit_vyrovnana_action, oznacit_cista_action, oznacit_spinava_action,
     oznacit_otryskana_action, prijmout_kamion_action, prijmout_zakazku_action, prijmout_bedny_action,
-    export_bedny_to_csv_action, tisk_rozpracovanost_action, tisk_prehledu_zakazek_kamionu_action,
+    export_bedny_to_csv_action, tisk_rozpracovanost_action, tisk_prehledu_zakazek_kamionu_action, expedice_beden_action,
 )
 from .filters import (
     SklademZakazkaFilter, StavBednyFilter, KompletZakazkaFilter, AktivniPredpisFilter, SkupinaFilter, ZakaznikBednyFilter,
@@ -2113,7 +2113,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         vratit_bedny_ze_stavu_navezeno_do_stavu_prijato_action, vratit_bedny_z_rozpracovanosti_do_stavu_prijato_action,
         oznacit_do_zpracovani_action, oznacit_zakaleno_action, oznacit_zkontrolovano_action, oznacit_k_expedici_action,
         oznacit_rovna_action, oznacit_kriva_action, oznacit_rovna_se_action, oznacit_vyrovnana_action,
-        oznacit_cista_action, oznacit_spinava_action, oznacit_otryskana_action, prijmout_bedny_action
+        oznacit_cista_action, oznacit_spinava_action, oznacit_otryskana_action, prijmout_bedny_action, expedice_beden_action,
     ]
     form = BednaAdminForm
 
@@ -2655,18 +2655,21 @@ class BednaAdmin(SimpleHistoryAdmin):
         jinak se zruší akce pro tisk karet beden, kontroly kvality a tisk karet beden a kontroly.
         Pokud není vůbec aktivní filtr stav bedny nebo není aktivní filtr stav bedny PRIJATO,
         zruší se akce pro změnu stavu bedny na K_NAVEZENI.
-        Pokud není aktivní filtr stav bedny K_NAVEZENI, zruší akci pro změnu stavu bedny na NAVEZENO a vrácení stavu bedny na PRIJATO.       
-        Pokud není aktivní filtr stav bedny NAVEZENO, zruší akci pro změnu stavu bedny na DO_ZPRACOVANI a vrácení z NAVEZENO na PRIJATO.
-        Pokud není aktivní filtr stav bedny DO_ZPRACOVANI, zruší akci pro změnu stavu bedny na ZAKALENO.
-        Pokud není aktivní filtr stav bedny ZAKALENO, zruší akci pro změnu stavu bedny na ZKONTROLOVANO.
-        Pokud není aktivní filtr stav bedny ZKONTROLOVANO, zruší akci pro změnu stavu bedny na K_EXPEDICI.
-        Pokud není aktivní filtr stav bedny K_EXPEDICI, zruší akci pro změnu stavu bedny na ZPRACOVANO.
-        Pokud není aktivní filtr stav bedny 'RO', zruší akci pro vrácení bedny z rozpracovanosti do stavu PRIJATO.
-        Pokud není aktivní filtr rovnani NEZADANO, zruší akce pro změnu stavu rovnání na ROVNA a KRIVA.
-        Pokud není aktivní filtr rovnani KRIVA, zruší akci pro změnu stavu rovnání na ROVNA_SE.
-        Pokud není aktivní filtr rovnani ROVNA_SE, zruší akci pro změnu stavu rovnání na VYROVNANA.
-        Pokud není aktivní filtr tryskani NEZADANO, zruší akce pro změnu stavu tryskání na CISTA a SPINAVA.
-        Pokud není aktivní filtr tryskani SPINAVA nebo NEZADANO, zruší akci pro změnu stavu tryskání na OTRYSKANA.
+        Pokud není aktivní filtr stav bedny K_NAVEZENI, zruší se akce pro vrácení bedny ze stavu K_NAVEZENI do stavu PRIJATO
+        a akce pro označení bedny jako NAVEZENO.
+        Pokud není aktivní filtr stav bedny NAVEZENO nebo RO, zruší se akce pro označení bedny do stavu DO_ZPRACOVANI
+        a akce pro vrácení bedny ze stavu NAVEZENO do stavu PRIJATO.
+        Pokud není aktivní filtr stav bedny NAVEZENO, DO_ZPRACOVANI nebo RO, zruší se akce pro označení bedny jako ZAKALENO.
+        Pokud není aktivní filtr stav bedny NAVEZENO, DO_ZPRACOVANI, ZAKALENO nebo RO, zruší se akce pro označení bedny jako ZKONTROLOVANO.
+        Pokud není aktivní filtr stav bedny NAVEZENO, DO_ZPRACOVANI, ZAKALENO, ZKONTROLOVANO nebo RO,
+        zruší se akce pro označení bedny jako K_EXPEDICI.
+        Pokud není aktivní filtr stav bedny RO, zruší se akce pro vrácení bedny z rozpracovanosti do stavu PRIJATO.
+        Pokud není aktivní filtr stav bedny K_EXPEDICI, zruší se akce expedice beden.
+        Pokud není aktivní filtr rovnani NEZADANO, zruší se akce pro označení bedny jako ROVNA a KŘIVÁ.
+        Pokud není aktivní filtr rovnani KŘIVÁ, zruší se akce pro označení bedny jako ROVNÁ SE.
+        Pokud není aktivní filtr rovnani KŘIVÁ nebo ROVNÁ SE, zruší se akce pro označení bedny jako VYROVNANÁ.
+        Pokud není aktivní filtr tryskani NEZADANO, zruší se akce pro označení bedny jako ČISTÁ a ŠPINAVÁ.
+        Pokud není aktivní filtr tryskani ŠPINAVÁ nebo NEZADANO, zruší se akce pro označení bedny jako OTRYSKANÁ.
         Pokud není vůbec aktivní filtr stavu bedny nebo není aktivní filtr stavu bedny PRIJATO nebo K_NAVEZENI,
         nebo nemá uživatel jedno z oprávnění orders.can_change_bedna, orders.mark_bedna_navezeno, zruší se akce oznacit_prijato_navezeno_action.
         """
@@ -2719,6 +2722,10 @@ class BednaAdmin(SimpleHistoryAdmin):
                 actions_to_remove += [
                     'vratit_bedny_z_rozpracovanosti_do_stavu_prijato_action',
                 ]
+            if request.GET.get('stav_bedny', None) != StavBednyChoice.K_EXPEDICI:
+                actions_to_remove += [
+                    'expedice_beden_action',
+                ]
             if request.GET.get('rovnani', None) != RovnaniChoice.NEZADANO:
                 actions_to_remove += [
                     'oznacit_rovna_action', 'oznacit_kriva_action',
@@ -2760,6 +2767,8 @@ class BednaAdmin(SimpleHistoryAdmin):
         - Export        
         - Rovnání
         - Tryskání
+        - Expedice
+    
         Ostatní akce (např. delete_selected) spadnou do 'Ostatní'.
         """
         actions = self.get_actions(request)
@@ -2789,8 +2798,9 @@ class BednaAdmin(SimpleHistoryAdmin):
             'oznacit_cista_action': 'Tryskání',
             'oznacit_spinava_action': 'Tryskání',
             'oznacit_otryskana_action': 'Tryskání',
+            'expedice_beden_action': 'Expedice',
         }
-        order = ['Stav bedny', 'Tisk', 'Export', 'Rovnání', 'Tryskání']
+        order = ['Stav bedny', 'Tisk', 'Export', 'Rovnání', 'Tryskání', 'Expedice']
         grouped = {g: [] for g in order}
 
         for name, (_func, _action_name, desc) in actions.items():
