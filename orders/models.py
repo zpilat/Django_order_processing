@@ -103,7 +103,10 @@ class Kamion(models.Model):
     prijem_vydej = models.CharField(choices=KamionChoice.choices, max_length=1, verbose_name='Přijem/Výdej', default=KamionChoice.PRIJEM)
     poradove_cislo = models.PositiveIntegerField(verbose_name='Pořadové číslo', blank=True, null=True)
     poznamka = models.TextField(verbose_name='Poznámka do DL', blank=True, null=True)
-    text_upozorneni = models.CharField(max_length=100, verbose_name='Text upozornění na DL', blank=True, null=True,)
+    text_upozorneni = models.CharField(max_length=100, verbose_name='Text upozornění na DL', blank=True, null=True,
+                                        help_text='Text upozornění pro bedny, které se nefakturují. Je stejně podbarven jako tyto bedny v dodacím listu.')
+    prepsani_hmotnosti_brutto = models.DecimalField(max_digits=8, decimal_places=1, verbose_name='Přepsání hmotnosti brutto', blank=True, null=True,
+                                                    help_text='Pokud je vyplněno, použije se tato hmotnost brutto na dodacím listu místo vypočtené hodnoty.')
     history = HistoricalRecords()
 
     class Meta:

@@ -130,7 +130,13 @@
             </div>
             <div class="col-2">
                 <p class="fs-pdf-07 mb-0">{{ kamion.celkova_hmotnost_netto|floatformat:"1g" }} kg</p>
-                <p class="fs-pdf-07 mb-0">{{ kamion.celkova_hmotnost_brutto|floatformat:"1g" }} kg</p>
+                <p class="fs-pdf-07 mb-0">
+                    {% if kamion.prepsani_hmotnosti_brutto %}
+                        {{ kamion.prepsani_hmotnosti_brutto|floatformat:"1g" }} kg
+                    {% else %}
+                        {{ kamion.celkova_hmotnost_brutto|floatformat:"1g" }} kg
+                    {% endif %}
+                </p>
                 <p class="fs-pdf-07 mb-0">&nbsp;</p>            
                 <p class="fs-pdf-07 mb-0">{{ user_last_name }}</p>
             </div>

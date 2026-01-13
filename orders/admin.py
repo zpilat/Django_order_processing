@@ -384,7 +384,7 @@ class KamionAdmin(SimpleHistoryAdmin):
     ]
     # Parametry pro zobrazení detailu v administraci
     fields = ('zakaznik', 'datum', 'poradove_cislo', 'cislo_dl', 'prijem_vydej', 'odberatel',
-              'poznamka', 'text_upozorneni', 'get_struktura_kamionu',) # další úpravy v get_fields
+              'poznamka', 'text_upozorneni', 'prepsani_hmotnosti_brutto', 'get_struktura_kamionu',) # další úpravy v get_fields
     readonly_fields = ('prijem_vydej', 'poradove_cislo', 'get_struktura_kamionu',) # další úpravy v get_readonly_fields
     # Parametry pro zobrazení seznamu v administraci
     list_display = ('get_kamion_str', 'get_zakaznik_zkraceny_nazev', 'get_datum', 'cislo_dl', 'get_typ_kamionu',
@@ -622,15 +622,16 @@ class KamionAdmin(SimpleHistoryAdmin):
         """
         Vrací seznam polí, která se mají zobrazit ve formuláře Kamion při přidání nového a při editaci.
 
-        - Pokud není obj (tj. add_view), zruší se zobrazení pole `prijem_vydej`, `odberatel` a `poznamka`.
-        - Pokud je obj a kamion je pro příjem, zruší se zobrazení pole `odberatel` a `poznamka`.
+        - Pokud není obj (tj. add_view), zruší se zobrazení pole `prijem_vydej`, `odberatel`, `poznamka`, `text_upozorneni`,
+          `prepsani_hmotnosti_brutto` a `get_struktura_kamionu`.
+        - Pokud je obj a kamion je pro příjem, zruší se zobrazení pole `odberatel`, `poznamka`, `text_upozorneni` a `prepsani_hmotnosti_brutto`.
         """
         fields = list(super().get_fields(request, obj))
 
         if not obj:  # Pokud se jedná o přidání nového kamionu
-            fields = [f for f in fields if f not in ('prijem_vydej', 'odberatel', 'poznamka', 'text_upozorneni', 'get_struktura_kamionu')]
+            fields = [f for f in fields if f not in ('prijem_vydej', 'odberatel', 'poznamka', 'text_upozorneni', 'prepsani_hmotnosti_brutto', 'get_struktura_kamionu')]
         if obj and obj.prijem_vydej == KamionChoice.PRIJEM:
-            fields = [f for f in fields if f not in ('odberatel', 'poznamka', 'text_upozorneni')]
+            fields = [f for f in fields if f not in ('odberatel', 'poznamka', 'text_upozorneni', 'prepsani_hmotnosti_brutto')]
         return fields
 
     def get_readonly_fields(self, request, obj=None):
