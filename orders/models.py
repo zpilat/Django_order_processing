@@ -585,13 +585,23 @@ class Zakazka(models.Model):
         if not predpis or not zakaznik:
             return Decimal('0.00')
 
-        cena = Cena.objects.filter(
-            predpis=predpis,
-            delka_min__lte=delka,
-            delka_max__gt=delka,
-            zakaznik=zakaznik
-        ).first()
-        return cena.cena_za_kg if cena else Decimal('0.00')
+        try:
+            cena = Cena.objects.get(
+                predpis=predpis,
+                delka_min__lte=delka,
+                delka_max__gt=delka,
+                zakaznik=zakaznik
+            )
+        except Cena.DoesNotExist:
+            return Decimal('0.00')
+        except Cena.MultipleObjectsReturned:
+            logger.warning(
+                f"Nalezeno více cen pro zakázku {self.pk} "
+                f"(predpis={getattr(predpis, 'id', predpis)}, delka={delka}, zakaznik={getattr(zakaznik, 'id', zakaznik)})"
+            )
+            return Decimal('0.00')
+
+        return cena.cena_za_kg or Decimal('0.00')
            
     @property
     def cena_za_zakazku(self):
@@ -632,18 +642,23 @@ class Zakazka(models.Model):
         if not predpis or not zakaznik or not zakaznik.fakturovat_rovnani:
             return Decimal('0.00')
 
-        # Zákazníci s fakturací rovnání
-        cena = Cena.objects.filter(
-            predpis=predpis,
-            delka_min__lte=delka,
-            delka_max__gt=delka,
-            zakaznik=zakaznik
-        ).first()
+        try:
+            cena = Cena.objects.get(
+                predpis=predpis,
+                delka_min__lte=delka,
+                delka_max__gt=delka,
+                zakaznik=zakaznik
+            )
+        except Cena.DoesNotExist:
+            return Decimal('0.00')
+        except Cena.MultipleObjectsReturned:
+            logger.warning(
+                f"Nalezeno více cen rovnání pro zakázku {self.pk} "
+                f"(predpis={getattr(predpis, 'id', predpis)}, delka={delka}, zakaznik={getattr(zakaznik, 'id', zakaznik)})"
+            )
+            return Decimal('0.00')
 
-        if cena and cena.cena_rovnani_za_kg is not None:
-            return cena.cena_rovnani_za_kg
-        else:
-            return Decimal('0.00')    
+        return cena.cena_rovnani_za_kg or Decimal('0.00')    
 
     @property
     def cena_rovnani_za_zakazku(self):
@@ -676,18 +691,23 @@ class Zakazka(models.Model):
         if not predpis or not zakaznik or not zakaznik.fakturovat_tryskani:
             return Decimal('0.00')
 
-        # Zákazníci s fakturací tryskání
-        cena = Cena.objects.filter(
-            predpis=predpis,
-            delka_min__lte=delka,
-            delka_max__gt=delka,
-            zakaznik=zakaznik
-        ).first()
-
-        if cena and cena.cena_tryskani_za_kg is not None:
-            return cena.cena_tryskani_za_kg
-        else:
+        try:
+            cena = Cena.objects.get(
+                predpis=predpis,
+                delka_min__lte=delka,
+                delka_max__gt=delka,
+                zakaznik=zakaznik
+            )
+        except Cena.DoesNotExist:
             return Decimal('0.00')
+        except Cena.MultipleObjectsReturned:
+            logger.warning(
+                f"Nalezeno více cen tryskání pro zakázku {self.pk} "
+                f"(predpis={getattr(predpis, 'id', predpis)}, delka={delka}, zakaznik={getattr(zakaznik, 'id', zakaznik)})"
+            )
+            return Decimal('0.00')
+
+        return cena.cena_tryskani_za_kg or Decimal('0.00')
             
     @property
     def cena_tryskani_za_zakazku(self):

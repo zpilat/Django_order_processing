@@ -20,7 +20,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from weasyprint import HTML
 from weasyprint import CSS
 
-from .models import Zakazka, Bedna, Kamion, Zakaznik, Pozice, Rozpracovanost
+from .models import Zakazka, Bedna, Kamion, Zakaznik, Pozice, Rozpracovanost, Cena
 from .utils import (
     utilita_tisk_dokumentace,
     utilita_tisk_dokumentace_sablony,
@@ -104,17 +104,37 @@ def _validate_proforma_pricing(kamion):
             errors.append(f"Zakázka {label}: chybí kamion příjem se zákazníkem pro výpočet cen.")
             continue
 
-        cena_za_kg = zakazka.cena_za_kg
+        predpis = getattr(zakazka, 'predpis', None)
+        delka = getattr(zakazka, 'delka', None)
+        if not predpis or delka is None:
+            errors.append(f"Zakázka {label}: chybí předpis nebo délka pro výpočet ceny.")
+            continue
+
+        try:
+            cena_obj = Cena.objects.get(
+                predpis=predpis,
+                delka_min__lte=delka,
+                delka_max__gt=delka,
+                zakaznik=zakaznik_prijem
+            )
+        except Cena.DoesNotExist:
+            errors.append(f"Zakázka {label}: nenalezena cena pro předpis {predpis} a délku {delka}.")
+            continue
+        except Cena.MultipleObjectsReturned:
+            errors.append(f"Zakázka {label}: nalezeno více cen pro předpis {predpis} a délku {delka}. Opravte ceník.")
+            continue
+
+        cena_za_kg = cena_obj.cena_za_kg
         if cena_za_kg is None or cena_za_kg <= 0:
             errors.append(f"Zakázka {label}: cena za kg musí být větší než 0.")
 
         if zakaznik_prijem.fakturovat_rovnani:
-            cena_rovnani = zakazka.cena_rovnani_za_kg
+            cena_rovnani = cena_obj.cena_rovnani_za_kg
             if cena_rovnani is None or cena_rovnani <= 0:
                 errors.append(f"Zakázka {label}: cena rovnání za kg musí být větší než 0.")
 
         if zakaznik_prijem.fakturovat_tryskani:
-            cena_tryskani = zakazka.cena_tryskani_za_kg
+            cena_tryskani = cena_obj.cena_tryskani_za_kg
             if cena_tryskani is None or cena_tryskani <= 0:
                 errors.append(f"Zakázka {label}: cena tryskání za kg musí být větší než 0.")
 

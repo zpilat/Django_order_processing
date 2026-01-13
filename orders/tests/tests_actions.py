@@ -464,8 +464,7 @@ class ActionsTests(ActionsBase):
         resp = actions.tisk_proforma_faktury_kamionu_action(admin_obj, req, Kamion.objects.filter(id=self.kamion_vydej.id))
         self.assertIsNone(resp)
         msgs = self._messages_texts(req)
-        self.assertTrue(any('cena za kg' in m for m in msgs))
-        self.assertTrue(any('cena tryskání' in m for m in msgs))
+        self.assertTrue(any('nenalezena cena pro předpis' in m for m in msgs))
 
     def test_tisk_proforma_faktury_kamionu_action_missing_rovnani_error(self):
         admin_obj = self._messaging_admin()
