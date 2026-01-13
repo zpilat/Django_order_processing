@@ -232,6 +232,38 @@ class UtilitaExpediceBedenTests(UtilsBase):
         self.assertEqual(treti.zakazka, nova)
         self.assertFalse(nova.expedovano)
 
+    def test_utilita_expedice_beden_partial_selection_mixes(self):
+        # Tři bedny K_EXPEDICI, vybereme jen jednu => expeduji se 1, dvě se přesunou do nové zakázky
+        b1 = self._create_bedna(StavBednyChoice.K_EXPEDICI)
+        b2 = self._create_bedna(StavBednyChoice.K_EXPEDICI)
+        b3 = self._create_bedna(StavBednyChoice.K_EXPEDICI)
+
+        kamion = Kamion.objects.create(
+            zakaznik=self.zakaznik,
+            datum=self.kamion_prijem.datum,
+            prijem_vydej=KamionChoice.VYDEJ,
+        )
+
+        qs = Bedna.objects.filter(id__in=[b1.id])
+        utilita_expedice_beden(None, self.get_request('post'), qs, kamion)
+
+        for bedna in (b1, b2, b3):
+            bedna.refresh_from_db()
+        self.zakazka.refresh_from_db()
+
+        self.assertEqual(b1.stav_bedny, StavBednyChoice.EXPEDOVANO)
+        self.assertEqual(b2.stav_bedny, StavBednyChoice.K_EXPEDICI)
+        self.assertEqual(b3.stav_bedny, StavBednyChoice.K_EXPEDICI)
+        self.assertEqual(self.zakazka.kamion_vydej, kamion)
+        self.assertTrue(self.zakazka.expedovano)
+
+        nove_zakazky = Zakazka.objects.exclude(id=self.zakazka.id)
+        self.assertTrue(nove_zakazky.exists())
+        nova = nove_zakazky.latest('id')
+        self.assertEqual(b2.zakazka, nova)
+        self.assertEqual(b3.zakazka, nova)
+        self.assertFalse(nova.expedovano)
+
 
 class UtilitaKontrolaZakazekTests(UtilsBase):
     def test_no_bedny(self):

@@ -401,6 +401,37 @@ class ActionsTests(ActionsBase):
         mock_create.assert_not_called()
         mock_expedice.assert_not_called()
 
+    def test_expedice_beden_action_partial_selection_moves_rest(self):
+        admin_obj = self._messaging_admin()
+        b1 = self._create_bedna_in_state(StavBednyChoice.K_EXPEDICI)
+        b2 = self._create_bedna_in_state(StavBednyChoice.K_EXPEDICI)
+        b3 = self._create_bedna_in_state(StavBednyChoice.K_EXPEDICI)
+
+        data = {'apply': '1', 'odberatel': self.odberatel.id}
+        req = self.get_request('post', data)
+        qs = Bedna.objects.filter(id__in=[b1.id])
+
+        with patch('orders.actions.Kamion.objects.create', return_value=self.kamion_vydej):
+            actions.expedice_beden_action(admin_obj, req, qs)
+
+        b1.refresh_from_db()
+        b2.refresh_from_db()
+        b3.refresh_from_db()
+        self.zakazka.refresh_from_db()
+
+        self.assertEqual(b1.stav_bedny, StavBednyChoice.EXPEDOVANO)
+        self.assertEqual(b2.stav_bedny, StavBednyChoice.K_EXPEDICI)
+        self.assertEqual(b3.stav_bedny, StavBednyChoice.K_EXPEDICI)
+        self.assertEqual(self.zakazka.kamion_vydej, self.kamion_vydej)
+        self.assertTrue(self.zakazka.expedovano)
+
+        nove_zakazky = Zakazka.objects.exclude(id=self.zakazka.id)
+        self.assertTrue(nove_zakazky.exists())
+        nova = nove_zakazky.latest('id')
+        self.assertEqual(b2.zakazka, nova)
+        self.assertEqual(b3.zakazka, nova)
+        self.assertFalse(nova.expedovano)
+
     @patch('orders.actions.utilita_tisk_dokumentace')
     def test_tisk_karet_beden_zakazek_action(self, mock_util):
         mock_util.return_value = HttpResponse('ok')
