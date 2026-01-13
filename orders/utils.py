@@ -215,6 +215,7 @@ def utilita_expedice_beden(modeladmin, request, bedny_qs, kamion):
     zakazky = Zakazka.objects.filter(bedny__in=bedny_qs).distinct()
     for zakazka in zakazky:
         vybrane_bedny = bedny_qs.filter(zakazka=zakazka)
+        vybrane_ids = list(vybrane_bedny.values_list('pk', flat=True))
 
         # Expeduj vybrané bedny
         for bedna in vybrane_bedny:
@@ -223,7 +224,8 @@ def utilita_expedice_beden(modeladmin, request, bedny_qs, kamion):
             logger.info(f"Uživatel {request.user} expedoval bednu {bedna} (stav nastaven na EXPEDOVANO).")
 
         # Bedny, které nebyly vybrány k expedici, přesuň do nové zakázky (stejná data)
-        zbyvajici_bedny = zakazka.bedny.exclude(pk__in=vybrane_bedny.values_list('pk', flat=True))
+        zbyvajici_ids = list(zakazka.bedny.exclude(pk__in=vybrane_ids).values_list('pk', flat=True))
+        zbyvajici_bedny = Bedna.objects.filter(pk__in=zbyvajici_ids)
         nova_zakazka = None
         if zbyvajici_bedny.exists():
             exclude = {'id', 'kamion_vydej', 'expedovano'}
