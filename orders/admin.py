@@ -2228,7 +2228,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         Pokud bedna není přiřazena k zakázce, vrátí '-'.
         """
         if obj.zakazka:
-            poradi = f"{obj.poradi_bedny}/{obj.zakazka.bedny.count()}"
+            poradi = f"{obj.poradi_bedny}/{obj.zakazka.pocet_beden}"
             return poradi
         return '-'
 
