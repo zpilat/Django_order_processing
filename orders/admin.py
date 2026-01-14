@@ -2126,7 +2126,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     list_display = (
         'get_cislo_bedny', 'get_behalter_nr', 'get_poradi_bedny_v_zakazce', 'zakazka_link', 'kamion_prijem_link',
         'kamion_vydej_link', 'stav_bedny', 'rovnat', 'tryskat', 'get_prumer', 'get_delka_int','get_skupina_TZ',
-        'get_typ_hlavy', 'get_celozavit', 'get_zkraceny_popis', 'hmotnost', 'tara', 'mnozstvi', 'pozice', 'get_priorita',
+        'get_typ_hlavy', 'get_celozavit', 'get_zkraceny_popis', 'hmotnost', 'tara', 'get_hmotnost_brutto', 'mnozstvi', 'pozice', 'get_priorita',
         'get_datum', 'get_postup', 'cena_za_kg', 'poznamka',
         )
     # list_editable nastavován dynamicky v get_list_editable
@@ -2165,6 +2165,7 @@ class BednaAdmin(SimpleHistoryAdmin):
             'orders/js/changelist_dirty_guard.js',
             'orders/js/admin_bedna_group_separator.js',
             'orders/js/admin_bedna_change_poll.js',
+            'orders/js/bedny_hmotnost_sum.js',
         )
         css = {
             'all': ('orders/css/admin_paused_rows.css',)
@@ -2232,6 +2233,13 @@ class BednaAdmin(SimpleHistoryAdmin):
             poradi = f"{obj.poradi_bedny}/{obj.zakazka.pocet_beden}"
             return poradi
         return '-'
+
+    @admin.display(description='Brutto', empty_value='-')        
+    def get_hmotnost_brutto(self, obj):
+        """
+        Zobrazí brutto hmotnost bedny (hmotnost + tara), použije property hmotnost_brutto v modelu Bedna.
+        """
+        return obj.hmotnost_brutto.quantize(Decimal('0.1'), rounding=ROUND_HALF_UP) if obj.hmotnost_brutto else '-'
 
     @admin.display(description='Datum', ordering='zakazka__kamion_prijem__datum', empty_value='-')
     def get_datum(self, obj):
@@ -2594,7 +2602,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         Pokud není filtr stav bedny == Expedováno, vyloučí se zobrazení sloupce kamion_vydej_link.
         Pokud není filtr stav bedny v STAV_BEDNY_PRO_NAVEZENI, vyloučí se zobrazení sloupce pozice.
         Pokud není filtr stav bedny == Neprijato, vyloučí se zobrazení sloupce mnozstvi a tara.
-        Pokud není filtr stav bedny == K_expedici, vyloučí se zobrazení sloupce cena_za_kg.
+        Pokud není filtr stav bedny == K_expedici, vyloučí se zobrazení sloupce cena_za_kg a hmotnost_brutto.
         Pokud není filtr stav bedny == Prijato nebo K_expedici, vyloučí se sloupec get_poradi_bedny_v_zakazce,
         jinak kamion_prijem_link.
         """
@@ -2621,6 +2629,8 @@ class BednaAdmin(SimpleHistoryAdmin):
         if stav_bedny != StavBednyChoice.K_EXPEDICI:
             if 'cena_za_kg' in list_display:
                 list_display.remove('cena_za_kg')
+            if 'get_hmotnost_brutto' in list_display:
+                list_display.remove('get_hmotnost_brutto')
         if stav_bedny not in [StavBednyChoice.PRIJATO, StavBednyChoice.K_EXPEDICI]:
             if 'get_poradi_bedny_v_zakazce' in list_display:
                 list_display.remove('get_poradi_bedny_v_zakazce')
