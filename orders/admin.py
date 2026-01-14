@@ -2124,10 +2124,10 @@ class BednaAdmin(SimpleHistoryAdmin):
 
     # Parametry pro zobrazení seznamu v administraci
     list_display = (
-        'get_cislo_bedny', 'get_behalter_nr', 'get_poradi_bedny_v_zakazce', 'zakazka_link', 'kamion_prijem_link',
+        'get_cislo_bedny', 'get_behalter_nr', 'get_poradi_bedny_v_zakazce', 'zakazka_link', 'get_zakaznik_zkratka', 'kamion_prijem_link',
         'kamion_vydej_link', 'stav_bedny', 'rovnat', 'tryskat', 'get_prumer', 'get_delka_int','get_skupina_TZ',
-        'get_typ_hlavy', 'get_celozavit', 'get_zkraceny_popis', 'hmotnost', 'tara', 'get_hmotnost_brutto', 'mnozstvi', 'pozice', 'get_priorita',
-        'get_datum', 'get_postup', 'cena_za_kg', 'poznamka',
+        'get_typ_hlavy', 'get_celozavit', 'get_zkraceny_popis', 'hmotnost', 'tara', 'get_hmotnost_brutto',
+        'mnozstvi', 'pozice', 'get_priorita', 'get_datum', 'get_postup', 'cena_za_kg', 'poznamka',
         )
     # list_editable nastavován dynamicky v get_list_editable
     list_display_links = ('get_cislo_bedny', )
@@ -2223,7 +2223,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         """
         return obj.cislo_bedny
 
-    @admin.display(description='#/celkem', empty_value='-')
+    @admin.display(description='Pořadí', empty_value='-')
     def get_poradi_bedny_v_zakazce(self, obj):
         """
         Zobrazí pořadí bedny v zakázce (1/7, 2/7, 3/7, ...).
@@ -2232,6 +2232,16 @@ class BednaAdmin(SimpleHistoryAdmin):
         if obj.zakazka:
             poradi = f"{obj.poradi_bedny}/{obj.zakazka.pocet_beden}"
             return poradi
+        return '-'
+
+    @admin.display(description='Zák.', ordering='zakazka__kamion_prijem__zakaznik__zkratka', empty_value='-')
+    def get_zakaznik_zkratka(self, obj):
+        """
+        Zobrazí zkratku zákazníka, ke kterému bedna patří, a umožní třídění podle hlavičky pole.
+        Pokud bedna není přiřazena k zakázce nebo zakázka nemá zákazníka, vrátí '-'.
+        """
+        if obj.zakazka and obj.zakazka.kamion_prijem and obj.zakazka.kamion_prijem.zakaznik:
+            return obj.zakazka.kamion_prijem.zakaznik.zkratka
         return '-'
 
     @admin.display(description='Brutto', empty_value='-')        
@@ -2603,7 +2613,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         Pokud není filtr stav bedny v STAV_BEDNY_PRO_NAVEZENI, vyloučí se zobrazení sloupce pozice.
         Pokud není filtr stav bedny == Neprijato, vyloučí se zobrazení sloupce mnozstvi a tara.
         Pokud není filtr stav bedny == K_expedici, vyloučí se zobrazení sloupce cena_za_kg a hmotnost_brutto.
-        Pokud není filtr stav bedny == Prijato nebo K_expedici, vyloučí se sloupec get_poradi_bedny_v_zakazce,
+        Pokud není filtr stav bedny == Prijato nebo K_expedici, vyloučí se sloupce get_zakaznik_zkratka a get_poradi_bedny_v_zakazce,
         jinak kamion_prijem_link.
         """
         list_display = list(super().get_list_display(request))
@@ -2634,6 +2644,8 @@ class BednaAdmin(SimpleHistoryAdmin):
         if stav_bedny not in [StavBednyChoice.PRIJATO, StavBednyChoice.K_EXPEDICI]:
             if 'get_poradi_bedny_v_zakazce' in list_display:
                 list_display.remove('get_poradi_bedny_v_zakazce')
+            if 'get_zakaznik_zkratka' in list_display:
+                list_display.remove('get_zakaznik_zkratka')                
         else:
             if 'kamion_prijem_link' in list_display:
                 list_display.remove('kamion_prijem_link')
