@@ -3053,7 +3053,12 @@ class CenaAdmin(SimpleHistoryAdmin):
         Pokud není žádný předpis spojen, vrátí prázdný řetězec.
         """
         if obj.predpis.exists():
-            predpisy_text = ", ".join(predpis.nazev for predpis in obj.predpis.all())
+            predpisy_text = []
+            for predpis in obj.predpis.all():
+                aktivni_text = "A" if predpis.aktivni else "N"
+                predpis_text = f"{predpis.nazev}-{aktivni_text}"
+                predpisy_text.append(predpis_text)
+            predpisy_text = ", ".join(predpisy_text)
             return format_html(
                 '<div style="max-width: 780px; white-space: normal;">{}</div>',
                 predpisy_text
@@ -3070,12 +3075,10 @@ class CenaAdmin(SimpleHistoryAdmin):
     @admin.display(description='Popis s délkou', ordering='popis', empty_value='-')
     def popis_s_delkou(self, obj):
         """
-        Zobrazí popis ceny s délkou, pokud je delka_max a delka_min vyplněna.
-        Pokud není delka_max nebo delka_min vyplněna, vrátí pouze popis.
+        Zobrazí popis ceny s přidanou délkou v jednom řádku, aby se nelámal.
         """
-        if obj.delka_min and obj.delka_max:
-            return f"{obj.popis}x{int(obj.delka_min)}-{int(obj.delka_max)}"
-        return obj.popis
+        text = f"{obj.popis}x{int(obj.delka_min)}-{int(obj.delka_max)}" if obj.delka_min and obj.delka_max else obj.popis
+        return format_html('<div style="white-space: nowrap;">{}</div>', text)
     
 
 class BednaPoziceInline(admin.TabularInline):

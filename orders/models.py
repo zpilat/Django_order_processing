@@ -459,7 +459,8 @@ class Predpis(models.Model):
         ordering = ['-zakaznik__zkratka', 'nazev']
 
     def __str__(self):
-        return f'{self.nazev} ({self.zakaznik.zkratka})'
+        aktivni_text = 'A' if self.aktivni else 'N'
+        return f'{self.nazev} ({self.zakaznik.zkratka}) - {aktivni_text}'
     
     def get_admin_url(self):
         """
