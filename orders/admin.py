@@ -44,6 +44,7 @@ from .actions import (
     oznacit_kriva_action, oznacit_rovna_se_action, oznacit_vyrovnana_action, oznacit_cista_action, oznacit_spinava_action,
     oznacit_otryskana_action, prijmout_kamion_action, prijmout_zakazku_action, prijmout_bedny_action,
     export_bedny_to_csv_action, tisk_rozpracovanost_action, tisk_prehledu_zakazek_kamionu_action, expedice_beden_action,
+    expedice_beden_kamion_action,
 )
 from .filters import (
     SklademZakazkaFilter, StavBednyFilter, KompletZakazkaFilter, AktivniPredpisFilter, SkupinaFilter, ZakaznikBednyFilter,
@@ -2114,6 +2115,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         oznacit_do_zpracovani_action, oznacit_zakaleno_action, oznacit_zkontrolovano_action, oznacit_k_expedici_action,
         oznacit_rovna_action, oznacit_kriva_action, oznacit_rovna_se_action, oznacit_vyrovnana_action,
         oznacit_cista_action, oznacit_spinava_action, oznacit_otryskana_action, prijmout_bedny_action, expedice_beden_action,
+        expedice_beden_kamion_action,
     ]
     form = BednaAdminForm
 
@@ -2686,7 +2688,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         Pokud není aktivní filtr stav bedny NAVEZENO, DO_ZPRACOVANI, ZAKALENO, ZKONTROLOVANO nebo RO,
         zruší se akce pro označení bedny jako K_EXPEDICI.
         Pokud není aktivní filtr stav bedny RO, zruší se akce pro vrácení bedny z rozpracovanosti do stavu PRIJATO.
-        Pokud není aktivní filtr stav bedny K_EXPEDICI, zruší se akce expedice beden.
+        Pokud není aktivní filtr stav bedny K_EXPEDICI, zruší se akce expedice_beden a expedice_beden_kamion.
         Pokud není aktivní filtr rovnani NEZADANO, zruší se akce pro označení bedny jako ROVNA a KŘIVÁ.
         Pokud není aktivní filtr rovnani KŘIVÁ, zruší se akce pro označení bedny jako ROVNÁ SE.
         Pokud není aktivní filtr rovnani KŘIVÁ nebo ROVNÁ SE, zruší se akce pro označení bedny jako VYROVNANÁ.
@@ -2746,7 +2748,7 @@ class BednaAdmin(SimpleHistoryAdmin):
                 ]
             if request.GET.get('stav_bedny', None) != StavBednyChoice.K_EXPEDICI:
                 actions_to_remove += [
-                    'expedice_beden_action',
+                    'expedice_beden_action', 'expedice_beden_kamion_action',
                 ]
             if request.GET.get('rovnani', None) != RovnaniChoice.NEZADANO:
                 actions_to_remove += [
@@ -2821,6 +2823,7 @@ class BednaAdmin(SimpleHistoryAdmin):
             'oznacit_spinava_action': 'Tryskání',
             'oznacit_otryskana_action': 'Tryskání',
             'expedice_beden_action': 'Expedice',
+            'expedice_beden_kamion_action': 'Expedice',
         }
         order = ['Stav bedny', 'Tisk', 'Export', 'Rovnání', 'Tryskání', 'Expedice']
         grouped = {g: [] for g in order}

@@ -432,6 +432,81 @@ class ActionsTests(ActionsBase):
         self.assertEqual(b3.zakazka, nova)
         self.assertFalse(nova.expedovano)
 
+    @patch('orders.actions.utilita_expedice_beden')
+    def test_expedice_beden_kamion_action_success(self, mock_expedice):
+        self.bedna.stav_bedny = StavBednyChoice.K_EXPEDICI
+        self.bedna.save()
+
+        data = {'apply': '1', 'kamion': self.kamion_vydej.id}
+        req = self.get_request('post', data)
+        qs = Bedna.objects.filter(id=self.bedna.id)
+
+        resp = actions.expedice_beden_kamion_action(self.admin, req, qs)
+
+        self.assertIsNone(resp)
+        mock_expedice.assert_called_once_with(self.admin, req, qs, self.kamion_vydej)
+
+    @patch('orders.actions.utilita_expedice_beden')
+    def test_expedice_beden_kamion_action_requires_single_customer(self, mock_expedice):
+        admin_obj = self._messaging_admin()
+        self.bedna.stav_bedny = StavBednyChoice.K_EXPEDICI
+        self.bedna.save()
+
+        druhy_zakaznik = Zakaznik.objects.create(
+            nazev='Druhy',
+            zkraceny_nazev='D2',
+            zkratka='DRU',
+            ciselna_rada=200000,
+        )
+        druhy_kamion_prijem = Kamion.objects.create(zakaznik=druhy_zakaznik, datum=date.today())
+        druha_zakazka = Zakazka.objects.create(
+            kamion_prijem=druhy_kamion_prijem,
+            artikl='B1',
+            prumer=1,
+            delka=1,
+            predpis=self.predpis,
+            typ_hlavy=self.typ_hlavy,
+            popis='p',
+        )
+        druha_bedna = Bedna.objects.create(
+            zakazka=druha_zakazka,
+            hmotnost=Decimal('1.0'),
+            tara=Decimal('1.0'),
+            mnozstvi=1,
+            stav_bedny=StavBednyChoice.K_EXPEDICI,
+        )
+
+        data = {'apply': '1', 'kamion': self.kamion_vydej.id}
+        req = self.get_request('post', data)
+        qs = Bedna.objects.filter(id__in=[self.bedna.id, druha_bedna.id])
+
+        resp = actions.expedice_beden_kamion_action(admin_obj, req, qs)
+
+        self.assertIsNone(resp)
+        msgs = self._messages_texts(req)
+        self.assertTrue(any('musí patřit jednomu zákazníkovi' in m for m in msgs))
+        mock_expedice.assert_not_called()
+
+    @patch('orders.actions.utilita_expedice_beden')
+    def test_expedice_beden_kamion_action_pouze_komplet_must_select_all(self, mock_expedice):
+        admin_obj = self._messaging_admin()
+        self.zakaznik.pouze_komplet = True
+        self.zakaznik.save()
+        self.bedna.stav_bedny = StavBednyChoice.K_EXPEDICI
+        self.bedna.save()
+        self._create_bedna_in_state(StavBednyChoice.K_EXPEDICI)
+
+        data = {'apply': '1', 'kamion': self.kamion_vydej.id}
+        req = self.get_request('post', data)
+        qs = Bedna.objects.filter(id=self.bedna.id)
+
+        resp = actions.expedice_beden_kamion_action(admin_obj, req, qs)
+
+        self.assertIsNone(resp)
+        msgs = self._messages_texts(req)
+        self.assertTrue(any('musí být expedována celá' in m for m in msgs))
+        mock_expedice.assert_not_called()
+
     @patch('orders.actions.utilita_tisk_dokumentace')
     def test_tisk_karet_beden_zakazek_action(self, mock_util):
         mock_util.return_value = HttpResponse('ok')

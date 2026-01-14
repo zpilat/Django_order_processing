@@ -1431,7 +1431,7 @@ def expedice_zakazek_kamion_action(modeladmin, request, queryset):
         logger.info(f"Uživatel {request.user} expeduje zakázky do existujícího kamionu zákazníka {Zakaznik.objects.get(id=zakaznik_id).nazev}.")
         form = VyberKamionVydejForm(zakaznik=zakaznik_id)
 
-    return render(request, 'admin/expedice_zakazek_form.html', {
+    return render(request, 'admin/expedice_zakazek_beden_form.html', {
         'zakazky': queryset,
         'form': form,
         'title': "Expedice do existujícího kamionu",
@@ -1444,14 +1444,20 @@ def expedice_beden_action(modeladmin, request, queryset):
     """
     Expeduje vybrané bedny (mohou být z více zakázek i zákazníků) do nových kamionů výdej.
 
-    Podmínky:
-    - Pozastavené bedny nelze expedovat.
-    - Všechny vybrané bedny musí být ve stavu K_EXPEDICI.
-    - Pokud existuje zákazník s příznakem pouze_komplet a některá jeho zakázka nemá všechny bedny ve stavu K_EXPEDICI
-      a nebo nejsou všechny bedny ze zakázky v querysetu vybrány, akce se neprovede.    
-    - Pro každého zákazníka se vytvoří nový kamion výdej (datum dnes, vybraný odběratel).
-    - Bedny se expedují do kamionu svého zákazníka.
-    - Po úspěšném průběhu odešle `messages.success`. V případě nesplnění podmínek vrátí chybu pomocí `messages.error` a akce se přeruší.
+    Průběh:
+    1. Kontrola querysetu a beden.
+    2. Získání všech zákazníků, kteří mají kamiony spojené s vybranými bednami.
+    3. Vytvoří se formulář pro výběr odběratele.
+    4. Pro každého zákazníka v querysetu:
+        - Vytvoří se nový objekt `Kamion`:
+            - `prijem_vydej=KamionChoice.VYDEJ`
+            - `datum` dnešní datum
+            - `zakaznik` nastavený na aktuálního zákazníka
+            - `odberatel` zvolený odběratel z formuláře
+    5. Pro každou bednu daného zákazníka:
+        - Zkontroluje se, zda má stav `K_EXPEDICI`.
+        - Pokud ano, vyexpeduje bednu.
+    6. Po úspěšném průběhu odešle `messages.success`. V případě nesplnění podmínek vrátí chybu pomocí `messages.error` a akce se přeruší.
     """
     if not queryset.exists():
         return None
@@ -1539,6 +1545,104 @@ def expedice_beden_action(modeladmin, request, queryset):
         'form': form,
         'title': "Expedice beden do nového kamionu",
         'action': "expedice_beden_action",
+    })
+
+
+@admin.action(description="Expedice vybraných beden do existujícího kamiónu", permissions=('change',))
+def expedice_beden_kamion_action(modeladmin, request, queryset):
+    """
+    Expeduje vybrané bedny do existujícího kamionu zákazníka.
+
+    Průběh:
+    1. Kontrola querysetu a beden.
+    2. Získá se zákazník, ke kterému patří všechny vybrané bedny. Pokud bedny patří více zákazníkům, akce se přeruší s chybou.
+    3. Vytvoří se formulář pro výběr kamionu daného zákazníka.
+    4. Po odeslání formuláře:
+        - Získá se zvolený kamion.
+        - Pro každou bednu daného zákazníka:
+            - Zkontroluje se, zda má stav `K_EXPEDICI`.
+            - Pokud ano, vyexpeduje bednu.
+    5. Po úspěšném průběhu odešle `messages.success`. V případě nesplnění podmínek vrátí chybu pomocí `messages.error` a akce se přeruší.
+    """
+    if not queryset.exists():
+        return None
+
+    if _abort_if_paused_bedny(modeladmin, request, queryset, "Expedice beden do existujícího kamionu"):
+        return None
+
+    if queryset.exclude(stav_bedny=StavBednyChoice.K_EXPEDICI).exists():
+        modeladmin.message_user(request, "Všechny vybrané bedny musí být ve stavu K_EXPEDICI.", level=messages.ERROR)
+        return None
+
+    zakaznici_ids = list({pk for pk in queryset.values_list('zakazka__kamion_prijem__zakaznik', flat=True) if pk is not None})
+    if len(zakaznici_ids) != 1:
+        modeladmin.message_user(request, f"Vybrané bedny musí patřit jednomu zákazníkovi.", level=messages.ERROR)
+        return None
+
+    zakaznik_id = zakaznici_ids[0]
+    zakaznik = Zakaznik.objects.get(id=zakaznik_id)
+
+    if zakaznik.pouze_komplet:
+        zakazky_ids = (
+            queryset.filter(zakazka__kamion_prijem__zakaznik=zakaznik)
+            .values_list('zakazka_id', flat=True)
+            .distinct()
+        )
+        zakazky_dotcene = Zakazka.objects.filter(id__in=zakazky_ids).select_related('kamion_prijem')
+        for zakazka in zakazky_dotcene:
+            if not zakazka.kamion_prijem:
+                modeladmin.message_user(
+                    request,
+                    f"Zakázka {zakazka} nemá kamion příjem – nelze ověřit příznak 'Pouze kompletní zakázky'.",
+                    level=messages.ERROR,
+                )
+                return None
+
+            vsechny_bedny = zakazka.bedny.all()
+            vse_k_expedici = vsechny_bedny.filter(stav_bedny=StavBednyChoice.K_EXPEDICI)
+            vybrane_count = queryset.filter(zakazka=zakazka).count()
+
+            if not vse_k_expedici.exists() or vse_k_expedici.count() != vsechny_bedny.count():
+                modeladmin.message_user(
+                    request,
+                    f"Zakázka {zakazka} pro zákazníka s příznakem 'Pouze kompletní zakázky' musí mít všechny bedny ve stavu K_EXPEDICI.",
+                    level=messages.ERROR,
+                )
+                return None
+
+            if vybrane_count != vse_k_expedici.count():
+                modeladmin.message_user(
+                    request,
+                    f"Zakázka {zakazka} pro zákazníka s příznakem 'Pouze kompletní zakázky' musí být expedována celá (vyberte všechny bedny ze zakázky).",
+                    level=messages.ERROR,
+                )
+                return None
+
+    if 'apply' in request.POST:
+        form = VyberKamionVydejForm(request.POST, zakaznik=zakaznik_id)
+        if form.is_valid():
+            kamion = form.cleaned_data['kamion']
+            utilita_expedice_beden(modeladmin, request, queryset, kamion)
+            logger.info(
+                f"Uživatel {request.user} úspěšně expedoval bedny do kamionu {kamion.cislo_dl} zákazníka {kamion.zakaznik.nazev}."
+            )
+            modeladmin.message_user(
+                request,
+                f"Bedny byly úspěšně expedovány do kamionu {kamion} zákazníka {kamion.zakaznik.nazev}.",
+                level=messages.SUCCESS,
+            )
+            return None
+    else:
+        logger.info(
+            f"Uživatel {request.user} expeduje bedny do existujícího kamionu zákazníka {zakaznik.nazev}."
+        )
+        form = VyberKamionVydejForm(zakaznik=zakaznik_id)
+
+    return render(request, 'admin/expedice_zakazek_beden_form.html', {
+        'bedny': queryset,
+        'form': form,
+        'title': "Expedice beden do existujícího kamionu",
+        'action': "expedice_beden_kamion_action",
     })
 
 @admin.action(description="Vytisknout karty beden z vybraných zakázek")
