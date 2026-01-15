@@ -851,6 +851,52 @@ class ExportBednyCsvActionTests(ActionsBase):
         ]
         self.assertEqual(rows[1], expected_row)
 
+    def test_export_bedny_to_csv_customer_action_single_customer_only(self):
+        z2 = Zakaznik.objects.create(nazev='Z2', zkraceny_nazev='Z2', zkratka='E2', ciselna_rada=200000)
+        k2 = Kamion.objects.create(zakaznik=z2, datum=date.today())
+        predpis2 = Predpis.objects.create(nazev='P2', skupina=1, zakaznik=z2)
+        zak2 = Zakazka.objects.create(
+            kamion_prijem=k2,
+            artikl='B1',
+            prumer=1,
+            delka=1,
+            predpis=predpis2,
+            typ_hlavy=self.typ_hlavy,
+            popis='p2'
+        )
+        Bedna.objects.create(
+            zakazka=zak2,
+            hmotnost=Decimal('1.0'),
+            tara=Decimal('1.0'),
+            mnozstvi=1,
+            stav_bedny=StavBednyChoice.PRIJATO,
+        )
+        req = self.get_request('get')
+        qs = Bedna.objects.all()
+        resp = actions.export_bedny_to_csv_customer_action(self.bedna_admin, req, qs)
+        self.assertIsNone(resp)
+        msgs = [m.message for m in list(req._messages)]
+        self.assertTrue(any('pouze od jednoho zákazníka' in m for m in msgs))
+
+    def test_export_bedny_to_csv_customer_action_generates_minimal_columns(self):
+        bedna = self.bedna
+        bedna.behalter_nr = 42
+        bedna.save()
+
+        self.zakazka.prumer = Decimal('10.5')
+        self.zakazka.delka = Decimal('20.0')
+        self.zakazka.artikl = 'ART1'
+        self.zakazka.save()
+
+        req = self.get_request('post')
+        resp = actions.export_bedny_to_csv_customer_action(self.bedna_admin, req, Bedna.objects.filter(id=bedna.id))
+        self.assertIsInstance(resp, HttpResponse)
+        content = resp.content.decode('utf-8-sig')
+        rows = list(csv.reader(io.StringIO(content), delimiter=';'))
+
+        self.assertEqual(rows[0], ['Artikel-Nr.', 'Behälter-Nr.', 'Abmessung'])
+        self.assertEqual(rows[1], ['ART1', str(bedna.behalter_nr), '10,5 x 20'])
+
 
 class BednaAdminPollingTests(ActionsBase):
     @classmethod

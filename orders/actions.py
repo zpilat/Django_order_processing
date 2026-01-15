@@ -173,7 +173,7 @@ def _format_rozmer(zakazka):
 
 # Akce pro bedny:
 
-@admin.action(description="Export vyfiltrovaných beden do CSV")
+@admin.action(description="Export vyfiltrovaných beden do CSV pro původní rozpracovanost")
 def export_bedny_to_csv_action(modeladmin, request, queryset):
     """Exportuje aktuálně vyfiltrované bedny do CSV (celý queryset, ne jen stránku)."""
     select_across = request.POST.get('select_across') == '1'
@@ -328,6 +328,61 @@ def export_bedny_to_csv_action(modeladmin, request, queryset):
 
     logger.info(
         f"Uživatel {getattr(request, 'user', None)} exportoval {len(rows)} beden do CSV.",
+    )
+    return response
+
+@admin.action(description="Export vyfiltrovaných beden do CSV pro schválení zákazníkem")
+def export_bedny_to_csv_customer_action(modeladmin, request, queryset):
+    """
+    Exportuje aktuálně vyfiltrované bedny do CSV pro zákaznické schválení.
+
+    Podmínky:
+    - Všechny bedny musí patřit jednomu zákazníkovi (podle zakazka__kamion_prijem__zakaznik).
+    - Exportuje pouze tři sloupce: Artikel-Nr., Behälter-Nr., Abmessung (prumer x delka).
+    """
+    if not queryset.exists():
+        return None
+
+    zakaznik_count = queryset.values('zakazka__kamion_prijem__zakaznik').distinct().count()
+    if zakaznik_count != 1:
+        logger.info(
+            f"Uživatel {request.user} se pokusil exportovat bedny pro schválení, ale výběr obsahuje bedny od {zakaznik_count} zákazníků."
+        )
+        modeladmin.message_user(request, "Pro export musí být vybrány bedny pouze od jednoho zákazníka.", level=messages.ERROR)
+        return None
+
+    queryset = queryset.select_related(
+        'zakazka',
+        'zakazka__kamion_prijem',
+    )
+
+    response = HttpResponse(content_type='text/csv; charset=utf-8')
+    filename = f"bedny_export_schvaleni_{timezone.now().strftime('%Y%m%d_%H%M%S')}.csv"
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    response.write('\ufeff')
+    writer = csv.writer(response, delimiter=';', quoting=csv.QUOTE_MINIMAL)
+
+    writer.writerow(['Artikel-Nr.', 'Behälter-Nr.', 'Abmessung'])
+
+    for bedna in queryset:
+        zakazka = getattr(bedna, 'zakazka', None)
+        artikl = getattr(zakazka, 'artikl', '') if zakazka else ''
+        prumer = _format_decimal(getattr(zakazka, 'prumer', None)) if zakazka else ''
+        delka = _format_decimal(getattr(zakazka, 'delka', None)) if zakazka else ''
+
+        if prumer and delka:
+            abm = f"{prumer} x {delka}"
+        else:
+            abm = ''
+
+        writer.writerow([
+            artikl,
+            getattr(bedna, 'behalter_nr', '') or '',
+            abm,
+        ])
+
+    logger.info(
+        f"Uživatel {getattr(request, 'user', None)} exportoval {queryset.count()} beden pro schválení zákazníkem do CSV.",
     )
     return response
 
