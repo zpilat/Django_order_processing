@@ -338,7 +338,7 @@ def export_bedny_to_csv_customer_action(modeladmin, request, queryset):
 
     Podmínky:
     - Všechny bedny musí patřit jednomu zákazníkovi (podle zakazka__kamion_prijem__zakaznik).
-    - Exportuje pouze tři sloupce: Artikel-Nr., Behälter-Nr., Abmessung (prumer x delka).
+    - Exportuje pouze čtyři sloupce: Artikel-Nr., Behälter-Nr., Abmessung (prumer x delka) a # (číslo bedny).
     """
     if not queryset.exists():
         return None
@@ -362,7 +362,7 @@ def export_bedny_to_csv_customer_action(modeladmin, request, queryset):
     response.write('\ufeff')
     writer = csv.writer(response, delimiter=';', quoting=csv.QUOTE_MINIMAL)
 
-    writer.writerow(['Artikel-Nr.', 'Behälter-Nr.', 'Abmessung'])
+    writer.writerow(['Artikel-Nr.', 'Behälter-Nr.', 'Abmessung', '#'])
 
     for bedna in queryset:
         zakazka = getattr(bedna, 'zakazka', None)
@@ -377,8 +377,9 @@ def export_bedny_to_csv_customer_action(modeladmin, request, queryset):
 
         writer.writerow([
             artikl,
-            getattr(bedna, 'behalter_nr', '') or '',
+            getattr(bedna, 'behalter_nr', ''),
             abm,
+            getattr(bedna, 'cislo_bedny', ''), 
         ])
 
     logger.info(
