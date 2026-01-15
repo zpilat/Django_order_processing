@@ -173,7 +173,7 @@ def _format_rozmer(zakazka):
 
 # Akce pro bedny:
 
-@admin.action(description="Export vyfiltrovaných beden do CSV pro původní rozpracovanost")
+@admin.action(description="Export vybraných beden do CSV pro původní rozpracovanost")
 def export_bedny_to_csv_action(modeladmin, request, queryset):
     """Exportuje aktuálně vyfiltrované bedny do CSV (celý queryset, ne jen stránku)."""
     select_across = request.POST.get('select_across') == '1'
@@ -331,7 +331,7 @@ def export_bedny_to_csv_action(modeladmin, request, queryset):
     )
     return response
 
-@admin.action(description="Export vyfiltrovaných beden do CSV pro schválení zákazníkem")
+@admin.action(description="Export vybraných beden do CSV pro schválení zákazníkem")
 def export_bedny_to_csv_customer_action(modeladmin, request, queryset):
     """
     Exportuje aktuálně vyfiltrované bedny do CSV pro zákaznické schválení.
@@ -383,6 +383,79 @@ def export_bedny_to_csv_customer_action(modeladmin, request, queryset):
 
     logger.info(
         f"Uživatel {getattr(request, 'user', None)} exportoval {queryset.count()} beden pro schválení zákazníkem do CSV.",
+    )
+    return response
+
+
+@admin.action(description="Export vybraných beden Eurotec do CSV pro vložení do DL")
+def export_bedny_eurotec_dl_action(modeladmin, request, queryset):
+    """
+    Export pro Eurotec DL: validuje jednoho zákazníka se zkratkou EUR a stav EXPEDOVANO.
+    Sloupce: Vorgang+, Artikel-Nr., Materialcharge, ∑, Gewicht, Abmess., Kopf, Bezeichnung,
+    Oberfläche, Beschicht., Behälter-Nr., Sonder Zusatzinfo, Lief., Fertigungsauftrags Nr., Reinheit.
+    """
+    if not queryset.exists():
+        return None
+
+    zakaznici = queryset.values('zakazka__kamion_prijem__zakaznik__zkratka').distinct()
+    if zakaznici.count() != 1 or zakaznici.first().get('zakazka__kamion_prijem__zakaznik__zkratka') != 'EUR':
+        modeladmin.message_user(request, "Export je možný pouze pro bedny zákazníka Eurotec (EUR).", level=messages.ERROR)
+        return None
+
+    if queryset.exclude(stav_bedny=StavBednyChoice.EXPEDOVANO).exists():
+        modeladmin.message_user(request, "Všechny vybrané bedny musí být ve stavu EXPEDOVANO.", level=messages.ERROR)
+        return None
+
+    queryset = queryset.select_related(
+        'zakazka',
+        'zakazka__typ_hlavy',
+        'zakazka__kamion_prijem__zakaznik',
+    )
+
+    response = HttpResponse(content_type='text/csv; charset=utf-8')
+    filename = f"bedny_eurotec_dl_{timezone.now().strftime('%Y%m%d_%H%M%S')}.csv"
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    response.write('\ufeff')
+    writer = csv.writer(response, delimiter=';', quoting=csv.QUOTE_MINIMAL)
+
+    writer.writerow([
+        'Vorgang+', 'Artikel-Nr.', 'Materialcharge', '∑', 'Gewicht', 'Abmess.', 'Kopf', 'Bezeichnung',
+        'Oberfläche', 'Beschicht.', 'Behälter-Nr.', 'Sonder Zusatzinfo', 'Lief.', 'Fertigungsauftrags Nr.', 'Reinheit'
+    ])
+
+    for bedna in queryset:
+        zak = getattr(bedna, 'zakazka', None)
+        prumer = _format_decimal(getattr(zak, 'prumer', None)) if zak else ''
+        delka = _format_decimal(getattr(zak, 'delka', None)) if zak else ''
+        if prumer and delka:
+            abm = f"{prumer} x {delka}"
+        elif prumer:
+            abm = prumer
+        elif delka:
+            abm = delka
+        else:
+            abm = ''
+
+        writer.writerow([
+            getattr(zak, 'prubeh', '') if zak else '',
+            getattr(zak, 'artikl', '') if zak else '',
+            getattr(bedna, 'sarze', '') or '',
+            '',
+            _format_decimal(getattr(bedna, 'hmotnost', None)),
+            abm,
+            str(getattr(zak, 'typ_hlavy', '') or ''),
+            getattr(zak, 'popis', '') if zak else '',
+            getattr(zak, 'povrch', '') if zak else '',
+            getattr(zak, 'vrstva', '') if zak else '',
+            getattr(bedna, 'behalter_nr', '') or '',
+            getattr(bedna, 'dodatecne_info', '') or '',
+            getattr(bedna, 'dodavatel_materialu', '') or '',
+            getattr(bedna, 'vyrobni_zakazka', '') or '',
+            'sandgestrahlt' if getattr(bedna, 'tryskat', None) == TryskaniChoice.OTRYSKANA else '--',
+        ])
+
+    logger.info(
+        f"Uživatel {getattr(request, 'user', None)} exportoval {queryset.count()} beden Eurotec do CSV pro DL.",
     )
     return response
 

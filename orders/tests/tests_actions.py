@@ -779,6 +779,19 @@ class ExportBednyCsvActionTests(ActionsBase):
     def setUp(self):
         super().setUp()
         self.bedna_admin = BednaAdmin(Bedna, self.site)
+        self.msg_admin = self._messaging_admin()
+
+    def _messaging_admin(self):
+        from django.contrib import messages as dj_messages
+
+        class _Admin:
+            def message_user(self, request, message, level=None):
+                dj_messages.add_message(request, level or dj_messages.INFO, message)
+
+        return _Admin()
+
+    def _messages_texts(self, request):
+        return [m.message for m in list(request._messages)]
 
     def test_export_bedny_to_csv_action_generates_expected_rows(self):
         bedna = self.bedna
@@ -896,6 +909,75 @@ class ExportBednyCsvActionTests(ActionsBase):
 
         self.assertEqual(rows[0], ['Artikel-Nr.', 'Behälter-Nr.', 'Abmessung'])
         self.assertEqual(rows[1], ['ART1', str(bedna.behalter_nr), '10,5 x 20'])
+
+    def test_export_bedny_eurotec_dl_action_requires_eur_and_expedovano(self):
+        self.bedna.stav_bedny = StavBednyChoice.PRIJATO
+        self.bedna.save()
+        req = self.get_request('get')
+        resp = actions.export_bedny_eurotec_dl_action(self.msg_admin, req, Bedna.objects.filter(id=self.bedna.id))
+        self.assertIsNone(resp)
+        msgs = self._messages_texts(req)
+        self.assertTrue(any('EXPEDOVANO' in m for m in msgs))
+
+        # Zákazník jiný než EUR
+        z2 = Zakaznik.objects.create(nazev='Z2', zkraceny_nazev='Z2', zkratka='E2', ciselna_rada=200000)
+        k2 = Kamion.objects.create(zakaznik=z2, datum=date.today())
+        predpis2 = Predpis.objects.create(nazev='P2', skupina=1, zakaznik=z2)
+        zak2 = Zakazka.objects.create(
+            kamion_prijem=k2,
+            artikl='B1',
+            prumer=1,
+            delka=1,
+            predpis=predpis2,
+            typ_hlavy=self.typ_hlavy,
+            popis='p2'
+        )
+        b2 = Bedna.objects.create(
+            zakazka=zak2,
+            hmotnost=Decimal('1.0'),
+            tara=Decimal('1.0'),
+            mnozstvi=1,
+            stav_bedny=StavBednyChoice.EXPEDOVANO,
+        )
+        req = self.get_request('get')
+        resp = actions.export_bedny_eurotec_dl_action(self.msg_admin, req, Bedna.objects.filter(id=b2.id))
+        self.assertIsNone(resp)
+        msgs = self._messages_texts(req)
+        self.assertTrue(any('Eurotec' in m for m in msgs))
+
+    def test_export_bedny_eurotec_dl_action_generates_expected_columns(self):
+        bedna = self.bedna
+        bedna.stav_bedny = StavBednyChoice.EXPEDOVANO
+        bedna.tryskat = TryskaniChoice.OTRYSKANA
+        bedna.sarze = 'S1'
+        bedna.behalter_nr = 99
+        bedna.dodatecne_info = 'Info'
+        bedna.dodavatel_materialu = 'L1'
+        bedna.vyrobni_zakazka = 'FA1'
+        bedna.hmotnost = Decimal('3.2')
+        bedna.save()
+
+        self.zakazka.prubeh = 'P1'
+        self.zakazka.artikl = 'A99'
+        self.zakazka.prumer = Decimal('5.5')
+        self.zakazka.delka = Decimal('10.0')
+        self.zakazka.popis = 'Pop'
+        self.zakazka.povrch = 'OBR'
+        self.zakazka.vrstva = 'VR'
+        self.zakazka.save()
+
+        req = self.get_request('post')
+        resp = actions.export_bedny_eurotec_dl_action(self.bedna_admin, req, Bedna.objects.filter(id=bedna.id))
+        self.assertIsInstance(resp, HttpResponse)
+        rows = list(csv.reader(io.StringIO(resp.content.decode('utf-8-sig')), delimiter=';'))
+        self.assertEqual(rows[0], [
+            'Vorgang+', 'Artikel-Nr.', 'Materialcharge', '∑', 'Gewicht', 'Abmess.', 'Kopf', 'Bezeichnung',
+            'Oberfläche', 'Beschicht.', 'Behälter-Nr.', 'Sonder Zusatzinfo', 'Lief.', 'Fertigungsauftrags Nr.', 'Reinheit'
+        ])
+        self.assertEqual(rows[1], [
+            'P1', 'A99', 'S1', '', '3,2', '5,5 x 10', str(self.zakazka.typ_hlavy), 'Pop',
+            'OBR', 'VR', '99', 'Info', 'L1', 'FA1', 'sandgestrahlt'
+        ])
 
 
 class BednaAdminPollingTests(ActionsBase):

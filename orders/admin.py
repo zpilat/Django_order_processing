@@ -43,7 +43,7 @@ from .actions import (
     oznacit_do_zpracovani_action, oznacit_zakaleno_action, oznacit_zkontrolovano_action, oznacit_k_expedici_action, oznacit_rovna_action,
     oznacit_kriva_action, oznacit_rovna_se_action, oznacit_vyrovnana_action, oznacit_cista_action, oznacit_spinava_action,
     oznacit_otryskana_action, prijmout_kamion_action, prijmout_zakazku_action, prijmout_bedny_action,
-    export_bedny_to_csv_action, export_bedny_to_csv_customer_action, tisk_rozpracovanost_action, tisk_prehledu_zakazek_kamionu_action, expedice_beden_action,
+    export_bedny_to_csv_action, export_bedny_to_csv_customer_action, export_bedny_eurotec_dl_action, tisk_rozpracovanost_action, tisk_prehledu_zakazek_kamionu_action, expedice_beden_action,
     expedice_beden_kamion_action,
 )
 from .filters import (
@@ -2110,7 +2110,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     poll_interval_ms = 30000
     actions = [
         export_bedny_to_csv_action, tisk_karet_beden_action, tisk_karet_kontroly_kvality_action, tisk_karet_bedny_a_kontroly_action,
-        export_bedny_to_csv_customer_action,
+        export_bedny_to_csv_customer_action, export_bedny_eurotec_dl_action,
         oznacit_k_navezeni_action, oznacit_navezeno_action, oznacit_prijato_navezeno_action, vratit_bedny_ze_stavu_k_navezeni_do_stavu_prijato_action,
         vratit_bedny_ze_stavu_navezeno_do_stavu_prijato_action, vratit_bedny_z_rozpracovanosti_do_stavu_prijato_action,
         oznacit_do_zpracovani_action, oznacit_zakaleno_action, oznacit_zkontrolovano_action, oznacit_k_expedici_action,
@@ -2682,6 +2682,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         Přizpůsobí dostupné akce v administraci podle filtru stavu bedny, rovnat a tryskat.
         Pokud není aktivní filtr stav bedny NEPRIJATO, zruší se akce pro přijetí bedny,
             jinak se zruší akce pro tisk karet beden, kontroly kvality a tisk karet beden a kontroly.
+        Pokud není vůbec aktivní filtr stav bedny, zruší se akce export_beden_to_csv_action.            
         Pokud není vůbec aktivní filtr stav bedny nebo není aktivní filtr stav bedny PRIJATO,
         zruší se akce pro změnu stavu bedny na K_NAVEZENI.
         Pokud není aktivní filtr stav bedny K_NAVEZENI, zruší se akce pro vrácení bedny ze stavu K_NAVEZENI do stavu PRIJATO
@@ -2692,6 +2693,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         Pokud není aktivní filtr stav bedny NAVEZENO, DO_ZPRACOVANI, ZAKALENO nebo RO, zruší se akce pro označení bedny jako ZKONTROLOVANO.
         Pokud není aktivní filtr stav bedny NAVEZENO, DO_ZPRACOVANI, ZAKALENO, ZKONTROLOVANO nebo RO,
         zruší se akce pro označení bedny jako K_EXPEDICI.
+        Pokud není aktivní filtr stav bedny EXPEDOVANO, zruší se akce pro export_beden_eurotec_dl_action.
         Pokud není aktivní filtr stav bedny RO, zruší se akce pro vrácení bedny z rozpracovanosti do stavu PRIJATO.
         Pokud není aktivní filtr stav bedny K_EXPEDICI, zruší se akce expedice_beden,
             expedice_beden_kamion a export_bedny_to_csv_customer_action.
@@ -2717,7 +2719,10 @@ class BednaAdmin(SimpleHistoryAdmin):
                 actions_to_remove += [
                     'tisk_karet_beden_action', 'tisk_karet_kontroly_kvality_action', 'tisk_karet_bedny_a_kontroly_action',
                 ]
-
+            if request.GET.get('stav_bedny', None):
+                actions_to_remove += [
+                    'export_bedny_to_csv_action',
+                ]
             if request.GET.get('stav_bedny', None) and request.GET.get('stav_bedny', None) != StavBednyChoice.PRIJATO:
                 actions_to_remove += [
                     'oznacit_k_navezeni_action',
@@ -2756,6 +2761,10 @@ class BednaAdmin(SimpleHistoryAdmin):
             if request.GET.get('stav_bedny', None) != StavBednyChoice.K_EXPEDICI:
                 actions_to_remove += [
                     'expedice_beden_action', 'expedice_beden_kamion_action', 'export_bedny_to_csv_customer_action'
+                ]
+            if request.GET.get('stav_bedny', None) != StavBednyChoice.EXPEDOVANO:
+                actions_to_remove += [
+                    'export_bedny_eurotec_dl_action',
                 ]
             if request.GET.get('rovnani', None) != RovnaniChoice.NEZADANO:
                 actions_to_remove += [
@@ -2809,6 +2818,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         group_map = {
             'export_bedny_to_csv_action': 'Export',
             'export_bedny_to_csv_customer_action': 'Export',
+            'export_bedny_eurotec_dl_action': 'Export',
             'tisk_karet_beden_action': 'Tisk',
             'tisk_karet_kontroly_kvality_action': 'Tisk',
             'tisk_karet_bedny_a_kontroly_action': 'Tisk',
