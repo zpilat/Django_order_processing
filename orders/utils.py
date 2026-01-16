@@ -173,6 +173,7 @@ def utilita_expedice_zakazek(modeladmin, request, queryset, kamion):
             # Vytvoří novou zakázku – robustní klon přes _id pro FK
             exclude = {'id', 'kamion_vydej', 'expedovano'}
             zakazka_data = {}
+            puvodni_zakazka = zakazka.puvodni_zakazka or zakazka
             for field in Zakazka._meta.fields:
                 if field.name in exclude:
                     continue
@@ -181,6 +182,8 @@ def utilita_expedice_zakazek(modeladmin, request, queryset, kamion):
                     zakazka_data[field.attname] = getattr(zakazka, field.attname)
                 else:
                     zakazka_data[field.name] = getattr(zakazka, field.name)
+
+            zakazka_data['puvodni_zakazka_id'] = puvodni_zakazka.id
 
             nova_zakazka = Zakazka.objects.create(**zakazka_data)
             logger.info(f"Uživatel {request.user} vytvořil novou zakázku {nova_zakazka} pro neexpedovatelné bedny ze zakázky ID {zakazka}.")
@@ -230,6 +233,7 @@ def utilita_expedice_beden(modeladmin, request, bedny_qs, kamion):
         if zbyvajici_bedny.exists():
             exclude = {'id', 'kamion_vydej', 'expedovano'}
             zakazka_data = {}
+            puvodni_zakazka = zakazka.puvodni_zakazka or zakazka
             for field in Zakazka._meta.fields:
                 if field.name in exclude:
                     continue
@@ -237,6 +241,7 @@ def utilita_expedice_beden(modeladmin, request, bedny_qs, kamion):
                     zakazka_data[field.attname] = getattr(zakazka, field.attname)
                 else:
                     zakazka_data[field.name] = getattr(zakazka, field.name)
+            zakazka_data['puvodni_zakazka_id'] = puvodni_zakazka.id
             nova_zakazka = Zakazka.objects.create(**zakazka_data)
             logger.info(f"Uživatel {request.user} vytvořil novou zakázku {nova_zakazka} pro neexpedované bedny ze zakázky ID {zakazka}.")
             for bedna in zbyvajici_bedny:

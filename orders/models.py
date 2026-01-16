@@ -496,6 +496,7 @@ class TypHlavy(models.Model):
 class Zakazka(models.Model):
     kamion_prijem = models.ForeignKey(Kamion, on_delete=models.CASCADE, related_name='zakazky_prijem', verbose_name='Kamión příjem', null=True, blank=True)
     kamion_vydej = models.ForeignKey(Kamion, on_delete=models.PROTECT, related_name='zakazky_vydej', verbose_name='Kamión výdej', null=True, blank=True)
+    puvodni_zakazka = models.ForeignKey('self', on_delete=models.SET_NULL, related_name='oddelene_zakazky', verbose_name='Původní zakázka', null=True, blank=True, help_text='Odkaz na původní zakázku, ze které byla tato oddělena při expedici.')
     artikl = models.CharField(max_length=50, verbose_name='Artikl / Zakázka')
     prumer = models.DecimalField(max_digits=4, decimal_places=1, verbose_name='Průměr')
     delka = models.DecimalField(max_digits=6, decimal_places=1, verbose_name='Délka')

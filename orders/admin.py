@@ -1649,7 +1649,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
 
     # Parametry pro zobrazení detailu v administraci
     exclude = ('tvrdost_povrchu', 'tvrdost_jadra', 'ohyb', 'krut', 'hazeni')    
-    readonly_fields = ('expedovano', 'get_komplet')
+    readonly_fields = ('expedovano', 'get_komplet',)
     
     # Parametry pro zobrazení seznamu v administraci
     list_display = ('artikl', 'get_datum', 'kamion_prijem_link', 'kamion_vydej_link', 'get_prumer', 'get_delka_int', 'predpis_link',
@@ -1920,7 +1920,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
                 # Pokud je zakázka expedovaná, kvůli has_permission v modelu ZakazkaAdmin nelze měnit, zobrazí i kamion výdej
                 my_fieldsets = [
                     ('Expedovaná zakázka:', {
-                        'fields': ['kamion_prijem', 'kamion_vydej', 'artikl', 'typ_hlavy', 'celozavit', 'prumer', 'delka', 'predpis',
+                        'fields': ['kamion_prijem', 'kamion_vydej', 'artikl', 'puvodni_zakazka', 'typ_hlavy', 'celozavit', 'prumer', 'delka', 'predpis',
                                    'priorita', 'popis', 'odberatel', 'get_komplet', 'expedovano'],
                         'description': 'Zakázka je expedovaná a nelze ji měnit.',
                     }),
@@ -1928,7 +1928,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
             else:  # Pokud zakázka není expedovaná, zobrazí se základní pole pro editaci
                 my_fieldsets = [
                     ('Zakázka skladem:', {
-                        'fields': ['kamion_prijem', 'artikl', 'typ_hlavy', 'celozavit', 'prumer', 'delka', 'predpis',
+                        'fields': ['kamion_prijem', 'artikl', 'puvodni_zakazka', 'typ_hlavy', 'celozavit', 'prumer', 'delka', 'predpis',
                                    'priorita', 'popis', 'odberatel', 'get_komplet', 'expedovano'],
                     }),
                 ]
