@@ -2695,8 +2695,8 @@ class BednaAdmin(SimpleHistoryAdmin):
         zruší se akce pro označení bedny jako K_EXPEDICI.
         Pokud není aktivní filtr stav bedny EXPEDOVANO, zruší se akce pro export_beden_eurotec_dl_action.
         Pokud není aktivní filtr stav bedny RO, zruší se akce pro vrácení bedny z rozpracovanosti do stavu PRIJATO.
-        Pokud není aktivní filtr stav bedny K_EXPEDICI, zruší se akce expedice_beden,
-            expedice_beden_kamion a export_bedny_to_csv_customer_action.
+        Pokud není aktivní filtr stav bedny K_EXPEDICI, zruší se akce expedice_beden a expedice_beden_kamion.
+        Pokud není aktivní filtr stav bedny K_EXPEDICI nebo EXPEDOVANO, zruší se akce export_bedny_to_csv_customer_action.
         Pokud není aktivní filtr rovnani NEZADANO, zruší se akce pro označení bedny jako ROVNA a KŘIVÁ.
         Pokud není aktivní filtr rovnani KŘIVÁ, zruší se akce pro označení bedny jako ROVNÁ SE.
         Pokud není aktivní filtr rovnani KŘIVÁ nebo ROVNÁ SE, zruší se akce pro označení bedny jako VYROVNANÁ.
@@ -2760,7 +2760,11 @@ class BednaAdmin(SimpleHistoryAdmin):
                 ]
             if request.GET.get('stav_bedny', None) != StavBednyChoice.K_EXPEDICI:
                 actions_to_remove += [
-                    'expedice_beden_action', 'expedice_beden_kamion_action', 'export_bedny_to_csv_customer_action'
+                    'expedice_beden_action', 'expedice_beden_kamion_action',
+                ]
+            if request.GET.get('stav_bedny', None) not in [StavBednyChoice.K_EXPEDICI, StavBednyChoice.EXPEDOVANO]:
+                actions_to_remove += [
+                    'export_bedny_to_csv_customer_action',
                 ]
             if request.GET.get('stav_bedny', None) != StavBednyChoice.EXPEDOVANO:
                 actions_to_remove += [
