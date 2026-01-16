@@ -1834,32 +1834,96 @@ def tisk_karet_kontroly_kvality_zakazek_action(modeladmin, request, queryset):
 @admin.action(description="Vrácení vybraných zakázek z expedice", permissions=('change',))
 def vratit_zakazky_z_expedice_action(modeladmin, request, queryset):
     """
-    Vrátí vybrané zakázky z expedice.
+    Vrátí vybrané zakázky z expedice a pokud jsou z oddělené zakázky a původní zakázka není ještě expedována, tak bedny
+    z této zakázky vrátí zpět do původní zakázky.
     
     Průběh:
-    1. Pro každou zakázku v querysetu:
-        - Zkontroluje se, zda má stav expedice (expedovano=True).
-        - Pokud ano, nastaví se expedovano=False a kamion_vydej=None.
-        - Všechny bedny v zakázce se převedou na stav K_EXPEDICI.
-    2. Po úspěšném průběhu odešle `messages.success`.
+    1. Pro každou zakázku v querysetu se zkontroluje, zda je expedovana (expedovano=True) a zda jsou všechny bedny ve stavu EXPEDOVANO.
+        pokud ne, zakázka se přeskočí a zobrazí se chybová zpráva pomocí `messages.error`.
+    2. Zjistí se, zda má zakázka původní zakázku (fk puvodni_zakazka) - tedy zda byla zakázka oddělena od kořenové zakázky při expedici.
+        a) Pokud nemá anebo pokud má, ale tato kořenová zakázka už byla expedována (puvodni_zakazka.expedovano=True),
+        zakázka se obnoví do původního stavu před expedicí:
+            - Nastaví se expedovano=False a kamion_vydej=None.
+            - Všechny bedny v zakázce se převedou na stav K_EXPEDICI.
+        b) Pokud má a tato kořenová zakázka ještě nebyla expedována (puvodni_zakazka.expedovano=False),
+        bedny se zakázky vrátí zpět do původní zakázky a aktuální zakázka se smaže:
+            - Všechny bedny v aktuální zakázce se převedou na stav K_EXPEDICI a přesunou se do původní zakázky.
+            - Zkontroluje se, zda má aktuální zakázka nějaké bedny, pokud ne, pokračuje se dalším krokem.
+            - Pokud má, zobrazí se chybová zpráva pomocí `messages.error`, že nelze smazat zakázku, protože obsahuje bedny.
+            - Jinak se aktuální zakázka smaže.
+    3. Po úspěšném průběhu odešle `messages.success`.
     """
-    for zakazka in queryset:
+    uspely = 0
+
+    for zakazka in queryset.select_related("puvodni_zakazka"):
         if not zakazka.expedovano:
-            logger.info(f"Uživatel {request.user} se pokusil vrátit zakázku {zakazka}, ale ta není vyexpedována.")
-            modeladmin.message_user(request, f"Zakázka {zakazka} není vyexpedována.", level=messages.ERROR)
+            logger.info(
+                f"Uživatel {request.user} se pokusil vrátit zakázku {zakazka}, ale ta není vyexpedována."
+            )
+            modeladmin.message_user(
+                request,
+                f"Zakázka {zakazka} není vyexpedována.",
+                level=messages.ERROR,
+            )
             continue
-        
-        zakazka.expedovano = False
-        zakazka.kamion_vydej = None
-        zakazka.save()
 
-        # Převede všechny bedny na stav K_EXPEDICI
-        for bedna in zakazka.bedny.all():
-            bedna.stav_bedny = StavBednyChoice.K_EXPEDICI
-            bedna.save()
-        logger.info(f"Uživatel {request.user} úspěšně vrátil zakázku {zakazka} z expedice.")
+        if zakazka.bedny.exclude(stav_bedny=StavBednyChoice.EXPEDOVANO).exists():
+            logger.error(
+                f"Uživatel {request.user} se pokusil vrátit zakázku {zakazka}, ale ne všechny bedny jsou ve stavu EXPEDOVANO."
+            )
+            modeladmin.message_user(
+                request,
+                f"Zakázku {zakazka} nelze vrátit: některé bedny nejsou ve stavu EXPEDOVANO.",
+                level=messages.ERROR,
+            )
+            continue
 
-    modeladmin.message_user(request, "Vybrané zakázky byly úspěšně vráceny z expedice.", level=messages.SUCCESS)
+        puvodni_zakazka = zakazka.puvodni_zakazka
+
+        # Varianta A: žádná původní zakázka, nebo byla už expedována – obnovíme aktuální zakázku
+        if puvodni_zakazka is None or puvodni_zakazka.expedovano:
+            with transaction.atomic():
+                zakazka.expedovano = False
+                zakazka.kamion_vydej = None
+                zakazka.save(update_fields=["expedovano", "kamion_vydej"])
+                zakazka.bedny.update(stav_bedny=StavBednyChoice.K_EXPEDICI)
+            uspely += 1
+            logger.info(
+                f"Uživatel {request.user} úspěšně vrátil zakázku {zakazka} z expedice do původního stavu."
+            )
+            continue
+
+        # Varianta B: existuje původní zakázka, která ještě není expedována – přesuneme bedny zpět
+        with transaction.atomic():
+            bedny = list(zakazka.bedny.all())
+            for bedna in bedny:
+                bedna.stav_bedny = StavBednyChoice.K_EXPEDICI
+                bedna.zakazka = puvodni_zakazka
+            Bedna.objects.bulk_update(bedny, ["stav_bedny", "zakazka"])
+
+            if zakazka.bedny.exists():
+                logger.error(
+                    f"Uživatel {request.user} nemůže smazat zakázku {zakazka}, protože v ní stále jsou bedny."
+                )
+                modeladmin.message_user(
+                    request,
+                    f"Nelze smazat zakázku {zakazka}, protože stále obsahuje bedny.",
+                    level=messages.ERROR,
+                )
+                continue
+
+            zakazka.delete()
+            uspely += 1
+            logger.info(
+                f"Uživatel {request.user} vrátil bedny ze zakázky {zakazka} do původní zakázky {puvodni_zakazka} a zakázku smazal."
+            )
+
+    if uspely:
+        modeladmin.message_user(
+            request,
+            f"Úspěšně vráceno z expedice: {uspely} zakázek.",
+            level=messages.SUCCESS,
+        )
 
 # Akce pro kamiony:
 

@@ -155,10 +155,11 @@ def utilita_tisk_dl_a_proforma_faktury(modeladmin, request, kamion, html_path, f
 def utilita_expedice_zakazek(modeladmin, request, queryset, kamion):
     """
     Expeduje vybrané zakázky a jejich bedny.
-    Pokud zakázka neobsahuje žádné bedny ve stavu K_EXPEDICI, tak tuhle zakázku přeskočí.
-    Pokud zakázka obsahuje bedny, které nejsou ve stavu K_EXPEDICI, vytvoří novou zakázku pro tyto bedny.
-    Bedny ve stavu K_EXPEDICI jsou expedovány a jejich stav je změněn na EXPEDOVANO.
-    Zakázka je poté expedována do zadaného kamionu a její stav expedovano je nastaven na True.
+    - Nastaví stav beden na EXPEDOVANO.
+    - Přiřadí zakázkám `kamion_vydej` na daný kamion.
+    - Pokud zakázka obsahuje i bedny, které nejsou ve stavu K_EXPEDICI,
+        vytvoří novou zakázku (se stejnými daty jako původní) a přesune tam pouze bedny ve stavu K_EXPEDICI.
+    - Nastaví příznak `expedovano` na zakázce.
     """
     for zakazka in queryset:
         bedny = zakazka.bedny.all()
@@ -170,7 +171,7 @@ def utilita_expedice_zakazek(modeladmin, request, queryset, kamion):
             continue
 
         if bedny_ne_k_expedici.exists():
-            # Vytvoří novou zakázku – robustní klon přes _id pro FK
+            # Vytvoří novou zakázku pro expedované bedny – původní ponechá neexpedované
             exclude = {'id', 'kamion_vydej', 'expedovano'}
             zakazka_data = {}
             puvodni_zakazka = zakazka.puvodni_zakazka or zakazka
@@ -178,7 +179,7 @@ def utilita_expedice_zakazek(modeladmin, request, queryset, kamion):
                 if field.name in exclude:
                     continue
                 if field.is_relation and getattr(field, 'many_to_one', False):
-                    # Např. predpis_id, typ_hlavy_id, kamion_prijem_id, odberatel_id, ...
+                    # FK pole
                     zakazka_data[field.attname] = getattr(zakazka, field.attname)
                 else:
                     zakazka_data[field.name] = getattr(zakazka, field.name)
@@ -186,24 +187,33 @@ def utilita_expedice_zakazek(modeladmin, request, queryset, kamion):
             zakazka_data['puvodni_zakazka_id'] = puvodni_zakazka.id
 
             nova_zakazka = Zakazka.objects.create(**zakazka_data)
-            logger.info(f"Uživatel {request.user} vytvořil novou zakázku {nova_zakazka} pro neexpedovatelné bedny ze zakázky ID {zakazka}.")
+            logger.info(
+                f"Uživatel {request.user} vytvořil novou zakázku {nova_zakazka} pro expedované bedny ze zakázky ID {zakazka}."
+            )
 
-            for bedna in bedny_ne_k_expedici:
+            for bedna in bedny_k_expedici:
                 bedna.zakazka = nova_zakazka
+                bedna.stav_bedny = StavBednyChoice.EXPEDOVANO
                 bedna.save()
-                logger.info(f"Uživatel {request.user} přesunul bednu {bedna} do nové zakázky ID {nova_zakazka}.")
+                logger.info(f"Uživatel {request.user} přesunul a expedoval bednu {bedna} do zakázky ID {nova_zakazka}.")
 
-        for bedna in bedny_k_expedici:
-            bedna.stav_bedny = StavBednyChoice.EXPEDOVANO
-            bedna.save()
-            logger.info(f"Uživatel {request.user} expedoval bednu {bedna} (stav nastaven na EXPEDOVANO).")
+            nova_zakazka.kamion_vydej = kamion
+            nova_zakazka.expedovano = True
+            nova_zakazka.save()
 
-        zakazka.kamion_vydej = kamion
-        zakazka.expedovano = True
-        zakazka.save()
-        logger.info(f"Uživatel {request.user} expedoval zakázku {zakazka} do kamionu {kamion}.")
+            # Původní zakázku necháváme s neexpedovanými bednami, kamion ani expedovano se nemění
+        else:
+            # všechny bedny jsou K_EXPEDICI
+            for bedna in bedny_k_expedici:
+                bedna.stav_bedny = StavBednyChoice.EXPEDOVANO
+                bedna.save()
+                logger.info(f"Uživatel {request.user} expedoval bednu {bedna} (stav nastaven na EXPEDOVANO).")
 
-
+            zakazka.kamion_vydej = kamion
+            zakazka.expedovano = True
+            zakazka.save()
+            logger.info(f"Uživatel {request.user} expedoval zakázku {zakazka} do kamionu {kamion}.")
+            
 @transaction.atomic
 def utilita_expedice_beden(modeladmin, request, bedny_qs, kamion):
     """
@@ -220,17 +230,11 @@ def utilita_expedice_beden(modeladmin, request, bedny_qs, kamion):
         vybrane_bedny = bedny_qs.filter(zakazka=zakazka)
         vybrane_ids = list(vybrane_bedny.values_list('pk', flat=True))
 
-        # Expeduj vybrané bedny
-        for bedna in vybrane_bedny:
-            bedna.stav_bedny = StavBednyChoice.EXPEDOVANO
-            bedna.save()
-            logger.info(f"Uživatel {request.user} expedoval bednu {bedna} (stav nastaven na EXPEDOVANO).")
-
-        # Bedny, které nebyly vybrány k expedici, přesuň do nové zakázky (stejná data)
         zbyvajici_ids = list(zakazka.bedny.exclude(pk__in=vybrane_ids).values_list('pk', flat=True))
         zbyvajici_bedny = Bedna.objects.filter(pk__in=zbyvajici_ids)
-        nova_zakazka = None
+
         if zbyvajici_bedny.exists():
+            # Vytvoř novou zakázku pro expedované bedny (vybrane_bedny)
             exclude = {'id', 'kamion_vydej', 'expedovano'}
             zakazka_data = {}
             puvodni_zakazka = zakazka.puvodni_zakazka or zakazka
@@ -243,24 +247,38 @@ def utilita_expedice_beden(modeladmin, request, bedny_qs, kamion):
                     zakazka_data[field.name] = getattr(zakazka, field.name)
             zakazka_data['puvodni_zakazka_id'] = puvodni_zakazka.id
             nova_zakazka = Zakazka.objects.create(**zakazka_data)
-            logger.info(f"Uživatel {request.user} vytvořil novou zakázku {nova_zakazka} pro neexpedované bedny ze zakázky ID {zakazka}.")
-            for bedna in zbyvajici_bedny:
+            logger.info(
+                f"Uživatel {request.user} vytvořil novou zakázku {nova_zakazka} pro expedované bedny ze zakázky ID {zakazka}."
+            )
+
+            for bedna in vybrane_bedny:
+                bedna.stav_bedny = StavBednyChoice.EXPEDOVANO
                 bedna.zakazka = nova_zakazka
                 bedna.save()
-                logger.info(f"Uživatel {request.user} přesunul bednu {bedna} do nové zakázky ID {nova_zakazka}.")
+                logger.info(
+                    f"Uživatel {request.user} přesunul a expedoval bednu {bedna} do zakázky ID {nova_zakazka}."
+                )
 
-        # Přiřaď kamion k původní zakázce (expedovaná část)
-        zakazka.kamion_vydej = kamion
+            nova_zakazka.kamion_vydej = kamion
+            nova_zakazka.expedovano = True
+            nova_zakazka.save()
 
-        # Nastav expedovano pouze pokud všechny bedny v původní zakázce jsou expedované
-        vse_expedovano = not zakazka.bedny.exclude(stav_bedny=StavBednyChoice.EXPEDOVANO).exists()
-        zakazka.expedovano = vse_expedovano
-        zakazka.save()
+            # Původní zakázka zůstává bez změny kamionu a expedovano, s neexpedovanými bednami
+        else:
+            # Vybrány byly všechny bedny zakázky
+            for bedna in vybrane_bedny:
+                bedna.stav_bedny = StavBednyChoice.EXPEDOVANO
+                bedna.save()
+                logger.info(f"Uživatel {request.user} expedoval bednu {bedna} (stav nastaven na EXPEDOVANO).")
 
-        logger.info(
-            f"Uživatel {request.user} expedoval {vybrane_bedny.count()} beden zakázky {zakazka} do kamionu {kamion}. "
-            f"Zakázka expedovano={zakazka.expedovano}. Nová zakázka pro zbytek: {nova_zakazka or 'nevytvořena (vše expedováno)' }."
-        )
+            zakazka.kamion_vydej = kamion
+            zakazka.expedovano = True
+            zakazka.save()
+
+            logger.info(
+                f"Uživatel {request.user} expedoval {vybrane_bedny.count()} beden zakázky {zakazka} do kamionu {kamion}. "
+                f"Zakázka expedovano={zakazka.expedovano}. Nová zakázka pro zbytek: nevytvořena (vše expedováno)."
+            )
 
 def utilita_kontrola_zakazek(modeladmin, request, queryset):
     """

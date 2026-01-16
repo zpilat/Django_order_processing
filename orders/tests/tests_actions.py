@@ -422,15 +422,50 @@ class ActionsTests(ActionsBase):
         self.assertEqual(b1.stav_bedny, StavBednyChoice.EXPEDOVANO)
         self.assertEqual(b2.stav_bedny, StavBednyChoice.K_EXPEDICI)
         self.assertEqual(b3.stav_bedny, StavBednyChoice.K_EXPEDICI)
-        self.assertEqual(self.zakazka.kamion_vydej, self.kamion_vydej)
-        self.assertTrue(self.zakazka.expedovano)
+        self.assertIsNone(self.zakazka.kamion_vydej)
+        self.assertFalse(self.zakazka.expedovano)
 
         nove_zakazky = Zakazka.objects.exclude(id=self.zakazka.id)
         self.assertTrue(nove_zakazky.exists())
         nova = nove_zakazky.latest('id')
-        self.assertEqual(b2.zakazka, nova)
-        self.assertEqual(b3.zakazka, nova)
-        self.assertFalse(nova.expedovano)
+        self.assertEqual(b1.zakazka, nova)
+        self.assertEqual(b2.zakazka, self.zakazka)
+        self.assertEqual(b3.zakazka, self.zakazka)
+        self.assertEqual(nova.puvodni_zakazka, self.zakazka)
+        self.assertTrue(nova.expedovano)
+        self.assertEqual(nova.kamion_vydej, self.kamion_vydej)
+
+    def test_expedice_zakazek_action_sets_puvodni_zakazka_on_split(self):
+        admin_obj = self._messaging_admin()
+
+        # připrav zakázku: jedna bedna k expedici, ostatní nikoliv => vznikne nová zakázka
+        expedovana = self._create_bedna_in_state(StavBednyChoice.K_EXPEDICI)
+        neexpedovatelna = self._create_bedna_in_state(
+            StavBednyChoice.PRIJATO,
+            rovnat=RovnaniChoice.NEZADANO,
+            tryskat=TryskaniChoice.NEZADANO,
+        )
+
+        data = {'apply': '1', 'odberatel': self.odberatel.id}
+        req = self.get_request('post', data)
+
+        with patch('orders.actions.Kamion.objects.create', return_value=self.kamion_vydej):
+            actions.expedice_zakazek_action(admin_obj, req, Zakazka.objects.filter(id=self.zakazka.id))
+
+        neexpedovatelna.refresh_from_db()
+        expedovana.refresh_from_db()
+
+        puvodni = Zakazka.objects.get(id=self.zakazka.id)
+        nova = Zakazka.objects.exclude(id=puvodni.id).latest('id')
+
+        self.assertEqual(neexpedovatelna.zakazka, puvodni)
+        self.assertEqual(expedovana.zakazka, nova)
+        self.assertEqual(expedovana.stav_bedny, StavBednyChoice.EXPEDOVANO)
+        self.assertEqual(nova.puvodni_zakazka, puvodni)
+        self.assertEqual(nova.kamion_vydej, self.kamion_vydej)
+        self.assertTrue(nova.expedovano)
+        self.assertIsNone(puvodni.kamion_vydej)
+        self.assertFalse(puvodni.expedovano)
 
     @patch('orders.actions.utilita_expedice_beden')
     def test_expedice_beden_kamion_action_success(self, mock_expedice):
@@ -519,15 +554,83 @@ class ActionsTests(ActionsBase):
         resp = actions.tisk_karet_kontroly_kvality_zakazek_action(self.admin, self.get_request(), Zakazka.objects.all())
         self.assertIsInstance(resp, HttpResponse)
 
-    def test_vratit_zakazky_z_expedice_action(self):
+    def test_vratit_zakazky_z_expedice_action_restore_current(self):
         self.zakazka.expedovano = True
         self.zakazka.kamion_vydej = self.kamion_vydej
         self.zakazka.save()
+        self.bedna.stav_bedny = StavBednyChoice.EXPEDOVANO
+        self.bedna.save()
+
         actions.vratit_zakazky_z_expedice_action(self.admin, self.get_request('post'), Zakazka.objects.all())
+
         self.zakazka.refresh_from_db()
+        self.bedna.refresh_from_db()
         self.assertFalse(self.zakazka.expedovano)
         self.assertIsNone(self.zakazka.kamion_vydej)
-        self.assertEqual(self.zakazka.bedny.first().stav_bedny, StavBednyChoice.K_EXPEDICI)
+        self.assertEqual(self.bedna.stav_bedny, StavBednyChoice.K_EXPEDICI)
+
+    def test_vratit_zakazky_z_expedice_action_requires_all_bedny_expedovano(self):
+        admin_obj = self._messaging_admin()
+        self.zakazka.expedovano = True
+        self.zakazka.kamion_vydej = self.kamion_vydej
+        self.zakazka.save()
+        # bedna zůstane v jiném stavu -> akce musí skončit chybou
+        req = self.get_request('post')
+
+        actions.vratit_zakazky_z_expedice_action(admin_obj, req, Zakazka.objects.filter(id=self.zakazka.id))
+
+        msgs = self._messages_texts(req)
+        self.assertTrue(any('nejsou ve stavu EXPEDOVANO' in m for m in msgs))
+        self.zakazka.refresh_from_db()
+        self.assertTrue(self.zakazka.expedovano)
+        self.assertEqual(self.zakazka.kamion_vydej, self.kamion_vydej)
+
+    def test_vratit_zakazky_z_expedice_action_move_to_original_and_delete(self):
+        admin_obj = self._messaging_admin()
+
+        puvodni = Zakazka.objects.create(
+            kamion_prijem=self.kamion_prijem,
+            artikl='P1',
+            prumer=1,
+            delka=1,
+            predpis=self.predpis,
+            typ_hlavy=self.typ_hlavy,
+            popis='puvodni',
+        )
+
+        oddelena = Zakazka.objects.create(
+            kamion_prijem=self.kamion_prijem,
+            puvodni_zakazka=puvodni,
+            artikl='O1',
+            prumer=1,
+            delka=1,
+            predpis=self.predpis,
+            typ_hlavy=self.typ_hlavy,
+            popis='oddelena',
+            expedovano=True,
+            kamion_vydej=self.kamion_vydej,
+        )
+
+        bedna_oddelena = Bedna.objects.create(
+            zakazka=oddelena,
+            hmotnost=Decimal('1.0'),
+            tara=Decimal('1.0'),
+            mnozstvi=1,
+            stav_bedny=StavBednyChoice.EXPEDOVANO,
+        )
+
+        req = self.get_request('post')
+        actions.vratit_zakazky_z_expedice_action(admin_obj, req, Zakazka.objects.filter(id=oddelena.id))
+
+        msgs = self._messages_texts(req)
+        self.assertTrue(any('Úspěšně vráceno z expedice' in m for m in msgs))
+        self.assertFalse(Zakazka.objects.filter(id=oddelena.id).exists())
+
+        bedna_oddelena.refresh_from_db()
+        self.assertEqual(bedna_oddelena.zakazka, puvodni)
+        self.assertEqual(bedna_oddelena.stav_bedny, StavBednyChoice.K_EXPEDICI)
+        puvodni.refresh_from_db()
+        self.assertFalse(puvodni.expedovano)
 
     def test_import_kamionu_action(self):
         kamion = Kamion.objects.create(zakaznik=self.zakaznik, datum=date.today())
@@ -907,8 +1010,8 @@ class ExportBednyCsvActionTests(ActionsBase):
         content = resp.content.decode('utf-8-sig')
         rows = list(csv.reader(io.StringIO(content), delimiter=';'))
 
-        self.assertEqual(rows[0], ['Artikel-Nr.', 'Behälter-Nr.', 'Abmessung'])
-        self.assertEqual(rows[1], ['ART1', str(bedna.behalter_nr), '10,5 x 20'])
+        self.assertEqual(rows[0], ['Artikel-Nr.', 'Behälter-Nr.', 'Abmessung', '#'])
+        self.assertEqual(rows[1], ['ART1', str(bedna.behalter_nr), '10,5 x 20', str(bedna.cislo_bedny)])
 
     def test_export_bedny_eurotec_dl_action_requires_eur_and_expedovano(self):
         self.bedna.stav_bedny = StavBednyChoice.PRIJATO
