@@ -264,6 +264,58 @@ class BednyKNavezeniViewTests(ViewsTestBase):
 		self.assertEqual(order_abc.poradi, 1)
 		self.assertEqual(order_eur.poradi, 2)
 
+	def test_edge_move_down_moves_to_next_position_at_beginning(self):
+		# inicializuj pořadí
+		_get_bedny_k_navezeni_groups()
+		resp = self.client.post(
+			reverse("dashboard_bedny_k_navezeni"),
+			{
+				"pozice_id": self.poz_a.id,
+				"zakazka_id": self.zak_eur.id,
+				"move": "down",
+			},
+		)
+		self.assertEqual(resp.status_code, 302)
+		self.assertEqual(resp["Location"], reverse("dashboard_bedny_k_navezeni"))
+
+		# Bedny zakázky EUR se přesunuly do pozice B
+		self.b_nav1.refresh_from_db()
+		self.b_nav2.refresh_from_db()
+		self.assertEqual(self.b_nav1.pozice_id, self.poz_b.id)
+		self.assertEqual(self.b_nav2.pozice_id, self.poz_b.id)
+
+		orders_b = list(
+			PoziceZakazkaOrder.objects.filter(pozice=self.poz_b).order_by("poradi").values_list("zakazka_id", flat=True)
+		)
+		self.assertEqual(orders_b, [self.zak_eur.id, self.zak_abc.id])
+		orders_a = list(PoziceZakazkaOrder.objects.filter(pozice=self.poz_a))
+		self.assertEqual(len(orders_a), 0)
+
+	def test_edge_move_up_moves_to_prev_position_at_end(self):
+		# inicializuj pořadí
+		_get_bedny_k_navezeni_groups()
+		resp = self.client.post(
+			reverse("dashboard_bedny_k_navezeni"),
+			{
+				"pozice_id": self.poz_b.id,
+				"zakazka_id": self.zak_abc.id,
+				"move": "up",
+			},
+		)
+		self.assertEqual(resp.status_code, 302)
+		self.assertEqual(resp["Location"], reverse("dashboard_bedny_k_navezeni"))
+
+		# Bedna zakázky ABC se přesunula do pozice A (na konec)
+		self.b_nav3.refresh_from_db()
+		self.assertEqual(self.b_nav3.pozice_id, self.poz_a.id)
+
+		orders_a = list(
+			PoziceZakazkaOrder.objects.filter(pozice=self.poz_a).order_by("poradi").values_list("zakazka_id", flat=True)
+		)
+		self.assertEqual(orders_a, [self.zak_eur.id, self.zak_abc.id])
+		orders_b = list(PoziceZakazkaOrder.objects.filter(pozice=self.poz_b))
+		self.assertEqual(len(orders_b), 0)
+
 
 class BednyListViewTests(ViewsTestBase):
 	def test_default_excludes_expedovano_and_htmx_partial(self):

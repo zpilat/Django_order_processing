@@ -12,21 +12,20 @@
     <table class="table table-sm align-middle mb-0 text-center">
       <thead>
         <tr style="font-size: 1.5rem;">
-          <th colspan="6" class="fw-bold" style="background-color: #ffde17; color: #214290;">Bedny k navezení</th>
+          <th colspan="5" class="fw-bold" style="background-color: #ffde17; color: #214290;">Bedny k navezení</th>
         </tr>
       </thead>
       <tbody>      
         {% if groups %}
           {% for group in groups %}
             <tr>
-              <th colspan="6" style="background-color: #ffde17; color: #214290; font-size: 1.2rem;">Do pozice: {{ group.pozice }}</th>
+              <th colspan="5" style="background-color: #ffde17; color: #214290; font-size: 1.2rem;">Do pozice: {{ group.pozice }}</th>
             </tr>
             <tr>
               <th style="background-color: #214290; color: #ffde17;">Artikl</th>
               <th style="background-color: #214290; color: #ffde17;">Rozměr</th>
               <th style="background-color: #214290; color: #ffde17;">Popis</th>
               <th style="background-color: #214290; color: #ffde17;">Poznámka k navezení</th>
-              <th style="background-color: #214290; color: #ffde17;">Změna pozice</th>
               <th style="background-color: #214290; color: #ffde17;">Číslo bedny</th>          
             </tr>          
             {% for zakazka_group in group.zakazky_group %}
@@ -42,25 +41,27 @@
                       <div class="d-flex flex-column align-items-start gap-1">
                         <div class="fw-bold">{{ zakazka_group.zakazka.artikl }}</div>
                         <div class="d-flex align-items-center gap-1">
-                          <!-- Pro ladění zobrazení aktuálního pořadí v pozici -->
+                          <!-- Zobrazit pouze pro ladění aktuálního pořadí v pozici -->
                           <!--<span class="text-muted">{{ zakazka_group.poradi|default:0 }}</span>-->
-                          {% if zg_index > 0 %}
-                          <form method="post" action="{% url 'dashboard_bedny_k_navezeni' %}">
-                            {% csrf_token %}
-                            <input type="hidden" name="pozice_id" value="{{ zakazka_group.pozice_id }}" />
-                            <input type="hidden" name="zakazka_id" value="{{ zakazka_group.zakazka.id }}" />
-                            <input type="hidden" name="move" value="up" />
-                            <button type="submit" class="btn btn-sm btn-outline-primary" title="Posunout výš">▲</button>
-                          </form>
+                          {% if group.pozice != pozice_kody|first or zg_index > 0 %}
+                            <form method="post" action="{% url 'dashboard_bedny_k_navezeni' %}">
+                              {% csrf_token %}
+                              <input type="hidden" name="pozice_id" value="{{ zakazka_group.pozice_id }}" />
+                              <input type="hidden" name="zakazka_id" value="{{ zakazka_group.zakazka.id }}" />
+                              <input type="hidden" name="move" value="up" />
+                              <button type="submit" class="btn btn-sm btn-outline-primary"
+                                title="{% if zg_index > 0 %}Posunout výš{% else %}Posunout do předcházející pozice: {{ prev_map|dict_get:group.pozice }}{% endif %}">▲</button>
+                            </form>
                           {% endif %}
-                          {% if not zg_last %}
-                          <form method="post" action="{% url 'dashboard_bedny_k_navezeni' %}">
-                            {% csrf_token %}
-                            <input type="hidden" name="pozice_id" value="{{ zakazka_group.pozice_id }}" />
-                            <input type="hidden" name="zakazka_id" value="{{ zakazka_group.zakazka.id }}" />
-                            <input type="hidden" name="move" value="down" />
-                            <button type="submit" class="btn btn-sm btn-outline-primary" title="Posunout níž">▼</button>
-                          </form>
+                          {% if group.pozice != pozice_kody|last or not zg_last %}
+                            <form method="post" action="{% url 'dashboard_bedny_k_navezeni' %}">
+                              {% csrf_token %}
+                              <input type="hidden" name="pozice_id" value="{{ zakazka_group.pozice_id }}" />
+                              <input type="hidden" name="zakazka_id" value="{{ zakazka_group.zakazka.id }}" />
+                              <input type="hidden" name="move" value="down" />
+                              <button type="submit" class="btn btn-sm btn-outline-primary"
+                              title="{% if not zg_last %}Posunout níž{% else %}Posunout do následující pozice: {{ next_map|dict_get:group.pozice }}{% endif %}">▼</button>
+                            </form>
                           {% endif %}
                         </div>
                       </div>
@@ -68,7 +69,6 @@
                     <td rowspan="{{ zakazka_group.bedny|length }}">{{ zakazka_group.zakazka.prumer }} x {{ zakazka_group.zakazka.delka }}</td>
                     <td rowspan="{{ zakazka_group.bedny|length }}">{{ zakazka_group.zakazka.popis }}</td>          
                     <td rowspan="{{ zakazka_group.bedny|length }}">{{ bedna.poznamka_k_navezeni|default:"vše" }}</td>                              
-                    <td rowspan="{{ zakazka_group.bedny|length }}">{{ group.pozice }}</td>                    
                   {% endif %}
                   <td>{{ bedna.cislo_bedny }}</td>
                 </tr>
