@@ -978,7 +978,8 @@ class Bedna(models.Model):
         - K_NAVEZENI a NAVEZENO: světle modrá
         - DO_ZPRACOVANI: světle šedá
         - ZAKALENO: žlutá
-        - ZKONTROLOVANO: oranžová
+        - ZKONTROLOVANO a zároveň rovnat je ROVNA nebo VYROVNANA a tryskat je CISTA nebo OTRYSKANA: světle zelená
+        - ZKONTROLOVANO ostatní případy: oranžová
         - K_EXPEDICI nebo EXPEDOVANO: tmavě zelená
         """
         if self.stav_bedny == StavBednyChoice.NEPRIJATO:
@@ -992,7 +993,10 @@ class Bedna(models.Model):
         elif self.stav_bedny == StavBednyChoice.ZAKALENO:
             return 'yellow'
         elif self.stav_bedny == StavBednyChoice.ZKONTROLOVANO:
-            return 'orange'
+            if self.rovnat in [RovnaniChoice.ROVNA, RovnaniChoice.VYROVNANA] and self.tryskat in [TryskaniChoice.CISTA, TryskaniChoice.OTRYSKANA]:
+                return 'lightgreen'
+            else:
+                return 'orange'
         elif self.stav_bedny in [StavBednyChoice.K_EXPEDICI, StavBednyChoice.EXPEDOVANO]:
             return 'darkgreen'
         else:
