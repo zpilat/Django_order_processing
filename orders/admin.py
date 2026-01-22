@@ -2485,6 +2485,14 @@ class BednaAdmin(SimpleHistoryAdmin):
         """
         current_readonly_fields = list(super().get_readonly_fields(request, obj))
         added_readonly_fields = []
+        if obj and obj.stav_bedny == StavBednyChoice.NEPRIJATO:
+            # Uživatel bez change_neprijata_bedna může upravit pouze poznámku, pokud má speciální oprávnění.
+            if (not request.user.has_perm('orders.change_neprijata_bedna')
+                    and request.user.has_perm('orders.change_poznamka_neprijata_bedna')):
+                editable_fields = {'poznamka'}
+                all_fields = {f.name for f in self.model._meta.fields}
+                readonly_set = (set(current_readonly_fields) | all_fields) - editable_fields
+                return list(readonly_set)
         if obj and obj.stav_bedny == StavBednyChoice.EXPEDOVANO:
             # Expedovanou bednu kvůli has_permission v modelu BednaAdmin normálně nelze měnit,
             # ale pokud uživatel má speciální oprávnění, povolíme zobrazení některých polí jako readonly.
@@ -2500,28 +2508,34 @@ class BednaAdmin(SimpleHistoryAdmin):
         Podmínky (podle původní logiky/testů):
         - Pokud je zařízení mobil => žádná inline editace.
         - Pokud je filtr stav_bedny = StavBednyChoice.EXPEDOVANO nebo pozastaveno=True => žádná inline editace.
-        - Pokud je filtr stav_bedny = StavBednyChoice.NEPRIJATO a uživatel nemá oprávnění change_neprijata_bedna => žádná inline editace.
+        - Pokud je filtr stav_bedny = StavBednyChoice.NEPRIJATO a uživatel nemá oprávnění change_neprijata_bedna ani change_poznamka_neprijata_bedna => žádná inline editace.
         - Jinak standardně: stav_bedny, tryskat, rovnat, hmotnost, poznamka.
         - Pokud je stav_bedny == StavBednyChoice.NEPRIJATO a uživatel má oprávnění change_neprijata_bedna, přidá se i mnozstvi.
+        - Pokud je stav_bedny == StavBednyChoice.NEPRIJATO a uživatel má jen change_poznamka_neprijata_bedna, zůstane editovatelná pouze poznamka.
         - Pokud je stav_bedny v STAV_BEDNY_PRO_NAVEZENI, přidá se i pozice.
         """
         if get_user_agent(request).is_mobile:
             return []
 
-        if request.GET.get('stav_bedny') == StavBednyChoice.EXPEDOVANO or request.GET.get('pozastaveno') == 'True':
+        stav_filter = request.GET.get('stav_bedny')
+
+        if stav_filter == StavBednyChoice.EXPEDOVANO or request.GET.get('pozastaveno') == 'True':
             return []
         
-        if request.GET.get('stav_bedny') == StavBednyChoice.NEPRIJATO and not request.user.has_perm('orders.change_neprijata_bedna'):
-            return []
+        if stav_filter == StavBednyChoice.NEPRIJATO:
+            if request.user.has_perm('orders.change_neprijata_bedna'):
+                editable = ['stav_bedny', 'tryskat', 'rovnat', 'hmotnost', 'tara', 'poznamka', 'mnozstvi']
+            elif request.user.has_perm('orders.change_poznamka_neprijata_bedna'):
+                return ['poznamka']
+            else:
+                return []
+        else:
+            editable = ['stav_bedny', 'tryskat', 'rovnat', 'hmotnost', 'tara', 'poznamka']
 
-        editable = ['stav_bedny', 'tryskat', 'rovnat', 'hmotnost', 'tara', 'poznamka']
-        if request.GET.get('stav_bedny') == StavBednyChoice.NEPRIJATO and request.user.has_perm('orders.change_neprijata_bedna'):
-            editable.append('mnozstvi')
-
-        if request.GET.get('stav_bedny') in STAV_BEDNY_PRO_NAVEZENI:
+        if stav_filter in STAV_BEDNY_PRO_NAVEZENI:
             editable.append('pozice')
 
-        if request.GET.get('stav_bedny') == StavBednyChoice.K_EXPEDICI:
+        if stav_filter == StavBednyChoice.K_EXPEDICI:
             if 'hmotnost' in editable:
                 editable.remove('hmotnost') 
 
@@ -2532,7 +2546,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         Omezení změn:
         - Expedovaná bedna vyžaduje oprávnění change_expedovana_bedna
         - Pozastavená bedna vyžaduje oprávnění change_pozastavena_bedna
-        - Neprijatá bedna vyžaduje oprávnění change_neprijata_bedna
+        - Neprijatá bedna vyžaduje oprávnění change_neprijata_bedna nebo pouze change_poznamka_neprijata_bedna (jen pro úpravu poznámky)
         Jinak platí standardní change_bedna.
         """
         if obj is not None:
@@ -2547,7 +2561,9 @@ class BednaAdmin(SimpleHistoryAdmin):
 
             # Neprijatá vyžaduje speciální oprávnění
             if getattr(obj, 'stav_bedny', None) == StavBednyChoice.NEPRIJATO:
-                return request.user.has_perm('orders.change_neprijata_bedna')
+                if request.user.has_perm('orders.change_neprijata_bedna'):
+                    return True
+                return request.user.has_perm('orders.change_poznamka_neprijata_bedna')
             
         return super().has_change_permission(request, obj)
 

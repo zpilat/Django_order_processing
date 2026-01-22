@@ -641,16 +641,66 @@ class BednaAdminTests(AdminBase):
         req.user = User.objects.get(pk=req.user.pk)
         self.assertTrue(self.admin.has_change_permission(req, bed_np))
 
+    def test_has_change_permission_neprijato_poznamka_only(self):
+        """Uživatel s oprávněním pro poznámku může měnit NEPRIJATO omezeně."""
+        User = get_user_model()
+        user = User.objects.create_user('user_bn2', 'bn2@example.com', 'pass', is_staff=True)
+        user.user_permissions.add(Permission.objects.get(codename='change_bedna'))
+
+        bed_np = Bedna.objects.create(
+            zakazka=self.zakazka,
+            hmotnost=Decimal(2),
+            tara=Decimal(0),
+            mnozstvi=1,
+            stav_bedny=StavBednyChoice.NEPRIJATO,
+        )
+
+        req = self.factory.get('/')
+        req.user = user
+        self.assertFalse(self.admin.has_change_permission(req, bed_np))
+        user.user_permissions.add(Permission.objects.get(codename='change_poznamka_neprijata_bedna'))
+        req.user = User.objects.get(pk=req.user.pk)
+        self.assertTrue(self.admin.has_change_permission(req, bed_np))
+
     def test_get_list_editable_neprijato_requires_perm(self):
         # Bez oprávnění – prázdné
         req = self.get_request({'stav_bedny': StavBednyChoice.NEPRIJATO})
         req.user = get_user_model().objects.create_user('user_le', 'le@example.com', 'pass', is_staff=True)
         self.assertEqual(self.admin.get_list_editable(req), [])
+        # Jen oprávnění pro poznámku – pouze poznamka
+        req_note = self.get_request({'stav_bedny': StavBednyChoice.NEPRIJATO})
+        req_note.user = get_user_model().objects.create_user('user_len', 'len@example.com', 'pass', is_staff=True)
+        req_note.user.user_permissions.add(Permission.objects.get(codename='change_poznamka_neprijata_bedna'))
+        req_note.user = get_user_model().objects.get(pk=req_note.user.pk)
+        self.assertEqual(self.admin.get_list_editable(req_note), ['poznamka'])
         # S oprávněním – defaultní sada, přidán i mnozstvi, pokud je stav bedny NEPRIJATO
         req.user.user_permissions.add(Permission.objects.get(codename='change_neprijata_bedna'))
         req.user = get_user_model().objects.get(pk=req.user.pk)
         editable = self.admin.get_list_editable(req)
         self.assertEqual(editable, ['stav_bedny', 'tryskat', 'rovnat', 'hmotnost', 'tara', 'poznamka', 'mnozstvi'])
+
+    def test_get_readonly_fields_neprijato_poznamka_only(self):
+        """Při oprávnění jen na poznámku jsou ostatní pole readonly."""
+        user = get_user_model().objects.create_user('user_ro', 'ro@example.com', 'pass', is_staff=True)
+        user.user_permissions.add(Permission.objects.get(codename='change_bedna'))
+        user.user_permissions.add(Permission.objects.get(codename='change_poznamka_neprijata_bedna'))
+        req = self.factory.get('/')
+        req.user = user
+
+        bed_np = Bedna.objects.create(
+            zakazka=self.zakazka,
+            hmotnost=Decimal(2),
+            tara=Decimal(0),
+            mnozstvi=1,
+            stav_bedny=StavBednyChoice.NEPRIJATO,
+        )
+
+        readonly = set(self.admin.get_readonly_fields(req, bed_np))
+        all_fields = {f.name for f in Bedna._meta.fields}
+        self.assertIn('hmotnost', readonly)
+        self.assertIn('tara', readonly)
+        self.assertNotIn('poznamka', readonly)
+        self.assertTrue(all_fields.issubset(readonly | {'poznamka'}))
 
     def test_bedna_list_display_pozice_toggle(self):
         # Pro PR, KN, NV je sloupec pozice vidět
