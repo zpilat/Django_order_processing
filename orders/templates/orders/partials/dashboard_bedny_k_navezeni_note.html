@@ -1,0 +1,24 @@
+{% if mode == 'form' %}
+<div id="{{ target_id }}">
+  <form hx-post="{% url 'dashboard_bedny_k_navezeni_poznamka' %}" hx-target="#{{ target_id }}" hx-swap="outerHTML" class="d-flex flex-wrap align-items-center gap-2">
+    {% csrf_token %}
+    <input type="hidden" name="pozice_id" value="{{ pozice_id }}" />
+    <input type="hidden" name="zakazka_id" value="{{ zakazka_id }}" />
+    <input type="text" name="poznamka" value="{{ poznamka }}" class="form-control form-control-sm" style="min-width: 160px;" />
+    <div class="d-flex gap-1">
+      <button type="submit" class="btn btn-sm btn-primary">Uložit</button>
+      <button type="button" class="btn btn-sm btn-secondary"
+        hx-get="{% url 'dashboard_bedny_k_navezeni_poznamka' %}?pozice_id={{ pozice_id }}&zakazka_id={{ zakazka_id }}"
+        hx-target="#{{ target_id }}" hx-swap="outerHTML">Zrušit</button>
+    </div>
+  </form>
+</div>
+{% else %}
+<div id="{{ target_id }}">
+  <button type="button" class="btn btn-sm btn-outline-secondary w-100"
+    hx-get="{% url 'dashboard_bedny_k_navezeni_poznamka' %}?pozice_id={{ pozice_id }}&zakazka_id={{ zakazka_id }}&mode=form"
+    hx-target="#{{ target_id }}" hx-swap="outerHTML">
+    {{ poznamka|default:"vše" }}
+  </button>
+</div>
+{% endif %}

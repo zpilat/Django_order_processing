@@ -316,6 +316,30 @@ class BednyKNavezeniViewTests(ViewsTestBase):
 		orders_b = list(PoziceZakazkaOrder.objects.filter(pozice=self.poz_b))
 		self.assertEqual(len(orders_b), 0)
 
+	def test_poznamka_htmx_get_and_post(self):
+		# GET form
+		resp_get = self.client.get(
+			reverse("dashboard_bedny_k_navezeni_poznamka"),
+			{"pozice_id": self.poz_a.id, "zakazka_id": self.zak_eur.id, "mode": "form"},
+			HTTP_HX_REQUEST="true",
+		)
+		self.assertEqual(resp_get.status_code, 200)
+		self.assertIn("Uložit", resp_get.content.decode())
+
+		# POST update
+		note_text = "Nová poznámka"
+		resp_post = self.client.post(
+			reverse("dashboard_bedny_k_navezeni_poznamka"),
+			{"pozice_id": self.poz_a.id, "zakazka_id": self.zak_eur.id, "poznamka": note_text},
+			HTTP_HX_REQUEST="true",
+		)
+		self.assertEqual(resp_post.status_code, 200)
+		self.assertIn(note_text, resp_post.content.decode())
+		self.b_nav1.refresh_from_db()
+		self.b_nav2.refresh_from_db()
+		self.assertEqual(self.b_nav1.poznamka_k_navezeni, note_text)
+		self.assertIsNone(self.b_nav2.poznamka_k_navezeni)
+
 
 class BednyListViewTests(ViewsTestBase):
 	def test_default_excludes_expedovano_and_htmx_partial(self):

@@ -68,7 +68,21 @@
                     </td>
                     <td rowspan="{{ zakazka_group.bedny|length }}">{{ zakazka_group.zakazka.prumer }} x {{ zakazka_group.zakazka.delka }}</td>
                     <td rowspan="{{ zakazka_group.bedny|length }}">{{ zakazka_group.zakazka.popis }}</td>          
-                    <td rowspan="{{ zakazka_group.bedny|length }}">{{ bedna.poznamka_k_navezeni|default:"vše" }}</td>                              
+                    <td rowspan="{{ zakazka_group.bedny|length }}">
+                      {% with bedna_first=zakazka_group.bedny|first %}
+                        {% with poz=zakazka_group.pozice_id|stringformat:"s" zak=zakazka_group.zakazka.id|stringformat:"s" %}
+                          {% with target_id="note-"|add:poz|add:"-"|add:zak %}
+                            <div id="{{ target_id }}">
+                              <button type="button" class="btn btn-sm btn-outline-secondary w-100"
+                                hx-get="{% url 'dashboard_bedny_k_navezeni_poznamka' %}?pozice_id={{ zakazka_group.pozice_id }}&zakazka_id={{ zakazka_group.zakazka.id }}&mode=form"
+                                hx-target="#{{ target_id }}" hx-swap="outerHTML">
+                                {{ bedna_first.poznamka_k_navezeni|default:"vše" }}
+                              </button>
+                            </div>
+                          {% endwith %}
+                        {% endwith %}
+                      {% endwith %}
+                    </td>                              
                   {% endif %}
                   <td>{{ bedna.cislo_bedny }}</td>
                 </tr>

@@ -11,6 +11,7 @@ from django.utils.translation import gettext_lazy as _
 import django.utils.timezone as timezone
 from django.db import transaction
 from django.contrib import messages
+from django.http import HttpResponseBadRequest
 
 from .utils import get_verbose_name_for_column
 from .models import Bedna, Zakazka, Kamion, Zakaznik, TypHlavy, Predpis, Odberatel, Cena, Pozice, PoziceZakazkaOrder
@@ -470,6 +471,44 @@ def dashboard_bedny_k_navezeni_view(request):
     if request.htmx:
         return render(request, "orders/partials/dashboard_bedny_k_navezeni_content.html", context)
     return render(request, 'orders/dashboard_bedny_k_navezeni.html', context)
+
+
+@login_required
+def dashboard_bedny_k_navezeni_poznamka_view(request):
+    """HTMX endpoint pro inline úpravu poznámky k navezení pro zakázku v pozici."""
+    pozice_id_raw = request.GET.get('pozice_id') or request.POST.get('pozice_id')
+    zakazka_id_raw = request.GET.get('zakazka_id') or request.POST.get('zakazka_id')
+    mode = (request.GET.get('mode') or request.POST.get('mode') or '').lower()
+
+    try:
+        pozice_id = int(pozice_id_raw)
+        zakazka_id = int(zakazka_id_raw)
+    except (TypeError, ValueError):
+        return HttpResponseBadRequest("Neplatné ID pozice nebo zakázky.")
+
+    qs = Bedna.objects.filter(zakazka_id=zakazka_id, pozice_id=pozice_id)
+    if not qs.exists():
+        return HttpResponseBadRequest("Nebyla nalezena kombinace pozice a zakázky.")
+
+    poznamka = qs.values_list('poznamka_k_navezeni', flat=True).first() or ''
+
+    if request.method == 'POST':
+        poznamka = request.POST.get('poznamka') or ''
+        with transaction.atomic():
+            target_bedna = qs.order_by('cislo_bedny', 'id').first()
+            if target_bedna:
+                target_bedna.poznamka_k_navezeni = (poznamka or None)
+                target_bedna.save(update_fields=['poznamka_k_navezeni'])
+        mode = 'display'
+
+    context = {
+        'mode': 'form' if mode == 'form' and request.method == 'GET' else 'display',
+        'pozice_id': pozice_id,
+        'zakazka_id': zakazka_id,
+        'poznamka': poznamka,
+        'target_id': f"note-{pozice_id}-{zakazka_id}",
+    }
+    return render(request, "orders/partials/dashboard_bedny_k_navezeni_note.html", context)
 
 
 @login_required
