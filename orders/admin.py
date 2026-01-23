@@ -2764,7 +2764,8 @@ class BednaAdmin(SimpleHistoryAdmin):
         Pokud není aktivní filtr stav bedny EXPEDOVANO, zruší se akce pro export_beden_eurotec_dl_action.
         Pokud není aktivní filtr stav bedny RO, zruší se akce pro vrácení bedny z rozpracovanosti do stavu PRIJATO.
         Pokud není aktivní filtr stav bedny K_EXPEDICI, zruší se akce expedice_beden a expedice_beden_kamion.
-        Pokud není aktivní filtr stav bedny K_EXPEDICI nebo EXPEDOVANO, zruší se akce export_bedny_to_csv_customer_action.
+        Pokud není aktivní filtr stav bedny K_EXPEDICI nebo EXPEDOVANO nebo filtr rovnani "k_vyrovnani" (KRIVA nebo ROVNA_SE),
+        zruší se akce export_bedny_to_csv_customer_action.
         Pokud není aktivní filtr rovnani NEZADANO, zruší se akce pro označení bedny jako ROVNA a KŘIVÁ.
         Pokud není aktivní filtr rovnani KŘIVÁ, zruší se akce pro označení bedny jako ROVNÁ SE.
         Pokud není aktivní filtr rovnani KŘIVÁ nebo ROVNÁ SE, zruší se akce pro označení bedny jako VYROVNANÁ.
@@ -2779,7 +2780,11 @@ class BednaAdmin(SimpleHistoryAdmin):
         actions_to_remove = []
 
         if request.method == "GET":
-            if request.GET.get('stav_bedny', None) != StavBednyChoice.NEPRIJATO:
+            stav_filter = request.GET.get('stav_bedny', None)
+            rovnani_filter = request.GET.get('rovnani', None)
+            tryskani_filter = request.GET.get('tryskani', None)
+
+            if stav_filter != StavBednyChoice.NEPRIJATO:
                 actions_to_remove += [
                     'prijmout_bedny_action',
                 ]
@@ -2787,79 +2792,76 @@ class BednaAdmin(SimpleHistoryAdmin):
                 actions_to_remove += [
                     'tisk_karet_beden_action', 'tisk_karet_kontroly_kvality_action', 'tisk_karet_bedny_a_kontroly_action',
                 ]
-            if request.GET.get('stav_bedny', None):
+            if stav_filter:
                 actions_to_remove += [
                     'export_bedny_to_csv_action',
                 ]
-            if request.GET.get('stav_bedny', None) and request.GET.get('stav_bedny', None) != StavBednyChoice.PRIJATO:
+            if stav_filter and stav_filter != StavBednyChoice.PRIJATO:
                 actions_to_remove += [
                     'oznacit_k_navezeni_action',
                 ]
-            if request.GET.get('stav_bedny', None) != StavBednyChoice.K_NAVEZENI:
+            if stav_filter != StavBednyChoice.K_NAVEZENI:
                 actions_to_remove += [
                     'vratit_bedny_ze_stavu_k_navezeni_do_stavu_prijato_action', 'oznacit_navezeno_action',
                 ]
-            if request.GET.get('stav_bedny', None) not in [StavBednyChoice.NAVEZENO, 'RO']:
+            if stav_filter not in [StavBednyChoice.NAVEZENO, 'RO']:
                 actions_to_remove += [
                     'oznacit_do_zpracovani_action', 'vratit_bedny_ze_stavu_navezeno_do_stavu_prijato_action',
                 ]
-            if request.GET.get('stav_bedny', None) not in [
-                StavBednyChoice.NAVEZENO, StavBednyChoice.DO_ZPRACOVANI, 'RO'
-                ]:
+            if stav_filter not in [StavBednyChoice.NAVEZENO, StavBednyChoice.DO_ZPRACOVANI, 'RO']:
                 actions_to_remove += [
                     'oznacit_zakaleno_action',
                 ]
-            if request.GET.get('stav_bedny', None) not in [
-                StavBednyChoice.NAVEZENO, StavBednyChoice.DO_ZPRACOVANI, StavBednyChoice.ZAKALENO, 'RO'
-                ]:
+            if stav_filter not in [StavBednyChoice.NAVEZENO, StavBednyChoice.DO_ZPRACOVANI, StavBednyChoice.ZAKALENO, 'RO']:
                 actions_to_remove += [
                     'oznacit_zkontrolovano_action',
                 ]
-            if request.GET.get('stav_bedny', None) not in [
+            if stav_filter not in [
                 StavBednyChoice.NAVEZENO, StavBednyChoice.DO_ZPRACOVANI, StavBednyChoice.ZAKALENO,
                 StavBednyChoice.ZKONTROLOVANO, 'RO'
                 ]:
                 actions_to_remove += [
                     'oznacit_k_expedici_action',
                 ]
-            if request.GET.get('stav_bedny', None) != 'RO':
+            if stav_filter != 'RO':
                 actions_to_remove += [
                     'vratit_bedny_z_rozpracovanosti_do_stavu_prijato_action',
                 ]
-            if request.GET.get('stav_bedny', None) != StavBednyChoice.K_EXPEDICI:
+            if stav_filter != StavBednyChoice.K_EXPEDICI:
                 actions_to_remove += [
                     'expedice_beden_action', 'expedice_beden_kamion_action',
                 ]
-            if request.GET.get('stav_bedny', None) not in [StavBednyChoice.K_EXPEDICI, StavBednyChoice.EXPEDOVANO]:
+            # Povolit export zákaznického CSV i tehdy, když je aktivní pouze rovnání k_vyrovnani
+            if (stav_filter not in [StavBednyChoice.K_EXPEDICI, StavBednyChoice.EXPEDOVANO]) and rovnani_filter != 'k_vyrovnani':
                 actions_to_remove += [
                     'export_bedny_to_csv_customer_action',
                 ]
-            if request.GET.get('stav_bedny', None) != StavBednyChoice.EXPEDOVANO:
+            if stav_filter != StavBednyChoice.EXPEDOVANO:
                 actions_to_remove += [
                     'export_bedny_eurotec_dl_action',
                 ]
-            if request.GET.get('rovnani', None) != RovnaniChoice.NEZADANO:
+            if rovnani_filter != RovnaniChoice.NEZADANO:
                 actions_to_remove += [
                     'oznacit_rovna_action', 'oznacit_kriva_action',
                 ]
-            if request.GET.get('rovnani', None) != RovnaniChoice.KRIVA:
+            if rovnani_filter != RovnaniChoice.KRIVA:
                 actions_to_remove += [
                     'oznacit_rovna_se_action',
                 ]
-            if request.GET.get('rovnani', None) not in [RovnaniChoice.KRIVA, RovnaniChoice.ROVNA_SE]:
+            if rovnani_filter not in [RovnaniChoice.KRIVA, RovnaniChoice.ROVNA_SE]:
                 actions_to_remove += [
                     'oznacit_vyrovnana_action',
                 ]
-            if request.GET.get('tryskani', None) != TryskaniChoice.NEZADANO:
+            if tryskani_filter != TryskaniChoice.NEZADANO:
                 actions_to_remove += [
                     'oznacit_cista_action', 'oznacit_spinava_action',
                 ]
-            if request.GET.get('tryskani', None) not in [TryskaniChoice.SPINAVA, TryskaniChoice.NEZADANO]:
+            if tryskani_filter not in [TryskaniChoice.SPINAVA, TryskaniChoice.NEZADANO]:
                 actions_to_remove += [
                     'oznacit_otryskana_action',
                 ]
             permissions_not_ok = not(request.user.has_perm('orders.change_bedna') or request.user.has_perm('orders.mark_bedna_navezeno'))
-            if (request.GET.get('stav_bedny', None) and request.GET.get('stav_bedny', None) not in [StavBednyChoice.PRIJATO, StavBednyChoice.K_NAVEZENI]) or permissions_not_ok:
+            if (stav_filter and stav_filter not in [StavBednyChoice.PRIJATO, StavBednyChoice.K_NAVEZENI]) or permissions_not_ok:
                 actions_to_remove += [
                     'oznacit_prijato_navezeno_action',
                 ]

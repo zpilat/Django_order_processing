@@ -357,7 +357,7 @@ def export_bedny_to_csv_customer_action(modeladmin, request, queryset):
     )
 
     response = HttpResponse(content_type='text/csv; charset=utf-8')
-    filename = f"bedny_export_schvaleni_{timezone.now().strftime('%Y%m%d_%H%M%S')}.csv"
+    filename = f"bedny_schvaleni_{timezone.now().strftime('%Y%m%d_%H%M%S')}.csv"
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
     response.write('\ufeff')
     writer = csv.writer(response, delimiter=';', quoting=csv.QUOTE_MINIMAL)
