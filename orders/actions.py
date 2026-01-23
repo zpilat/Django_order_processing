@@ -1,10 +1,11 @@
 from django.contrib import admin, messages
 from django.shortcuts import redirect
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseRedirect
 from django.template.loader import render_to_string
 from django.shortcuts import render
 from django.db import transaction, IntegrityError, DataError
 from django.utils import timezone
+from django.utils.text import slugify
 from django import forms
 from django.forms import formset_factory
 from django.template.response import TemplateResponse
@@ -29,6 +30,7 @@ from .utils import (
     utilita_kontrola_zakazek,
     utilita_tisk_dl_a_proforma_faktury,
 )
+from django.urls import reverse
 from .forms import VyberKamionVydejForm, OdberatelForm, KNavezeniForm, NavezenoForm
 from .choices import (
     KamionChoice,
@@ -41,6 +43,14 @@ from .choices import (
 
 import logging
 logger = logging.getLogger('orders')
+
+
+def _safe_filename(label: str, fallback: str = "soubor") -> str:
+    """Vytvoří bezpečný název souboru bez lomítek a speciálních znaků."""
+    if not label:
+        return fallback
+    safe = slugify(label, allow_unicode=False)
+    return safe or fallback
 
 
 def _abort_if_paused_bedny(modeladmin, request, queryset, action_label):
@@ -2062,15 +2072,11 @@ def tisk_dodaciho_listu_kamionu_action(modeladmin, request, queryset):
 
     zakaznik_zkratka = kamion.zakaznik.zkratka
     if zakaznik_zkratka:
-        html_path = f"orders/dodaci_list_{zakaznik_zkratka.lower()}.html"
-        filename = f'dodaci_list_{kamion.cislo_dl}.pdf'
-        response = utilita_tisk_dl_a_proforma_faktury(modeladmin, request, kamion, html_path, filename)
         logger.info(f"Uživatel {request.user} tiskne dodací list kamionu {kamion.cislo_dl} pro zákazníka {zakaznik_zkratka}.")
-        return response
-    else:
-        logger.error(f"Kamion {kamion} nemá přiřazeného zákazníka nebo zákazník nemá zkratku.")
-        modeladmin.message_user(request, "Kamion nemá přiřazeného zákazníka nebo zákazník nemá zkratku.", level=messages.ERROR)
-        return None
+        return HttpResponseRedirect(reverse('dodaci_list_kamion_vydej_pdf', args=[kamion.pk]))
+    logger.error(f"Kamion {kamion} nemá přiřazeného zákazníka nebo zákazník nemá zkratku.")
+    modeladmin.message_user(request, "Kamion nemá přiřazeného zákazníka nebo zákazník nemá zkratku.", level=messages.ERROR)
+    return None
 
 
 @admin.action(description="Vytisknout certifikát 3.1 kamionu výdej")
@@ -2093,42 +2099,9 @@ def tisk_protokolu_kamionu_vydej_action(modeladmin, request, queryset):
         modeladmin.message_user(request, "Tisk protokolu je možný pouze pro kamiony výdej.", level=messages.ERROR)
         return None
 
-    zakazky = kamion.zakazky_vydej.all().order_by('id')
-    base_url = getattr(settings, 'WEASYPRINT_BASEURL', None)
-    if not base_url:
-        base_url = request.build_absolute_uri('/') if request else None
-
-    static_url = settings.STATIC_URL
-    if base_url and base_url.startswith('file:'):
-        if not static_url.startswith('http://') and not static_url.startswith('https://'):
-            static_url = base_url.rstrip('/') + '/'
-
-    context = {
-        "kamion": kamion,
-        "zakazky": zakazky,
-        "generated_at": timezone.now(),
-        "issued_by": request.user.get_full_name() if request.user.is_authenticated else "",
-        "pdf_static_url": static_url,
-    }
-
-    html_string = render_to_string(f"orders/protokol_kamion_vydej_{kamion.zakaznik.zkratka.lower()}.html", context)
-
-    stylesheets = []
-    css_path = finders.find('orders/css/pdf_shared.css')
-    if css_path:
-        stylesheets.append(CSS(filename=css_path))
-    else:
-        logger.warning("Nepodařilo se najít CSS 'orders/css/pdf_shared.css' pro tisk protokolu kamionu výdej.")
-    pdf_file = HTML(string=html_string, base_url=base_url).write_pdf(stylesheets=stylesheets)
-    cislo_dl = kamion.cislo_dl or f"kamion_{kamion}"
-    filename = f"protokol_{cislo_dl}.pdf"
-    response = HttpResponse(pdf_file, content_type="application/pdf")
-    response['Content-Disposition'] = f'inline; filename="{filename}"'
-
-    logger.info(
-        f"Uživatel {getattr(request, 'user', None)} vygeneroval protokol tvrdostí pro kamion výdej {kamion} ({zakazky.count()} zakázek)."
-    )
-    return response
+    # Přesměrujeme na GET endpoint, aby stažení z vieweru fungovalo (admin akce je POST).
+    url = reverse('protokol_kamion_vydej_pdf', args=[kamion.pk])
+    return HttpResponseRedirect(url)
 
 @admin.action(description="Vytisknout proforma fakturu vybraného kamionu výdej")
 def tisk_proforma_faktury_kamionu_action(modeladmin, request, queryset):
@@ -2166,14 +2139,8 @@ def tisk_proforma_faktury_kamionu_action(modeladmin, request, queryset):
                 level=messages.ERROR,
             )
             return None
-        if kamion.zakaznik.proforma_po_bednach:
-            html_path = "orders/proforma_faktura_po_bednach.html"
-        else:
-            html_path = "orders/proforma_faktura_po_zakazkach.html"
-        filename = f'proforma_faktura_{kamion.cislo_dl}.pdf'
-        response = utilita_tisk_dl_a_proforma_faktury(modeladmin, request, kamion, html_path, filename)
         logger.info(f"Uživatel {request.user} tiskne proforma fakturu kamionu {kamion.cislo_dl} pro zákazníka {zakaznik_zkratka}.")
-        return response
+        return HttpResponseRedirect(reverse('proforma_kamion_vydej_pdf', args=[kamion.pk]))
 
 
 @admin.action(description="Vytisknout karty beden z vybraného kamionu příjem se zakázkami")

@@ -259,23 +259,11 @@ class ActionsTests(ActionsBase):
         request = self.get_request('post')
         queryset = Kamion.objects.filter(pk=self.kamion_vydej.pk)
 
-        with patch('orders.actions.render_to_string', return_value='<html></html>') as render_mock, \
-             patch('orders.actions.finders.find', return_value=None) as find_mock, \
-             patch('orders.actions.HTML') as html_mock:
-            html_instance = html_mock.return_value
-            html_instance.write_pdf.return_value = b'%PDF-1.4%'
-
-            response = actions.tisk_protokolu_kamionu_vydej_action(self.admin, request, queryset)
+        response = actions.tisk_protokolu_kamionu_vydej_action(self.admin, request, queryset)
 
         self.assertIsNotNone(response)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response['Content-Type'], 'application/pdf')
-        self.assertIn('inline; filename="protokol_DL123.pdf"', response['Content-Disposition'])
-        self.assertEqual(response.content, b'%PDF-1.4%')
-
-        render_mock.assert_called_once()
-        html_instance.write_pdf.assert_called_once()
-        find_mock.assert_called_once_with('orders/css/pdf_shared.css')
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/protokol/kamion-vydej/', response.url)
 
     def test_tisk_protokolu_kamionu_vydej_action_requires_vydej(self):
         admin_obj = self._messaging_admin()
@@ -665,9 +653,9 @@ class ActionsTests(ActionsBase):
 
     @patch('orders.actions.utilita_tisk_dl_a_proforma_faktury')
     def test_tisk_dodaciho_listu_kamionu_action(self, mock_util):
-        mock_util.return_value = HttpResponse('ok')
         resp = actions.tisk_dodaciho_listu_kamionu_action(self.site, self.get_request(), Kamion.objects.filter(id=self.kamion_vydej.id))
-        self.assertIsInstance(resp, HttpResponse)
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn('/dodaci-list/kamion-vydej/', resp.url)
 
     def test_tisk_dodaciho_listu_kamionu_action_not_vydej_error(self):
         admin_obj = self._messaging_admin()
@@ -679,7 +667,6 @@ class ActionsTests(ActionsBase):
 
     @patch('orders.actions.utilita_tisk_dl_a_proforma_faktury')
     def test_tisk_proforma_faktury_kamionu_action(self, mock_util):
-        mock_util.return_value = HttpResponse('ok')
         self._add_cena(
             self.zakaznik,
             self.predpis,
@@ -689,8 +676,8 @@ class ActionsTests(ActionsBase):
         self.zakazka.kamion_vydej = self.kamion_vydej
         self.zakazka.save()
         resp = actions.tisk_proforma_faktury_kamionu_action(self.site, self.get_request(), Kamion.objects.filter(id=self.kamion_vydej.id))
-        self.assertIsInstance(resp, HttpResponse)
-        mock_util.assert_called_once()
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn('/proforma/kamion-vydej/', resp.url)
 
     def test_tisk_proforma_faktury_kamionu_action_not_vydej_error(self):
         admin_obj = self._messaging_admin()

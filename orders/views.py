@@ -2,6 +2,7 @@ from django.shortcuts import render
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.contrib.auth.decorators import login_required, permission_required
 from django.shortcuts import render, redirect, get_object_or_404
+from django.template.loader import render_to_string
 from django.views.generic import ListView
 from django.views.generic.edit import CreateView, UpdateView, DeleteView
 from django.views.generic.detail import DetailView
@@ -11,12 +12,16 @@ from django.utils.translation import gettext_lazy as _
 import django.utils.timezone as timezone
 from django.db import transaction
 from django.contrib import messages
-from django.http import HttpResponseBadRequest
+from django.contrib.staticfiles import finders
+from django.http import HttpResponseBadRequest, HttpResponse
+from django.conf import settings
+from django.utils.text import slugify
+from django.shortcuts import get_object_or_404
 
-from .utils import get_verbose_name_for_column
+from .utils import get_verbose_name_for_column, utilita_tisk_dl_a_proforma_faktury
 from .models import Bedna, Zakazka, Kamion, Zakaznik, TypHlavy, Predpis, Odberatel, Cena, Pozice, PoziceZakazkaOrder
 from .choices import  StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice, STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM
-from weasyprint import HTML
+from weasyprint import HTML, CSS
 
 import logging
 logger = logging.getLogger('orders')
@@ -525,6 +530,90 @@ def dashboard_bedny_k_navezeni_pdf_view(request):
     pdf_bytes = HTML(string=html_string).write_pdf()
     response = HttpResponse(pdf_bytes, content_type='application/pdf')
     response['Content-Disposition'] = 'inline; filename="bedny_k_navezeni.pdf"'
+    return response
+
+
+@login_required
+def protokol_kamion_vydej_pdf_view(request, pk: int):
+    """GET endpoint pro PDF protokol kamionu (výdej)."""
+    kamion = get_object_or_404(Kamion, pk=pk, prijem_vydej=KamionChoice.VYDEJ)
+
+    zakazky = kamion.zakazky_vydej.all().order_by('id')
+    base_url = getattr(settings, 'WEASYPRINT_BASEURL', None)
+    if not base_url:
+        base_url = request.build_absolute_uri('/') if request else None
+
+    static_url = settings.STATIC_URL
+    if base_url and base_url.startswith('file:'):
+        if not static_url.startswith('http://') and not static_url.startswith('https://'):
+            static_url = base_url.rstrip('/') + '/'
+
+    context = {
+        "kamion": kamion,
+        "zakazky": zakazky,
+        "generated_at": timezone.now(),
+        "issued_by": request.user.get_full_name() if request.user.is_authenticated else "",
+        "pdf_static_url": static_url,
+    }
+
+    html_string = render_to_string(f"orders/protokol_kamion_vydej_{kamion.zakaznik.zkratka.lower()}.html", context)
+
+    stylesheets = []
+    css_path = finders.find('orders/css/pdf_shared.css')
+    if css_path:
+        stylesheets.append(CSS(filename=css_path))
+    else:
+        logger.warning("Nepodařilo se najít CSS 'orders/css/pdf_shared.css' pro tisk protokolu kamionu výdej.")
+
+    pdf_bytes = HTML(string=html_string, base_url=base_url).write_pdf(stylesheets=stylesheets)
+
+    cislo_dl_raw = kamion.cislo_dl or f"kamion_{kamion}"
+    cislo_dl = slugify(cislo_dl_raw, allow_unicode=False) or "kamion"
+    filename = f"protokol_{cislo_dl}.pdf"
+
+    response = HttpResponse(pdf_bytes, content_type="application/pdf")
+    response['Content-Disposition'] = (
+        f"inline; filename=\"{filename}\"; filename*=UTF-8''{filename}"
+    )
+    response['Content-Length'] = str(len(pdf_bytes))
+    return response
+
+
+@login_required
+def dodaci_list_kamion_vydej_pdf_view(request, pk: int):
+    """GET endpoint pro dodací list kamionu výdej."""
+    kamion = get_object_or_404(Kamion, pk=pk, prijem_vydej=KamionChoice.VYDEJ)
+    zakaznik_zkratka = getattr(kamion.zakaznik, 'zkratka', None)
+    if not zakaznik_zkratka:
+        return HttpResponse("Kamion nemá zkratku zákazníka", status=400)
+
+    html_path = f"orders/dodaci_list_{zakaznik_zkratka.lower()}.html"
+    cislo_dl_raw = kamion.cislo_dl or f"kamion_{kamion}"
+    cislo_dl = slugify(cislo_dl_raw, allow_unicode=False) or "kamion"
+    filename = f"dodaci_list_{cislo_dl}.pdf"
+
+    response = utilita_tisk_dl_a_proforma_faktury(None, request, kamion, html_path, filename)
+    return response
+
+
+@login_required
+def proforma_kamion_vydej_pdf_view(request, pk: int):
+    """GET endpoint pro proforma fakturu kamionu výdej."""
+    kamion = get_object_or_404(Kamion, pk=pk, prijem_vydej=KamionChoice.VYDEJ)
+    zakaznik_zkratka = getattr(kamion.zakaznik, 'zkratka', None)
+    if not zakaznik_zkratka:
+        return HttpResponse("Kamion nemá zkratku zákazníka", status=400)
+
+    if kamion.zakaznik.proforma_po_bednach:
+        html_path = "orders/proforma_faktura_po_bednach.html"
+    else:
+        html_path = "orders/proforma_faktura_po_zakazkach.html"
+
+    cislo_dl_raw = kamion.cislo_dl or f"kamion_{kamion}"
+    cislo_dl = slugify(cislo_dl_raw, allow_unicode=False) or "kamion"
+    filename = f"proforma_faktura_{cislo_dl}.pdf"
+
+    response = utilita_tisk_dl_a_proforma_faktury(None, request, kamion, html_path, filename)
     return response
 
 
