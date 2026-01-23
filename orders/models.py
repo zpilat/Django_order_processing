@@ -762,6 +762,18 @@ class Zakazka(models.Model):
             tryskat=TryskaniChoice.OTRYSKANA,
             fakturovat=True
         ).count()
+    
+    @property
+    def vyrobni_zakazky_beden(self):
+        """
+        Vrací seznam výrobních zakázek všech beden v zakázce jako řetězec oddělený čárkami.
+        Pokud bedna nemá výrobní zakázku, je v seznamu nahrazeno textem "N/A".
+        """
+        vyrobni_zakazky = [
+            bedna.vyrobni_zakazka if bedna.vyrobni_zakazka else "N/A"
+            for bedna in self.bedny.all()
+        ]
+        return ", ".join(vyrobni_zakazky)
 
     # --- Delete guards ---
     def delete(self, using=None, keep_parents=False):

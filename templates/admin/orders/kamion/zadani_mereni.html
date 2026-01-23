@@ -37,6 +37,8 @@
                     {% for field in formset.forms.0.visible_fields %}
                     <th scope="col">{{ field.label }}</th>
                     {% endfor %}
+                    # bedna.vyrobni_zakazka = 'FA / Bestell-Nr.'
+                    <th scope="col">{% trans "Objednací čísla beden v zakázce:" %}</th>
                 </tr>
             </thead>
             <tbody>
@@ -66,6 +68,16 @@
                         {{ field }}
                     </td>
                     {% endfor %}
+                    <td>
+                        {{ form.instance.vyrobni_zakazky_beden }}
+                        {% if form.non_field_errors %}
+                            <ul class="errorlist">
+                            {% for error in form.non_field_errors %}
+                                <li>{{ error }}</li>
+                            {% endfor %}
+                            </ul>
+                        {% endif %}
+                    </td>
                     {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
                 </tr>
             {% endfor %}
