@@ -2130,7 +2130,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         'get_cislo_bedny', 'get_behalter_nr', 'get_poradi_bedny_v_zakazce', 'zakazka_link', 'get_zakaznik_zkratka', 'kamion_prijem_link',
         'kamion_vydej_link', 'stav_bedny', 'rovnat', 'tryskat', 'get_prumer', 'get_delka_int','get_skupina_TZ',
         'get_typ_hlavy', 'get_celozavit', 'get_zkraceny_popis', 'hmotnost', 'tara', 'get_hmotnost_brutto',
-        'mnozstvi', 'pozice', 'get_priorita', 'get_datum', 'get_postup', 'cena_za_kg', 'poznamka',
+        'mnozstvi', 'pozice', 'get_priorita', 'get_datum_prijem', 'get_datum_vydej', 'get_postup', 'cena_za_kg', 'poznamka',
         )
     # list_editable nastavován dynamicky v get_list_editable
     list_display_links = ('get_cislo_bedny', )
@@ -2141,6 +2141,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     list_filter = (ZakaznikBednyFilter, StavBednyFilter, TryskaniFilter, RovnaniFilter, SkupinaFilter, DelkaFilter,
                    CelozavitBednyFilter, TypHlavyBednyFilter, PrioritaBednyFilter, PozastavenoFilter,)
     ordering = ('id',)
+    # Výchozí date_hierarchy pro povolení lookupů; skutečně se přepíná dynamicky v get_date_hierarchy
     date_hierarchy = 'zakazka__kamion_prijem__datum'
     save_on_top = True
     formfield_overrides = {
@@ -2173,6 +2174,47 @@ class BednaAdmin(SimpleHistoryAdmin):
         css = {
             'all': ('orders/css/admin_paused_rows.css',)
         }
+
+    def get_date_hierarchy(self, request):
+        """Dynamicky přepne hierarchii dat podle filtru stavu bedny."""
+        if request is None:
+            return 'zakazka__kamion_prijem__datum'
+
+        stav = request.GET.get('stav_bedny')
+        if stav == StavBednyChoice.EXPEDOVANO:
+            return 'zakazka__kamion_vydej__datum'
+        return 'zakazka__kamion_prijem__datum'
+
+    def lookup_allowed(self, key, value):
+        """Povolí drilldown lookupy pro obě datové hierarchie (příjem/výdej)."""
+        if key.startswith('zakazka__kamion_prijem__datum__') or key.startswith('zakazka__kamion_vydej__datum__'):
+            return True
+        return super().lookup_allowed(key, value)
+
+    def get_changelist_instance(self, request):
+        """Použije dynamickou date_hierarchy (z get_date_hierarchy)."""
+        list_display = self.get_list_display(request)
+        list_display_links = self.get_list_display_links(request, list_display)
+        if self.get_actions(request):
+            list_display = ['action_checkbox', *list_display]
+        sortable_by = self.get_sortable_by(request)
+        ChangeList = self.get_changelist(request)
+        return ChangeList(
+            request,
+            self.model,
+            list_display,
+            list_display_links,
+            self.get_list_filter(request),
+            self.get_date_hierarchy(request),
+            self.get_search_fields(request),
+            self.get_list_select_related(request),
+            self.list_per_page,
+            self.list_max_show_all,
+            self.list_editable,
+            self,
+            sortable_by,
+            self.search_help_text,
+        )
 
     def get_urls(self):
         urls = super().get_urls()
@@ -2254,16 +2296,20 @@ class BednaAdmin(SimpleHistoryAdmin):
         """
         return obj.hmotnost_brutto.quantize(Decimal('0.1'), rounding=ROUND_HALF_UP) if obj.hmotnost_brutto else '-'
 
-    @admin.display(description='Datum', ordering='zakazka__kamion_prijem__datum', empty_value='-')
-    def get_datum(self, obj):
-        """
-        Zobrazí datum kamionu příjmu, ke kterému bedna patří, a umožní třídění podle hlavičky pole.
-        Pokud není kamion příjmu připojen, vrátí prázdný řetězec.
-        """
+    @admin.display(description='Dat. příjem', ordering='zakazka__kamion_prijem__datum', empty_value='-')
+    def get_datum_prijem(self, obj):
+        """Zobrazí datum kamionu příjmu, ke kterému bedna patří."""
         if obj.zakazka and obj.zakazka.kamion_prijem:
             return obj.zakazka.kamion_prijem.datum.strftime('%y-%m-%d')
         return '-'
     
+    @admin.display(description='Dat. výdej', ordering='zakazka__kamion_vydej__datum', empty_value='-')
+    def get_datum_vydej(self, obj):
+        """Zobrazí datum kamionu výdeje, ke kterému bedna patří."""
+        if obj.zakazka and obj.zakazka.kamion_vydej:
+            return obj.zakazka.kamion_vydej.datum.strftime('%y-%m-%d')
+        return '-'
+
     @admin.display(description='Č.b.z.', ordering='behalter_nr', empty_value='-')
     def get_behalter_nr(self, obj):
         """
@@ -2632,7 +2678,8 @@ class BednaAdmin(SimpleHistoryAdmin):
         Pokud je zařízení mobil, zůstanou pouze sloupce 'get_cislo_bedny', 'get_stav_bedny_mobile',
         'get_prumer', 'get_delka_int' a 'get_skupina_TZ'.
         Pokud je aktivní filtr stav bedny a zároveň stav bedny != Po exspiraci, vyloučí se zobrazení sloupce get_postup.        
-        Pokud není filtr stav bedny == Expedováno, vyloučí se zobrazení sloupce kamion_vydej_link.
+        Pokud není filtr stav bedny == Expedováno, vyloučí se zobrazení sloupce kamion_vydej_link a get_datum_vydej,
+        jinak get_datum_prijem.
         Pokud není filtr stav bedny v STAV_BEDNY_PRO_NAVEZENI, vyloučí se zobrazení sloupce pozice.
         Pokud není filtr stav bedny == Neprijato, vyloučí se zobrazení sloupce mnozstvi a tara.
         Pokud není filtr stav bedny == K_expedici, vyloučí se zobrazení sloupce cena_za_kg a hmotnost_brutto.
@@ -2651,6 +2698,11 @@ class BednaAdmin(SimpleHistoryAdmin):
         if stav_bedny != StavBednyChoice.EXPEDOVANO:
             if 'kamion_vydej_link' in list_display:
                 list_display.remove('kamion_vydej_link')
+            if 'get_datum_vydej' in list_display:
+                list_display.remove('get_datum_vydej')
+        else:
+            if 'get_datum_prijem' in list_display:
+                list_display.remove('get_datum_prijem')
         if stav_bedny not in STAV_BEDNY_PRO_NAVEZENI:
             if 'pozice' in list_display:
                 list_display.remove('pozice')
