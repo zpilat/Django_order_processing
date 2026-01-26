@@ -37,6 +37,7 @@ from .choices import (
     StavBednyChoice,
     RovnaniChoice,
     TryskaniChoice,
+    PrioritaChoice,
     STAV_BEDNY_SKLADEM,
     STAV_BEDNY_ROZPRACOVANOST,
 )
@@ -341,14 +342,18 @@ def export_bedny_to_csv_action(modeladmin, request, queryset):
     )
     return response
 
-@admin.action(description="Export vybraných beden do CSV pro schválení zákazníkem")
+@admin.action(description="Export vybraných beden do CSV pro zákazníka")
 def export_bedny_to_csv_customer_action(modeladmin, request, queryset):
     """
-    Exportuje aktuálně vyfiltrované bedny do CSV pro zákaznické schválení.
+    Exportuje aktuálně vyfiltrované bedny do CSV pro informování zákazníka.
+    Rozlišuje se, zda se jedná o seznam beden, které se rovnají - filtr rovnani=="k_vyrovnani"
+    nebo pro schválení beden před exportem - filtr stav_bedny==StavBednyChoice.K_EXPEDICI.
 
     Podmínky:
     - Všechny bedny musí patřit jednomu zákazníkovi (podle zakazka__kamion_prijem__zakaznik).
-    - Exportuje pouze čtyři sloupce: Artikel-Nr., Behälter-Nr., Abmessung (prumer x delka) a # (číslo bedny).
+    - Pro schválení před expedicí exportuje čtyři sloupce: Artikel-Nr., Behälter-Nr., Abmessung (prumer x delka) a # (číslo bedny).
+    - Pro rovnání exportuje stejné sloupce a navíc Stand (rovnat), Priorität (priorita) 
+      a Datum (datum změny rovnat na ROVNA_SE + 7 dní).
     """
     if not queryset.exists():
         return None
@@ -360,40 +365,74 @@ def export_bedny_to_csv_customer_action(modeladmin, request, queryset):
         )
         modeladmin.message_user(request, "Pro export musí být vybrány bedny pouze od jednoho zákazníka.", level=messages.ERROR)
         return None
+    
+    zakaznik_zkratka = queryset.values_list('zakazka__kamion_prijem__zakaznik__zkratka', flat=True).first()
 
     queryset = queryset.select_related(
         'zakazka',
         'zakazka__kamion_prijem',
     )
 
+    is_rovnani_export = request.GET.get('rovnani', '') == 'k_vyrovnani'
+    filename_suffix = 'rovnani' if is_rovnani_export else 'expedice'
+
     response = HttpResponse(content_type='text/csv; charset=utf-8')
-    filename = f"bedny_schvaleni_{timezone.now().strftime('%Y%m%d_%H%M%S')}.csv"
+    filename = f"bedny_zakaznik_{zakaznik_zkratka}_{filename_suffix}_{timezone.now().strftime('%Y%m%d')}.csv"
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
     response.write('\ufeff')
     writer = csv.writer(response, delimiter=';', quoting=csv.QUOTE_MINIMAL)
 
-    writer.writerow(['Artikel-Nr.', 'Behälter-Nr.', 'Abmessung', '#'])
+    if is_rovnani_export:
+        writer.writerow(['Artikel-Nr.', 'Behälter-Nr.', 'Abmessung', 'Stand', 'Priorität', 'Fertigstellungsdatum', '#'])
+    else:
+        writer.writerow(['Artikel-Nr.', 'Behälter-Nr.', 'Abmessung', '#'])
+
+    stav_rovnani_map = {
+        RovnaniChoice.KRIVA: 'Krumm',
+        RovnaniChoice.ROVNA_SE: 'Richten',
+    }
+    priorita_map = {
+        PrioritaChoice.VYSOKA: 'Sehr hoch',
+        PrioritaChoice.STREDNI: 'Hoch',
+        PrioritaChoice.NIZKA: '--',
+    }
+    doba_vyrovnani_bedny_dni = 7
 
     for bedna in queryset:
         zakazka = getattr(bedna, 'zakazka', None)
         artikl = getattr(zakazka, 'artikl', '') if zakazka else ''
         prumer = _format_decimal(getattr(zakazka, 'prumer', None)) if zakazka else ''
         delka = _format_decimal(getattr(zakazka, 'delka', None)) if zakazka else ''
+        abm = f"{prumer} x {delka}" if prumer and delka else ''
 
-        if prumer and delka:
-            abm = f"{prumer} x {delka}"
-        else:
-            abm = ''
+        if is_rovnani_export:
+            stav_rovnani = stav_rovnani_map.get(bedna.rovnat, '')
+            priorita = priorita_map.get(bedna.zakazka.priorita, '')
+            datum_vyrovnani = ''
+            if bedna.rovnat == RovnaniChoice.ROVNA_SE:
+                hqs = (
+                    bedna.history.order_by('-history_date', '-history_id')
+                )
+                for h in hqs:
+                    if h.rovnat == RovnaniChoice.ROVNA_SE:
+                        prev = h.prev_record
+                        if prev and prev.rovnat != RovnaniChoice.ROVNA_SE:
+                            datum_zmeny_na_rovna_se = h.history_date
+                            datum_vyrovnani_date = (datum_zmeny_na_rovna_se + datetime.timedelta(days=doba_vyrovnani_bedny_dni)).date()
+                            if datum_vyrovnani_date <= timezone.now().date():
+                                datum_vyrovnani_date = timezone.now().date() + datetime.timedelta(days=1)
+                            datum_vyrovnani = datum_vyrovnani_date.strftime('%d.%m.%Y')
+                            break
 
-        writer.writerow([
-            artikl,
-            getattr(bedna, 'behalter_nr', ''),
-            abm,
-            getattr(bedna, 'cislo_bedny', ''), 
-        ])
+        row = [artikl, getattr(bedna, 'behalter_nr', ''), abm]
+        if is_rovnani_export:
+            row.extend([stav_rovnani, priorita, datum_vyrovnani])
+        row.append(getattr(bedna, 'cislo_bedny', ''))
+
+        writer.writerow(row)
 
     logger.info(
-        f"Uživatel {getattr(request, 'user', None)} exportoval {queryset.count()} beden pro schválení zákazníkem do CSV.",
+        f"Uživatel {getattr(request, 'user', None)} vyexportoval {queryset.count()} beden pro schválení zákazníkem do CSV.",
     )
     return response
 
