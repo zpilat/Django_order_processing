@@ -391,11 +391,6 @@ def export_bedny_to_csv_customer_action(modeladmin, request, queryset):
         RovnaniChoice.KRIVA: 'Krumm',
         RovnaniChoice.ROVNA_SE: 'Richten',
     }
-    priorita_map = {
-        PrioritaChoice.VYSOKA: 'Sehr hoch',
-        PrioritaChoice.STREDNI: 'Hoch',
-        PrioritaChoice.NIZKA: '--',
-    }
     doba_vyrovnani_bedny_dni = 7
 
     for bedna in queryset:
@@ -407,7 +402,7 @@ def export_bedny_to_csv_customer_action(modeladmin, request, queryset):
 
         if is_rovnani_export:
             stav_rovnani = stav_rovnani_map.get(bedna.rovnat, '')
-            priorita = priorita_map.get(bedna.zakazka.priorita, '')
+            priorita = bedna.zakazka.priorita if bedna.zakazka.priorita in [PrioritaChoice.VYSOKA, PrioritaChoice.STREDNI] else ''
             datum_vyrovnani = ''
             if bedna.rovnat == RovnaniChoice.ROVNA_SE:
                 hqs = (
