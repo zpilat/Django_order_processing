@@ -1000,6 +1000,33 @@ class ExportBednyCsvActionTests(ActionsBase):
         self.assertEqual(rows[0], ['Artikel-Nr.', 'Behälter-Nr.', 'Abmessung', 'HPM-Nr.'])
         self.assertEqual(rows[1], ['ART1', str(bedna.behalter_nr), '10,5 x 20', str(bedna.cislo_bedny)])
 
+    def test_export_bedny_to_csv_customer_action_with_rovnani_filter_columns(self):
+        bedna = self.bedna
+        bedna.behalter_nr = 42
+        bedna.rovnat = RovnaniChoice.KRIVA
+        bedna.save()
+
+        self.zakazka.prumer = Decimal('10.5')
+        self.zakazka.delka = Decimal('20.0')
+        self.zakazka.artikl = 'ART1'
+        self.zakazka.save()
+
+        req = self.get_request('get', {'rovnani': 'k_vyrovnani'})
+        resp = actions.export_bedny_to_csv_customer_action(self.bedna_admin, req, Bedna.objects.filter(id=bedna.id))
+        self.assertIsInstance(resp, HttpResponse)
+
+        content = resp.content.decode('utf-8-sig')
+        rows = list(csv.reader(io.StringIO(content), delimiter=';'))
+
+        self.assertEqual(
+            rows[0],
+            ['Artikel-Nr.', 'Behälter-Nr.', 'Abmessung', 'Stand', 'Priorität', 'Fertigstellungsdatum', 'HPM-Nr.'],
+        )
+        self.assertEqual(
+            rows[1],
+            ['ART1', str(bedna.behalter_nr), '10,5 x 20', 'Krumm', '', '', str(bedna.cislo_bedny)],
+        )
+
     def test_export_bedny_eurotec_dl_action_requires_eur_and_expedovano(self):
         self.bedna.stav_bedny = StavBednyChoice.PRIJATO
         self.bedna.save()
