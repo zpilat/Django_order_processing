@@ -30,6 +30,8 @@ from django.contrib.admin.helpers import ActionForm
 from django.contrib.admin.actions import delete_selected as admin_delete_selected
 from django_user_agents.utils import get_user_agent
 
+from .import_strategies import BaseImportStrategy, EurotecImportStrategy
+
 from .models import (
     Zakaznik, Kamion, Zakazka, Bedna, Predpis, Odberatel, TypHlavy, Cena, Pozice, Pletivo, PoziceZakazkaOrder, Rozpracovanost
 )
@@ -955,6 +957,17 @@ class KamionAdmin(SimpleHistoryAdmin):
         }
         return render(request, 'admin/import_zakazky.html', context, status=status)
 
+    def _get_import_strategy(self, kamion) -> BaseImportStrategy:
+        """Vrátí strategii importu podle zákazníka (zatím pouze Eurotec)."""
+        try:
+            zkratka = getattr(getattr(kamion, 'zakaznik', None), 'zkratka', None)
+        except Exception:
+            zkratka = None
+        if zkratka == 'EUR':
+            return EurotecImportStrategy()
+        else: 
+            return BaseImportStrategy()
+
     def import_view(self, request):
         """
         Zobrazí formulář pro import zakázek do kamionu a zpracuje nahraný soubor.
@@ -967,9 +980,12 @@ class KamionAdmin(SimpleHistoryAdmin):
         errors: list[str] = []
         warnings: list[str] = []
         preview: list[dict] = []
+        required_fields: list[str] = []
+
+        strategy = self._get_import_strategy(kamion)
 
         if request.method == 'POST':
-            logger.info(f"Uživatel {request.user} zahájil import zakázek pro kamion {kamion.poradove_cislo}.")
+            logger.info(f"Uživatel {request.user} zahájil import zakázek pro kamion {kamion}.")
             form = ImportZakazekForm(request.POST, request.FILES)
             if form.is_valid():
                 file = form.cleaned_data.get('file')
@@ -1023,191 +1039,19 @@ class KamionAdmin(SimpleHistoryAdmin):
                             return self._render_import(
                                 request, form, kamion, preview, errors, warnings, tmp_token, tmp_filename
                             )
-
-                    # Načte prvních 200 řádků (jinak zbytečně načítá celý soubor - přes 100000 prázdných řádků)
-                    df = pd.read_excel(
-                        excel_stream,
-                        nrows=200,
-                        engine="openpyxl",
-                        dtype={
-                            'Artikel- nummer': str,
-                            'Vorgang+': str,
-                        },
-                    )
                     try:
-                        # zavřít handle, pokud je z uloženého souboru
-                        if saved_path and excel_stream:
-                            excel_stream.close()
-                    except Exception:
-                        pass
-
-                    # Najde první úplně prázdný řádek
-                    first_empty_index = df[df.isnull().all(axis=1)].index.min()
-                    if pd.notna(first_empty_index):
-                        df = df.loc[:first_empty_index - 1]
-
-                    # Odstraní prázdné sloupce
-                    df.dropna(axis=1, how='all', inplace=True)
-
-                    # Pro debug vytisknout názvy sloupců a první řádek dat
-                    logger.debug(f"Import - názvy sloupců: {df.columns.tolist()}")
-                    logger.debug(f"Import - první řádek dat: {df.iloc[0].tolist()}")
-
-                    # Jednorázové mapování zdrojových názvů na interní názvy
-                    column_mapping = {
-                        'Unnamed: 6': 'typ_hlavy',
-                        'Unnamed: 7': 'rozmer',                        
-                        'Abhol- datum': 'datum',
-                        'Material- charge': 'sarze',
-                        'Artikel- nummer': 'artikl',
-                        'Be-schich-tung': 'vrstva',
-                        'Bezeichnung': 'popis',
-                        'n. Zg. / \nas drg': 'predpis',
-                        'Material': 'material',
-                        'Ober- fläche': 'povrch',
-                        'Gewicht in kg': 'hmotnost',
-                        'Tara kg': 'tara',
-                        'Behälter-Nr.:': 'behalter_nr',
-                        'Sonder / Zusatzinfo': 'dodatecne_info',
-                        'Lief.': 'dodavatel_materialu',
-                        'Fertigungs- auftrags Nr.': 'vyrobni_zakazka',
-                        'Vorgang+': 'prubeh',
-                        'Menge       ': 'mnozstvi',       
-                        'Gew.': 'hmotnost_ks',              
-                    }
-                    df.rename(columns=column_mapping, inplace=True)              
-
-                    # Povinné zdrojové sloupce dle specifikace
-                    required_src = [
-                        'sarze', 'popis', 'rozmer', 'artikl', 'predpis', 'typ_hlavy', 'material', 'behalter_nr',
-                        'hmotnost', 'tara', 'hmotnost_ks', 'datum', 'dodatecne_info'
-                    ]
-                    missing = [c for c in required_src if c not in df.columns]
-                    if missing:
-                        errors.append(f"Chyba: V Excelu chybí povinné sloupce: {', '.join(missing)}")
-                        preview = []
-                        return self._render_import(
-                            request, form, kamion, preview, errors, warnings, tmp_token, tmp_filename
+                        df, preview, parse_errors, parse_warnings, required_fields = strategy.parse_excel(
+                            excel_stream, request, kamion
                         )
-
-                    # Zkontroluje datumy ve sloupci 'datum' – při různosti pouze varování
-                    if 'datum' in df.columns and not df['datum'].isnull().all():
-                        unique_dates = df['datum'].dropna().unique()
-                        if len(unique_dates) > 1:
-                            warnings.append("Upozornění: Sloupec 'datum' obsahuje různé hodnoty. Import pokračuje.")
-                        if len(unique_dates) == 1 and pd.notna(unique_dates[0]):
-                            excel_date = pd.to_datetime(unique_dates[0]).date()
-                            if excel_date != kamion.datum:
-                                warnings.append(
-                                    f"Upozornění: Datum v souboru ({excel_date.strftime('%d.%m.%Y')}) "
-                                    f"neodpovídá datumu kamionu ({kamion.datum.strftime('%d.%m.%Y')}). Import pokračuje."
-                                )      
-
-                    # Přidání prumer a delka rozdělením sloupce rozmer
-                    def rozdel_rozmer(row):
+                        errors.extend(parse_errors)
+                        warnings.extend(parse_warnings)
+                    finally:
+                        # zavřít handle, pokud je z uloženého souboru
                         try:
-                            text = str(row.get('rozmer', '') or '')
-                            text = text.replace('×', 'x').replace('X', 'x')
-                            prumer_str, delka_str = text.replace(',', '.').split('x')
-                            return Decimal(prumer_str.strip()), Decimal(delka_str.strip())
+                            if saved_path and excel_stream:
+                                excel_stream.close()
                         except Exception:
-                            messages.info(request, "Chyba: Sloupec 'Abmessung' musí obsahovat hodnoty ve formátu 'prumer x delka'.")
-                            errors.append("Chyba: Sloupec 'Abmessung' musí obsahovat hodnoty ve formátu 'prumer x delka'.")
-                            return None, None
-
-                    df[['prumer', 'delka']] = df.apply(
-                        lambda row: pd.Series(rozdel_rozmer(row)), axis=1
-                    )
-
-                    # Vytvoří se nový sloupec 'priorita', pokud je ve sloupci dodatecne_info obsaženo 'sehr eilig',
-                    # vyplní se hodnota priority VYSOKA, pokud je obsaženo pouze 'eilig' tak je nastavena priorita STREDNI,
-                    # jinak NIZKA
-                    def priorita(row):
-                        if pd.notna(row['dodatecne_info']) and 'sehr eilig' in row['dodatecne_info'].lower():
-                            return PrioritaChoice.VYSOKA
-                        elif pd.notna(row['dodatecne_info']) and 'eilig' in row['dodatecne_info'].lower():
-                            return PrioritaChoice.STREDNI
-                        return PrioritaChoice.NIZKA
-                    df['priorita'] = df.apply(priorita, axis=1)
-
-                    # Vytvoří se nový sloupec 'celozavit', pokud je ve sloupci 'popis' obsaženo 'konstrux', vyplní se hodnota True, jinak False
-                    def celozavit(row):
-                        if pd.notna(row['popis']) and 'konstrux' in row['popis'].lower():
-                            return True
-                        return False
-                    df['celozavit'] = df.apply(celozavit, axis=1)        
-
-                    # Vytvoří se nový sloupec 'odfosfatovat', pokud je ve sloupci 'popis' obsaženo 'muss entphosphatiert werden',
-                    # vyplní se hodnota True, jinak False
-                    def odfosfatovat(row):
-                        if pd.notna(row['dodatecne_info']) and 'muss entphosphatiert werden' in row['dodatecne_info'].lower():
-                            return True
-                        return False
-                    df['odfosfatovat'] = df.apply(odfosfatovat, axis=1)
-
-                    # Vypočítá množství v bedně dle zadané celkové hmotnosti a hmotnosti na ks (hmotnost / hmotnost_ks)
-                    def vypocet_mnozstvi_v_bedně(row):
-                        try:
-                            hmotnost = row.get('hmotnost')
-                            hmotnost_ks = row.get('hmotnost_ks')
-                            if pd.isna(hmotnost) or pd.isna(hmotnost_ks) or hmotnost_ks == 0:
-                                return 1
-                            mnozstvi = int(hmotnost / hmotnost_ks)
-                            return max(mnozstvi, 1)
-                        except Exception:
-                            return 1                        
-                    df['mnozstvi'] = df.apply(vypocet_mnozstvi_v_bedně, axis=1)
-
-                    # Odstranění nepotřebných sloupců
-                    df.drop(columns=[
-                        'Unnamed: 0', 'rozmer', 'Gew + Tara', 'VPE', 'Box', 'Anzahl Boxen pro Behälter',
-                        'Härterei', 'Prod. Datum', 'hmotnost_ks', 'von Härterei \nnach Galvanik', 'Galvanik',
-                        'vom Galvanik nach Eurotec',
-                    ], inplace=True, errors='ignore')
-
-                    # Setřídění podle sloupce prumer, delka, predpis, artikl, sarze, behalter_nr
-                    df.sort_values(by=['prumer', 'delka', 'predpis', 'artikl', 'sarze', 'behalter_nr'], inplace=True)
-                    logger.info(f"Uživatel {request.user} úspěšně načetl data z Excel souboru pro import zakázek.")
-
-                    # Připravení náhledu (robustnější práce s datem / čísly)
-                    error_values = '!!!!!!'
-                    preview = []
-                    for _, r in df.iterrows():
-                        raw_datum = r.get('datum')
-                        datum_fmt = error_values
-                        if pd.notna(raw_datum):
-                            try:
-                                if hasattr(raw_datum, 'strftime'):
-                                    datum_fmt = raw_datum.strftime('%d.%m.%Y')
-                                else:
-                                    dconv = pd.to_datetime(raw_datum, errors='coerce')
-                                    if pd.notna(dconv):
-                                        datum_fmt = dconv.strftime('%d.%m.%Y')
-                            except Exception:
-                                datum_fmt = error_values
-                        try:
-                            beh_nr = int(r.get('behalter_nr')) if pd.notna(r.get('behalter_nr')) else error_values
-                        except Exception:
-                            beh_nr = error_values
-                        try:
-                            predpis_val = int(r.get('predpis')) if pd.notna(r.get('predpis')) else error_values
-                        except Exception:
-                            predpis_val = error_values
-                        preview.append({
-                            'datum': datum_fmt,
-                            'behalter_nr': beh_nr,
-                            'artikl': r.get('artikl') if pd.notna(r.get('artikl')) else error_values,
-                            'prumer': r.get('prumer') if pd.notna(r.get('prumer')) else error_values,
-                            'delka': r.get('delka') if pd.notna(r.get('delka')) else error_values,
-                            'predpis': predpis_val,
-                            'typ_hlavy': r.get('typ_hlavy') if pd.notna(r.get('typ_hlavy')) else error_values,
-                            'popis': r.get('popis') if pd.notna(r.get('popis')) else error_values,
-                            'material': r.get('material') if pd.notna(r.get('material')) else error_values,
-                            'sarze': r.get('sarze') if pd.notna(r.get('sarze')) else error_values,
-                            'hmotnost': r.get('hmotnost') if pd.notna(r.get('hmotnost')) else error_values,
-                            'mnozstvi': r.get('mnozstvi') if pd.notna(r.get('mnozstvi')) else error_values,
-                            'tara': r.get('tara') if pd.notna(r.get('tara')) else error_values,
-                        })
+                            pass
 
                     # Pokud jsou chyby po parsování, zobrazit náhled a chyby (bez uložení)
                     if errors:
@@ -1239,9 +1083,10 @@ class KamionAdmin(SimpleHistoryAdmin):
                         for _, row in df.iterrows():
 
                             # Kontrola zda všechna povinná pole jsou vyplněna
-                            required_fields = ['sarze', 'popis', 'prumer', 'delka', 'artikl', 'predpis', 'typ_hlavy', 'material',
-                                               'behalter_nr', 'hmotnost', 'tara', 'mnozstvi', 'datum',
-                            ]
+                            if not required_fields:
+                                required_fields = ['sarze', 'popis', 'prumer', 'delka', 'artikl', 'predpis', 'typ_hlavy', 'material',
+                                                   'behalter_nr', 'hmotnost', 'tara', 'mnozstvi', 'datum',
+                                ]
                             for field in required_fields:
                                 if pd.isna(row[field]):
                                     logger.error(f"Chyba: Povinné pole '{field}' nesmí být prázdné.")
@@ -1355,7 +1200,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                     return redirect("..")
 
                 except Exception as e:
-                    logger.error(f"Chyba při importu zakázek pro kamion {kamion.poradove_cislo}: {e}")
+                    logger.error(f"Chyba při importu zakázek pro kamion {kamion}: {e}")
                     try:
                         self.message_user(request, f"Chyba při importu: {e}", messages.ERROR)
                     except Exception:
