@@ -997,7 +997,7 @@ class ExportBednyCsvActionTests(ActionsBase):
         content = resp.content.decode('utf-8-sig')
         rows = list(csv.reader(io.StringIO(content), delimiter=';'))
 
-        self.assertEqual(rows[0], ['Artikel-Nr.', 'Behälter-Nr.', 'Abmessung', '#'])
+        self.assertEqual(rows[0], ['Artikel-Nr.', 'Behälter-Nr.', 'Abmessung', 'HPM-Nr.'])
         self.assertEqual(rows[1], ['ART1', str(bedna.behalter_nr), '10,5 x 20', str(bedna.cislo_bedny)])
 
     def test_export_bedny_eurotec_dl_action_requires_eur_and_expedovano(self):

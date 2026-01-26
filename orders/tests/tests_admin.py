@@ -29,7 +29,7 @@ class AdminBase(TestCase):
         cls.user = User.objects.create_superuser('admin', 'a@example.com', 'pass')
         cls.site = AdminSite()
         cls.zakaznik = Zakaznik.objects.create(
-            nazev='Test', zkraceny_nazev='T', zkratka='TST', ciselna_rada=100000
+            nazev='Test', zkraceny_nazev='T', zkratka='EUR', ciselna_rada=100000
         )
         cls.kamion = Kamion.objects.create(zakaznik=cls.zakaznik, datum=date.today())
         cls.predpis = Predpis.objects.create(nazev='Test Predpis', skupina=1, zakaznik=cls.zakaznik,)
