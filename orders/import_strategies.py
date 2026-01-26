@@ -16,6 +16,7 @@ class BaseImportStrategy:
     """
 
     name = "BASE"
+    required_fields: list[str] = []
 
     def parse_excel(self, excel_stream, request, kamion) -> Tuple[pd.DataFrame, List[dict], List[str], List[str], List[str]]:
         """
@@ -27,6 +28,10 @@ class BaseImportStrategy:
 
 class EurotecImportStrategy(BaseImportStrategy):
     name = "EUR"
+    required_fields = [
+        'sarze', 'popis', 'prumer', 'delka', 'artikl', 'predpis', 'typ_hlavy', 'material',
+        'behalter_nr', 'hmotnost', 'tara', 'mnozstvi', 'datum',
+    ]
 
     def parse_excel(self, excel_stream, request, kamion):
         errors: List[str] = []
@@ -205,7 +210,4 @@ class EurotecImportStrategy(BaseImportStrategy):
                 'tara': r.get('tara') if pd.notna(r.get('tara')) else error_values,
             })
 
-        required_fields = ['sarze', 'popis', 'prumer', 'delka', 'artikl', 'predpis', 'typ_hlavy', 'material',
-                           'behalter_nr', 'hmotnost', 'tara', 'mnozstvi', 'datum']
-
-        return df, preview, errors, warnings, required_fields
+        return df, preview, errors, warnings, list(self.required_fields)

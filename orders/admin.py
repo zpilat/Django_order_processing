@@ -973,7 +973,20 @@ class KamionAdmin(SimpleHistoryAdmin):
         Zobrazí formulář pro import zakázek do kamionu a zpracuje nahraný soubor.
         Umožňuje importovat zakázky z Excel souboru a automaticky vytvoří bedny na základě dat v souboru.
         Zakázky jsou odděleny podle artiklu a šarže, přičemž každá unikátní kombinace tvoří jednu zakázku.
-        Zatím funguje pouze pro kamiony Eurotecu.
+        Zatím funguje pouze pro kamiony Eurotecu, ale je navrženo tak, aby bylo možné přidat další zákazníky s vlastními strategiemi importu.
+        Strategie importu je určena na základě zkratky zákazníka kamionu a je implementována pomocí návrhového vzoru Strategy.
+        1. Načte nahraný Excel soubor a zvaliduje jeho strukturu.
+        2. Zobrazí náhled dat před samotným importem.
+        3. Uloží zakázky a bedny do databáze, pokud uživatel potvrdí import bez chyb.
+        4. Zobrazí chyby a varování během procesu importu.
+        5. Umožní opakovaný import s novým souborem nebo zobrazení náhledu bez uložení.
+        6. Používá dočasné soubory pro zpracování nahraných dat a správu relací uživatelů.
+        7. Loguje klíčové události pro audit a sledování akcí uživatelů.
+        8. Zajišťuje transakční integritu při ukládání dat do databáze.
+        9. Validuje povinná pole před uložením zakázek.
+        10. Poskytuje uživatelsky přívětivé rozhraní pro správu importu zakázek v administraci Django.
+        11. Podporuje HTMX pro dynamické aktualizace části stránky bez nutnosti plného reloadu.
+        12. Umožňuje přizpůsobení importní logiky pro různé zákazníky pomocí strategií.
         """
         kamion_id = request.GET.get("kamion")
         kamion = Kamion.objects.get(pk=kamion_id) if kamion_id else None
@@ -1039,6 +1052,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                             return self._render_import(
                                 request, form, kamion, preview, errors, warnings, tmp_token, tmp_filename
                             )
+                        
                     try:
                         df, preview, parse_errors, parse_warnings, required_fields = strategy.parse_excel(
                             excel_stream, request, kamion
@@ -1083,10 +1097,6 @@ class KamionAdmin(SimpleHistoryAdmin):
                         for _, row in df.iterrows():
 
                             # Kontrola zda všechna povinná pole jsou vyplněna
-                            if not required_fields:
-                                required_fields = ['sarze', 'popis', 'prumer', 'delka', 'artikl', 'predpis', 'typ_hlavy', 'material',
-                                                   'behalter_nr', 'hmotnost', 'tara', 'mnozstvi', 'datum',
-                                ]
                             for field in required_fields:
                                 if pd.isna(row[field]):
                                     logger.error(f"Chyba: Povinné pole '{field}' nesmí být prázdné.")
