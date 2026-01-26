@@ -383,9 +383,9 @@ def export_bedny_to_csv_customer_action(modeladmin, request, queryset):
     writer = csv.writer(response, delimiter=';', quoting=csv.QUOTE_MINIMAL)
 
     if is_rovnani_export:
-        writer.writerow(['Artikel-Nr.', 'Behälter-Nr.', 'Abmessung', 'Stand', 'Priorität', 'Fertigstellungsdatum', '#'])
+        writer.writerow(['Artikel-Nr.', 'Behälter-Nr.', 'Abmessung', 'Stand', 'Priorität', 'Fertigstellungsdatum', 'HPM-Nr.'])
     else:
-        writer.writerow(['Artikel-Nr.', 'Behälter-Nr.', 'Abmessung', '#'])
+        writer.writerow(['Artikel-Nr.', 'Behälter-Nr.', 'Abmessung', 'HPM-Nr.'])
 
     stav_rovnani_map = {
         RovnaniChoice.KRIVA: 'Krumm',
