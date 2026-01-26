@@ -958,7 +958,10 @@ class KamionAdmin(SimpleHistoryAdmin):
         return render(request, 'admin/import_zakazky.html', context, status=status)
 
     def _get_import_strategy(self, kamion) -> BaseImportStrategy:
-        """Vrátí strategii importu podle zákazníka (zatím pouze Eurotec)."""
+        """
+        Vrátí strategii importu podle zákazníka (zatím pouze Eurotec).
+        Pro ostatní zákazníky vrací výchozí strategii, která nemá definovanou logiku.
+        """
         try:
             zkratka = getattr(getattr(kamion, 'zakaznik', None), 'zkratka', None)
         except Exception:

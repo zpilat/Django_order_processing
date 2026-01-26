@@ -2001,8 +2001,8 @@ def import_kamionu_action(modeladmin, request, queryset):
         return redirect(f'./import-zakazek/?kamion={kamion.pk}')
     else:
         # Pokud není pro zákazníka zatím import umožněn, zobrazí se chybová zpráva
-        logger.info(f"Uživatel {request.user} se pokusil importovat kamion {kamion.cislo_dl}, ale není to kamion pro zákazníka Eurotec.")
-        modeladmin.message_user(request, "Import je zatím možný pouze pro zákazníka Eurotec.", level=messages.ERROR)
+        logger.info(f"Uživatel {request.user} se pokusil importovat kamion {kamion.cislo_dl}, ale pro zákazníka {kamion.zakaznik.zkratka} zatím není import umožněn.")
+        modeladmin.message_user(request, f"Import není zatím umožněn pro zákazníka {kamion.zakaznik.zkratka}.", level=messages.ERROR)
         return
     
 @admin.action(description="Přijmout kamion na sklad", permissions=('change',))
