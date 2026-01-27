@@ -1,10 +1,11 @@
 import logging
 from decimal import Decimal
-from typing import List, Tuple
+from typing import List, Tuple, Any
 
 import pandas as pd
 from django.contrib import messages
 from .choices import PrioritaChoice
+from .models import Predpis, Zakaznik, TypHlavy
 
 logger = logging.getLogger('orders')
 
@@ -24,6 +25,18 @@ class BaseImportStrategy:
         Musí naplnit dataframe se sloupci použitelnými pro uložení.
         """
         raise NotImplementedError("Strategy must implement parse_excel")
+
+    def get_required_fields(self) -> List[str]:
+        raise NotImplementedError
+
+    def get_cache_key(self, row: Any):
+        raise NotImplementedError
+
+    def map_row_to_zakazka_kwargs(self, row: Any, kamion, warnings: List[str]):
+        raise NotImplementedError
+
+    def map_row_to_bedna_kwargs(self, row: Any):
+        raise NotImplementedError
 
 
 class EurotecImportStrategy(BaseImportStrategy):
@@ -211,3 +224,84 @@ class EurotecImportStrategy(BaseImportStrategy):
             })
 
         return df, preview, errors, warnings, list(self.required_fields)
+
+    # --- Hooky pro ukládání ---
+    def get_required_fields(self) -> List[str]:
+        return list(self.required_fields)
+
+    def get_cache_key(self, row: Any):
+        artikl = row['artikl']
+        sarze_raw = row.get('sarze')
+        sarze_key = None if pd.isna(sarze_raw) else str(sarze_raw).strip()
+        return (artikl, sarze_key)
+
+    def map_row_to_zakazka_kwargs(self, row: Any, kamion, warnings: List[str]):
+        prumer = row.get('prumer')
+        if prumer == prumer.to_integral():
+            retezec_prumer = str(int(prumer))
+        else:
+            retezec_prumer = str(prumer).replace('.', ',')
+
+        try:
+            cislo_predpisu = int(row['predpis'])
+            nazev_predpis = f"{cislo_predpisu:05d}_Ø{retezec_prumer}"
+        except (ValueError, TypeError):
+            nazev_predpis = f"{row['predpis']}_Ø{retezec_prumer}"
+
+        predpis = Predpis.objects.filter(nazev=nazev_predpis, aktivni=True).first()
+        if not predpis:
+            eurotec = Zakaznik.objects.filter(zkratka='EUR').only('id').first()
+            predpis, created = Predpis.objects.get_or_create(
+                nazev='Neznámý předpis',
+                zakaznik=eurotec,
+                defaults={'aktivni': True},
+            )
+            if not created and not predpis.aktivni:
+                predpis.aktivni = True
+                predpis.save()
+            warnings.append(
+                f"Varování: Předpis „{nazev_predpis}“ neexistuje. Použit předpis 'Neznámý předpis'."
+            )
+            logger.warning(
+                f"Varování při importu: Předpis „{nazev_predpis}“ neexistuje. Použit předpis 'Neznámý předpis'."
+            )
+
+        typ_hlavy_excel = row.get('typ_hlavy', None)
+        if pd.isna(typ_hlavy_excel) or not str(typ_hlavy_excel).strip():
+            logger.error("Chyba: Sloupec s typem hlavy nesmí být prázdný.")
+            raise ValueError("Chyba: Sloupec s typem hlavy nesmí být prázdný.")
+        typ_hlavy_excel = str(typ_hlavy_excel).strip()
+        typ_hlavy_qs = TypHlavy.objects.filter(nazev=typ_hlavy_excel)
+        typ_hlavy = typ_hlavy_qs.first() if typ_hlavy_qs.exists() else None
+        if not typ_hlavy:
+            logger.error(f"Typ hlavy „{typ_hlavy_excel}“ neexistuje.")
+            raise ValueError(f"Typ hlavy „{typ_hlavy_excel}“ neexistuje.")
+
+        return {
+            'kamion_prijem': kamion,
+            'artikl': row['artikl'],
+            'prumer': prumer,
+            'delka': row.get('delka'),
+            'predpis': predpis,
+            'typ_hlavy': typ_hlavy,
+            'celozavit': row.get('celozavit', False),
+            'priorita': row.get('priorita', PrioritaChoice.NIZKA),
+            'popis': row.get('popis'),
+            'vrstva': row.get('vrstva'),
+            'povrch': row.get('povrch'),
+            'prubeh': row.get('prubeh'),
+        }
+
+    def map_row_to_bedna_kwargs(self, row: Any):
+        return {
+            'hmotnost': row.get('hmotnost'),
+            'tara': row.get('tara'),
+            'mnozstvi': row.get('mnozstvi', 1),
+            'material': row.get('material'),
+            'sarze': row.get('sarze'),
+            'behalter_nr': row.get('behalter_nr'),
+            'dodatecne_info': row.get('dodatecne_info'),
+            'dodavatel_materialu': row.get('dodavatel_materialu'),
+            'vyrobni_zakazka': row.get('vyrobni_zakazka'),
+            'odfosfatovat': row.get('odfosfatovat'),
+        }

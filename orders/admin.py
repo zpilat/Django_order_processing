@@ -1062,6 +1062,10 @@ class KamionAdmin(SimpleHistoryAdmin):
                         )
                         errors.extend(parse_errors)
                         warnings.extend(parse_warnings)
+                    except NotImplementedError:
+                        msg = "Strategie importu pro tohoto zákazníka není implementována."
+                        logger.error(msg)
+                        errors.append(msg)
                     finally:
                         # zavřít handle, pokud je z uloženého souboru
                         try:
@@ -1100,90 +1104,26 @@ class KamionAdmin(SimpleHistoryAdmin):
                         for _, row in df.iterrows():
 
                             # Kontrola zda všechna povinná pole jsou vyplněna
+                            if not required_fields:
+                                required_fields = strategy.get_required_fields()
                             for field in required_fields:
                                 if pd.isna(row[field]):
                                     logger.error(f"Chyba: Povinné pole '{field}' nesmí být prázdné.")
                                     raise ValueError(f"Chyba: Povinné pole '{field}' nesmí být prázdné.")
 
-                            artikl = row['artikl']
-                            sarze_raw = row.get('sarze')
-                            sarze_key = None if pd.isna(sarze_raw) else str(sarze_raw).strip()
-                            cache_key = (artikl, sarze_key)
+                            cache_key = strategy.get_cache_key(row)
 
                             if cache_key not in zakazky_cache:
-                                # Získání a formátování průměru pro sestavení názvu předpisu
-                                prumer = row.get('prumer')
-                                # Formátování průměru: '10.0' → '10', '7.5' → '7,5'
-                                if prumer == prumer.to_integral():
-                                    retezec_prumer = str(int(prumer))
-                                else:
-                                    retezec_prumer = str(prumer).replace('.', ',')
+                                zakazka_kwargs = strategy.map_row_to_zakazka_kwargs(row, kamion, warnings)
+                                zakazky_cache[cache_key] = Zakazka.objects.create(**zakazka_kwargs)
 
-                                try:
-                                    cislo_predpisu = int(row['predpis'])
-                                    nazev_predpis=f"{cislo_predpisu:05d}_Ø{retezec_prumer}"
-                                except (ValueError, TypeError):
-                                    nazev_predpis = f"{row['predpis']}_Ø{retezec_prumer}"
-
-                                # Získání předpisu, pokud existuje
-                                predpis = Predpis.objects.filter(nazev=nazev_predpis, aktivni=True).first()
-                                # Fallback: použít/nebo vytvořit 'Neznámý předpis' pro zákazníka Eurotec                                
-                                if not predpis:
-                                    eurotec = Zakaznik.objects.filter(zkratka='EUR').only('id').first()
-                                    predpis, created = Predpis.objects.get_or_create(
-                                        nazev='Neznámý předpis',
-                                        zakaznik=eurotec,
-                                        defaults={'aktivni': True},
-                                    )
-                                    if not created and not predpis.aktivni:
-                                        predpis.aktivni = True
-                                        predpis.save()
-                                    warnings.append(f"Varování: Předpis „{nazev_predpis}“ neexistuje. Použit předpis 'Neznámý předpis'.")
-                                    logger.warning(f"Varování při importu: Předpis „{nazev_predpis}“ neexistuje. Použit předpis 'Neznámý předpis'.")
-                                
-                                # Získání typu hlavy, pokud existuje
-                                typ_hlavy_excel = row.get('typ_hlavy', None)
-                                if pd.isna(typ_hlavy_excel) or not str(typ_hlavy_excel).strip():
-                                    logger.error("Chyba: Sloupec s typem hlavy nesmí být prázdný.")
-                                    raise ValueError("Chyba: Sloupec s typem hlavy nesmí být prázdný.")
-                                typ_hlavy_excel = str(typ_hlavy_excel).strip()
-                                typ_hlavy_qs = TypHlavy.objects.filter(nazev=typ_hlavy_excel)
-                                typ_hlavy = typ_hlavy_qs.first() if typ_hlavy_qs.exists() else None
-                                if not typ_hlavy:
-                                    logger.error(f"Typ hlavy „{typ_hlavy_excel}“ neexistuje.")
-                                    raise ValueError(f"Typ hlavy „{typ_hlavy_excel}“ neexistuje.")                            
-
-                                zakazka = Zakazka.objects.create(
-                                    kamion_prijem=kamion,
-                                    artikl=artikl,
-                                    prumer=prumer,
-                                    delka=row.get('delka'),
-                                    predpis=predpis,
-                                    typ_hlavy=typ_hlavy,
-                                    celozavit=row.get('celozavit', False),
-                                    priorita=row.get('priorita', PrioritaChoice.NIZKA),
-                                    popis=row.get('popis'),
-                                    vrstva=row.get('vrstva'),
-                                    povrch=row.get('povrch'),
-                                    prubeh=row.get('prubeh'),
-                                )
-                                zakazky_cache[cache_key] = zakazka
-
+                            bedna_kwargs = strategy.map_row_to_bedna_kwargs(row)
                             Bedna.objects.create(
                                 zakazka=zakazky_cache[cache_key],
-                                hmotnost=row.get('hmotnost'),
-                                tara=row.get('tara'),
-                                mnozstvi=row.get('mnozstvi', 1),
-                                material=row.get('material'),
-                                sarze=row.get('sarze'),
-                                behalter_nr=row.get('behalter_nr'),
-                                dodatecne_info=row.get('dodatecne_info'),
-                                dodavatel_materialu=row.get('dodavatel_materialu'),
-                                vyrobni_zakazka=row.get('vyrobni_zakazka'),
-                                odfosfatovat=row.get('odfosfatovat'),
+                                **bedna_kwargs,
                             )
 
-                    logger.info(f"Uživatel {request.user} úspěšně uložil zakázky a bedny pro kamion {kamion.poradove_cislo}.")
+                    logger.info(f"Uživatel {request.user} úspěšně uložil zakázky a bedny pro kamion {kamion}.")
                     # pokud se importovalo z dočasného souboru, uklidit
                     if not request.POST.get('preview') and 'tmp_token' in locals() and tmp_token:
                         try:
