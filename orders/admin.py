@@ -30,7 +30,7 @@ from django.contrib.admin.helpers import ActionForm
 from django.contrib.admin.actions import delete_selected as admin_delete_selected
 from django_user_agents.utils import get_user_agent
 
-from .import_strategies import BaseImportStrategy, EurotecImportStrategy
+from .import_strategies import BaseImportStrategy, EURImportStrategy, SPXImportStrategy
 
 from .models import (
     Zakaznik, Kamion, Zakazka, Bedna, Predpis, Odberatel, TypHlavy, Cena, Pozice, Pletivo, PoziceZakazkaOrder, Rozpracovanost
@@ -959,24 +959,28 @@ class KamionAdmin(SimpleHistoryAdmin):
 
     def _get_import_strategy(self, kamion) -> BaseImportStrategy:
         """
-        Vrátí strategii importu podle zákazníka (zatím pouze Eurotec).
+        Vrátí strategii importu podle zákazníka (zatím pouze EUR a SPX).
         Pro ostatní zákazníky vrací výchozí strategii, která nemá definovanou logiku.
         """
         try:
             zkratka = getattr(getattr(kamion, 'zakaznik', None), 'zkratka', None)
         except Exception:
             zkratka = None
-        if zkratka == 'EUR':
-            return EurotecImportStrategy()
-        else: 
-            return BaseImportStrategy()
+        match zkratka:
+            case 'EUR':
+                return EURImportStrategy()
+            case 'SPX':
+                return SPXImportStrategy()
+            case _:
+                return BaseImportStrategy()
 
     def import_view(self, request):
         """
         Zobrazí formulář pro import zakázek do kamionu a zpracuje nahraný soubor.
         Umožňuje importovat zakázky z Excel souboru a automaticky vytvoří bedny na základě dat v souboru.
         Zakázky jsou odděleny podle artiklu a šarže, přičemž každá unikátní kombinace tvoří jednu zakázku.
-        Zatím funguje pouze pro kamiony Eurotecu, ale je navrženo tak, aby bylo možné přidat další zákazníky s vlastními strategiemi importu.
+        Zatím funguje pouze pro kamiony EUR a SPX, ale je navrženo tak, aby bylo možné přidat další zákazníky
+        s vlastními strategiemi importu.
         Strategie importu je určena na základě zkratky zákazníka kamionu a je implementována pomocí návrhového vzoru Strategy.
         1. Načte nahraný Excel soubor a zvaliduje jeho strukturu.
         2. Zobrazí náhled dat před samotným importem.

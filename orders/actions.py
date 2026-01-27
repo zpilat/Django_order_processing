@@ -1977,7 +1977,7 @@ def import_kamionu_action(modeladmin, request, queryset):
     Importuje dodací list pro vybraný kamion.
     Předpokládá, že je vybrán pouze jeden kamion a to kamion s příznakem příjem.
     Pokud je vybráno více kamionů, zobrazí se chybová zpráva.
-    Zatím je import pouze pro zákazníka Eurotec (EUR).
+    V tuto chvíli je import pouze pro zákazníka EUR a SPX.
     """
     # Pokud je vybráno více kamionů, zobrazí se chybová zpráva
     if queryset.count() != 1:
@@ -1996,8 +1996,8 @@ def import_kamionu_action(modeladmin, request, queryset):
         modeladmin.message_user(request, "Kamion již obsahuje zakázky, nelze provést import.", level=messages.ERROR)
         return
     # Import pro zákazníka Eurotec
-    if kamion.zakaznik.zkratka == "EUR":
-        logger.info(f"Uživatel {request.user} importuje kamion {kamion.cislo_dl} pro zákazníka Eurotec.")
+    if kamion.zakaznik.zkratka in ["EUR", "SPX"]:
+        logger.info(f"Uživatel {request.user} importuje kamion {kamion.cislo_dl} pro zákazníka {kamion.zakaznik.zkratka}.")
         return redirect(f'./import-zakazek/?kamion={kamion.pk}')
     else:
         # Pokud není pro zákazníka zatím import umožněn, zobrazí se chybová zpráva

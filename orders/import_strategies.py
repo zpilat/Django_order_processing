@@ -39,7 +39,7 @@ class BaseImportStrategy:
         raise NotImplementedError
 
 
-class EurotecImportStrategy(BaseImportStrategy):
+class EURImportStrategy(BaseImportStrategy):
     name = "EUR"
     required_fields = [
         'sarze', 'popis', 'prumer', 'delka', 'artikl', 'predpis', 'typ_hlavy', 'material',
@@ -305,3 +305,6 @@ class EurotecImportStrategy(BaseImportStrategy):
             'vyrobni_zakazka': row.get('vyrobni_zakazka'),
             'odfosfatovat': row.get('odfosfatovat'),
         }
+
+class SPXImportStrategy(BaseImportStrategy):
+    pass
