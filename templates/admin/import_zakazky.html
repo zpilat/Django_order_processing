@@ -58,41 +58,69 @@
     <h3>Náhled importu (max. 50 řádků)</h3>
     <div class="results">
       <table id="result_list">
-        <thead>
-          <tr>
-            <th scope="col">Datum</th>
-            <th scope="col">Číslo bedny</th>
-            <th scope="col">Artikl</th>
-            <th scope="col">Ø</th>
-            <th scope="col">Délka</th>
-            <th scope="col">Předpis</th>
-            <th scope="col">Typ hlavy</th>
-            <th scope="col">Popis</th>
-            <th scope="col">Materiál</th>
-            <th scope="col">Šarže</th>
-            <th scope="col">Množství (ks)</th>            
-            <th scope="col">Hmotnost (kg)</th>
-            <th scope="col">Tára (kg)</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for row in preview %}
+        {% for row in preview %}
+          {% if forloop.first %}    
+            <thead>
+              <tr>
+                {% if row.datum %}
+                  <th scope="col">Datum</th>
+                {% endif %}
+                {% if row.behalter_nr %}
+                  <th scope="col">Číslo bedny</th>
+                {% endif %}
+                <th scope="col">Artikl</th>
+                <th scope="col">Ø</th>
+                <th scope="col">Délka</th>
+                <th scope="col">Výrobní zakázka</th>
+                {% if row.predpis %}
+                  <th scope="col">Předpis</th>
+                {% endif %}
+                {% if row.typ_hlavy %}
+                  <th scope="col">Typ hlavy</th>
+                {% endif %}
+                <th scope="col">Popis</th>
+                {% if row.material %}
+                  <th scope="col">Materiál</th>
+                {% endif %}
+                {% if row.sarze %}
+                  <th scope="col">Šarže</th>
+                {% endif %}
+                <th scope="col">Množství (ks)</th>            
+                <th scope="col">Hmotnost (kg)</th>
+                <th scope="col">Tára (kg)</th>
+              </tr>
+            </thead>
+            <tbody>            
+          {% endif %}
             <tr>
-              <td>{{ row.datum }}</td>
-              <td>{{ row.behalter_nr }}</td>
+              {% if row.datum %}
+                <td>{{ row.datum }}</td>
+              {% endif %}
+              {% if row.behalter_nr %}
+                <td>{{ row.behalter_nr }}</td>
+              {% endif %}
               <td>{{ row.artikl }}</td>
               <td style="text-align: center;">{{ row.prumer }}</td>
               <td style="text-align: center;">{{ row.delka }}</td>
-              <td style="text-align: center;">{{ row.predpis }}</td>
-              <td style="text-align: center;">{{ row.typ_hlavy }}</td>
+              <td>{{ row.vyrobni_zakazka }}</td>
+              {% if row.predpis %}
+                <td>{{ row.predpis }}</td>
+              {% endif %}
+              {% if row.typ_hlavy %}
+                <td>{{ row.typ_hlavy }}</td>
+              {% endif %}
               <td>{{ row.popis }}</td>
-              <td>{{ row.material }}</td>
-              <td>{{ row.sarze }}</td>
+              {% if row.material %}
+                <td>{{ row.material }}</td>
+              {% endif %}
+              {% if row.sarze %}
+                <td>{{ row.sarze }}</td>
+              {% endif %}
               <td style="text-align: center;">{{ row.mnozstvi }}</td>
               <td style="text-align: center;">{{ row.hmotnost }}</td>
               <td style="text-align: center;">{{ row.tara }}</td>
             </tr>
-          {% endfor %}
+          {% endfor %}        
         </tbody>
       </table>
     </div>

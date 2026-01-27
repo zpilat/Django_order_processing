@@ -1,5 +1,6 @@
 import logging
-from decimal import Decimal
+import re
+from decimal import Decimal, ROUND_HALF_UP
 from typing import List, Tuple, Any
 
 import pandas as pd
@@ -214,6 +215,7 @@ class EURImportStrategy(BaseImportStrategy):
                 'prumer': r.get('prumer') if pd.notna(r.get('prumer')) else error_values,
                 'delka': r.get('delka') if pd.notna(r.get('delka')) else error_values,
                 'predpis': predpis_val,
+                'vyrobni_zakazka': r.get('vyrobni_zakazka') if pd.notna(r.get('vyrobni_zakazka')) else error_values,
                 'typ_hlavy': r.get('typ_hlavy') if pd.notna(r.get('typ_hlavy')) else error_values,
                 'popis': r.get('popis') if pd.notna(r.get('popis')) else error_values,
                 'material': r.get('material') if pd.notna(r.get('material')) else error_values,
@@ -307,4 +309,171 @@ class EURImportStrategy(BaseImportStrategy):
         }
 
 class SPXImportStrategy(BaseImportStrategy):
-    pass
+    name = "SPX"
+    required_fields = [
+        'vyrobni_zakazka', 'artikl', 'popis', 'mnozstvi', 'hmotnost', 'tara', 'prumer', 'delka',
+    ] 
+
+    def parse_excel(self, excel_stream, request, kamion):
+        errors: List[str] = []
+        warnings: List[str] = []
+
+        df = pd.read_excel(
+            excel_stream,
+            engine="openpyxl",
+            skiprows=range(5), 
+            nrows=300,
+            header=0,
+            dtype={
+                'Bestellnr.': str,
+                'Material': str,
+            },
+            keep_default_na=False,
+        )
+
+        # Najde první úplně prázdný řádek
+        first_empty_index = df[df.isnull().all(axis=1)].index.min()
+        if pd.notna(first_empty_index):
+            df = df.loc[:first_empty_index - 1]
+
+        # Odstraní prázdné sloupce
+        df.dropna(axis=1, how='all', inplace=True)
+
+        # Pro debug vytisknout názvy sloupců a první dva řádky dat
+        logger.debug(f"Import - názvy sloupců: {df.columns.tolist()}")
+        if not df.empty:
+            logger.debug(f"Import - první dva řádky dat: {df.head(2).to_dict(orient='records')}")
+
+        # Jednorázové mapování zdrojových názvů na interní názvy
+        column_mapping = {
+            'Bestellnr.': 'vyrobni_zakazka',
+            'Material': 'artikl',
+            'Kurztext': 'popis',
+            'Menge': 'mnozstvi',
+            'ME Gewicht': 'hmotnost',
+            'GE': 'brutto',
+        }
+        df.rename(columns=column_mapping, inplace=True)
+
+        # Kontrola sudého počtu řádků
+        if len(df) % 2 != 0:
+            errors.append("Chyba: Počet řádků v Excelu musí být sudý, každý pár řádků tvoří jednu bednu.")
+            return df, [], errors, warnings, []
+        
+        # Rozdělení na dvojice řádků - top a bottom, které se spojí dohromady - obsahují různé informace o jedné bedně
+        top_rows = df.iloc[::2].reset_index(drop=True)
+        bottom_rows = df.iloc[1::2].reset_index(drop=True)
+
+        top_rows['rozmer'] = bottom_rows.iloc[:, 2]
+        df = top_rows
+
+        # Povinné zdrojové sloupce dle specifikace
+        required_src = [
+        'vyrobni_zakazka', 'artikl', 'popis', 'mnozstvi', 'hmotnost', 'brutto', 'rozmer',
+        ] 
+        missing = [c for c in required_src if c not in df.columns]
+        if missing:
+            errors.append(f"Chyba: V Excelu chybí povinné sloupce: {', '.join(missing)}")
+            return df, [], errors, warnings, []
+
+        # Vyčistí množství/hmotnosti
+        def parse_int_mnozstvi(value):
+            text = str(value or "").strip()
+            digits = re.sub(r"\D", "", text)
+            if not digits:
+                errors.append("Chyba: Nelze přečíst množství (mnozstvi).")
+                return None
+            return int(digits)
+
+        def parse_decimal_one(value, label):
+            text = str(value or "").replace(',', '.').strip()
+            match = re.search(r"([0-9]+(?:\.[0-9]+)?)", text)
+            if not match:
+                errors.append(f"Chyba: Nelze přečíst hodnotu ve sloupci {label}.")
+                return None
+            try:
+                return Decimal(match.group(1)).quantize(Decimal('0.0'), rounding=ROUND_HALF_UP)
+            except Exception:
+                errors.append(f"Chyba: Nelze převést hodnotu ve sloupci {label} na číslo.")
+                return None
+
+        df['mnozstvi'] = df['mnozstvi'].apply(parse_int_mnozstvi)
+        df['hmotnost'] = df['hmotnost'].apply(lambda v: parse_decimal_one(v, 'hmotnost'))
+        df['brutto'] = df['brutto'].apply(lambda v: parse_decimal_one(v, 'brutto'))
+
+        # Vypočti tara = brutto - hmotnost (obě s 1 desetinným místem)
+        def compute_tara(row):
+            brutto_val = row.get('brutto')
+            hmotnost_val = row.get('hmotnost')
+            if brutto_val is None or hmotnost_val is None or hmotnost_val == 0 or brutto_val == 0 or brutto_val <= hmotnost_val:
+                errors.append("Chyba: Nelze spočítat taru, chybí brutto nebo hmotnost.")
+                return None
+            try:
+                return (brutto_val - hmotnost_val).quantize(Decimal('0.0'), rounding=ROUND_HALF_UP)
+            except Exception:
+                errors.append("Chyba: Nelze spočítat taru.")
+                return None
+
+        df['tara'] = df.apply(compute_tara, axis=1)
+
+        # Rozparsuje sloupec rozmer: např. "TG 6,0*160,00" nebo "6,0*160,00" -> prefix (pokud je) přidá k popisu, čísla do prumer/delka
+        rozmer_pattern = re.compile(r"^(?:(?P<prefix>.*?)\s+)?(?P<prumer>[0-9]+[.,]?[0-9]*)\*(?P<delka>[0-9]+[.,]?[0-9]*)")
+
+        def rozdel_rozmer(row):
+            text = str(row.get('rozmer', '') or '').replace('×', '*').replace('X', '*').strip()
+            if not text:
+                errors.append("Chyba: Sloupec s rozměrem je prázdný.")
+                return None, None, None
+
+            match = rozmer_pattern.match(text)
+            if not match:
+                errors.append("Chyba: Sloupec s rozměrem musí být ve formátu 'prumer*delka' nebo 'prefix prumer*delka'.")
+                return None, None, None
+
+            prefix_raw = match.group('prefix') or ''
+            prefix = prefix_raw.strip()
+            try:
+                prumer_val = Decimal(match.group('prumer').replace(',', '.')).quantize(Decimal('0.0'), rounding=ROUND_HALF_UP)
+                delka_val = Decimal(match.group('delka').replace(',', '.')).quantize(Decimal('0.0'), rounding=ROUND_HALF_UP)
+            except Exception:
+                errors.append("Chyba: Nelze převést hodnoty průměru nebo délky na číslo.")
+                return prefix, None, None
+
+            return prefix, prumer_val, delka_val
+
+        df[['rozmer_prefix', 'prumer', 'delka']] = df.apply(
+            lambda row: pd.Series(rozdel_rozmer(row)), axis=1
+        )
+
+        # Přidej prefix z rozměru na konec popisu, pokud existuje
+        df['popis'] = df.apply(
+            lambda row: f"{row.get('popis', '').strip()} {row['rozmer_prefix']}".strip()
+            if pd.notna(row.get('rozmer_prefix')) and str(row.get('rozmer_prefix')).strip()
+            else row.get('popis', '').strip(),
+            axis=1,
+        )
+
+        df.drop(columns=['rozmer_prefix', 'rozmer', 'brutto'], inplace=True)
+
+        logger.debug(f"Import - sloučené a upravené řádky dat: {df.head(2).to_dict(orient='records')}")     
+
+        # Setřídění podle sloupce prumer, delka, artikl
+        df.sort_values(by=['prumer', 'delka', 'artikl'], inplace=True)
+        logger.info(f"Uživatel {request.user} úspěšně načetl data z Excel souboru pro import zakázek.")
+
+        # Připravení náhledu
+        error_values = '!!!!!!'
+        preview = []
+        for _, r in df.iterrows():
+            preview.append({
+                'artikl': r.get('artikl') if pd.notna(r.get('artikl')) else error_values,
+                'prumer': r.get('prumer') if pd.notna(r.get('prumer')) else error_values,
+                'delka': r.get('delka') if pd.notna(r.get('delka')) else error_values,
+                'popis': r.get('popis') if pd.notna(r.get('popis')) else error_values,
+                'vyrobni_zakazka': r.get('vyrobni_zakazka') if pd.notna(r.get('vyrobni_zakazka')) else error_values,
+                'hmotnost': r.get('hmotnost') if pd.notna(r.get('hmotnost')) else error_values,
+                'mnozstvi': r.get('mnozstvi') if pd.notna(r.get('mnozstvi')) else error_values,
+                'tara': r.get('tara') if pd.notna(r.get('tara')) else error_values,
+            })
+
+        return df, preview, errors, warnings, list(self.required_fields)
