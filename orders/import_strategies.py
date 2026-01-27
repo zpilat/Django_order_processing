@@ -477,3 +477,70 @@ class SPXImportStrategy(BaseImportStrategy):
             })
 
         return df, preview, errors, warnings, list(self.required_fields)
+
+# --- Hooky pro ukládání ---
+    def get_required_fields(self) -> List[str]:
+        return list(self.required_fields)
+
+    def get_cache_key(self, row: Any):
+        return row['artikl']
+
+    def map_row_to_zakazka_kwargs(self, row: Any, kamion, warnings: List[str]):
+        prumer = row.get('prumer')
+        if prumer == prumer.to_integral():
+            retezec_prumer = str(int(prumer))
+        else:
+            retezec_prumer = str(prumer).replace('.', ',')
+
+        typ_hlavy_excel = row.get('typ_hlavy', None)
+        if pd.isna(typ_hlavy_excel) or not str(typ_hlavy_excel).strip():
+            logger.error("Chyba: Sloupec s typem hlavy nesmí být prázdný.")
+            raise ValueError("Chyba: Sloupec s typem hlavy nesmí být prázdný.")
+        typ_hlavy_excel = str(typ_hlavy_excel).strip()
+        typ_hlavy_qs = TypHlavy.objects.filter(nazev=typ_hlavy_excel)
+        typ_hlavy = typ_hlavy_qs.first() if typ_hlavy_qs.exists() else None
+        if not typ_hlavy:
+            logger.error(f"Typ hlavy „{typ_hlavy_excel}“ neexistuje.")
+            raise ValueError(f"Typ hlavy „{typ_hlavy_excel}“ neexistuje.")
+
+        try:
+            cislo_predpisu = int(row['predpis'])
+            nazev_predpis = f"{cislo_predpisu:05d}_Ø{retezec_prumer}"
+        except (ValueError, TypeError):
+            nazev_predpis = f"{row['predpis']}_Ø{retezec_prumer}"
+
+        predpis = Predpis.objects.filter(nazev=nazev_predpis, aktivni=True).first()
+        if not predpis:
+            eurotec = Zakaznik.objects.filter(zkratka='EUR').only('id').first()
+            predpis, created = Predpis.objects.get_or_create(
+                nazev='Neznámý předpis',
+                zakaznik=eurotec,
+                defaults={'aktivni': True},
+            )
+            if not created and not predpis.aktivni:
+                predpis.aktivni = True
+                predpis.save()
+            warnings.append(
+                f"Varování: Předpis „{nazev_predpis}“ neexistuje. Použit předpis 'Neznámý předpis'."
+            )
+            logger.warning(
+                f"Varování při importu: Předpis „{nazev_predpis}“ neexistuje. Použit předpis 'Neznámý předpis'."
+            )
+
+        return {
+            'kamion_prijem': kamion,
+            'artikl': row['artikl'],
+            'prumer': prumer,
+            'delka': row.get('delka'),
+            'popis': row.get('popis'),
+            'typ_hlavy': typ_hlavy,
+            'predpis': predpis,
+        }
+
+    def map_row_to_bedna_kwargs(self, row: Any):
+        return {
+            'hmotnost': row.get('hmotnost'),
+            'tara': row.get('tara'),
+            'mnozstvi': row.get('mnozstvi', 1),
+            'vyrobni_zakazka': row.get('vyrobni_zakazka'),
+        }
