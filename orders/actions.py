@@ -435,7 +435,7 @@ def export_bedny_to_csv_customer_action(modeladmin, request, queryset):
 @admin.action(description="Export vybraných beden Eurotec do CSV pro vložení do DL")
 def export_bedny_eurotec_dl_action(modeladmin, request, queryset):
     """
-    Export pro Eurotec DL: validuje jednoho zákazníka se zkratkou EUR a stav EXPEDOVANO.
+    Export pro Eurotec DL: validuje jednoho zákazníka se zkratkou EUR a stav K_EXPEDICI / EXPEDOVANO.
     Sloupce: Vorgang+, Artikel-Nr., Materialcharge, ∑, Gewicht, Abmess., Kopf, Bezeichnung,
     Oberfläche, Beschicht., Behälter-Nr., Sonder Zusatzinfo, Lief., Fertigungsauftrags Nr., Reinheit.
     """
@@ -447,8 +447,8 @@ def export_bedny_eurotec_dl_action(modeladmin, request, queryset):
         modeladmin.message_user(request, "Export je možný pouze pro bedny zákazníka Eurotec (EUR).", level=messages.ERROR)
         return None
 
-    if queryset.exclude(stav_bedny=StavBednyChoice.EXPEDOVANO).exists():
-        modeladmin.message_user(request, "Všechny vybrané bedny musí být ve stavu EXPEDOVANO.", level=messages.ERROR)
+    if queryset.exclude(stav_bedny__in=[StavBednyChoice.K_EXPEDICI, StavBednyChoice.EXPEDOVANO]).exists():
+        modeladmin.message_user(request, "Všechny vybrané bedny musí být ve stavu K_EXPEDICI nebo EXPEDOVANO.", level=messages.ERROR)
         return None
 
     queryset = queryset.select_related(
