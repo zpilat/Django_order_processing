@@ -478,7 +478,7 @@ class SPXImportStrategy(BaseImportStrategy):
 
         return df, preview, errors, warnings, list(self.required_fields)
 
-# --- Hooky pro ukládání ---
+    # --- Hooky pro ukládání ---
     def get_required_fields(self) -> List[str]:
         return list(self.required_fields)
 
@@ -486,28 +486,43 @@ class SPXImportStrategy(BaseImportStrategy):
         return row['artikl']
 
     def map_row_to_zakazka_kwargs(self, row: Any, kamion, warnings: List[str]):
+        # Určí průměr jako řetězec pro název předpisu
         prumer = row.get('prumer')
         if prumer == prumer.to_integral():
-            retezec_prumer = str(int(prumer))
+            prumer_str = str(int(prumer))
         else:
-            retezec_prumer = str(prumer).replace('.', ',')
+            prumer_str = str(prumer).replace('.', ',')
 
-        typ_hlavy_excel = row.get('typ_hlavy', None)
-        if pd.isna(typ_hlavy_excel) or not str(typ_hlavy_excel).strip():
-            logger.error("Chyba: Sloupec s typem hlavy nesmí být prázdný.")
-            raise ValueError("Chyba: Sloupec s typem hlavy nesmí být prázdný.")
-        typ_hlavy_excel = str(typ_hlavy_excel).strip()
-        typ_hlavy_qs = TypHlavy.objects.filter(nazev=typ_hlavy_excel)
+        # Přidá typ hlavy na základě popisu - pokud obsahuje ' TK ' -> Typ hlavy = 'TK', pokud obsahuje ' SMK ' -> 'SK',
+        # pokud obě hodnoty nebo nic z toho, tak chyba
+        popis_text = str(row.get('popis', '') or '').upper()
+        has_tk = ' TK ' in popis_text
+        has_smk = ' SMK ' in popis_text
+        if has_tk and has_smk:
+            raise ValueError("Chyba: Popis nesmí obsahovat zároveň 'TK' i 'SMK'. Nelze určit typ hlavy.")
+        elif not has_tk and not has_smk:
+            raise ValueError("Chyba: Popis musí obsahovat buď 'TK' nebo 'SMK', jinak nelze určit typ hlavy.")
+        elif has_tk:
+            typ_hlavy_str = 'TK'
+        elif has_smk:
+            typ_hlavy_str = 'SK'
+
+        typ_hlavy_qs = TypHlavy.objects.filter(nazev=typ_hlavy_str)
         typ_hlavy = typ_hlavy_qs.first() if typ_hlavy_qs.exists() else None
         if not typ_hlavy:
-            logger.error(f"Typ hlavy „{typ_hlavy_excel}“ neexistuje.")
-            raise ValueError(f"Typ hlavy „{typ_hlavy_excel}“ neexistuje.")
+            logger.error(f"Typ hlavy „{typ_hlavy_str}“ neexistuje.")
+            raise ValueError(f"Typ hlavy „{typ_hlavy_str}“ neexistuje.")
+        
+        # Určí typ vrutu na základě popisu - pokud obsahuje 'SPAX-3' -> typ_vrutu = 'SPAX-3', jinak chyba
+        # Až bude více typů vrutů, bude potřeba získat popis vrutu automaticky ze začátku popisu
+        popis = row.get('popis', None)
+        if 'SPAX-3' in popis.upper():
+            typ_vrutu_str = 'SPAX-3'
+        else: 
+            raise ValueError("Chyba: Typ vrutu není 'SPAX-3', pro jiný typ vrutu zatím nebyl definován předpis.")
 
-        try:
-            cislo_predpisu = int(row['predpis'])
-            nazev_predpis = f"{cislo_predpisu:05d}_Ø{retezec_prumer}"
-        except (ValueError, TypeError):
-            nazev_predpis = f"{row['predpis']}_Ø{retezec_prumer}"
+        # Sestaví název předpisu
+        nazev_predpis = f"{typ_vrutu_str} Ø{prumer_str}_{typ_hlavy_str}"
 
         predpis = Predpis.objects.filter(nazev=nazev_predpis, aktivni=True).first()
         if not predpis:

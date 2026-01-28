@@ -1929,7 +1929,7 @@ class BednaAdmin(SimpleHistoryAdmin):
 
     # Parametry pro zobrazení seznamu v administraci
     list_display = (
-        'get_cislo_bedny', 'get_behalter_nr', 'get_poradi_bedny_v_zakazce', 'zakazka_link', 'get_zakaznik_zkratka', 'kamion_prijem_link',
+        'get_cislo_bedny', 'behalter_nr', 'get_poradi_bedny_v_zakazce', 'zakazka_link', 'get_zakaznik_zkratka', 'kamion_prijem_link',
         'kamion_vydej_link', 'stav_bedny', 'rovnat', 'tryskat', 'get_prumer', 'get_delka_int','get_skupina_TZ',
         'get_typ_hlavy', 'get_celozavit', 'get_zkraceny_popis', 'hmotnost', 'tara', 'get_hmotnost_brutto',
         'mnozstvi', 'pozice', 'get_priorita', 'get_datum_prijem', 'get_datum_vydej', 'get_postup', 'cena_za_kg', 'poznamka',
@@ -2112,14 +2112,6 @@ class BednaAdmin(SimpleHistoryAdmin):
             return obj.zakazka.kamion_vydej.datum.strftime('%y-%m-%d')
         return '-'
 
-    @admin.display(description='Č.b.z.', ordering='behalter_nr', empty_value='-')
-    def get_behalter_nr(self, obj):
-        """
-        Zobrazí číslo bedny zákazníka a umožní třídění podle hlavičky pole.
-        Pokud není vyplněno, zobrazí se '-'.
-        """
-        return obj.behalter_nr
-    
     @admin.display(description='Poz.', ordering='pozice', empty_value='-')
     def get_pozice(self, obj):
         """
@@ -2372,7 +2364,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         
         if stav_filter == StavBednyChoice.NEPRIJATO:
             if request.user.has_perm('orders.change_neprijata_bedna'):
-                editable = ['stav_bedny', 'tryskat', 'rovnat', 'hmotnost', 'tara', 'poznamka', 'mnozstvi']
+                editable = ['behalter_nr', 'stav_bedny', 'tryskat', 'rovnat', 'hmotnost', 'tara', 'poznamka', 'mnozstvi']
             elif request.user.has_perm('orders.change_poznamka_neprijata_bedna'):
                 return ['poznamka']
             else:
