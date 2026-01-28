@@ -190,6 +190,69 @@ class KamionAdminTests(AdminBase):
         predpis_import.delete()
         typ_hlavy_import.delete()
 
+    def test_import_view_spx_strategy(self):
+        spx = Zakaznik.objects.create(
+            nazev='SPX',
+            zkraceny_nazev='SPX',
+            zkratka='SPX',
+            ciselna_rada=300000,
+        )
+        kamion_spx = Kamion.objects.create(zakaznik=spx, datum=date.today())
+        Predpis.objects.create(nazev='SPAX-3 Ø6_SK', skupina=1, zakaznik=spx)
+        Predpis.objects.create(nazev='SPAX-3 Ø5_SK', skupina=1, zakaznik=spx)
+
+        url = f'/admin/orders/kamion/import-zakazek/?kamion={kamion_spx.pk}'
+        file_mock = SimpleUploadedFile('spx.xlsx', b'fakecontent', content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        valid_req = self.get_request('post', data={'file': file_mock}, path=url)
+        valid_req.FILES['file'] = file_mock
+        valid_req.session = {}
+        valid_req._messages = FallbackStorage(valid_req)
+
+        import pandas as pandas_mod
+        df = pandas_mod.DataFrame([
+            {
+                'Bestellnr.': 'WO-1',
+                'Material': 'SPX-1',
+                'Kurztext': 'SPAX-3 SMK vrut',
+                'Menge': '12',
+                'ME Gewicht': '24,0',
+                'GE': '30,0',
+            },
+            {
+                'Bestellnr.': 'WO-1',
+                'Material': 'SPX-1',
+                'Kurztext': '6,0*160,0',
+                'Menge': '',
+                'ME Gewicht': '',
+                'GE': '',
+            },
+            {
+                'Bestellnr.': 'WO-2',
+                'Material': 'SPX-2',
+                'Kurztext': 'SPAX-3 SMK vrut 2',
+                'Menge': '6',
+                'ME Gewicht': '12,0',
+                'GE': '15,0',
+            },
+            {
+                'Bestellnr.': 'WO-2',
+                'Material': 'SPX-2',
+                'Kurztext': '5,0*120,0',
+                'Menge': '',
+                'ME Gewicht': '',
+                'GE': '',
+            },
+        ])
+
+        with patch('orders.admin.pd.read_excel', return_value=df):
+            zak_before = Zakazka.objects.count()
+            bedna_before = Bedna.objects.count()
+            resp = self.admin.import_view(valid_req)
+
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(Zakazka.objects.count(), zak_before + 2)
+        self.assertEqual(Bedna.objects.count(), bedna_before + 2)
+
     def test_save_formset_creates_bedny(self):
         admin_form = type('F', (), {'instance': self.kamion})()
 
@@ -677,7 +740,7 @@ class BednaAdminTests(AdminBase):
         req.user.user_permissions.add(Permission.objects.get(codename='change_neprijata_bedna'))
         req.user = get_user_model().objects.get(pk=req.user.pk)
         editable = self.admin.get_list_editable(req)
-        self.assertEqual(editable, ['stav_bedny', 'tryskat', 'rovnat', 'hmotnost', 'tara', 'poznamka', 'mnozstvi'])
+        self.assertEqual(editable, ['behalter_nr','stav_bedny', 'tryskat', 'rovnat', 'hmotnost', 'tara', 'poznamka', 'mnozstvi'])
 
     def test_get_readonly_fields_neprijato_poznamka_only(self):
         """Při oprávnění jen na poznámku jsou ostatní pole readonly."""
