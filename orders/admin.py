@@ -2555,7 +2555,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         Pokud není aktivní filtr stav bedny NAVEZENO, DO_ZPRACOVANI, ZAKALENO nebo RO, zruší se akce pro označení bedny jako ZKONTROLOVANO.
         Pokud není aktivní filtr stav bedny NAVEZENO, DO_ZPRACOVANI, ZAKALENO, ZKONTROLOVANO nebo RO,
         zruší se akce pro označení bedny jako K_EXPEDICI.
-        Pokud není aktivní filtr stav bedny EXPEDOVANO, zruší se akce pro export_beden_eurotec_dl_action.
+        Pokud není aktivní filtr stav bedny EXPEDOVANO nebo K_EXPEDICI, zruší se akce pro export_bedny_eurotec_dl_action.
         Pokud není aktivní filtr stav bedny RO, zruší se akce pro vrácení bedny z rozpracovanosti do stavu PRIJATO.
         Pokud není aktivní filtr stav bedny K_EXPEDICI, zruší se akce expedice_beden a expedice_beden_kamion.
         Pokud není aktivní filtr stav bedny K_EXPEDICI nebo EXPEDOVANO nebo filtr rovnani "k_vyrovnani" (KRIVA nebo ROVNA_SE),
@@ -2630,7 +2630,7 @@ class BednaAdmin(SimpleHistoryAdmin):
                 actions_to_remove += [
                     'export_bedny_to_csv_customer_action',
                 ]
-            if stav_filter != StavBednyChoice.EXPEDOVANO:
+            if stav_filter not in [StavBednyChoice.EXPEDOVANO, StavBednyChoice.K_EXPEDICI]:
                 actions_to_remove += [
                     'export_bedny_eurotec_dl_action',
                 ]
