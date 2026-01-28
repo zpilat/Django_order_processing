@@ -442,10 +442,10 @@ def export_bedny_eurotec_dl_action(modeladmin, request, queryset):
     if not queryset.exists():
         return None
 
-    zakaznici = queryset.values('zakazka__kamion_prijem__zakaznik__zkratka').distinct()
-    if zakaznici.count() != 1 or zakaznici.first().get('zakazka__kamion_prijem__zakaznik__zkratka') != 'EUR':
-        modeladmin.message_user(request, "Export je možný pouze pro bedny zákazníka Eurotec (EUR).", level=messages.ERROR)
-        return None
+    # zakaznici = queryset.values('zakazka__kamion_prijem__zakaznik__zkratka').distinct()
+    # if zakaznici.count() != 1 or zakaznici.first().get('zakazka__kamion_prijem__zakaznik__zkratka') != 'EUR':
+    #     modeladmin.message_user(request, "Export je možný pouze pro bedny zákazníka Eurotec (EUR).", level=messages.ERROR)
+    #     return None
 
     if queryset.exclude(stav_bedny__in=[StavBednyChoice.K_EXPEDICI, StavBednyChoice.EXPEDOVANO]).exists():
         modeladmin.message_user(request, "Všechny vybrané bedny musí být ve stavu K_EXPEDICI nebo EXPEDOVANO.", level=messages.ERROR)
