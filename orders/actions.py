@@ -463,11 +463,13 @@ def export_bedny_eurotec_dl_action(modeladmin, request, queryset):
     response.write('\ufeff')
     writer = csv.writer(response, delimiter=';', quoting=csv.QUOTE_MINIMAL)
 
-    writer.writerow([
+    row = [
         'Vorgang+', 'Artikel-Nr.', 'Materialcharge', '∑', 'Gewicht', 'Abmess.', 'Kopf', 'Bezeichnung',
         'Oberfläche', 'Beschicht.', 'Behälter-Nr.', 'Sonder Zusatzinfo', 'Lief.', 'Fertigungsauftrags Nr.', 'Reinheit'
-    ])
-
+    ]
+    if request.GET.get('stav_bedny', '') == StavBednyChoice.K_EXPEDICI:
+        row.append('HPM-Nr.')
+    writer.writerow(row)
     for bedna in queryset:
         zak = getattr(bedna, 'zakazka', None)
         prumer = _format_decimal(getattr(zak, 'prumer', None)) if zak else ''
@@ -481,7 +483,7 @@ def export_bedny_eurotec_dl_action(modeladmin, request, queryset):
         else:
             abm = ''
 
-        writer.writerow([
+        row = [
             getattr(zak, 'prubeh', '') if zak else '',
             getattr(zak, 'artikl', '') if zak else '',
             getattr(bedna, 'sarze', '') or '',
@@ -497,7 +499,10 @@ def export_bedny_eurotec_dl_action(modeladmin, request, queryset):
             getattr(bedna, 'dodavatel_materialu', '') or '',
             getattr(bedna, 'vyrobni_zakazka', '') or '',
             'sandgestrahlt' if getattr(bedna, 'tryskat', None) == TryskaniChoice.OTRYSKANA else '--',
-        ])
+        ]
+        if request.GET.get('stav_bedny', '') == StavBednyChoice.K_EXPEDICI:
+            row.append(getattr(bedna, 'cislo_bedny', '') or '')
+        writer.writerow(row)
 
     logger.info(
         f"Uživatel {getattr(request, 'user', None)} exportoval {queryset.count()} beden Eurotec do CSV pro DL.",
