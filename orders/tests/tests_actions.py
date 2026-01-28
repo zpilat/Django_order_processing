@@ -1027,16 +1027,18 @@ class ExportBednyCsvActionTests(ActionsBase):
             ['ART1', str(bedna.behalter_nr), '10,5 x 20', 'Krumm', '', '', str(bedna.cislo_bedny)],
         )
 
-    def test_export_bedny_eurotec_dl_action_requires_eur_and_expedovano(self):
+    def test_export_bedny_dl_action_requires_allowed_status_and_single_customer(self):
         self.bedna.stav_bedny = StavBednyChoice.PRIJATO
         self.bedna.save()
         req = self.get_request('get')
-        resp = actions.export_bedny_eurotec_dl_action(self.msg_admin, req, Bedna.objects.filter(id=self.bedna.id))
+        resp = actions.export_bedny_dl_action(self.msg_admin, req, Bedna.objects.filter(id=self.bedna.id))
         self.assertIsNone(resp)
         msgs = self._messages_texts(req)
-        self.assertTrue(any('EXPEDOVANO' in m for m in msgs))
+        self.assertTrue(any('K_EXPEDICI' in m or 'EXPEDOVANO' in m for m in msgs))
 
-        # Zákazník jiný než EUR
+        # Směs zákazníků není povolená
+        self.bedna.stav_bedny = StavBednyChoice.EXPEDOVANO
+        self.bedna.save()
         z2 = Zakaznik.objects.create(nazev='Z2', zkraceny_nazev='Z2', zkratka='E2', ciselna_rada=200000)
         k2 = Kamion.objects.create(zakaznik=z2, datum=date.today())
         predpis2 = Predpis.objects.create(nazev='P2', skupina=1, zakaznik=z2)
@@ -1057,12 +1059,12 @@ class ExportBednyCsvActionTests(ActionsBase):
             stav_bedny=StavBednyChoice.EXPEDOVANO,
         )
         req = self.get_request('get')
-        resp = actions.export_bedny_eurotec_dl_action(self.msg_admin, req, Bedna.objects.filter(id=b2.id))
+        resp = actions.export_bedny_dl_action(self.msg_admin, req, Bedna.objects.filter(id__in=[self.bedna.id, b2.id]))
         self.assertIsNone(resp)
         msgs = self._messages_texts(req)
-        self.assertTrue(any('Eurotec' in m for m in msgs))
+        self.assertTrue(any('pouze pro bedny jednoho zákazníka' in m for m in msgs))
 
-    def test_export_bedny_eurotec_dl_action_generates_expected_columns(self):
+    def test_export_bedny_dl_action_generates_expected_columns(self):
         bedna = self.bedna
         bedna.stav_bedny = StavBednyChoice.EXPEDOVANO
         bedna.tryskat = TryskaniChoice.OTRYSKANA
@@ -1084,7 +1086,7 @@ class ExportBednyCsvActionTests(ActionsBase):
         self.zakazka.save()
 
         req = self.get_request('post')
-        resp = actions.export_bedny_eurotec_dl_action(self.bedna_admin, req, Bedna.objects.filter(id=bedna.id))
+        resp = actions.export_bedny_dl_action(self.bedna_admin, req, Bedna.objects.filter(id=bedna.id))
         self.assertIsInstance(resp, HttpResponse)
         rows = list(csv.reader(io.StringIO(resp.content.decode('utf-8-sig')), delimiter=';'))
         self.assertEqual(rows[0], [

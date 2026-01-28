@@ -432,20 +432,22 @@ def export_bedny_to_csv_customer_action(modeladmin, request, queryset):
     return response
 
 
-@admin.action(description="Export vybraných beden Eurotec do CSV pro vložení do DL")
-def export_bedny_eurotec_dl_action(modeladmin, request, queryset):
+@admin.action(description="Export vybraných beden do CSV pro vložení do DL")
+def export_bedny_dl_action(modeladmin, request, queryset):
     """
-    Export pro Eurotec DL: validuje jednoho zákazníka se zkratkou EUR a stav K_EXPEDICI / EXPEDOVANO.
+    Export pro DL na export Eurotec nebo pro DL na zinkování: validuje stav K_EXPEDICI / EXPEDOVANO a jednoho zákazníka.
     Sloupce: Vorgang+, Artikel-Nr., Materialcharge, ∑, Gewicht, Abmess., Kopf, Bezeichnung,
-    Oberfläche, Beschicht., Behälter-Nr., Sonder Zusatzinfo, Lief., Fertigungsauftrags Nr., Reinheit.
+    Oberfläche, Beschicht., Behälter-Nr., Sonder Zusatzinfo, Lief., Fertigungsauftrags Nr., Reinheit, 
+    pro stav K_EXPEDICI navíc HPM-Nr.
     """
     if not queryset.exists():
         return None
 
-    # zakaznici = queryset.values('zakazka__kamion_prijem__zakaznik__zkratka').distinct()
-    # if zakaznici.count() != 1 or zakaznici.first().get('zakazka__kamion_prijem__zakaznik__zkratka') != 'EUR':
-    #     modeladmin.message_user(request, "Export je možný pouze pro bedny zákazníka Eurotec (EUR).", level=messages.ERROR)
-    #     return None
+    zakaznici = queryset.values('zakazka__kamion_prijem__zakaznik__zkratka').distinct()
+    if zakaznici.count() != 1:
+        modeladmin.message_user(request, "Export je možný pouze pro bedny jednoho zákazníka.", level=messages.ERROR)
+        return None
+    zakaznik_zkratka = zakaznici.first().get('zakazka__kamion_prijem__zakaznik__zkratka')
 
     if queryset.exclude(stav_bedny__in=[StavBednyChoice.K_EXPEDICI, StavBednyChoice.EXPEDOVANO]).exists():
         modeladmin.message_user(request, "Všechny vybrané bedny musí být ve stavu K_EXPEDICI nebo EXPEDOVANO.", level=messages.ERROR)
@@ -458,7 +460,7 @@ def export_bedny_eurotec_dl_action(modeladmin, request, queryset):
     )
 
     response = HttpResponse(content_type='text/csv; charset=utf-8')
-    filename = f"bedny_eurotec_dl_{timezone.now().strftime('%Y%m%d_%H%M%S')}.csv"
+    filename = f"bedny_{zakaznik_zkratka}_dl_{timezone.now().strftime('%Y%m%d_%H%M%S')}.csv"
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
     response.write('\ufeff')
     writer = csv.writer(response, delimiter=';', quoting=csv.QUOTE_MINIMAL)
@@ -505,7 +507,7 @@ def export_bedny_eurotec_dl_action(modeladmin, request, queryset):
         writer.writerow(row)
 
     logger.info(
-        f"Uživatel {getattr(request, 'user', None)} exportoval {queryset.count()} beden Eurotec do CSV pro DL.",
+        f"Uživatel {getattr(request, 'user', None)} exportoval {queryset.count()} beden {zakaznik_zkratka} do CSV pro DL.",
     )
     return response
 
