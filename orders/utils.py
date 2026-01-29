@@ -6,8 +6,8 @@ from django.db import transaction
 from django.contrib.staticfiles import finders
 from django.utils import timezone
 
-from .choices import StavBednyChoice, RovnaniChoice, TryskaniChoice
-from django.db.models import When, Value
+from .choices import StavBednyChoice, RovnaniChoice, TryskaniChoice, ZinkovaniChoice
+from django.db.models import When, Value, Q
 from .models import Zakazka, Bedna
 
 import pandas as pd
@@ -33,6 +33,7 @@ def build_postup_vyroby_cases():
     """
     good_rovnat = [RovnaniChoice.ROVNA, RovnaniChoice.VYROVNANA]
     good_tryskat = [TryskaniChoice.CISTA, TryskaniChoice.OTRYSKANA]
+    good_zinkovat = [ZinkovaniChoice.NEZINKOVAT, ZinkovaniChoice.UVOLNENO]
     return [
         When(stav_bedny=StavBednyChoice.NEPRIJATO, then=Value(0)),
         When(stav_bedny=StavBednyChoice.PRIJATO, then=Value(10)),
@@ -41,9 +42,13 @@ def build_postup_vyroby_cases():
         When(stav_bedny=StavBednyChoice.DO_ZPRACOVANI, then=Value(40)),
         When(stav_bedny=StavBednyChoice.ZAKALENO, then=Value(50)),
         # ZKONTROLOVANO varianty (od nejužší po obecnou)
-        When(stav_bedny=StavBednyChoice.ZKONTROLOVANO, rovnat__in=good_rovnat, tryskat__in=good_tryskat, then=Value(90)),
-        When(stav_bedny=StavBednyChoice.ZKONTROLOVANO, rovnat__in=good_rovnat, then=Value(75)),
+        When(stav_bedny=StavBednyChoice.ZKONTROLOVANO, rovnat__in=good_rovnat, tryskat__in=good_tryskat, zinkovat__in=good_zinkovat, then=Value(95)),
+        When(stav_bedny=StavBednyChoice.ZKONTROLOVANO, rovnat__in=good_rovnat, tryskat__in=good_tryskat, then=Value(85)),
+        When(stav_bedny=StavBednyChoice.ZKONTROLOVANO, rovnat__in=good_rovnat, zinkovat__in=good_zinkovat, then=Value(85)),
+        When(stav_bedny=StavBednyChoice.ZKONTROLOVANO, tryskat__in=good_tryskat, zinkovat__in=good_zinkovat, then=Value(85)),
         When(stav_bedny=StavBednyChoice.ZKONTROLOVANO, tryskat__in=good_tryskat, then=Value(75)),
+        When(stav_bedny=StavBednyChoice.ZKONTROLOVANO, rovnat__in=good_rovnat, then=Value(75)),
+        When(stav_bedny=StavBednyChoice.ZKONTROLOVANO, zinkovat__in=good_zinkovat, then=Value(75)),
         When(stav_bedny=StavBednyChoice.ZKONTROLOVANO, then=Value(60)),
         When(stav_bedny__in=[StavBednyChoice.K_EXPEDICI, StavBednyChoice.EXPEDOVANO], then=Value(100)),
     ]

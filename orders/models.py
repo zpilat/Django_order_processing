@@ -16,6 +16,7 @@ from .choices import (
     StavBednyChoice,
     RovnaniChoice,
     TryskaniChoice,
+    ZinkovaniChoice,
     PrioritaChoice,
     KamionChoice,
     AlphabetChoice,
@@ -879,6 +880,7 @@ class Bedna(models.Model):
     vyrobni_zakazka = models.CharField(max_length=20, null=True, blank=True, verbose_name='FA / Bestell-Nr.')
     tryskat = models.CharField(choices=TryskaniChoice.choices, max_length=5, default=TryskaniChoice.NEZADANO, verbose_name='Tryskání')
     rovnat = models.CharField(choices=RovnaniChoice.choices, max_length=5, default=RovnaniChoice.NEZADANO, verbose_name='Rovnání')
+    zinkovat = models.CharField(choices=ZinkovaniChoice.choices, max_length=5, default=ZinkovaniChoice.NEZADANO, verbose_name='Zinkování')
     stav_bedny = models.CharField(choices=StavBednyChoice.choices, max_length=2, default=StavBednyChoice.NEPRIJATO, verbose_name='Stav bedny')
     mnozstvi = models.PositiveIntegerField(null=True, blank=True, verbose_name='Množ. ks')
     poznamka = models.CharField(max_length=100, null=True, blank=True, verbose_name='Poznámka HPM')
@@ -971,12 +973,17 @@ class Bedna(models.Model):
         elif self.stav_bedny == StavBednyChoice.ZAKALENO:
             return 50
         elif self.stav_bedny == StavBednyChoice.ZKONTROLOVANO:
-            if self.rovnat not in [RovnaniChoice.ROVNA, RovnaniChoice.VYROVNANA] and self.tryskat not in [TryskaniChoice.CISTA, TryskaniChoice.OTRYSKANA]:
-                return 60
-            elif self.rovnat not in [RovnaniChoice.ROVNA, RovnaniChoice.VYROVNANA] or self.tryskat not in [TryskaniChoice.CISTA, TryskaniChoice.OTRYSKANA]:
+            final_rovnani = self.rovnat in [RovnaniChoice.ROVNA, RovnaniChoice.VYROVNANA]
+            final_tryskani = self.tryskat in [TryskaniChoice.CISTA, TryskaniChoice.OTRYSKANA]
+            final_zinkovani = self.zinkovat in [ZinkovaniChoice.NEZINKOVAT, ZinkovaniChoice.UVOLNENO]
+
+            if final_rovnani and final_tryskani and final_zinkovani:
+                return 95
+            if (final_rovnani and final_tryskani) or (final_rovnani and final_zinkovani) or (final_tryskani and final_zinkovani):
+                return 85
+            if final_tryskani or final_rovnani or final_zinkovani:
                 return 75
-            else:  # rovnat je ROVNA nebo VYROVNANA a tryskat je CISTA nebo OTRYSKANA
-                return 90
+            return 60
         elif self.stav_bedny in [StavBednyChoice.K_EXPEDICI, StavBednyChoice.EXPEDOVANO]:
             return 100
         else:
@@ -1006,7 +1013,10 @@ class Bedna(models.Model):
         elif self.stav_bedny == StavBednyChoice.ZAKALENO:
             return 'yellow'
         elif self.stav_bedny == StavBednyChoice.ZKONTROLOVANO:
-            if self.rovnat in [RovnaniChoice.ROVNA, RovnaniChoice.VYROVNANA] and self.tryskat in [TryskaniChoice.CISTA, TryskaniChoice.OTRYSKANA]:
+            final_rovnani = self.rovnat in [RovnaniChoice.ROVNA, RovnaniChoice.VYROVNANA]
+            final_tryskani = self.tryskat in [TryskaniChoice.CISTA, TryskaniChoice.OTRYSKANA]
+            final_zinkovani = self.zinkovat in [ZinkovaniChoice.NEZINKOVAT, ZinkovaniChoice.UVOLNENO]
+            if final_rovnani and final_tryskani and final_zinkovani:
                 return 'darkseagreen'
             else:
                 return 'orange'
@@ -1050,21 +1060,24 @@ class Bedna(models.Model):
 
     def clean(self):
         """
-        Validace stavu bedny a tryskání/rovnání.
-        - Pokud je stav bedny K_EXPEDICI nebo EXPEDOVANO, musí být tryskání buď Čistá nebo Otryskaná
-        - Pokud je stav bedny K_EXPEDICI nebo EXPEDOVANO, musí být rovnání buď Rovná nebo Vyrovnaná.
+        Validace stavu bedny a tryskání/rovnání/zinkování.
+        - Pokud je stav bedny K_EXPEDICI nebo EXPEDOVANO, musí být tryskání buď Čistá nebo Otryskaná,
+          rovnání buď Rovná nebo Vyrovnaná a zinkování buď Nezinkovat nebo Zkontrolováno po zinkování.
         - Pokud je stav bedny K_NAVEZENI nebo NAVEZENO, musí být zadána pozice.
         - Pokud stav bedny jakýkoliv jiný než NEPRIJATO, musí být zadána hmotnost, tára a množství a tyto nesmí být nula.
         """
         super().clean()    
         if self.stav_bedny in [StavBednyChoice.K_EXPEDICI, StavBednyChoice.EXPEDOVANO]:
-            text = _("Pro zadání stavu 'K expedici' nebo 'Expedováno' musí být tryskání buď Čistá nebo Otryskaná a rovnání buď Rovná nebo Vyrovnaná.")
+            text = _("Pro zadání stavu 'K expedici' nebo 'Expedováno' musí být tryskání buď Čistá nebo Otryskaná, rovnání buď Rovná nebo Vyrovnaná a zinkování buď Nezinkovat nebo Zkontrolováno po zinkování.")
             if self.tryskat not in [TryskaniChoice.CISTA, TryskaniChoice.OTRYSKANA]:
-                raise ValidationError(text)
                 logger.warning(f'Uzivatel se pokusil uložit bednu ve stavu {self.stav_bedny} s neplatným stavem tryskání: {self.tryskat}')
-            if self.rovnat not in [RovnaniChoice.ROVNA, RovnaniChoice.VYROVNANA]:
                 raise ValidationError(text)
+            if self.rovnat not in [RovnaniChoice.ROVNA, RovnaniChoice.VYROVNANA]:
                 logger.warning(f'Uzivatel se pokusil uložit bednu ve stavu {self.stav_bedny} s neplatným stavem rovnání: {self.rovnat}')
+                raise ValidationError(text)
+            if self.zinkovat not in [ZinkovaniChoice.NEZINKOVAT, ZinkovaniChoice.UVOLNENO]:
+                logger.warning(f'Uzivatel se pokusil uložit bednu ve stavu {self.stav_bedny} s neplatným stavem zinkování: {self.zinkovat}')
+                raise ValidationError(text)
         
         if self.stav_bedny in [StavBednyChoice.K_NAVEZENI, StavBednyChoice.NAVEZENO]:
             if not self.pozice:
@@ -1222,6 +1235,61 @@ class Bedna(models.Model):
             return [choice for choice in RovnaniChoice.choices if choice[0] in (RovnaniChoice.ROVNA_SE, RovnaniChoice.VYROVNANA)]
         # fallback: všechno
         return list(RovnaniChoice.choices)
+
+    def get_allowed_zinkovat_choices(self):
+        """
+        Vrátí seznam tuple (value,label) pro pole `zinkovat` podle aktuálního stavu.
+        Pravidla pro výběr:
+        - Pokud je stav_bedny K_EXPEDICI nebo EXPEDOVANO, nabídne pouze aktuální stav (zinkování už nejde měnit).
+        - Pokud je zinkovat nezadáno, nabídne nezadáno, nezinkovat, k zinkování.
+        - Pokud je zinkovat nezinkovat, nabídne nezinkovat a nezadáno.
+        - Pokud je zinkovat k zinkování, nabídne nezinkovat, k zinkování a na zinkování.
+        - Pokud je zinkovat na zinkování, nabídne k zinkování, na zinkování, po zinkování a uvolněno.
+        - Pokud je zinkovat po zinkování, nabídne na zinkování, po zinkování a uvolněno.
+        - Pokud je zinkovat uvolněno, nabídne po zinkování a uvolněno.
+        """
+        curr = self.zinkovat
+        curr_choice = (curr, dict(ZinkovaniChoice.choices).get(curr, 'Neznámý stav'))
+
+        if self.stav_bedny in (StavBednyChoice.K_EXPEDICI, StavBednyChoice.EXPEDOVANO):
+            return [curr_choice]
+        if curr == ZinkovaniChoice.NEZADANO:
+            return [choice for choice in ZinkovaniChoice.choices if choice[0] in (
+                ZinkovaniChoice.NEZADANO,
+                ZinkovaniChoice.NEZINKOVAT,
+                ZinkovaniChoice.K_ZINKOVANI,
+            )]
+        if curr == ZinkovaniChoice.NEZINKOVAT:
+            return [choice for choice in ZinkovaniChoice.choices if choice[0] in (
+                ZinkovaniChoice.NEZINKOVAT,
+                ZinkovaniChoice.NEZADANO,
+            )]
+        if curr == ZinkovaniChoice.K_ZINKOVANI:
+            return [choice for choice in ZinkovaniChoice.choices if choice[0] in (
+                ZinkovaniChoice.NEZINKOVAT,
+                ZinkovaniChoice.K_ZINKOVANI,
+                ZinkovaniChoice.NA_ZINKOVANI,
+            )]
+        if curr == ZinkovaniChoice.NA_ZINKOVANI:
+            return [choice for choice in ZinkovaniChoice.choices if choice[0] in (
+                ZinkovaniChoice.K_ZINKOVANI,
+                ZinkovaniChoice.NA_ZINKOVANI,
+                ZinkovaniChoice.PO_ZINKOVANI,
+                ZinkovaniChoice.UVOLNENO,
+            )]
+        if curr == ZinkovaniChoice.PO_ZINKOVANI:
+            return [choice for choice in ZinkovaniChoice.choices if choice[0] in (
+                ZinkovaniChoice.NA_ZINKOVANI,
+                ZinkovaniChoice.PO_ZINKOVANI,
+                ZinkovaniChoice.UVOLNENO,
+            )]
+        if curr == ZinkovaniChoice.UVOLNENO:
+            return [choice for choice in ZinkovaniChoice.choices if choice[0] in (
+                ZinkovaniChoice.PO_ZINKOVANI,
+                ZinkovaniChoice.UVOLNENO
+            )]
+        # fallback: všechno
+        return list(ZinkovaniChoice.choices)
     
     @property
     def cena_za_kg(self):
