@@ -51,6 +51,14 @@ class TryskaniChoice(models.TextChoices):
     SPINAVA = 'SP', 'Špinavá'
     OTRYSKANA = 'OT', 'Otryskaná'
 
+class ZinkovaniChoice(models.TextChoices):
+    NEZADANO = '--', '--------'
+    NEZINKOVAT = 'NN', 'Nezinkovat'
+    K_ZINKOVANI = 'KZ', 'K zinkování'
+    NA_ZINKOVANI = 'NZ', 'Na zinkování'
+    PO_ZINKOVANI = 'PZ', 'Po zinkování'
+    UVOLNENO = 'UV', 'Uvolněno'
+
 class PrioritaChoice(models.TextChoices):
     VYSOKA = 'P1', 'P1'
     STREDNI = 'P2', 'P2'
