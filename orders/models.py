@@ -880,7 +880,8 @@ class Bedna(models.Model):
     vyrobni_zakazka = models.CharField(max_length=20, null=True, blank=True, verbose_name='FA / Bestell-Nr.')
     tryskat = models.CharField(choices=TryskaniChoice.choices, max_length=5, default=TryskaniChoice.NEZADANO, verbose_name='Tryskání')
     rovnat = models.CharField(choices=RovnaniChoice.choices, max_length=5, default=RovnaniChoice.NEZADANO, verbose_name='Rovnání')
-    zinkovat = models.CharField(choices=ZinkovaniChoice.choices, max_length=5, default=ZinkovaniChoice.NEZADANO, verbose_name='Zinkování')
+    # zatím default pro zinkovat je NEZINKOVAT, protože většina beden se nezinkuje, po rozjetí externího zinkování změnit na NEZADANO
+    zinkovat = models.CharField(choices=ZinkovaniChoice.choices, max_length=5, default=ZinkovaniChoice.NEZINKOVAT, verbose_name='Zinkování')
     stav_bedny = models.CharField(choices=StavBednyChoice.choices, max_length=2, default=StavBednyChoice.NEPRIJATO, verbose_name='Stav bedny')
     mnozstvi = models.PositiveIntegerField(null=True, blank=True, verbose_name='Množ. ks')
     poznamka = models.CharField(max_length=100, null=True, blank=True, verbose_name='Poznámka HPM')
@@ -1242,7 +1243,7 @@ class Bedna(models.Model):
         Pravidla pro výběr:
         - Pokud je stav_bedny K_EXPEDICI nebo EXPEDOVANO, nabídne pouze aktuální stav (zinkování už nejde měnit).
         - Pokud je zinkovat nezadáno, nabídne nezadáno, nezinkovat, k zinkování.
-        - Pokud je zinkovat nezinkovat, nabídne nezinkovat a nezadáno.
+        - Pokud je zinkovat nezinkovat, nabídne nezadáno, k_zinkovani a nezinkovat.
         - Pokud je zinkovat k zinkování, nabídne nezadano, nezinkovat, k zinkování a na zinkování.
         - Pokud je zinkovat na zinkování, nabídne k zinkování, na zinkování, po zinkování a uvolněno.
         - Pokud je zinkovat po zinkování, nabídne na zinkování, po zinkování a uvolněno.
@@ -1261,8 +1262,9 @@ class Bedna(models.Model):
             )]
         if curr == ZinkovaniChoice.NEZINKOVAT:
             return [choice for choice in ZinkovaniChoice.choices if choice[0] in (
-                ZinkovaniChoice.NEZINKOVAT,
                 ZinkovaniChoice.NEZADANO,
+                ZinkovaniChoice.K_ZINKOVANI,
+                ZinkovaniChoice.NEZINKOVAT,
             )]
         if curr == ZinkovaniChoice.K_ZINKOVANI:
             return [choice for choice in ZinkovaniChoice.choices if choice[0] in (
