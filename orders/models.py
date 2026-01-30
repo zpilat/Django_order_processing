@@ -1243,7 +1243,7 @@ class Bedna(models.Model):
         - Pokud je stav_bedny K_EXPEDICI nebo EXPEDOVANO, nabídne pouze aktuální stav (zinkování už nejde měnit).
         - Pokud je zinkovat nezadáno, nabídne nezadáno, nezinkovat, k zinkování.
         - Pokud je zinkovat nezinkovat, nabídne nezinkovat a nezadáno.
-        - Pokud je zinkovat k zinkování, nabídne nezinkovat, k zinkování a na zinkování.
+        - Pokud je zinkovat k zinkování, nabídne nezadano, nezinkovat, k zinkování a na zinkování.
         - Pokud je zinkovat na zinkování, nabídne k zinkování, na zinkování, po zinkování a uvolněno.
         - Pokud je zinkovat po zinkování, nabídne na zinkování, po zinkování a uvolněno.
         - Pokud je zinkovat uvolněno, nabídne po zinkování a uvolněno.
@@ -1266,6 +1266,7 @@ class Bedna(models.Model):
             )]
         if curr == ZinkovaniChoice.K_ZINKOVANI:
             return [choice for choice in ZinkovaniChoice.choices if choice[0] in (
+                ZinkovaniChoice.NEZADANO,
                 ZinkovaniChoice.NEZINKOVAT,
                 ZinkovaniChoice.K_ZINKOVANI,
                 ZinkovaniChoice.NA_ZINKOVANI,
