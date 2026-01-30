@@ -2364,7 +2364,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         
         if stav_filter == StavBednyChoice.NEPRIJATO:
             if request.user.has_perm('orders.change_neprijata_bedna'):
-                editable = ['behalter_nr', 'stav_bedny', 'tryskat', 'rovnat', 'hmotnost', 'tara', 'poznamka', 'mnozstvi']
+                editable = ['stav_bedny', 'tryskat', 'rovnat', 'hmotnost', 'tara', 'poznamka', 'mnozstvi']
             elif request.user.has_perm('orders.change_poznamka_neprijata_bedna'):
                 return ['poznamka']
             else:

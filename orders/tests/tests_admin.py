@@ -253,6 +253,53 @@ class KamionAdminTests(AdminBase):
         self.assertEqual(Zakazka.objects.count(), zak_before + 2)
         self.assertEqual(Bedna.objects.count(), bedna_before + 2)
 
+    def test_import_view_eur_orders_bedny_sorted_by_numeric_behalter(self):
+        url = f'/admin/orders/kamion/import-zakazek/?kamion={self.kamion.pk}'
+        file_mock = SimpleUploadedFile('eur.xlsx', b'fake', content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        valid_req = self.get_request('post', data={'file': file_mock}, path=url)
+        valid_req.FILES['file'] = file_mock
+        valid_req.session = {}
+        valid_req._messages = FallbackStorage(valid_req)
+
+        # Předpoklady pro EUR strategii
+        predpis_column_name = 'n. Zg. / \n' 'as drg'
+        predpis_import = Predpis.objects.create(nazev='00123_Ø10', skupina=1, zakaznik=self.zakaznik)
+        TypHlavy.objects.get_or_create(nazev='TK', defaults={'popis': 'Test'})
+
+        import pandas as pandas_mod
+        df = pandas_mod.DataFrame({
+            'Abhol- datum': ['2024-01-01'] * 5,
+            'Unnamed: 7': ['10 x 50'] * 5,
+            'Bezeichnung': [f'desc {i}' for i in range(5)],
+            'Sonder / Zusatzinfo': [''] * 5,
+            'Artikel- nummer': ['A1'] * 5,
+            predpis_column_name: ['123'] * 5,
+            'Material- charge': ['M1'] * 5,
+            'Material': ['steel'] * 5,
+            'Ober- fläche': ['ZP'] * 5,
+            'Gewicht in kg': [1] * 5,
+            'Gew.': [1] * 5,
+            'Tara kg': [1] * 5,
+            'Behälter-Nr.:': [157, '304-B', '27', '505A', '754'],
+            'Lief.': ['L1'] * 5,
+            'Fertigungs- auftrags Nr.': [f'F{i}' for i in range(5)],
+            'Unnamed: 6': ['TK'] * 5,
+        })
+
+        existing_ids = set(Bedna.objects.values_list('id', flat=True))
+
+        with patch('orders.admin.pd.read_excel', return_value=df):
+            resp = self.admin.import_view(valid_req)
+
+        self.assertEqual(resp.status_code, 302)
+
+        new_bedny = list(
+            Bedna.objects.exclude(id__in=existing_ids)
+            .order_by('id')
+            .values_list('behalter_nr', flat=True)
+        )
+        self.assertEqual(new_bedny, ['27', '157', '304-B', '505A', '754'])
+
     def test_save_formset_creates_bedny(self):
         admin_form = type('F', (), {'instance': self.kamion})()
 
@@ -740,7 +787,7 @@ class BednaAdminTests(AdminBase):
         req.user.user_permissions.add(Permission.objects.get(codename='change_neprijata_bedna'))
         req.user = get_user_model().objects.get(pk=req.user.pk)
         editable = self.admin.get_list_editable(req)
-        self.assertEqual(editable, ['behalter_nr','stav_bedny', 'tryskat', 'rovnat', 'hmotnost', 'tara', 'poznamka', 'mnozstvi'])
+        self.assertEqual(editable, ['stav_bedny', 'tryskat', 'rovnat', 'hmotnost', 'tara', 'poznamka', 'mnozstvi'])
 
     def test_get_readonly_fields_neprijato_poznamka_only(self):
         """Při oprávnění jen na poznámku jsou ostatní pole readonly."""
