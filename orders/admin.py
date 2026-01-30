@@ -1930,7 +1930,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     # Parametry pro zobrazení seznamu v administraci
     list_display = (
         'get_cislo_bedny', 'behalter_nr', 'get_poradi_bedny_v_zakazce', 'zakazka_link', 'get_zakaznik_zkratka', 'kamion_prijem_link',
-        'kamion_vydej_link', 'stav_bedny', 'rovnat', 'tryskat', 'get_prumer', 'get_delka_int','get_skupina_TZ',
+        'kamion_vydej_link', 'stav_bedny', 'rovnat', 'tryskat', 'zinkovat', 'get_prumer', 'get_delka_int','get_skupina_TZ',
         'get_typ_hlavy', 'get_celozavit', 'get_zkraceny_popis', 'hmotnost', 'tara', 'get_hmotnost_brutto',
         'mnozstvi', 'pozice', 'get_priorita', 'get_datum_prijem', 'get_datum_vydej', 'get_postup', 'cena_za_kg', 'poznamka',
         )
@@ -2270,7 +2270,7 @@ class BednaAdmin(SimpleHistoryAdmin):
                 'hmotnost', 'tara', 'brutto', 'mnozstvi'
             )),
             ("Stavy bedny", (
-                'stav_bedny', 'tryskat', 'rovnat', 'pozastaveno', 'fakturovat'
+                'stav_bedny', 'tryskat', 'rovnat', 'zinkovat', 'pozastaveno', 'fakturovat'
             )),
             ("K navezení", (
                 'pozice', 'poznamka_k_navezeni'
@@ -2345,39 +2345,53 @@ class BednaAdmin(SimpleHistoryAdmin):
     def get_list_editable(self, request):
         """
         Dynamicky určí, která pole jsou inline-editovatelná v changelistu.
+        Standarně jsou editovatelná pole: stav_bedny, tryskat, rovnát, zinkovat, hmotnost, tara, poznamka.
         Podmínky (podle původní logiky/testů):
         - Pokud je zařízení mobil => žádná inline editace.
         - Pokud je filtr stav_bedny = StavBednyChoice.EXPEDOVANO nebo pozastaveno=True => žádná inline editace.
-        - Pokud je filtr stav_bedny = StavBednyChoice.NEPRIJATO a uživatel nemá oprávnění change_neprijata_bedna ani change_poznamka_neprijata_bedna => žádná inline editace.
-        - Jinak standardně: stav_bedny, tryskat, rovnat, hmotnost, poznamka.
+        - Pokud je filtr stav_bedny = StavBednyChoice.NEPRIJATO a uživatel nemá oprávnění
+          change_neprijata_bedna ani change_poznamka_neprijata_bedna => žádná inline editace.
         - Pokud je stav_bedny == StavBednyChoice.NEPRIJATO a uživatel má oprávnění change_neprijata_bedna, přidá se i mnozstvi.
-        - Pokud je stav_bedny == StavBednyChoice.NEPRIJATO a uživatel má jen change_poznamka_neprijata_bedna, zůstane editovatelná pouze poznamka.
+        - Pokud je stav_bedny == StavBednyChoice.NEPRIJATO a uživatel má jen change_poznamka_neprijata_bedna,
+          zůstane editovatelná pouze poznamka.
         - Pokud je stav_bedny v STAV_BEDNY_PRO_NAVEZENI, přidá se i pozice.
+        - Pokud není stav_bedny == StavBednyChoice.ZKONTROLOVANO, odebere se zinkovat.
+        - Pokud je stav_bedny == StavBednyChoice.K_EXPEDICI, odebere se hmotnost, rovnat, tryskat.
         """
+        editable = ['stav_bedny', 'tryskat', 'rovnat', 'zinkovat', 'hmotnost', 'tara', 'poznamka']
+
         if get_user_agent(request).is_mobile:
             return []
 
         stav_filter = request.GET.get('stav_bedny')
+        pozastaveno_filter = request.GET.get('pozastaveno')
 
-        if stav_filter == StavBednyChoice.EXPEDOVANO or request.GET.get('pozastaveno') == 'True':
+        if stav_filter == StavBednyChoice.EXPEDOVANO or pozastaveno_filter == 'True':
             return []
         
         if stav_filter == StavBednyChoice.NEPRIJATO:
             if request.user.has_perm('orders.change_neprijata_bedna'):
-                editable = ['behalter_nr', 'stav_bedny', 'tryskat', 'rovnat', 'hmotnost', 'tara', 'poznamka', 'mnozstvi']
+                editable.append('mnozstvi')
+                return editable
             elif request.user.has_perm('orders.change_poznamka_neprijata_bedna'):
                 return ['poznamka']
             else:
                 return []
-        else:
-            editable = ['stav_bedny', 'tryskat', 'rovnat', 'hmotnost', 'tara', 'poznamka']
 
         if stav_filter in STAV_BEDNY_PRO_NAVEZENI:
             editable.append('pozice')
 
+        if stav_filter != StavBednyChoice.ZKONTROLOVANO:
+            if 'zinkovat' in editable:
+                editable.remove('zinkovat')
+
         if stav_filter == StavBednyChoice.K_EXPEDICI:
             if 'hmotnost' in editable:
-                editable.remove('hmotnost') 
+                editable.remove('hmotnost')
+            if 'rovnat' in editable:
+                editable.remove('rovnat')
+            if 'tryskat' in editable:
+                editable.remove('tryskat')
 
         return editable
 
@@ -2476,9 +2490,11 @@ class BednaAdmin(SimpleHistoryAdmin):
         jinak get_datum_prijem.
         Pokud není filtr stav bedny v STAV_BEDNY_PRO_NAVEZENI, vyloučí se zobrazení sloupce pozice.
         Pokud není filtr stav bedny == Neprijato, vyloučí se zobrazení sloupce mnozstvi a tara.
+        Pokud není filtr stav bedny == Zkontrolované nebo Nepřijato, vyloučí se zobrazení sloupce zinkovat. 
         Pokud není filtr stav bedny == K_expedici, vyloučí se zobrazení sloupce cena_za_kg a hmotnost_brutto.
-        Pokud není filtr stav bedny == Prijato nebo K_expedici, vyloučí se sloupce get_zakaznik_zkratka a get_poradi_bedny_v_zakazce,
-        jinak kamion_prijem_link.
+        Pokud není filtr stav bedny == Neprijato, Prijato, Zkontrolováno nebo K_expedici,
+        vyloučí se sloupce get_zakaznik_zkratka, jinak kamion_prijem_link.
+        Pokud není filtr stav bedny == Prijato nebo K_expedici, vyloučí se sloupec get_poradi_bedny_v_zakazce.
         """
         list_display = list(super().get_list_display(request))
         stav_bedny = request.GET.get('stav_bedny', None)
@@ -2505,19 +2521,23 @@ class BednaAdmin(SimpleHistoryAdmin):
                 list_display.remove('mnozstvi')
             if 'tara' in list_display:
                 list_display.remove('tara')
+        if stav_bedny not in [StavBednyChoice.NEPRIJATO, StavBednyChoice.ZKONTROLOVANO]:
+            if 'zinkovat' in list_display:
+                list_display.remove('zinkovat')        
         if stav_bedny != StavBednyChoice.K_EXPEDICI:
             if 'cena_za_kg' in list_display:
                 list_display.remove('cena_za_kg')
             if 'get_hmotnost_brutto' in list_display:
                 list_display.remove('get_hmotnost_brutto')
-        if stav_bedny not in [StavBednyChoice.PRIJATO, StavBednyChoice.K_EXPEDICI]:
-            if 'get_poradi_bedny_v_zakazce' in list_display:
-                list_display.remove('get_poradi_bedny_v_zakazce')
+        if stav_bedny not in [StavBednyChoice.NEPRIJATO, StavBednyChoice.PRIJATO, StavBednyChoice.ZKONTROLOVANO, StavBednyChoice.K_EXPEDICI]:
             if 'get_zakaznik_zkratka' in list_display:
                 list_display.remove('get_zakaznik_zkratka')                
         else:
             if 'kamion_prijem_link' in list_display:
                 list_display.remove('kamion_prijem_link')
+        if stav_bedny not in [StavBednyChoice.PRIJATO, StavBednyChoice.K_EXPEDICI]:
+            if 'get_poradi_bedny_v_zakazce' in list_display:
+                list_display.remove('get_poradi_bedny_v_zakazce')
         
         return list_display
     

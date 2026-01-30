@@ -189,8 +189,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Increase maximum number of form fields accepted in a single request
 # to allow saving larger changelists (e.g. many formset rows).
-# Default Django value is 1000; adjust here to 1500 per request.
-DATA_UPLOAD_MAX_NUMBER_FIELDS = 1500
+# Default Django value is 1000; adjust here to 2000 per request.
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 2000
 
 # Logging
 if DEBUG:

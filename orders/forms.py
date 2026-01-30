@@ -5,7 +5,7 @@ from django.utils import timezone
 from decimal import Decimal, ROUND_HALF_UP
 
 from .models import Zakaznik, Kamion, Zakazka, Bedna, Predpis, Odberatel, Pozice
-from .choices import StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice
+from .choices import StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice, ZinkovaniChoice
 
 import logging
 logger = logging.getLogger('orders')
@@ -160,17 +160,18 @@ class BednaAdminForm(forms.ModelForm):
     """
     Formulář pro model Bedna v Django Adminu. Použití v detailu bedny i v inline bedny.
 
-    Omezuje výběr stavu bedny polí stav_bedny, tryskani a rovnani podle pravidel
+    Omezuje výběr stavu bedny polí stav_bedny, tryskani, rovnani a zinkovat podle pravidel
     v modelu Bedna v metodách `get_allowed_xxxxx_choices`):
 
     1. NOVÁ instance (bez PK):
        - Pro stav_bedny nabídne všechny stavy kromě EXPEDOVANO a nastaví `initial` na hodnotu `NEPRIJATO`.
        - Pro tryskat nabídne všechny hodnoty a nastaví `initial` na hodnotu `NEZADANO`.
        - Pro rovnat nabídne všechny hodnoty a nastaví `initial` na hodnotu `NEZADANO`.
+       - Pro zinkovat nabídne všechny hodnoty a nastaví `initial` zatím na hodnotu NEZINKOVAT, po rozjezdu externího zinkování `NEZADANO`.
 
     2. EXISTUJÍCÍ instance:
        - Pro stav_bedny nabídne všechny možné stavy, které jsou povoleny pro danou bednu a nastaví `initial` na aktuální stav.
-       - Pro tryskat a rovnat nabídne všechny možné stavy, které jsou povoleny pro danou bednu a nastaví `initial` na aktuální stav.
+       - Pro tryskat, rovnat a zinkovat nabídne všechny možné stavy, které jsou povoleny pro danou bednu a nastaví `initial` na aktuální stav.
 
     Omezuje jak při tvorbě, tak při změně výběr zakázky na ty zakázky, které ještě nejsou expedované.
     """
@@ -201,6 +202,7 @@ class BednaAdminForm(forms.ModelForm):
         field_stav_bedny = self.fields.get("stav_bedny")
         field_tryskat = self.fields.get("tryskat")
         field_rovnat = self.fields.get("rovnat")
+        field_zinkovat = self.fields.get("zinkovat")
 
         # nová bedna
         if not self.instance or not self.instance.pk:
@@ -213,6 +215,9 @@ class BednaAdminForm(forms.ModelForm):
                 field_tryskat.initial = TryskaniChoice.NEZADANO
             if field_rovnat:
                 field_rovnat.initial = RovnaniChoice.NEZADANO
+            if field_zinkovat:
+                field_zinkovat.initial = ZinkovaniChoice.NEZINKOVAT  # zatím NEZINKOVAT, po rozjezdu externího zinkování NEZADANO
+            
 
         # editace: vrátí dle logiky v modelu v případě, že existují příslušná pole
         else:
@@ -227,6 +232,10 @@ class BednaAdminForm(forms.ModelForm):
             if field_rovnat:
                 field_rovnat.choices = self.instance.get_allowed_rovnat_choices()
                 field_rovnat.initial = self.instance.rovnat
+
+            if field_zinkovat:
+                field_zinkovat.choices = self.instance.get_allowed_zinkovat_choices()
+                field_zinkovat.initial = self.instance.zinkovat
 
         if 'zakazka' in self.fields:
             # Nastavení querysetu pro pole 'zakazka' na zakázky, které nejsou expedované
@@ -278,7 +287,7 @@ class BednaChangeListForm(forms.ModelForm):
     v modelu Bedna v metodách `get_allowed_xxxxx_choices`):
 
        - Pro stav_bedny nabídne všechny možné stavy, které jsou povoleny pro danou bednu a nastaví `initial` na aktuální stav.
-       - Pro tryskat a rovnat nabídne všechny možné stavy, které jsou povoleny pro danou bednu a nastaví `initial` na aktuální stav.
+       - Pro tryskat, rovnat a zinkovat nabídne všechny možné stavy, které jsou povoleny pro danou bednu a nastaví `initial` na aktuální stav.
     """
     class Meta:
         model = Bedna
@@ -295,6 +304,7 @@ class BednaChangeListForm(forms.ModelForm):
         field_stav_bedny = self.fields.get("stav_bedny")
         field_tryskat = self.fields.get("tryskat")
         field_rovnat = self.fields.get("rovnat")
+        field_zinkovat = self.fields.get("zinkovat")
 
         # V changelistu vždy pouze editace: vrátí dle logiky v modelu v případě, že existují příslušná pole
         if field_stav_bedny:
@@ -308,6 +318,10 @@ class BednaChangeListForm(forms.ModelForm):
         if field_rovnat:
             field_rovnat.choices = self.instance.get_allowed_rovnat_choices()
             field_rovnat.initial = self.instance.rovnat
+
+        if field_zinkovat:
+            field_zinkovat.choices = self.instance.get_allowed_zinkovat_choices()
+            field_zinkovat.initial = self.instance.zinkovat
 
 
 class VyberKamionVydejForm(forms.Form):
