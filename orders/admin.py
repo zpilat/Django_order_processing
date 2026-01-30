@@ -1938,8 +1938,8 @@ class BednaAdmin(SimpleHistoryAdmin):
     list_display_links = ('get_cislo_bedny', )
     list_select_related = ("zakazka", "zakazka__kamion_prijem", "zakazka__kamion_vydej")
     list_per_page = 50
-    search_fields = ('cislo_bedny', 'behalter_nr', 'zakazka__artikl',)
-    search_help_text = "Dle čísla bedny, č.b. zákazníka nebo zakázky"
+    search_fields = ('cislo_bedny', 'behalter_nr', 'zakazka__artikl', 'zakazka__popis')
+    search_help_text = "Dle čísla bedny, č.b. zákazníka, zakázky a popisu zakázky"
     list_filter = (ZakaznikBednyFilter, StavBednyFilter, TryskaniFilter, RovnaniFilter, SkupinaFilter, DelkaFilter,
                    CelozavitBednyFilter, TypHlavyBednyFilter, PrioritaBednyFilter, PozastavenoFilter,)
     ordering = ('id',)
