@@ -52,7 +52,7 @@ from .filters import (
     SklademZakazkaFilter, StavBednyFilter, KompletZakazkaFilter, AktivniPredpisFilter, SkupinaFilter, ZakaznikBednyFilter,
     ZakaznikZakazkyFilter, ZakaznikKamionuFilter, PrijemVydejFilter, TryskaniFilter, RovnaniFilter, PrioritaBednyFilter, PrioritaZakazkyFilter,
     OberflacheFilter, TypHlavyBednyFilter, TypHlavyZakazkyFilter, CelozavitBednyFilter, CelozavitZakazkyFilter, DelkaFilter, PozastavenoFilter,
-    OdberatelFilter, ZakaznikPredpisFilter
+    OdberatelFilter, ZakaznikPredpisFilter, ZinkovaniFilter
 )
 from .forms import (
     BednaAdminForm,
@@ -1940,8 +1940,10 @@ class BednaAdmin(SimpleHistoryAdmin):
     list_per_page = 50
     search_fields = ('cislo_bedny', 'behalter_nr', 'zakazka__artikl',)
     search_help_text = "Dle čísla bedny, č.b. zákazníka nebo zakázky"
-    list_filter = (ZakaznikBednyFilter, StavBednyFilter, TryskaniFilter, RovnaniFilter, SkupinaFilter, DelkaFilter,
-                   CelozavitBednyFilter, TypHlavyBednyFilter, PrioritaBednyFilter, PozastavenoFilter,)
+    list_filter = (
+        ZakaznikBednyFilter, StavBednyFilter, TryskaniFilter, RovnaniFilter, ZinkovaniFilter, SkupinaFilter,
+        DelkaFilter, CelozavitBednyFilter, TypHlavyBednyFilter, PrioritaBednyFilter, PozastavenoFilter,
+        )
     ordering = ('id',)
     # Výchozí date_hierarchy pro povolení lookupů; skutečně se přepíná dynamicky v get_date_hierarchy
     date_hierarchy = 'zakazka__kamion_prijem__datum'
@@ -2365,6 +2367,7 @@ class BednaAdmin(SimpleHistoryAdmin):
 
         stav_filter = request.GET.get('stav_bedny')
         pozastaveno_filter = request.GET.get('pozastaveno')
+        zinkovani_aktivni_filter = request.GET.get('zinkovani', None) is not None
 
         if stav_filter == StavBednyChoice.EXPEDOVANO or pozastaveno_filter == 'True':
             return []
@@ -2381,7 +2384,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         if stav_filter in STAV_BEDNY_PRO_NAVEZENI:
             editable.append('pozice')
 
-        if stav_filter != StavBednyChoice.ZKONTROLOVANO:
+        if stav_filter != StavBednyChoice.ZKONTROLOVANO and not zinkovani_aktivni_filter:
             if 'zinkovat' in editable:
                 editable.remove('zinkovat')
 
@@ -2490,14 +2493,17 @@ class BednaAdmin(SimpleHistoryAdmin):
         jinak get_datum_prijem.
         Pokud není filtr stav bedny v STAV_BEDNY_PRO_NAVEZENI, vyloučí se zobrazení sloupce pozice.
         Pokud není filtr stav bedny == Neprijato, vyloučí se zobrazení sloupce mnozstvi a tara.
-        Pokud není filtr stav bedny == Zkontrolované nebo Nepřijato, vyloučí se zobrazení sloupce zinkovat. 
+        Pokud není filtr stav bedny == Zkontrolované nebo Nepřijato a není aktivní filtr zinkovani,
+        vyloučí se zobrazení sloupce zinkovat. 
         Pokud není filtr stav bedny == K_expedici, vyloučí se zobrazení sloupce cena_za_kg a hmotnost_brutto.
         Pokud není filtr stav bedny == Neprijato, Prijato, Zkontrolováno nebo K_expedici,
         vyloučí se sloupce get_zakaznik_zkratka, jinak kamion_prijem_link.
         Pokud není filtr stav bedny == Prijato nebo K_expedici, vyloučí se sloupec get_poradi_bedny_v_zakazce.
+        Pokud je aktivní filtr zinkovani a není sloupec zinkovani v list_display, přidá se sloupec zinkovani.
         """
         list_display = list(super().get_list_display(request))
         stav_bedny = request.GET.get('stav_bedny', None)
+        zinkovani_aktivni_filter = request.GET.get('zinkovani', None) != None
 
         # Podmínky pro odstranění sloupců z list_display
         if get_user_agent(request).is_mobile:
@@ -2521,7 +2527,7 @@ class BednaAdmin(SimpleHistoryAdmin):
                 list_display.remove('mnozstvi')
             if 'tara' in list_display:
                 list_display.remove('tara')
-        if stav_bedny not in [StavBednyChoice.NEPRIJATO, StavBednyChoice.ZKONTROLOVANO]:
+        if stav_bedny not in [StavBednyChoice.NEPRIJATO, StavBednyChoice.ZKONTROLOVANO] and not zinkovani_aktivni_filter:
             if 'zinkovat' in list_display:
                 list_display.remove('zinkovat')        
         if stav_bedny != StavBednyChoice.K_EXPEDICI:
@@ -2529,7 +2535,8 @@ class BednaAdmin(SimpleHistoryAdmin):
                 list_display.remove('cena_za_kg')
             if 'get_hmotnost_brutto' in list_display:
                 list_display.remove('get_hmotnost_brutto')
-        if stav_bedny not in [StavBednyChoice.NEPRIJATO, StavBednyChoice.PRIJATO, StavBednyChoice.ZKONTROLOVANO, StavBednyChoice.K_EXPEDICI]:
+        if stav_bedny not in [StavBednyChoice.NEPRIJATO, StavBednyChoice.PRIJATO,
+                              StavBednyChoice.ZKONTROLOVANO, StavBednyChoice.K_EXPEDICI] and not zinkovani_aktivni_filter:
             if 'get_zakaznik_zkratka' in list_display:
                 list_display.remove('get_zakaznik_zkratka')                
         else:
@@ -2547,7 +2554,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         Pokud není vůbec aktivní filtr stav bedny, zruší se filtr DelkaFilter, TypHlavyBednyFilter a CelozavitBednyFilter,
         pokud není aktivní filtr stav bedny PRIJATO, zruší se filtr DelkaFilter,
         SkupinaFilter, TypHlavyBednyFilter a CelozavitBednyFilter,
-        jinak se zruší filtry TryskaniFilter, RovnaniFilter a PozastavenoFilter.
+        jinak se zruší filtry TryskaniFilter, RovnaniFilter, ZinkovaniFilter a PozastavenoFilter.
         """
         actual_filters = super().get_list_filter(request)
         filters_to_remove = []
@@ -2556,7 +2563,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         elif request.GET.get('stav_bedny', None) != StavBednyChoice.PRIJATO:
             filters_to_remove.extend([DelkaFilter, SkupinaFilter, TypHlavyBednyFilter, CelozavitBednyFilter])
         else:
-            filters_to_remove.extend([TryskaniFilter, RovnaniFilter, PozastavenoFilter])
+            filters_to_remove.extend([TryskaniFilter, RovnaniFilter, ZinkovaniFilter, PozastavenoFilter])
         return [f for f in actual_filters if f not in filters_to_remove]
 
     def get_actions(self, request):

@@ -8,7 +8,7 @@ from decimal import Decimal, InvalidOperation
 
 from .models import Zakazka, Bedna, Zakaznik, Kamion, TypHlavy, Predpis, Odberatel
 from .choices import (
-    StavBednyChoice, TryskaniChoice, RovnaniChoice, PrioritaChoice, PrijemVydejChoice, SklademZakazkyChoice,
+    StavBednyChoice, TryskaniChoice, RovnaniChoice, ZinkovaniChoice, PrioritaChoice, PrijemVydejChoice, SklademZakazkyChoice,
     STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM,
 )
 
@@ -262,6 +262,33 @@ class RovnaniFilter(DynamicTitleFilter):
         if value == 'hotovo':
             return queryset.filter(rovnat__in=(RovnaniChoice.ROVNA, RovnaniChoice.VYROVNANA))
         return queryset.filter(rovnat=value)
+    
+
+class ZinkovaniFilter(DynamicTitleFilter):
+    """
+    Filtrovat bedny podle stavu zinkování.
+    """
+    title = "Zinkování"
+    parameter_name = "zinkovani"
+
+    def __init__(self, request, params, model, model_admin):
+        self.label_dict = {**dict(ZinkovaniChoice.choices)}
+        self.label_dict.pop(ZinkovaniChoice.NEZINKOVAT)  # Odstraní Nezinkovat z možností filtru
+        self.label_dict.pop(ZinkovaniChoice.UVOLNENO)  # Odstraní Uvolněno z možností filtru
+        self.label_dict[ZinkovaniChoice.NEZADANO] = 'Nezadáno'
+        self.label_dict['hotovo'] = 'Nezinkovat & Uvolněno'
+        super().__init__(request, params, model, model_admin)
+
+    def lookups(self, request, model_admin):
+        return [(k, v) for k, v in self.label_dict.items()]
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if value is None:
+            return queryset
+        if value == 'hotovo':
+            return queryset.filter(zinkovat__in=(ZinkovaniChoice.NEZINKOVAT, ZinkovaniChoice.UVOLNENO))
+        return queryset.filter(zinkovat=value)
 
 
 class PrioritaBednyFilter(DynamicTitleFilter):
