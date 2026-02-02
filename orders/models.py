@@ -1063,13 +1063,14 @@ class Bedna(models.Model):
         """
         Validace stavu bedny a tryskání/rovnání/zinkování.
         - Pokud je stav bedny K_EXPEDICI nebo EXPEDOVANO, musí být tryskání buď Čistá nebo Otryskaná,
-          rovnání buď Rovná nebo Vyrovnaná a zinkování buď Nezinkovat nebo Zkontrolováno po zinkování.
+          rovnání buď Rovná nebo Vyrovnaná a zinkování buď Nezinkovat nebo Uvolněno (po zinkování).
         - Pokud je stav bedny K_NAVEZENI nebo NAVEZENO, musí být zadána pozice.
-        - Pokud stav bedny jakýkoliv jiný než NEPRIJATO, musí být zadána hmotnost, tára a množství a tyto nesmí být nula.
+        - Pokud je stav bedny jakýkoliv jiný než NEPRIJATO, musí být zadána hmotnost, tára a množství a tyto nesmí být nula.
+        - Pokud je zinkovat NA_ZINKOVANI, musí být stav bedny ZKONTROLOVANO.
         """
         super().clean()    
         if self.stav_bedny in [StavBednyChoice.K_EXPEDICI, StavBednyChoice.EXPEDOVANO]:
-            text = _("Pro zadání stavu 'K expedici' nebo 'Expedováno' musí být tryskání buď Čistá nebo Otryskaná, rovnání buď Rovná nebo Vyrovnaná a zinkování buď Nezinkovat nebo Zkontrolováno po zinkování.")
+            text = _("Pro zadání stavu 'K expedici' nebo 'Expedováno' musí být tryskání buď Čistá nebo Otryskaná, rovnání buď Rovná nebo Vyrovnaná a zinkování buď Nezinkovat nebo Uvolněno (po zinkování).")
             if self.tryskat not in [TryskaniChoice.CISTA, TryskaniChoice.OTRYSKANA]:
                 logger.warning(f'Uzivatel se pokusil uložit bednu ve stavu {self.stav_bedny} s neplatným stavem tryskání: {self.tryskat}')
                 raise ValidationError(text)
@@ -1096,6 +1097,10 @@ class Bedna(models.Model):
             if warning_list:
                 logger.warning(f'Uživatel se pokusil uložit bednu ve stavu {self.stav_bedny} s neplatnými hodnotami: {", ".join(warning_list)}.')
                 raise ValidationError(_(f'V jiném stavu než "NEPŘIJATO" nelze uložit bednu bez hmotnosti, táry a množství: {", ".join(warning_list)}.'))
+        
+        if self.zinkovat == ZinkovaniChoice.NA_ZINKOVANI and self.stav_bedny != StavBednyChoice.ZKONTROLOVANO:
+            logger.warning(f'Uživatel se pokusil uložit bednu se zinkováním NA_ZINKOVANI ve stavu {self.stav_bedny}, což není povoleno.')
+            raise ValidationError(_("Při změně zinkování na 'Na zinkování' musí být stav bedny 'Zkontrolováno'."))
 
     def save(self, *args, **kwargs):
         """
