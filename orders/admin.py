@@ -1454,7 +1454,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     readonly_fields = ('expedovano', 'get_komplet',)
     
     # Parametry pro zobrazení seznamu v administraci
-    list_display = ('artikl', 'get_datum', 'kamion_prijem_link', 'kamion_vydej_link', 'get_prumer', 'get_delka_int', 'predpis_link',
+    list_display = ('artikl', 'get_datum_prijem', 'kamion_prijem_link', 'kamion_vydej_link', 'get_prumer', 'get_delka_int', 'predpis_link',
                     'typ_hlavy_link', 'get_skupina_TZ', 'get_celozavit', 'get_zkraceny_popis', 'priorita', 'get_odberatel',
                     'hmotnost_zakazky_k_expedici_brutto', 'pocet_beden_k_expedici', 'celkovy_pocet_beden', 'get_komplet',)
     list_display_links = ('artikl',)
@@ -1465,6 +1465,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     list_filter = (ZakaznikZakazkyFilter, SklademZakazkaFilter, OdberatelFilter, KompletZakazkaFilter, PrioritaZakazkyFilter,
                    CelozavitZakazkyFilter, TypHlavyZakazkyFilter,)
     ordering = ('id',)
+    # Výchozí date_hierarchy pro povolení lookupů; skutečně se přepíná dynamicky v get_date_hierarchy
     date_hierarchy = 'kamion_prijem__datum'
     list_per_page = 25
     formfield_overrides = {
@@ -1576,17 +1577,27 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
         Pokud není průměr připojen, vrátí prázdný řetězec.
         """
         if obj.prumer is not None:
-            return obj.prumer
+            return mark_safe(f'<strong>{obj.prumer}</strong>')
         return '-'
         
-    @admin.display(description='Datum', ordering='kamion_prijem__datum', empty_value='-')
-    def get_datum(self, obj):
+    @admin.display(description='Dat. příjem', ordering='kamion_prijem__datum', empty_value='-')
+    def get_datum_prijem(self, obj):
         """
         Zobrazí datum kamionu příjmu, ke kterému zakázka patří, a umožní třídění podle hlavičky pole.
         Pokud není kamion příjmu připojen, vrátí prázdný řetězec.
         """
         if obj.kamion_prijem:
             return obj.kamion_prijem.datum.strftime('%y-%m-%d')
+        return '-'
+
+    @admin.display(description='Dat. výdej', ordering='kamion_vydej__datum', empty_value='-')
+    def get_datum_vydej(self, obj):
+        """
+        Zobrazí datum kamionu výdeje, ke kterému zakázka patří, a umožní třídění podle hlavičky pole.
+        Pokud není kamion výdeje připojen, vrátí prázdný řetězec.
+        """
+        if obj.kamion_vydej:
+            return obj.kamion_vydej.datum.strftime('%y-%m-%d')
         return '-'
 
     @admin.display(description='TZ', ordering='predpis__skupina', empty_value='-')
@@ -1872,12 +1883,61 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
         """
         Přizpůsobení zobrazení sloupců v seznamu zakázek podle aktivního filtru.
         Pokud není aktivní filtr "skladem=SklademZakazkyChoice.EXPEDOVANO", odebere se sloupec kamion_vydej.
+        Pokud je filtr "skladem=SklademZakazkyChoice.EXPEDOVANO", zobrazí se datum výdeje.
         """
         ld = list(super().get_list_display(request))
-        if request.GET.get('skladem') != SklademZakazkyChoice.EXPEDOVANO:
+        skladem = request.GET.get('skladem')
+        if skladem != SklademZakazkyChoice.EXPEDOVANO:
             if 'kamion_vydej_link' in ld:
                 ld.remove('kamion_vydej_link')
+            if 'get_datum_vydej' in ld:
+                index = ld.index('get_datum_vydej')
+                ld[index] = 'get_datum_prijem'
+        else:
+            if 'get_datum_prijem' in ld:
+                index = ld.index('get_datum_prijem')
+                ld[index] = 'get_datum_vydej'
         return ld
+
+    def get_date_hierarchy(self, request):
+        """Dynamicky přepne date_hierarchy podle filtru skladem."""
+        if request is None:
+            return 'kamion_prijem__datum'
+        skladem = request.GET.get('skladem')
+        if skladem == SklademZakazkyChoice.EXPEDOVANO:
+            return 'kamion_vydej__datum'
+        return 'kamion_prijem__datum'
+
+    def lookup_allowed(self, key, value):
+        """Povolí drilldown lookupy pro obě datové hierarchie (příjem/výdej)."""
+        if key.startswith('kamion_prijem__datum__') or key.startswith('kamion_vydej__datum__'):
+            return True
+        return super().lookup_allowed(key, value)
+
+    def get_changelist_instance(self, request):
+        """Použije dynamickou date_hierarchy (z get_date_hierarchy)."""
+        list_display = self.get_list_display(request)
+        list_display_links = self.get_list_display_links(request, list_display)
+        if self.get_actions(request):
+            list_display = ['action_checkbox', *list_display]
+        sortable_by = self.get_sortable_by(request)
+        ChangeList = self.get_changelist(request)
+        return ChangeList(
+            request,
+            self.model,
+            list_display,
+            list_display_links,
+            self.get_list_filter(request),
+            self.get_date_hierarchy(request),
+            self.get_search_fields(request),
+            self.get_list_select_related(request),
+            self.list_per_page,
+            self.list_max_show_all,
+            self.list_editable,
+            self,
+            sortable_by,
+            self.search_help_text,
+        )
 
     def get_list_editable(self, request):
         """
