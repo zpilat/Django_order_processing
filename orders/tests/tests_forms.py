@@ -14,6 +14,7 @@ from orders.choices import (
     StavBednyChoice,
     TryskaniChoice,
     RovnaniChoice,
+    ZinkovaniChoice,
     KamionChoice,
     PrioritaChoice,
 )
@@ -175,11 +176,13 @@ class BednaAdminFormTests(FormsBase):
         self.assertEqual(form_new.fields["stav_bedny"].initial, StavBednyChoice.NEPRIJATO)
         self.assertEqual(form_new.fields["tryskat"].initial, TryskaniChoice.NEZADANO)
         self.assertEqual(form_new.fields["rovnat"].initial, RovnaniChoice.NEZADANO)
+        self.assertEqual(form_new.fields["zinkovat"].initial, ZinkovaniChoice.NEZINKOVAT)
 
         form_existing = BednaAdminForm(instance=self.bedna)
         self.assertEqual(form_existing.fields["stav_bedny"].initial, self.bedna.stav_bedny)
         self.assertEqual(form_existing.fields["tryskat"].initial, self.bedna.tryskat)
         self.assertEqual(form_existing.fields["rovnat"].initial, self.bedna.rovnat)
+        self.assertEqual(form_existing.fields["zinkovat"].initial, self.bedna.zinkovat)
 
     def test_clean_computes_tara_from_brutto(self):
         form = BednaAdminForm(data={
@@ -191,6 +194,7 @@ class BednaAdminFormTests(FormsBase):
             "brutto": "3.1",
             "tryskat": TryskaniChoice.NEZADANO,
             "rovnat": RovnaniChoice.NEZADANO,
+            "zinkovat": ZinkovaniChoice.NEZINKOVAT,
         })
         self.assertTrue(form.is_valid())
         self.assertEqual(form.cleaned_data["tara"], Decimal("1.1"))
@@ -205,6 +209,7 @@ class BednaAdminFormTests(FormsBase):
             "brutto": "3.0",
             "tryskat": TryskaniChoice.NEZADANO,
             "rovnat": RovnaniChoice.NEZADANO,
+            "zinkovat": ZinkovaniChoice.NEZINKOVAT,
         })
         self.assertFalse(form.is_valid())
         self.assertIn("brutto", form.errors)
@@ -219,6 +224,7 @@ class BednaAdminFormTests(FormsBase):
             "brutto": "1.0",
             "tryskat": TryskaniChoice.NEZADANO,
             "rovnat": RovnaniChoice.NEZADANO,
+            "zinkovat": ZinkovaniChoice.NEZINKOVAT,
         })
         self.assertFalse(form.is_valid())
         self.assertIn("hmotnost", form.errors)
@@ -233,6 +239,7 @@ class BednaAdminFormTests(FormsBase):
             "brutto": "2.0",
             "tryskat": TryskaniChoice.NEZADANO,
             "rovnat": RovnaniChoice.NEZADANO,
+            "zinkovat": ZinkovaniChoice.NEZINKOVAT,
         })
         self.assertFalse(form.is_valid())
         self.assertIn("brutto", form.errors)

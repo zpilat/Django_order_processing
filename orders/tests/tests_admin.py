@@ -740,7 +740,7 @@ class BednaAdminTests(AdminBase):
         req.user.user_permissions.add(Permission.objects.get(codename='change_neprijata_bedna'))
         req.user = get_user_model().objects.get(pk=req.user.pk)
         editable = self.admin.get_list_editable(req)
-        self.assertEqual(editable, ['behalter_nr','stav_bedny', 'tryskat', 'rovnat', 'hmotnost', 'tara', 'poznamka', 'mnozstvi'])
+        self.assertEqual(editable, ['stav_bedny', 'tryskat', 'rovnat', 'zinkovat', 'hmotnost', 'tara', 'poznamka', 'mnozstvi'])
 
     def test_get_readonly_fields_neprijato_poznamka_only(self):
         """Při oprávnění jen na poznámku jsou ostatní pole readonly."""
