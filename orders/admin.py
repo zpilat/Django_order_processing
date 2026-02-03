@@ -2437,7 +2437,8 @@ class BednaAdmin(SimpleHistoryAdmin):
         - Pokud je stav_bedny == StavBednyChoice.NEPRIJATO a uživatel má jen change_poznamka_neprijata_bedna,
           zůstane editovatelná pouze poznamka.
         - Pokud je stav_bedny v STAV_BEDNY_PRO_NAVEZENI, přidá se i pozice.
-        - Pokud není stav_bedny == StavBednyChoice.ZKONTROLOVANO, odebere se zinkovat.
+        - Pokud není stav_bedny == StavBednyChoice.ZKONTROLOVANO nebo Rozpracováno nebo není aktivní filtr zinkovani,
+          odebere se zinkovat.
         - Pokud je stav_bedny == StavBednyChoice.K_EXPEDICI, odebere se hmotnost, rovnat, tryskat.
         """
         editable = ['stav_bedny', 'tryskat', 'rovnat', 'zinkovat', 'hmotnost', 'tara', 'poznamka']
@@ -2464,7 +2465,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         if stav_filter in STAV_BEDNY_PRO_NAVEZENI:
             editable.append('pozice')
 
-        if stav_filter != StavBednyChoice.ZKONTROLOVANO and not zinkovani_aktivni_filter:
+        if stav_filter not in [StavBednyChoice.ZKONTROLOVANO, 'RO'] and not zinkovani_aktivni_filter:
             if 'zinkovat' in editable:
                 editable.remove('zinkovat')
 
@@ -2576,10 +2577,10 @@ class BednaAdmin(SimpleHistoryAdmin):
         jinak get_datum_prijem.
         Pokud není filtr stav bedny v STAV_BEDNY_PRO_NAVEZENI, vyloučí se zobrazení sloupce pozice.
         Pokud není filtr stav bedny == Neprijato, vyloučí se zobrazení sloupce mnozstvi a tara.
-        Pokud není filtr stav bedny == Zkontrolované nebo Nepřijato a není aktivní filtr zinkovani,
+        Pokud není filtr stav bedny == Zkontrolované, Nepřijato nebo Rozpracováno a není aktivní filtr zinkovani,
         vyloučí se zobrazení sloupce zinkovat. 
         Pokud není filtr stav bedny == K_expedici, vyloučí se zobrazení sloupce cena_za_kg a hmotnost_brutto.
-        Pokud není filtr stav bedny == Neprijato, Prijato, Zkontrolováno nebo K_expedici,
+        Pokud není filtr stav bedny == Neprijato, Prijato, Zkontrolováno, Rozpracováno nebo K_expedici,
         vyloučí se sloupce get_zakaznik_zkratka, jinak kamion_prijem_link.
         Pokud není filtr stav bedny == Prijato nebo K_expedici, vyloučí se sloupec get_poradi_bedny_v_zakazce.
         Pokud je aktivní filtr zinkovani a není sloupec zinkovani v list_display, přidá se sloupec zinkovani.
@@ -2610,7 +2611,7 @@ class BednaAdmin(SimpleHistoryAdmin):
                 list_display.remove('mnozstvi')
             if 'tara' in list_display:
                 list_display.remove('tara')
-        if stav_bedny not in [StavBednyChoice.NEPRIJATO, StavBednyChoice.ZKONTROLOVANO] and not zinkovani_aktivni_filter:
+        if stav_bedny not in [StavBednyChoice.NEPRIJATO, StavBednyChoice.ZKONTROLOVANO, 'RO'] and not zinkovani_aktivni_filter:
             if 'zinkovat' in list_display:
                 list_display.remove('zinkovat')        
         if stav_bedny != StavBednyChoice.K_EXPEDICI:
@@ -2618,7 +2619,7 @@ class BednaAdmin(SimpleHistoryAdmin):
                 list_display.remove('cena_za_kg')
             if 'get_hmotnost_brutto' in list_display:
                 list_display.remove('get_hmotnost_brutto')
-        if stav_bedny not in [StavBednyChoice.NEPRIJATO, StavBednyChoice.PRIJATO,
+        if stav_bedny not in [StavBednyChoice.NEPRIJATO, StavBednyChoice.PRIJATO, 'RO',
                               StavBednyChoice.ZKONTROLOVANO, StavBednyChoice.K_EXPEDICI] and not zinkovani_aktivni_filter:
             if 'get_zakaznik_zkratka' in list_display:
                 list_display.remove('get_zakaznik_zkratka')                
