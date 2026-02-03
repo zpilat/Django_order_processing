@@ -1305,7 +1305,7 @@ class BednaInline(admin.TabularInline):
     extra = 0
     # další úprava zobrazovaných polí podle různých podmínek je v get_fields
     fields = ('cislo_bedny', 'behalter_nr', 'hmotnost', 'tara', 'brutto', 'mnozstvi', 'material', 'sarze', 'dodatecne_info',
-              'dodavatel_materialu', 'vyrobni_zakazka', 'odfosfatovat', 'stav_bedny', 'tryskat', 'rovnat', 'poznamka',)
+              'dodavatel_materialu', 'vyrobni_zakazka', 'odfosfatovat', 'stav_bedny', 'tryskat', 'rovnat', 'zinkovat', 'poznamka',)
     readonly_fields = ('cislo_bedny',)
     show_change_link = True
     formfield_overrides = {
@@ -1321,18 +1321,23 @@ class BednaInline(admin.TabularInline):
         """
         Přizpůsobení widgetů pro pole v administraci.
         """
+        if db_field.name in ['stav_bedny', 'rovnat', 'tryskat', 'zinkovat']:
+            formfield = super().formfield_for_dbfield(db_field, request, **kwargs)
+            existing = formfield.widget.attrs.get('style', '')
+            formfield.widget.attrs['style'] = (existing + '; font-size: 11px;').strip('; ')
+            return formfield
         if db_field.name == 'dodatecne_info':
-            kwargs['widget'] = TextInput(attrs={
-                'size': '30',
-                'style': 'font-size: 10px;',
-                })  # Změna velikosti pole a velikosti písma pro dodatečné info
-        elif db_field.name == 'poznamka':
-            kwargs['widget'] = TextInput(attrs={
-                'size': '20',
-                'style': 'font-size: 10px;'
-                }) # Změna velikosti pole pro poznámku HPM
-        elif db_field.name == 'dodavatel_materialu':
-            kwargs['widget'] = TextInput(attrs={'size': '4'})  # Změna velikosti pole pro dodavatele materiálu
+            formfield = super().formfield_for_dbfield(db_field, request, **kwargs)
+            formfield.widget.attrs.update({'size': '30', 'style': 'font-size: 10px;'})
+            return formfield
+        if db_field.name == 'poznamka':
+            formfield = super().formfield_for_dbfield(db_field, request, **kwargs)
+            formfield.widget.attrs.update({'size': '20', 'style': 'font-size: 10px;'})
+            return formfield
+        if db_field.name in ['dodavatel_materialu', 'behalter_nr']:
+            formfield = super().formfield_for_dbfield(db_field, request, **kwargs)
+            formfield.widget.attrs.update({'size': '4'})
+            return formfield
 
         if isinstance(db_field, models.ForeignKey):
             # Zruší zobrazení ikon pro ForeignKey pole v administraci, nepřidá RelatedFieldWidgetWrapper.
