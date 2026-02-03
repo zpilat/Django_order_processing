@@ -1107,7 +1107,8 @@ class Bedna(models.Model):
         Uloží instanci Bedna.
         - Pokud se jedná o novou instanci (bez PK):
           * Před uložením nastaví `cislo_bedny` na další číslo v řadě pro daného zákazníka.
-          * Pro zákazníka s příznakem `vse_tryskat` nastaví `tryskat` na `SPINAVA`.
+          * Pro zákazníka s příznakem `vse_tryskat` nastaví `tryskat` na `SPINAVA`, ale pouze
+            pokud je délka bedny menší než 900mm - delší díly se nevlezou do tryskače.
         - Pokud je stav bedny jiný než K_NAVEZENI nebo NAVEZENO, vymaže pozici a poznámku k navezení.
         """
         is_existing_instance = bool(self.pk)
