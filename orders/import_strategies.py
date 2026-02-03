@@ -180,8 +180,24 @@ class EURImportStrategy(BaseImportStrategy):
             'vom Galvanik nach Eurotec',
         ], inplace=True, errors='ignore')
 
-        # Setřídění podle sloupce prumer, delka, predpis, artikl, sarze, behalter_nr
-        df.sort_values(by=['prumer', 'delka', 'predpis', 'artikl', 'sarze', 'behalter_nr'], inplace=True)
+        def _split_behalter(val):
+            if pd.isna(val):
+                return (pd.NA, '')
+            s = str(val).strip()
+            match = re.match(r'^(\d+)(.*)$', s)
+            if match:
+                return (int(match.group(1)), match.group(2).strip())
+            return (pd.NA, s)
+
+        df['behalter_nr'] = df['behalter_nr'].apply(lambda x: str(x).strip() if pd.notna(x) else None)
+        df[['behalter_nr_num', 'behalter_nr_suffix']] = df['behalter_nr'].apply(_split_behalter).apply(pd.Series)
+        df['behalter_nr_num'] = pd.to_numeric(df['behalter_nr_num'], errors='coerce').astype('Int64')
+        df['behalter_nr_suffix'] = df['behalter_nr_suffix'].fillna('').astype(str)
+        df.sort_values(
+            by=['prumer', 'delka', 'predpis', 'artikl', 'sarze', 'behalter_nr_num', 'behalter_nr_suffix'],
+            inplace=True,
+        )
+        df.drop(columns=['behalter_nr_num', 'behalter_nr_suffix'], inplace=True)
         logger.info(f"Uživatel {request.user} úspěšně načetl data z Excel souboru pro import zakázek.")
 
         # Připravení náhledu
@@ -200,10 +216,8 @@ class EURImportStrategy(BaseImportStrategy):
                             datum_fmt = dconv.strftime('%d.%m.%Y')
                 except Exception:
                     datum_fmt = error_values
-            try:
-                beh_nr = int(r.get('behalter_nr')) if pd.notna(r.get('behalter_nr')) else error_values
-            except Exception:
-                beh_nr = error_values
+            beh_raw = r.get('behalter_nr')
+            beh_nr = str(beh_raw).strip() if pd.notna(beh_raw) else error_values
             try:
                 predpis_val = int(r.get('predpis')) if pd.notna(r.get('predpis')) else error_values
             except Exception:
