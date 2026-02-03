@@ -2031,14 +2031,22 @@ class BednaAdmin(SimpleHistoryAdmin):
         ]
         return custom_urls + urls
 
+    def _get_latest_change_marker(self):
+        history_model = Bedna.history.model
+        return history_model.objects.order_by('-history_date', '-history_id').first()
+
     def _get_latest_change_timestamp(self):
-        latest = Bedna.history.aggregate(last=Max('history_date'))['last']
-        return latest
+        latest = self._get_latest_change_marker()
+        return latest.history_date if latest else None
 
     def poll_changes_view(self, request):
-        last_change = self._get_latest_change_timestamp()
+        latest = self._get_latest_change_marker()
+        last_change = latest.history_date if latest else None
+        last_history_id = latest.history_id if latest else None
         since_raw = request.GET.get('since')
+        since_id_raw = request.GET.get('since_id')
         since_value = None
+        since_id = None
 
         if since_raw:
             try:
@@ -2049,18 +2057,25 @@ class BednaAdmin(SimpleHistoryAdmin):
             except ValueError:
                 since_value = None
 
+        if since_id_raw:
+            try:
+                since_id = int(since_id_raw)
+            except (TypeError, ValueError):
+                since_id = None
+
         changed = False
-        if last_change and since_value:
-            if last_change > since_value:
-                changed = True
-            elif last_change == since_value:
-                history_model = Bedna.history.model
-                duplicates = history_model.objects.filter(history_date=last_change).count()
-                changed = duplicates > 1
+        if last_change:
+            if since_id is not None and last_history_id is not None:
+                if last_history_id > since_id:
+                    changed = True
+            elif since_value:
+                if last_change > since_value:
+                    changed = True
 
         payload = {
             'changed': changed,
             'timestamp': last_change.isoformat() if last_change else None,
+            'history_id': last_history_id,
         }
         return JsonResponse(payload)
 
@@ -2444,10 +2459,13 @@ class BednaAdmin(SimpleHistoryAdmin):
         display = self.get_list_display(request)
         self.list_editable = [f for f in editable if f in display and f not in links]
         extra_context = extra_context or {}
-        last_change = self._get_latest_change_timestamp()
+        latest = self._get_latest_change_marker()
+        last_change = latest.history_date if latest else None
+        last_history_id = latest.history_id if latest else None
         extra_context.update({
             'bedna_poll_url': reverse('admin:orders_bedna_poll'),
             'bedna_last_change': last_change.isoformat() if last_change else '',
+            'bedna_last_change_id': last_history_id if last_history_id else '',
             'bedna_poll_interval': self.poll_interval_ms,
         })
         response = super().changelist_view(request, extra_context)

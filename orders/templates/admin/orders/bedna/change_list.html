@@ -7,6 +7,7 @@
 window.bednaPollConfig = {
     pollUrl: "{{ bedna_poll_url|escapejs }}",
     lastChange: {% if bedna_last_change %}"{{ bedna_last_change|escapejs }}"{% else %}null{% endif %},
+    lastChangeId: {% if bedna_last_change_id %}{{ bedna_last_change_id }}{% else %}null{% endif %},
     intervalMs: {{ bedna_poll_interval|default:30000 }},
 };
 </script>

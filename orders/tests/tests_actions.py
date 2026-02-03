@@ -1114,6 +1114,7 @@ class BednaAdminPollingTests(ActionsBase):
         self.assertEqual(response.status_code, 200)
         payload = json.loads(response.content.decode('utf-8'))
         self.assertIn('timestamp', payload)
+        self.assertIn('history_id', payload)
         self.assertIn('changed', payload)
         self.assertFalse(payload['changed'])
 
@@ -1123,16 +1124,19 @@ class BednaAdminPollingTests(ActionsBase):
             self.bedna_admin.poll_changes_view(initial_request).content.decode('utf-8')
         )
         baseline_timestamp = initial_payload.get('timestamp')
+        baseline_history_id = initial_payload.get('history_id')
         self.assertIsNotNone(baseline_timestamp)
+        self.assertIsNotNone(baseline_history_id)
 
         # Provede změnu na bedně, aby vznikl nový historický záznam
         self.bedna.poznamka = 'Změna pro polling'
         self.bedna.save()
 
-        request = self.get_request('get', data={'since': baseline_timestamp})
+        request = self.get_request('get', data={'since_id': baseline_history_id})
         response = self.bedna_admin.poll_changes_view(request)
         payload = json.loads(response.content.decode('utf-8'))
         self.assertIn('timestamp', payload)
+        self.assertIn('history_id', payload)
         self.assertTrue(payload['changed'])
         self.assertIsNotNone(payload['timestamp'])
 

@@ -9,6 +9,7 @@
     const autoReloadActions = [];
     const interval = typeof config.intervalMs === 'number' && config.intervalMs > 0 ? config.intervalMs : 30000;
     let lastKnown = config.lastChange || null;
+    let lastKnownId = typeof config.lastChangeId === 'number' ? config.lastChangeId : null;
 
     function showBanner() {
         // Avoid creating duplicate banners (top or inline)
@@ -142,7 +143,9 @@
     function poll() {
         try {
             const url = new URL(config.pollUrl, window.location.origin);
-            if (lastKnown) {
+            if (lastKnownId) {
+                url.searchParams.set('since_id', lastKnownId);
+            } else if (lastKnown) {
                 url.searchParams.set('since', lastKnown);
             }
             fetch(url.toString(), { credentials: 'same-origin' })
@@ -166,6 +169,9 @@
                             showBanner();
                         }
                         lastKnown = data.timestamp;
+                        if (typeof data.history_id === 'number') {
+                            lastKnownId = data.history_id;
+                        }
                     } else if (data.changed) {
                         if (shouldAutoReload()) {
                             clearAutoReloadFlag();
@@ -173,6 +179,8 @@
                             return;
                         }
                         showBanner();
+                    } else if (typeof data.history_id === 'number') {
+                        lastKnownId = data.history_id;
                     }
                 })
                 .catch(function () { /* swallow fetch errors */ });
