@@ -2128,6 +2128,23 @@ class BednaAdmin(SimpleHistoryAdmin):
         Zobrazí číslo bedny a umožní třídění podle hlavičky pole.
         Číslo bedny se generuje automaticky a je readonly.
         """
+        color = None
+        try:
+            zkratka = obj.zakazka.kamion_prijem.zakaznik.zkratka
+            color = {
+                'EUR': '#dc3545',
+                'HPM': '#0059adff',
+                'SPX': '#f16f3cff',
+                'FIS': '#51096dff',
+                'ROT': '#2a2f7f',
+                'SWG': '#009900',
+                'SSH': '#000000',
+            }.get(zkratka)
+        except Exception:
+            color = None
+
+        if color:
+            return format_html('<span style="color: {}">{}</span>', color, obj.cislo_bedny)
         return obj.cislo_bedny
 
     @admin.display(description='Pořadí', empty_value='-')
