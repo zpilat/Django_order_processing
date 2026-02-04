@@ -189,7 +189,22 @@ class EURImportStrategy(BaseImportStrategy):
                 return (int(match.group(1)), match.group(2).strip())
             return (pd.NA, s)
 
-        df['behalter_nr'] = df['behalter_nr'].apply(lambda x: str(x).strip() if pd.notna(x) else None)
+        def _normalize_behalter(value):
+            if pd.isna(value):
+                return None
+            if isinstance(value, (int,)):
+                return str(value)
+            if isinstance(value, float):
+                if value.is_integer():
+                    return str(int(value))
+                return str(value).rstrip('0').rstrip('.')
+            text = str(value).strip()
+            match = re.match(r'^(\d+)\.0+$', text)
+            if match:
+                return match.group(1)
+            return text
+
+        df['behalter_nr'] = df['behalter_nr'].apply(_normalize_behalter)
         df[['behalter_nr_num', 'behalter_nr_suffix']] = df['behalter_nr'].apply(_split_behalter).apply(pd.Series)
         df['behalter_nr_num'] = pd.to_numeric(df['behalter_nr_num'], errors='coerce').astype('Int64')
         df['behalter_nr_suffix'] = df['behalter_nr_suffix'].fillna('').astype(str)
