@@ -2144,7 +2144,13 @@ class BednaAdmin(SimpleHistoryAdmin):
             color = None
 
         if color:
-            return format_html('<span style="color: {}">{}</span>', color, obj.cislo_bedny)
+            text_color = '#ffffff'
+            return format_html(
+                '<span style="background-color: {}; color: {}; padding: 0 0.25rem; border-radius: 0.2rem;">{}</span>',
+                color,
+                text_color,
+                obj.cislo_bedny,
+            )
         return obj.cislo_bedny
 
     @admin.display(description='Pořadí', empty_value='-')
