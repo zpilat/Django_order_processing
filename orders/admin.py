@@ -52,7 +52,7 @@ from .filters import (
     SklademZakazkaFilter, StavBednyFilter, KompletZakazkaFilter, AktivniPredpisFilter, SkupinaFilter, ZakaznikBednyFilter,
     ZakaznikZakazkyFilter, ZakaznikKamionuFilter, PrijemVydejFilter, TryskaniFilter, RovnaniFilter, PrioritaBednyFilter, PrioritaZakazkyFilter,
     OberflacheFilter, TypHlavyBednyFilter, TypHlavyZakazkyFilter, CelozavitBednyFilter, CelozavitZakazkyFilter, DelkaFilter, PozastavenoFilter,
-    OdberatelFilter, ZakaznikPredpisFilter
+    OdberatelFilter, OdberatelBednyFilter, ZakaznikPredpisFilter
 )
 from .forms import (
     BednaAdminForm,
@@ -1992,7 +1992,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         'get_cislo_bedny', 'behalter_nr', 'get_poradi_bedny_v_zakazce', 'zakazka_link', 'get_zakaznik_zkratka', 'kamion_prijem_link',
         'kamion_vydej_link', 'stav_bedny', 'rovnat', 'tryskat', 'get_prumer', 'get_delka_int','get_skupina_TZ',
         'get_typ_hlavy', 'get_celozavit', 'get_zkraceny_popis', 'hmotnost', 'tara', 'get_hmotnost_brutto',
-        'mnozstvi', 'pozice', 'get_priorita', 'get_datum_prijem', 'get_datum_vydej', 'get_postup', 'cena_za_kg', 'poznamka',
+        'mnozstvi', 'pozice', 'get_priorita', 'get_datum_prijem', 'get_datum_vydej', 'get_postup', 'cena_za_kg', 'get_odberatel','poznamka',
         )
     # list_editable nastavován dynamicky v get_list_editable
     list_display_links = ('get_cislo_bedny', )
@@ -2000,7 +2000,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     list_per_page = 50
     search_fields = ('cislo_bedny', 'behalter_nr', 'zakazka__artikl', 'zakazka__popis')
     search_help_text = "Dle čísla bedny, č.b. zákazníka, zakázky a popisu zakázky"
-    list_filter = (ZakaznikBednyFilter, StavBednyFilter, TryskaniFilter, RovnaniFilter, SkupinaFilter, DelkaFilter,
+    list_filter = (ZakaznikBednyFilter, OdberatelBednyFilter, StavBednyFilter, TryskaniFilter, RovnaniFilter, SkupinaFilter, DelkaFilter,
                    CelozavitBednyFilter, TypHlavyBednyFilter, PrioritaBednyFilter, PozastavenoFilter,)
     ordering = ('id',)
     # Výchozí date_hierarchy pro povolení lookupů; skutečně se přepíná dynamicky v get_date_hierarchy
@@ -2172,6 +2172,13 @@ class BednaAdmin(SimpleHistoryAdmin):
         """
         if obj.zakazka and obj.zakazka.kamion_prijem and obj.zakazka.kamion_prijem.zakaznik:
             return obj.zakazka.kamion_prijem.zakaznik.zkratka
+        return '-'
+
+    @admin.display(description='Odb.', ordering='zakazka__odberatel__zkratka', empty_value='-')
+    def get_odberatel(self, obj):
+        """Zobrazí zkratku odběratele zakázky (pokud existuje)."""
+        if obj.zakazka and obj.zakazka.odberatel and obj.zakazka.odberatel.zkratka:
+            return obj.zakazka.odberatel.zkratka
         return '-'
 
     @admin.display(description='Brutto', empty_value='-')        
@@ -2559,7 +2566,8 @@ class BednaAdmin(SimpleHistoryAdmin):
         jinak get_datum_prijem.
         Pokud není filtr stav bedny v STAV_BEDNY_PRO_NAVEZENI, vyloučí se zobrazení sloupce pozice.
         Pokud není filtr stav bedny == Neprijato, vyloučí se zobrazení sloupce mnozstvi a tara.
-        Pokud není filtr stav bedny == K_expedici, vyloučí se zobrazení sloupce cena_za_kg a hmotnost_brutto.
+        Pokud není filtr stav bedny == K_expedici, vyloučí se zobrazení sloupce cena_za_kg, hmotnost_brutto a get_odberatel,
+        jinak rovnat a tryskat.
         Pokud není filtr stav bedny == Prijato nebo K_expedici, vyloučí se sloupce get_zakaznik_zkratka a get_poradi_bedny_v_zakazce,
         jinak kamion_prijem_link.
         """
@@ -2593,6 +2601,13 @@ class BednaAdmin(SimpleHistoryAdmin):
                 list_display.remove('cena_za_kg')
             if 'get_hmotnost_brutto' in list_display:
                 list_display.remove('get_hmotnost_brutto')
+            if 'get_odberatel' in list_display:
+                list_display.remove('get_odberatel')
+        else: 
+            if 'rovnat' in list_display:
+                list_display.remove('rovnat')
+            if 'tryskat' in list_display:
+                list_display.remove('tryskat')
         if stav_bedny not in [StavBednyChoice.PRIJATO, StavBednyChoice.K_EXPEDICI]:
             if 'get_poradi_bedny_v_zakazce' in list_display:
                 list_display.remove('get_poradi_bedny_v_zakazce')
@@ -2607,10 +2622,12 @@ class BednaAdmin(SimpleHistoryAdmin):
     def get_list_filter(self, request):
         """
         Přizpůsobení dostupných filtrů v administraci podle filtru stavu bedny.
-        Pokud není vůbec aktivní filtr stav bedny, zruší se filtr DelkaFilter, TypHlavyBednyFilter a CelozavitBednyFilter,
-        pokud není aktivní filtr stav bedny PRIJATO, zruší se filtr DelkaFilter,
+        Pokud není vůbec aktivní filtr stav bedny, zruší se filtr DelkaFilter, TypHlavyBednyFilter a CelozavitBednyFilter.
+        Pokud není aktivní filtr stav bedny PRIJATO, zruší se filtr DelkaFilter,
         SkupinaFilter, TypHlavyBednyFilter a CelozavitBednyFilter,
         jinak se zruší filtry TryskaniFilter, RovnaniFilter a PozastavenoFilter.
+        Pokud není aktivní filtr stav bedny K_EXPEDICI, zruší se filtr OdberatelBednyFilter,
+        jinak TryskaniFilter a RovnaniFilter.
         """
         actual_filters = super().get_list_filter(request)
         filters_to_remove = []
@@ -2620,6 +2637,10 @@ class BednaAdmin(SimpleHistoryAdmin):
             filters_to_remove.extend([DelkaFilter, SkupinaFilter, TypHlavyBednyFilter, CelozavitBednyFilter])
         else:
             filters_to_remove.extend([TryskaniFilter, RovnaniFilter, PozastavenoFilter])
+        if request.GET.get('stav_bedny', None) != StavBednyChoice.K_EXPEDICI:
+            filters_to_remove.append(OdberatelBednyFilter)
+        else:
+            filters_to_remove.extend([TryskaniFilter, RovnaniFilter])
         return [f for f in actual_filters if f not in filters_to_remove]
 
     def get_actions(self, request):

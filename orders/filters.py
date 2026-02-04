@@ -77,6 +77,33 @@ class StavBednyFilter(DynamicTitleFilter):
         return queryset.filter(stav_bedny=value)
 
 
+class OdberatelBednyFilter(DynamicTitleFilter):
+    """
+    Filtrovat bedny podle odběratele zakázky.
+    Pokud je vybrán odběratel, filtruje se podle tohoto odběratele + bedny bez odběratele.
+    """
+    title = "Odběratel"
+    parameter_name = "odberatel"
+
+    def __init__(self, request, params, model, model_admin):
+        label_list = Odberatel.objects.values_list('zkratka', 'zkraceny_nazev').order_by('zkratka')
+        self.label_dict = {key: value for key, value in label_list}
+        super().__init__(request, params, model, model_admin)
+
+    def lookups(self, request, model_admin):
+        return self.label_dict.items()
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if not value:
+            return queryset
+        try:
+            odberatel = Odberatel.objects.get(zkratka=value)
+            return queryset.filter(zakazka__odberatel=odberatel)
+        except Odberatel.DoesNotExist:
+            return queryset.none()
+
+
 class DelkaFilter(DynamicTitleFilter):
     """
     Filtrovat bedny podle délky.
