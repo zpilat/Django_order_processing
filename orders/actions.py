@@ -29,6 +29,7 @@ from .utils import (
     utilita_expedice_beden,
     utilita_kontrola_zakazek,
     utilita_tisk_dl_a_proforma_faktury,
+    validate_bedny_pripraveny_k_expedici,
 )
 from django.urls import reverse
 from .forms import VyberKamionVydejForm, OdberatelForm, KNavezeniForm, NavezenoForm
@@ -37,6 +38,7 @@ from .choices import (
     StavBednyChoice,
     RovnaniChoice,
     TryskaniChoice,
+    ZinkovaniChoice,
     PrioritaChoice,
     STAV_BEDNY_SKLADEM,
     STAV_BEDNY_ROZPRACOVANOST,
@@ -1157,6 +1159,16 @@ def oznacit_k_expedici_action(modeladmin, request, queryset):
         "a tryskání buď Čistá nebo Otryskaná."), level=messages.ERROR)
         return None
 
+    # zinkovat musí být buď Nezinkovat nebo Uvolněno
+    if queryset.exclude(zinkovat__in=[ZinkovaniChoice.NEZINKOVAT, ZinkovaniChoice.UVOLNENO]).exists():
+        logger.warning(f'Uživatel {request.user} se pokusil změnit stav na K_EXPEDICI s neplatným stavem zinkování.')
+        modeladmin.message_user(
+            request,
+            _("Pro změnu stavu bedny na 'K expedici' musí být zinkování buď Nezinkovat nebo Uvolněno."),
+            level=messages.ERROR,
+        )
+        return None
+
     # pokud nějaká bedna nesplňuje podmínky, akce se přeruší
     with transaction.atomic():
         for bedna in queryset:
@@ -1241,6 +1253,10 @@ def expedice_beden_action(modeladmin, request, queryset):
                     level=messages.ERROR,
                 )
                 return None
+
+    # Stav rovnání/tryskání/zinkování musí splnit podmínky pro expedici
+    if not validate_bedny_pripraveny_k_expedici(modeladmin, request, queryset):
+        return None
 
     if 'apply' in request.POST:
         form = OdberatelForm(request.POST)
@@ -1346,6 +1362,10 @@ def expedice_beden_kamion_action(modeladmin, request, queryset):
                     level=messages.ERROR,
                 )
                 return None
+
+    # Stav rovnání/tryskání/zinkování musí splnit podmínky pro expedici
+    if not validate_bedny_pripraveny_k_expedici(modeladmin, request, queryset):
+        return None
 
     if 'apply' in request.POST:
         form = VyberKamionVydejForm(request.POST, zakaznik=zakaznik_id)
@@ -1736,6 +1756,11 @@ def expedice_zakazek_action(modeladmin, request, queryset):
 
     utilita_kontrola_zakazek(modeladmin, request, queryset)
 
+    # Stav rovnání/tryskání/zinkování u beden v K_EXPEDICI musí splnit podmínky pro expedici
+    bedny_ke_kontrole = Bedna.objects.filter(zakazka__in=queryset, stav_bedny=StavBednyChoice.K_EXPEDICI)
+    if not validate_bedny_pripraveny_k_expedici(modeladmin, request, bedny_ke_kontrole):
+        return None
+
     zakaznici = Zakaznik.objects.filter(kamiony__zakazky_prijem__in=queryset).distinct()
 
     if 'apply' in request.POST:
@@ -1802,6 +1827,11 @@ def expedice_zakazek_kamion_action(modeladmin, request, queryset):
         return None
 
     utilita_kontrola_zakazek(modeladmin, request, queryset)
+
+    # Stav rovnání/tryskání/zinkování u beden v K_EXPEDICI musí splnit podmínky pro expedici
+    bedny_ke_kontrole = Bedna.objects.filter(zakazka__in=queryset, stav_bedny=StavBednyChoice.K_EXPEDICI)
+    if not validate_bedny_pripraveny_k_expedici(modeladmin, request, bedny_ke_kontrole):
+        return None
 
     zakaznik_id = zakaznici[0]
 

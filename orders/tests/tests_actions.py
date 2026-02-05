@@ -358,6 +358,8 @@ class ActionsTests(ActionsBase):
     @patch('orders.actions.utilita_expedice_beden')
     def test_expedice_beden_action_success(self, mock_expedice):
         self.bedna.stav_bedny = StavBednyChoice.K_EXPEDICI
+        self.bedna.rovnat = RovnaniChoice.ROVNA
+        self.bedna.tryskat = TryskaniChoice.CISTA
         self.bedna.save()
         data = {'apply': '1', 'odberatel': self.odberatel.id}
         req = self.get_request('post', data)
@@ -458,6 +460,8 @@ class ActionsTests(ActionsBase):
     @patch('orders.actions.utilita_expedice_beden')
     def test_expedice_beden_kamion_action_success(self, mock_expedice):
         self.bedna.stav_bedny = StavBednyChoice.K_EXPEDICI
+        self.bedna.rovnat = RovnaniChoice.ROVNA
+        self.bedna.tryskat = TryskaniChoice.CISTA
         self.bedna.save()
 
         data = {'apply': '1', 'kamion': self.kamion_vydej.id}
@@ -473,6 +477,8 @@ class ActionsTests(ActionsBase):
     def test_expedice_beden_kamion_action_requires_single_customer(self, mock_expedice):
         admin_obj = self._messaging_admin()
         self.bedna.stav_bedny = StavBednyChoice.K_EXPEDICI
+        self.bedna.rovnat = RovnaniChoice.ROVNA
+        self.bedna.tryskat = TryskaniChoice.CISTA
         self.bedna.save()
 
         druhy_zakaznik = Zakaznik.objects.create(
@@ -497,6 +503,8 @@ class ActionsTests(ActionsBase):
             tara=Decimal('1.0'),
             mnozstvi=1,
             stav_bedny=StavBednyChoice.K_EXPEDICI,
+            rovnat=RovnaniChoice.ROVNA,
+            tryskat=TryskaniChoice.CISTA,
         )
 
         data = {'apply': '1', 'kamion': self.kamion_vydej.id}
@@ -516,8 +524,14 @@ class ActionsTests(ActionsBase):
         self.zakaznik.pouze_komplet = True
         self.zakaznik.save()
         self.bedna.stav_bedny = StavBednyChoice.K_EXPEDICI
+        self.bedna.rovnat = RovnaniChoice.ROVNA
+        self.bedna.tryskat = TryskaniChoice.CISTA
         self.bedna.save()
-        self._create_bedna_in_state(StavBednyChoice.K_EXPEDICI)
+        self._create_bedna_in_state(
+            StavBednyChoice.K_EXPEDICI,
+            rovnat=RovnaniChoice.ROVNA,
+            tryskat=TryskaniChoice.CISTA,
+        )
 
         data = {'apply': '1', 'kamion': self.kamion_vydej.id}
         req = self.get_request('post', data)

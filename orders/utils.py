@@ -156,6 +156,32 @@ def utilita_tisk_dl_a_proforma_faktury(modeladmin, request, kamion, html_path, f
     logger.info(f"Uživatel {request.user} vygeneroval PDF dokumentaci pro kamion {kamion}.")
     return response    
 
+
+def validate_bedny_pripraveny_k_expedici(modeladmin, request, bedny_qs, message=None):
+    """Ověří, že bedny ve stavu K_EXPEDICI splňují podmínky pro expedici.
+
+    Podmínky: rovnat v {ROVNA, VYROVNANA}, tryskat v {CISTA, OTRYSKANA}, zinkovat v {NEZINKOVAT, UVOLNENO}.
+    Vrací True/False; při porušení zapíše chybovou hlášku a zaloguje.
+    """
+    bedny_ke_kontrole = bedny_qs.filter(stav_bedny=StavBednyChoice.K_EXPEDICI)
+    if not bedny_ke_kontrole.exists():
+        return True
+
+    if (
+        bedny_ke_kontrole.exclude(rovnat__in=[RovnaniChoice.ROVNA, RovnaniChoice.VYROVNANA]).exists()
+        or bedny_ke_kontrole.exclude(tryskat__in=[TryskaniChoice.CISTA, TryskaniChoice.OTRYSKANA]).exists()
+        or bedny_ke_kontrole.exclude(zinkovat__in=[ZinkovaniChoice.NEZINKOVAT, ZinkovaniChoice.UVOLNENO]).exists()
+    ):
+        text = message or "Pro expedici musí být rovnání Rovná/Vyrovnaná, tryskání Čistá/Otryskaná a zinkování Nezinkovat/Uvolněno."
+        try:
+            modeladmin.message_user(request, text, level=messages.ERROR)
+        except Exception:
+            logger.error("Nelze zapsat zprávu pro uživatele při validaci beden před expedicí.")
+        logger.warning("Bedny nesplňují podmínky pro expedici (rovnání/tryskání/zinkování).")
+        return False
+
+    return True
+
 @transaction.atomic
 def utilita_expedice_zakazek(modeladmin, request, queryset, kamion):
     """
@@ -307,6 +333,11 @@ def utilita_kontrola_zakazek(modeladmin, request, queryset):
                 logger.warning(f"Zakázka {zakazka} pro zákazníka s příznakem 'Pouze kompletní zakázky' musí mít všechny bedny ve stavu K_EXPEDICI.")
                 messages.error(request, f"Zakázka {zakazka} pro zákazníka s nastaveným příznakem 'Pouze kompletní zakázky' musí mít všechny bedny ve stavu K_EXPEDICI.")
                 return
+
+    # Dodatečná kontrola stavu rovnání/tryskání/zinkování pro bedny určené k expedici
+    bedny_k_expedici = Bedna.objects.filter(zakazka__in=queryset, stav_bedny=StavBednyChoice.K_EXPEDICI)
+    if not validate_bedny_pripraveny_k_expedici(modeladmin, request, bedny_k_expedici):
+        return
 
 def utilita_validate_excel_upload(uploaded_file):
     """
