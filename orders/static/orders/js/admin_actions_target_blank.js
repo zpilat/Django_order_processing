@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', function () {
         'oznacit_rovna_se_action',
         'tisk_rozpracovanost_action',
         'tisk_prehledu_zakazek_kamionu_action',
+        'odeslat_na_zinkovani_action',
     ];
 
     // Najdi hlavní formulář v adminu podle id (nejbezpečnější)
@@ -48,7 +49,7 @@ document.addEventListener('DOMContentLoaded', function () {
             actionForm.removeAttribute('target');
         }
 
-        if (selectedAction === 'oznacit_rovna_se_action') {
+        if (selectedAction === 'oznacit_rovna_se_action' || selectedAction === 'odeslat_na_zinkovani_action') {
             setTimeout(function () {
                 try {
                     if (window.sessionStorage) {

@@ -6,6 +6,8 @@ from django.db import transaction
 from django.contrib.staticfiles import finders
 from django.utils import timezone
 
+import csv
+
 from .choices import StavBednyChoice, RovnaniChoice, TryskaniChoice, ZinkovaniChoice
 from django.db.models import When, Value, Q
 from .models import Zakazka, Bedna
@@ -155,6 +157,50 @@ def utilita_tisk_dl_a_proforma_faktury(modeladmin, request, kamion, html_path, f
     response['Content-Disposition'] = f'inline; filename="{filename}"'
     logger.info(f"Uživatel {request.user} vygeneroval PDF dokumentaci pro kamion {kamion}.")
     return response    
+
+
+def _format_decimal_csv(value):
+    if value is None:
+        return ''
+    text = format(value, 'f')
+    if '.' in text:
+        text = text.rstrip('0').rstrip('.')
+    return text.replace('.', ',')
+
+
+def utilita_export_beden_zinkovani_csv(bedny_qs, filename_prefix="bedny_zinkovani"):
+    rows = list(bedny_qs.select_related('zakazka').order_by('cislo_bedny'))
+
+    response = HttpResponse(content_type='text/csv; charset=utf-8')
+    filename = f"{filename_prefix}_{timezone.now().strftime('%Y%m%d_%H%M%S')}.csv"
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    response.write('\ufeff')
+
+    writer = csv.writer(response, delimiter=';', quoting=csv.QUOTE_MINIMAL)
+    writer.writerow([
+        'Číslo bedny',
+        'Popis',
+        'Artikl',
+        'Hmotnost kg',
+        'Množství ks',
+        'Vrstva',
+        'Povrch',
+    ])
+
+    for bedna in rows:
+        zakazka = getattr(bedna, 'zakazka', None)
+        writer.writerow([
+            bedna.cislo_bedny,
+            getattr(zakazka, 'popis', '') if zakazka else '',
+            getattr(zakazka, 'artikl', '') if zakazka else '',
+            _format_decimal_csv(getattr(bedna, 'hmotnost', None)),
+            getattr(bedna, 'mnozstvi', '') or '',
+            getattr(zakazka, 'vrstva', '') if zakazka else '',
+            getattr(zakazka, 'povrch', '') if zakazka else '',
+        ])
+
+    logger.info(f"Vyexportováno {len(rows)} beden pro zinkování do CSV.")
+    return response
 
 
 def validate_bedny_pripraveny_k_expedici(modeladmin, request, bedny_qs, message=None):

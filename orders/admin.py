@@ -44,7 +44,8 @@ from .actions import (
     oznacit_prijato_navezeno_action, vratit_bedny_z_rozpracovanosti_do_stavu_prijato_action, vratit_bedny_ze_stavu_navezeno_do_stavu_prijato_action,
     oznacit_do_zpracovani_action, oznacit_zakaleno_action, oznacit_zkontrolovano_action, oznacit_k_expedici_action, oznacit_rovna_action,
     oznacit_kriva_action, oznacit_rovna_se_action, oznacit_vyrovnana_action, oznacit_cista_action, oznacit_spinava_action,
-    oznacit_otryskana_action, prijmout_kamion_action, prijmout_zakazku_action, prijmout_bedny_action,
+    oznacit_otryskana_action, odeslat_na_zinkovani_action, export_na_zinkovani_action, oznacit_k_zinkovani_action, oznacit_po_zinkovani_action,
+    oznacit_uvolneno_action, prijmout_kamion_action, prijmout_zakazku_action, prijmout_bedny_action,
     export_bedny_to_csv_action, export_bedny_to_csv_customer_action, export_bedny_dl_action, tisk_rozpracovanost_action, tisk_prehledu_zakazek_kamionu_action, expedice_beden_action,
     expedice_beden_kamion_action,
 )
@@ -63,7 +64,7 @@ from .forms import (
     ZakazkaMeasurementForm,
 )
 from .choices import (
-    StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice, PrijemVydejChoice, SklademZakazkyChoice,
+    StavBednyChoice, RovnaniChoice, TryskaniChoice, ZinkovaniChoice, PrioritaChoice, KamionChoice, PrijemVydejChoice, SklademZakazkyChoice,
     BARVA_SKUPINY_TZ, STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM, STAV_BEDNY_PRO_NAVEZENI,
 )
 from .utils import utilita_validate_excel_upload, build_postup_vyroby_cases
@@ -1982,8 +1983,9 @@ class BednaAdmin(SimpleHistoryAdmin):
         vratit_bedny_ze_stavu_navezeno_do_stavu_prijato_action, vratit_bedny_z_rozpracovanosti_do_stavu_prijato_action,
         oznacit_do_zpracovani_action, oznacit_zakaleno_action, oznacit_zkontrolovano_action, oznacit_k_expedici_action,
         oznacit_rovna_action, oznacit_kriva_action, oznacit_rovna_se_action, oznacit_vyrovnana_action,
-        oznacit_cista_action, oznacit_spinava_action, oznacit_otryskana_action, prijmout_bedny_action, expedice_beden_action,
-        expedice_beden_kamion_action,
+        oznacit_cista_action, oznacit_spinava_action, oznacit_otryskana_action,
+        oznacit_k_zinkovani_action, oznacit_po_zinkovani_action, oznacit_uvolneno_action, odeslat_na_zinkovani_action, export_na_zinkovani_action,
+        prijmout_bedny_action, expedice_beden_action, expedice_beden_kamion_action,
     ]
     form = BednaAdminForm
 
@@ -2723,6 +2725,12 @@ class BednaAdmin(SimpleHistoryAdmin):
         Pokud není vůbec aktivní filtr stavu bedny nebo není aktivní filtr stavu bedny PRIJATO nebo K_NAVEZENI,
             nebo nemá uživatel jedno z oprávnění orders.can_change_bedna, orders.mark_bedna_navezeno,
             zruší se akce oznacit_prijato_navezeno_action.
+        Pokud není aktivní filtr zinkování odpovídající definici akce, akce se skryje:
+            - oznacit_k_zinkovani_action je viditelná jen při filtru zinkovani NEZADANO nebo NEZINKOVAT.
+            - odeslat_na_zinkovani_action je viditelná jen při filtru zinkovani K_ZINKOVANI.
+            - export_na_zinkovani_action a oznacit_po_zinkovani_action jsou viditelné jen při filtru zinkovani NA_ZINKOVANI.
+            - oznacit_uvolneno_action je viditelná jen při filtru zinkovani NA_ZINKOVANI nebo PO_ZINKOVANI.
+        
         """
         actions = super().get_actions(request)
 
@@ -2732,6 +2740,7 @@ class BednaAdmin(SimpleHistoryAdmin):
             stav_filter = request.GET.get('stav_bedny', None)
             rovnani_filter = request.GET.get('rovnani', None)
             tryskani_filter = request.GET.get('tryskani', None)
+            zinkovani_filter = request.GET.get('zinkovani', None)
 
             if stav_filter != StavBednyChoice.NEPRIJATO:
                 actions_to_remove += [
@@ -2804,6 +2813,22 @@ class BednaAdmin(SimpleHistoryAdmin):
                 actions_to_remove += [
                     'oznacit_otryskana_action',
                 ]
+            if zinkovani_filter not in [ZinkovaniChoice.NEZADANO, ZinkovaniChoice.NEZINKOVAT]:
+                actions_to_remove += [
+                    'oznacit_k_zinkovani_action',
+                ]
+            if zinkovani_filter != ZinkovaniChoice.K_ZINKOVANI:
+                actions_to_remove += [
+                    'odeslat_na_zinkovani_action',
+                ]
+            if zinkovani_filter != ZinkovaniChoice.NA_ZINKOVANI:
+                actions_to_remove += [
+                    'export_na_zinkovani_action', 'oznacit_po_zinkovani_action',
+                ]
+            if zinkovani_filter not in [ZinkovaniChoice.NA_ZINKOVANI, ZinkovaniChoice.PO_ZINKOVANI]:
+                actions_to_remove += [
+                    'oznacit_uvolneno_action',
+                ]
             permissions_not_ok = not(request.user.has_perm('orders.change_bedna') or request.user.has_perm('orders.mark_bedna_navezeno'))
             if (stav_filter and stav_filter not in [StavBednyChoice.PRIJATO, StavBednyChoice.K_NAVEZENI]) or permissions_not_ok:
                 actions_to_remove += [
@@ -2825,6 +2850,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         - Export        
         - Rovnání
         - Tryskání
+        - Zinkování
         - Expedice
     
         Ostatní akce (např. delete_selected) spadnou do 'Ostatní'.
@@ -2860,8 +2886,13 @@ class BednaAdmin(SimpleHistoryAdmin):
             'oznacit_otryskana_action': 'Tryskání',
             'expedice_beden_action': 'Expedice',
             'expedice_beden_kamion_action': 'Expedice',
+            'oznacit_k_zinkovani_action': 'Zinkování',
+            'odeslat_na_zinkovani_action': 'Zinkování',
+            'export_na_zinkovani_action': 'Export',
+            'oznacit_po_zinkovani_action': 'Zinkování',
+            'oznacit_uvolneno_action': 'Zinkování',
         }
-        order = ['Stav bedny', 'Tisk', 'Export', 'Rovnání', 'Tryskání', 'Expedice']
+        order = ['Stav bedny', 'Tisk', 'Export', 'Rovnání', 'Tryskání', 'Zinkování', 'Expedice']
         grouped = {g: [] for g in order}
 
         for name, (_func, _action_name, desc) in actions.items():

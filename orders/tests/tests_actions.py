@@ -21,6 +21,7 @@ from orders.choices import (
     StavBednyChoice,
     RovnaniChoice,
     TryskaniChoice,
+    ZinkovaniChoice,
     STAV_BEDNY_ROZPRACOVANOST,
 )
 from orders import actions
@@ -61,7 +62,7 @@ class ActionsBase(TestCase):
         )
         cls.bedna = Bedna.objects.create(zakazka=cls.zakazka, hmotnost=Decimal(1), tara=Decimal(1), mnozstvi=1, stav_bedny=StavBednyChoice.PRIJATO)
 
-    def _create_bedna_in_state(self, state, *, rovnat=RovnaniChoice.ROVNA, tryskat=TryskaniChoice.CISTA):
+    def _create_bedna_in_state(self, state, *, rovnat=RovnaniChoice.ROVNA, tryskat=TryskaniChoice.CISTA, zinkovat=ZinkovaniChoice.NEZINKOVAT):
         kwargs = {
             'zakazka': self.zakazka,
             'hmotnost': Decimal('1.0'),
@@ -70,6 +71,7 @@ class ActionsBase(TestCase):
             'stav_bedny': state,
             'rovnat': rovnat,
             'tryskat': tryskat,
+            'zinkovat': zinkovat,
         }
         if state in {StavBednyChoice.K_NAVEZENI, StavBednyChoice.NAVEZENO}:
             pozice, _ = Pozice.objects.get_or_create(kod='Z', defaults={'kapacita': 10})
@@ -1567,3 +1569,70 @@ class StatusChangeActionsTests(ActionsBase):
         for bedna in bedny:
             bedna.refresh_from_db()
             self.assertEqual(bedna.stav_bedny, StavBednyChoice.K_EXPEDICI)
+
+    def test_odeslat_na_zinkovani_action_updates_state_and_exports_csv(self):
+        admin_obj = self._messaging_admin()
+        self.zakazka.povrch = 'Zn'
+        self.zakazka.popis = 'Popis Z'
+        self.zakazka.save(update_fields=['povrch', 'popis'])
+
+        bedna = self._create_bedna_in_state(
+            StavBednyChoice.ZKONTROLOVANO,
+            zinkovat=ZinkovaniChoice.K_ZINKOVANI,
+        )
+        bedna.cislo_bedny = 123
+        bedna.hmotnost = Decimal('2.5')
+        bedna.mnozstvi = 4
+        bedna.save(update_fields=['cislo_bedny', 'hmotnost', 'mnozstvi'])
+
+        req = self.get_request('post')
+        resp = actions.odeslat_na_zinkovani_action(admin_obj, req, Bedna.objects.filter(id=bedna.id))
+
+        self.assertIsNotNone(resp)
+        self.assertIsInstance(resp, HttpResponse)
+        bedna.refresh_from_db()
+        self.assertEqual(bedna.zinkovat, ZinkovaniChoice.NA_ZINKOVANI)
+
+        rows = list(csv.reader(io.StringIO(resp.content.decode('utf-8-sig')), delimiter=';'))
+        self.assertGreaterEqual(len(rows), 2)
+        header = rows[0]
+        self.assertIn('Číslo bedny', header)
+        self.assertEqual(rows[1][0], '123')
+        self.assertEqual(rows[1][1], 'Popis Z')
+        self.assertEqual(rows[1][2], self.zakazka.artikl)
+        self.assertEqual(rows[1][3], '2,5')
+        self.assertEqual(rows[1][4], '4')
+        self.assertEqual(rows[1][6], 'Zn')
+
+    def test_export_na_zinkovani_action_exports_without_state_change(self):
+        admin_obj = self._messaging_admin()
+        bedna = self._create_bedna_in_state(
+            StavBednyChoice.ZKONTROLOVANO,
+            zinkovat=ZinkovaniChoice.NA_ZINKOVANI,
+        )
+        bedna.cislo_bedny = 321
+        bedna.save(update_fields=['cislo_bedny'])
+
+        req = self.get_request('post')
+        resp = actions.export_na_zinkovani_action(admin_obj, req, Bedna.objects.filter(id=bedna.id))
+
+        self.assertIsNotNone(resp)
+        bedna.refresh_from_db()
+        self.assertEqual(bedna.zinkovat, ZinkovaniChoice.NA_ZINKOVANI)
+        rows = list(csv.reader(io.StringIO(resp.content.decode('utf-8-sig')), delimiter=';'))
+        self.assertEqual(rows[1][0], '321')
+
+    def test_odeslat_na_zinkovani_action_requires_correct_state(self):
+        admin_obj = self._messaging_admin()
+        bedna = self._create_bedna_in_state(
+            StavBednyChoice.DO_ZPRACOVANI,
+            zinkovat=ZinkovaniChoice.K_ZINKOVANI,
+        )
+        req = self.get_request('post')
+        resp = actions.odeslat_na_zinkovani_action(admin_obj, req, Bedna.objects.filter(id=bedna.id))
+
+        self.assertIsNone(resp)
+        bedna.refresh_from_db()
+        self.assertEqual(bedna.zinkovat, ZinkovaniChoice.K_ZINKOVANI)
+        msgs = self._messages_texts(req)
+        self.assertTrue(any('ZKONTROLOVANO' in m for m in msgs))
