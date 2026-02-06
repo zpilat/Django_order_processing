@@ -18,7 +18,8 @@
     <td class="bg-body-secondary" style="width: 9%;">Dimension</td>
     <td class="bg-body-secondary" style="width: 5%;">Head</td>
     <td class="bg-body-secondary" style="width: 7%;">Box Nr.</td>
-    <td class="bg-body-secondary" style="width: 11%;">Straightening</td>
+    <td class="bg-body-secondary" style="width: 6%;">Straight.</td>
+    <td class="bg-body-secondary" style="width: 6%;">Sandblast.</td>
 </tr>            
 {% endblock %}                
 
@@ -39,5 +40,6 @@
     <td>{{ zakazka.typ_hlavy }}</td>
     <td>{{ bedna.behalter_nr }}</td>
     <td>{% if bedna.rovnat == 'VY' %}YES{% else %}--{% endif %}</td>
+    <td>{% if bedna.tryskat == 'OT' %}YES{% else %}--{% endif %}</td>
 </tr>                      
 {% endblock %}
