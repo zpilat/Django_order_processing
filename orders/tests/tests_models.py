@@ -19,6 +19,7 @@ from orders.choices import (
     KamionChoice,
     TryskaniChoice,
     RovnaniChoice,
+    ZinkovaniChoice,
 )
 from django.core.exceptions import ValidationError
 from django.db.models.deletion import ProtectedError
@@ -347,13 +348,78 @@ class TestModels(ModelsBase):
         b.stav_bedny = StavBednyChoice.K_EXPEDICI
         b.tryskat = TryskaniChoice.NEZADANO
         b.rovnat = RovnaniChoice.NEZADANO
+        b.zinkovat = ZinkovaniChoice.K_ZINKOVANI
         with self.assertRaises(ValidationError):
             b.full_clean()
 
         # Nastavíme povolené kombinace, čisté by mělo projít
         b.tryskat = TryskaniChoice.CISTA
         b.rovnat = RovnaniChoice.ROVNA
+        with self.assertRaises(ValidationError):
+            b.full_clean()
+
+        b.zinkovat = ZinkovaniChoice.NEZINKOVAT
         b.full_clean()  # nevyhodí výjimku
+
+    def test_bedna_clean_requires_zkontrolovano_for_na_zinkovani(self):
+        b = Bedna.objects.create(
+            zakazka=self.zakazka,
+            hmotnost=Decimal("1"),
+            tara=Decimal("1"),
+            mnozstvi=1,
+        )
+        b.stav_bedny = StavBednyChoice.PRIJATO
+        b.zinkovat = ZinkovaniChoice.NA_ZINKOVANI
+        with self.assertRaises(ValidationError):
+            b.full_clean()
+
+        b.stav_bedny = StavBednyChoice.ZKONTROLOVANO
+        b.full_clean()
+
+    def test_bedna_get_allowed_zinkovat_choices(self):
+        b = Bedna.objects.create(
+            zakazka=self.zakazka,
+            hmotnost=Decimal("1"),
+            tara=Decimal("1"),
+            mnozstvi=1,
+            stav_bedny=StavBednyChoice.K_EXPEDICI,
+            zinkovat=ZinkovaniChoice.K_ZINKOVANI,
+        )
+        choices = b.get_allowed_zinkovat_choices()
+        self.assertEqual(choices, [(ZinkovaniChoice.K_ZINKOVANI, "K zinkování")])
+
+        b.stav_bedny = StavBednyChoice.ZKONTROLOVANO
+        b.zinkovat = ZinkovaniChoice.NA_ZINKOVANI
+        choices = b.get_allowed_zinkovat_choices()
+        allowed = {c[0] for c in choices}
+        self.assertEqual(
+            allowed,
+            {
+                ZinkovaniChoice.K_ZINKOVANI,
+                ZinkovaniChoice.NA_ZINKOVANI,
+                ZinkovaniChoice.PO_ZINKOVANI,
+                ZinkovaniChoice.UVOLNENO,
+            },
+        )
+
+    def test_bedna_postup_vyroby_respects_zinkovani(self):
+        b = Bedna.objects.create(
+            zakazka=self.zakazka,
+            hmotnost=Decimal("1"),
+            tara=Decimal("1"),
+            mnozstvi=1,
+            stav_bedny=StavBednyChoice.ZKONTROLOVANO,
+            tryskat=TryskaniChoice.CISTA,
+            rovnat=RovnaniChoice.ROVNA,
+            zinkovat=ZinkovaniChoice.NEZINKOVAT,
+        )
+        self.assertEqual(b.postup_vyroby, 95)
+        self.assertEqual(b.barva_postupu_vyroby, 'darkseagreen')
+
+        b.tryskat = TryskaniChoice.NEZADANO
+        b.rovnat = RovnaniChoice.NEZADANO
+        b.zinkovat = ZinkovaniChoice.NEZADANO
+        self.assertEqual(b.postup_vyroby, 60)
 
     def test_bedna_clean_requires_pozice_for_k_navezeni_and_navezeno(self):
         b = Bedna.objects.create(

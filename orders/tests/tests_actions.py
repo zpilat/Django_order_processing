@@ -1636,3 +1636,69 @@ class StatusChangeActionsTests(ActionsBase):
         self.assertEqual(bedna.zinkovat, ZinkovaniChoice.K_ZINKOVANI)
         msgs = self._messages_texts(req)
         self.assertTrue(any('ZKONTROLOVANO' in m for m in msgs))
+
+    def test_oznacit_k_zinkovani_action_success(self):
+        admin_obj = self._messaging_admin()
+        b1 = self._create_bedna_in_state(
+            StavBednyChoice.PRIJATO,
+            zinkovat=ZinkovaniChoice.NEZADANO,
+        )
+        b2 = self._create_bedna_in_state(
+            StavBednyChoice.PRIJATO,
+            zinkovat=ZinkovaniChoice.NEZINKOVAT,
+        )
+        req = self.get_request('post')
+        resp = actions.oznacit_k_zinkovani_action(admin_obj, req, Bedna.objects.filter(id__in=[b1.id, b2.id]))
+
+        self.assertIsNone(resp)
+        b1.refresh_from_db()
+        b2.refresh_from_db()
+        self.assertEqual(b1.zinkovat, ZinkovaniChoice.K_ZINKOVANI)
+        self.assertEqual(b2.zinkovat, ZinkovaniChoice.K_ZINKOVANI)
+
+    def test_oznacit_k_zinkovani_action_rejects_invalid(self):
+        admin_obj = self._messaging_admin()
+        bedna = self._create_bedna_in_state(
+            StavBednyChoice.PRIJATO,
+            zinkovat=ZinkovaniChoice.NA_ZINKOVANI,
+        )
+        req = self.get_request('post')
+        resp = actions.oznacit_k_zinkovani_action(admin_obj, req, Bedna.objects.filter(id=bedna.id))
+
+        self.assertIsNone(resp)
+        bedna.refresh_from_db()
+        self.assertEqual(bedna.zinkovat, ZinkovaniChoice.NA_ZINKOVANI)
+        self.assertTrue(any('NEZADANO' in m or 'NEZINKOVAT' in m for m in self._messages_texts(req)))
+
+    def test_oznacit_po_zinkovani_action_requires_state(self):
+        admin_obj = self._messaging_admin()
+        bedna = self._create_bedna_in_state(
+            StavBednyChoice.ZKONTROLOVANO,
+            zinkovat=ZinkovaniChoice.K_ZINKOVANI,
+        )
+        req = self.get_request('post')
+        resp = actions.oznacit_po_zinkovani_action(admin_obj, req, Bedna.objects.filter(id=bedna.id))
+
+        self.assertIsNone(resp)
+        bedna.refresh_from_db()
+        self.assertEqual(bedna.zinkovat, ZinkovaniChoice.K_ZINKOVANI)
+        self.assertTrue(any('NA_ZINKOVANI' in m for m in self._messages_texts(req)))
+
+    def test_oznacit_uvolneno_action_transitions(self):
+        admin_obj = self._messaging_admin()
+        b1 = self._create_bedna_in_state(
+            StavBednyChoice.ZKONTROLOVANO,
+            zinkovat=ZinkovaniChoice.NA_ZINKOVANI,
+        )
+        b2 = self._create_bedna_in_state(
+            StavBednyChoice.ZKONTROLOVANO,
+            zinkovat=ZinkovaniChoice.PO_ZINKOVANI,
+        )
+        req = self.get_request('post')
+        resp = actions.oznacit_uvolneno_action(admin_obj, req, Bedna.objects.filter(id__in=[b1.id, b2.id]))
+
+        self.assertIsNone(resp)
+        b1.refresh_from_db()
+        b2.refresh_from_db()
+        self.assertEqual(b1.zinkovat, ZinkovaniChoice.UVOLNENO)
+        self.assertEqual(b2.zinkovat, ZinkovaniChoice.UVOLNENO)

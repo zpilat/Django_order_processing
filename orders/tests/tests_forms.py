@@ -271,6 +271,8 @@ class BednaChangeListFormTests(FormsBase):
         self.assertEqual(form.fields["tryskat"].initial, self.bedna.tryskat)
         self.assertEqual(form.fields["rovnat"].choices, self.bedna.get_allowed_rovnat_choices())
         self.assertEqual(form.fields["rovnat"].initial, self.bedna.rovnat)
+        self.assertEqual(form.fields["zinkovat"].choices, self.bedna.get_allowed_zinkovat_choices())
+        self.assertEqual(form.fields["zinkovat"].initial, self.bedna.zinkovat)
 
 
 class VyberKamionVydejFormTests(FormsBase):

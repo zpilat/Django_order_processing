@@ -6,7 +6,7 @@ from orders.models import (
 )
 from orders.choices import (
 	StavBednyChoice, TryskaniChoice, RovnaniChoice, PrioritaChoice, KamionChoice,
-	SklademZakazkyChoice
+	SklademZakazkyChoice, ZinkovaniChoice
 )
 from orders import filters as F
 from orders.templatetags import custom_filters
@@ -205,6 +205,44 @@ class BednaFiltersTests(FilterTestBase):
 		qs = f.queryset(None, Bedna.objects.all())
 		self.assertIn(self.b_pr, qs)
 		self.assertIn(self.b_ke, qs)
+
+	def test_zinkovani_filter_hotovo(self):
+		b_nezink = Bedna.objects.create(
+			zakazka=self.zak_new,
+			stav_bedny=StavBednyChoice.PRIJATO,
+			hmotnost=1,
+			tara=1,
+			mnozstvi=1,
+			zinkovat=ZinkovaniChoice.NEZINKOVAT,
+		)
+		b_uvol = Bedna.objects.create(
+			zakazka=self.zak_new,
+			stav_bedny=StavBednyChoice.PRIJATO,
+			hmotnost=1,
+			tara=1,
+			mnozstvi=1,
+			zinkovat=ZinkovaniChoice.UVOLNENO,
+		)
+		b_kz = Bedna.objects.create(
+			zakazka=self.zak_new,
+			stav_bedny=StavBednyChoice.PRIJATO,
+			hmotnost=1,
+			tara=1,
+			mnozstvi=1,
+			zinkovat=ZinkovaniChoice.K_ZINKOVANI,
+		)
+
+		f = self._make_filter(F.ZinkovaniFilter, Bedna, params={"zinkovani": "hotovo"})
+		qs = f.queryset(None, Bedna.objects.all())
+		self.assertIn(b_nezink, qs)
+		self.assertIn(b_uvol, qs)
+		self.assertNotIn(b_kz, qs)
+
+	def test_zinkovani_filter_lookups_excludes_uvolneno(self):
+		f = self._make_filter(F.ZinkovaniFilter, Bedna, params={})
+		keys = {k for k, _ in f.lookups(None, None)}
+		self.assertIn('hotovo', keys)
+		self.assertNotIn(ZinkovaniChoice.UVOLNENO, keys)
 
 	def test_celozavit_bedny_filter_true(self):
 		f = self._make_filter(F.CelozavitBednyFilter, Bedna, params={"celozavit": "True"})

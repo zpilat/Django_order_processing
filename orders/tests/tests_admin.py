@@ -13,7 +13,7 @@ from unittest.mock import patch
 from orders.admin import KamionAdmin, ZakazkaAdmin, BednaAdmin, BednaInline
 from orders.forms import ImportZakazekForm
 from orders.models import Zakaznik, Kamion, Zakazka, Bedna, Predpis, TypHlavy, Odberatel, Cena
-from orders.choices import StavBednyChoice, SklademZakazkyChoice, PrijemVydejChoice, KamionChoice
+from orders.choices import StavBednyChoice, SklademZakazkyChoice, PrijemVydejChoice, KamionChoice, ZinkovaniChoice
 from orders.filters import DelkaFilter
 
 
@@ -788,6 +788,33 @@ class BednaAdminTests(AdminBase):
         req.user = get_user_model().objects.get(pk=req.user.pk)
         editable = self.admin.get_list_editable(req)
         self.assertEqual(editable, ['stav_bedny', 'tryskat', 'rovnat', 'zinkovat', 'hmotnost', 'tara', 'poznamka', 'mnozstvi'])
+
+    def test_get_actions_filters_zinkovani_by_filter(self):
+        def _actions_for(value):
+            req = self.get_request({'zinkovani': value})
+            req.user = self.user
+            return self.admin.get_actions(req)
+
+        actions_nezadano = _actions_for(ZinkovaniChoice.NEZADANO)
+        self.assertIn('oznacit_k_zinkovani_action', actions_nezadano)
+        self.assertNotIn('odeslat_na_zinkovani_action', actions_nezadano)
+        self.assertNotIn('export_na_zinkovani_action', actions_nezadano)
+        self.assertNotIn('oznacit_po_zinkovani_action', actions_nezadano)
+        self.assertNotIn('oznacit_uvolneno_action', actions_nezadano)
+
+        actions_kz = _actions_for(ZinkovaniChoice.K_ZINKOVANI)
+        self.assertIn('odeslat_na_zinkovani_action', actions_kz)
+        self.assertNotIn('oznacit_k_zinkovani_action', actions_kz)
+        self.assertNotIn('export_na_zinkovani_action', actions_kz)
+
+        actions_nz = _actions_for(ZinkovaniChoice.NA_ZINKOVANI)
+        self.assertIn('export_na_zinkovani_action', actions_nz)
+        self.assertIn('oznacit_po_zinkovani_action', actions_nz)
+        self.assertIn('oznacit_uvolneno_action', actions_nz)
+
+        actions_pz = _actions_for(ZinkovaniChoice.PO_ZINKOVANI)
+        self.assertIn('oznacit_uvolneno_action', actions_pz)
+        self.assertNotIn('export_na_zinkovani_action', actions_pz)
 
     def test_get_readonly_fields_neprijato_poznamka_only(self):
         """Při oprávnění jen na poznámku jsou ostatní pole readonly."""

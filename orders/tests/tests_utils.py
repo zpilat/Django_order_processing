@@ -6,6 +6,8 @@ from django.contrib.messages import get_messages
 from django.http import HttpResponse
 from unittest.mock import patch
 from django.core.files.uploadedfile import SimpleUploadedFile
+import csv
+import io
 
 from orders.utils import (
     get_verbose_name_for_column,
@@ -16,9 +18,11 @@ from orders.utils import (
     utilita_expedice_beden,
     utilita_kontrola_zakazek,
     utilita_validate_excel_upload,
+    utilita_export_beden_zinkovani_csv,
+    validate_bedny_pripraveny_k_expedici,
 )
 from orders.models import Bedna, Zakazka, Kamion
-from orders.choices import StavBednyChoice, KamionChoice
+from orders.choices import StavBednyChoice, KamionChoice, ZinkovaniChoice
 from .tests_models import ModelsBase
 from django.conf import settings
 
@@ -287,6 +291,58 @@ class UtilitaExpediceBedenTests(UtilsBase):
         self.assertEqual(b2.zakazka, self.zakazka)
         self.assertEqual(b3.zakazka, self.zakazka)
 
+
+class UtilitaZinkovaniTests(UtilsBase):
+    def test_utilita_export_beden_zinkovani_csv_format(self):
+        self.zakazka.popis = 'Popis Z'
+        self.zakazka.vrstva = 'V1'
+        self.zakazka.povrch = 'Zn'
+        self.zakazka.save(update_fields=['popis', 'vrstva', 'povrch'])
+
+        bedna = Bedna.objects.create(
+            zakazka=self.zakazka,
+            hmotnost=Decimal('2.50'),
+            tara=Decimal('1'),
+            mnozstvi=3,
+            cislo_bedny=5,
+        )
+
+        resp = utilita_export_beden_zinkovani_csv(Bedna.objects.filter(id=bedna.id))
+        self.assertIsInstance(resp, HttpResponse)
+
+        rows = list(csv.reader(io.StringIO(resp.content.decode('utf-8-sig')), delimiter=';'))
+        self.assertGreaterEqual(len(rows), 2)
+        self.assertEqual(rows[1][0], str(bedna.cislo_bedny))
+        self.assertEqual(rows[1][1], 'Popis Z')
+        self.assertEqual(rows[1][2], self.zakazka.artikl)
+        self.assertEqual(rows[1][3], '2,5')
+        self.assertEqual(rows[1][4], '3')
+        self.assertEqual(rows[1][5], 'V1')
+        self.assertEqual(rows[1][6], 'Zn')
+
+    def test_validate_bedny_pripraveny_k_expedici_rejects_invalid_zinkovani(self):
+        class _Admin:
+            def __init__(self):
+                self.messages = []
+
+            def message_user(self, request, message, level=None):
+                self.messages.append(message)
+
+        admin_obj = _Admin()
+        req = self.get_request('post')
+
+        Bedna.objects.create(
+            zakazka=self.zakazka,
+            hmotnost=Decimal('1'),
+            tara=Decimal('1'),
+            mnozstvi=1,
+            stav_bedny=StavBednyChoice.K_EXPEDICI,
+            zinkovat=ZinkovaniChoice.K_ZINKOVANI,
+        )
+
+        ok = validate_bedny_pripraveny_k_expedici(admin_obj, req, Bedna.objects.all())
+        self.assertFalse(ok)
+        self.assertTrue(any('zinkování' in msg for msg in admin_obj.messages))
 
 class UtilitaKontrolaZakazekTests(UtilsBase):
     def test_no_bedny(self):
