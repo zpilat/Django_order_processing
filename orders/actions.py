@@ -1527,20 +1527,20 @@ def oznacit_rovna_se_action(modeladmin, request, queryset):
 @admin.action(description="Změna stavu rovnání na VYROVNANÁ", permissions=('change',))
 def oznacit_vyrovnana_action(modeladmin, request, queryset):
     """
-    Změní stav rovnání vybraných beden z ROVNA_SE na VYROVNANA.
+    Změní stav rovnání vybraných beden z KRIVA a ROVNA_SE na VYROVNANA.
     """
     if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna stavu rovnání na VYROVNANÁ"):
         return None
 
-    # kontrola, zda jsou všechny bedny v querysetu ve stavu ROVNA_SE
-    if queryset.exclude(rovnat=RovnaniChoice.ROVNA_SE).exists():
-        logger.info(f"Uživatel {request.user} se pokusil změnit stav na VYROVNANA, ale některé bedny nejsou ve stavu ROVNA_SE.")
-        modeladmin.message_user(request, "Některé vybrané bedny nejsou ve stavu ROVNÁ SE.", level=messages.ERROR)
+    # kontrola, zda jsou všechny bedny v querysetu ve stavu KRIVA nebo ROVNA_SE
+    if queryset.exclude(rovnat__in=[RovnaniChoice.KRIVA, RovnaniChoice.ROVNA_SE]).exists():
+        logger.info(f"Uživatel {request.user} se pokusil změnit stav na VYROVNANA, ale některé bedny nejsou ve stavu KRIVA nebo ROVNA_SE.")
+        modeladmin.message_user(request, "Některé vybrané bedny nejsou ve stavu KŘIVÁ nebo ROVNÁ SE.", level=messages.ERROR)
         return None
 
     with transaction.atomic():
         for bedna in queryset:
-            if bedna.rovnat == RovnaniChoice.ROVNA_SE:
+            if bedna.rovnat in [RovnaniChoice.KRIVA, RovnaniChoice.ROVNA_SE]:
                 bedna.rovnat = RovnaniChoice.VYROVNANA
                 bedna.save()
 

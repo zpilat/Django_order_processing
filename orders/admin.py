@@ -2894,7 +2894,7 @@ class BednaAdmin(SimpleHistoryAdmin):
             'expedice_beden_kamion_action': 'Expedice',
             'oznacit_k_zinkovani_action': 'Zinkování',
             'odeslat_na_zinkovani_action': 'Zinkování',
-            'export_na_zinkovani_action': 'Export',
+            'export_na_zinkovani_action': 'Zinkování',
             'oznacit_po_zinkovani_action': 'Zinkování',
             'oznacit_uvolneno_action': 'Zinkování',
         }
