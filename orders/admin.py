@@ -2252,11 +2252,17 @@ class BednaAdmin(SimpleHistoryAdmin):
     @admin.display(description="Zkrácený popis", ordering='zakazka__popis')
     def get_zkraceny_popis(self, obj):
         """
-        Vrátí zkrácený popis zakázky (první část před čísly) s tooltipem celého popisu
+        Vrátí zkrácený popis zakázky (první část před čísly) s maximální délkou 15 znaků s tooltipem celého popisu
         a umožní třídění podle hlavičky pole.
         """
-        return format_html('<span title="{}">{}</span>', obj.zakazka.popis, obj.zakazka.zkraceny_popis)        
-
+        if not obj.zakazka or not obj.zakazka.popis:
+            return '-'
+        if len(obj.zakazka.zkraceny_popis) <= 15:
+            zkraceny_popis = obj.zakazka.zkraceny_popis
+        else:
+            zkraceny_popis = f"{obj.zakazka.zkraceny_popis[:14]} ..."
+        return format_html('<span title="{}">{}</span>', obj.zakazka.popis, zkraceny_popis)
+    
     @admin.display(description='Kam. příjem', ordering='zakazka__kamion_prijem__id', empty_value='-')
     def kamion_prijem_link(self, obj):
         """
