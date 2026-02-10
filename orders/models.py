@@ -1062,15 +1062,15 @@ class Bedna(models.Model):
     def clean(self):
         """
         Validace stavu bedny a tryskání/rovnání/zinkování.
-        - Pokud je stav bedny K_EXPEDICI nebo EXPEDOVANO, musí být tryskání buď Čistá nebo Otryskaná,
-          rovnání buď Rovná nebo Vyrovnaná a zinkování buď Nezinkovat nebo Uvolněno (po zinkování).
+                - Pokud je stav bedny K_EXPEDICI nebo EXPEDOVANO, musí být tryskání buď Čistá nebo Otryskaná,
+                    rovnání buď Rovná nebo Vyrovnaná a zinkování buď Nezinkovat nebo Uvolněno (pozinkováno).
         - Pokud je stav bedny K_NAVEZENI nebo NAVEZENO, musí být zadána pozice.
         - Pokud je stav bedny jakýkoliv jiný než NEPRIJATO, musí být zadána hmotnost, tára a množství a tyto nesmí být nula.
         - Pokud je zinkovat NA_ZINKOVANI, musí být stav bedny ZKONTROLOVANO.
         """
         super().clean()    
         if self.stav_bedny in [StavBednyChoice.K_EXPEDICI, StavBednyChoice.EXPEDOVANO]:
-            text = _("Pro zadání stavu 'K expedici' nebo 'Expedováno' musí být tryskání buď Čistá nebo Otryskaná, rovnání buď Rovná nebo Vyrovnaná a zinkování buď Nezinkovat nebo Uvolněno (po zinkování).")
+            text = _("Pro zadání stavu 'K expedici' nebo 'Expedováno' musí být tryskání buď Čistá nebo Otryskaná, rovnání buď Rovná nebo Vyrovnaná a zinkování buď Nezinkovat nebo Uvolněno (pozinkováno).")
             if self.tryskat not in [TryskaniChoice.CISTA, TryskaniChoice.OTRYSKANA]:
                 logger.warning(f'Uzivatel se pokusil uložit bednu ve stavu {self.stav_bedny} s neplatným stavem tryskání: {self.tryskat}')
                 raise ValidationError(text)
@@ -1251,9 +1251,9 @@ class Bedna(models.Model):
         - Pokud je zinkovat nezadáno, nabídne nezadáno, nezinkovat, k zinkování.
         - Pokud je zinkovat nezinkovat, nabídne nezadáno, k_zinkovani a nezinkovat.
         - Pokud je zinkovat k zinkování, nabídne nezadano, nezinkovat, k zinkování a na zinkování.
-        - Pokud je zinkovat na zinkování, nabídne k zinkování, na zinkování, po zinkování a uvolněno.
-        - Pokud je zinkovat po zinkování, nabídne na zinkování, po zinkování a uvolněno.
-        - Pokud je zinkovat uvolněno, nabídne po zinkování a uvolněno.
+        - Pokud je zinkovat na zinkování, nabídne k zinkování, na zinkování, pozinkováno a uvolněno.
+        - Pokud je zinkovat pozinkováno, nabídne na zinkování, pozinkováno a uvolněno.
+        - Pokud je zinkovat uvolněno, nabídne pozinkováno a uvolněno.
         """
         curr = self.zinkovat
         curr_choice = (curr, dict(ZinkovaniChoice.choices).get(curr, 'Neznámý stav'))
@@ -1283,18 +1283,18 @@ class Bedna(models.Model):
             return [choice for choice in ZinkovaniChoice.choices if choice[0] in (
                 ZinkovaniChoice.K_ZINKOVANI,
                 ZinkovaniChoice.NA_ZINKOVANI,
-                ZinkovaniChoice.PO_ZINKOVANI,
+                ZinkovaniChoice.POZINKOVANO,
                 ZinkovaniChoice.UVOLNENO,
             )]
-        if curr == ZinkovaniChoice.PO_ZINKOVANI:
+        if curr == ZinkovaniChoice.POZINKOVANO:
             return [choice for choice in ZinkovaniChoice.choices if choice[0] in (
                 ZinkovaniChoice.NA_ZINKOVANI,
-                ZinkovaniChoice.PO_ZINKOVANI,
+                ZinkovaniChoice.POZINKOVANO,
                 ZinkovaniChoice.UVOLNENO,
             )]
         if curr == ZinkovaniChoice.UVOLNENO:
             return [choice for choice in ZinkovaniChoice.choices if choice[0] in (
-                ZinkovaniChoice.PO_ZINKOVANI,
+                ZinkovaniChoice.POZINKOVANO,
                 ZinkovaniChoice.UVOLNENO
             )]
         # fallback: všechno

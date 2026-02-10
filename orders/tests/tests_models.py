@@ -397,7 +397,7 @@ class TestModels(ModelsBase):
             {
                 ZinkovaniChoice.K_ZINKOVANI,
                 ZinkovaniChoice.NA_ZINKOVANI,
-                ZinkovaniChoice.PO_ZINKOVANI,
+                ZinkovaniChoice.POZINKOVANO,
                 ZinkovaniChoice.UVOLNENO,
             },
         )

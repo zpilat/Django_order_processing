@@ -1692,7 +1692,7 @@ class StatusChangeActionsTests(ActionsBase):
         )
         b2 = self._create_bedna_in_state(
             StavBednyChoice.ZKONTROLOVANO,
-            zinkovat=ZinkovaniChoice.PO_ZINKOVANI,
+            zinkovat=ZinkovaniChoice.POZINKOVANO,
         )
         req = self.get_request('post')
         resp = actions.oznacit_uvolneno_action(admin_obj, req, Bedna.objects.filter(id__in=[b1.id, b2.id]))

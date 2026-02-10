@@ -812,7 +812,7 @@ class BednaAdminTests(AdminBase):
         self.assertIn('oznacit_po_zinkovani_action', actions_nz)
         self.assertIn('oznacit_uvolneno_action', actions_nz)
 
-        actions_pz = _actions_for(ZinkovaniChoice.PO_ZINKOVANI)
+        actions_pz = _actions_for(ZinkovaniChoice.POZINKOVANO)
         self.assertIn('oznacit_uvolneno_action', actions_pz)
         self.assertNotIn('export_na_zinkovani_action', actions_pz)
 

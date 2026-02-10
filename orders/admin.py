@@ -2735,7 +2735,7 @@ class BednaAdmin(SimpleHistoryAdmin):
             - oznacit_k_zinkovani_action je viditelná jen při filtru zinkovani NEZADANO nebo NEZINKOVAT.
             - odeslat_na_zinkovani_action je viditelná jen při filtru zinkovani K_ZINKOVANI.
             - export_na_zinkovani_action a oznacit_po_zinkovani_action jsou viditelné jen při filtru zinkovani NA_ZINKOVANI.
-            - oznacit_uvolneno_action je viditelná jen při filtru zinkovani NA_ZINKOVANI nebo PO_ZINKOVANI.
+            - oznacit_uvolneno_action je viditelná jen při filtru zinkovani NA_ZINKOVANI nebo POZINKOVANO.
         
         """
         actions = super().get_actions(request)
@@ -2831,7 +2831,7 @@ class BednaAdmin(SimpleHistoryAdmin):
                 actions_to_remove += [
                     'export_na_zinkovani_action', 'oznacit_po_zinkovani_action',
                 ]
-            if zinkovani_filter not in [ZinkovaniChoice.NA_ZINKOVANI, ZinkovaniChoice.PO_ZINKOVANI]:
+            if zinkovani_filter not in [ZinkovaniChoice.NA_ZINKOVANI, ZinkovaniChoice.POZINKOVANO]:
                 actions_to_remove += [
                     'oznacit_uvolneno_action',
                 ]

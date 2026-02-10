@@ -56,7 +56,7 @@ class ZinkovaniChoice(models.TextChoices):
     NEZINKOVAT = 'NN', 'Nezinkovat'
     K_ZINKOVANI = 'KZ', 'K zinkování'
     NA_ZINKOVANI = 'NZ', 'Na zinkování'
-    PO_ZINKOVANI = 'PZ', 'Po zinkování'
+    POZINKOVANO = 'PZ', 'Pozinkováno'
     UVOLNENO = 'UV', 'Uvolněno'
 
 class PrioritaChoice(models.TextChoices):

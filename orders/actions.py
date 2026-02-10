@@ -1710,17 +1710,17 @@ def oznacit_k_zinkovani_action(modeladmin, request, queryset):
     logger.info(f"Uživatel {request.user} změnil stav zinkování na K_ZINKOVANI u {queryset.count()} beden.")
     return None
 
-@admin.action(description="Změna stavu zinkování na PO ZINKOVÁNÍ", permissions=('change',))
+@admin.action(description="Změna stavu zinkování na POZINKOVÁNO", permissions=('change',))
 def oznacit_po_zinkovani_action(modeladmin, request, queryset):
     """
-    Změní stav zinkování vybraných beden z NA_ZINKOVANI na PO_ZINKOVANI.
+    Změní stav zinkování vybraných beden z NA_ZINKOVANI na POZINKOVANO.
     """
-    if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna stavu zinkování na PO_ZINKOVANI"):
+    if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna stavu zinkování na POZINKOVÁNO"):
         return None
 
     # kontrola, zda jsou všechny bedny v querysetu ve stavu NA_ZINKOVANI
     if queryset.exclude(zinkovat=ZinkovaniChoice.NA_ZINKOVANI).exists():
-        logger.info(f"Uživatel {request.user} se pokusil změnit stav zinkování na PO_ZINKOVANI, ale některé bedny nejsou ve stavu NA_ZINKOVANI.")
+        logger.info(f"Uživatel {request.user} se pokusil změnit stav zinkování na POZINKOVANO, ale některé bedny nejsou ve stavu NA_ZINKOVANI.")
         modeladmin.message_user(request, "Některé vybrané bedny nejsou ve stavu NA_ZINKOVANI.", level=messages.ERROR)
         return None
     
@@ -1733,25 +1733,25 @@ def oznacit_po_zinkovani_action(modeladmin, request, queryset):
     with transaction.atomic():
         for bedna in queryset:
             if bedna.zinkovat == ZinkovaniChoice.NA_ZINKOVANI:
-                bedna.zinkovat = ZinkovaniChoice.PO_ZINKOVANI
+                bedna.zinkovat = ZinkovaniChoice.POZINKOVANO
                 bedna.save()
 
     messages.success(request, f"Změněno: {queryset.count()} beden.")
-    logger.info(f"Uživatel {request.user} změnil stav zinkování na PO_ZINKOVANI u {queryset.count()} beden.")
+    logger.info(f"Uživatel {request.user} změnil stav zinkování na POZINKOVANO u {queryset.count()} beden.")
     return None
 
 @admin.action(description="Změna stavu zinkování na UVOLNĚNO", permissions=('change',))
 def oznacit_uvolneno_action(modeladmin, request, queryset):
     """
-    Změní stav zinkování vybraných beden z NA_ZINKOVANI a PO_ZINKOVANI na UVOLNENO.
+    Změní stav zinkování vybraných beden z NA_ZINKOVANI a POZINKOVANO na UVOLNENO.
     """
     if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna stavu zinkování na UVOLNĚNO"):
         return None
 
-    # kontrola, zda jsou všechny bedny v querysetu ve stavu NA_ZINKOVANI a PO_ZINKOVANI
-    if queryset.exclude(zinkovat__in=[ZinkovaniChoice.NA_ZINKOVANI, ZinkovaniChoice.PO_ZINKOVANI]).exists():
-        logger.info(f"Uživatel {request.user} se pokusil změnit stav zinkování na UVOLNĚNO, ale některé bedny nejsou ve stavu NA_ZINKOVANI nebo PO_ZINKOVANI.")
-        modeladmin.message_user(request, "Některé vybrané bedny nejsou ve stavu NA_ZINKOVANI nebo PO_ZINKOVANI.", level=messages.ERROR)
+    # kontrola, zda jsou všechny bedny v querysetu ve stavu NA_ZINKOVANI a POZINKOVANO
+    if queryset.exclude(zinkovat__in=[ZinkovaniChoice.NA_ZINKOVANI, ZinkovaniChoice.POZINKOVANO]).exists():
+        logger.info(f"Uživatel {request.user} se pokusil změnit stav zinkování na UVOLNĚNO, ale některé bedny nejsou ve stavu NA_ZINKOVANI nebo POZINKOVANO.")
+        modeladmin.message_user(request, "Některé vybrané bedny nejsou ve stavu NA_ZINKOVANI nebo POZINKOVANO.", level=messages.ERROR)
         return None
 
     # kontrola, zda jsou všechny bedny mimo stav_bedny K_EXPEDICI a EXPEDOVANO
@@ -1762,7 +1762,7 @@ def oznacit_uvolneno_action(modeladmin, request, queryset):
 
     with transaction.atomic():
         for bedna in queryset:
-            if bedna.zinkovat in [ZinkovaniChoice.NA_ZINKOVANI, ZinkovaniChoice.PO_ZINKOVANI]:
+            if bedna.zinkovat in [ZinkovaniChoice.NA_ZINKOVANI, ZinkovaniChoice.POZINKOVANO]:
                 bedna.zinkovat = ZinkovaniChoice.UVOLNENO
                 bedna.save()
 
