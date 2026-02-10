@@ -14,10 +14,11 @@
     <td class="bg-body-secondary" style="width: 4%;">Ober-fläche</td>
     <td class="bg-body-secondary" style="width: 5%;">Beschicht.</td>
     <td class="bg-body-secondary" style="width: 5%;">Behälter-Nr.</td>
-    <td class="bg-body-secondary" style="width: 23%;">Sonder / Zusatzinfo</td>
+    <td class="bg-body-secondary" style="width: 22%;">Sonder / Zusatzinfo</td>
     <td class="bg-body-secondary" style="width: 3%;">Lief.</td>	
     <td class="bg-body-secondary" style="width: 6%;">Fertigungs-auftrags Nr.</td>
-    <td class="bg-body-secondary" style="width: 6%;">Reinheit</td>
+    <td class="bg-body-secondary" style="width: 5%;">Reinheit</td>
+    <td class="bg-body-secondary" style="width: 2%;">Verz.</td>
 </tr>
 {% endblock %}
 
@@ -42,6 +43,7 @@
     <td>{{ bedna.dodatecne_info }}</td>
     <td>{{ bedna.dodavatel_materialu }}</td>
     <td>{{ bedna.vyrobni_zakazka }}</td>
-    <td>{% if bedna.tryskat == 'OT' %}sandgestrahlt{% else %}--{% endif %}</td>
+    <td>{% if bedna.tryskat == 'OT' %}sandgest.{% else %}--{% endif %}</td>
+    <td>{% if bedna.zinkovat == 'UV' %}✔️{% endif %}</td>
 </tr>
 {% endblock %}
