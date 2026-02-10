@@ -313,12 +313,13 @@ class UtilitaZinkovaniTests(UtilsBase):
         rows = list(csv.reader(io.StringIO(resp.content.decode('utf-8-sig')), delimiter=';'))
         self.assertGreaterEqual(len(rows), 2)
         self.assertEqual(rows[1][0], str(bedna.cislo_bedny))
-        self.assertEqual(rows[1][1], 'Popis Z')
-        self.assertEqual(rows[1][2], self.zakazka.artikl)
-        self.assertEqual(rows[1][3], '2,5')
-        self.assertEqual(rows[1][4], '3')
-        self.assertEqual(rows[1][5], 'V1')
-        self.assertEqual(rows[1][6], 'Zn')
+        self.assertEqual(rows[1][1], '')
+        self.assertEqual(rows[1][2], 'Popis Z')
+        self.assertEqual(rows[1][3], self.zakazka.artikl)
+        self.assertEqual(rows[1][4], '2,5')
+        self.assertEqual(rows[1][5], '3')
+        self.assertEqual(rows[1][6], 'V1')
+        self.assertEqual(rows[1][7], 'Zn')
 
     def test_validate_bedny_pripraveny_k_expedici_rejects_invalid_zinkovani(self):
         class _Admin:
