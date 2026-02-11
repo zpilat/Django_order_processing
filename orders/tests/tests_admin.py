@@ -198,6 +198,88 @@ class KamionAdminTests(AdminBase):
         predpis_import.delete()
         typ_hlavy_import.delete()
 
+    def test_import_view_eur_same_artikl_sarze_diff_surface_creates_new_order(self):
+        url = f'/admin/orders/kamion/import-zakazek/?kamion={self.kamion.pk}'
+
+        # Prepare required objects for a successful import
+        predpis_import = Predpis.objects.create(
+            nazev='00123_Ø10', skupina=1, zakaznik=self.zakaznik
+        )
+        typ_hlavy_import = TypHlavy.objects.create(nazev='TK', popis='Test')
+
+        predpis_column_name = 'n. Zg. / \n' 'as drg'
+        df_data = {
+            'Abhol- datum': ['2024-01-01', '2024-01-01'],
+            'Unnamed: 7': ['10 x 50', '10 x 50'],
+            'Bezeichnung': ['desc 1', 'desc 2'],
+            'Sonder / Zusatzinfo': ['', ''],
+            'Artikel- nummer': ['A1', 'A1'],
+            predpis_column_name: ['123', '123'],
+            'Material- charge': ['M1', 'M1'],
+            'Material': ['steel', 'steel'],
+            'Ober- fläche': ['ZP', 'ZN'],
+            'Be-schich-tung': ['L1', 'L2'],
+            'Gewicht in kg': [1, 1],
+            'Gew.': [1, 1],
+            'Tara kg': [1, 1],
+            'Behälter-Nr.:': [1, 2],
+            'Lief.': ['L1', 'L1'],
+            'Fertigungs- auftrags Nr.': ['F1', 'F2'],
+            'Unnamed: 6': ['TK', 'TK'],
+        }
+        import pandas as pandas_mod
+        df = pandas_mod.DataFrame(df_data)
+        file_mock = SimpleUploadedFile('f.xlsx', b'fakecontent', content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+        valid_req = self.get_request('post', data={'file': file_mock}, path=url)
+        valid_req.FILES['file'] = file_mock
+
+        # Mockni _messages storage
+        valid_req.session = {}
+        valid_req._messages = FallbackStorage(valid_req)
+
+        self.assertTrue(ImportZakazekForm(valid_req.POST, valid_req.FILES).is_valid())
+
+        with patch.object(self.admin, '_render_import', wraps=self.admin._render_import) as render_mock, patch('orders.admin.pd.read_excel', side_effect=lambda *args, **kwargs: df.copy()):
+            zak_before = Zakazka.objects.count()
+            bedna_before = Bedna.objects.count()
+            preview_resp = self.admin.import_view(valid_req)
+
+        self.assertEqual(preview_resp.status_code, 200)
+        tmp_token = next(iter(valid_req.session.get('import_tmp_files', {})), None)
+        self.assertTrue(tmp_token)
+
+        import_req = self.get_request('post', data={'tmp_token': tmp_token}, path=url)
+        import_req.session = valid_req.session
+        import_req._messages = FallbackStorage(import_req)
+
+        with patch('orders.admin.pd.read_excel', side_effect=lambda *args, **kwargs: df.copy()):
+            resp = self.admin.import_view(import_req)
+
+        if resp.status_code != 302:
+            context = getattr(resp, 'context_data', {}) or {}
+            form_errors = context.get('form').errors if context.get('form') else {}
+            delta_zak = Zakazka.objects.count() - zak_before
+            delta_bedna = Bedna.objects.count() - bedna_before
+            self.fail(
+                "Import neprovedl redirect (status {status}); chyby: {errors}; form_errors: {form_errors}; "
+                "delta_zak: {delta_zak}; delta_bedna: {delta_bedna}".format(
+                    status=resp.status_code,
+                    errors=context.get('errors'),
+                    form_errors=form_errors,
+                    delta_zak=delta_zak,
+                    delta_bedna=delta_bedna,
+                )
+            )
+        self.assertEqual(Zakazka.objects.count(), zak_before + 2)
+        self.assertEqual(Bedna.objects.count(), bedna_before + 2)
+
+        # cleanup created objects
+        Zakazka.objects.all().delete()
+        Bedna.objects.all().delete()
+        predpis_import.delete()
+        typ_hlavy_import.delete()
+
     def test_import_view_spx_strategy(self):
         spx = Zakaznik.objects.create(
             nazev='SPX',
