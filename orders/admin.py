@@ -2213,14 +2213,14 @@ class BednaAdmin(SimpleHistoryAdmin):
     def get_datum_prijem(self, obj):
         """Zobrazí datum kamionu příjmu, ke kterému bedna patří."""
         if obj.zakazka and obj.zakazka.kamion_prijem:
-            return obj.zakazka.kamion_prijem.datum.strftime('%y-%m-%d')
+            return obj.zakazka.kamion_prijem.datum.strftime('%d.%m.%Y')
         return '-'
     
     @admin.display(description='Dat. výdej', ordering='zakazka__kamion_vydej__datum', empty_value='-')
     def get_datum_vydej(self, obj):
         """Zobrazí datum kamionu výdeje, ke kterému bedna patří."""
         if obj.zakazka and obj.zakazka.kamion_vydej:
-            return obj.zakazka.kamion_vydej.datum.strftime('%y-%m-%d')
+            return obj.zakazka.kamion_vydej.datum.strftime('%d.%m.%Y')
         return '-'
 
     @admin.display(description='Poz.', ordering='pozice', empty_value='-')
