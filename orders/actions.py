@@ -2183,7 +2183,7 @@ def import_kamionu_action(modeladmin, request, queryset):
         logger.info(f"Uživatel {request.user} se pokusil importovat kamion {kamion.cislo_dl}, ale kamion již obsahuje zakázky.")
         modeladmin.message_user(request, "Kamion již obsahuje zakázky, nelze provést import.", level=messages.ERROR)
         return
-    # Import pro zákazníka Eurotec
+    # Import pro zákazníky EUR a SPX, pro ostatní zákazníky zatím není import umožněn
     if kamion.zakaznik.zkratka in ["EUR", "SPX"]:
         logger.info(f"Uživatel {request.user} importuje kamion {kamion.cislo_dl} pro zákazníka {kamion.zakaznik.zkratka}.")
         return redirect(f'./import-zakazek/?kamion={kamion.pk}')

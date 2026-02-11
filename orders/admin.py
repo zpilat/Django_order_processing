@@ -1013,6 +1013,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                 tmp_token = request.POST.get('tmp_token')
                 tmp_filename = None
                 is_htmx = False
+                preview_only = False
                 # Validace pouze nového uploadu
                 if file:
                     errors = utilita_validate_excel_upload(file)
@@ -1030,12 +1031,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                     saved_path = None
                     excel_stream = None
 
-                    if request.POST.get('preview'):
-                        if not file:
-                            errors.append("Pro náhled musíte vybrat soubor.")
-                            return self._render_import(
-                                request, form, kamion, preview, errors, warnings, tmp_token, tmp_filename
-                            )
+                    if file:
                         token = str(uuid.uuid4())
                         saved_path = default_storage.save(f"tmp/imports/{token}.xlsx", file)
                         tmp_map[token] = {'path': saved_path, 'name': file.name}
@@ -1047,11 +1043,9 @@ class KamionAdmin(SimpleHistoryAdmin):
                         tmp_token = token
                         tmp_filename = file.name
                         excel_stream = default_storage.open(saved_path, 'rb')
+                        preview_only = True
                     else:
-                        if file:
-                            excel_stream = file
-                            tmp_filename = getattr(file, 'name', None)
-                        elif tmp_token and tmp_token in tmp_map:
+                        if tmp_token and tmp_token in tmp_map:
                             saved_path = tmp_map[tmp_token]['path']
                             tmp_filename = tmp_map[tmp_token]['name']
                             excel_stream = default_storage.open(saved_path, 'rb')
@@ -1093,10 +1087,12 @@ class KamionAdmin(SimpleHistoryAdmin):
                             request, form, kamion, preview, errors, warnings, tmp_token, tmp_filename
                         )
 
-                    # Režim náhledu – bez uložení
-                    if request.POST.get('preview'):
+                    # Náhled po uploadu – bez uložení
+                    if preview_only:
+                        if not preview and not errors:
+                            warnings.append("Náhled je prázdný. Zkontrolujte prosím, že soubor obsahuje očekávaná data.")
                         try:
-                            messages.info(request, "Zobrazen náhled importu. Data nebyla uložena.")
+                            messages.info(request, "Zobrazen náhled importu. Data zatím nebyla uložena.")
                         except Exception:
                             pass
                         return self._render_import(
@@ -1130,7 +1126,7 @@ class KamionAdmin(SimpleHistoryAdmin):
 
                     logger.info(f"Uživatel {request.user} úspěšně uložil zakázky a bedny pro kamion {kamion}.")
                     # pokud se importovalo z dočasného souboru, uklidit
-                    if not request.POST.get('preview') and 'tmp_token' in locals() and tmp_token:
+                    if 'tmp_token' in locals() and tmp_token:
                         try:
                             tmp_map = request.session.get('import_tmp_files', {})
                         except Exception:
@@ -1164,6 +1160,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                     except Exception:
                         pass
                     return redirect("..")
+        # Pro GET request zobrazí prázdný formulář pro import
         else:
             logger.info(f"Uživatel {request.user} otevřel formulář pro import zakázek do kamionu {kamion}.")
             form = ImportZakazekForm()

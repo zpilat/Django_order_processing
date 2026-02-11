@@ -158,27 +158,35 @@ class KamionAdminTests(AdminBase):
 
         self.assertTrue(ImportZakazekForm(valid_req.POST, valid_req.FILES).is_valid())
 
-        with patch.object(self.admin, '_render_import', wraps=self.admin._render_import) as render_mock, patch('orders.admin.pd.read_excel', return_value=df):
+        with patch.object(self.admin, '_render_import', wraps=self.admin._render_import) as render_mock, patch('orders.admin.pd.read_excel', side_effect=lambda *args, **kwargs: df.copy()):
             zak_before = Zakazka.objects.count()
             bedna_before = Bedna.objects.count()
-            resp = self.admin.import_view(valid_req)
+            preview_resp = self.admin.import_view(valid_req)
+
+        self.assertEqual(preview_resp.status_code, 200)
+        tmp_token = next(iter(valid_req.session.get('import_tmp_files', {})), None)
+        self.assertTrue(tmp_token)
+
+        import_req = self.get_request('post', data={'tmp_token': tmp_token}, path=url)
+        import_req.session = valid_req.session
+        import_req._messages = FallbackStorage(import_req)
+
+        with patch('orders.admin.pd.read_excel', side_effect=lambda *args, **kwargs: df.copy()):
+            resp = self.admin.import_view(import_req)
 
         if resp.status_code != 302:
             context = getattr(resp, 'context_data', {}) or {}
             form_errors = context.get('form').errors if context.get('form') else {}
             delta_zak = Zakazka.objects.count() - zak_before
             delta_bedna = Bedna.objects.count() - bedna_before
-            render_args = render_mock.call_args
-            render_errors = render_args[0][4] if render_args else None
             self.fail(
                 "Import neprovedl redirect (status {status}); chyby: {errors}; form_errors: {form_errors}; "
-                "delta_zak: {delta_zak}; delta_bedna: {delta_bedna}; render_errors: {render_errors}".format(
+                "delta_zak: {delta_zak}; delta_bedna: {delta_bedna}".format(
                     status=resp.status_code,
                     errors=context.get('errors'),
                     form_errors=form_errors,
                     delta_zak=delta_zak,
                     delta_bedna=delta_bedna,
-                    render_errors=render_errors,
                 )
             )
         self.assertEqual(Zakazka.objects.count(), zak_before + 2)
@@ -244,10 +252,21 @@ class KamionAdminTests(AdminBase):
             },
         ])
 
-        with patch('orders.admin.pd.read_excel', return_value=df):
+        with patch.object(self.admin, '_render_import', wraps=self.admin._render_import) as render_mock, patch('orders.admin.pd.read_excel', side_effect=lambda *args, **kwargs: df.copy()):
             zak_before = Zakazka.objects.count()
             bedna_before = Bedna.objects.count()
-            resp = self.admin.import_view(valid_req)
+            preview_resp = self.admin.import_view(valid_req)
+
+        self.assertEqual(preview_resp.status_code, 200)
+        tmp_token = next(iter(valid_req.session.get('import_tmp_files', {})), None)
+        self.assertTrue(tmp_token)
+
+        import_req = self.get_request('post', data={'tmp_token': tmp_token}, path=url)
+        import_req.session = valid_req.session
+        import_req._messages = FallbackStorage(import_req)
+
+        with patch('orders.admin.pd.read_excel', side_effect=lambda *args, **kwargs: df.copy()):
+            resp = self.admin.import_view(import_req)
 
         self.assertEqual(resp.status_code, 302)
         self.assertEqual(Zakazka.objects.count(), zak_before + 2)
@@ -288,8 +307,19 @@ class KamionAdminTests(AdminBase):
 
         existing_ids = set(Bedna.objects.values_list('id', flat=True))
 
-        with patch('orders.admin.pd.read_excel', return_value=df):
+        with patch.object(self.admin, '_render_import', wraps=self.admin._render_import) as render_mock, patch('orders.admin.pd.read_excel', side_effect=lambda *args, **kwargs: df.copy()):
             resp = self.admin.import_view(valid_req)
+
+        self.assertEqual(resp.status_code, 200)
+        tmp_token = next(iter(valid_req.session.get('import_tmp_files', {})), None)
+        self.assertTrue(tmp_token)
+
+        import_req = self.get_request('post', data={'tmp_token': tmp_token}, path=url)
+        import_req.session = valid_req.session
+        import_req._messages = FallbackStorage(import_req)
+
+        with patch('orders.admin.pd.read_excel', side_effect=lambda *args, **kwargs: df.copy()):
+            resp = self.admin.import_view(import_req)
 
         self.assertEqual(resp.status_code, 302)
 
