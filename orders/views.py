@@ -20,7 +20,7 @@ from django.shortcuts import get_object_or_404
 
 from .utils import get_verbose_name_for_column, utilita_tisk_dl_a_proforma_faktury
 from .models import Bedna, Zakazka, Kamion, Zakaznik, TypHlavy, Predpis, Odberatel, Cena, Pozice, PoziceZakazkaOrder
-from .choices import  StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice, STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM
+from .choices import  StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice, ZinkovaniChoice, STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM
 from weasyprint import HTML, CSS
 
 import logging
@@ -79,6 +79,7 @@ def dashboard_bedny_view(request):
         '-> K tryskání': {'tryskat': TryskaniChoice.SPINAVA, 'stav_bedny__in': [StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO]},        
         '-> Křivé': {'rovnat': RovnaniChoice.KRIVA, 'stav_bedny__in': [StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO]},
         '-> Rovná se': {'rovnat': RovnaniChoice.ROVNA_SE, 'stav_bedny__in': [StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO]},
+        '-> Na zinkování': {'zinkovat': ZinkovaniChoice.NA_ZINKOVANI},
         '-> K exp. po bednách': {'stav_bedny': StavBednyChoice.K_EXPEDICI},
         '--> K exp. po zakáz.': {'stav_bedny': StavBednyChoice.K_EXPEDICI, 'zakazka__in': kompletni_zakazky},
         'Po exspiraci': {'stav_bedny__in': STAV_BEDNY_SKLADEM, 'zakazka__kamion_prijem__datum__lt': timezone.now().date() - timezone.timedelta(days=28)},
