@@ -240,7 +240,7 @@ class EURImportStrategy(BaseImportStrategy):
             preview.append({
                 'datum': datum_fmt,
                 'behalter_nr': beh_nr,
-                'artikl': r.get('artikl') if pd.notna(r.get('artikl')) else error_values,
+                'artikl': str(r.get('artikl')).strip() if pd.notna(r.get('artikl')) else error_values,
                 'prumer': r.get('prumer') if pd.notna(r.get('prumer')) else error_values,
                 'delka': r.get('delka') if pd.notna(r.get('delka')) else error_values,
                 'predpis': predpis_val,
@@ -248,7 +248,9 @@ class EURImportStrategy(BaseImportStrategy):
                 'typ_hlavy': r.get('typ_hlavy') if pd.notna(r.get('typ_hlavy')) else error_values,
                 'popis': r.get('popis') if pd.notna(r.get('popis')) else error_values,
                 'material': r.get('material') if pd.notna(r.get('material')) else error_values,
-                'sarze': r.get('sarze') if pd.notna(r.get('sarze')) else error_values,
+                'sarze': str(r.get('sarze')).strip() if pd.notna(r.get('sarze')) else error_values,
+                'vrstva': str(r.get('vrstva')).strip() if pd.notna(r.get('vrstva')) else error_values,
+                'povrch': str(r.get('povrch')).strip() if pd.notna(r.get('povrch')) else error_values,
                 'hmotnost': r.get('hmotnost') if pd.notna(r.get('hmotnost')) else error_values,
                 'mnozstvi': r.get('mnozstvi') if pd.notna(r.get('mnozstvi')) else error_values,
                 'tara': r.get('tara') if pd.notna(r.get('tara')) else error_values,
@@ -261,10 +263,15 @@ class EURImportStrategy(BaseImportStrategy):
         return list(self.required_fields)
 
     def get_cache_key(self, row: Any):
-        artikl = row['artikl']
+        artikl_raw = row.get('artikl')
+        artikl_key = str(artikl_raw).strip() if pd.notna(artikl_raw) else None
         sarze_raw = row.get('sarze')
-        sarze_key = None if pd.isna(sarze_raw) else str(sarze_raw).strip()
-        return (artikl, sarze_key)
+        sarze_key = str(sarze_raw).strip() if pd.notna(sarze_raw) else None
+        povrch_raw = row.get('povrch')
+        povrch_key = str(povrch_raw).strip() if pd.notna(povrch_raw) else None
+        vrstva_raw = row.get('vrstva')
+        vrstva_key = str(vrstva_raw).strip() if pd.notna(vrstva_raw) else None
+        return (artikl_key, sarze_key, povrch_key, vrstva_key)
 
     def map_row_to_zakazka_kwargs(self, row: Any, kamion, warnings: List[str]):
         prumer = row.get('prumer')

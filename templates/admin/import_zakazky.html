@@ -123,6 +123,12 @@
                 {% if row.sarze %}
                   <th scope="col">Šarže</th>
                 {% endif %}
+                {% if row.vrstva %}
+                  <th scope="col">Vrstva</th>
+                {% endif %}
+                {% if row.povrch %}
+                  <th scope="col">Povrch</th>
+                {% endif %}
                 <th scope="col">Množství (ks)</th>            
                 <th scope="col">Hmotnost (kg)</th>
                 <th scope="col">Tára (kg)</th>
@@ -153,6 +159,12 @@
               {% endif %}
               {% if row.sarze %}
                 <td>{{ row.sarze }}</td>
+              {% endif %}
+              {% if row.vrstva %}
+                <td>{{ row.vrstva }}</td>
+              {% endif %}
+              {% if row.povrch %}
+                <td>{{ row.povrch }}</td>
               {% endif %}
               <td style="text-align: center;">{{ row.mnozstvi }}</td>
               <td style="text-align: center;">{{ row.hmotnost }}</td>
