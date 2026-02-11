@@ -2623,17 +2623,18 @@ class BednaAdmin(SimpleHistoryAdmin):
         jinak get_datum_prijem.
         Pokud není filtr stav bedny v STAV_BEDNY_PRO_NAVEZENI, vyloučí se zobrazení sloupce pozice.
         Pokud není filtr stav bedny == Neprijato, vyloučí se zobrazení sloupce mnozstvi a tara.
-        Pokud není filtr stav bedny == Zkontrolované, Nepřijato, Rozpracováno, Expedovano a není aktivní filtr zinkovani,
+        Pokud není filtr stav bedny == Zkontrolované, Nepřijato, Rozpracováno, Expedováno a není aktivní filtr zinkovani,
         vyloučí se zobrazení sloupce zinkovat. 
         Pokud není filtr stav bedny == K_expedici, vyloučí se zobrazení sloupce cena_za_kg, hmotnost_brutto, get_odberatel a get_pozinkovano,
-        jinak rovnat a tryskat.
+        jinak rovnat, tryskat a zinkovat.
         Pokud není filtr stav bedny == Neprijato, Prijato, Zkontrolováno, Rozpracováno a není aktivní filtr zinkovani,
         vyloučí se sloupce get_zakaznik_zkratka, jinak kamion_prijem_link.
         Pokud není filtr stav bedny == Prijato nebo K_expedici, get_poradi_bedny_v_zakazce, jinak kamion_prijem_link.
         """
         list_display = list(super().get_list_display(request))
         stav_bedny = request.GET.get('stav_bedny', None)
-        zinkovani_aktivni_filter = request.GET.get('zinkovani', None) != None
+        stav_zinkovani = request.GET.get('zinkovani', None)
+        zinkovani_aktivni_filter = stav_zinkovani is not None
 
         # Podmínky pro odstranění sloupců z list_display
         if get_user_agent(request).is_mobile:
@@ -2673,7 +2674,9 @@ class BednaAdmin(SimpleHistoryAdmin):
             if 'rovnat' in list_display:
                 list_display.remove('rovnat')
             if 'tryskat' in list_display:
-                list_display.remove('tryskat')                
+                list_display.remove('tryskat')
+            if 'zinkovat' in list_display:
+                list_display.remove('zinkovat')
         if stav_bedny not in [StavBednyChoice.NEPRIJATO, StavBednyChoice.PRIJATO, 'RO',
                               StavBednyChoice.ZKONTROLOVANO] and not zinkovani_aktivni_filter:
             if 'get_zakaznik_zkratka' in list_display:
@@ -2683,7 +2686,8 @@ class BednaAdmin(SimpleHistoryAdmin):
                 list_display.remove('kamion_prijem_link')
         if stav_bedny not in [StavBednyChoice.PRIJATO, StavBednyChoice.K_EXPEDICI]:
             if 'get_poradi_bedny_v_zakazce' in list_display:
-                list_display.remove('get_poradi_bedny_v_zakazce')      
+                list_display.remove('get_poradi_bedny_v_zakazce')     
+                
         return list_display
     
     def get_list_filter(self, request):
