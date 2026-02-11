@@ -300,7 +300,7 @@ class ZinkovaniFilter(DynamicTitleFilter):
 
     def __init__(self, request, params, model, model_admin):
         self.label_dict = {**dict(ZinkovaniChoice.choices)}
-        self.label_dict.pop(ZinkovaniChoice.UVOLNENO)  # Odstraní Uvolněno z možností filtru
+        self.label_dict[ZinkovaniChoice.UVOLNENO] = 'Uvolněno (pozinkováno)'
         self.label_dict[ZinkovaniChoice.NEZADANO] = 'Nezadáno'
         self.label_dict['hotovo'] = 'Nezinkovat & Uvolněno'
         super().__init__(request, params, model, model_admin)

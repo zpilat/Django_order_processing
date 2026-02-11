@@ -1997,7 +1997,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     # Parametry pro zobrazení seznamu v administraci
     list_display = (
         'get_cislo_bedny', 'behalter_nr', 'get_poradi_bedny_v_zakazce', 'zakazka_link', 'get_zakaznik_zkratka', 'kamion_prijem_link',
-        'kamion_vydej_link', 'stav_bedny', 'rovnat', 'tryskat', 'zinkovat', 'get_prumer', 'get_delka_int','get_skupina_TZ',
+        'kamion_vydej_link', 'stav_bedny', 'rovnat', 'tryskat', 'zinkovat', 'get_pozinkovano', 'get_prumer', 'get_delka_int','get_skupina_TZ',
         'get_typ_hlavy', 'get_celozavit', 'get_zkraceny_popis', 'hmotnost', 'tara', 'get_hmotnost_brutto',
         'mnozstvi', 'pozice', 'get_priorita', 'get_datum_prijem', 'get_datum_vydej', 'get_postup', 'cena_za_kg', 'get_odberatel','poznamka',
         )
@@ -2248,6 +2248,14 @@ class BednaAdmin(SimpleHistoryAdmin):
         Zobrazí boolean, jestli je vrut celozávitový a umožní třídění podle hlavičky pole.
         """
         return obj.zakazka.celozavit
+
+    @admin.display(boolean=True, description='Zin.')
+    def get_pozinkovano(self, obj):
+        """
+        Zobrazí boolean, jestli je bedna pozinkovaná.
+        """
+        pozinkovano_boolean = obj.zinkovat == ZinkovaniChoice.UVOLNENO
+        return  pozinkovano_boolean
     
     @admin.display(description="Zkrácený popis", ordering='zakazka__popis')
     def get_zkraceny_popis(self, obj):
@@ -2617,7 +2625,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         Pokud není filtr stav bedny == Neprijato, vyloučí se zobrazení sloupce mnozstvi a tara.
         Pokud není filtr stav bedny == Zkontrolované, Nepřijato, Rozpracováno, Expedovano a není aktivní filtr zinkovani,
         vyloučí se zobrazení sloupce zinkovat. 
-        Pokud není filtr stav bedny == K_expedici, vyloučí se zobrazení sloupce cena_za_kg, hmotnost_brutto a get_odberatel,
+        Pokud není filtr stav bedny == K_expedici, vyloučí se zobrazení sloupce cena_za_kg, hmotnost_brutto, get_odberatel a get_pozinkovano,
         jinak rovnat a tryskat.
         Pokud není filtr stav bedny == Neprijato, Prijato, Zkontrolováno, Rozpracováno a není aktivní filtr zinkovani,
         vyloučí se sloupce get_zakaznik_zkratka, jinak kamion_prijem_link.
@@ -2659,6 +2667,8 @@ class BednaAdmin(SimpleHistoryAdmin):
                 list_display.remove('get_hmotnost_brutto')
             if 'get_odberatel' in list_display:
                 list_display.remove('get_odberatel')
+            if 'get_pozinkovano' in list_display:
+                list_display.remove('get_pozinkovano')
         else: 
             if 'rovnat' in list_display:
                 list_display.remove('rovnat')

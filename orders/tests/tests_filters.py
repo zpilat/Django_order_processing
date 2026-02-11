@@ -242,7 +242,7 @@ class BednaFiltersTests(FilterTestBase):
 		f = self._make_filter(F.ZinkovaniFilter, Bedna, params={})
 		keys = {k for k, _ in f.lookups(None, None)}
 		self.assertIn('hotovo', keys)
-		self.assertNotIn(ZinkovaniChoice.UVOLNENO, keys)
+		self.assertIn(ZinkovaniChoice.UVOLNENO, keys)
 
 	def test_celozavit_bedny_filter_true(self):
 		f = self._make_filter(F.CelozavitBednyFilter, Bedna, params={"celozavit": "True"})

@@ -192,7 +192,7 @@ def utilita_export_beden_zinkovani_csv(bedny_qs, filename_prefix="bedny_zinkovan
         zakazka = getattr(bedna, 'zakazka', None)
         writer.writerow([
             bedna.cislo_bedny,
-            getattr(zakazka, 'behalter_nr', '') if zakazka else '',
+            getattr(bedna, 'behalter_nr', '') if zakazka else '',
             getattr(zakazka, 'popis', '') if zakazka else '',
             getattr(zakazka, 'artikl', '') if zakazka else '',
             _format_decimal_csv(getattr(bedna, 'hmotnost', None)),
