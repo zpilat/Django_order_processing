@@ -1380,7 +1380,12 @@ class Bedna(models.Model):
 
 class Rozpracovanost(models.Model):
     cas_zaznamu = models.DateTimeField(auto_now_add=True, verbose_name='Čas záznamu')
-    bedny = models.ManyToManyField('Bedna', related_name='rozpracovanost_zaznamy', verbose_name='Bedny')
+    bedny = models.ManyToManyField(
+        'Bedna',
+        through='RozpracovanostBednaSnapshot',
+        related_name='rozpracovanost_zaznamy',
+        verbose_name='Bedny',
+    )
 
     class Meta:
         verbose_name = 'Rozpracovanost'
@@ -1393,3 +1398,20 @@ class Rozpracovanost(models.Model):
     @property
     def pocet_beden(self):
         return self.bedny.count()
+
+
+class RozpracovanostBednaSnapshot(models.Model):
+    rozpracovanost = models.ForeignKey('Rozpracovanost', on_delete=models.CASCADE, related_name='snapshots', verbose_name='Rozpracovanost')
+    bedna = models.ForeignKey('Bedna', on_delete=models.SET_NULL, null=True, related_name='rozpracovanost_snapshots', verbose_name='Bedna')
+    stav_bedny = models.CharField(choices=StavBednyChoice.choices, max_length=2, verbose_name='Stav bedny')
+    tryskat = models.CharField(choices=TryskaniChoice.choices, max_length=5, verbose_name='Tryskání')
+    rovnat = models.CharField(choices=RovnaniChoice.choices, max_length=5, verbose_name='Rovnání')
+    zinkovat = models.CharField(choices=ZinkovaniChoice.choices, max_length=5, verbose_name='Zinkování')
+
+    class Meta:
+        verbose_name = 'Snapshot rozpracovanosti'
+        verbose_name_plural = 'snapshoty rozpracovanosti'
+        unique_together = ('rozpracovanost', 'bedna')
+
+    def __str__(self):
+        return f"{self.rozpracovanost_id}: {self.bedna_id}"

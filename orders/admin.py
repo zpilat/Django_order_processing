@@ -3275,7 +3275,11 @@ class RozpracovanostBednaInline(admin.TabularInline):
     can_delete = True
     verbose_name = "Bedna"
     verbose_name_plural = "Bedny v rozpracovanosti"
-    fields = ('bedna_link', 'cislo_bedny', 'zakazka', 'stav', 'hmotnost', 'tara', 'mnozstvi')
+    fields = (
+        'bedna_link', 'cislo_bedny', 'zakazka',
+        'stav_snapshot', 'tryskat_snapshot', 'rovnat_snapshot', 'zinkovat_snapshot',
+        'hmotnost', 'tara', 'mnozstvi',
+    )
     readonly_fields = fields
     ordering = ('bedna__cislo_bedny',)
 
@@ -3297,10 +3301,21 @@ class RozpracovanostBednaInline(admin.TabularInline):
             return '-'
         return format_html('<a href="{}">{}</a>', bedna.zakazka.get_admin_url(), bedna.zakazka)
 
-    @admin.display(description='Stav')
-    def stav(self, obj):
-        bedna = obj.bedna
-        return bedna.get_stav_bedny_display() if bedna else '-'
+    @admin.display(description='Stav (snapshot)')
+    def stav_snapshot(self, obj):
+        return obj.get_stav_bedny_display() if obj else '-'
+
+    @admin.display(description='Tryskání (snapshot)')
+    def tryskat_snapshot(self, obj):
+        return obj.get_tryskat_display() if obj else '-'
+
+    @admin.display(description='Rovnání (snapshot)')
+    def rovnat_snapshot(self, obj):
+        return obj.get_rovnat_display() if obj else '-'
+
+    @admin.display(description='Zinkování (snapshot)')
+    def zinkovat_snapshot(self, obj):
+        return obj.get_zinkovat_display() if obj else '-'
 
     @admin.display(description='Netto kg')
     def hmotnost(self, obj):

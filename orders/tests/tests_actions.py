@@ -4,6 +4,7 @@ from django.contrib.messages.storage.fallback import FallbackStorage
 from django.contrib.admin.sites import AdminSite
 from django.http import HttpResponse
 from django.urls import reverse
+from django.core.management import call_command
 
 from decimal import Decimal
 from unittest.mock import patch
@@ -14,7 +15,7 @@ import json
 
 from orders.models import (
     Zakaznik, Kamion, Zakazka, Bedna, Predpis, TypHlavy,
-    Odberatel, Pozice, Rozpracovanost, Cena
+    Odberatel, Pozice, Rozpracovanost, RozpracovanostBednaSnapshot, Cena
 )
 from orders.choices import (
     KamionChoice,
@@ -145,7 +146,14 @@ class ActionsTests(ActionsBase):
         self.bedna.save()
 
         snapshot = Rozpracovanost.objects.create()
-        snapshot.bedny.add(self.bedna)
+        RozpracovanostBednaSnapshot.objects.create(
+            rozpracovanost=snapshot,
+            bedna=self.bedna,
+            stav_bedny=self.bedna.stav_bedny,
+            tryskat=self.bedna.tryskat,
+            rovnat=self.bedna.rovnat,
+            zinkovat=self.bedna.zinkovat,
+        )
 
         request = self.get_request('post')
         queryset = Rozpracovanost.objects.filter(pk=snapshot.pk)
@@ -225,7 +233,14 @@ class ActionsTests(ActionsBase):
         orphan_zakazka.save(update_fields=['kamion_prijem'])
         orphan_bedna.refresh_from_db()
         snapshot = Rozpracovanost.objects.create()
-        snapshot.bedny.add(orphan_bedna)
+        RozpracovanostBednaSnapshot.objects.create(
+            rozpracovanost=snapshot,
+            bedna=orphan_bedna,
+            stav_bedny=orphan_bedna.stav_bedny,
+            tryskat=orphan_bedna.tryskat,
+            rovnat=orphan_bedna.rovnat,
+            zinkovat=orphan_bedna.zinkovat,
+        )
 
         request = self.get_request('post')
 
@@ -1704,3 +1719,38 @@ class StatusChangeActionsTests(ActionsBase):
         b2.refresh_from_db()
         self.assertEqual(b1.zinkovat, ZinkovaniChoice.UVOLNENO)
         self.assertEqual(b2.zinkovat, ZinkovaniChoice.UVOLNENO)
+
+
+class RozpracovanostCommandTests(ActionsBase):
+    def test_rozpracovanost_command_creates_snapshot_with_status_fields(self):
+        bedna = self._create_bedna_in_state(
+            StavBednyChoice.ZKONTROLOVANO,
+            tryskat=TryskaniChoice.OTRYSKANA,
+            rovnat=RovnaniChoice.ROVNA,
+            zinkovat=ZinkovaniChoice.K_ZINKOVANI,
+        )
+
+        call_command('rozpracovanost')
+
+        snapshot = Rozpracovanost.objects.latest('cas_zaznamu')
+        snapshots = RozpracovanostBednaSnapshot.objects.filter(rozpracovanost=snapshot)
+        self.assertEqual(snapshots.count(), 1)
+        snap = snapshots.first()
+        self.assertEqual(snap.bedna_id, bedna.id)
+        self.assertEqual(snap.stav_bedny, StavBednyChoice.ZKONTROLOVANO)
+        self.assertEqual(snap.tryskat, TryskaniChoice.OTRYSKANA)
+        self.assertEqual(snap.rovnat, RovnaniChoice.ROVNA)
+        self.assertEqual(snap.zinkovat, ZinkovaniChoice.K_ZINKOVANI)
+
+    def test_rozpracovanost_command_dry_run_creates_no_snapshot(self):
+        self._create_bedna_in_state(
+            StavBednyChoice.ZAKALENO,
+            tryskat=TryskaniChoice.SPINAVA,
+            rovnat=RovnaniChoice.KRIVA,
+            zinkovat=ZinkovaniChoice.NA_ZINKOVANI,
+        )
+
+        call_command('rozpracovanost', '--dry-run')
+
+        self.assertEqual(Rozpracovanost.objects.count(), 0)
+        self.assertEqual(RozpracovanostBednaSnapshot.objects.count(), 0)
