@@ -2541,6 +2541,12 @@ def tisk_rozpracovanost_action(modeladmin, request, queryset):
                 'sum_hmotnost': Decimal('0.0'),
                 'sum_beden': 0,
                 'sum_cena_netto': Decimal('0.0'),
+                'sum_tryskani_hmotnost': Decimal('0.0'),
+                'sum_tryskani_beden': 0,
+                'sum_tryskani_cena_netto': Decimal('0.0'),
+                'sum_rovnani_hmotnost': Decimal('0.0'),
+                'sum_rovnani_beden': 0,
+                'sum_rovnani_cena_netto': Decimal('0.0'),
             },
         )
 
@@ -2553,8 +2559,14 @@ def tisk_rozpracovanost_action(modeladmin, request, queryset):
                 'typ': zakazka.zkraceny_popis,
                 'hlava': str(zakazka.typ_hlavy) if zakazka.typ_hlavy else '',
                 'cena_kg': Decimal(zakazka.cena_za_kg or 0),
+                'cena_tryskani_za_kg': Decimal(zakazka.cena_tryskani_za_kg or 0) if zakaznik.fakturovat_tryskani else Decimal('0.00'),
+                'cena_rovnani_za_kg': Decimal(zakazka.cena_rovnani_za_kg or 0) if zakaznik.fakturovat_rovnani else Decimal('0.00'),
                 'hmotnost': Decimal('0.0'),
+                'tryskani_hmotnost': Decimal('0.0'),
+                'rovnani_hmotnost': Decimal('0.0'),
                 'pocet_beden': 0,
+                'tryskani_pocet_beden': 0,
+                'rovnani_pocet_beden': 0,
             },
         )
 
@@ -2567,6 +2579,18 @@ def tisk_rozpracovanost_action(modeladmin, request, queryset):
 
         zakazka_entry['hmotnost'] += hmotnost
         zakazka_entry['pocet_beden'] += 1
+
+        if zakaznik.fakturovat_tryskani and bedna.tryskat == TryskaniChoice.OTRYSKANA:
+            zakazka_entry['tryskani_hmotnost'] += hmotnost
+            zakazka_entry['tryskani_pocet_beden'] += 1
+            customer_entry['sum_tryskani_hmotnost'] += hmotnost
+            customer_entry['sum_tryskani_beden'] += 1
+
+        if zakaznik.fakturovat_rovnani and bedna.rovnat == RovnaniChoice.VYROVNANA:
+            zakazka_entry['rovnani_hmotnost'] += hmotnost
+            zakazka_entry['rovnani_pocet_beden'] += 1
+            customer_entry['sum_rovnani_hmotnost'] += hmotnost
+            customer_entry['sum_rovnani_beden'] += 1
 
         customer_entry['sum_hmotnost'] += hmotnost
         customer_entry['sum_beden'] += 1
@@ -2590,7 +2614,15 @@ def tisk_rozpracovanost_action(modeladmin, request, queryset):
             hm_total = zakazka_entry['hmotnost'].quantize(weight_quant, rounding=ROUND_HALF_UP)
             cena_kg = zakazka_entry['cena_kg'].quantize(money_quant, rounding=ROUND_HALF_UP) if zakazka_entry['cena_kg'] else Decimal('0.00')
             cena_netto = (zakazka_entry['hmotnost'] * zakazka_entry['cena_kg']).quantize(money_quant, rounding=ROUND_HALF_UP)
+            tryskani_hmotnost = zakazka_entry['tryskani_hmotnost'].quantize(weight_quant, rounding=ROUND_HALF_UP)
+            rovnani_hmotnost = zakazka_entry['rovnani_hmotnost'].quantize(weight_quant, rounding=ROUND_HALF_UP)
+            cena_tryskani_kg = zakazka_entry['cena_tryskani_za_kg'].quantize(money_quant, rounding=ROUND_HALF_UP) if zakazka_entry['cena_tryskani_za_kg'] else Decimal('0.00')
+            cena_rovnani_kg = zakazka_entry['cena_rovnani_za_kg'].quantize(money_quant, rounding=ROUND_HALF_UP) if zakazka_entry['cena_rovnani_za_kg'] else Decimal('0.00')
+            cena_tryskani_netto = (zakazka_entry['tryskani_hmotnost'] * zakazka_entry['cena_tryskani_za_kg']).quantize(money_quant, rounding=ROUND_HALF_UP)
+            cena_rovnani_netto = (zakazka_entry['rovnani_hmotnost'] * zakazka_entry['cena_rovnani_za_kg']).quantize(money_quant, rounding=ROUND_HALF_UP)
             customer_entry['sum_cena_netto'] += cena_netto
+            customer_entry['sum_tryskani_cena_netto'] += cena_tryskani_netto
+            customer_entry['sum_rovnani_cena_netto'] += cena_rovnani_netto
             zakazky_rows.append({
                 'artikl': zakazka_entry['artikl'],
                 'datum': zakazka_entry['datum'],
@@ -2601,7 +2633,28 @@ def tisk_rozpracovanost_action(modeladmin, request, queryset):
                 'cena_kg': cena_kg,
                 'cena_netto': cena_netto,
                 'pocet_beden': zakazka_entry['pocet_beden'],
+                'tryskani_pocet_beden': zakazka_entry['tryskani_pocet_beden'],
+                'tryskani_hmotnost': tryskani_hmotnost,
+                'tryskani_cena_kg': cena_tryskani_kg,
+                'tryskani_cena_netto': cena_tryskani_netto,
+                'rovnani_pocet_beden': zakazka_entry['rovnani_pocet_beden'],
+                'rovnani_hmotnost': rovnani_hmotnost,
+                'rovnani_cena_kg': cena_rovnani_kg,
+                'rovnani_cena_netto': cena_rovnani_netto,
             })
+
+        sum_tryskani_hmotnost = customer_entry['sum_tryskani_hmotnost']
+        sum_rovnani_hmotnost = customer_entry['sum_rovnani_hmotnost']
+        sum_tryskani_cena_netto = customer_entry['sum_tryskani_cena_netto']
+        sum_rovnani_cena_netto = customer_entry['sum_rovnani_cena_netto']
+        sum_tryskani_cena_kg = (
+            (sum_tryskani_cena_netto / sum_tryskani_hmotnost).quantize(money_quant, rounding=ROUND_HALF_UP)
+            if sum_tryskani_hmotnost else Decimal('0.00')
+        )
+        sum_rovnani_cena_kg = (
+            (sum_rovnani_cena_netto / sum_rovnani_hmotnost).quantize(money_quant, rounding=ROUND_HALF_UP)
+            if sum_rovnani_hmotnost else Decimal('0.00')
+        )
 
         sections.append({
             'zakaznik': customer_entry['zakaznik'],
@@ -2609,6 +2662,14 @@ def tisk_rozpracovanost_action(modeladmin, request, queryset):
             'sum_hmotnost': customer_entry['sum_hmotnost'].quantize(weight_quant, rounding=ROUND_HALF_UP),
             'sum_beden': customer_entry['sum_beden'],
             'sum_cena_netto': customer_entry['sum_cena_netto'].quantize(money_quant, rounding=ROUND_HALF_UP),
+            'sum_tryskani_hmotnost': sum_tryskani_hmotnost.quantize(weight_quant, rounding=ROUND_HALF_UP),
+            'sum_tryskani_beden': customer_entry['sum_tryskani_beden'],
+            'sum_tryskani_cena_netto': sum_tryskani_cena_netto.quantize(money_quant, rounding=ROUND_HALF_UP),
+            'sum_tryskani_cena_kg': sum_tryskani_cena_kg,
+            'sum_rovnani_hmotnost': sum_rovnani_hmotnost.quantize(weight_quant, rounding=ROUND_HALF_UP),
+            'sum_rovnani_beden': customer_entry['sum_rovnani_beden'],
+            'sum_rovnani_cena_netto': sum_rovnani_cena_netto.quantize(money_quant, rounding=ROUND_HALF_UP),
+            'sum_rovnani_cena_kg': sum_rovnani_cena_kg,
         })
 
     context = {

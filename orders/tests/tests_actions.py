@@ -129,12 +129,18 @@ class ActionsTests(ActionsBase):
     @patch('orders.actions.finders.find', return_value=None)
     @patch('orders.actions.HTML')
     def test_tisk_rozpracovanost_action_success(self, html_mock, find_mock, render_mock):
+        self.zakaznik.fakturovat_rovnani = True
+        self.zakaznik.fakturovat_tryskani = True
+        self.zakaznik.save(update_fields=['fakturovat_rovnani', 'fakturovat_tryskani'])
+
         cena = Cena.objects.create(
             popis='Test cena',
             zakaznik=self.zakaznik,
             delka_min=Decimal('0.0'),
             delka_max=Decimal('10.0'),
             cena_za_kg=Decimal('2.50'),
+            cena_rovnani_za_kg=Decimal('1.20'),
+            cena_tryskani_za_kg=Decimal('0.80'),
         )
         cena.predpis.add(self.predpis)
 
@@ -143,7 +149,10 @@ class ActionsTests(ActionsBase):
         self.zakazka.save()
 
         self.bedna.hmotnost = Decimal('3.2')
-        self.bedna.save()
+        self.bedna.rovnat = RovnaniChoice.VYROVNANA
+        self.bedna.tryskat = TryskaniChoice.OTRYSKANA
+        self.bedna.fakturovat = True
+        self.bedna.save(update_fields=['hmotnost', 'rovnat', 'tryskat', 'fakturovat'])
 
         snapshot = Rozpracovanost.objects.create()
         RozpracovanostBednaSnapshot.objects.create(
@@ -181,10 +190,30 @@ class ActionsTests(ActionsBase):
 
         section = context['sections'][0]
         self.assertEqual(section['zakaznik'], self.zakaznik)
+        self.assertTrue(section['zakaznik'].fakturovat_rovnani)
+        self.assertTrue(section['zakaznik'].fakturovat_tryskani)
         self.assertEqual(section['sum_beden'], 1)
         self.assertEqual(section['sum_hmotnost'], Decimal('3.2').quantize(Decimal('0.1')))
         self.assertEqual(section['zakazky'][0]['artikl'], self.zakazka.artikl)
+        self.assertNotIn('fakturovat_rovnani', section['zakazky'][0])
+        self.assertNotIn('fakturovat_tryskani', section['zakazky'][0])
         self.assertEqual(section['zakazky'][0]['cena_netto'], Decimal('8.00'))
+        self.assertEqual(section['zakazky'][0]['tryskani_pocet_beden'], 1)
+        self.assertEqual(section['zakazky'][0]['tryskani_hmotnost'], Decimal('3.2').quantize(Decimal('0.1')))
+        self.assertEqual(section['zakazky'][0]['tryskani_cena_kg'], Decimal('0.80'))
+        self.assertEqual(section['zakazky'][0]['tryskani_cena_netto'], Decimal('2.56'))
+        self.assertEqual(section['zakazky'][0]['rovnani_pocet_beden'], 1)
+        self.assertEqual(section['zakazky'][0]['rovnani_hmotnost'], Decimal('3.2').quantize(Decimal('0.1')))
+        self.assertEqual(section['zakazky'][0]['rovnani_cena_kg'], Decimal('1.20'))
+        self.assertEqual(section['zakazky'][0]['rovnani_cena_netto'], Decimal('3.84'))
+        self.assertEqual(section['sum_tryskani_hmotnost'], Decimal('3.2').quantize(Decimal('0.1')))
+        self.assertEqual(section['sum_tryskani_beden'], 1)
+        self.assertEqual(section['sum_tryskani_cena_kg'], Decimal('0.80'))
+        self.assertEqual(section['sum_tryskani_cena_netto'], Decimal('2.56'))
+        self.assertEqual(section['sum_rovnani_hmotnost'], Decimal('3.2').quantize(Decimal('0.1')))
+        self.assertEqual(section['sum_rovnani_beden'], 1)
+        self.assertEqual(section['sum_rovnani_cena_kg'], Decimal('1.20'))
+        self.assertEqual(section['sum_rovnani_cena_netto'], Decimal('3.84'))
         self.assertEqual(section['sum_cena_netto'], Decimal('8.00'))
 
     def test_tisk_rozpracovanost_action_requires_single_selection(self):

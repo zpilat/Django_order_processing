@@ -73,44 +73,92 @@
     {% for section in sections %}
         <div class="customer-section">
             <h2>{{ section.zakaznik.nazev }}</h2>
-            <table>
+            <table class={% if section.zakaznik.fakturovat_rovnani and section.zakaznik.fakturovat_tryskani %}"fs-06"{% elif section.zakaznik.fakturovat_rovnani or section.zakaznik.fakturovat_tryskani %}"fs-07"{% else %}"fs-08"{% endif %}>
                 <thead>
                     <tr>
-                        <th>Zakázka</th>
-                        <th>Datum</th>
-                        <th>Hmotnost</th>
+                        <th colspan="3" class="text-center">Zakázka</th>
+                        <th colspan="4" class="text-center">Kalení</th>
+                        {% if section.zakaznik.fakturovat_rovnani %}
+                            <th colspan="4" class="text-center">Rovnání</th>
+                        {% endif %}
+                        {% if section.zakaznik.fakturovat_tryskani %}
+                            <th colspan="4" class="text-center">Tryskání</th>
+                        {% endif %}
+                    </tr>
+                    <tr>
+                        <th>Artikl</th>
                         <th>Rozměr</th>
                         <th>Typ</th>
-                        <th class="text-center">Hlava</th>
+                        <th>Beden</th>
+                        <th>Váha</th>                        
                         <th>Jedn. cena</th>
                         <th>Netto cena</th>
-                        <th>Počet beden</th>
+                        {% if section.zakaznik.fakturovat_rovnani %}
+                            <th>Beden</th>   
+                            <th>Váha</th>                     
+                            <th>Jedn. cena</th>
+                            <th>Netto cena</th>
+                        {% endif %}
+                        {% if section.zakaznik.fakturovat_tryskani %}
+                            <th>Beden</th>
+                            <th>Váha</th>
+                            <th>Jedn. cena</th>
+                            <th>Netto cena</th>
+                        {% endif %}
                     </tr>
                 </thead>
                 <tbody>
                     {% for zakazka in section.zakazky %}
                         <tr>
                             <td>{{ zakazka.artikl }}</td>
-                            <td>{{ zakazka.datum|date:"d.m.y" }}</td>
-                            <td class="text-end">{{ zakazka.hmotnost|floatformat:1 }} kg</td>
                             <td>{{ zakazka.rozmer }}</td>
                             <td>{{ zakazka.typ }}</td>
-                            <td class="text-center">{{ zakazka.hlava|default:"-" }}</td>
+                            <td class="text-end">{{ zakazka.pocet_beden }} ks</td>                            
+                            <td class="text-end">{{ zakazka.hmotnost|floatformat:1 }} kg</td>                            
                             <td class="text-end">{{ zakazka.cena_kg|floatformat:2 }} €/kg</td>
                             <td class="text-end">{{ zakazka.cena_netto|floatformat:2 }} €</td>
-                            <td class="text-end">{{ zakazka.pocet_beden }} ks</td>
+                            {% if section.zakaznik.fakturovat_rovnani %}
+                                <td class="text-end">{{ zakazka.rovnani_pocet_beden }} ks</td>     
+                                <td class="text-end">{{ zakazka.rovnani_hmotnost|floatformat:1 }} kg</td>                       
+                                <td class="text-end">{{ zakazka.rovnani_cena_kg|floatformat:2 }} €/kg</td>
+                                <td class="text-end">{{ zakazka.rovnani_cena_netto|floatformat:2 }} €</td>
+                            {% endif %}
+                            {% if section.zakaznik.fakturovat_tryskani %}
+                                <td class="text-end">{{ zakazka.rovnani_pocet_beden }} ks</td>  
+                                <td class="text-end">{{ zakazka.tryskani_hmotnost|floatformat:1 }} kg</td>                          
+                                <td class="text-end">{{ zakazka.tryskani_cena_kg|floatformat:2 }} €/kg</td>
+                                <td class="text-end">{{ zakazka.tryskani_cena_netto|floatformat:2 }} €</td>
+                            {% endif %}
                         </tr>
                     {% empty %}
                         <tr>
-                            <td colspan="9" class="text-center">Žádná data k zobrazení.</td>
+                            {% if section.zakaznik.fakturovat_rovnani and section.zakaznik.fakturovat_tryskani %}
+                                <td colspan="15" class="text-center">Žádná data k zobrazení.</td>
+                            {% elif section.zakaznik.fakturovat_rovnani or section.zakaznik.fakturovat_tryskani %}
+                                <td colspan="12" class="text-center">Žádná data k zobrazení.</td>
+                            {% else %}
+                                <td colspan="9" class="text-center">Žádná data k zobrazení.</td>
+                            {% endif %}
                         </tr>
                     {% endfor %}
                     <tr class="summary-row">
-                        <td colspan="2">Celkem {{ section.zakaznik.zkraceny_nazev }}</td>
+                        <td colspan="3">Celkem {{ section.zakaznik.zkraceny_nazev }}</td>
+                        <td class="text-end">{{ section.sum_beden }} ks</td>    
                         <td class="text-end">{{ section.sum_hmotnost|floatformat:1 }} kg</td>
-                        <td colspan="4"></td>
+                        <td></td>                                            
                         <td class="text-end">{{ section.sum_cena_netto|floatformat:2 }} €</td>
-                        <td class="text-end">{{ section.sum_beden }} ks</td>
+                        {% if section.zakaznik.fakturovat_rovnani %}
+                            <td class="text-end">{{ section.sum_rovnani_beden }} ks</td>
+                            <td class="text-end">{{ section.sum_rovnani_hmotnost|floatformat:1 }} kg</td>
+                            <td></td>
+                            <td class="text-end">{{ section.sum_rovnani_cena_netto|floatformat:2 }} €</td>
+                        {% endif %}
+                        {% if section.zakaznik.fakturovat_tryskani %}
+                            <td class="text-end">{{ section.sum_tryskani_beden }} ks</td>                            
+                            <td class="text-end">{{ section.sum_tryskani_hmotnost|floatformat:1 }} kg</td>
+                            <td></td>
+                            <td class="text-end">{{ section.sum_tryskani_cena_netto|floatformat:2 }} €</td>
+                        {% endif %}
                     </tr>
                 </tbody>
             </table>
