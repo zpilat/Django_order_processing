@@ -338,7 +338,7 @@ class UtilitaZinkovaniTests(UtilsBase):
             tara=Decimal('1'),
             mnozstvi=1,
             stav_bedny=StavBednyChoice.K_EXPEDICI,
-            zinkovat=ZinkovaniChoice.K_ZINKOVANI,
+            zinkovat=ZinkovaniChoice.ZINKOVAT,
         )
 
         ok = validate_bedny_pripraveny_k_expedici(admin_obj, req, Bedna.objects.all())

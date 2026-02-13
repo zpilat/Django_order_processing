@@ -914,12 +914,12 @@ class BednaAdminTests(AdminBase):
         self.assertNotIn('oznacit_po_zinkovani_action', actions_nezadano)
         self.assertNotIn('oznacit_uvolneno_action', actions_nezadano)
 
-        actions_kz = _actions_for(ZinkovaniChoice.K_ZINKOVANI)
+        actions_kz = _actions_for(ZinkovaniChoice.ZINKOVAT)
         self.assertIn('odeslat_na_zinkovani_action', actions_kz)
         self.assertNotIn('oznacit_k_zinkovani_action', actions_kz)
         self.assertNotIn('export_na_zinkovani_action', actions_kz)
 
-        actions_nz = _actions_for(ZinkovaniChoice.NA_ZINKOVANI)
+        actions_nz = _actions_for(ZinkovaniChoice.V_ZINKOVNE)
         self.assertIn('export_na_zinkovani_action', actions_nz)
         self.assertIn('oznacit_po_zinkovani_action', actions_nz)
         self.assertIn('oznacit_uvolneno_action', actions_nz)

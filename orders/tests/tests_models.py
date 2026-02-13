@@ -348,7 +348,7 @@ class TestModels(ModelsBase):
         b.stav_bedny = StavBednyChoice.K_EXPEDICI
         b.tryskat = TryskaniChoice.NEZADANO
         b.rovnat = RovnaniChoice.NEZADANO
-        b.zinkovat = ZinkovaniChoice.K_ZINKOVANI
+        b.zinkovat = ZinkovaniChoice.ZINKOVAT
         with self.assertRaises(ValidationError):
             b.full_clean()
 
@@ -361,7 +361,7 @@ class TestModels(ModelsBase):
         b.zinkovat = ZinkovaniChoice.NEZINKOVAT
         b.full_clean()  # nevyhodí výjimku
 
-    def test_bedna_clean_requires_zkontrolovano_for_na_zinkovani(self):
+    def test_bedna_clean_requires_zkontrolovano_for_v_zinkovne(self):
         b = Bedna.objects.create(
             zakazka=self.zakazka,
             hmotnost=Decimal("1"),
@@ -369,7 +369,7 @@ class TestModels(ModelsBase):
             mnozstvi=1,
         )
         b.stav_bedny = StavBednyChoice.PRIJATO
-        b.zinkovat = ZinkovaniChoice.NA_ZINKOVANI
+        b.zinkovat = ZinkovaniChoice.V_ZINKOVNE
         with self.assertRaises(ValidationError):
             b.full_clean()
 
@@ -383,20 +383,20 @@ class TestModels(ModelsBase):
             tara=Decimal("1"),
             mnozstvi=1,
             stav_bedny=StavBednyChoice.K_EXPEDICI,
-            zinkovat=ZinkovaniChoice.K_ZINKOVANI,
+            zinkovat=ZinkovaniChoice.ZINKOVAT,
         )
         choices = b.get_allowed_zinkovat_choices()
-        self.assertEqual(choices, [(ZinkovaniChoice.K_ZINKOVANI, "K zinkování")])
+        self.assertEqual(choices, [(ZinkovaniChoice.ZINKOVAT, "Zinkovat")])
 
         b.stav_bedny = StavBednyChoice.ZKONTROLOVANO
-        b.zinkovat = ZinkovaniChoice.NA_ZINKOVANI
+        b.zinkovat = ZinkovaniChoice.V_ZINKOVNE
         choices = b.get_allowed_zinkovat_choices()
         allowed = {c[0] for c in choices}
         self.assertEqual(
             allowed,
             {
-                ZinkovaniChoice.K_ZINKOVANI,
-                ZinkovaniChoice.NA_ZINKOVANI,
+                ZinkovaniChoice.ZINKOVAT,
+                ZinkovaniChoice.V_ZINKOVNE,
                 ZinkovaniChoice.POZINKOVANO,
                 ZinkovaniChoice.UVOLNENO,
             },

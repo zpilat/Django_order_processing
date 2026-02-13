@@ -1621,33 +1621,33 @@ def oznacit_otryskana_action(modeladmin, request, queryset):
     return None
 
 
-@admin.action(description="Označit NA ZINKOVÁNÍ a vyexportovat DL", permissions=('change',))
+@admin.action(description="Označit V ZINKOVNĚ a vyexportovat DL", permissions=('change',))
 def odeslat_na_zinkovani_action(modeladmin, request, queryset):
     """
-    Pro bedny ve stavu ZKONTROLOVANO a se zinkováním K_ZINKOVANI:
-    - přepne zinkovat na NA_ZINKOVANI
+    Pro bedny ve stavu ZKONTROLOVANO a se zinkováním ZINKOVAT:
+    - přepne zinkovat na V ZINKOVNĚ
     - vrátí dočasný CSV export pro externí zinkovnu
     """
     if not queryset.exists():
         return None
 
-    if _abort_if_paused_bedny(modeladmin, request, queryset, "Označit NA ZINKOVÁNÍ a vyexportovat DL"):
+    if _abort_if_paused_bedny(modeladmin, request, queryset, "Označit V ZINKOVNĚ a vyexportovat DL"):
         return None
 
     if queryset.exclude(stav_bedny=StavBednyChoice.ZKONTROLOVANO).exists():
         modeladmin.message_user(request, "Všechny vybrané bedny musí být ve stavu ZKONTROLOVANO.", level=messages.ERROR)
         return None
 
-    if queryset.exclude(zinkovat=ZinkovaniChoice.K_ZINKOVANI).exists():
-        modeladmin.message_user(request, "Všechny vybrané bedny musí mít zinkování K_ZINKOVANI.", level=messages.ERROR)
+    if queryset.exclude(zinkovat=ZinkovaniChoice.ZINKOVAT).exists():
+        modeladmin.message_user(request, "Všechny vybrané bedny musí mít zinkování ZINKOVAT.", level=messages.ERROR)
         return None
 
     export_ids = list(queryset.values_list('pk', flat=True))
     with transaction.atomic():
-        queryset.update(zinkovat=ZinkovaniChoice.NA_ZINKOVANI)
+        queryset.update(zinkovat=ZinkovaniChoice.V_ZINKOVNE)
 
     # Použijeme čerstvý queryset podle primárních klíčů, aby se neztratil výběr,
-    # pokud původní queryset měl filtr na zinkovat=K_ZINKOVANI a po update by byl prázdný.
+    # pokud původní queryset měl filtr na zinkovat=ZINKOVAT a po update by byl prázdný.
     export_qs = Bedna.objects.filter(pk__in=export_ids).select_related('zakazka')
 
     logger.info(
@@ -1656,83 +1656,83 @@ def odeslat_na_zinkovani_action(modeladmin, request, queryset):
     return utilita_export_beden_zinkovani_csv(export_qs, filename_prefix="bedny_na_zinkovani")
 
 
-@admin.action(description="Export beden se stavem NA_ZINKOVANI do DL", permissions=('change',))
+@admin.action(description="Export beden se stavem V ZINKOVNĚ do DL", permissions=('change',))
 def export_na_zinkovani_action(modeladmin, request, queryset):
     """
-    Exportuje bedny ve stavu ZKONTROLOVANO a se zinkováním NA_ZINKOVANI pro externí zinkovnu.
+    Exportuje bedny ve stavu ZKONTROLOVANO a se zinkováním V ZINKOVNĚ pro externí zinkovnu.
     """
     if not queryset.exists():
         return None
 
-    if _abort_if_paused_bedny(modeladmin, request, queryset, "Export beden se stavem NA_ZINKOVANI do DL"):
+    if _abort_if_paused_bedny(modeladmin, request, queryset, "Export beden se stavem V ZINKOVNĚ do DL"):
         return None
 
     if queryset.exclude(stav_bedny=StavBednyChoice.ZKONTROLOVANO).exists():
         modeladmin.message_user(request, "Všechny vybrané bedny musí být ve stavu ZKONTROLOVANO.", level=messages.ERROR)
         return None
 
-    if queryset.exclude(zinkovat=ZinkovaniChoice.NA_ZINKOVANI).exists():
-        modeladmin.message_user(request, "Všechny vybrané bedny musí mít zinkování NA_ZINKOVANI.", level=messages.ERROR)
+    if queryset.exclude(zinkovat=ZinkovaniChoice.V_ZINKOVNE).exists():
+        modeladmin.message_user(request, "Všechny vybrané bedny musí mít zinkování V ZINKOVNĚ.", level=messages.ERROR)
         return None
 
     logger.info(
-        f"Uživatel {getattr(request, 'user', None)} vyexportoval {queryset.count()} beden se zinkováním NA_ZINKOVANI do DL.",
+        f"Uživatel {getattr(request, 'user', None)} vyexportoval {queryset.count()} beden se zinkováním V ZINKOVNĚ do DL.",
     )
     return utilita_export_beden_zinkovani_csv(queryset, filename_prefix="bedny_na_zinkovani")
 
-@admin.action(description="Změna stavu zinkování na K ZINKOVÁNÍ", permissions=('change',))
+@admin.action(description="Změna stavu zinkování na ZINKOVAT", permissions=('change',))
 def oznacit_k_zinkovani_action(modeladmin, request, queryset):
     """
-    Změní stav zinkování vybraných beden z NEZADANO nebo z NEZINKOVAT na K_ZINKOVANI.
+    Změní stav zinkování vybraných beden z NEZADANO nebo z NEZINKOVAT na ZINKOVAT.
     """
-    if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna stavu zinkování na K_ZINKOVANI"):
+    if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna stavu zinkování na ZINKOVAT"):
         return None
 
     # kontrola, zda jsou všechny bedny v querysetu ve stavu NEZADANO nebo NEZINKOVAT
     if queryset.exclude(zinkovat__in=[ZinkovaniChoice.NEZADANO, ZinkovaniChoice.NEZINKOVAT]).exists():
-        logger.info(f"Uživatel {request.user} se pokusil změnit stav zinkování na K_ZINKOVANI, ale některé bedny nejsou ve stavu NEZADANO nebo NEZINKOVAT.")
+        logger.info(f"Uživatel {request.user} se pokusil změnit stav zinkování na ZINKOVAT, ale některé bedny nejsou ve stavu NEZADANO nebo NEZINKOVAT.")
         modeladmin.message_user(request, "Některé vybrané bedny nejsou ve stavu NEZADANO nebo NEZINKOVAT.", level=messages.ERROR)
         return None
 
     # kontrola, zda jsou všechny bedny mimo stav_bedny K_EXPEDICI a EXPEDOVANO
     if queryset.filter(stav_bedny__in=[StavBednyChoice.K_EXPEDICI, StavBednyChoice.EXPEDOVANO]).exists():
-        logger.info(f"Uživatel {request.user} se pokusil změnit stav zinkování na K_ZINKOVANI, ale některé bedny jsou ve stavu K_EXPEDICI nebo EXPEDOVANO.")
+        logger.info(f"Uživatel {request.user} se pokusil změnit stav zinkování na ZINKOVAT, ale některé bedny jsou ve stavu K_EXPEDICI nebo EXPEDOVANO.")
         modeladmin.message_user(request, "Některé vybrané bedny jsou ve stavu K_EXPEDICI nebo EXPEDOVANO.", level=messages.ERROR)
         return None
 
     with transaction.atomic():
         for bedna in queryset:
             if bedna.zinkovat in [ZinkovaniChoice.NEZADANO, ZinkovaniChoice.NEZINKOVAT]:
-                bedna.zinkovat = ZinkovaniChoice.K_ZINKOVANI
+                bedna.zinkovat = ZinkovaniChoice.ZINKOVAT
                 bedna.save()
 
     messages.success(request, f"Změněno: {queryset.count()} beden.")
-    logger.info(f"Uživatel {request.user} změnil stav zinkování na K_ZINKOVANI u {queryset.count()} beden.")
+    logger.info(f"Uživatel {request.user} změnil stav zinkování na ZINKOVAT u {queryset.count()} beden.")
     return None
 
 @admin.action(description="Změna stavu zinkování na POZINKOVÁNO", permissions=('change',))
 def oznacit_po_zinkovani_action(modeladmin, request, queryset):
     """
-    Změní stav zinkování vybraných beden z NA_ZINKOVANI na POZINKOVANO.
+    Změní stav zinkování vybraných beden z V ZINKOVNĚ na POZINKOVANO.
     """
     if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna stavu zinkování na POZINKOVÁNO"):
         return None
 
-    # kontrola, zda jsou všechny bedny v querysetu ve stavu NA_ZINKOVANI
-    if queryset.exclude(zinkovat=ZinkovaniChoice.NA_ZINKOVANI).exists():
-        logger.info(f"Uživatel {request.user} se pokusil změnit stav zinkování na POZINKOVANO, ale některé bedny nejsou ve stavu NA_ZINKOVANI.")
-        modeladmin.message_user(request, "Některé vybrané bedny nejsou ve stavu NA_ZINKOVANI.", level=messages.ERROR)
+    # kontrola, zda jsou všechny bedny v querysetu ve stavu V ZINKOVNĚ
+    if queryset.exclude(zinkovat=ZinkovaniChoice.V_ZINKOVNE).exists():
+        logger.info(f"Uživatel {request.user} se pokusil změnit stav zinkování na POZINKOVANO, ale některé bedny nejsou ve stavu V ZINKOVNĚ.")
+        modeladmin.message_user(request, "Některé vybrané bedny nejsou ve stavu V ZINKOVNĚ.", level=messages.ERROR)
         return None
     
     # kontrola, zda jsou všechny bedny mimo stav_bedny K_EXPEDICI a EXPEDOVANO
     if queryset.filter(stav_bedny__in=[StavBednyChoice.K_EXPEDICI, StavBednyChoice.EXPEDOVANO]).exists():
-        logger.info(f"Uživatel {request.user} se pokusil změnit stav zinkování na K_ZINKOVANI, ale některé bedny jsou ve stavu K_EXPEDICI nebo EXPEDOVANO.")
+        logger.info(f"Uživatel {request.user} se pokusil změnit stav zinkování na POZINKOVANO, ale některé bedny jsou ve stavu K_EXPEDICI nebo EXPEDOVANO.")
         modeladmin.message_user(request, "Některé vybrané bedny jsou ve stavu K_EXPEDICI nebo EXPEDOVANO.", level=messages.ERROR)
         return None
 
     with transaction.atomic():
         for bedna in queryset:
-            if bedna.zinkovat == ZinkovaniChoice.NA_ZINKOVANI:
+            if bedna.zinkovat == ZinkovaniChoice.V_ZINKOVNE:
                 bedna.zinkovat = ZinkovaniChoice.POZINKOVANO
                 bedna.save()
 
@@ -1743,26 +1743,26 @@ def oznacit_po_zinkovani_action(modeladmin, request, queryset):
 @admin.action(description="Změna stavu zinkování na UVOLNĚNO", permissions=('change',))
 def oznacit_uvolneno_action(modeladmin, request, queryset):
     """
-    Změní stav zinkování vybraných beden z NA_ZINKOVANI a POZINKOVANO na UVOLNENO.
+    Změní stav zinkování vybraných beden z V ZINKOVNĚ a POZINKOVANO na UVOLNENO.
     """
     if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna stavu zinkování na UVOLNĚNO"):
         return None
 
-    # kontrola, zda jsou všechny bedny v querysetu ve stavu NA_ZINKOVANI a POZINKOVANO
-    if queryset.exclude(zinkovat__in=[ZinkovaniChoice.NA_ZINKOVANI, ZinkovaniChoice.POZINKOVANO]).exists():
-        logger.info(f"Uživatel {request.user} se pokusil změnit stav zinkování na UVOLNĚNO, ale některé bedny nejsou ve stavu NA_ZINKOVANI nebo POZINKOVANO.")
-        modeladmin.message_user(request, "Některé vybrané bedny nejsou ve stavu NA_ZINKOVANI nebo POZINKOVANO.", level=messages.ERROR)
+    # kontrola, zda jsou všechny bedny v querysetu ve stavu V ZINKOVNĚ a POZINKOVANO
+    if queryset.exclude(zinkovat__in=[ZinkovaniChoice.V_ZINKOVNE, ZinkovaniChoice.POZINKOVANO]).exists():
+        logger.info(f"Uživatel {request.user} se pokusil změnit stav zinkování na UVOLNĚNO, ale některé bedny nejsou ve stavu V ZINKOVNĚ nebo POZINKOVANO.")
+        modeladmin.message_user(request, "Některé vybrané bedny nejsou ve stavu V ZINKOVNĚ nebo POZINKOVANO.", level=messages.ERROR)
         return None
 
     # kontrola, zda jsou všechny bedny mimo stav_bedny K_EXPEDICI a EXPEDOVANO
     if queryset.filter(stav_bedny__in=[StavBednyChoice.K_EXPEDICI, StavBednyChoice.EXPEDOVANO]).exists():
-        logger.info(f"Uživatel {request.user} se pokusil změnit stav zinkování na K_ZINKOVANI, ale některé bedny jsou ve stavu K_EXPEDICI nebo EXPEDOVANO.")
+        logger.info(f"Uživatel {request.user} se pokusil změnit stav zinkování na UVOLNĚNO, ale některé bedny jsou ve stavu K_EXPEDICI nebo EXPEDOVANO.")
         modeladmin.message_user(request, "Některé vybrané bedny jsou ve stavu K_EXPEDICI nebo EXPEDOVANO.", level=messages.ERROR)
         return None
 
     with transaction.atomic():
         for bedna in queryset:
-            if bedna.zinkovat in [ZinkovaniChoice.NA_ZINKOVANI, ZinkovaniChoice.POZINKOVANO]:
+            if bedna.zinkovat in [ZinkovaniChoice.V_ZINKOVNE, ZinkovaniChoice.POZINKOVANO]:
                 bedna.zinkovat = ZinkovaniChoice.UVOLNENO
                 bedna.save()
 

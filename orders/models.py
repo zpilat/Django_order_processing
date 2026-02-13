@@ -1066,7 +1066,7 @@ class Bedna(models.Model):
                     rovnání buď Rovná nebo Vyrovnaná a zinkování buď Nezinkovat nebo Uvolněno (pozinkováno).
         - Pokud je stav bedny K_NAVEZENI nebo NAVEZENO, musí být zadána pozice.
         - Pokud je stav bedny jakýkoliv jiný než NEPRIJATO, musí být zadána hmotnost, tára a množství a tyto nesmí být nula.
-        - Pokud je zinkovat NA_ZINKOVANI, musí být stav bedny ZKONTROLOVANO.
+        - Pokud je zinkovat V ZINKOVNĚ, musí být stav bedny ZKONTROLOVANO.
         """
         super().clean()    
         if self.stav_bedny in [StavBednyChoice.K_EXPEDICI, StavBednyChoice.EXPEDOVANO]:
@@ -1098,9 +1098,9 @@ class Bedna(models.Model):
                 logger.warning(f'Uživatel se pokusil uložit bednu ve stavu {self.stav_bedny} s neplatnými hodnotami: {", ".join(warning_list)}.')
                 raise ValidationError(_(f'V jiném stavu než "NEPŘIJATO" nelze uložit bednu bez hmotnosti, táry a množství: {", ".join(warning_list)}.'))
         
-        if self.zinkovat == ZinkovaniChoice.NA_ZINKOVANI and self.stav_bedny != StavBednyChoice.ZKONTROLOVANO:
-            logger.warning(f'Uživatel se pokusil uložit bednu se zinkováním NA_ZINKOVANI ve stavu {self.stav_bedny}, což není povoleno.')
-            raise ValidationError(_("Při změně zinkování na 'Na zinkování' musí být stav bedny 'Zkontrolováno'."))
+        if self.zinkovat == ZinkovaniChoice.V_ZINKOVNE and self.stav_bedny != StavBednyChoice.ZKONTROLOVANO:
+            logger.warning(f'Uživatel se pokusil uložit bednu se zinkováním V ZINKOVNĚ ve stavu {self.stav_bedny}, což není povoleno.')
+            raise ValidationError(_("Při změně zinkování na 'V zinkovně' musí být stav bedny 'Zkontrolováno'."))
 
     def save(self, *args, **kwargs):
         """
@@ -1248,11 +1248,11 @@ class Bedna(models.Model):
         Vrátí seznam tuple (value,label) pro pole `zinkovat` podle aktuálního stavu.
         Pravidla pro výběr:
         - Pokud je stav_bedny K_EXPEDICI nebo EXPEDOVANO, nabídne pouze aktuální stav (zinkování už nejde měnit).
-        - Pokud je zinkovat nezadáno, nabídne nezadáno, nezinkovat, k zinkování.
-        - Pokud je zinkovat nezinkovat, nabídne nezadáno, k_zinkovani a nezinkovat.
-        - Pokud je zinkovat k zinkování, nabídne nezadano, nezinkovat, k zinkování a na zinkování.
-        - Pokud je zinkovat na zinkování, nabídne k zinkování, na zinkování, pozinkováno a uvolněno.
-        - Pokud je zinkovat pozinkováno, nabídne na zinkování, pozinkováno a uvolněno.
+        - Pokud je zinkovat nezadáno, nabídne nezadáno, nezinkovat, zinkovat.
+        - Pokud je zinkovat nezinkovat, nabídne nezadáno, zinkovat a nezinkovat.
+        - Pokud je zinkovat zinkovat, nabídne nezadáno, nezinkovat, zinkovat a v zinkovně.
+        - Pokud je zinkovat v zinkovně, nabídne zinkovat, v zinkovně, pozinkováno a uvolněno.
+        - Pokud je zinkovat pozinkováno, nabídne v zinkovně, pozinkováno a uvolněno.
         - Pokud je zinkovat uvolněno, nabídne pozinkováno a uvolněno.
         """
         curr = self.zinkovat
@@ -1264,31 +1264,31 @@ class Bedna(models.Model):
             return [choice for choice in ZinkovaniChoice.choices if choice[0] in (
                 ZinkovaniChoice.NEZADANO,
                 ZinkovaniChoice.NEZINKOVAT,
-                ZinkovaniChoice.K_ZINKOVANI,
+                ZinkovaniChoice.ZINKOVAT,
             )]
         if curr == ZinkovaniChoice.NEZINKOVAT:
             return [choice for choice in ZinkovaniChoice.choices if choice[0] in (
                 ZinkovaniChoice.NEZADANO,
-                ZinkovaniChoice.K_ZINKOVANI,
+                ZinkovaniChoice.ZINKOVAT,
                 ZinkovaniChoice.NEZINKOVAT,
             )]
-        if curr == ZinkovaniChoice.K_ZINKOVANI:
+        if curr == ZinkovaniChoice.ZINKOVAT:
             return [choice for choice in ZinkovaniChoice.choices if choice[0] in (
                 ZinkovaniChoice.NEZADANO,
                 ZinkovaniChoice.NEZINKOVAT,
-                ZinkovaniChoice.K_ZINKOVANI,
-                ZinkovaniChoice.NA_ZINKOVANI,
+                ZinkovaniChoice.ZINKOVAT,
+                ZinkovaniChoice.V_ZINKOVNE,
             )]
-        if curr == ZinkovaniChoice.NA_ZINKOVANI:
+        if curr == ZinkovaniChoice.V_ZINKOVNE:
             return [choice for choice in ZinkovaniChoice.choices if choice[0] in (
-                ZinkovaniChoice.K_ZINKOVANI,
-                ZinkovaniChoice.NA_ZINKOVANI,
+                ZinkovaniChoice.ZINKOVAT,
+                ZinkovaniChoice.V_ZINKOVNE,
                 ZinkovaniChoice.POZINKOVANO,
                 ZinkovaniChoice.UVOLNENO,
             )]
         if curr == ZinkovaniChoice.POZINKOVANO:
             return [choice for choice in ZinkovaniChoice.choices if choice[0] in (
-                ZinkovaniChoice.NA_ZINKOVANI,
+                ZinkovaniChoice.V_ZINKOVNE,
                 ZinkovaniChoice.POZINKOVANO,
                 ZinkovaniChoice.UVOLNENO,
             )]

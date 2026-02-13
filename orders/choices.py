@@ -54,8 +54,8 @@ class TryskaniChoice(models.TextChoices):
 class ZinkovaniChoice(models.TextChoices):
     NEZADANO = '--', '--------'
     NEZINKOVAT = 'NN', 'Nezinkovat'
-    K_ZINKOVANI = 'KZ', 'K zinkování'
-    NA_ZINKOVANI = 'NZ', 'Na zinkování'
+    ZINKOVAT = 'KZ', 'Zinkovat'
+    V_ZINKOVNE = 'NZ', 'V zinkovně'
     POZINKOVANO = 'PZ', 'Pozinkováno'
     UVOLNENO = 'UV', 'Uvolněno'
 

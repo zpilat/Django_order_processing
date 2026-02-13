@@ -2744,9 +2744,9 @@ class BednaAdmin(SimpleHistoryAdmin):
             zruší se akce oznacit_prijato_navezeno_action.
         Pokud není aktivní filtr zinkování odpovídající definici akce, akce se skryje:
             - oznacit_k_zinkovani_action je viditelná jen při filtru zinkovani NEZADANO nebo NEZINKOVAT.
-            - odeslat_na_zinkovani_action je viditelná jen při filtru zinkovani K_ZINKOVANI.
-            - export_na_zinkovani_action a oznacit_po_zinkovani_action jsou viditelné jen při filtru zinkovani NA_ZINKOVANI.
-            - oznacit_uvolneno_action je viditelná jen při filtru zinkovani NA_ZINKOVANI nebo POZINKOVANO.
+            - odeslat_na_zinkovani_action je viditelná jen při filtru zinkovani ZINKOVAT.
+            - export_na_zinkovani_action a oznacit_po_zinkovani_action jsou viditelné jen při filtru zinkovani V ZINKOVNĚ.
+            - oznacit_uvolneno_action je viditelná jen při filtru zinkovani V ZINKOVNĚ nebo POZINKOVANO.
         
         """
         actions = super().get_actions(request)
@@ -2834,15 +2834,15 @@ class BednaAdmin(SimpleHistoryAdmin):
                 actions_to_remove += [
                     'oznacit_k_zinkovani_action',
                 ]
-            if zinkovani_filter != ZinkovaniChoice.K_ZINKOVANI:
+            if zinkovani_filter != ZinkovaniChoice.ZINKOVAT:
                 actions_to_remove += [
                     'odeslat_na_zinkovani_action',
                 ]
-            if zinkovani_filter != ZinkovaniChoice.NA_ZINKOVANI:
+            if zinkovani_filter != ZinkovaniChoice.V_ZINKOVNE:
                 actions_to_remove += [
                     'export_na_zinkovani_action', 'oznacit_po_zinkovani_action',
                 ]
-            if zinkovani_filter not in [ZinkovaniChoice.NA_ZINKOVANI, ZinkovaniChoice.POZINKOVANO]:
+            if zinkovani_filter not in [ZinkovaniChoice.V_ZINKOVNE, ZinkovaniChoice.POZINKOVANO]:
                 actions_to_remove += [
                     'oznacit_uvolneno_action',
                 ]

@@ -1593,7 +1593,7 @@ class StatusChangeActionsTests(ActionsBase):
 
         bedna = self._create_bedna_in_state(
             StavBednyChoice.ZKONTROLOVANO,
-            zinkovat=ZinkovaniChoice.K_ZINKOVANI,
+            zinkovat=ZinkovaniChoice.ZINKOVAT,
         )
         bedna.cislo_bedny = 123
         bedna.hmotnost = Decimal('2.5')
@@ -1606,7 +1606,7 @@ class StatusChangeActionsTests(ActionsBase):
         self.assertIsNotNone(resp)
         self.assertIsInstance(resp, HttpResponse)
         bedna.refresh_from_db()
-        self.assertEqual(bedna.zinkovat, ZinkovaniChoice.NA_ZINKOVANI)
+        self.assertEqual(bedna.zinkovat, ZinkovaniChoice.V_ZINKOVNE)
 
         rows = list(csv.reader(io.StringIO(resp.content.decode('utf-8-sig')), delimiter=';'))
         self.assertGreaterEqual(len(rows), 2)
@@ -1625,7 +1625,7 @@ class StatusChangeActionsTests(ActionsBase):
         admin_obj = self._messaging_admin()
         bedna = self._create_bedna_in_state(
             StavBednyChoice.ZKONTROLOVANO,
-            zinkovat=ZinkovaniChoice.NA_ZINKOVANI,
+            zinkovat=ZinkovaniChoice.V_ZINKOVNE,
         )
         bedna.cislo_bedny = 321
         bedna.save(update_fields=['cislo_bedny'])
@@ -1635,7 +1635,7 @@ class StatusChangeActionsTests(ActionsBase):
 
         self.assertIsNotNone(resp)
         bedna.refresh_from_db()
-        self.assertEqual(bedna.zinkovat, ZinkovaniChoice.NA_ZINKOVANI)
+        self.assertEqual(bedna.zinkovat, ZinkovaniChoice.V_ZINKOVNE)
         rows = list(csv.reader(io.StringIO(resp.content.decode('utf-8-sig')), delimiter=';'))
         self.assertEqual(rows[1][0], '321')
 
@@ -1643,14 +1643,14 @@ class StatusChangeActionsTests(ActionsBase):
         admin_obj = self._messaging_admin()
         bedna = self._create_bedna_in_state(
             StavBednyChoice.DO_ZPRACOVANI,
-            zinkovat=ZinkovaniChoice.K_ZINKOVANI,
+            zinkovat=ZinkovaniChoice.ZINKOVAT,
         )
         req = self.get_request('post')
         resp = actions.odeslat_na_zinkovani_action(admin_obj, req, Bedna.objects.filter(id=bedna.id))
 
         self.assertIsNone(resp)
         bedna.refresh_from_db()
-        self.assertEqual(bedna.zinkovat, ZinkovaniChoice.K_ZINKOVANI)
+        self.assertEqual(bedna.zinkovat, ZinkovaniChoice.ZINKOVAT)
         msgs = self._messages_texts(req)
         self.assertTrue(any('ZKONTROLOVANO' in m for m in msgs))
 
@@ -1670,42 +1670,42 @@ class StatusChangeActionsTests(ActionsBase):
         self.assertIsNone(resp)
         b1.refresh_from_db()
         b2.refresh_from_db()
-        self.assertEqual(b1.zinkovat, ZinkovaniChoice.K_ZINKOVANI)
-        self.assertEqual(b2.zinkovat, ZinkovaniChoice.K_ZINKOVANI)
+        self.assertEqual(b1.zinkovat, ZinkovaniChoice.ZINKOVAT)
+        self.assertEqual(b2.zinkovat, ZinkovaniChoice.ZINKOVAT)
 
     def test_oznacit_k_zinkovani_action_rejects_invalid(self):
         admin_obj = self._messaging_admin()
         bedna = self._create_bedna_in_state(
             StavBednyChoice.PRIJATO,
-            zinkovat=ZinkovaniChoice.NA_ZINKOVANI,
+            zinkovat=ZinkovaniChoice.V_ZINKOVNE,
         )
         req = self.get_request('post')
         resp = actions.oznacit_k_zinkovani_action(admin_obj, req, Bedna.objects.filter(id=bedna.id))
 
         self.assertIsNone(resp)
         bedna.refresh_from_db()
-        self.assertEqual(bedna.zinkovat, ZinkovaniChoice.NA_ZINKOVANI)
+        self.assertEqual(bedna.zinkovat, ZinkovaniChoice.V_ZINKOVNE)
         self.assertTrue(any('NEZADANO' in m or 'NEZINKOVAT' in m for m in self._messages_texts(req)))
 
     def test_oznacit_po_zinkovani_action_requires_state(self):
         admin_obj = self._messaging_admin()
         bedna = self._create_bedna_in_state(
             StavBednyChoice.ZKONTROLOVANO,
-            zinkovat=ZinkovaniChoice.K_ZINKOVANI,
+            zinkovat=ZinkovaniChoice.ZINKOVAT,
         )
         req = self.get_request('post')
         resp = actions.oznacit_po_zinkovani_action(admin_obj, req, Bedna.objects.filter(id=bedna.id))
 
         self.assertIsNone(resp)
         bedna.refresh_from_db()
-        self.assertEqual(bedna.zinkovat, ZinkovaniChoice.K_ZINKOVANI)
-        self.assertTrue(any('NA_ZINKOVANI' in m for m in self._messages_texts(req)))
+        self.assertEqual(bedna.zinkovat, ZinkovaniChoice.ZINKOVAT)
+        self.assertTrue(any('V ZINKOVNĚ' in m for m in self._messages_texts(req)))
 
     def test_oznacit_uvolneno_action_transitions(self):
         admin_obj = self._messaging_admin()
         b1 = self._create_bedna_in_state(
             StavBednyChoice.ZKONTROLOVANO,
-            zinkovat=ZinkovaniChoice.NA_ZINKOVANI,
+            zinkovat=ZinkovaniChoice.V_ZINKOVNE,
         )
         b2 = self._create_bedna_in_state(
             StavBednyChoice.ZKONTROLOVANO,
@@ -1727,7 +1727,7 @@ class RozpracovanostCommandTests(ActionsBase):
             StavBednyChoice.ZKONTROLOVANO,
             tryskat=TryskaniChoice.OTRYSKANA,
             rovnat=RovnaniChoice.ROVNA,
-            zinkovat=ZinkovaniChoice.K_ZINKOVANI,
+            zinkovat=ZinkovaniChoice.ZINKOVAT,
         )
 
         call_command('rozpracovanost')
@@ -1740,14 +1740,14 @@ class RozpracovanostCommandTests(ActionsBase):
         self.assertEqual(snap.stav_bedny, StavBednyChoice.ZKONTROLOVANO)
         self.assertEqual(snap.tryskat, TryskaniChoice.OTRYSKANA)
         self.assertEqual(snap.rovnat, RovnaniChoice.ROVNA)
-        self.assertEqual(snap.zinkovat, ZinkovaniChoice.K_ZINKOVANI)
+        self.assertEqual(snap.zinkovat, ZinkovaniChoice.ZINKOVAT)
 
     def test_rozpracovanost_command_dry_run_creates_no_snapshot(self):
         self._create_bedna_in_state(
             StavBednyChoice.ZAKALENO,
             tryskat=TryskaniChoice.SPINAVA,
             rovnat=RovnaniChoice.KRIVA,
-            zinkovat=ZinkovaniChoice.NA_ZINKOVANI,
+            zinkovat=ZinkovaniChoice.V_ZINKOVNE,
         )
 
         call_command('rozpracovanost', '--dry-run')

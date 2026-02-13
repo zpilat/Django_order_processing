@@ -229,7 +229,7 @@ class BednaFiltersTests(FilterTestBase):
 			hmotnost=1,
 			tara=1,
 			mnozstvi=1,
-			zinkovat=ZinkovaniChoice.K_ZINKOVANI,
+			zinkovat=ZinkovaniChoice.ZINKOVAT,
 		)
 
 		f = self._make_filter(F.ZinkovaniFilter, Bedna, params={"zinkovani": "hotovo"})
