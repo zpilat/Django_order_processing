@@ -71,8 +71,8 @@ class Odberatel(models.Model):
     Může se nastavit i jako položka pro zakázku, pokud je předem určeno,
     ke kterému odběrateli musí zakázka odejít.
     """
-    nazev = models.CharField(max_length=100, verbose_name='Název odběratele', unique=True)
-    zkraceny_nazev = models.CharField(max_length=15, verbose_name='Zkrácený název', unique=True,
+    nazev = models.CharField(max_length=100, verbose_name='Název odběratele')
+    zkraceny_nazev = models.CharField(max_length=15, verbose_name='Zkrácený název',
                                        help_text='Zkrácený název odběratele.')
     zkratka = models.CharField(max_length=3, verbose_name='Zkratka', unique=True,
                                help_text='Zkratka odběratele, např. pro programové použití.'
