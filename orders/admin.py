@@ -33,7 +33,8 @@ from django_user_agents.utils import get_user_agent
 from .import_strategies import BaseImportStrategy, EURImportStrategy, SPXImportStrategy
 
 from .models import (
-    Zakaznik, Kamion, Zakazka, Bedna, Predpis, Odberatel, TypHlavy, Cena, Pozice, Pletivo, PoziceZakazkaOrder, Rozpracovanost
+    Zakaznik, Kamion, Zakazka, Bedna, Predpis, Odberatel, TypHlavy, Cena, Pozice, Pletivo, PoziceZakazkaOrder, Rozpracovanost,
+    Zarizeni, Sarze, SarzeBedna,
 )
 from .actions import (
     expedice_zakazek_action, import_kamionu_action, tisk_karet_beden_action, tisk_karet_beden_zakazek_action,
@@ -71,6 +72,115 @@ from .utils import utilita_validate_excel_upload, build_postup_vyroby_cases
 
 import logging
 logger = logging.getLogger('orders')
+
+
+class SarzeBednaInline(admin.TabularInline):
+    model = SarzeBedna
+    extra = 1
+    autocomplete_fields = ('bedna',)
+
+
+@admin.register(Zarizeni)
+class ZarizeniAdmin(admin.ModelAdmin):
+    list_display = ('kod_zarizeni', 'nazev_zarizeni', 'prefix_sarze', 'umisteni', 'typ_zarizeni')
+    search_fields = ('kod_zarizeni', 'nazev_zarizeni',)
+    ordering = ('kod_zarizeni',)
+
+
+@admin.register(Sarze)
+class SarzeAdmin(admin.ModelAdmin):
+    list_display = ('get_cislo_sarze', 'get_kod_zarizeni', 'get_datum', 'zacatek', 'konec',
+                    'operator', 'cislo_pripravku', 'program', 'alarm', 'get_bedny')
+    list_filter = ('zarizeni', 'datum',)
+    search_fields = ('cislo_sarze', 'operator',)
+    autocomplete_fields = ('zarizeni',)
+    readonly_fields = ('cislo_sarze',)
+    inlines = [SarzeBednaInline]
+
+    @admin.display(description='Číslo šarže', ordering='cislo_sarze_zobrazeni')
+    def get_cislo_sarze(self, obj):
+        return obj.cislo_sarze_zobrazeni
+    
+    @admin.display(description='Zařízení', ordering='zarizeni__kod_zarizeni')
+    def get_kod_zarizeni(self, obj):
+        return obj.zarizeni.kod_zarizeni if obj.zarizeni else '-'
+
+    @admin.display(description='Datum', ordering='datum')
+    def get_datum(self, obj):
+        return obj.datum.strftime('%d.%m.%Y') if obj.datum else '-'
+
+    @admin.display(description='Bedny')
+    def get_bedny(self, obj):
+        if obj.bedny.exists():
+            bedny_str = ', '.join(str(bedna.cislo_bedny) for bedna in obj.bedny.all())
+            return bedny_str
+        return '-'
+
+
+@admin.register(SarzeBedna)
+class SarzeBednaAdmin(admin.ModelAdmin):
+    list_display = (
+        'get_sarze', 'get_kod_zarizeni', 'get_datum', 'get_zacatek', 'get_konec', 'get_operator',
+        'get_zkraceny_popis', 'get_bedna', 'get_zakaznik', 'patro', 'procent_z_patra', 'get_cislo_pripravku',
+        'get_program', 'get_skupina_TZ', 'poznamka', 'get_alarm',)
+    list_filter = ('sarze__zarizeni', 'sarze__datum',)
+    search_fields = ('sarze__cislo_sarze', 'bedna__cislo_bedny')
+    autocomplete_fields = ('sarze', 'bedna')
+    list_select_related = ('sarze', 'sarze__zarizeni', 'bedna')
+    ordering = ('sarze', 'patro', 'bedna__cislo_bedny',)
+
+    @admin.display(description='Zařízení', ordering='sarze__zarizeni__kod_zarizeni')
+    def get_kod_zarizeni(self, obj):
+        return obj.sarze.zarizeni.kod_zarizeni if obj.sarze and obj.sarze.zarizeni else '-'
+    
+    @admin.display(description='Šarže', ordering='sarze__cislo_sarze')
+    def get_sarze(self, obj):
+        return obj.sarze.cislo_sarze_zobrazeni if obj.sarze else '-'
+
+    @admin.display(description='Bedna', ordering='bedna__cislo_bedny')
+    def get_bedna(self, obj):
+        return obj.bedna.cislo_bedny if obj.bedna else '-'
+
+    @admin.display(description='Datum', ordering='sarze__datum')
+    def get_datum(self, obj):
+        return obj.sarze.datum.strftime('%d.%m.%Y') if obj.sarze and obj.sarze.datum else '-'
+
+    @admin.display(description='Zákazník', ordering='bedna__zakazka__kamion_prijem__zakaznik__nazev')
+    def get_zakaznik(self, obj):
+        zakaznik = obj.bedna.zakazka.kamion_prijem.zakaznik if obj.bedna and obj.bedna.zakazka and obj.bedna.zakazka.kamion_prijem and obj.bedna.zakazka.kamion_prijem.zakaznik else None
+        return zakaznik.zkraceny_nazev if zakaznik else '-'
+    
+    @admin.display(description='Začátek', ordering='sarze__zacatek')
+    def get_zacatek(self, obj):
+        return obj.sarze.zacatek.strftime('%H:%M') if obj.sarze and obj.sarze.zacatek else '-'
+    
+    @admin.display(description='Konec', ordering='sarze__konec')
+    def get_konec(self, obj):
+        return obj.sarze.konec.strftime('%H:%M') if obj.sarze and obj.sarze.konec else '-'
+
+    @admin.display(description='Operátor', ordering='sarze__operator')
+    def get_operator(self, obj):
+        return obj.sarze.operator if obj.sarze else '-'
+    
+    @admin.display(description='Zkrácený popis', ordering='bedna__zakazka__zkraceny_popis')
+    def get_zkraceny_popis(self, obj):
+        return obj.bedna.zakazka.zkraceny_popis if obj.bedna and obj.bedna.zakazka else '-'
+
+    @admin.display(description='Přípravek č.', ordering='sarze__cislo_pripravku')
+    def get_cislo_pripravku(self, obj):
+        return obj.sarze.cislo_pripravku if obj.sarze else '-'
+    
+    @admin.display(description='Program', ordering='sarze__program')
+    def get_program(self, obj):
+        return obj.sarze.program if obj.sarze else '-'
+
+    @admin.display(description='Skupina TZ', ordering='bedna__zakazka__predpis__skupina')
+    def get_skupina_TZ(self, obj):
+        return obj.bedna.zakazka.predpis.skupina if obj.bedna and obj.bedna.zakazka and obj.bedna.zakazka.predpis else '-'
+    
+    @admin.display(description='Alarm', ordering='sarze__alarm')
+    def get_alarm(self, obj):
+        return obj.sarze.alarm if obj.sarze else '-'
 
 @admin.register(Permission)
 class PermissionAdmin(admin.ModelAdmin):

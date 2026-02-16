@@ -5,7 +5,7 @@ from django.urls import reverse
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db.models import Sum
-from django.db.models import Q
+from django.db.models import Q, Max
 
 from simple_history.models import HistoricalRecords
 
@@ -1378,6 +1378,96 @@ class Bedna(models.Model):
         return super().delete(using=using, keep_parents=keep_parents)
 
 
+class Zarizeni(models.Model):
+    kod_zarizeni = models.CharField(max_length=10, verbose_name='Kód zařízení', unique=True)
+    nazev_zarizeni = models.CharField(max_length=100, verbose_name='Název zařízení')
+    prefix_sarze = models.CharField(max_length=3, verbose_name='Prefix šarže')
+    umisteni = models.CharField(max_length=20, blank=True, null=True, verbose_name='Umístění')
+    typ_zarizeni = models.CharField(max_length=35, blank=True, null=True, verbose_name='Typ zařízení')
+
+    class Meta:
+        verbose_name = 'Zařízení'
+        verbose_name_plural = 'zařízení'
+        ordering = ['kod_zarizeni']
+
+    def __str__(self):
+        return f"{self.kod_zarizeni} - {self.nazev_zarizeni}"
+
+
+class Sarze(models.Model):
+    cislo_sarze = models.PositiveIntegerField(blank=True, verbose_name='Číslo šarže')
+    zarizeni = models.ForeignKey(Zarizeni, on_delete=models.PROTECT, related_name='sarze', verbose_name='Zařízení')
+    datum = models.DateField(verbose_name='Datum')
+    zacatek = models.TimeField(verbose_name='Začátek')
+    konec = models.TimeField(verbose_name='Konec')
+    operator = models.CharField(max_length=30, verbose_name='Operátor')
+    program = models.CharField(max_length=20, verbose_name='Program')
+    cislo_pripravku = models.PositiveSmallIntegerField(blank=True, null=True, verbose_name='Přípravek č.')
+    alarm = models.CharField(max_length=50, blank=True, null=True, verbose_name='Alarm')
+    bedny = models.ManyToManyField(
+        'Bedna',
+        through='SarzeBedna',
+        related_name='sarze_zarizeni',
+        verbose_name='Bedny',
+    )
+
+    class Meta:
+        verbose_name = 'Šarže'
+        verbose_name_plural = 'šarže'
+        ordering = ['-datum', 'zarizeni__kod_zarizeni', 'cislo_sarze']
+        constraints = [
+            models.UniqueConstraint(fields=['zarizeni', 'cislo_sarze'], name='uniq_sarze_zarizeni'),
+        ]
+
+    def __str__(self):
+        return f"{self.cislo_sarze_zobrazeni} ({self.zarizeni.kod_zarizeni.upper()})"
+
+    @property
+    def cislo_sarze_zobrazeni(self):
+        prefix = self.zarizeni.prefix_sarze if self.zarizeni_id else ''
+        return f"{prefix}{self.cislo_sarze:05d}"
+
+    def save(self, *args, **kwargs):
+        if not self.cislo_sarze:
+            if not self.zarizeni_id:
+                raise ValidationError("Pro automatické číslování šarže je nutné vyplnit zařízení.")
+            last_number = (
+                Sarze.objects
+                .filter(zarizeni=self.zarizeni)
+                .aggregate(max_cislo=Max('cislo_sarze'))
+                .get('max_cislo')
+            ) or 0
+            self.cislo_sarze = last_number + 1
+        super().save(*args, **kwargs)
+
+
+class SarzeBedna(models.Model):
+    sarze = models.ForeignKey(Sarze, on_delete=models.CASCADE, related_name='sarze_bedny', verbose_name='Šarže')
+    bedna = models.ForeignKey(Bedna, on_delete=models.PROTECT, related_name='sarze_bedny', verbose_name='Bedna')
+    patro = models.PositiveSmallIntegerField(verbose_name='Patro')
+    procent_z_patra = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.0')), MaxValueValidator(Decimal('100.0'))],
+        verbose_name='% z patra',
+        blank=True,
+        null=True,
+        help_text='Podíl využití patra pro danou bednu (0-100).',
+    )
+    poznamka = models.CharField(max_length=100, blank=True, null=True, verbose_name='Poznámka')    
+
+    class Meta:
+        verbose_name = 'Bedna v šarži'
+        verbose_name_plural = 'deník pece'
+        ordering = ['sarze_id', 'patro', 'bedna_id']
+        constraints = [
+            models.UniqueConstraint(fields=['sarze', 'bedna', 'patro'], name='uniq_sarze_bedna_patro'),
+        ]
+
+    def __str__(self):
+        return f"{self.sarze.cislo_sarze_zobrazeni} - {self.bedna.cislo_bedny} ({self.patro}.patro)"
+
+
 class Rozpracovanost(models.Model):
     cas_zaznamu = models.DateTimeField(auto_now_add=True, verbose_name='Čas záznamu')
     bedny = models.ManyToManyField(
@@ -1393,7 +1483,7 @@ class Rozpracovanost(models.Model):
         ordering = ['-cas_zaznamu']
 
     def __str__(self):
-        return f"{self.cas_zaznamu:%Y.%m.%d %H:%M} – {self.bedny.count()} beden"
+        return f"{self.cas_zaznamu:%Y.%m.%d %H:%M} - {self.bedny.count()} beden"
 
     @property
     def pocet_beden(self):
