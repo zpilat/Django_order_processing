@@ -78,7 +78,7 @@ class SarzeBednaInline(admin.TabularInline):
     model = SarzeBedna
     extra = 1
     autocomplete_fields = ('bedna',)
-    fields = ('bedna', 'patro', 'procent_z_patra', 'poznamka', 'get_zakaznik', 'get_popis_zakazky', 'get_skupina_TZ',)
+    fields = ('bedna', 'patro', 'procent_z_patra', 'get_zakaznik', 'get_popis_zakazky', 'get_skupina_TZ',)
     readonly_fields = ('get_zakaznik', 'get_popis_zakazky', 'get_skupina_TZ',)
 
     @admin.display(description='Zákazník')
@@ -127,7 +127,7 @@ class ZarizeniAdmin(admin.ModelAdmin):
 @admin.register(Sarze)
 class SarzeAdmin(admin.ModelAdmin):
     list_display = ('get_cislo_sarze', 'get_kod_zarizeni', 'get_datum', 'zacatek', 'konec', 'operator',
-                    'cislo_pripravku', 'program', 'alarm', 'get_prodleva', 'get_takt', 'get_bedny',)
+                    'cislo_pripravku', 'program', 'poznamka', 'alarm', 'get_prodleva', 'get_takt', 'get_bedny',)
     change_form_template = 'admin/orders/sarze/change_form.html'
     list_filter = (ZarizeniSarzeFilter,)
     search_fields = ('cislo_sarze', 'operator',)
@@ -268,9 +268,9 @@ class SarzeBednaAdmin(admin.ModelAdmin):
         short = f"{text[:max_len]}..."
         return format_html('<span title="{}">{}</span>', text, short)
 
-    @admin.display(description='Poznámka', ordering='poznamka')
+    @admin.display(description='Poznámka', ordering='sarze__poznamka')
     def get_poznamka(self, obj):
-        return self._truncate_with_title(obj.poznamka)
+        return self._truncate_with_title(obj.sarze.poznamka) if obj.sarze else '-'
     
     @admin.display(description='Alarm', ordering='sarze__alarm')
     def get_alarm(self, obj):

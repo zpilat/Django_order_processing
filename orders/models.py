@@ -1405,6 +1405,7 @@ class Sarze(models.Model):
     operator = models.CharField(max_length=30, verbose_name='Operátor')
     program = models.CharField(max_length=20, verbose_name='Program')
     cislo_pripravku = models.PositiveSmallIntegerField(blank=True, null=True, verbose_name='Číslo přípravku')
+    poznamka = models.CharField(max_length=100, blank=True, null=True, verbose_name='Poznámka')      
     alarm = models.CharField(max_length=50, blank=True, null=True, verbose_name='Alarm')
     bedny = models.ManyToManyField(
         'Bedna',
@@ -1507,8 +1508,7 @@ class SarzeBedna(models.Model):
     procent_z_patra = models.PositiveSmallIntegerField(
         verbose_name='Procent z patra', blank=True, null=True, validators=[MinValueValidator(0), MaxValueValidator(100)],
         help_text='Podíl využití patra pro danou bednu (0-100).',
-    )
-    poznamka = models.CharField(max_length=100, blank=True, null=True, verbose_name='Poznámka')    
+    )  
 
     class Meta:
         verbose_name = 'Bedna v šarži'
