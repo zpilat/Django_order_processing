@@ -396,6 +396,37 @@ class TestSarzeModels(ModelsBase):
                     patro=1,
                 )
 
+    def test_sarzebedna_prvni_pouziti(self):
+        zar = Zarizeni.objects.create(
+            kod_zarizeni="ZP1",
+            nazev_zarizeni="Zařízení P1",
+            prefix_sarze="P1",
+        )
+        sarze1 = Sarze.objects.create(
+            zarizeni=zar,
+            cislo_sarze=1,
+            datum=date(2026, 2, 16),
+            zacatek=time(8, 0),
+            konec=time(9, 0),
+            operator="Op",
+            program="P",
+        )
+        sarze2 = Sarze.objects.create(
+            zarizeni=zar,
+            cislo_sarze=2,
+            datum=date(2026, 2, 17),
+            zacatek=time(8, 0),
+            konec=time(9, 0),
+            operator="Op",
+            program="P",
+        )
+
+        sb1 = SarzeBedna.objects.create(sarze=sarze1, bedna=self.bedna1, patro=1)
+        sb2 = SarzeBedna.objects.create(sarze=sarze2, bedna=self.bedna1, patro=1)
+
+        self.assertTrue(sb1.prvni_pouziti)
+        self.assertFalse(sb2.prvni_pouziti)
+
         # výdej: všechny bedny v kamionu výdej se počítají jako expedované
         self.assertEqual(self.kamion_vydej.pocet_beden_expedovano, 2)
 

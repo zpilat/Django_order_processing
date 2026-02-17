@@ -1521,6 +1521,20 @@ class SarzeBedna(models.Model):
     def __str__(self):
         return f"{self.sarze.cislo_sarze_zobrazeni} - {self.bedna.cislo_bedny} ({self.patro}.patro)"
 
+    @property
+    def prvni_pouziti(self):
+        """
+        True, pokud je tato bedna v rámci daného zařízení poprvé zpracována v této šarži.
+        """
+        if not self.sarze or not self.bedna or not self.sarze.cislo_sarze or not self.sarze.zarizeni:
+            return False
+
+        return not SarzeBedna.objects.filter(
+            bedna=self.bedna,
+            sarze__zarizeni=self.sarze.zarizeni,
+            sarze__cislo_sarze__lt=self.sarze.cislo_sarze,
+        ).exists()
+
 
 class Rozpracovanost(models.Model):
     cas_zaznamu = models.DateTimeField(auto_now_add=True, verbose_name='Čas záznamu')
