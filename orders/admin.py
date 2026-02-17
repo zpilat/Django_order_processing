@@ -132,7 +132,7 @@ class SarzeAdmin(admin.ModelAdmin):
     list_filter = (ZarizeniSarzeFilter,)
     search_fields = ('cislo_sarze', 'operator',)
     autocomplete_fields = ('zarizeni',)
-    readonly_fields = ('cislo_sarze',)
+    #readonly_fields = ('cislo_sarze',)
     ordering = ('-id',)
     inlines = [SarzeBednaInline]
     formfield_overrides = {
