@@ -1,5 +1,5 @@
 from decimal import Decimal
-from datetime import date
+from datetime import date, time
 from django.test import TestCase
 from django.urls import reverse
 
@@ -13,6 +13,9 @@ from orders.models import (
     Cena,
     Bedna,
     Pozice,
+    Zarizeni,
+    Sarze,
+    SarzeBedna,
 )
 from orders.choices import (
     StavBednyChoice,
@@ -22,6 +25,7 @@ from orders.choices import (
     ZinkovaniChoice,
 )
 from django.core.exceptions import ValidationError
+from django.db import IntegrityError, transaction
 from django.db.models.deletion import ProtectedError
 
 
@@ -257,6 +261,140 @@ class TestModels(ModelsBase):
         self.bedna1.save()
         self.assertEqual(self.kamion_prijem.pocet_beden_skladem, 0)
         self.assertEqual(self.kamion_prijem.pocet_beden_expedovano, 1)
+
+
+class TestSarzeModels(ModelsBase):
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.zarizeni_base = Zarizeni.objects.create(
+            kod_zarizeni="ZBASE",
+            nazev_zarizeni="Základní zařízení",
+            prefix_sarze="1X",
+        )
+        cls.sarze_base = Sarze.objects.create(
+            zarizeni=cls.zarizeni_base,
+            datum=date(2026, 2, 16),
+            zacatek=time(8, 0),
+            konec=time(9, 0),
+            operator="Operátor",
+            program="P1",
+        )
+
+    def test_sarze_auto_numbering_per_device(self):
+        zar1 = Zarizeni.objects.create(
+            kod_zarizeni="Z1",
+            nazev_zarizeni="Zařízení 1",
+            prefix_sarze="A",
+        )
+        zar2 = Zarizeni.objects.create(
+            kod_zarizeni="Z2",
+            nazev_zarizeni="Zařízení 2",
+            prefix_sarze="B",
+        )
+
+        s1 = Sarze.objects.create(
+            zarizeni=zar1,
+            datum=date(2026, 2, 16),
+            zacatek=time(10, 0),
+            konec=time(11, 0),
+            operator="Op",
+            program="P",
+        )
+        s2 = Sarze.objects.create(
+            zarizeni=zar1,
+            datum=date(2026, 2, 16),
+            zacatek=time(12, 0),
+            konec=time(13, 0),
+            operator="Op",
+            program="P",
+        )
+        s3 = Sarze.objects.create(
+            zarizeni=zar2,
+            datum=date(2026, 2, 16),
+            zacatek=time(10, 0),
+            konec=time(11, 0),
+            operator="Op",
+            program="P",
+        )
+
+        self.assertEqual(s1.cislo_sarze, 1)
+        self.assertEqual(s2.cislo_sarze, 2)
+        self.assertEqual(s3.cislo_sarze, 1)
+
+    def test_cislo_sarze_zobrazeni(self):
+        sarze = Sarze.objects.create(
+            zarizeni=self.zarizeni_base,
+            cislo_sarze=3,
+            datum=date(2026, 2, 16),
+            zacatek=time(10, 0),
+            konec=time(11, 0),
+            operator="Op",
+            program="P",
+        )
+        self.assertEqual(sarze.cislo_sarze_zobrazeni, "1X00003")
+
+    def test_sarze_prodleva(self):
+        zar = Zarizeni.objects.create(
+            kod_zarizeni="ZP",
+            nazev_zarizeni="Zařízení prodleva",
+            prefix_sarze="P",
+        )
+        Sarze.objects.create(
+            zarizeni=zar,
+            cislo_sarze=1,
+            datum=date(2026, 2, 16),
+            zacatek=time(10, 0),
+            konec=time(11, 0),
+            operator="Op",
+            program="P",
+        )
+        current = Sarze.objects.create(
+            zarizeni=zar,
+            cislo_sarze=2,
+            datum=date(2026, 2, 16),
+            zacatek=time(12, 30),
+            konec=time(13, 0),
+            operator="Op",
+            program="P",
+        )
+        self.assertEqual(current.prodleva, 90)
+
+    def test_sarze_takt_cross_midnight(self):
+        sarze = Sarze.objects.create(
+            zarizeni=self.zarizeni_base,
+            cislo_sarze=10,
+            datum=date(2026, 2, 16),
+            zacatek=time(23, 0),
+            konec=time(1, 0),
+            operator="Op",
+            program="P",
+        )
+        self.assertEqual(sarze.takt, 2.0)
+
+    def test_sarzebedna_procent_z_patra_validators(self):
+        sb = SarzeBedna(
+            sarze=self.sarze_base,
+            bedna=self.bedna1,
+            patro=1,
+            procent_z_patra=101,
+        )
+        with self.assertRaises(ValidationError):
+            sb.full_clean()
+
+    def test_sarzebedna_unique_constraint(self):
+        SarzeBedna.objects.create(
+            sarze=self.sarze_base,
+            bedna=self.bedna1,
+            patro=1,
+        )
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                SarzeBedna.objects.create(
+                    sarze=self.sarze_base,
+                    bedna=self.bedna1,
+                    patro=1,
+                )
 
         # výdej: všechny bedny v kamionu výdej se počítají jako expedované
         self.assertEqual(self.kamion_vydej.pocet_beden_expedovano, 2)

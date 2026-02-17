@@ -6,6 +6,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db.models import Sum
 from django.db.models import Q, Max
+from datetime import datetime, timedelta
 
 from simple_history.models import HistoricalRecords
 
@@ -911,7 +912,7 @@ class Bedna(models.Model):
         ]
 
     def __str__(self):
-        return f'{self.zakazka.kamion_prijem.zakaznik.zkratka} {self.zakazka.kamion_prijem.datum.strftime("%d.%m.%y")}-{self.zakazka.artikl}-{self.zakazka.prumer}x{self.zakazka.delka}-{self.cislo_bedny}'
+        return f'{self.cislo_bedny} ({self.zakazka.kamion_prijem.zakaznik.zkratka}-{self.zakazka.artikl}-{self.zakazka.prumer}x{self.zakazka.delka})'
     
     def get_admin_url(self):
         """
@@ -1381,6 +1382,7 @@ class Bedna(models.Model):
 class Zarizeni(models.Model):
     kod_zarizeni = models.CharField(max_length=10, verbose_name='Kód zařízení', unique=True)
     nazev_zarizeni = models.CharField(max_length=100, verbose_name='Název zařízení')
+    zkraceny_nazev_zarizeni = models.CharField(max_length=50, verbose_name='Zkrácený název')
     prefix_sarze = models.CharField(max_length=3, verbose_name='Prefix šarže')
     umisteni = models.CharField(max_length=20, blank=True, null=True, verbose_name='Umístění')
     typ_zarizeni = models.CharField(max_length=35, blank=True, null=True, verbose_name='Typ zařízení')
@@ -1391,18 +1393,18 @@ class Zarizeni(models.Model):
         ordering = ['kod_zarizeni']
 
     def __str__(self):
-        return f"{self.kod_zarizeni} - {self.nazev_zarizeni}"
-
+        return self.zkraceny_nazev_zarizeni
+    
 
 class Sarze(models.Model):
     cislo_sarze = models.PositiveIntegerField(blank=True, verbose_name='Číslo šarže')
     zarizeni = models.ForeignKey(Zarizeni, on_delete=models.PROTECT, related_name='sarze', verbose_name='Zařízení')
     datum = models.DateField(verbose_name='Datum')
     zacatek = models.TimeField(verbose_name='Začátek')
-    konec = models.TimeField(verbose_name='Konec')
+    konec = models.TimeField(blank=True, null=True, verbose_name='Konec')
     operator = models.CharField(max_length=30, verbose_name='Operátor')
     program = models.CharField(max_length=20, verbose_name='Program')
-    cislo_pripravku = models.PositiveSmallIntegerField(blank=True, null=True, verbose_name='Přípravek č.')
+    cislo_pripravku = models.PositiveSmallIntegerField(blank=True, null=True, verbose_name='Číslo přípravku')
     alarm = models.CharField(max_length=50, blank=True, null=True, verbose_name='Alarm')
     bedny = models.ManyToManyField(
         'Bedna',
@@ -1440,18 +1442,70 @@ class Sarze(models.Model):
             self.cislo_sarze = last_number + 1
         super().save(*args, **kwargs)
 
+    @property
+    def prodleva(self):
+        """
+        Rozdíl mezi začátkem aktuální šarže a koncem předchozí šarže v minutách.
+        """
+        if not self.zacatek or not self.datum:
+            return '-'
+
+        cislo_predchozi_sarze = self.cislo_sarze - 1
+
+        predchozi_sarze = Sarze.objects.filter(
+            zarizeni=self.zarizeni,
+            cislo_sarze=cislo_predchozi_sarze,
+        ).first()
+
+        if (
+            not predchozi_sarze
+            or not predchozi_sarze.konec
+            or not predchozi_sarze.zacatek
+            or not predchozi_sarze.datum
+        ):
+            return '-'
+
+        datum_predchozi_sarze = predchozi_sarze.datum
+        if predchozi_sarze.konec < predchozi_sarze.zacatek:
+            # Pokud je konec předchozí šarže dříve než začátek, znamená to, že šarže probíhala přes půlnoc.
+            # V tomto případě přidáme 24 hodin k času konce předchozí šarže pro správný výpočet prodlevy.
+            # Předpokládáme, že šarže nikdy nepřesahuje 24 hodin, takže přidáme vždy 1 den.
+            datum_predchozi_sarze += timedelta(days=1)
+
+        prodleva = (
+            datetime.combine(self.datum, self.zacatek)
+            - datetime.combine(datum_predchozi_sarze, predchozi_sarze.konec)
+        ).total_seconds() / 60
+        return int(prodleva)
+
+    @property
+    def takt(self):
+        """
+        Celkový čas zpracování šarže v hodinách.
+        """
+        if not self.zacatek or not self.konec or not self.datum:
+            return '-'
+
+        datum_konec = self.datum
+        if self.konec < self.zacatek:
+            # Pokud je konec šarže dříve než začátek, znamená to, že šarže probíhala přes půlnoc.
+            # V tomto případě přidáme 24 hodin k času konce pro správný výpočet taktu.
+            # Předpokládáme, že šarže nikdy nepřesahuje 24 hodin, takže přidáme vždy 1 den.
+            datum_konec += timedelta(days=1)
+
+        takt = (
+            datetime.combine(datum_konec, self.konec)
+            - datetime.combine(self.datum, self.zacatek)
+        ).total_seconds() / 3600
+        return round(takt, 1)
+
 
 class SarzeBedna(models.Model):
     sarze = models.ForeignKey(Sarze, on_delete=models.CASCADE, related_name='sarze_bedny', verbose_name='Šarže')
     bedna = models.ForeignKey(Bedna, on_delete=models.PROTECT, related_name='sarze_bedny', verbose_name='Bedna')
     patro = models.PositiveSmallIntegerField(verbose_name='Patro')
-    procent_z_patra = models.DecimalField(
-        max_digits=5,
-        decimal_places=2,
-        validators=[MinValueValidator(Decimal('0.0')), MaxValueValidator(Decimal('100.0'))],
-        verbose_name='% z patra',
-        blank=True,
-        null=True,
+    procent_z_patra = models.PositiveSmallIntegerField(
+        verbose_name='Procent z patra', blank=True, null=True, validators=[MinValueValidator(0), MaxValueValidator(100)],
         help_text='Podíl využití patra pro danou bednu (0-100).',
     )
     poznamka = models.CharField(max_length=100, blank=True, null=True, verbose_name='Poznámka')    

@@ -15,7 +15,7 @@ from django.utils.html import format_html, format_html_join
 from django.db.models import Count, Max
 from django.core.exceptions import ValidationError
 from django.db.models.deletion import ProtectedError
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponseRedirect
 from django.utils import timezone
 from datetime import datetime
 
@@ -54,7 +54,7 @@ from .filters import (
     SklademZakazkaFilter, StavBednyFilter, KompletZakazkaFilter, AktivniPredpisFilter, SkupinaFilter, ZakaznikBednyFilter,
     ZakaznikZakazkyFilter, ZakaznikKamionuFilter, PrijemVydejFilter, TryskaniFilter, RovnaniFilter, PrioritaBednyFilter, PrioritaZakazkyFilter,
     OberflacheFilter, TypHlavyBednyFilter, TypHlavyZakazkyFilter, CelozavitBednyFilter, CelozavitZakazkyFilter, DelkaFilter, PozastavenoFilter,
-    OdberatelFilter, OdberatelBednyFilter, ZakaznikPredpisFilter, ZinkovaniFilter
+    OdberatelFilter, OdberatelBednyFilter, ZakaznikPredpisFilter, ZinkovaniFilter, ZarizeniSarzeFilter, ZarizeniSarzeBednaFilter,
 )
 from .forms import (
     BednaAdminForm,
@@ -78,24 +78,66 @@ class SarzeBednaInline(admin.TabularInline):
     model = SarzeBedna
     extra = 1
     autocomplete_fields = ('bedna',)
+    fields = ('bedna', 'patro', 'procent_z_patra', 'poznamka', 'get_zakaznik', 'get_popis_zakazky', 'get_skupina_TZ',)
+    readonly_fields = ('get_zakaznik', 'get_popis_zakazky', 'get_skupina_TZ',)
+
+    @admin.display(description='Zákazník')
+    def get_zakaznik(self, obj):
+        zakaznik = obj.bedna.zakazka.kamion_prijem.zakaznik if obj.bedna and obj.bedna.zakazka and obj.bedna.zakazka.kamion_prijem and obj.bedna.zakazka.kamion_prijem.zakaznik else None
+        return zakaznik.zkraceny_nazev if zakaznik and zakaznik.zkraceny_nazev else '-'
+
+    @admin.display(description='Popis')
+    def get_popis_zakazky(self, obj):
+        return obj.bedna.zakazka.popis if obj.bedna and obj.bedna.zakazka and obj.bedna.zakazka.popis else '-'
+
+    @admin.display(description='Skupina')
+    def get_skupina_TZ(self, obj):
+        return f"SK{obj.bedna.zakazka.predpis.skupina}" if obj.bedna and obj.bedna.zakazka and obj.bedna.zakazka.predpis and obj.bedna.zakazka.predpis.skupina else '-'
+
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
+        """
+        Přizpůsobení widgetů pro pole v administraci.
+        """
+        if isinstance(db_field, models.ForeignKey):
+            # Zruší zobrazení ikon pro ForeignKey pole v administraci, nepřidá RelatedFieldWidgetWrapper.
+            formfield = self.formfield_for_foreignkey(db_field, request, **kwargs)
+            # DŮLEŽITÉ: znovu obalit widget
+            rel = db_field.remote_field
+            formfield.widget = RelatedFieldWidgetWrapper(
+                formfield.widget,
+                rel,
+                self.admin_site,
+                can_add_related=False,
+                can_change_related=False,
+                can_delete_related=False,
+                can_view_related=False,
+            )
+            return formfield
+
+        return super().formfield_for_dbfield(db_field, request, **kwargs)
 
 
 @admin.register(Zarizeni)
 class ZarizeniAdmin(admin.ModelAdmin):
-    list_display = ('kod_zarizeni', 'nazev_zarizeni', 'prefix_sarze', 'umisteni', 'typ_zarizeni')
+    list_display = ('kod_zarizeni', 'nazev_zarizeni', 'zkraceny_nazev_zarizeni', 'prefix_sarze', 'umisteni', 'typ_zarizeni')
     search_fields = ('kod_zarizeni', 'nazev_zarizeni',)
     ordering = ('kod_zarizeni',)
 
 
 @admin.register(Sarze)
 class SarzeAdmin(admin.ModelAdmin):
-    list_display = ('get_cislo_sarze', 'get_kod_zarizeni', 'get_datum', 'zacatek', 'konec',
-                    'operator', 'cislo_pripravku', 'program', 'alarm', 'get_bedny')
-    list_filter = ('zarizeni', 'datum',)
+    list_display = ('get_cislo_sarze', 'get_kod_zarizeni', 'get_datum', 'zacatek', 'konec', 'operator',
+                    'cislo_pripravku', 'program', 'alarm', 'get_prodleva', 'get_takt', 'get_bedny',)
+    change_form_template = 'admin/orders/sarze/change_form.html'
+    list_filter = (ZarizeniSarzeFilter,)
     search_fields = ('cislo_sarze', 'operator',)
     autocomplete_fields = ('zarizeni',)
     readonly_fields = ('cislo_sarze',)
+    ordering = ('-id',)
     inlines = [SarzeBednaInline]
+    formfield_overrides = {
+        models.TimeField: {'widget': forms.TimeInput(format='%H:%M')},
+    }
 
     @admin.display(description='Číslo šarže', ordering='cislo_sarze_zobrazeni')
     def get_cislo_sarze(self, obj):
@@ -116,18 +158,48 @@ class SarzeAdmin(admin.ModelAdmin):
             return bedny_str
         return '-'
 
+    @admin.display(description='Prodleva (min)')
+    def get_prodleva(self, obj):
+        return obj.prodleva
+
+    @admin.display(description='Takt (hod)')
+    def get_takt(self, obj):
+        return obj.takt
+
+    def response_add(self, request, obj, post_url_continue=None):
+        if "_save_to_sarzebedna" in request.POST:
+            return HttpResponseRedirect(reverse('admin:orders_sarzebedna_changelist'))
+        return super().response_add(request, obj, post_url_continue)
+
+    def response_change(self, request, obj):
+        if "_save_to_sarzebedna" in request.POST:
+            return HttpResponseRedirect(reverse('admin:orders_sarzebedna_changelist'))
+        return super().response_change(request, obj)
+
 
 @admin.register(SarzeBedna)
 class SarzeBednaAdmin(admin.ModelAdmin):
     list_display = (
         'get_sarze', 'get_kod_zarizeni', 'get_datum', 'get_zacatek', 'get_konec', 'get_operator',
-        'get_zkraceny_popis', 'get_bedna', 'get_zakaznik', 'patro', 'procent_z_patra', 'get_cislo_pripravku',
-        'get_program', 'get_skupina_TZ', 'poznamka', 'get_alarm',)
-    list_filter = ('sarze__zarizeni', 'sarze__datum',)
+        'get_zkraceny_popis', 'get_cislo_bedny', 'get_zakaznik', 'patro', 'get_procent_z_patra',
+        'get_cislo_pripravku', 'get_program', 'get_skupina_TZ', 'get_poznamka', 'get_alarm', 'get_prodleva',
+        'get_takt',
+    )
+    change_list_template = 'admin/orders/sarzebedna/change_list.html'
+    list_display_links = ('get_cislo_bedny',)
+    list_filter = (ZarizeniSarzeBednaFilter,)
     search_fields = ('sarze__cislo_sarze', 'bedna__cislo_bedny')
     autocomplete_fields = ('sarze', 'bedna')
     list_select_related = ('sarze', 'sarze__zarizeni', 'bedna')
-    ordering = ('sarze', 'patro', 'bedna__cislo_bedny',)
+    ordering = ('-sarze__id', 'patro',)
+
+    class Media:
+        js = (
+            'orders/js/admin_sarzebedna_group_separator.js',
+        )
+        css = {
+            'all': ('orders/css/admin_paused_rows.css',)
+        }
 
     @admin.display(description='Zařízení', ordering='sarze__zarizeni__kod_zarizeni')
     def get_kod_zarizeni(self, obj):
@@ -135,10 +207,13 @@ class SarzeBednaAdmin(admin.ModelAdmin):
     
     @admin.display(description='Šarže', ordering='sarze__cislo_sarze')
     def get_sarze(self, obj):
-        return obj.sarze.cislo_sarze_zobrazeni if obj.sarze else '-'
+        if not obj.sarze:
+            return '-'
+        sarze_url = reverse('admin:orders_sarze_change', args=[obj.sarze_id])
+        return format_html('<a href="{}">{}</a>', sarze_url, obj.sarze.cislo_sarze_zobrazeni)
 
     @admin.display(description='Bedna', ordering='bedna__cislo_bedny')
-    def get_bedna(self, obj):
+    def get_cislo_bedny(self, obj):
         return obj.bedna.cislo_bedny if obj.bedna else '-'
 
     @admin.display(description='Datum', ordering='sarze__datum')
@@ -150,6 +225,10 @@ class SarzeBednaAdmin(admin.ModelAdmin):
         zakaznik = obj.bedna.zakazka.kamion_prijem.zakaznik if obj.bedna and obj.bedna.zakazka and obj.bedna.zakazka.kamion_prijem and obj.bedna.zakazka.kamion_prijem.zakaznik else None
         return zakaznik.zkraceny_nazev if zakaznik else '-'
     
+    @admin.display(description='Z patra', ordering='procent_z_patra')
+    def get_procent_z_patra(self, obj):
+        return f"{obj.procent_z_patra}%" if obj.procent_z_patra is not None else '-'
+
     @admin.display(description='Začátek', ordering='sarze__zacatek')
     def get_zacatek(self, obj):
         return obj.sarze.zacatek.strftime('%H:%M') if obj.sarze and obj.sarze.zacatek else '-'
@@ -166,7 +245,7 @@ class SarzeBednaAdmin(admin.ModelAdmin):
     def get_zkraceny_popis(self, obj):
         return obj.bedna.zakazka.zkraceny_popis if obj.bedna and obj.bedna.zakazka else '-'
 
-    @admin.display(description='Přípravek č.', ordering='sarze__cislo_pripravku')
+    @admin.display(description='Č. přípr.', ordering='sarze__cislo_pripravku')
     def get_cislo_pripravku(self, obj):
         return obj.sarze.cislo_pripravku if obj.sarze else '-'
     
@@ -177,10 +256,35 @@ class SarzeBednaAdmin(admin.ModelAdmin):
     @admin.display(description='Skupina TZ', ordering='bedna__zakazka__predpis__skupina')
     def get_skupina_TZ(self, obj):
         return obj.bedna.zakazka.predpis.skupina if obj.bedna and obj.bedna.zakazka and obj.bedna.zakazka.predpis else '-'
+
+    def _truncate_with_title(self, text, max_len=15):
+        if text is None:
+            return '-'
+        text = str(text)
+        if not text:
+            return '-'
+        if len(text) <= max_len:
+            return text
+        short = f"{text[:max_len]}..."
+        return format_html('<span title="{}">{}</span>', text, short)
+
+    @admin.display(description='Poznámka', ordering='poznamka')
+    def get_poznamka(self, obj):
+        return self._truncate_with_title(obj.poznamka)
     
     @admin.display(description='Alarm', ordering='sarze__alarm')
     def get_alarm(self, obj):
-        return obj.sarze.alarm if obj.sarze else '-'
+        alarm = obj.sarze.alarm if obj.sarze else None
+        return self._truncate_with_title(alarm)
+
+    @admin.display(description='Prodleva (min)')
+    def get_prodleva(self, obj):
+        return obj.sarze.prodleva if obj.sarze else '-'
+
+    @admin.display(description='Takt (hod)')
+    def get_takt(self, obj):
+        return obj.sarze.takt if obj.sarze else '-'
+
 
 @admin.register(Permission)
 class PermissionAdmin(admin.ModelAdmin):

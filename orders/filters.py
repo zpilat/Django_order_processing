@@ -6,7 +6,7 @@ from django.utils import timezone
 from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 
-from .models import Zakazka, Bedna, Zakaznik, Kamion, TypHlavy, Predpis, Odberatel
+from .models import Zakazka, Bedna, Zakaznik, Kamion, TypHlavy, Predpis, Odberatel, Zarizeni, Sarze, SarzeBedna
 from .choices import (
     StavBednyChoice, TryskaniChoice, RovnaniChoice, ZinkovaniChoice, PrioritaChoice, PrijemVydejChoice, SklademZakazkyChoice,
     STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM,
@@ -861,4 +861,56 @@ class ZakaznikPredpisFilter(DynamicTitleFilter):
             zakaznik = Zakaznik.objects.get(zkratka=value)
             return queryset.filter(zakaznik=zakaznik)
         except Zakaznik.DoesNotExist:
+            return queryset.none()
+
+# filtry pro Šarže
+
+class ZarizeniSarzeFilter(DynamicTitleFilter):
+    """
+    Filtrovat šarže podle zařízení.
+    """
+    title = "Zařízení"
+    parameter_name = "zarizeni"
+
+    def __init__(self, request, params, model, model_admin):
+        self.label_dict = dict(Zarizeni.objects.values_list('kod_zarizeni', 'zkraceny_nazev_zarizeni').order_by('kod_zarizeni'))
+        super().__init__(request, params, model, model_admin)
+
+    def lookups(self, request, model_admin):
+        return self.label_dict.items()    
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if not value:
+            return queryset
+        try:
+            zarizeni = Zarizeni.objects.get(kod_zarizeni=value)
+            return queryset.filter(zarizeni=zarizeni)
+        except Zarizeni.DoesNotExist:
+            return queryset.none()
+        
+# filtry pro ŠaržeBedna
+
+class ZarizeniSarzeBednaFilter(DynamicTitleFilter):
+    """
+    Filtrovat bedny v šaržích podle zařízení.
+    """
+    title = "Zařízení"
+    parameter_name = "zarizeni"
+
+    def __init__(self, request, params, model, model_admin):
+        self.label_dict = dict(Zarizeni.objects.values_list('kod_zarizeni', 'zkraceny_nazev_zarizeni').order_by('kod_zarizeni'))
+        super().__init__(request, params, model, model_admin)
+
+    def lookups(self, request, model_admin):
+        return self.label_dict.items()    
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if not value:
+            return queryset
+        try:
+            zarizeni = Zarizeni.objects.get(kod_zarizeni=value)
+            return queryset.filter(sarze__zarizeni=zarizeni)
+        except Zarizeni.DoesNotExist:
             return queryset.none()

@@ -1,0 +1,19 @@
+{% load i18n admin_urls %}
+
+<div class="submit-row">
+    {% if show_save %}
+        <input type="submit" value="Uložit a zpět do deníku pece" class="default" name="_save_to_sarzebedna">
+    {% endif %}
+    {% if show_save_as_new %}
+        <input type="submit" value="{% translate 'Save as new' %}" name="_saveasnew">
+    {% endif %}
+    {% if show_save_and_add_another %}
+        <input type="submit" value="{% translate 'Save and add another' %}" name="_addanother">
+    {% endif %}
+    {% if show_save_and_continue %}
+        <input type="submit" value="{% translate 'Save and continue editing' %}" name="_continue">
+    {% endif %}
+    {% if show_close %}
+        <a href="{% url 'admin:app_list' app_label=opts.app_label %}" class="button cancel-link">{% translate 'Close' %}</a>
+    {% endif %}
+</div>
