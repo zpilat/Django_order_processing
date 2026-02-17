@@ -133,7 +133,7 @@ class SarzeAdmin(admin.ModelAdmin):
     search_fields = ('cislo_sarze', 'operator',)
     autocomplete_fields = ('zarizeni',)
     #readonly_fields = ('cislo_sarze',)
-    ordering = ('-id',)
+    ordering = ('-datum', '-zacatek',)
     inlines = [SarzeBednaInline]
     formfield_overrides = {
         models.TimeField: {'widget': forms.TimeInput(format='%H:%M')},
@@ -158,11 +158,11 @@ class SarzeAdmin(admin.ModelAdmin):
             return bedny_str
         return '-'
 
-    @admin.display(description='Prodleva (min)')
+    @admin.display(description='Prodleva (m)')
     def get_prodleva(self, obj):
         return obj.prodleva
 
-    @admin.display(description='Takt (hod)')
+    @admin.display(description='Takt (h)')
     def get_takt(self, obj):
         return obj.takt
 
@@ -205,7 +205,7 @@ class SarzeBednaAdmin(admin.ModelAdmin):
     def get_kod_zarizeni(self, obj):
         return obj.sarze.zarizeni.kod_zarizeni if obj.sarze and obj.sarze.zarizeni else '-'
     
-    @admin.display(description='Šarže', ordering='sarze__cislo_sarze')
+    @admin.display(description='Šarže', ordering='sarze__id')
     def get_sarze(self, obj):
         if not obj.sarze:
             return '-'
@@ -253,9 +253,9 @@ class SarzeBednaAdmin(admin.ModelAdmin):
     def get_program(self, obj):
         return obj.sarze.program if obj.sarze else '-'
 
-    @admin.display(description='Skupina TZ', ordering='bedna__zakazka__predpis__skupina')
+    @admin.display(description='Skupina', ordering='bedna__zakazka__predpis__skupina')
     def get_skupina_TZ(self, obj):
-        return obj.bedna.zakazka.predpis.skupina if obj.bedna and obj.bedna.zakazka and obj.bedna.zakazka.predpis else '-'
+        return f"SK{obj.bedna.zakazka.predpis.skupina}" if obj.bedna and obj.bedna.zakazka and obj.bedna.zakazka.predpis else '-'
 
     def _truncate_with_title(self, text, max_len=15):
         if text is None:
@@ -277,11 +277,11 @@ class SarzeBednaAdmin(admin.ModelAdmin):
         alarm = obj.sarze.alarm if obj.sarze else None
         return self._truncate_with_title(alarm)
 
-    @admin.display(description='Prodleva (min)')
+    @admin.display(description='Prodleva (m)')
     def get_prodleva(self, obj):
         return obj.sarze.prodleva if obj.sarze else '-'
 
-    @admin.display(description='Takt (hod)')
+    @admin.display(description='Takt (h)')
     def get_takt(self, obj):
         return obj.sarze.takt if obj.sarze else '-'
 
