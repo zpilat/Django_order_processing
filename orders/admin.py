@@ -76,7 +76,7 @@ logger = logging.getLogger('orders')
 
 class SarzeBednaInline(admin.TabularInline):
     model = SarzeBedna
-    extra = 1
+    # extra se dynamicky nastavuje v get_extra, defaultně 5 pro nový objekt Sarze, 0 pro existující
     autocomplete_fields = ('bedna',)
     fields = ('bedna', 'patro', 'procent_z_patra', 'get_zakaznik', 'get_popis_zakazky', 'get_skupina_TZ',)
     readonly_fields = ('get_zakaznik', 'get_popis_zakazky', 'get_skupina_TZ',)
@@ -93,6 +93,16 @@ class SarzeBednaInline(admin.TabularInline):
     @admin.display(description='Skupina')
     def get_skupina_TZ(self, obj):
         return f"SK{obj.bedna.zakazka.predpis.skupina}" if obj.bedna and obj.bedna.zakazka and obj.bedna.zakazka.predpis and obj.bedna.zakazka.predpis.skupina else '-'
+
+    def get_extra(self, request, obj=None, **kwargs):
+        """
+        Dynamické nastavení počtu extra formulářů pro inline SarzeBedna.
+        Pokud je objekt Sarze již uložen, nastaví extra na 0, jinak na 3.
+        """
+        # obj je instance Sarze, pro kterou se inline zobrazuje
+        if obj and obj.pk:
+            return 0
+        return 5
 
     def formfield_for_dbfield(self, db_field, request, **kwargs):
         """
