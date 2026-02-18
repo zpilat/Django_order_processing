@@ -324,7 +324,9 @@ class PrioritaBednyFilter(DynamicTitleFilter):
     parameter_name = "priorita_bedny"
 
     def __init__(self, request, params, model, model_admin):
-        self.label_dict = {**dict(PrioritaChoice.choices)}
+        self.label_dict = {}
+        self.label_dict['prioritni'] = 'P1 & P2'        
+        self.label_dict.update({**dict(PrioritaChoice.choices)})
         super().__init__(request, params, model, model_admin)
 
     def lookups(self, request, model_admin):
@@ -334,6 +336,8 @@ class PrioritaBednyFilter(DynamicTitleFilter):
         value = self.value()
         if value is None:
             return queryset
+        if value == 'prioritni':
+            return queryset.filter(zakazka__priorita__in=(PrioritaChoice.VYSOKA, PrioritaChoice.STREDNI))
         return queryset.filter(zakazka__priorita=value)
     
 
