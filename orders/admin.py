@@ -78,7 +78,7 @@ class SarzeBednaInline(admin.TabularInline):
     model = SarzeBedna
     extra = 1
     autocomplete_fields = ('bedna',)
-    fields = ('bedna', 'patro', 'procent_z_patra', 'get_zakaznik', 'get_popis_zakazky', 'get_skupina_TZ',)
+    fields = ('bedna', 'popis', 'zakaznik_mimo_db', 'patro', 'procent_z_patra', 'get_zakaznik', 'get_popis_zakazky', 'get_skupina_TZ',)
     readonly_fields = ('get_zakaznik', 'get_popis_zakazky', 'get_skupina_TZ',)
 
     @admin.display(description='Zákazník')
@@ -181,7 +181,7 @@ class SarzeAdmin(admin.ModelAdmin):
 class SarzeBednaAdmin(admin.ModelAdmin):
     list_display = (
         'get_sarze', 'get_kod_zarizeni', 'get_datum', 'get_zacatek', 'get_konec', 'get_operator',
-        'get_zkraceny_popis', 'get_cislo_bedny', 'get_zakaznik', 'patro', 'get_procent_z_patra',
+        'get_zkraceny_popis', 'get_cislo_bedny', 'get_zakaznik', 'patro', #'get_procent_z_patra',
         'get_cislo_pripravku', 'get_program', 'get_skupina_TZ', 'get_poznamka', 'get_alarm', 'get_prodleva',
         'get_takt',
     )
@@ -214,16 +214,11 @@ class SarzeBednaAdmin(admin.ModelAdmin):
 
     @admin.display(description='Bedna', ordering='bedna__cislo_bedny')
     def get_cislo_bedny(self, obj):
-        return obj.bedna.cislo_bedny if obj.bedna else '-'
+        return obj.bedna.cislo_bedny if obj.bedna else '--------'
 
     @admin.display(description='Datum', ordering='sarze__datum')
     def get_datum(self, obj):
         return obj.sarze.datum.strftime('%d.%m.%Y') if obj.sarze and obj.sarze.datum else '-'
-
-    @admin.display(description='Zákazník', ordering='bedna__zakazka__kamion_prijem__zakaznik__nazev')
-    def get_zakaznik(self, obj):
-        zakaznik = obj.bedna.zakazka.kamion_prijem.zakaznik if obj.bedna and obj.bedna.zakazka and obj.bedna.zakazka.kamion_prijem and obj.bedna.zakazka.kamion_prijem.zakaznik else None
-        return zakaznik.zkraceny_nazev if zakaznik else '-'
     
     @admin.display(description='Z patra', ordering='procent_z_patra')
     def get_procent_z_patra(self, obj):
@@ -243,9 +238,19 @@ class SarzeBednaAdmin(admin.ModelAdmin):
     
     @admin.display(description='Zkrácený popis', ordering='bedna__zakazka__zkraceny_popis')
     def get_zkraceny_popis(self, obj):
-        return obj.bedna.zakazka.zkraceny_popis if obj.bedna and obj.bedna.zakazka else '-'
+        if obj.bedna and obj.bedna.zakazka:
+            return obj.bedna.zakazka.zkraceny_popis
+        return self._truncate_with_title(obj.popis)
 
-    @admin.display(description='Č. přípr.', ordering='sarze__cislo_pripravku')
+    @admin.display(description='Zákazník')
+    def get_zakaznik(self, obj):
+        if obj.bedna and obj.bedna.zakazka and obj.bedna.zakazka.kamion_prijem and obj.bedna.zakazka.kamion_prijem.zakaznik:
+            zakaznik = obj.bedna.zakazka.kamion_prijem.zakaznik
+            return zakaznik.zkraceny_nazev if zakaznik.zkraceny_nazev else zakaznik.nazev
+        else:
+            return obj.zakaznik_mimo_db if obj.zakaznik_mimo_db else '-'
+
+    @admin.display(description='Přípravek', ordering='sarze__cislo_pripravku')
     def get_cislo_pripravku(self, obj):
         return obj.sarze.cislo_pripravku if obj.sarze else '-'
     

@@ -1502,8 +1502,19 @@ class Sarze(models.Model):
 
 
 class SarzeBedna(models.Model):
-    sarze = models.ForeignKey(Sarze, on_delete=models.CASCADE, related_name='sarze_bedny', verbose_name='Šarže')
-    bedna = models.ForeignKey(Bedna, on_delete=models.PROTECT, related_name='sarze_bedny', verbose_name='Bedna')
+    sarze = models.ForeignKey(Sarze, on_delete=models.CASCADE, related_name='sarze_bedny', verbose_name='Šarže',)
+    bedna = models.ForeignKey(
+        Bedna, on_delete=models.PROTECT, related_name='sarze_bedny', verbose_name='Bedna', blank=True, null=True,
+        help_text='Při zpracování vrutů vyberte bednu z databáze.',
+    )
+    popis = models.CharField(
+        max_length=50, blank=True, null=True, verbose_name='Popis pro "železo"',
+        help_text='Při zpracování "železa" zadejte popis zakázky.',
+    )
+    zakaznik_mimo_db = models.CharField(
+        max_length=50, blank=True, null=True, verbose_name='Zákazník pro "železo"',
+        help_text='Při zpracování "železa" zadejte název zákazníka.',
+    )
     patro = models.PositiveSmallIntegerField(verbose_name='Patro')
     procent_z_patra = models.PositiveSmallIntegerField(
         verbose_name='Procent z patra', blank=True, null=True, validators=[MinValueValidator(0), MaxValueValidator(100)],
@@ -1519,7 +1530,24 @@ class SarzeBedna(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.sarze.cislo_sarze_zobrazeni} - {self.bedna.cislo_bedny} ({self.patro}.patro)"
+        if self.bedna_id:
+            popis_text = self.bedna.cislo_bedny
+        else:
+            popis_text = self.popis or '-'
+        return f"{self.sarze.cislo_sarze_zobrazeni} - {popis_text} ({self.patro}.patro)"
+
+    def clean(self):
+        """
+        Validace pro zajištění, že buď je vyplněna bedna, nebo popis, ale ne obojí současně.
+        Validace pro zajištění, že pokud je vyplněn popis, musí být také vyplněn zákazník mimo databázi.
+        """
+        super().clean()
+        if not self.bedna and not self.popis:
+            raise ValidationError(_("Musí být vyplněna buď bedna nebo popis."))
+        if self.bedna and self.popis:
+            raise ValidationError(_("Nelze vyplnit současně bednu i popis."))
+        if self.popis and not self.zakaznik_mimo_db:
+            raise ValidationError(_("Při vyplnění popisu musí být také vyplněn zákazník pro 'železo'."))
 
     @property
     def prvni_pouziti(self):

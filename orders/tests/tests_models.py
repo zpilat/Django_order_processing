@@ -427,6 +427,48 @@ class TestSarzeModels(ModelsBase):
         self.assertTrue(sb1.prvni_pouziti)
         self.assertFalse(sb2.prvni_pouziti)
 
+    def test_sarzebedna_clean_requires_bedna_or_popis(self):
+        sb = SarzeBedna(sarze=self.sarze_base, patro=1)
+        with self.assertRaises(ValidationError):
+            sb.full_clean()
+
+    def test_sarzebedna_clean_disallows_bedna_and_popis(self):
+        sb = SarzeBedna(
+            sarze=self.sarze_base,
+            bedna=self.bedna1,
+            popis="Železo",
+            zakaznik_mimo_db="Zákazník",
+            patro=1,
+        )
+        with self.assertRaises(ValidationError):
+            sb.full_clean()
+
+    def test_sarzebedna_clean_requires_customer_for_popis(self):
+        sb = SarzeBedna(
+            sarze=self.sarze_base,
+            popis="Železo",
+            patro=1,
+        )
+        with self.assertRaises(ValidationError):
+            sb.full_clean()
+
+    def test_sarzebedna_clean_valid_bedna(self):
+        sb = SarzeBedna(
+            sarze=self.sarze_base,
+            bedna=self.bedna1,
+            patro=1,
+        )
+        sb.full_clean()
+
+    def test_sarzebedna_clean_valid_popis_and_customer(self):
+        sb = SarzeBedna(
+            sarze=self.sarze_base,
+            popis="Železo",
+            zakaznik_mimo_db="Test zákazník",
+            patro=1,
+        )
+        sb.full_clean()
+
         # výdej: všechny bedny v kamionu výdej se počítají jako expedované
         self.assertEqual(self.kamion_vydej.pocet_beden_expedovano, 2)
 
