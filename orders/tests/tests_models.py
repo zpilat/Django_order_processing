@@ -452,6 +452,16 @@ class TestSarzeModels(ModelsBase):
         with self.assertRaises(ValidationError):
             sb.full_clean()
 
+    def test_sarzebedna_clean_requires_zakazka_for_popis(self):
+        sb = SarzeBedna(
+            sarze=self.sarze_base,
+            popis="Železo",
+            zakaznik_mimo_db="Test zákazník",
+            patro=1,
+        )
+        with self.assertRaises(ValidationError):
+            sb.full_clean()
+
     def test_sarzebedna_clean_valid_bedna(self):
         sb = SarzeBedna(
             sarze=self.sarze_base,
@@ -465,6 +475,7 @@ class TestSarzeModels(ModelsBase):
             sarze=self.sarze_base,
             popis="Železo",
             zakaznik_mimo_db="Test zákazník",
+            zakazka_mimo_db="ZAK-001",
             patro=1,
         )
         sb.full_clean()

@@ -78,8 +78,11 @@ class SarzeBednaInline(admin.TabularInline):
     model = SarzeBedna
     # extra se dynamicky nastavuje v get_extra, defaultně 5 pro nový objekt Sarze, 0 pro existující
     autocomplete_fields = ('bedna',)
-    fields = ('bedna', 'popis', 'zakaznik_mimo_db', 'patro', 'procent_z_patra', 'get_zakaznik', 'get_popis_zakazky', 'get_skupina_TZ',)
-    readonly_fields = ('get_zakaznik', 'get_popis_zakazky', 'get_skupina_TZ',)
+    fields = (
+        'bedna', 'patro', 'procent_z_patra', 'popis', 'zakaznik_mimo_db', 'zakazka_mimo_db', 'get_zakaznik',
+        'get_zkraceny_popis_zakazky', 'get_skupina_TZ',
+    )
+    readonly_fields = ('get_zakaznik', 'get_zkraceny_popis_zakazky', 'get_skupina_TZ',)
 
     @admin.display(description='Zákazník')
     def get_zakaznik(self, obj):
@@ -87,8 +90,8 @@ class SarzeBednaInline(admin.TabularInline):
         return zakaznik.zkraceny_nazev if zakaznik and zakaznik.zkraceny_nazev else '-'
 
     @admin.display(description='Popis')
-    def get_popis_zakazky(self, obj):
-        return obj.bedna.zakazka.popis if obj.bedna and obj.bedna.zakazka and obj.bedna.zakazka.popis else '-'
+    def get_zkraceny_popis_zakazky(self, obj):
+        return obj.bedna.zakazka.zkraceny_popis if obj.bedna and obj.bedna.zakazka and obj.bedna.zakazka.zkraceny_popis else '-'
 
     @admin.display(description='Skupina')
     def get_skupina_TZ(self, obj):
@@ -128,14 +131,19 @@ class SarzeBednaInline(admin.TabularInline):
 
 
 @admin.register(Zarizeni)
-class ZarizeniAdmin(admin.ModelAdmin):
+class ZarizeniAdmin(SimpleHistoryAdmin):
     list_display = ('kod_zarizeni', 'nazev_zarizeni', 'zkraceny_nazev_zarizeni', 'prefix_sarze', 'umisteni', 'typ_zarizeni')
     search_fields = ('kod_zarizeni', 'nazev_zarizeni',)
     ordering = ('kod_zarizeni',)
 
+    history_list_display = ["kod_zarizeni", "nazev_zarizeni", "zkraceny_nazev_zarizeni", "prefix_sarze", "umisteni", "typ_zarizeni",]
+    history_search_fields = ["kod_zarizeni", "nazev_zarizeni", "zkraceny_nazev_zarizeni"]
+    history_list_filter = ["umisteni", "typ_zarizeni"]
+    history_list_per_page = 20
+
 
 @admin.register(Sarze)
-class SarzeAdmin(admin.ModelAdmin):
+class SarzeAdmin(SimpleHistoryAdmin):
     list_display = ('get_cislo_sarze', 'get_kod_zarizeni', 'get_datum', 'zacatek', 'konec', 'operator',
                     'cislo_pripravku', 'program', 'poznamka', 'alarm', 'get_prodleva', 'get_takt', 'get_bedny',)
     change_form_template = 'admin/orders/sarze/change_form.html'
@@ -148,6 +156,14 @@ class SarzeAdmin(admin.ModelAdmin):
     formfield_overrides = {
         models.TimeField: {'widget': forms.TimeInput(format='%H:%M')},
     }
+
+    history_list_display = [
+        "cislo_sarze", "zarizeni", "datum", "zacatek", "konec", "operator", "program", "cislo_pripravku",
+        "poznamka", "alarm",
+    ]
+    history_search_fields = ["cislo_sarze", "operator", "program"]
+    history_list_filter = ["zarizeni", "datum"]
+    history_list_per_page = 20
 
     @admin.display(description='Číslo šarže', ordering='cislo_sarze_zobrazeni')
     def get_cislo_sarze(self, obj):
@@ -188,11 +204,11 @@ class SarzeAdmin(admin.ModelAdmin):
 
 
 @admin.register(SarzeBedna)
-class SarzeBednaAdmin(admin.ModelAdmin):
+class SarzeBednaAdmin(SimpleHistoryAdmin):
     list_display = (
         'get_sarze', 'get_kod_zarizeni', 'get_datum', 'get_zacatek', 'get_konec', 'get_operator',
         'get_zkraceny_popis', 'get_cislo_bedny', 'get_zakaznik', 'patro', #'get_procent_z_patra',
-        'get_cislo_pripravku', 'get_program', 'get_skupina_TZ', 'get_poznamka', 'get_alarm', 'get_prodleva',
+        'get_cislo_pripravku', 'get_program', 'get_zakazka_skupina', 'get_poznamka', 'get_alarm', 'get_prodleva',
         'get_takt',
     )
     change_list_template = 'admin/orders/sarzebedna/change_list.html'
@@ -202,6 +218,11 @@ class SarzeBednaAdmin(admin.ModelAdmin):
     autocomplete_fields = ('sarze', 'bedna')
     list_select_related = ('sarze', 'sarze__zarizeni', 'bedna')
     ordering = ('-sarze__id', 'patro',)
+
+    history_list_display = ["sarze", "bedna", "popis", "zakaznik_mimo_db", "patro", "procent_z_patra",]
+    history_search_fields = ["sarze__cislo_sarze", "bedna__cislo_bedny", "popis", "zakaznik_mimo_db"]
+    history_list_filter = ["sarze", "bedna"]
+    history_list_per_page = 20
 
     class Media:
         js = (
@@ -268,9 +289,11 @@ class SarzeBednaAdmin(admin.ModelAdmin):
     def get_program(self, obj):
         return obj.sarze.program if obj.sarze else '-'
 
-    @admin.display(description='Skupina', ordering='bedna__zakazka__predpis__skupina')
-    def get_skupina_TZ(self, obj):
-        return f"SK{obj.bedna.zakazka.predpis.skupina}" if obj.bedna and obj.bedna.zakazka and obj.bedna.zakazka.predpis else '-'
+    @admin.display(description='Zakázka')
+    def get_zakazka_skupina(self, obj):
+        if obj.bedna and obj.bedna.zakazka and obj.bedna.zakazka.predpis and obj.bedna.zakazka.predpis.skupina:
+            return f"SK{obj.bedna.zakazka.predpis.skupina}"
+        return obj.zakazka_mimo_db if obj.zakazka_mimo_db else '-'
 
     def _truncate_with_title(self, text, max_len=15):
         if text is None:

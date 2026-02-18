@@ -1386,6 +1386,7 @@ class Zarizeni(models.Model):
     prefix_sarze = models.CharField(max_length=3, verbose_name='Prefix šarže')
     umisteni = models.CharField(max_length=20, blank=True, null=True, verbose_name='Umístění')
     typ_zarizeni = models.CharField(max_length=35, blank=True, null=True, verbose_name='Typ zařízení')
+    history = HistoricalRecords()
 
     class Meta:
         verbose_name = 'Zařízení'
@@ -1407,12 +1408,8 @@ class Sarze(models.Model):
     cislo_pripravku = models.PositiveSmallIntegerField(blank=True, null=True, verbose_name='Číslo přípravku')
     poznamka = models.CharField(max_length=100, blank=True, null=True, verbose_name='Poznámka')      
     alarm = models.CharField(max_length=50, blank=True, null=True, verbose_name='Alarm')
-    bedny = models.ManyToManyField(
-        'Bedna',
-        through='SarzeBedna',
-        related_name='sarze_zarizeni',
-        verbose_name='Bedny',
-    )
+    history = HistoricalRecords()
+    bedny = models.ManyToManyField('Bedna', through='SarzeBedna', related_name='sarze_zarizeni', verbose_name='Bedny',)
 
     class Meta:
         verbose_name = 'Šarže'
@@ -1515,11 +1512,16 @@ class SarzeBedna(models.Model):
         max_length=50, blank=True, null=True, verbose_name='Zákazník pro "železo"',
         help_text='Při zpracování "železa" zadejte název zákazníka.',
     )
+    zakazka_mimo_db = models.CharField(
+        max_length=30, blank=True, null=True, verbose_name='Zakázka pro "železo"',
+        help_text='Při zpracování "železa" zadejte zakázku.',
+    )
     patro = models.PositiveSmallIntegerField(verbose_name='Patro')
     procent_z_patra = models.PositiveSmallIntegerField(
         verbose_name='Procent z patra', blank=True, null=True, validators=[MinValueValidator(0), MaxValueValidator(100)],
         help_text='Podíl využití patra pro danou bednu (0-100).',
     )  
+    history = HistoricalRecords()
 
     class Meta:
         verbose_name = 'Bedna v šarži'
@@ -1539,7 +1541,7 @@ class SarzeBedna(models.Model):
     def clean(self):
         """
         Validace pro zajištění, že buď je vyplněna bedna, nebo popis, ale ne obojí současně.
-        Validace pro zajištění, že pokud je vyplněn popis, musí být také vyplněn zákazník mimo databázi.
+        Validace pro zajištění, že pokud je vyplněn popis, musí být také vyplněn zákazník mimo databázi a zakázka mimo databázi.
         """
         super().clean()
         if not self.bedna and not self.popis:
@@ -1548,6 +1550,8 @@ class SarzeBedna(models.Model):
             raise ValidationError(_("Nelze vyplnit současně bednu i popis."))
         if self.popis and not self.zakaznik_mimo_db:
             raise ValidationError(_("Při vyplnění popisu musí být také vyplněn zákazník pro 'železo'."))
+        if self.popis and not self.zakazka_mimo_db:
+            raise ValidationError(_("Při vyplnění popisu musí být také vyplněna zakázka pro 'železo'."))
 
     @property
     def prvni_pouziti(self):
