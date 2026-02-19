@@ -180,8 +180,10 @@ def utilita_export_beden_zinkovani_csv(bedny_qs, filename_prefix="bedny_zinkovan
     writer.writerow([
         'Číslo bedny',
         'Č.b. zák.',
+        'FA/Bestell',
         'Popis',
         'Artikl',
+        'Rozměr',        
         'Hmotnost kg',
         'Množství ks',
         'Vrstva',
@@ -190,11 +192,14 @@ def utilita_export_beden_zinkovani_csv(bedny_qs, filename_prefix="bedny_zinkovan
 
     for bedna in rows:
         zakazka = getattr(bedna, 'zakazka', None)
+        rozmer = f"{getattr(zakazka, 'prumer', '')} x {getattr(zakazka, 'delka', '')}" if zakazka else ''
         writer.writerow([
             bedna.cislo_bedny,
             getattr(bedna, 'behalter_nr', '') if zakazka else '',
+            getattr(bedna, 'vyrobni_zakazka', '') if zakazka else '',
             getattr(zakazka, 'popis', '') if zakazka else '',
             getattr(zakazka, 'artikl', '') if zakazka else '',
+            rozmer,
             _format_decimal_csv(getattr(bedna, 'hmotnost', None)),
             getattr(bedna, 'mnozstvi', '') or '',
             getattr(zakazka, 'vrstva', '') if zakazka else '',
