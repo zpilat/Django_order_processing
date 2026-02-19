@@ -1,7 +1,7 @@
 from django.contrib import admin, messages
 from django.contrib.auth.models import Permission
 from django.db import models, transaction
-from django.db.models import Case, When, Value, IntegerField, Prefetch
+from django.db.models import Case, When, Value, IntegerField, Prefetch, Exists, OuterRef
 from django.forms import TextInput, RadioSelect, modelformset_factory
 from django.forms.models import BaseInlineFormSet
 from django.utils.safestring import mark_safe
@@ -34,7 +34,7 @@ from .import_strategies import BaseImportStrategy, EURImportStrategy, SPXImportS
 
 from .models import (
     Zakaznik, Kamion, Zakazka, Bedna, Predpis, Odberatel, TypHlavy, Cena, Pozice, Pletivo, PoziceZakazkaOrder, Rozpracovanost,
-    Zarizeni, Sarze, SarzeBedna,
+    Zarizeni, Sarze, SarzeBedna, Notification, PriorityNotificationRecipient,
 )
 from .actions import (
     expedice_zakazek_action, import_kamionu_action, tisk_karet_beden_action, tisk_karet_beden_zakazek_action,
@@ -54,7 +54,7 @@ from .filters import (
     SklademZakazkaFilter, StavBednyFilter, KompletZakazkaFilter, AktivniPredpisFilter, SkupinaFilter, ZakaznikBednyFilter,
     ZakaznikZakazkyFilter, ZakaznikKamionuFilter, PrijemVydejFilter, TryskaniFilter, RovnaniFilter, PrioritaBednyFilter, PrioritaZakazkyFilter,
     OberflacheFilter, TypHlavyBednyFilter, TypHlavyZakazkyFilter, CelozavitBednyFilter, CelozavitZakazkyFilter, DelkaFilter, PozastavenoFilter,
-    OdberatelFilter, OdberatelBednyFilter, ZakaznikPredpisFilter, ZinkovaniFilter, ZarizeniSarzeFilter, ZarizeniSarzeBednaFilter,
+    OdberatelFilter, OdberatelBednyFilter, AktivniNotifikaceBednyFilter, ZakaznikPredpisFilter, ZinkovaniFilter, ZarizeniSarzeFilter, ZarizeniSarzeBednaFilter,
 )
 from .forms import (
     BednaAdminForm,
@@ -66,7 +66,7 @@ from .forms import (
 )
 from .choices import (
     StavBednyChoice, RovnaniChoice, TryskaniChoice, ZinkovaniChoice, PrioritaChoice, KamionChoice, PrijemVydejChoice, SklademZakazkyChoice,
-    BARVA_SKUPINY_TZ, STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM, STAV_BEDNY_PRO_NAVEZENI,
+    BARVA_SKUPINY_TZ, STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM, STAV_BEDNY_PRO_NAVEZENI, STAV_BEDNY_KONTROLA_ZMENY_PRIORITY,
 )
 from .utils import utilita_validate_excel_upload, build_postup_vyroby_cases
 
@@ -1804,6 +1804,60 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
             super().delete_queryset(request, queryset.filter(pk__in=allowed_ids))
         # Pokud nic povoleno, jen končí s vypsanými hláškami
 
+    def _get_priority_notification_recipients(self, request):
+        recipients = set()
+        configs = PriorityNotificationRecipient.objects.filter(active=True).prefetch_related('users', 'groups')
+        for config in configs:
+            recipients.update(config.users.filter(is_active=True))
+            for group in config.groups.all():
+                recipients.update(group.user_set.filter(is_active=True))
+
+        if request and request.user in recipients:
+            recipients.discard(request.user)
+
+        return list(recipients)
+
+    def _create_priority_notifications(self, request, obj):
+        bedny = obj.bedny.filter(stav_bedny__in=STAV_BEDNY_KONTROLA_ZMENY_PRIORITY)
+        if not bedny.exists():
+            return
+
+        recipients = self._get_priority_notification_recipients(request)
+        if not recipients:
+            return
+
+        notifications = []
+        priorita_text = obj.get_priorita_display()
+        for bedna in bedny:
+            message = (
+                f"Zakázka {obj.artikl}: změna priority na {priorita_text}, "
+                f"bedna {bedna.cislo_bedny} ve stavu {bedna.get_stav_bedny_display()}."
+            )
+            for recipient in recipients:
+                notifications.append(
+                    Notification(
+                        recipient=recipient,
+                        zakazka=obj,
+                        bedna=bedna,
+                        notif_type=Notification.NotificationType.PRIORITA,
+                        message=message,
+                        created_by=request.user if request else None,
+                    )
+                )
+
+        Notification.objects.bulk_create(notifications)
+
+    def save_model(self, request, obj, form, change):
+        priorita_pred = None
+        if change and obj.pk:
+            priorita_pred = Zakazka.objects.filter(pk=obj.pk).values_list('priorita', flat=True).first()
+
+        super().save_model(request, obj, form, change)
+
+        if priorita_pred == PrioritaChoice.NIZKA and obj.priorita in (PrioritaChoice.STREDNI, PrioritaChoice.VYSOKA) or \
+           priorita_pred == PrioritaChoice.STREDNI and obj.priorita == PrioritaChoice.VYSOKA:
+            self._create_priority_notifications(request, obj)
+
     @admin.display(description='Předpis', ordering='predpis__id', empty_value='-')
     def predpis_link(self, obj):
         """
@@ -2240,12 +2294,12 @@ class BednaAdmin(SimpleHistoryAdmin):
 
     # Parametry pro zobrazení detailu v administraci (použijeme get_fieldsets)
     readonly_fields = ('cislo_bedny', 'cena_za_kg', 'cena_za_bednu', 'cena_rovnani_za_kg', 'cena_rovnani_za_bednu',
-                       'cena_tryskani_za_kg', 'cena_tryskani_za_bednu')
+                       'cena_tryskani_za_kg', 'cena_tryskani_za_bednu', 'get_notifikace')
     autocomplete_fields = ('zakazka',)
 
     # Parametry pro zobrazení seznamu v administraci
     list_display = (
-        'get_cislo_bedny', 'behalter_nr', 'get_poradi_bedny_v_zakazce', 'zakazka_link', 'get_zakaznik_zkratka', 'kamion_prijem_link',
+        'get_notif_alert', 'get_cislo_bedny', 'behalter_nr', 'get_poradi_bedny_v_zakazce', 'zakazka_link', 'get_zakaznik_zkratka', 'kamion_prijem_link',
         'kamion_vydej_link', 'stav_bedny', 'rovnat', 'tryskat', 'zinkovat', 'get_pozinkovano', 'get_prumer', 'get_delka_int','get_skupina_TZ',
         'get_typ_hlavy', 'get_celozavit', 'get_zkraceny_popis', 'hmotnost', 'tara', 'get_hmotnost_brutto',
         'mnozstvi', 'pozice', 'get_priorita', 'get_datum_prijem', 'get_datum_vydej', 'get_postup', 'cena_za_kg', 'get_odberatel','poznamka',
@@ -2258,7 +2312,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     search_help_text = "Dle čísla bedny, č.b. zákazníka, zakázky a popisu zakázky"
     list_filter = (
         ZakaznikBednyFilter, StavBednyFilter, TryskaniFilter, RovnaniFilter, ZinkovaniFilter, SkupinaFilter,
-        DelkaFilter, CelozavitBednyFilter, TypHlavyBednyFilter, PrioritaBednyFilter, PozastavenoFilter, OdberatelBednyFilter,
+        DelkaFilter, CelozavitBednyFilter, TypHlavyBednyFilter, PrioritaBednyFilter, PozastavenoFilter, AktivniNotifikaceBednyFilter, OdberatelBednyFilter,
         )
     ordering = ('id',)
     # Výchozí date_hierarchy pro povolení lookupů; skutečně se přepíná dynamicky v get_date_hierarchy
@@ -2617,13 +2671,80 @@ class BednaAdmin(SimpleHistoryAdmin):
         """
         return format_html(bar)
 
+    @admin.display(description='!', ordering='has_active_notif')
+    def get_notif_alert(self, obj):
+        if getattr(obj, 'has_active_notif', False):
+            qs = Notification.objects.filter(
+                bedna=obj,
+                ack_required=True,
+                ack_at__isnull=True,
+            )
+            if not self._request_is_superuser:
+                qs = qs.filter(recipient=self._current_user)
+
+            notif_types = qs.values_list('notif_type', flat=True).distinct()
+
+            type_labels = [
+                Notification.NotificationType(t).label
+                for t in notif_types
+                if t in Notification.NotificationType.values
+            ]
+
+            title = ', '.join(type_labels) if type_labels else 'Aktivní notifikace'
+
+            return format_html(
+                '<span title="{}" style="color:#d97706;"><i class="fa-solid fa-triangle-exclamation"></i></span>',
+                title,
+            )
+        return ''
+
+    @admin.display(description='Notifikace')
+    def get_notifikace(self, obj):
+        if not obj:
+            return '-'
+
+        qs = Notification.objects.filter(bedna=obj).select_related('recipient')
+        if not qs.exists():
+            return '-'
+
+        rows = []
+        for n in qs.order_by('-created_at'):
+            status = 'potvrzeno' if n.ack_at else 'nepotvrzeno'
+            detail_url = reverse('admin:orders_notification_change', args=[n.pk])
+            rows.append((detail_url, n.created_at.strftime('%d.%m.%Y %H:%M'), n.recipient, status, n.message))
+
+        return format_html(
+            '<ul style="margin:0;padding-left:16px;">{}</ul>',
+            format_html_join(
+                '',
+                '<li><a href="{}">{}</a> - {} - {} - {}</li>',
+                rows,
+            ),
+        )
+
     def get_queryset(self, request):
-        """Rozšíří queryset o anotaci postup_vyroby_value (SQL ekvivalent property postup_vyroby)."""
+        """Rozšíří queryset o anotaci postup_vyroby_value (SQL ekvivalent property postup_vyroby)
+        a o anotaci has_active_notif, která indikuje, zda bedna má aktivní notifikace vyžadující potvrzení. 
+        """
+        self._current_user = request.user
+        self._request_is_superuser = request.user.is_superuser
         qs = super().get_queryset(request)
 
         # Replikace logiky property postup_vyroby do SQL CASE
-        return qs.annotate(
+        qs = qs.annotate(
             postup_vyroby_value=Case(*build_postup_vyroby_cases(), default=Value(0), output_field=IntegerField())
+        )
+
+        notif_filter = Notification.objects.filter(
+            bedna=OuterRef('pk'),
+            ack_required=True,
+            ack_at__isnull=True,
+        )
+        if not request.user.is_superuser:
+            notif_filter = notif_filter.filter(recipient=request.user)
+
+        return qs.annotate(
+            has_active_notif=Exists(notif_filter)
         )
 
     def get_fieldsets(self, request, obj=None):
@@ -2659,6 +2780,9 @@ class BednaAdmin(SimpleHistoryAdmin):
                 'cena_za_kg', 'cena_za_bednu', 'cena_rovnani_za_kg', 'cena_rovnani_za_bednu',
                 'cena_tryskani_za_kg', 'cena_tryskani_za_bednu'
             )),
+            ('Notifikace', (
+                'get_notifikace',
+            )),
         ]
 
         # Logika vyloučení polí z původního get_fields
@@ -2684,7 +2808,7 @@ class BednaAdmin(SimpleHistoryAdmin):
                 exclude_fields.extend(['pozice', 'poznamka_k_navezeni'])
         else:
             # add_view: cislo_bedny se generuje automaticky
-            exclude_fields = ['cislo_bedny']
+            exclude_fields = ['cislo_bedny', 'get_notifikace']
 
         fieldsets = []
         for title, fields in groups:
@@ -3519,6 +3643,51 @@ class PoziceZakazkaOrderAdmin(admin.ModelAdmin):
     search_fields = ['zakazka__nazev', 'pozice__kod']
     list_filter = ['pozice']
 
+
+@admin.register(PriorityNotificationRecipient)
+class PriorityNotificationRecipientAdmin(admin.ModelAdmin):
+    list_display = ('name', 'active', 'get_recipients_count')
+    list_filter = ('active',)
+    search_fields = ('name', 'users__username', 'groups__name')
+    filter_horizontal = ('users', 'groups')
+
+    @admin.display(description='Počet příjemců')
+    def get_recipients_count(self, obj):
+        users = obj.users.filter(is_active=True).count()
+        groups = obj.groups.count()
+        return f"{users} uživatelů / {groups} skupin"
+
+
+@admin.register(Notification)
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = ('created_at', 'recipient', 'zakazka', 'get_cislo_bedny', 'message', 'ack_required', 'ack_at')
+    list_filter = ('ack_required', 'ack_at', 'recipient')
+    search_fields = ('message', 'recipient__username', 'zakazka__artikl', 'bedna__cislo_bedny')
+    ordering = ('-created_at',)
+    readonly_fields = ('created_at', 'created_by', 'ack_at', 'ack_by')
+    actions = ['potvrdit_notifikace']
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if request.user.is_superuser:
+            return qs
+        return qs.filter(recipient=request.user)
+
+    @admin.display(description='Číslo bedny')
+    def get_cislo_bedny(self, obj):
+        return getattr(obj.bedna, 'cislo_bedny', '-')
+
+    @admin.action(description='Potvrdit vybrané notifikace')
+    def potvrdit_notifikace(self, request, queryset):
+        now = timezone.now()
+        updated = queryset.filter(ack_required=True, ack_at__isnull=True).update(
+            ack_at=now,
+            ack_by=request.user,
+        )
+        if updated:
+            self.message_user(request, f"Potvrzeno: {updated} notifikací.")
+        else:
+            self.message_user(request, "Není co potvrdit.")
 
 class RozpracovanostBednaInline(admin.TabularInline):
     model = Rozpracovanost.bedny.through

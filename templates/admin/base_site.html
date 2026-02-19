@@ -1,5 +1,6 @@
 {% extends "admin/base.html" %}
 {% load static %}
+{% load notifications_admin %}
 
 {% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | Správa zakázek{% endblock %}
 
@@ -8,6 +9,25 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <link rel="stylesheet" href="{% static 'css/admin_custom.css' %}">
   <link rel="stylesheet" href="{% static 'orders/css/admin-sticky.css' %}">
+  <style>
+    .admin-bell {
+      position: relative;
+      margin-left: 12px;
+    }
+    .admin-bell .badge {
+      position: absolute;
+      top: -6px;
+      right: -8px;
+      background: #dc2626;
+      color: #fff;
+      border-radius: 10px;
+      padding: 0 5px;
+      font-size: 10px;
+      line-height: 16px;
+      min-width: 16px;
+      text-align: center;
+    }
+  </style>
 {% endblock %}
 
 {% block branding %}
@@ -15,4 +35,17 @@
 {% if user.is_anonymous %}
   {% include "admin/color_theme_toggle.html" %}
 {% endif %}
+{% endblock %}
+
+{% block usertools %}
+  {% if user.is_authenticated %}
+    {% admin_unacked_notifications_count as notif_count %}
+    {% if notif_count %}
+      <a class="admin-bell" href="{% url 'admin:orders_notification_changelist' %}" title="Nepotvrzené notifikace">
+        <i class="fa-solid fa-bell"></i>
+        <span class="badge">{{ notif_count }}</span>
+      </a>
+    {% endif %}
+  {% endif %}
+  {{ block.super }}
 {% endblock %}

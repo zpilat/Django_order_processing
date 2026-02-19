@@ -1,4 +1,6 @@
 from django.db import models
+from django.conf import settings
+from django.contrib.auth.models import Group
 from django.db.models.deletion import ProtectedError
 from django.utils.translation import gettext_lazy as _
 from django.urls import reverse
@@ -1566,6 +1568,88 @@ class SarzeBedna(models.Model):
             sarze__zarizeni=self.sarze.zarizeni,
             sarze__cislo_sarze__lt=self.sarze.cislo_sarze,
         ).exists()
+
+
+class PriorityNotificationRecipient(models.Model):
+    name = models.CharField(max_length=50, default='Výchozí příjemci', verbose_name='Název')
+    users = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        related_name='priority_notification_recipients',
+        blank=True,
+        verbose_name='Uživatelé',
+    )
+    groups = models.ManyToManyField(
+        Group,
+        related_name='priority_notification_recipients',
+        blank=True,
+        verbose_name='Skupiny',
+    )
+    active = models.BooleanField(default=True, verbose_name='Aktivní')
+
+    class Meta:
+        verbose_name = 'Příjemci notifikací priority'
+        verbose_name_plural = 'příjemci notifikací priority'
+
+    def __str__(self):
+        return self.name
+
+
+class Notification(models.Model):
+    class NotificationType(models.TextChoices):
+        PRIORITA = 'PRIORITA', 'Změna priority'
+
+    recipient = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='notifications',
+        verbose_name='Příjemce',
+    )
+    zakazka = models.ForeignKey(
+        'Zakazka',
+        on_delete=models.CASCADE,
+        related_name='priority_notifications',
+        verbose_name='Zakázka',
+    )
+    bedna = models.ForeignKey(
+        'Bedna',
+        on_delete=models.CASCADE,
+        related_name='priority_notifications',
+        verbose_name='Bedna',
+    )
+    notif_type = models.CharField(
+        max_length=20,
+        choices=NotificationType.choices,
+        default=NotificationType.PRIORITA,
+        verbose_name='Typ notifikace',
+    )
+    message = models.CharField(max_length=255, verbose_name='Zpráva')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Vytvořeno')
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name='created_notifications',
+        blank=True,
+        null=True,
+        verbose_name='Vytvořil',
+    )
+    ack_required = models.BooleanField(default=True, verbose_name='Vyžaduje potvrzení')
+    ack_at = models.DateTimeField(blank=True, null=True, verbose_name='Potvrzeno')
+    ack_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name='acknowledged_notifications',
+        blank=True,
+        null=True,
+        verbose_name='Potvrdil',
+    )
+
+    class Meta:
+        verbose_name = 'Notifikace'
+        verbose_name_plural = 'notifikace'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.recipient} - {self.message}"
 
 
 class Rozpracovanost(models.Model):

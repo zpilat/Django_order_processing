@@ -1,7 +1,7 @@
 from django.test import TestCase, RequestFactory
 from django.contrib.admin.sites import AdminSite
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import Permission
+from django.contrib.auth.models import Permission, Group
 from django.contrib.messages.storage.fallback import FallbackStorage
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
@@ -10,10 +10,10 @@ from decimal import Decimal
 from datetime import date
 from unittest.mock import patch
 
-from orders.admin import KamionAdmin, ZakazkaAdmin, BednaAdmin, BednaInline
+from orders.admin import KamionAdmin, ZakazkaAdmin, BednaAdmin, BednaInline, NotificationAdmin
 from orders.forms import ImportZakazekForm
-from orders.models import Zakaznik, Kamion, Zakazka, Bedna, Predpis, TypHlavy, Odberatel, Cena
-from orders.choices import StavBednyChoice, SklademZakazkyChoice, PrijemVydejChoice, KamionChoice, ZinkovaniChoice
+from orders.models import Zakaznik, Kamion, Zakazka, Bedna, Predpis, TypHlavy, Odberatel, Cena, Notification, PriorityNotificationRecipient
+from orders.choices import StavBednyChoice, SklademZakazkyChoice, PrijemVydejChoice, KamionChoice, ZinkovaniChoice, PrioritaChoice
 from orders.filters import DelkaFilter
 
 
@@ -748,6 +748,45 @@ class ZakazkaAdminTests(AdminBase):
         after = Zakazka.objects.count()
         self.assertEqual(after, before - 1)
 
+    def test_priority_notifications_created_for_recipients(self):
+        User = get_user_model()
+        user_a = User.objects.create_user('u1', 'u1@example.com', 'pass', is_staff=True)
+        user_b = User.objects.create_user('u2', 'u2@example.com', 'pass', is_staff=True)
+        group = Group.objects.create(name='Notif')
+        group.user_set.add(user_b)
+
+        config = PriorityNotificationRecipient.objects.create(name='Test')
+        config.users.add(user_a, self.user)
+        config.groups.add(group)
+
+        self.bedna.stav_bedny = StavBednyChoice.K_NAVEZENI
+        self.bedna.save(update_fields=['stav_bedny'])
+
+        self.zakazka.priorita = PrioritaChoice.STREDNI
+        req = self.get_request()
+        req.user = self.user
+
+        self.admin.save_model(req, self.zakazka, form=None, change=True)
+
+        notifications = Notification.objects.filter(zakazka=self.zakazka, bedna=self.bedna)
+        self.assertEqual(notifications.count(), 2)
+        recipients = set(notifications.values_list('recipient__username', flat=True))
+        self.assertEqual(recipients, {'u1', 'u2'})
+
+    def test_priority_notifications_not_created_when_no_bedny_in_state(self):
+        User = get_user_model()
+        recipient = User.objects.create_user('u3', 'u3@example.com', 'pass', is_staff=True)
+        config = PriorityNotificationRecipient.objects.create(name='Test2')
+        config.users.add(recipient)
+
+        self.zakazka.priorita = PrioritaChoice.STREDNI
+        req = self.get_request()
+        req.user = self.user
+
+        self.admin.save_model(req, self.zakazka, form=None, change=True)
+
+        self.assertFalse(Notification.objects.filter(zakazka=self.zakazka).exists())
+
 
 class BednaAdminTests(AdminBase):
     """
@@ -817,6 +856,37 @@ class BednaAdminTests(AdminBase):
         req.user.user_permissions.add(Permission.objects.get(codename='change_pozastavena_bedna'))
         req.user = User.objects.get(pk=req.user.pk)
         self.assertTrue(self.admin.has_change_permission(req, bed_poz))
+
+    def test_bedna_notif_alert_respects_user(self):
+        User = get_user_model()
+        current_user = User.objects.create_user('u_current', 'current@example.com', 'pass', is_staff=True)
+        other_user = User.objects.create_user('u_other', 'other@example.com', 'pass', is_staff=True)
+        self.bedna.stav_bedny = StavBednyChoice.K_NAVEZENI
+        self.bedna.save(update_fields=['stav_bedny'])
+
+        Notification.objects.create(
+            recipient=other_user,
+            zakazka=self.zakazka,
+            bedna=self.bedna,
+            notif_type=Notification.NotificationType.PRIORITA,
+            message='Test jiné uživatele',
+        )
+
+        req = self.factory.get('/')
+        req.user = current_user
+        qs = self.admin.get_queryset(req)
+        obj = qs.get(pk=self.bedna.pk)
+
+        html = self.admin.get_notif_alert(obj)
+        self.assertEqual('', str(html))
+
+        # pro jiného uživatele se notifikace zobrazí
+        req_other = self.factory.get('/')
+        req_other.user = other_user
+        qs_other = self.admin.get_queryset(req_other)
+        obj_other = qs_other.get(pk=self.bedna.pk)
+        html_other = self.admin.get_notif_alert(obj_other)
+        self.assertIn('Změna priority', str(html_other))
 
     def test_changelist_view_and_list_display(self):
         req = self.get_request()
@@ -1097,3 +1167,50 @@ class BednaInlineGetFieldsTests(AdminBase):
         b_any.save()
         fields2 = self.inline.get_fields(self.get_request(), bedna.zakazka)
         self.assertIn('brutto', fields2)
+
+
+class NotificationAdminTests(AdminBase):
+    def setUp(self):
+        self.admin = NotificationAdmin(Notification, self.site)
+        self.zakazka = Zakazka.objects.create(
+            kamion_prijem=self.kamion,
+            artikl='ART1',
+            prumer=Decimal('10.0'),
+            delka=Decimal('50.0'),
+            predpis=self.predpis,
+            typ_hlavy=self.typ_hlavy,
+            popis='Test zakázka',
+        )
+        self.bedna = Bedna.objects.create(
+            zakazka=self.zakazka,
+            hmotnost=Decimal('2.0'),
+            tara=Decimal('1.0'),
+            mnozstvi=1,
+        )
+
+    def test_notification_queryset_filtered_for_user(self):
+        User = get_user_model()
+        current_user = User.objects.create_user('u_current2', 'current2@example.com', 'pass', is_staff=True)
+        other_user = User.objects.create_user('u_other2', 'other2@example.com', 'pass', is_staff=True)
+
+        Notification.objects.create(
+            recipient=current_user,
+            zakazka=self.zakazka,
+            bedna=self.bedna,
+            notif_type=Notification.NotificationType.PRIORITA,
+            message='Test moje 2',
+        )
+
+        Notification.objects.create(
+            recipient=other_user,
+            zakazka=self.zakazka,
+            bedna=self.bedna,
+            notif_type=Notification.NotificationType.PRIORITA,
+            message='Test jiné 2',
+        )
+
+        req = self.factory.get('/')
+        req.user = current_user
+        qs = self.admin.get_queryset(req)
+        self.assertEqual(qs.count(), 1)
+        self.assertEqual(qs.first().recipient, current_user)

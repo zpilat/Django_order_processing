@@ -38,6 +38,14 @@ STAV_BEDNY_VYPOCET_ROZPRACOVANOSTI = [
     StavBednyChoice.K_EXPEDICI,
 ]
 
+STAV_BEDNY_KONTROLA_ZMENY_PRIORITY = [
+    StavBednyChoice.K_NAVEZENI,
+    StavBednyChoice.NAVEZENO,
+    StavBednyChoice.DO_ZPRACOVANI,
+    StavBednyChoice.ZAKALENO,
+    StavBednyChoice.ZKONTROLOVANO,
+]
+
 class RovnaniChoice(models.TextChoices):
     NEZADANO = '--', '--------'
     ROVNA = 'RO', 'Rovná'

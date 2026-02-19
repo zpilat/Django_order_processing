@@ -6,7 +6,7 @@ from django.utils import timezone
 from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 
-from .models import Zakazka, Bedna, Zakaznik, Kamion, TypHlavy, Predpis, Odberatel, Zarizeni, Sarze, SarzeBedna
+from .models import Zakazka, Bedna, Zakaznik, Kamion, TypHlavy, Predpis, Odberatel, Zarizeni, Sarze, SarzeBedna, Notification
 from .choices import (
     StavBednyChoice, TryskaniChoice, RovnaniChoice, ZinkovaniChoice, PrioritaChoice, PrijemVydejChoice, SklademZakazkyChoice,
     STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM,
@@ -102,6 +102,37 @@ class OdberatelBednyFilter(DynamicTitleFilter):
             return queryset.filter(zakazka__odberatel=odberatel)
         except Odberatel.DoesNotExist:
             return queryset.none()
+
+
+class AktivniNotifikaceBednyFilter(DynamicTitleFilter):
+    title = "Notifikace"
+    parameter_name = "notifikace"
+    vse = "Vše"
+
+    def __init__(self, request, params, model, model_admin):
+        self.label_dict = {
+            '1': 'S aktivní notifikací',
+        }
+        super().__init__(request, params, model, model_admin)
+
+    def lookups(self, request, model_admin):
+        return self.label_dict.items()
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if value is None:
+            return queryset
+
+        notif_filter = Notification.objects.filter(
+            bedna=OuterRef('pk'),
+            ack_required=True,
+            ack_at__isnull=True,
+            recipient=request.user
+        )
+
+        if value == '1':
+            return queryset.annotate(has_notif=Exists(notif_filter)).filter(has_notif=True)
+        return queryset
 
 
 class DelkaFilter(DynamicTitleFilter):
