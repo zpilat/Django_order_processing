@@ -1518,8 +1518,8 @@ class SarzeBedna(models.Model):
         max_length=30, blank=True, null=True, verbose_name='Zakázka pro "železo"',
         help_text='Při zpracování "železa" zadejte zakázku.',
     )
-    cislo_bedny_mimo_db = models.PositiveIntegerField(
-        blank=True, null=True, verbose_name='Číslo bedny pro "železo"',
+    cislo_bedny_mimo_db = models.CharField(
+        max_length=30, blank=True, null=True, verbose_name='Číslo bedny pro "železo"',
         help_text='Při zpracování "železa" zadejte číslo bedny.',
     )
     patro = models.PositiveSmallIntegerField(verbose_name='Patro')
