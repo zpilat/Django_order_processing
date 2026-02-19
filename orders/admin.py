@@ -75,27 +75,15 @@ logger = logging.getLogger('orders')
 
 
 class SarzeBednaInline(admin.TabularInline):
+    """
+    Inline pro správu vztahu mezi Sarze a Bedna v administraci.
+    """
     model = SarzeBedna
     # extra se dynamicky nastavuje v get_extra, defaultně 5 pro nový objekt Sarze, 0 pro existující
     autocomplete_fields = ('bedna',)
     fields = (
-        'bedna', 'patro', 'procent_z_patra', 'popis', 'zakaznik_mimo_db', 'zakazka_mimo_db', 'get_zakaznik',
-        'get_zkraceny_popis_zakazky', 'get_skupina_TZ',
+        'bedna', 'patro', 'procent_z_patra', 'popis', 'zakaznik_mimo_db', 'zakazka_mimo_db', 'cislo_bedny_mimo_db',
     )
-    readonly_fields = ('get_zakaznik', 'get_zkraceny_popis_zakazky', 'get_skupina_TZ',)
-
-    @admin.display(description='Zákazník')
-    def get_zakaznik(self, obj):
-        zakaznik = obj.bedna.zakazka.kamion_prijem.zakaznik if obj.bedna and obj.bedna.zakazka and obj.bedna.zakazka.kamion_prijem and obj.bedna.zakazka.kamion_prijem.zakaznik else None
-        return zakaznik.zkraceny_nazev if zakaznik and zakaznik.zkraceny_nazev else '-'
-
-    @admin.display(description='Popis')
-    def get_zkraceny_popis_zakazky(self, obj):
-        return obj.bedna.zakazka.zkraceny_popis if obj.bedna and obj.bedna.zakazka and obj.bedna.zakazka.zkraceny_popis else '-'
-
-    @admin.display(description='Skupina')
-    def get_skupina_TZ(self, obj):
-        return f"SK{obj.bedna.zakazka.predpis.skupina}" if obj.bedna and obj.bedna.zakazka and obj.bedna.zakazka.predpis and obj.bedna.zakazka.predpis.skupina else '-'
 
     def get_extra(self, request, obj=None, **kwargs):
         """
@@ -245,7 +233,9 @@ class SarzeBednaAdmin(SimpleHistoryAdmin):
 
     @admin.display(description='Bedna', ordering='bedna__cislo_bedny')
     def get_cislo_bedny(self, obj):
-        return obj.bedna.cislo_bedny if obj.bedna else '--------'
+        if obj.bedna:
+            return obj.bedna.cislo_bedny if obj.bedna.cislo_bedny is not None else '-'
+        return obj.cislo_bedny_mimo_db if obj.cislo_bedny_mimo_db is not None else '--------'
 
     @admin.display(description='Datum', ordering='sarze__datum')
     def get_datum(self, obj):

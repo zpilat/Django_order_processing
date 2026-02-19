@@ -1518,6 +1518,10 @@ class SarzeBedna(models.Model):
         max_length=30, blank=True, null=True, verbose_name='Zakázka pro "železo"',
         help_text='Při zpracování "železa" zadejte zakázku.',
     )
+    cislo_bedny_mimo_db = models.PositiveIntegerField(
+        blank=True, null=True, verbose_name='Číslo bedny pro "železo"',
+        help_text='Při zpracování "železa" zadejte číslo bedny.',
+    )
     patro = models.PositiveSmallIntegerField(verbose_name='Patro')
     procent_z_patra = models.PositiveSmallIntegerField(
         verbose_name='Procent z patra', blank=True, null=True, validators=[MinValueValidator(0), MaxValueValidator(100)],
@@ -1542,18 +1546,49 @@ class SarzeBedna(models.Model):
 
     def clean(self):
         """
-        Validace pro zajištění, že buď je vyplněna bedna, nebo popis, ale ne obojí současně.
-        Validace pro zajištění, že pokud je vyplněn popis, musí být také vyplněn zákazník mimo databázi a zakázka mimo databázi.
+        Validace pro zajištění:
+        Buď je vyplněna bedna, nebo popis, ale ne obojí současně.
+        Buď je vyplněna bedna nebo číslo bedny pro "železo", zákazník pro "železo" a zakázka pro "železo", ale ne obojí současně.
+        Pokud je vyplněn popis, musí být také vyplněn zákazník mimo databázi a zakázka mimo databázi.
         """
         super().clean()
         if not self.bedna and not self.popis:
             raise ValidationError(_("Musí být vyplněna buď bedna nebo popis."))
         if self.bedna and self.popis:
             raise ValidationError(_("Nelze vyplnit současně bednu i popis."))
-        if self.popis and not self.zakaznik_mimo_db:
-            raise ValidationError(_("Při vyplnění popisu musí být také vyplněn zákazník pro 'železo'."))
-        if self.popis and not self.zakazka_mimo_db:
-            raise ValidationError(_("Při vyplnění popisu musí být také vyplněna zakázka pro 'železo'."))
+
+        mutually_exclusive_with_bedna = [
+            (
+                "cislo_bedny_mimo_db",
+                "Nelze vyplnit současně bednu i číslo bedny pro 'železo'.",
+            ),
+            (
+                "zakaznik_mimo_db",
+                "Nelze vyplnit současně bednu i zákazníka pro 'železo'.",
+            ),
+            (
+                "zakazka_mimo_db",
+                "Nelze vyplnit současně bednu i zakázku pro 'železo'.",
+            ),
+        ]
+        for field_name, error_message in mutually_exclusive_with_bedna:
+            if self.bedna and getattr(self, field_name):
+                raise ValidationError(_(error_message))
+
+        required_with_popis = [
+            (
+                "zakaznik_mimo_db",
+                "Při vyplnění popisu musí být také vyplněn zákazník pro 'železo'.",
+            ),
+            (
+                "zakazka_mimo_db",
+                "Při vyplnění popisu musí být také vyplněna zakázka pro 'železo'.",
+            ),
+        ]
+        for field_name, error_message in required_with_popis:
+            if self.popis and not getattr(self, field_name):
+                raise ValidationError(_(error_message))
+            
 
     @property
     def prvni_pouziti(self):
