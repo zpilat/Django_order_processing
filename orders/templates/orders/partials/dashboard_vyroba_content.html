@@ -10,7 +10,7 @@
   <div class="col-12 col-xl-6 mb-4">
     <div class="card h-100 shadow-sm">
       <div class="card-header fw-bold" style="background-color: #ffde17; color: #214290;">
-        Souhrn zařízení XL1 / XL2
+        Souhrn zařízení XL1 / XL2 / Celkem
       </div>
       <div class="card-body p-2">
         <table class="table table-sm align-middle mb-0">
@@ -19,6 +19,7 @@
               <th style="background-color: #214290; color: #ffde17;"></th>
               <th style="background-color: #214290; color: #ffde17;">XL 1</th>
               <th style="background-color: #214290; color: #ffde17;">XL 2</th>
+              <th style="background-color: #214290; color: #ffde17;">CELKEM</th>
             </tr>
           </thead>
           <tbody class="table-striped">
@@ -26,21 +27,25 @@
               <th>Počet vsázek</th>
               <td>{{ vyroba_dashboard.devices.xl1.total }}</td>
               <td>{{ vyroba_dashboard.devices.xl2.total }}</td>
+              <td>{{ vyroba_dashboard.devices.celkem.total }}</td>
             </tr>
             <tr>
               <th>vruty</th>
               <td>{{ vyroba_dashboard.devices.xl1.vruty }}</td>
               <td>{{ vyroba_dashboard.devices.xl2.vruty }}</td>
+              <td>{{ vyroba_dashboard.devices.celkem.vruty }}</td>
             </tr>
             <tr>
               <th>železo</th>
               <td>{{ vyroba_dashboard.devices.xl1.zelezo }}</td>
               <td>{{ vyroba_dashboard.devices.xl2.zelezo }}</td>
+              <td>{{ vyroba_dashboard.devices.celkem.zelezo }}</td>
             </tr>
             <tr>
               <th>Prostoj [hod.]</th>
               <td>{{ vyroba_dashboard.devices.xl1.prostoj_hours }}</td>
               <td>{{ vyroba_dashboard.devices.xl2.prostoj_hours }}</td>
+              <td>{{ vyroba_dashboard.devices.celkem.prostoj_hours }}</td>
             </tr>
           </tbody>
         </table>

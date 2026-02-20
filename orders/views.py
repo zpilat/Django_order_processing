@@ -27,7 +27,7 @@ from weasyprint import HTML, CSS
 import logging
 logger = logging.getLogger('orders')
 
-
+ 
 def _format_hours(hours_value):
     return f"{hours_value:.1f}".replace('.', ',')
 
@@ -59,10 +59,7 @@ def _build_vyroba_dashboard_context(date_value=None):
         sarze=OuterRef('pk'),
         bedna__isnull=True,
     ).filter(
-        Q(popis__isnull=False)
-        | Q(zakaznik_mimo_db__isnull=False)
-        | Q(zakazka_mimo_db__isnull=False)
-        | Q(cislo_bedny_mimo_db__isnull=False)
+        popis__isnull=False,
     )
 
     qs = base_qs.annotate(
@@ -70,8 +67,8 @@ def _build_vyroba_dashboard_context(date_value=None):
         has_zelezo=Exists(manual_exists),
     )
 
-    def _device_stats(code):
-        dqs = qs.filter(zarizeni__kod_zarizeni=code)
+    def _device_stats(code: list[str]):
+        dqs = qs.filter(zarizeni__kod_zarizeni__in=code)
         total = dqs.count()
         vruty = dqs.filter(has_vruty=True).count()
         zelezo = dqs.filter(has_zelezo=True).count()
@@ -84,8 +81,9 @@ def _build_vyroba_dashboard_context(date_value=None):
             'prostoj_hours': prostoj_hours,
         }
 
-    xl1 = _device_stats(device_codes[0])
-    xl2 = _device_stats(device_codes[1])
+    xl1 = _device_stats([device_codes[0]])
+    xl2 = _device_stats([device_codes[1]])
+    summary = _device_stats(device_codes)
 
     def _shift_stats(shift_qs):
         xl1_qs = shift_qs.filter(zarizeni__kod_zarizeni=device_codes[0])
@@ -125,6 +123,7 @@ def _build_vyroba_dashboard_context(date_value=None):
         'devices': {
             'xl1': xl1,
             'xl2': xl2,
+            'celkem': summary,
         },
         'shifts': {
             'day': _shift_stats(day_qs),
