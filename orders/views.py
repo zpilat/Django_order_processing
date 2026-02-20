@@ -10,7 +10,7 @@ from django.urls import reverse_lazy
 from django.db.models import Q, Sum, Count, F, Exists, OuterRef
 from django.utils.translation import gettext_lazy as _
 import django.utils.timezone as timezone
-from datetime import timedelta, time
+from datetime import timedelta, time, date
 from django.db import transaction
 from django.contrib import messages
 from django.contrib.staticfiles import finders
@@ -303,7 +303,9 @@ def dashboard_vyroba_view(request):
     """
     Včerejší přehledy pro výrobu (TQF_XL1, TQF_XL2).
     """
-    context = _build_vyroba_dashboard_context()
+    # pro ladění předáno konkrétní datum: date(2026,2,19), pro které jsou zadána v db data
+    # pro produkci se použije bez parametru, aby se vždy zobrazil včerejší den: date_value=None
+    context = _build_vyroba_dashboard_context(date_value=date(2026,2,19)) 
     if request.htmx:
         return render(request, "orders/partials/dashboard_vyroba_content.html", context)
     return render(request, 'orders/dashboard_vyroba.html', context)
