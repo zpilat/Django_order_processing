@@ -1,0 +1,97 @@
+<div class="alert" role="alert" style="background-color: #214290; color: #ffde17; font-family: 'Liberation Sans', Arial;">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h3 class="mb-0">Včerejší přehledy ({{ vyroba_dashboard.date_label }})</h3>
+    <a class="btn btn-secondary" style="color: #ffde17;" href="{% url 'admin:orders_sarzebedna_changelist' %}">Návrat</a>
+  </div>
+  <h6>Naposledy aktualizováno {{ current_time|date:"d.m.Y H:i" }}</h6>
+</div>
+
+<div class="row" style="font-family: 'Liberation Sans', Arial;">
+  <div class="col-12 col-xl-6 mb-4">
+    <div class="card h-100 shadow-sm">
+      <div class="card-header fw-bold" style="background-color: #ffde17; color: #214290;">
+        Souhrn zařízení XL1 / XL2
+      </div>
+      <div class="card-body p-2">
+        <table class="table table-sm align-middle mb-0">
+          <thead>
+            <tr>
+              <th style="background-color: #214290; color: #ffde17;"></th>
+              <th style="background-color: #214290; color: #ffde17;">XL 1</th>
+              <th style="background-color: #214290; color: #ffde17;">XL 2</th>
+            </tr>
+          </thead>
+          <tbody class="table-striped">
+            <tr>
+              <th>Počet vsázek</th>
+              <td>{{ vyroba_dashboard.devices.xl1.total }}</td>
+              <td>{{ vyroba_dashboard.devices.xl2.total }}</td>
+            </tr>
+            <tr>
+              <th>vruty</th>
+              <td>{{ vyroba_dashboard.devices.xl1.vruty }}</td>
+              <td>{{ vyroba_dashboard.devices.xl2.vruty }}</td>
+            </tr>
+            <tr>
+              <th>železo</th>
+              <td>{{ vyroba_dashboard.devices.xl1.zelezo }}</td>
+              <td>{{ vyroba_dashboard.devices.xl2.zelezo }}</td>
+            </tr>
+            <tr>
+              <th>Prostoj [hod.]</th>
+              <td>{{ vyroba_dashboard.devices.xl1.prostoj_hours }}</td>
+              <td>{{ vyroba_dashboard.devices.xl2.prostoj_hours }}</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="small text-muted mt-2">Čas prostoje je očištěn o 10 minut technologického prostoje u každé vsázky.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-xl-6 mb-4">
+    <div class="card h-100 shadow-sm">
+      <div class="card-header fw-bold" style="background-color: #ffde17; color: #214290;">
+        Počet vsázek včerejších směn
+      </div>
+      <div class="card-body p-2">
+        <table class="table table-sm align-middle mb-0">
+          <thead>
+            <tr>
+              <th style="background-color: #214290; color: #ffde17;"></th>
+              <th style="background-color: #214290; color: #ffde17;">XL1</th>
+              <th style="background-color: #214290; color: #ffde17;">XL2</th>
+              <th style="background-color: #214290; color: #ffde17;">CELKEM</th>
+            </tr>
+          </thead>
+          <tbody class="table-striped">
+            <tr>
+              <th>Denní (7:00 - 18:59)</th>
+              <td>{{ vyroba_dashboard.shifts.day.counts.xl1 }}</td>
+              <td>{{ vyroba_dashboard.shifts.day.counts.xl2 }}</td>
+              <td>{{ vyroba_dashboard.shifts.day.counts.total }}</td>
+            </tr>
+            <tr>
+              <th>prostoje</th>
+              <td>{{ vyroba_dashboard.shifts.day.prostoje.xl1 }}</td>
+              <td>{{ vyroba_dashboard.shifts.day.prostoje.xl2 }}</td>
+              <td>{{ vyroba_dashboard.shifts.day.prostoje.total }}</td>
+            </tr>
+            <tr>
+              <th>Noční (19:00 - 6:59)</th>
+              <td>{{ vyroba_dashboard.shifts.night.counts.xl1 }}</td>
+              <td>{{ vyroba_dashboard.shifts.night.counts.xl2 }}</td>
+              <td>{{ vyroba_dashboard.shifts.night.counts.total }}</td>
+            </tr>
+            <tr>
+              <th>prostoje</th>
+              <td>{{ vyroba_dashboard.shifts.night.prostoje.xl1 }}</td>
+              <td>{{ vyroba_dashboard.shifts.night.prostoje.xl2 }}</td>
+              <td>{{ vyroba_dashboard.shifts.night.prostoje.total }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>

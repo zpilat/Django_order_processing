@@ -7,9 +7,10 @@ from django.views.generic import ListView
 from django.views.generic.edit import CreateView, UpdateView, DeleteView
 from django.views.generic.detail import DetailView
 from django.urls import reverse_lazy
-from django.db.models import Q, Sum, Count, F
+from django.db.models import Q, Sum, Count, F, Exists, OuterRef
 from django.utils.translation import gettext_lazy as _
 import django.utils.timezone as timezone
+from datetime import timedelta, time
 from django.db import transaction
 from django.contrib import messages
 from django.contrib.staticfiles import finders
@@ -19,12 +20,118 @@ from django.utils.text import slugify
 from django.shortcuts import get_object_or_404
 
 from .utils import get_verbose_name_for_column, utilita_tisk_dl_a_proforma_faktury
-from .models import Bedna, Zakazka, Kamion, Zakaznik, TypHlavy, Predpis, Odberatel, Cena, Pozice, PoziceZakazkaOrder
+from .models import Bedna, Zakazka, Kamion, Zakaznik, TypHlavy, Predpis, Odberatel, Cena, Pozice, PoziceZakazkaOrder, Sarze, SarzeBedna
 from .choices import  StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice, ZinkovaniChoice, STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM
 from weasyprint import HTML, CSS
 
 import logging
 logger = logging.getLogger('orders')
+
+
+def _format_hours(hours_value):
+    return f"{hours_value:.1f}".replace('.', ',')
+
+
+def _calc_prostoj_minutes(sarze_list):
+    total_minutes = 0
+    for sarze in sarze_list:
+        prodleva = sarze.prodleva
+        if isinstance(prodleva, int):
+            total_minutes += max(prodleva - 10, 0)
+    return total_minutes
+
+
+def _build_vyroba_dashboard_context(date_value=None):
+    date_value = date_value or (timezone.localdate() - timedelta(days=1))
+    today = date_value + timedelta(days=1)
+    device_codes = ["TQF_XL1", "TQF_XL2"]
+
+    base_qs = Sarze.objects.filter(
+        datum=date_value,
+        zarizeni__kod_zarizeni__in=device_codes,
+    ).select_related('zarizeni')
+
+    bedna_exists = SarzeBedna.objects.filter(
+        sarze=OuterRef('pk'),
+        bedna__isnull=False,
+    )
+    manual_exists = SarzeBedna.objects.filter(
+        sarze=OuterRef('pk'),
+        bedna__isnull=True,
+    ).filter(
+        Q(popis__isnull=False)
+        | Q(zakaznik_mimo_db__isnull=False)
+        | Q(zakazka_mimo_db__isnull=False)
+        | Q(cislo_bedny_mimo_db__isnull=False)
+    )
+
+    qs = base_qs.annotate(
+        has_vruty=Exists(bedna_exists),
+        has_zelezo=Exists(manual_exists),
+    )
+
+    def _device_stats(code):
+        dqs = qs.filter(zarizeni__kod_zarizeni=code)
+        total = dqs.count()
+        vruty = dqs.filter(has_vruty=True).count()
+        zelezo = dqs.filter(has_zelezo=True).count()
+        prostoj_minutes = _calc_prostoj_minutes(list(dqs))
+        prostoj_hours = _format_hours(prostoj_minutes / 60) if prostoj_minutes else '0,0'
+        return {
+            'total': total,
+            'vruty': vruty,
+            'zelezo': zelezo,
+            'prostoj_hours': prostoj_hours,
+        }
+
+    xl1 = _device_stats(device_codes[0])
+    xl2 = _device_stats(device_codes[1])
+
+    def _shift_stats(shift_qs):
+        xl1_qs = shift_qs.filter(zarizeni__kod_zarizeni=device_codes[0])
+        xl2_qs = shift_qs.filter(zarizeni__kod_zarizeni=device_codes[1])
+
+        xl1_count = xl1_qs.count()
+        xl2_count = xl2_qs.count()
+        total_count = xl1_count + xl2_count
+
+        xl1_minutes = _calc_prostoj_minutes(list(xl1_qs))
+        xl2_minutes = _calc_prostoj_minutes(list(xl2_qs))
+        total_minutes = xl1_minutes + xl2_minutes
+
+        return {
+            'counts': {
+                'xl1': xl1_count,
+                'xl2': xl2_count,
+                'total': total_count,
+            },
+            'prostoje': {
+                'xl1': _format_hours(xl1_minutes / 60) if xl1_minutes else '0,0',
+                'xl2': _format_hours(xl2_minutes / 60) if xl2_minutes else '0,0',
+                'total': _format_hours(total_minutes / 60) if total_minutes else '0,0',
+            },
+        }
+
+    day_qs = base_qs.filter(zacatek__gte=time(7, 0), zacatek__lt=time(19, 0))
+    night_qs = Sarze.objects.filter(
+        zarizeni__kod_zarizeni__in=device_codes,
+    ).filter(
+        Q(datum=date_value, zacatek__gte=time(19, 0))
+        | Q(datum=today, zacatek__lt=time(7, 0))
+    ).select_related('zarizeni')
+
+    dashboard = {
+        'date_label': date_value.strftime('%d.%m.%Y'),
+        'devices': {
+            'xl1': xl1,
+            'xl2': xl2,
+        },
+        'shifts': {
+            'day': _shift_stats(day_qs),
+            'night': _shift_stats(night_qs),
+        },
+    }
+    return {'vyroba_dashboard': dashboard, 'current_time': timezone.now()}
 
 @login_required
 def dashboard_bedny_view(request):
@@ -190,6 +297,17 @@ def dashboard_kamiony_view(request):
     if request.htmx:
         return render(request, "orders/partials/dashboard_kamiony_content.html", context)
     return render(request, 'orders/dashboard_kamiony.html', context)
+
+
+@login_required
+def dashboard_vyroba_view(request):
+    """
+    Včerejší přehledy pro výrobu (TQF_XL1, TQF_XL2).
+    """
+    context = _build_vyroba_dashboard_context()
+    if request.htmx:
+        return render(request, "orders/partials/dashboard_vyroba_content.html", context)
+    return render(request, 'orders/dashboard_vyroba.html', context)
 
 
 def _get_bedny_k_navezeni_groups():
