@@ -1249,14 +1249,28 @@ class SarzeAdminMoveTests(AdminBase):
             program='P1',
         )
 
-    def _build_request(self, data):
+    def _build_request(self, data, user=None):
         request = self.factory.post('/admin/orders/sarze/', data=data)
-        request.user = self.user
+        request.user = user or self.user
         request.session = {}
         request._messages = FallbackStorage(request)
         return request
 
+    def _create_staff_user(self, username, with_move_permission=False):
+        User = get_user_model()
+        user = User.objects.create_user(
+            username=username,
+            email=f'{username}@example.com',
+            password='pass',
+            is_staff=True,
+        )
+        if with_move_permission:
+            permission = Permission.objects.get(codename='can_move_sarze')
+            user.user_permissions.add(permission)
+        return user
+
     def test_move_sarze_to_zarizeni_action(self):
+        allowed_user = self._create_staff_user('sarze_move_allowed', with_move_permission=True)
         data = {
             'action': 'move_sarze_to_zarizeni',
             admin.helpers.ACTION_CHECKBOX_NAME: [str(self.sarze.pk)],
@@ -1264,7 +1278,7 @@ class SarzeAdminMoveTests(AdminBase):
             'target_zarizeni': str(self.zarizeni_target.pk),
             'move_reason': 'Test presun',
         }
-        request = self._build_request(data)
+        request = self._build_request(data, user=allowed_user)
         queryset = Sarze.objects.filter(pk=self.sarze.pk)
 
         self.admin.move_sarze_to_zarizeni(request, queryset)
@@ -1276,5 +1290,34 @@ class SarzeAdminMoveTests(AdminBase):
         self.assertTrue(
             self.sarze.history.filter(
                 history_change_reason='Přesun šarže: Test presun'
+            ).exists()
+        )
+
+    def test_move_sarze_to_zarizeni_action_requires_special_permission(self):
+        denied_user = self._create_staff_user('sarze_move_denied', with_move_permission=False)
+        original_zarizeni_id = self.sarze.zarizeni_id
+        original_cislo_sarze = self.sarze.cislo_sarze
+
+        data = {
+            'action': 'move_sarze_to_zarizeni',
+            admin.helpers.ACTION_CHECKBOX_NAME: [str(self.sarze.pk)],
+            'apply': '1',
+            'target_zarizeni': str(self.zarizeni_target.pk),
+            'move_reason': 'Bez prava',
+        }
+        request = self._build_request(data, user=denied_user)
+        queryset = Sarze.objects.filter(pk=self.sarze.pk)
+
+        actions = self.admin.get_actions(request)
+        self.assertNotIn('move_sarze_to_zarizeni', actions)
+
+        self.admin.move_sarze_to_zarizeni(request, queryset)
+
+        self.sarze.refresh_from_db()
+        self.assertEqual(self.sarze.zarizeni_id, original_zarizeni_id)
+        self.assertEqual(self.sarze.cislo_sarze, original_cislo_sarze)
+        self.assertFalse(
+            self.sarze.history.filter(
+                history_change_reason='Přesun šarže: Bez prava'
             ).exists()
         )

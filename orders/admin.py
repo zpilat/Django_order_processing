@@ -133,13 +133,14 @@ class ZarizeniAdmin(SimpleHistoryAdmin):
 
 @admin.register(Sarze)
 class SarzeAdmin(SimpleHistoryAdmin):
+    fields = ('cislo_sarze', 'zarizeni', 'datum', 'zacatek', 'konec', 'operator', 'program', 'cislo_pripravku', 'poznamka', 'alarm',)
     list_display = ('get_cislo_sarze', 'get_kod_zarizeni', 'get_datum', 'zacatek', 'konec', 'operator',
                     'cislo_pripravku', 'program', 'get_poznamka', 'get_alarm', 'get_prodleva', 'get_takt', 'get_bedny',)
     change_form_template = 'admin/orders/sarze/change_form.html'
     list_filter = (ZarizeniSarzeFilter,)
     search_fields = ('cislo_sarze', 'operator',)
     autocomplete_fields = ('zarizeni',)
-    #readonly_fields = ('cislo_sarze',)
+    readonly_fields = ('cislo_sarze',)
     ordering = ('-datum', '-zacatek',)
     inlines = [SarzeBednaInline]
     actions = ['move_sarze_to_zarizeni']
@@ -190,6 +191,15 @@ class SarzeAdmin(SimpleHistoryAdmin):
     def get_alarm(self, obj):
         return truncate_with_title(obj.alarm)
 
+    def has_move_sarze_permission(self, request):
+        return request.user.has_perm('orders.can_move_sarze')
+
+    def get_actions(self, request):
+        actions = super().get_actions(request)
+        if not self.has_move_sarze_permission(request):
+            actions.pop('move_sarze_to_zarizeni', None)
+        return actions
+
     def get_readonly_fields(self, request, obj=None):
         readonly_fields = list(super().get_readonly_fields(request, obj) or [])
         if obj and 'zarizeni' not in readonly_fields:
@@ -198,6 +208,14 @@ class SarzeAdmin(SimpleHistoryAdmin):
 
     @admin.action(description='Přesunout šarži na jiné zařízení')
     def move_sarze_to_zarizeni(self, request, queryset):
+        if not self.has_move_sarze_permission(request):
+            self.message_user(
+                request,
+                "Nemáte oprávnění pro přesun šarže mezi zařízeními.",
+                messages.ERROR,
+            )
+            return
+
         if queryset.count() != 1:
             self.message_user(
                 request,

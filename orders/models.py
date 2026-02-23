@@ -1417,6 +1417,9 @@ class Sarze(models.Model):
         verbose_name = 'Šarže'
         verbose_name_plural = 'šarže'
         ordering = ['-datum', 'zarizeni__kod_zarizeni', 'cislo_sarze']
+        permissions = [
+            ('can_move_sarze', 'Může přesouvat šarže mezi zařízeními'),
+        ]
         constraints = [
             models.UniqueConstraint(fields=['zarizeni', 'cislo_sarze'], name='uniq_sarze_zarizeni'),
         ]
