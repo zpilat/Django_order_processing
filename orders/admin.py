@@ -270,7 +270,7 @@ class SarzeBednaAdmin(SimpleHistoryAdmin):
         'get_sarze', 'get_kod_zarizeni', 'get_datum', 'get_zacatek', 'get_konec', 'get_operator',
         'get_zkraceny_popis', 'get_cislo_bedny', 'get_zakaznik', 'patro', #'get_procent_z_patra',
         'get_cislo_pripravku', 'get_program', 'get_zakazka_skupina', 'get_poznamka', 'get_alarm', 'get_prodleva',
-        'get_takt',
+        'get_takt', 'get_prvni_pouziti',
     )
     change_list_template = 'admin/orders/sarzebedna/change_list.html'
     list_display_links = ('get_cislo_bedny',)
@@ -344,11 +344,11 @@ class SarzeBednaAdmin(SimpleHistoryAdmin):
         else:
             return truncate_with_title(obj.zakaznik_mimo_db)
 
-    @admin.display(description='Přípravek', ordering='sarze__cislo_pripravku')
+    @admin.display(description='Přípr.', ordering='sarze__cislo_pripravku')
     def get_cislo_pripravku(self, obj):
         return obj.sarze.cislo_pripravku if obj.sarze else '-'
     
-    @admin.display(description='Program', ordering='sarze__program')
+    @admin.display(description='Prog.', ordering='sarze__program')
     def get_program(self, obj):
         return obj.sarze.program if obj.sarze else '-'
 
@@ -374,6 +374,10 @@ class SarzeBednaAdmin(SimpleHistoryAdmin):
     @admin.display(description='Takt (h)')
     def get_takt(self, obj):
         return obj.sarze.takt if obj.sarze else '-'
+    
+    @admin.display(boolean=True, description='První?')
+    def get_prvni_pouziti(self, obj):
+        return obj.prvni_pouziti
 
 
 @admin.register(Permission)
