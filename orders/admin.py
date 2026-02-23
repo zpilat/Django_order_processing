@@ -196,7 +196,7 @@ class SarzeAdmin(SimpleHistoryAdmin):
             readonly_fields.append('zarizeni')
         return readonly_fields
 
-    @admin.action(description='Přesunout šarže na jiné zařízení')
+    @admin.action(description='Přesunout šarži na jiné zařízení')
     def move_sarze_to_zarizeni(self, request, queryset):
         if queryset.count() != 1:
             self.message_user(

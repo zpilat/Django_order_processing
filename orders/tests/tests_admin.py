@@ -1,5 +1,6 @@
 from django.test import TestCase, RequestFactory
 from django.contrib.admin.sites import AdminSite
+from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission, Group
 from django.contrib.messages.storage.fallback import FallbackStorage
@@ -7,12 +8,12 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 
 from decimal import Decimal
-from datetime import date
+from datetime import date, time
 from unittest.mock import patch
 
-from orders.admin import KamionAdmin, ZakazkaAdmin, BednaAdmin, BednaInline, NotificationAdmin
+from orders.admin import KamionAdmin, ZakazkaAdmin, BednaAdmin, BednaInline, NotificationAdmin, SarzeAdmin
 from orders.forms import ImportZakazekForm
-from orders.models import Zakaznik, Kamion, Zakazka, Bedna, Predpis, TypHlavy, Odberatel, Cena, Notification, PriorityNotificationRecipient
+from orders.models import Zakaznik, Kamion, Zakazka, Bedna, Predpis, TypHlavy, Odberatel, Cena, Notification, PriorityNotificationRecipient, Zarizeni, Sarze
 from orders.choices import StavBednyChoice, SklademZakazkyChoice, PrijemVydejChoice, KamionChoice, ZinkovaniChoice, PrioritaChoice
 from orders.filters import DelkaFilter
 
@@ -1214,3 +1215,66 @@ class NotificationAdminTests(AdminBase):
         qs = self.admin.get_queryset(req)
         self.assertEqual(qs.count(), 1)
         self.assertEqual(qs.first().recipient, current_user)
+
+
+class SarzeAdminMoveTests(AdminBase):
+    def setUp(self):
+        self.admin = SarzeAdmin(Sarze, self.site)
+        self.zarizeni_source = Zarizeni.objects.create(
+            kod_zarizeni='Z1',
+            nazev_zarizeni='Zarizeni 1',
+            zkraceny_nazev_zarizeni='Z1',
+            prefix_sarze='Z1',
+        )
+        self.zarizeni_target = Zarizeni.objects.create(
+            kod_zarizeni='Z2',
+            nazev_zarizeni='Zarizeni 2',
+            zkraceny_nazev_zarizeni='Z2',
+            prefix_sarze='Z2',
+        )
+        Sarze.objects.create(
+            zarizeni=self.zarizeni_target,
+            cislo_sarze=5,
+            datum=date.today(),
+            zacatek=time(6, 0),
+            operator='OP',
+            program='P1',
+        )
+        self.sarze = Sarze.objects.create(
+            zarizeni=self.zarizeni_source,
+            cislo_sarze=1,
+            datum=date.today(),
+            zacatek=time(7, 0),
+            operator='OP',
+            program='P1',
+        )
+
+    def _build_request(self, data):
+        request = self.factory.post('/admin/orders/sarze/', data=data)
+        request.user = self.user
+        request.session = {}
+        request._messages = FallbackStorage(request)
+        return request
+
+    def test_move_sarze_to_zarizeni_action(self):
+        data = {
+            'action': 'move_sarze_to_zarizeni',
+            admin.helpers.ACTION_CHECKBOX_NAME: [str(self.sarze.pk)],
+            'apply': '1',
+            'target_zarizeni': str(self.zarizeni_target.pk),
+            'move_reason': 'Test presun',
+        }
+        request = self._build_request(data)
+        queryset = Sarze.objects.filter(pk=self.sarze.pk)
+
+        self.admin.move_sarze_to_zarizeni(request, queryset)
+
+        self.sarze.refresh_from_db()
+        self.assertEqual(self.sarze.zarizeni, self.zarizeni_target)
+        self.assertEqual(self.sarze.cislo_sarze, 6)
+
+        self.assertTrue(
+            self.sarze.history.filter(
+                history_change_reason='Přesun šarže: Test presun'
+            ).exists()
+        )
