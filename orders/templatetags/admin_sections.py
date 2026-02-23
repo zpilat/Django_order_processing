@@ -6,12 +6,12 @@ ORDERS_ADMIN_SECTIONS = (
     {
         'key': 'logistika',
         'title': 'Logistika',
-        'models': ('zakazka', 'bedna', 'kamion'),
+        'models': ('bedna', 'zakazka', 'kamion'),
     },
     {
         'key': 'vyroba',
         'title': 'Výroba',
-        'models': ('sarze', 'zarizeni', 'sarzebedna'),
+        'models': ('sarzebedna', 'sarze', 'zarizeni',),
     },
     {
         'key': 'ciselniky',
