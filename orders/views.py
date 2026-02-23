@@ -32,6 +32,12 @@ def _format_hours(hours_value):
     return f"{hours_value:.1f}".replace('.', ',')
 
 
+def _format_tuny(value):
+    if value is None:
+        return '0'
+    return f"{value / 1000:.1f}".replace('.', ',')
+
+
 def _calc_prostoj_minutes(sarze_list):
     total_minutes = 0
     for sarze in sarze_list:
@@ -67,6 +73,33 @@ def _build_vyroba_dashboard_context(date_value=None):
         has_zelezo=Exists(manual_exists),
     )
 
+    def _calc_vykon_vruty_kg(code: list[str]):
+        sarze_bedny = (
+            SarzeBedna.objects
+            .filter(
+                sarze__datum=date_value,
+                sarze__zarizeni__kod_zarizeni__in=code,
+                bedna__isnull=False,
+                bedna__hmotnost__isnull=False,
+                bedna__hmotnost__gt=0,
+            )
+            .select_related('sarze', 'bedna')
+        )
+
+        prior_exists = SarzeBedna.objects.filter(
+            bedna_id=OuterRef('bedna_id'),
+            sarze__zarizeni_id=OuterRef('sarze__zarizeni_id'),
+        ).exclude(pk=OuterRef('pk')).filter(
+            Q(sarze__datum__lt=OuterRef('sarze__datum'))
+            | Q(sarze__datum=OuterRef('sarze__datum'), sarze__zacatek__lt=OuterRef('sarze__zacatek'))
+        )
+
+        first_use_qs = sarze_bedny.annotate(
+            has_prior=Exists(prior_exists),
+        ).filter(has_prior=False)
+
+        return first_use_qs.aggregate(total=Sum('bedna__hmotnost')).get('total') or 0
+
     def _device_stats(code: list[str]):
         dqs = qs.filter(zarizeni__kod_zarizeni__in=code)
         total = dqs.count()
@@ -74,11 +107,13 @@ def _build_vyroba_dashboard_context(date_value=None):
         zelezo = dqs.filter(has_zelezo=True).count()
         prostoj_minutes = _calc_prostoj_minutes(list(dqs))
         prostoj_hours = _format_hours(prostoj_minutes / 60) if prostoj_minutes else '0,0'
+        vykon_vruty_tuny = _format_tuny(_calc_vykon_vruty_kg(code))
         return {
             'total': total,
             'vruty': vruty,
             'zelezo': zelezo,
             'prostoj_hours': prostoj_hours,
+            'vykon_vruty_tuny': vykon_vruty_tuny,
         }
 
     xl1 = _device_stats([device_codes[0]])
