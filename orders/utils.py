@@ -5,6 +5,7 @@ from django.forms.models import model_to_dict
 from django.db import transaction
 from django.contrib.staticfiles import finders
 from django.utils import timezone
+from django.utils.html import format_html
 
 import csv
 
@@ -20,6 +21,18 @@ import re
 import gc
 import logging
 logger = logging.getLogger('orders')
+
+
+def truncate_with_title(text, max_len=15):
+    if text is None:
+        return '-'
+    text = str(text)
+    if not text:
+        return '-'
+    if len(text) <= max_len:
+        return text
+    short = f"{text[:max_len]}..."
+    return format_html('<span title="{}">{}</span>', text, short)
 
 
 def build_postup_vyroby_cases():

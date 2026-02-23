@@ -1644,11 +1644,12 @@ class StatusChangeActionsTests(ActionsBase):
         self.assertIn('Č.b. zák.', header)
         self.assertEqual(rows[1][0], '123')
         self.assertEqual(rows[1][1], '')
-        self.assertEqual(rows[1][2], 'Popis Z')
-        self.assertEqual(rows[1][3], self.zakazka.artikl)
-        self.assertEqual(rows[1][4], '2,5')
-        self.assertEqual(rows[1][5], '4')
-        self.assertEqual(rows[1][7], 'Zn')
+        self.assertEqual(rows[1][2], '')
+        self.assertEqual(rows[1][3], 'Popis Z')
+        self.assertEqual(rows[1][4], self.zakazka.artikl)
+        self.assertEqual(rows[1][6], '2,5')
+        self.assertEqual(rows[1][7], '4')
+        self.assertEqual(rows[1][9], 'Zn')
 
     def test_export_na_zinkovani_action_exports_without_state_change(self):
         admin_obj = self._messaging_admin()

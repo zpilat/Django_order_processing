@@ -1,0 +1,25 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content %}
+  <p>Vybraná šarže: {{ queryset|first }}</p>
+  {% with selected_sarze=queryset|first %}
+    {% if selected_sarze %}
+      <p>Aktuální zařízení: {{ selected_sarze.zarizeni }}</p>
+    {% endif %}
+  {% endwith %}
+
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+
+    {% for obj in queryset %}
+      <input type="hidden" name="{{ action_checkbox_name }}" value="{{ obj.pk }}">
+    {% endfor %}
+    <input type="hidden" name="action" value="{{ action_name }}">
+    <input type="hidden" name="apply" value="1">
+
+    <input type="submit" class="default" value="Potvrdit přesun">
+    <a href="{% url 'admin:orders_sarze_changelist' %}">Zpět</a>
+  </form>
+{% endblock %}

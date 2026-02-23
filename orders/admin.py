@@ -63,12 +63,13 @@ from .forms import (
     ZakazkaInlineForm,
     ZakazkaAdminForm,
     ZakazkaMeasurementForm,
+    SarzeMoveForm,
 )
 from .choices import (
     StavBednyChoice, RovnaniChoice, TryskaniChoice, ZinkovaniChoice, PrioritaChoice, KamionChoice, PrijemVydejChoice, SklademZakazkyChoice,
     BARVA_SKUPINY_TZ, STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM, STAV_BEDNY_PRO_NAVEZENI, STAV_BEDNY_KONTROLA_ZMENY_PRIORITY,
 )
-from .utils import utilita_validate_excel_upload, build_postup_vyroby_cases
+from .utils import utilita_validate_excel_upload, build_postup_vyroby_cases, truncate_with_title
 
 import logging
 logger = logging.getLogger('orders')
@@ -133,7 +134,7 @@ class ZarizeniAdmin(SimpleHistoryAdmin):
 @admin.register(Sarze)
 class SarzeAdmin(SimpleHistoryAdmin):
     list_display = ('get_cislo_sarze', 'get_kod_zarizeni', 'get_datum', 'zacatek', 'konec', 'operator',
-                    'cislo_pripravku', 'program', 'poznamka', 'alarm', 'get_prodleva', 'get_takt', 'get_bedny',)
+                    'cislo_pripravku', 'program', 'get_poznamka', 'get_alarm', 'get_prodleva', 'get_takt', 'get_bedny',)
     change_form_template = 'admin/orders/sarze/change_form.html'
     list_filter = (ZarizeniSarzeFilter,)
     search_fields = ('cislo_sarze', 'operator',)
@@ -141,6 +142,7 @@ class SarzeAdmin(SimpleHistoryAdmin):
     #readonly_fields = ('cislo_sarze',)
     ordering = ('-datum', '-zacatek',)
     inlines = [SarzeBednaInline]
+    actions = ['move_sarze_to_zarizeni']
     formfield_overrides = {
         models.TimeField: {'widget': forms.TimeInput(format='%H:%M')},
     }
@@ -180,6 +182,77 @@ class SarzeAdmin(SimpleHistoryAdmin):
     def get_takt(self, obj):
         return obj.takt
 
+    @admin.display(description='Poznámka', ordering='poznamka')
+    def get_poznamka(self, obj):
+        return truncate_with_title(obj.poznamka)
+
+    @admin.display(description='Alarm', ordering='alarm')
+    def get_alarm(self, obj):
+        return truncate_with_title(obj.alarm)
+
+    def get_readonly_fields(self, request, obj=None):
+        readonly_fields = list(super().get_readonly_fields(request, obj) or [])
+        if obj and 'zarizeni' not in readonly_fields:
+            readonly_fields.append('zarizeni')
+        return readonly_fields
+
+    @admin.action(description='Přesunout šarže na jiné zařízení')
+    def move_sarze_to_zarizeni(self, request, queryset):
+        if queryset.count() != 1:
+            self.message_user(
+                request,
+                f"Vyberte právě jednu šarži (vybráno: {queryset.count()}).",
+                messages.ERROR,
+            )
+            return
+
+        if request.POST.get('apply'):
+            form = SarzeMoveForm(request.POST)
+            if not form.is_valid():
+                self.message_user(request, "Vyplňte nové zařízení a důvod přesunu.", messages.ERROR)
+            else:
+                target_zarizeni = form.cleaned_data['target_zarizeni']
+                reason = form.cleaned_data['move_reason'].strip()
+
+                sarze = queryset.first()
+                if sarze.zarizeni_id == target_zarizeni.id:
+                    self.message_user(request, "Šarže už je na zvoleném zařízení.", messages.WARNING)
+                else:
+                    last_number = (
+                        Sarze.objects
+                        .filter(zarizeni=target_zarizeni)
+                        .aggregate(max_cislo=Max('cislo_sarze'))
+                        .get('max_cislo')
+                    ) or 0
+
+                    sarze.zarizeni = target_zarizeni
+                    sarze.cislo_sarze = last_number + 1
+                    sarze._change_reason = f"Přesun šarže: {reason}"
+                    sarze.save()
+
+                    self.message_user(
+                        request,
+                        f"Šarže byla přesunuta na {target_zarizeni.kod_zarizeni} a přečíslována.",
+                        messages.SUCCESS,
+                    )
+                    logger.info(
+                        f"Šarže {sarze.cislo_sarze_zobrazeni} přesunuta na zařízení {target_zarizeni.kod_zarizeni} z důvodu: {reason}"
+                    )
+                return
+        else:
+            form = SarzeMoveForm()
+
+        context = {
+            **self.admin_site.each_context(request),
+            'opts': self.model._meta,
+            'title': 'Přesunout šarži na jiné zařízení',
+            'queryset': queryset,
+            'action_checkbox_name': admin.helpers.ACTION_CHECKBOX_NAME,
+            'action_name': 'move_sarze_to_zarizeni',
+            'form': form,
+        }
+        return render(request, 'admin/orders/sarze/move_sarze_action.html', context)
+
     def response_add(self, request, obj, post_url_continue=None):
         if "_save_to_sarzebedna" in request.POST:
             return HttpResponseRedirect(reverse('admin:orders_sarzebedna_changelist'))
@@ -205,7 +278,7 @@ class SarzeBednaAdmin(SimpleHistoryAdmin):
     search_fields = ('sarze__cislo_sarze', 'bedna__cislo_bedny')
     autocomplete_fields = ('sarze', 'bedna')
     list_select_related = ('sarze', 'sarze__zarizeni', 'bedna')
-    ordering = ('-sarze__id', 'patro',)
+    ordering = ('-sarze__datum', '-sarze__zacatek', 'patro',)
 
     history_list_display = ["sarze", "bedna", "popis", "zakaznik_mimo_db", "patro", "procent_z_patra",]
     history_search_fields = ["sarze__cislo_sarze", "bedna__cislo_bedny", "popis", "zakaznik_mimo_db"]
@@ -261,7 +334,7 @@ class SarzeBednaAdmin(SimpleHistoryAdmin):
     def get_zkraceny_popis(self, obj):
         if obj.bedna and obj.bedna.zakazka:
             return obj.bedna.zakazka.zkraceny_popis
-        return self._truncate_with_title(obj.popis)
+        return truncate_with_title(obj.popis)
 
     @admin.display(description='Zákazník')
     def get_zakaznik(self, obj):
@@ -269,7 +342,7 @@ class SarzeBednaAdmin(SimpleHistoryAdmin):
             zakaznik = obj.bedna.zakazka.kamion_prijem.zakaznik
             return zakaznik.zkraceny_nazev if zakaznik.zkraceny_nazev else zakaznik.nazev
         else:
-            return obj.zakaznik_mimo_db if obj.zakaznik_mimo_db else '-'
+            return truncate_with_title(obj.zakaznik_mimo_db)
 
     @admin.display(description='Přípravek', ordering='sarze__cislo_pripravku')
     def get_cislo_pripravku(self, obj):
@@ -283,27 +356,16 @@ class SarzeBednaAdmin(SimpleHistoryAdmin):
     def get_zakazka_skupina(self, obj):
         if obj.bedna and obj.bedna.zakazka and obj.bedna.zakazka.predpis and obj.bedna.zakazka.predpis.skupina:
             return f"SK{obj.bedna.zakazka.predpis.skupina}"
-        return obj.zakazka_mimo_db if obj.zakazka_mimo_db else '-'
-
-    def _truncate_with_title(self, text, max_len=15):
-        if text is None:
-            return '-'
-        text = str(text)
-        if not text:
-            return '-'
-        if len(text) <= max_len:
-            return text
-        short = f"{text[:max_len]}..."
-        return format_html('<span title="{}">{}</span>', text, short)
+        return truncate_with_title(obj.zakazka_mimo_db)
 
     @admin.display(description='Poznámka', ordering='sarze__poznamka')
     def get_poznamka(self, obj):
-        return self._truncate_with_title(obj.sarze.poznamka) if obj.sarze else '-'
+        return truncate_with_title(obj.sarze.poznamka) if obj.sarze else '-'
     
     @admin.display(description='Alarm', ordering='sarze__alarm')
     def get_alarm(self, obj):
         alarm = obj.sarze.alarm if obj.sarze else None
-        return self._truncate_with_title(alarm)
+        return truncate_with_title(alarm)
 
     @admin.display(description='Prodleva (m)')
     def get_prodleva(self, obj):

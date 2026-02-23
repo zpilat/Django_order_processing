@@ -1450,12 +1450,17 @@ class Sarze(models.Model):
         if not self.zacatek or not self.datum:
             return '-'
 
-        cislo_predchozi_sarze = self.cislo_sarze - 1
-
-        predchozi_sarze = Sarze.objects.filter(
-            zarizeni=self.zarizeni,
-            cislo_sarze=cislo_predchozi_sarze,
-        ).first()
+        predchozi_sarze = (
+            Sarze.objects
+            .filter(zarizeni=self.zarizeni)
+            .exclude(pk=self.pk)
+            .filter(
+                Q(datum__lt=self.datum)
+                | Q(datum=self.datum, zacatek__lt=self.zacatek)
+            )
+            .order_by('-datum', '-zacatek')
+            .first()
+        )
 
         if (
             not predchozi_sarze
@@ -1595,13 +1600,21 @@ class SarzeBedna(models.Model):
         """
         True, pokud je tato bedna v rámci daného zařízení poprvé zpracována v této šarži.
         """
-        if not self.sarze or not self.bedna or not self.sarze.cislo_sarze or not self.sarze.zarizeni:
+        if (
+            not self.sarze
+            or not self.bedna
+            or not self.sarze.zarizeni
+            or not self.sarze.datum
+            or not self.sarze.zacatek
+        ):
             return False
 
         return not SarzeBedna.objects.filter(
             bedna=self.bedna,
             sarze__zarizeni=self.sarze.zarizeni,
-            sarze__cislo_sarze__lt=self.sarze.cislo_sarze,
+        ).exclude(sarze_id=self.sarze_id).filter(
+            Q(sarze__datum__lt=self.sarze.datum)
+            | Q(sarze__datum=self.sarze.datum, sarze__zacatek__lt=self.sarze.zacatek)
         ).exists()
 
 

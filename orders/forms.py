@@ -4,11 +4,24 @@ from django.utils import timezone
 
 from decimal import Decimal, ROUND_HALF_UP
 
-from .models import Zakaznik, Kamion, Zakazka, Bedna, Predpis, Odberatel, Pozice
+from .models import Zakaznik, Kamion, Zakazka, Bedna, Predpis, Odberatel, Pozice, Zarizeni
 from .choices import StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice, ZinkovaniChoice
 
 import logging
 logger = logging.getLogger('orders')
+
+
+class SarzeMoveForm(forms.Form):
+    target_zarizeni = forms.ModelChoiceField(
+        queryset=Zarizeni.objects.all(),
+        required=True,
+        label='Nové zařízení',
+    )
+    move_reason = forms.CharField(
+        required=True,
+        label='Důvod přesunu',
+        widget=forms.TextInput(attrs={'size': 40}),
+    )
 
 class ImportZakazekForm(forms.Form):
     file = forms.FileField(
