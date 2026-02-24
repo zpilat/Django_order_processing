@@ -211,30 +211,30 @@ def dashboard_bedny_view(request):
     )
 
     stavy = {
-        'Nepřijaté': {'stav_bedny': StavBednyChoice.NEPRIJATO},        
-        'Surové': {'stav_bedny__in': [StavBednyChoice.PRIJATO, StavBednyChoice.K_NAVEZENI, StavBednyChoice.NAVEZENO, StavBednyChoice.DO_ZPRACOVANI]},
-        '-> K navezení': {'stav_bedny': StavBednyChoice.K_NAVEZENI},
-        '-> Navezené': {'stav_bedny': StavBednyChoice.NAVEZENO},
-        'Zpracované': {'stav_bedny__in': [StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO, StavBednyChoice.K_EXPEDICI]},
-        '-> Ke kontrole': {'stav_bedny': StavBednyChoice.ZAKALENO},
-        '-> K tryskání': {'tryskat': TryskaniChoice.SPINAVA, 'stav_bedny__in': [StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO]},        
-        '-> Křivé': {'rovnat': RovnaniChoice.KRIVA, 'stav_bedny__in': [StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO]},
-        '-> Koulení': {'rovnat': RovnaniChoice.KOULENI, 'stav_bedny__in': [StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO]},
-        '-> Rovná se': {'rovnat': RovnaniChoice.ROVNA_SE, 'stav_bedny__in': [StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO]},
-        '-> Zinkovat': {'zinkovat': ZinkovaniChoice.ZINKOVAT, 'stav_bedny__in': [StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO]},
-        '-> V zinkovně': {'zinkovat': ZinkovaniChoice.V_ZINKOVNE},
-        '-> K exp. po bednách': {'stav_bedny': StavBednyChoice.K_EXPEDICI},
-        '--> K exp. po zakáz.': {'stav_bedny': StavBednyChoice.K_EXPEDICI, 'zakazka__in': kompletni_zakazky},
-        'Po exspiraci': {'stav_bedny__in': STAV_BEDNY_SKLADEM, 'zakazka__kamion_prijem__datum__lt': timezone.now().date() - timezone.timedelta(days=28)},
+        'Nepřijaté': ({'stav_bedny': StavBednyChoice.NEPRIJATO}, 'gray'),
+        'Surové': ({'stav_bedny__in': [StavBednyChoice.PRIJATO, StavBednyChoice.K_NAVEZENI, StavBednyChoice.NAVEZENO, StavBednyChoice.DO_ZPRACOVANI]}, "red"),
+        '-> K navezení': ({'stav_bedny': StavBednyChoice.K_NAVEZENI}, 'red'),
+        '-> Navezené': ({'stav_bedny': StavBednyChoice.NAVEZENO}, 'red'),
+        'Zpracované': ({'stav_bedny__in': [StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO, StavBednyChoice.K_EXPEDICI]}, 'orange'),
+        '-> Ke kontrole': ({'stav_bedny': StavBednyChoice.ZAKALENO}, 'orange'),
+        '-> K tryskání': ({'tryskat': TryskaniChoice.SPINAVA, 'stav_bedny__in': [StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO]}, 'yellowgreen'),
+        '-> Křivé': ({'rovnat': RovnaniChoice.KRIVA, 'stav_bedny__in': [StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO]}, 'blue'),
+        '-> Koulení': ({'rovnat': RovnaniChoice.KOULENI, 'stav_bedny__in': [StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO]}, 'blue'),
+        '-> Rovná se': ({'rovnat': RovnaniChoice.ROVNA_SE, 'stav_bedny__in': [StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO]}, 'blue'),
+        '-> Zinkovat': ({'zinkovat': ZinkovaniChoice.ZINKOVAT, 'stav_bedny__in': [StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO]}, 'violet'),
+        '-> V zinkovně': ({'zinkovat': ZinkovaniChoice.V_ZINKOVNE}, 'violet'),
+        '-> K exp. po bednách': ({'stav_bedny': StavBednyChoice.K_EXPEDICI}, 'green'),
+        '--> K exp. po zakáz.': ({'stav_bedny': StavBednyChoice.K_EXPEDICI, 'zakazka__in': kompletni_zakazky}, 'green'),
+        'Po exspiraci': ({'stav_bedny__in': STAV_BEDNY_SKLADEM, 'zakazka__kamion_prijem__datum__lt': timezone.now().date() - timezone.timedelta(days=28)}, '#ff66b3'),
     }
 
     zakaznici = list(Zakaznik.objects.values_list('zkraceny_nazev', flat=True).order_by('zkraceny_nazev')) + ['CELKEM']
-    prehled_beden_zakaznika = {zak: {stav: (0, 0) for stav in stavy} for zak in zakaznici}
+    prehled_beden_zakaznika = {zak: {stav: (0, 0, '') for stav in stavy} for zak in zakaznici}
 
-    for stav, filter_kwargs in stavy.items():
+    for stav, (filter_kwargs, color) in stavy.items():
         stav_data = get_stav_data(filter_kwargs)
         for zak in zakaznici:
-            prehled_beden_zakaznika[zak][stav] = stav_data.get(zak, (0, 0))
+            prehled_beden_zakaznika[zak][stav] = (stav_data.get(zak, (0, 0)) + (color,))
 
     stavy_bedny_list = list(stavy.keys())
 

@@ -32,10 +32,10 @@
                 {% else %}
                   <tr>
                 {% endif %}
-                    <td>{{ stav }}</td>
                     {% if bedna_row %}
-                      <td>{{ bedna_row.0 }}</td>
-                      <td>
+                      <td{% if bedna_row.2 %} style="color: {{ bedna_row.2 }};"{% endif %}>{{ stav }}</td>
+                      <td{% if bedna_row.2 %} style="color: {{ bedna_row.2 }};"{% endif %}>{{ bedna_row.0 }}</td>
+                      <td{% if bedna_row.2 %} style="color: {{ bedna_row.2 }};"{% endif %}>
                         {% if bedna_row.1 %}
                           {{ bedna_row.1|floatformat:1 }}
                         {% else %}
@@ -43,6 +43,7 @@
                         {% endif %}
                       </td>
                     {% else %}
+                      <td>{{ stav }}</td>
                       <td class="text-muted">–</td>
                       <td class="text-muted">–</td>
                     {% endif %}
