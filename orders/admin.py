@@ -141,6 +141,7 @@ class SarzeAdmin(SimpleHistoryAdmin):
     search_fields = ('cislo_sarze', 'operator',)
     autocomplete_fields = ('zarizeni',)
     readonly_fields = ('cislo_sarze',)
+    date_hierarchy = 'datum'
     ordering = ('-datum', '-zacatek',)
     inlines = [SarzeBednaInline]
     actions = ['move_sarze_to_zarizeni']
@@ -296,6 +297,7 @@ class SarzeBednaAdmin(SimpleHistoryAdmin):
     search_fields = ('sarze__cislo_sarze', 'bedna__cislo_bedny')
     autocomplete_fields = ('sarze', 'bedna')
     list_select_related = ('sarze', 'sarze__zarizeni', 'bedna')
+    date_hierarchy = 'sarze__datum'
     ordering = ('-sarze__datum', '-sarze__zacatek', 'patro',)
 
     history_list_display = ["sarze", "bedna", "popis", "zakaznik_mimo_db", "patro", "procent_z_patra",]
