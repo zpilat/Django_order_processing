@@ -1217,8 +1217,9 @@ class Bedna(models.Model):
         Pravidla pro výběr:
         - Pokud je stav_bedny K_EXPEDICI nebo EXPEDOVANO, nabídne pouze aktuální stav, stav rovnání už nejde měnit.
         - Pokud je rovnat nezadáno ('--------'), nabídne možnosti nezadáno, rovná a křivá.
-        - Pokud je rovnat křivá, nabídne nezadáno, křivá, rovná se a vyrovnaná.
-        - Pokud je rovnat rovná se, nabídne křivá, rovná se a vyrovnaná.
+        - Pokud je rovnat křivá, nabídne nezadáno, křivá, koulení, rovná se a vyrovnaná.
+        - Pokud je rovnat koulení, nabídne křivá, koulení, rovná se a vyrovnaná.
+        - Pokud je rovnat rovná se, nabídne křivá, koulení, rovná se a vyrovnaná.
         - Pokud je rovnat rovná, nabídne nezadáno a rovná.
         - Pokud je rovnat vyrovnaná, nabídne rovná se a vyrovnaná.
         """
@@ -1233,10 +1234,13 @@ class Bedna(models.Model):
             return [choice for choice in RovnaniChoice.choices if choice[0] in (RovnaniChoice.NEZADANO, RovnaniChoice.ROVNA, RovnaniChoice.KRIVA)]
         # KRIVA
         if curr == RovnaniChoice.KRIVA:
-            return [choice for choice in RovnaniChoice.choices if choice[0] in (RovnaniChoice.NEZADANO, RovnaniChoice.KRIVA, RovnaniChoice.ROVNA_SE, RovnaniChoice.VYROVNANA)]
+            return [choice for choice in RovnaniChoice.choices if choice[0] in (RovnaniChoice.NEZADANO, RovnaniChoice.KRIVA, RovnaniChoice.KOULENI, RovnaniChoice.ROVNA_SE, RovnaniChoice.VYROVNANA)]
+        # KOULENI
+        if curr == RovnaniChoice.KOULENI:
+            return [choice for choice in RovnaniChoice.choices if choice[0] in (RovnaniChoice.KRIVA, RovnaniChoice.KOULENI, RovnaniChoice.ROVNA_SE, RovnaniChoice.VYROVNANA)]
         # ROVNA_SE
         if curr == RovnaniChoice.ROVNA_SE:
-            return [choice for choice in RovnaniChoice.choices if choice[0] in (RovnaniChoice.KRIVA, RovnaniChoice.ROVNA_SE, RovnaniChoice.VYROVNANA)]
+            return [choice for choice in RovnaniChoice.choices if choice[0] in (RovnaniChoice.KRIVA, RovnaniChoice.KOULENI, RovnaniChoice.ROVNA_SE, RovnaniChoice.VYROVNANA)]
         # ROVNA
         if curr == RovnaniChoice.ROVNA:
             return [choice for choice in RovnaniChoice.choices if choice[0] in (RovnaniChoice.NEZADANO, RovnaniChoice.ROVNA)]

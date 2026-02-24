@@ -1614,6 +1614,56 @@ class StatusChangeActionsTests(ActionsBase):
             bedna.refresh_from_db()
             self.assertEqual(bedna.stav_bedny, StavBednyChoice.K_EXPEDICI)
 
+    def test_oznacit_kouleni_action_success_from_kriva(self):
+        admin_obj = self._messaging_admin()
+        self.bedna.rovnat = RovnaniChoice.KRIVA
+        self.bedna.save(update_fields=['rovnat'])
+
+        req = self.get_request('post')
+        resp = actions.oznacit_kouleni_action(admin_obj, req, Bedna.objects.filter(id=self.bedna.id))
+
+        self.assertIsNone(resp)
+        self.bedna.refresh_from_db()
+        self.assertEqual(self.bedna.rovnat, RovnaniChoice.KOULENI)
+
+    def test_oznacit_kouleni_action_rejects_non_kriva(self):
+        admin_obj = self._messaging_admin()
+        self.bedna.rovnat = RovnaniChoice.NEZADANO
+        self.bedna.save(update_fields=['rovnat'])
+
+        req = self.get_request('post')
+        resp = actions.oznacit_kouleni_action(admin_obj, req, Bedna.objects.filter(id=self.bedna.id))
+
+        self.assertIsNone(resp)
+        self.bedna.refresh_from_db()
+        self.assertEqual(self.bedna.rovnat, RovnaniChoice.NEZADANO)
+        self.assertTrue(any('KRIVA' in m for m in self._messages_texts(req)))
+
+    def test_oznacit_rovna_se_action_requires_kouleni_or_kriva(self):
+        admin_obj = self._messaging_admin()
+        self.bedna.rovnat = RovnaniChoice.NEZADANO
+        self.bedna.save(update_fields=['rovnat'])
+
+        req = self.get_request('post')
+        resp = actions.oznacit_rovna_se_action(admin_obj, req, Bedna.objects.filter(id=self.bedna.id))
+
+        self.assertIsNone(resp)
+        self.bedna.refresh_from_db()
+        self.assertEqual(self.bedna.rovnat, RovnaniChoice.NEZADANO)
+        self.assertTrue(any('KOULENI' in m for m in self._messages_texts(req)))
+
+    def test_oznacit_vyrovnana_action_accepts_kouleni(self):
+        admin_obj = self._messaging_admin()
+        self.bedna.rovnat = RovnaniChoice.KOULENI
+        self.bedna.save(update_fields=['rovnat'])
+
+        req = self.get_request('post')
+        resp = actions.oznacit_vyrovnana_action(admin_obj, req, Bedna.objects.filter(id=self.bedna.id))
+
+        self.assertIsNone(resp)
+        self.bedna.refresh_from_db()
+        self.assertEqual(self.bedna.rovnat, RovnaniChoice.VYROVNANA)
+
     def test_odeslat_na_zinkovani_action_updates_state_and_exports_csv(self):
         admin_obj = self._messaging_admin()
         self.zakazka.povrch = 'Zn'

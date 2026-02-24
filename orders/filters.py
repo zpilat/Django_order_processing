@@ -304,7 +304,7 @@ class RovnaniFilter(DynamicTitleFilter):
         self.label_dict.pop(RovnaniChoice.ROVNA)  # Odstraní rovná z možností filtru
         self.label_dict.pop(RovnaniChoice.VYROVNANA)  # Odstraní vyrovnaná z možností filtru
         self.label_dict[RovnaniChoice.NEZADANO] = 'Nezadáno'
-        self.label_dict['k_vyrovnani'] = 'Křivá & Rovná se'
+        self.label_dict['k_vyrovnani'] = 'Křivá & Koulení & Rovná se'
         self.label_dict['hotovo'] = 'Rovná & Vyrovnaná'
         super().__init__(request, params, model, model_admin)
 
@@ -316,7 +316,7 @@ class RovnaniFilter(DynamicTitleFilter):
         if value is None:
             return queryset
         if value == 'k_vyrovnani':
-            return queryset.filter(rovnat__in=(RovnaniChoice.KRIVA, RovnaniChoice.ROVNA_SE))
+            return queryset.filter(rovnat__in=(RovnaniChoice.KRIVA, RovnaniChoice.KOULENI, RovnaniChoice.ROVNA_SE))
         if value == 'hotovo':
             return queryset.filter(rovnat__in=(RovnaniChoice.ROVNA, RovnaniChoice.VYROVNANA))
         return queryset.filter(rovnat=value)

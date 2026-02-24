@@ -200,6 +200,19 @@ class BednaFiltersTests(FilterTestBase):
 		self.assertIn(self.b_hot, qs)
 		self.assertNotIn(self.b_pr, qs)
 
+	def test_rovnani_filter_k_vyrovnani_includes_kouleni(self):
+		b_kouleni = Bedna.objects.create(
+			zakazka=self.zak_new,
+			stav_bedny=StavBednyChoice.PRIJATO,
+			hmotnost=1,
+			tara=1,
+			mnozstvi=1,
+			rovnat=RovnaniChoice.KOULENI,
+		)
+		f = self._make_filter(F.RovnaniFilter, Bedna, params={"rovnani": "k_vyrovnani"})
+		qs = f.queryset(None, Bedna.objects.all())
+		self.assertIn(b_kouleni, qs)
+
 	def test_priorita_bedny_filter(self):
 		f = self._make_filter(F.PrioritaBednyFilter, Bedna, params={"priorita_bedny": PrioritaChoice.NIZKA})
 		qs = f.queryset(None, Bedna.objects.all())

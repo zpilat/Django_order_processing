@@ -44,7 +44,7 @@ from .actions import (
     oznacit_k_navezeni_action, vratit_bedny_ze_stavu_k_navezeni_do_stavu_prijato_action, oznacit_navezeno_action,
     oznacit_prijato_navezeno_action, vratit_bedny_z_rozpracovanosti_do_stavu_prijato_action, vratit_bedny_ze_stavu_navezeno_do_stavu_prijato_action,
     oznacit_do_zpracovani_action, oznacit_zakaleno_action, oznacit_zkontrolovano_action, oznacit_k_expedici_action, oznacit_rovna_action,
-    oznacit_kriva_action, oznacit_rovna_se_action, oznacit_vyrovnana_action, oznacit_cista_action, oznacit_spinava_action,
+    oznacit_kriva_action, oznacit_kouleni_action, oznacit_rovna_se_action, oznacit_vyrovnana_action, oznacit_cista_action, oznacit_spinava_action,
     oznacit_otryskana_action, odeslat_na_zinkovani_action, export_na_zinkovani_action, oznacit_k_zinkovani_action, oznacit_po_zinkovani_action,
     oznacit_uvolneno_action, prijmout_kamion_action, prijmout_zakazku_action, prijmout_bedny_action,
     export_bedny_to_csv_action, export_bedny_to_csv_customer_action, export_bedny_dl_action, tisk_rozpracovanost_action, tisk_prehledu_zakazek_kamionu_action, expedice_beden_action,
@@ -2361,7 +2361,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         oznacit_k_navezeni_action, oznacit_navezeno_action, oznacit_prijato_navezeno_action, vratit_bedny_ze_stavu_k_navezeni_do_stavu_prijato_action,
         vratit_bedny_ze_stavu_navezeno_do_stavu_prijato_action, vratit_bedny_z_rozpracovanosti_do_stavu_prijato_action,
         oznacit_do_zpracovani_action, oznacit_zakaleno_action, oznacit_zkontrolovano_action, oznacit_k_expedici_action,
-        oznacit_rovna_action, oznacit_kriva_action, oznacit_rovna_se_action, oznacit_vyrovnana_action,
+        oznacit_rovna_action, oznacit_kriva_action, oznacit_kouleni_action, oznacit_rovna_se_action, oznacit_vyrovnana_action,
         oznacit_cista_action, oznacit_spinava_action, oznacit_otryskana_action,
         oznacit_k_zinkovani_action, oznacit_po_zinkovani_action, oznacit_uvolneno_action, odeslat_na_zinkovani_action, export_na_zinkovani_action,
         prijmout_bedny_action, expedice_beden_action, expedice_beden_kamion_action,
@@ -3187,8 +3187,9 @@ class BednaAdmin(SimpleHistoryAdmin):
         Pokud není aktivní filtr stav bedny RO, zruší se akce pro vrácení bedny z rozpracovanosti do stavu PRIJATO.
         Pokud není aktivní filtr stav bedny K_EXPEDICI, zruší se akce expedice_beden a expedice_beden_kamion.
         Pokud není aktivní filtr rovnani NEZADANO, zruší se akce pro označení bedny jako ROVNA a KŘIVÁ.
-        Pokud není aktivní filtr rovnani KŘIVÁ, zruší se akce pro označení bedny jako ROVNÁ SE.
-        Pokud není aktivní filtr rovnani KŘIVÁ nebo ROVNÁ SE, zruší se akce pro označení bedny jako VYROVNANÁ.
+        Pokud není aktivní filtr rovnani KŘIVÁ nebo 'k_vyrovnani', zruší se akce pro označení bedny jako KOULENÍ.
+        Pokud není aktivní filtr rovnani KŘIVÁ, KOULENÍ nebo 'k_vyrovnani', zruší se akce pro označení bedny jako ROVNÁ SE.
+        Pokud není aktivní filtr rovnani KŘIVÁ, KOULENÍ, ROVNÁ SE nebo 'k_vyrovnani', zruší se akce pro označení bedny jako VYROVNANÁ.
         Pokud není aktivní filtr tryskani NEZADANO, zruší se akce pro označení bedny jako ČISTÁ a ŠPINAVÁ.
         Pokud není aktivní filtr tryskani ŠPINAVÁ nebo NEZADANO, zruší se akce pro označení bedny jako OTRYSKANÁ.
         Pokud není vůbec aktivní filtr stavu bedny nebo není aktivní filtr stavu bedny PRIJATO nebo K_NAVEZENI,
@@ -3266,11 +3267,15 @@ class BednaAdmin(SimpleHistoryAdmin):
                 actions_to_remove += [
                     'oznacit_rovna_action', 'oznacit_kriva_action',
                 ]
-            if rovnani_filter != RovnaniChoice.KRIVA:
+            if rovnani_filter not in [RovnaniChoice.KRIVA, 'k_vyrovnani']:
+                actions_to_remove += [
+                    'oznacit_kouleni_action',
+                ]
+            if rovnani_filter not in [RovnaniChoice.KRIVA, RovnaniChoice.KOULENI, 'k_vyrovnani']:
                 actions_to_remove += [
                     'oznacit_rovna_se_action',
                 ]
-            if rovnani_filter not in [RovnaniChoice.KRIVA, RovnaniChoice.ROVNA_SE]:
+            if rovnani_filter not in [RovnaniChoice.KRIVA, RovnaniChoice.KOULENI, RovnaniChoice.ROVNA_SE, 'k_vyrovnani']:
                 actions_to_remove += [
                     'oznacit_vyrovnana_action',
                 ]
@@ -3348,6 +3353,7 @@ class BednaAdmin(SimpleHistoryAdmin):
             'vratit_bedny_z_rozpracovanosti_do_stavu_prijato_action': 'Stav bedny',
             'oznacit_rovna_action': 'Rovnání',
             'oznacit_kriva_action': 'Rovnání',
+            'oznacit_kouleni_action': 'Rovnání',
             'oznacit_rovna_se_action': 'Rovnání',
             'oznacit_vyrovnana_action': 'Rovnání',
             'oznacit_cista_action': 'Tryskání',

@@ -50,6 +50,7 @@ class RovnaniChoice(models.TextChoices):
     NEZADANO = '--', '--------'
     ROVNA = 'RO', 'Rovná'
     KRIVA = 'KR', 'Křivá'
+    KOULENI = 'KO', 'Koulení'
     ROVNA_SE = 'RS', 'Rovná se'
     VYROVNANA = 'VY', 'Vyrovnaná'
 
