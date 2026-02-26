@@ -1817,6 +1817,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     # Parametry pro zobrazení detailu v administraci
     exclude = ('tvrdost_povrchu', 'tvrdost_jadra', 'ohyb', 'krut', 'hazeni')    
     readonly_fields = ('expedovano', 'get_komplet',)
+    autocomplete_fields = ('predpis',)
     
     # Parametry pro zobrazení seznamu v administraci
     list_display = ('artikl', 'get_datum_prijem', 'kamion_prijem_link', 'kamion_vydej_link', 'get_prumer', 'get_delka_int', 'predpis_link',
@@ -3597,7 +3598,7 @@ class PredpisAdmin(SimpleHistoryAdmin):
         is_predpis_inline_autocomplete = (
             request.path.endswith('/autocomplete/')
             and request.GET.get('app_label') == 'orders'
-            and request.GET.get('model_name') == 'cena'
+            and request.GET.get('model_name') in ('cena', 'zakazka')  # přizpůsobit podle toho, kde všude se používá autocomplete pro pole 'predpis'
             and request.GET.get('field_name') == 'predpis'
         )
 
