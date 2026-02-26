@@ -317,6 +317,8 @@ class SarzeAdmin(SimpleHistoryAdmin):
 
 @admin.register(SarzeBedna)
 class SarzeBednaAdmin(SimpleHistoryAdmin):
+    fields = ('sarze', 'bedna', 'popis', 'zakaznik_mimo_db', 'zakazka_mimo_db', 'cislo_bedny_mimo_db', 'patro', 'procent_z_patra',)
+    readonly_fields = ('sarze', 'bedna', 'popis', 'zakaznik_mimo_db', 'zakazka_mimo_db', 'cislo_bedny_mimo_db', 'patro', 'procent_z_patra',)
     list_display = (
         'get_sarze', 'get_kod_zarizeni', 'get_datum', 'get_zacatek', 'get_konec', 'get_operator',
         'get_zkraceny_popis', 'get_cislo_bedny', 'get_zakaznik', 'patro', #'get_procent_z_patra',
@@ -327,7 +329,7 @@ class SarzeBednaAdmin(SimpleHistoryAdmin):
     list_display_links = ('get_cislo_bedny',)
     list_filter = (ZarizeniSarzeBednaFilter,)
     search_fields = ('sarze__cislo_sarze', 'bedna__cislo_bedny')
-    autocomplete_fields = ('sarze', 'bedna')
+    autocomplete_fields = ('bedna',)
     list_select_related = ('sarze', 'sarze__zarizeni', 'bedna')
     date_hierarchy = 'sarze__datum'
     ordering = ('-sarze__datum', '-sarze__zacatek', 'patro',)
@@ -2505,6 +2507,10 @@ class BednaAdmin(SimpleHistoryAdmin):
         )
 
     def get_search_results(self, request, queryset, search_term):
+        """
+        Přizpůsobí výsledky hledání pro inline autocomplete pole 'bedna' v SarzeBednaAdmin,
+        aby se zobrazovaly pouze bedny se stavem bedny STAV_BEDNY_SKLADEM.
+        """
         queryset, use_distinct = super().get_search_results(request, queryset, search_term)
 
         is_sarze_inline_autocomplete = (
@@ -3563,8 +3569,8 @@ class PredpisAdmin(SimpleHistoryAdmin):
     list_display = ('nazev', 'skupina', 'get_zakaznik_zkraceny_nazev', 'ohyb', 'krut', 'povrch', 'jadro', 'vrstva', 'popousteni',
                     'sarzovani', 'pletivo', 'poznamka', 'aktivni')
     list_display_links = ('nazev',)
-    search_fields = ('nazev',)
-    search_help_text = "Dle názvu předpisu"
+    search_fields = ('nazev', 'zakaznik__zkraceny_nazev',)
+    search_help_text = "Dle názvu předpisu a zkratky zákazníka"
     list_filter = (ZakaznikPredpisFilter, AktivniPredpisFilter)
     ordering = ['-zakaznik__zkratka', 'nazev']
     list_per_page = 25
@@ -3578,6 +3584,26 @@ class PredpisAdmin(SimpleHistoryAdmin):
     @admin.display(description='Zákazník', ordering='zakaznik__zkraceny_nazev', empty_value='-')
     def get_zakaznik_zkraceny_nazev(self, obj):
         return obj.zakaznik.zkraceny_nazev if obj.zakaznik else '-'
+    
+    def get_search_results(self, request, queryset, search_term):
+        """
+        Přizpůsobení výsledků hledání pro inline autocomplete pole 'predpis' v modelu Cena,
+        zobrazí pouze aktivní předpisy a zároveň umožní hledat i v názvu zákazníka spojeného s předpisem.
+
+        """
+        queryset, use_distinct = super().get_search_results(request, queryset, search_term)
+
+        is_predpis_inline_autocomplete = (
+            request.path.endswith('/autocomplete/')
+            and request.GET.get('app_label') == 'orders'
+            and request.GET.get('model_name') == 'cena'
+            and request.GET.get('field_name') == 'predpis'
+        )
+
+        if is_predpis_inline_autocomplete:
+            queryset = queryset.filter(aktivni=True)
+
+        return queryset, use_distinct    
 
 
 @admin.register(Odberatel)
