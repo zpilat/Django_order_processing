@@ -1561,6 +1561,7 @@ class SarzeBedna(models.Model):
         Validace pro zajištění:
         Buď je vyplněna bedna, nebo popis, ale ne obojí současně.
         Buď je vyplněna bedna nebo číslo bedny pro "železo", zákazník pro "železo" a zakázka pro "železo", ale ne obojí současně.
+        Pokud je vyplněna bedna, musí být ve stavu bedny STAV_BEDNY_SKLADEM.
         Pokud je vyplněn popis, musí být také vyplněn zákazník mimo databázi a zakázka mimo databázi.
         """
         super().clean()
@@ -1586,6 +1587,18 @@ class SarzeBedna(models.Model):
         for field_name, error_message in mutually_exclusive_with_bedna:
             if self.bedna and getattr(self, field_name):
                 raise ValidationError(_(error_message))
+
+        if self.bedna:
+            allowed_states = {
+                state.value if hasattr(state, 'value') else state
+                for state in STAV_BEDNY_SKLADEM
+            }
+            if self.bedna.stav_bedny not in allowed_states:
+                raise ValidationError(
+                    _(
+                        "Vybraná bedna musí být ve stavu skladem."
+                    )
+                )
 
         required_with_popis = [
             (

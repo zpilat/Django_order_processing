@@ -11,7 +11,7 @@ from decimal import Decimal
 from datetime import date, time
 from unittest.mock import patch
 
-from orders.admin import KamionAdmin, ZakazkaAdmin, BednaAdmin, BednaInline, NotificationAdmin, SarzeAdmin
+from orders.admin import KamionAdmin, ZakazkaAdmin, BednaAdmin, BednaInline, NotificationAdmin, SarzeAdmin, SarzeBednaInline
 from orders.forms import ImportZakazekForm
 from orders.models import Zakaznik, Kamion, Zakazka, Bedna, Predpis, TypHlavy, Odberatel, Cena, Notification, PriorityNotificationRecipient, Zarizeni, Sarze
 from orders.choices import StavBednyChoice, SklademZakazkyChoice, PrijemVydejChoice, KamionChoice, ZinkovaniChoice, PrioritaChoice
@@ -1321,3 +1321,116 @@ class SarzeAdminMoveTests(AdminBase):
                 history_change_reason='Přesun šarže: Bez prava'
             ).exists()
         )
+
+
+class SarzeBednaInlineAdminTests(AdminBase):
+    def setUp(self):
+        self.sarze_inline = SarzeBednaInline(Sarze, self.site)
+        self.zarizeni = Zarizeni.objects.create(
+            kod_zarizeni='SZ1',
+            nazev_zarizeni='Sarze Zarizeni',
+            zkraceny_nazev_zarizeni='SZ1',
+            prefix_sarze='SZ1',
+        )
+        self.sarze = Sarze.objects.create(
+            zarizeni=self.zarizeni,
+            cislo_sarze=10,
+            datum=date.today(),
+            zacatek=time(8, 0),
+            operator='OP',
+            program='P1',
+        )
+
+    def test_sarze_inline_bedna_autocomplete_supports_zakaznik_zkratka_and_filters_only_skladem(self):
+        self.client.force_login(self.user)
+
+        zakaznik = Zakaznik.objects.create(
+            nazev='AutoSearch',
+            zkraceny_nazev='AS',
+            zkratka='ZKRTEST',
+            ciselna_rada=200000,
+        )
+        kamion = Kamion.objects.create(zakaznik=zakaznik, datum=date.today())
+        zakazka = Zakazka.objects.create(
+            kamion_prijem=kamion,
+            artikl='AUT-1',
+            prumer=Decimal('10.0'),
+            delka=Decimal('20.0'),
+            predpis=self.predpis,
+            typ_hlavy=self.typ_hlavy,
+            popis='autocomplete',
+        )
+
+        skladem_bedna = Bedna.objects.create(
+            zakazka=zakazka,
+            hmotnost=Decimal('1.0'),
+            tara=Decimal('1.0'),
+            mnozstvi=1,
+            stav_bedny=StavBednyChoice.PRIJATO,
+        )
+        ne_skladem_bedna = Bedna.objects.create(
+            zakazka=zakazka,
+            hmotnost=Decimal('1.0'),
+            tara=Decimal('1.0'),
+            mnozstvi=1,
+            stav_bedny=StavBednyChoice.EXPEDOVANO,
+        )
+
+        response = self.client.get(
+            reverse('admin:autocomplete'),
+            {
+                'app_label': 'orders',
+                'model_name': 'sarzebedna',
+                'field_name': 'bedna',
+                'term': 'ZKRTEST',
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        returned_ids = {item['id'] for item in payload.get('results', [])}
+
+        self.assertIn(str(skladem_bedna.pk), returned_ids)
+        self.assertNotIn(str(ne_skladem_bedna.pk), returned_ids)
+
+    def test_sarze_inline_formset_rejects_bedna_outside_skladem_states(self):
+        request = self.factory.get('/admin/orders/sarze/')
+        request.user = self.user
+
+        formset_class = self.sarze_inline.get_formset(request, obj=self.sarze)
+        prefix = formset_class.get_default_prefix()
+
+        bedna_mimo_skladem = Bedna.objects.create(
+            zakazka=Zakazka.objects.create(
+                kamion_prijem=self.kamion,
+                artikl='BAD-1',
+                prumer=Decimal('9.0'),
+                delka=Decimal('30.0'),
+                predpis=self.predpis,
+                typ_hlavy=self.typ_hlavy,
+                popis='bad inline',
+            ),
+            hmotnost=Decimal('1.0'),
+            tara=Decimal('1.0'),
+            mnozstvi=1,
+            stav_bedny=StavBednyChoice.EXPEDOVANO,
+        )
+
+        data = {
+            f'{prefix}-TOTAL_FORMS': '1',
+            f'{prefix}-INITIAL_FORMS': '0',
+            f'{prefix}-MIN_NUM_FORMS': '0',
+            f'{prefix}-MAX_NUM_FORMS': '1000',
+            f'{prefix}-0-bedna': str(bedna_mimo_skladem.pk),
+            f'{prefix}-0-patro': '1',
+            f'{prefix}-0-procent_z_patra': '100',
+            f'{prefix}-0-popis': '',
+            f'{prefix}-0-zakaznik_mimo_db': '',
+            f'{prefix}-0-zakazka_mimo_db': '',
+            f'{prefix}-0-cislo_bedny_mimo_db': '',
+        }
+
+        formset = formset_class(data=data, instance=self.sarze, prefix=prefix)
+
+        self.assertFalse(formset.is_valid())
+        self.assertTrue(any('nejsou ve stavu skladem' in str(err) for err in formset.non_form_errors()))

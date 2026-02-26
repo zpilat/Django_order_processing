@@ -463,12 +463,26 @@ class TestSarzeModels(ModelsBase):
             sb.full_clean()
 
     def test_sarzebedna_clean_valid_bedna(self):
+        self.bedna1.stav_bedny = StavBednyChoice.PRIJATO
+        self.bedna1.save(update_fields=['stav_bedny'])
         sb = SarzeBedna(
             sarze=self.sarze_base,
             bedna=self.bedna1,
             patro=1,
         )
         sb.full_clean()
+
+    def test_sarzebedna_clean_rejects_bedna_not_in_skladem_states(self):
+        self.bedna1.stav_bedny = StavBednyChoice.NEPRIJATO
+        self.bedna1.save(update_fields=['stav_bedny'])
+
+        sb = SarzeBedna(
+            sarze=self.sarze_base,
+            bedna=self.bedna1,
+            patro=1,
+        )
+        with self.assertRaises(ValidationError):
+            sb.full_clean()
 
     def test_sarzebedna_clean_valid_popis_and_customer(self):
         sb = SarzeBedna(

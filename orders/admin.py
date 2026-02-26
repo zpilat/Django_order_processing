@@ -75,12 +75,44 @@ import logging
 logger = logging.getLogger('orders')
 
 
+class SarzeBednaInlineFormSet(BaseInlineFormSet):
+    def clean(self):
+        super().clean()
+
+        allowed_states = {
+            state.value if hasattr(state, 'value') else state
+            for state in STAV_BEDNY_SKLADEM
+        }
+        invalid_bedna_numbers = []
+
+        for form in self.forms:
+            if not hasattr(form, 'cleaned_data'):
+                continue
+            if form.cleaned_data.get('DELETE'):
+                continue
+
+            bedna = form.cleaned_data.get('bedna')
+            if not bedna:
+                continue
+
+            if bedna.stav_bedny not in allowed_states:
+                invalid_bedna_numbers.append(str(bedna.cislo_bedny))
+
+        if invalid_bedna_numbers:
+            raise ValidationError(
+                _(
+                    f"Některé vybrané bedny nejsou ve stavu skladem: {', '.join(invalid_bedna_numbers)}."
+                )
+            )
+
+
 class SarzeBednaInline(admin.TabularInline):
     """
     Inline pro správu vztahu mezi Sarze a Bedna v administraci.
     """
     model = SarzeBedna
     # extra se dynamicky nastavuje v get_extra, defaultně 5 pro nový objekt Sarze, 0 pro existující
+    formset = SarzeBednaInlineFormSet
     autocomplete_fields = ('bedna',)
     fields = (
         'bedna', 'patro', 'procent_z_patra', 'popis', 'zakaznik_mimo_db', 'zakazka_mimo_db', 'cislo_bedny_mimo_db',
@@ -2384,7 +2416,13 @@ class BednaAdmin(SimpleHistoryAdmin):
     list_display_links = ('get_cislo_bedny', )
     list_select_related = ("zakazka", "zakazka__kamion_prijem", "zakazka__kamion_vydej")
     list_per_page = 50
-    search_fields = ('cislo_bedny', 'behalter_nr', 'zakazka__artikl', 'zakazka__popis')
+    search_fields = (
+        'cislo_bedny',
+        'behalter_nr',
+        'zakazka__artikl',
+        'zakazka__popis',
+        'zakazka__kamion_prijem__zakaznik__zkratka',
+    )
     search_help_text = "Dle čísla bedny, č.b. zákazníka, zakázky a popisu zakázky"
     list_filter = (
         ZakaznikBednyFilter, StavBednyFilter, TryskaniFilter, RovnaniFilter, ZinkovaniFilter, SkupinaFilter,
@@ -2465,6 +2503,21 @@ class BednaAdmin(SimpleHistoryAdmin):
             sortable_by,
             self.search_help_text,
         )
+
+    def get_search_results(self, request, queryset, search_term):
+        queryset, use_distinct = super().get_search_results(request, queryset, search_term)
+
+        is_sarze_inline_autocomplete = (
+            request.path.endswith('/autocomplete/')
+            and request.GET.get('app_label') == 'orders'
+            and request.GET.get('model_name') == 'sarzebedna'
+            and request.GET.get('field_name') == 'bedna'
+        )
+
+        if is_sarze_inline_autocomplete:
+            queryset = queryset.filter(stav_bedny__in=STAV_BEDNY_SKLADEM)
+
+        return queryset, use_distinct
 
     def get_urls(self):
         urls = super().get_urls()
