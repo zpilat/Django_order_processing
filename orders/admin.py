@@ -3566,6 +3566,7 @@ class PredpisAdmin(SimpleHistoryAdmin):
     Správa předpisů v administraci.
     """
     save_as = True
+    change_form_template = 'admin/orders/predpis/change_form.html'
     list_display = ('nazev', 'skupina', 'get_zakaznik_zkraceny_nazev', 'ohyb', 'krut', 'povrch', 'jadro', 'vrstva', 'popousteni',
                     'sarzovani', 'pletivo', 'poznamka', 'aktivni')
     list_display_links = ('nazev',)
@@ -3603,7 +3604,73 @@ class PredpisAdmin(SimpleHistoryAdmin):
         if is_predpis_inline_autocomplete:
             queryset = queryset.filter(aktivni=True)
 
-        return queryset, use_distinct    
+        return queryset, use_distinct
+
+    def changeform_view(self, request, object_id=None, form_url='', extra_context=None):
+        if request.method == 'POST' and '_saveasnew_copy_ceny_deactivate' in request.POST:
+            post_data = request.POST.copy()
+            post_data['_saveasnew'] = '1'
+            request.POST = post_data
+        return super().changeform_view(request, object_id=object_id, form_url=form_url, extra_context=extra_context)
+
+    def _get_source_predpis_id(self, request, predpis_obj):
+        resolver_match = getattr(request, 'resolver_match', None)
+        source_predpis_id = None
+        if resolver_match and getattr(resolver_match, 'kwargs', None):
+            source_predpis_id = resolver_match.kwargs.get('object_id')
+
+        if not source_predpis_id or not predpis_obj or not predpis_obj.pk:
+            return None
+        if str(source_predpis_id) == str(predpis_obj.pk):
+            return None
+        return source_predpis_id
+
+    def _copy_cena_relations_on_saveasnew_copy_ceny_deactivate(self, request, predpis_obj):
+        if '_saveasnew_copy_ceny_deactivate' not in request.POST or not predpis_obj or not predpis_obj.pk:
+            return
+
+        source_predpis_id = self._get_source_predpis_id(request, predpis_obj)
+        if not source_predpis_id:
+            return
+
+        through_model = Cena.predpis.through
+        source_cena_ids = list(
+            through_model.objects
+            .filter(predpis_id=source_predpis_id)
+            .values_list('cena_id', flat=True)
+            .distinct()
+        )
+        if not source_cena_ids:
+            return
+
+        existing_cena_ids = set(
+            through_model.objects
+            .filter(predpis_id=predpis_obj.pk, cena_id__in=source_cena_ids)
+            .values_list('cena_id', flat=True)
+        )
+
+        to_create = [
+            through_model(cena_id=cena_id, predpis_id=predpis_obj.pk)
+            for cena_id in source_cena_ids
+            if cena_id not in existing_cena_ids
+        ]
+        if to_create:
+            through_model.objects.bulk_create(to_create)
+
+    def _deactivate_source_predpis_on_saveasnew_copy_ceny_deactivate(self, request, predpis_obj):
+        if '_saveasnew_copy_ceny_deactivate' not in request.POST:
+            return
+
+        source_predpis_id = self._get_source_predpis_id(request, predpis_obj)
+        if not source_predpis_id:
+            return
+
+        Predpis.objects.filter(pk=source_predpis_id, aktivni=True).update(aktivni=False)
+
+    def save_related(self, request, form, formsets, change):
+        super().save_related(request, form, formsets, change)
+        self._copy_cena_relations_on_saveasnew_copy_ceny_deactivate(request, form.instance)
+        self._deactivate_source_predpis_on_saveasnew_copy_ceny_deactivate(request, form.instance)
 
 
 @admin.register(Odberatel)

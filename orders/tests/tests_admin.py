@@ -10,8 +10,9 @@ from django.urls import reverse
 from decimal import Decimal
 from datetime import date, time
 from unittest.mock import patch
+from types import SimpleNamespace
 
-from orders.admin import KamionAdmin, ZakazkaAdmin, BednaAdmin, BednaInline, NotificationAdmin, SarzeAdmin, SarzeBednaInline
+from orders.admin import KamionAdmin, ZakazkaAdmin, BednaAdmin, BednaInline, NotificationAdmin, SarzeAdmin, SarzeBednaInline, PredpisAdmin
 from orders.forms import ImportZakazekForm
 from orders.models import Zakaznik, Kamion, Zakazka, Bedna, Predpis, TypHlavy, Odberatel, Cena, Notification, PriorityNotificationRecipient, Zarizeni, Sarze
 from orders.choices import StavBednyChoice, SklademZakazkyChoice, PrijemVydejChoice, KamionChoice, ZinkovaniChoice, PrioritaChoice
@@ -1434,3 +1435,88 @@ class SarzeBednaInlineAdminTests(AdminBase):
 
         self.assertFalse(formset.is_valid())
         self.assertTrue(any('nejsou ve stavu skladem' in str(err) for err in formset.non_form_errors()))
+
+
+class PredpisAdminSaveAsTests(AdminBase):
+    def setUp(self):
+        self.admin = PredpisAdmin(Predpis, self.site)
+
+    def test_saveasnew_copies_cena_relations_from_source_predpis(self):
+        source_predpis = Predpis.objects.create(
+            nazev='P-SRC',
+            skupina=1,
+            zakaznik=self.zakaznik,
+            aktivni=False,
+        )
+        new_predpis = Predpis.objects.create(
+            nazev='P-NEW',
+            skupina=1,
+            zakaznik=self.zakaznik,
+            aktivni=True,
+        )
+
+        cena_1 = Cena.objects.create(
+            popis='C1',
+            zakaznik=self.zakaznik,
+            delka_min=Decimal('10.0'),
+            delka_max=Decimal('20.0'),
+            cena_za_kg=Decimal('1.00'),
+        )
+        cena_2 = Cena.objects.create(
+            popis='C2',
+            zakaznik=self.zakaznik,
+            delka_min=Decimal('20.0'),
+            delka_max=Decimal('30.0'),
+            cena_za_kg=Decimal('1.10'),
+        )
+        cena_1.predpis.add(source_predpis)
+        cena_2.predpis.add(source_predpis)
+
+        request = self.factory.post(
+            f'/admin/orders/predpis/{source_predpis.pk}/change/',
+            data={'_saveasnew_copy_ceny_deactivate': '1'},
+        )
+        request.user = self.user
+        request.resolver_match = SimpleNamespace(kwargs={'object_id': str(source_predpis.pk)})
+
+        self.admin._copy_cena_relations_on_saveasnew_copy_ceny_deactivate(request, new_predpis)
+        self.admin._copy_cena_relations_on_saveasnew_copy_ceny_deactivate(request, new_predpis)
+
+        self.assertTrue(cena_1.predpis.filter(pk=new_predpis.pk).exists())
+        self.assertTrue(cena_2.predpis.filter(pk=new_predpis.pk).exists())
+
+        through_model = Cena.predpis.through
+        self.assertEqual(
+            through_model.objects.filter(cena_id=cena_1.pk, predpis_id=new_predpis.pk).count(),
+            1,
+        )
+        self.assertEqual(
+            through_model.objects.filter(cena_id=cena_2.pk, predpis_id=new_predpis.pk).count(),
+            1,
+        )
+
+    def test_saveasnew_can_deactivate_source_predpis(self):
+        source_predpis = Predpis.objects.create(
+            nazev='P-SRC-ACTIVE',
+            skupina=1,
+            zakaznik=self.zakaznik,
+            aktivni=True,
+        )
+        new_predpis = Predpis.objects.create(
+            nazev='P-NEW-ACTIVE',
+            skupina=1,
+            zakaznik=self.zakaznik,
+            aktivni=True,
+        )
+
+        request = self.factory.post(
+            f'/admin/orders/predpis/{source_predpis.pk}/change/',
+            data={'_saveasnew_copy_ceny_deactivate': '1'},
+        )
+        request.user = self.user
+        request.resolver_match = SimpleNamespace(kwargs={'object_id': str(source_predpis.pk)})
+
+        self.admin._deactivate_source_predpis_on_saveasnew_copy_ceny_deactivate(request, new_predpis)
+        source_predpis.refresh_from_db()
+
+        self.assertFalse(source_predpis.aktivni)

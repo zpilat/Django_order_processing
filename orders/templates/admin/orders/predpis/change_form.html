@@ -1,0 +1,20 @@
+{% extends "admin/change_form.html" %}
+{% load i18n admin_modify %}
+
+{% block submit_buttons_top %}
+    {% submit_row %}
+{% endblock %}
+
+{% block submit_buttons_bottom %}
+    {% submit_row %}
+    {% if change and has_change_permission and not is_popup %}
+        <div class="submit-row">
+            <input
+                type="submit"
+                name="_saveasnew_copy_ceny_deactivate"
+                style="background-color: orange; border-color: black; color: black;"
+                value="{% trans 'Uložit jako novou položku včetně přiřazených cen + deaktivovat původní předpis' %}"
+            >
+        </div>
+    {% endif %}
+{% endblock %}
