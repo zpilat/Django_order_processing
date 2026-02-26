@@ -3765,9 +3765,9 @@ class CenaAdmin(SimpleHistoryAdmin):
         Zobrazí názvy předpisů spojených s cenou a umožní třídění podle hlavičky pole.
         Pokud není žádný předpis spojen, vrátí prázdný řetězec.
         """
-        if obj.predpis.exists():
+        if obj.predpis.filter(aktivni=True).exists():
             predpisy_text = []
-            for predpis in obj.predpis.all():
+            for predpis in obj.predpis.filter(aktivni=True).order_by('nazev'):
                 aktivni_text = "A" if predpis.aktivni else "N"
                 predpis_text = f"{predpis.nazev}-{aktivni_text}"
                 predpisy_text.append(predpis_text)
