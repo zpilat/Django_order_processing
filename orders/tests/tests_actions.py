@@ -1087,6 +1087,42 @@ class ExportBednyCsvActionTests(ActionsBase):
             ['ART1', str(bedna.behalter_nr), '10,5 x 20', 'Krumm', '', '', str(bedna.cislo_bedny)],
         )
 
+    def test_export_bedny_to_csv_customer_action_orders_like_dl(self):
+        zak2 = Zakazka.objects.create(
+            kamion_prijem=self.kamion_prijem,
+            artikl='A2',
+            prumer=1,
+            delka=1,
+            predpis=self.predpis,
+            typ_hlavy=self.typ_hlavy,
+            popis='p2',
+        )
+        b1 = Bedna.objects.create(
+            zakazka=self.zakazka,
+            hmotnost=Decimal('1.0'),
+            tara=Decimal('1.0'),
+            mnozstvi=1,
+            cislo_bedny=999,
+            stav_bedny=StavBednyChoice.PRIJATO,
+        )
+        b2 = Bedna.objects.create(
+            zakazka=zak2,
+            hmotnost=Decimal('1.0'),
+            tara=Decimal('1.0'),
+            mnozstvi=1,
+            cislo_bedny=100,
+            stav_bedny=StavBednyChoice.PRIJATO,
+        )
+
+        req = self.get_request('post')
+        qs = Bedna.objects.filter(id__in=[b1.id, b2.id]).order_by('-id')
+        resp = actions.export_bedny_to_csv_customer_action(self.bedna_admin, req, qs)
+        self.assertIsInstance(resp, HttpResponse)
+
+        rows = list(csv.reader(io.StringIO(resp.content.decode('utf-8-sig')), delimiter=';'))
+        self.assertEqual(rows[1][0], self.zakazka.artikl)
+        self.assertEqual(rows[2][0], zak2.artikl)
+
     def test_export_bedny_dl_action_requires_allowed_status_and_single_customer(self):
         self.bedna.stav_bedny = StavBednyChoice.PRIJATO
         self.bedna.save()
@@ -1157,6 +1193,38 @@ class ExportBednyCsvActionTests(ActionsBase):
             'P1', 'A99', 'S1', '', '3,2', '5,5 x 10', str(self.zakazka.typ_hlavy), 'Pop',
             'OBR', 'VR', '99', 'Info', 'L1', 'FA1', 'sandgestrahlt'
         ])
+
+    def test_export_bedny_dl_action_orders_like_dl(self):
+        self.bedna.stav_bedny = StavBednyChoice.EXPEDOVANO
+        self.bedna.cislo_bedny = 999
+        self.bedna.save(update_fields=['stav_bedny', 'cislo_bedny'])
+
+        zak2 = Zakazka.objects.create(
+            kamion_prijem=self.kamion_prijem,
+            artikl='B2',
+            prumer=1,
+            delka=1,
+            predpis=self.predpis,
+            typ_hlavy=self.typ_hlavy,
+            popis='p2',
+        )
+        b2 = Bedna.objects.create(
+            zakazka=zak2,
+            hmotnost=Decimal('1.0'),
+            tara=Decimal('1.0'),
+            mnozstvi=1,
+            cislo_bedny=100,
+            stav_bedny=StavBednyChoice.EXPEDOVANO,
+        )
+
+        req = self.get_request('post')
+        qs = Bedna.objects.filter(id__in=[self.bedna.id, b2.id]).order_by('-id')
+        resp = actions.export_bedny_dl_action(self.bedna_admin, req, qs)
+        self.assertIsInstance(resp, HttpResponse)
+
+        rows = list(csv.reader(io.StringIO(resp.content.decode('utf-8-sig')), delimiter=';'))
+        self.assertEqual(rows[1][1], self.zakazka.artikl)
+        self.assertEqual(rows[2][1], zak2.artikl)
 
 
 class BednaAdminPollingTests(ActionsBase):
@@ -1718,6 +1786,46 @@ class StatusChangeActionsTests(ActionsBase):
         self.assertEqual(bedna.zinkovat, ZinkovaniChoice.V_ZINKOVNE)
         rows = list(csv.reader(io.StringIO(resp.content.decode('utf-8-sig')), delimiter=';'))
         self.assertEqual(rows[1][0], '321')
+
+    def test_export_na_zinkovani_action_orders_like_dl(self):
+        admin_obj = self._messaging_admin()
+
+        b1 = self._create_bedna_in_state(
+            StavBednyChoice.ZKONTROLOVANO,
+            zinkovat=ZinkovaniChoice.V_ZINKOVNE,
+        )
+        b1.cislo_bedny = 999
+        b1.save(update_fields=['cislo_bedny'])
+
+        zak2 = Zakazka.objects.create(
+            kamion_prijem=self.kamion_prijem,
+            artikl='A2',
+            prumer=1,
+            delka=1,
+            predpis=self.predpis,
+            typ_hlavy=self.typ_hlavy,
+            popis='p2',
+        )
+        b2 = Bedna.objects.create(
+            zakazka=zak2,
+            hmotnost=Decimal('1.0'),
+            tara=Decimal('1.0'),
+            mnozstvi=1,
+            cislo_bedny=100,
+            stav_bedny=StavBednyChoice.ZKONTROLOVANO,
+            zinkovat=ZinkovaniChoice.V_ZINKOVNE,
+        )
+
+        req = self.get_request('post')
+        qs = Bedna.objects.filter(id__in=[b1.id, b2.id]).order_by('-id')
+        resp = actions.export_na_zinkovani_action(admin_obj, req, qs)
+
+        self.assertIsNotNone(resp)
+        b1.refresh_from_db()
+        b2.refresh_from_db()
+        rows = list(csv.reader(io.StringIO(resp.content.decode('utf-8-sig')), delimiter=';'))
+        self.assertEqual(rows[1][0], str(b1.cislo_bedny))
+        self.assertEqual(rows[2][0], str(b2.cislo_bedny))
 
     def test_odeslat_na_zinkovani_action_requires_correct_state(self):
         admin_obj = self._messaging_admin()

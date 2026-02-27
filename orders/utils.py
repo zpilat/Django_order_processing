@@ -181,8 +181,9 @@ def _format_decimal_csv(value):
     return text.replace('.', ',')
 
 
-def utilita_export_beden_zinkovani_csv(bedny_qs, filename_prefix="bedny_zinkovani"):
-    rows = list(bedny_qs.select_related('zakazka').order_by('cislo_bedny'))
+def utilita_export_beden_zinkovani_csv(bedny_qs, filename_prefix="bedny_zinkovani", sort_like_dl=False):
+    order_fields = ('zakazka_id', 'id') if sort_like_dl else ('cislo_bedny',)
+    rows = list(bedny_qs.select_related('zakazka').order_by(*order_fields))
 
     response = HttpResponse(content_type='text/csv; charset=utf-8')
     filename = f"{filename_prefix}_{timezone.now().strftime('%Y%m%d_%H%M%S')}.csv"

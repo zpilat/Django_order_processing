@@ -375,7 +375,7 @@ def export_bedny_to_csv_customer_action(modeladmin, request, queryset):
     queryset = queryset.select_related(
         'zakazka',
         'zakazka__kamion_prijem',
-    )
+    ).order_by('zakazka_id', 'id')
 
     is_rovnani_export = request.GET.get('rovnani', '') == 'k_vyrovnani'
     filename_suffix = 'rovnani' if is_rovnani_export else 'expedice'
@@ -462,7 +462,7 @@ def export_bedny_dl_action(modeladmin, request, queryset):
         'zakazka',
         'zakazka__typ_hlavy',
         'zakazka__kamion_prijem__zakaznik',
-    )
+    ).order_by('zakazka_id', 'id')
 
     response = HttpResponse(content_type='text/csv; charset=utf-8')
     filename = f"bedny_{zakaznik_zkratka}_dl_{timezone.now().strftime('%Y%m%d_%H%M%S')}.csv"
@@ -1679,7 +1679,7 @@ def odeslat_na_zinkovani_action(modeladmin, request, queryset):
     logger.info(
         f"Uživatel {getattr(request, 'user', None)} označil {export_qs.count()} beden na zinkování a vyexportoval DL do CSV.",
     )
-    return utilita_export_beden_zinkovani_csv(export_qs, filename_prefix="bedny_na_zinkovani")
+    return utilita_export_beden_zinkovani_csv(export_qs, filename_prefix="bedny_na_zinkovani", sort_like_dl=True)
 
 
 @admin.action(description="Export beden se stavem V ZINKOVNĚ do DL", permissions=('change',))
@@ -1704,7 +1704,11 @@ def export_na_zinkovani_action(modeladmin, request, queryset):
     logger.info(
         f"Uživatel {getattr(request, 'user', None)} vyexportoval {queryset.count()} beden se zinkováním V ZINKOVNĚ do DL.",
     )
-    return utilita_export_beden_zinkovani_csv(queryset, filename_prefix="bedny_na_zinkovani")
+    return utilita_export_beden_zinkovani_csv(
+        queryset,
+        filename_prefix="bedny_na_zinkovani",
+        sort_like_dl=True,
+    )
 
 @admin.action(description="Změna stavu zinkování na ZINKOVAT", permissions=('change',))
 def oznacit_k_zinkovani_action(modeladmin, request, queryset):
