@@ -1057,10 +1057,18 @@ class ExportBednyCsvActionTests(ActionsBase):
         content = resp.content.decode('utf-8-sig')
         rows = list(csv.reader(io.StringIO(content), delimiter=';'))
 
-        self.assertEqual(rows[0], ['Artikel-Nr.', 'Behälter-Nr.', 'Abmessung', 'Kopf', 'Bezeichnung', 'HPM-Nr.'])
+        self.assertEqual(rows[0], ['Artikel-Nr.', 'Behälter-Nr.', 'Abmessung', 'Kopf', 'Bezeichnung', 'HPM-Nr.', 'kg'])
         self.assertEqual(
             rows[1],
-            ['ART1', str(bedna.behalter_nr), '10,5 x 20', str(self.zakazka.typ_hlavy), self.zakazka.zkraceny_popis, str(bedna.cislo_bedny)],
+            [
+                'ART1',
+                str(bedna.behalter_nr),
+                '10,5 x 20',
+                str(self.zakazka.typ_hlavy),
+                self.zakazka.zkraceny_popis,
+                str(bedna.cislo_bedny),
+                '1',
+            ],
         )
 
     def test_export_bedny_to_csv_customer_action_with_rovnani_filter_columns(self):
@@ -1083,7 +1091,7 @@ class ExportBednyCsvActionTests(ActionsBase):
 
         self.assertEqual(
             rows[0],
-            ['Artikel-Nr.', 'Behälter-Nr.', 'Abmessung', 'Kopf', 'Bezeichnung', 'Stand', 'Priorität', 'Fertigstellungsdatum', 'HPM-Nr.'],
+            ['Artikel-Nr.', 'Behälter-Nr.', 'Abmessung', 'Kopf', 'Bezeichnung', 'Stand', 'Priorität', 'Fertigstellungsdatum', 'HPM-Nr.', 'kg'],
         )
         self.assertEqual(
             rows[1],
@@ -1097,6 +1105,7 @@ class ExportBednyCsvActionTests(ActionsBase):
                 '',
                 '',
                 str(bedna.cislo_bedny),
+                '1',
             ],
         )
 
@@ -1124,7 +1133,7 @@ class ExportBednyCsvActionTests(ActionsBase):
         rows_default = list(csv.reader(io.StringIO(resp_default.content.decode('utf-8-sig')), delimiter=';'))
         self.assertEqual(
             rows_default[0],
-            ['Batch', 'Nr. Cass', 'Dimensione', '', 'Descrizione', 'HPM-Nr.'],
+            ['Batch', 'Nr. Cass', 'Dimensione', '', 'Descrizione', 'HPM-Nr.', 'kg'],
         )
 
         req_rovnani = self.get_request('get', {'rovnani': 'k_vyrovnani'})
@@ -1137,7 +1146,7 @@ class ExportBednyCsvActionTests(ActionsBase):
         rows_rovnani = list(csv.reader(io.StringIO(resp_rovnani.content.decode('utf-8-sig')), delimiter=';'))
         self.assertEqual(
             rows_rovnani[0],
-            ['Batch', 'Nr. Cass', 'Dimensione', '', 'Descrizione', 'Stato', 'Priorità', 'Data di completamento', 'HPM-Nr.'],
+            ['Batch', 'Nr. Cass', 'Dimensione', '', 'Descrizione', 'Stato', 'Priorità', 'Data di completamento', 'HPM-Nr.', 'kg'],
         )
 
     def test_export_bedny_to_csv_customer_action_orders_like_dl(self):

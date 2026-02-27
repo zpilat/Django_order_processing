@@ -391,17 +391,17 @@ def export_bedny_to_csv_customer_action(modeladmin, request, queryset):
     if is_rovnani_export:
         if zakaznik_zkratka == 'ROT':
             writer.writerow([
-                'Batch', 'Nr. Cass', 'Dimensione', '', 'Descrizione', 'Stato', 'Priorità', 'Data di completamento', 'HPM-Nr.'
+                'Batch', 'Nr. Cass', 'Dimensione', '', 'Descrizione', 'Stato', 'Priorità', 'Data di completamento', 'HPM-Nr.', 'kg'
             ])
         else:
             writer.writerow([
-                'Artikel-Nr.', 'Behälter-Nr.', 'Abmessung', 'Kopf', 'Bezeichnung', 'Stand', 'Priorität', 'Fertigstellungsdatum', 'HPM-Nr.'
+                'Artikel-Nr.', 'Behälter-Nr.', 'Abmessung', 'Kopf', 'Bezeichnung', 'Stand', 'Priorität', 'Fertigstellungsdatum', 'HPM-Nr.', 'kg'
                 ])
     else:
         if zakaznik_zkratka == 'ROT':
-            writer.writerow(['Batch', 'Nr. Cass', 'Dimensione', '', 'Descrizione', 'HPM-Nr.'])
+            writer.writerow(['Batch', 'Nr. Cass', 'Dimensione', '', 'Descrizione', 'HPM-Nr.', 'kg'])
         else:
-            writer.writerow(['Artikel-Nr.', 'Behälter-Nr.', 'Abmessung', 'Kopf', 'Bezeichnung', 'HPM-Nr.'])
+            writer.writerow(['Artikel-Nr.', 'Behälter-Nr.', 'Abmessung', 'Kopf', 'Bezeichnung', 'HPM-Nr.', 'kg'])
 
     stav_rovnani_map = {
         RovnaniChoice.KRIVA: 'Krumm',
@@ -419,6 +419,8 @@ def export_bedny_to_csv_customer_action(modeladmin, request, queryset):
         abm = f"{prumer} x {delka}" if prumer and delka else ''
         typ_hlavy = getattr(zakazka, 'typ_hlavy', '') if zakazka else ''
         zkraceny_popis = getattr(zakazka, 'zkraceny_popis', '') if zakazka else ''
+        cislo_bedny = getattr(bedna, 'cislo_bedny', '') if bedna else ''
+        hmotnost = _format_decimal(getattr(bedna, 'hmotnost', None)) if bedna else ''
 
         if is_rovnani_export:
             stav_rovnani = stav_rovnani_map.get(bedna.rovnat, '')
@@ -442,7 +444,7 @@ def export_bedny_to_csv_customer_action(modeladmin, request, queryset):
         row = [artikl, behalter_nr, abm, typ_hlavy, zkraceny_popis]
         if is_rovnani_export:
             row.extend([stav_rovnani, priorita, datum_vyrovnani])
-        row.append(getattr(bedna, 'cislo_bedny', ''))
+        row.extend([cislo_bedny, hmotnost])
 
         writer.writerow(row)
 
