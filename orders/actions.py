@@ -355,9 +355,11 @@ def export_bedny_to_csv_customer_action(modeladmin, request, queryset):
 
     Podmínky:
     - Všechny bedny musí patřit jednomu zákazníkovi (podle zakazka__kamion_prijem__zakaznik).
-    - Pro schválení před expedicí exportuje čtyři sloupce: Artikel-Nr., Behälter-Nr., Abmessung (prumer x delka) a # (číslo bedny).
+    - Pro schválení před expedicí exportuje tyto sloupce: Artikel-Nr., Behälter-Nr., Abmessung (prumer x delka),
+      Kopf (typ_hlavy), Bezeichnung (zkraceny popis) a # (číslo bedny), 
     - Pro rovnání exportuje stejné sloupce a navíc Stand (rovnat), Priorität (priorita) 
       a Datum (datum změny rovnat na ROVNA_SE + 7 dní).
+    - Pro zákazníka ROT jsou přeloženy názvy sloupců do italštiny.
     """
     if not queryset.exists():
         return None
@@ -387,9 +389,19 @@ def export_bedny_to_csv_customer_action(modeladmin, request, queryset):
     writer = csv.writer(response, delimiter=';', quoting=csv.QUOTE_MINIMAL)
 
     if is_rovnani_export:
-        writer.writerow(['Artikel-Nr.', 'Behälter-Nr.', 'Abmessung', 'Stand', 'Priorität', 'Fertigstellungsdatum', 'HPM-Nr.'])
+        if zakaznik_zkratka == 'ROT':
+            writer.writerow([
+                'Batch', 'Nr. Cass', 'Dimensione', '', 'Descrizione', 'Stato', 'Priorità', 'Data di completamento', 'HPM-Nr.'
+            ])
+        else:
+            writer.writerow([
+                'Artikel-Nr.', 'Behälter-Nr.', 'Abmessung', 'Kopf', 'Bezeichnung', 'Stand', 'Priorität', 'Fertigstellungsdatum', 'HPM-Nr.'
+                ])
     else:
-        writer.writerow(['Artikel-Nr.', 'Behälter-Nr.', 'Abmessung', 'HPM-Nr.'])
+        if zakaznik_zkratka == 'ROT':
+            writer.writerow(['Batch', 'Nr. Cass', 'Dimensione', '', 'Descrizione', 'HPM-Nr.'])
+        else:
+            writer.writerow(['Artikel-Nr.', 'Behälter-Nr.', 'Abmessung', 'Kopf', 'Bezeichnung', 'HPM-Nr.'])
 
     stav_rovnani_map = {
         RovnaniChoice.KRIVA: 'Krumm',
@@ -400,10 +412,13 @@ def export_bedny_to_csv_customer_action(modeladmin, request, queryset):
 
     for bedna in queryset:
         zakazka = getattr(bedna, 'zakazka', None)
+        behalter_nr = getattr(bedna, 'behalter_nr', '') if bedna else ''
         artikl = getattr(zakazka, 'artikl', '') if zakazka else ''
         prumer = _format_decimal(getattr(zakazka, 'prumer', None)) if zakazka else ''
         delka = _format_decimal(getattr(zakazka, 'delka', None)) if zakazka else ''
         abm = f"{prumer} x {delka}" if prumer and delka else ''
+        typ_hlavy = getattr(zakazka, 'typ_hlavy', '') if zakazka else ''
+        zkraceny_popis = getattr(zakazka, 'zkraceny_popis', '') if zakazka else ''
 
         if is_rovnani_export:
             stav_rovnani = stav_rovnani_map.get(bedna.rovnat, '')
@@ -424,7 +439,7 @@ def export_bedny_to_csv_customer_action(modeladmin, request, queryset):
                             datum_vyrovnani = datum_vyrovnani_date.strftime('%d.%m.%Y')
                             break
 
-        row = [artikl, getattr(bedna, 'behalter_nr', ''), abm]
+        row = [artikl, behalter_nr, abm, typ_hlavy, zkraceny_popis]
         if is_rovnani_export:
             row.extend([stav_rovnani, priorita, datum_vyrovnani])
         row.append(getattr(bedna, 'cislo_bedny', ''))

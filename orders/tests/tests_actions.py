@@ -1057,8 +1057,11 @@ class ExportBednyCsvActionTests(ActionsBase):
         content = resp.content.decode('utf-8-sig')
         rows = list(csv.reader(io.StringIO(content), delimiter=';'))
 
-        self.assertEqual(rows[0], ['Artikel-Nr.', 'Behälter-Nr.', 'Abmessung', 'HPM-Nr.'])
-        self.assertEqual(rows[1], ['ART1', str(bedna.behalter_nr), '10,5 x 20', str(bedna.cislo_bedny)])
+        self.assertEqual(rows[0], ['Artikel-Nr.', 'Behälter-Nr.', 'Abmessung', 'Kopf', 'Bezeichnung', 'HPM-Nr.'])
+        self.assertEqual(
+            rows[1],
+            ['ART1', str(bedna.behalter_nr), '10,5 x 20', str(self.zakazka.typ_hlavy), self.zakazka.zkraceny_popis, str(bedna.cislo_bedny)],
+        )
 
     def test_export_bedny_to_csv_customer_action_with_rovnani_filter_columns(self):
         bedna = self.bedna
@@ -1080,11 +1083,61 @@ class ExportBednyCsvActionTests(ActionsBase):
 
         self.assertEqual(
             rows[0],
-            ['Artikel-Nr.', 'Behälter-Nr.', 'Abmessung', 'Stand', 'Priorität', 'Fertigstellungsdatum', 'HPM-Nr.'],
+            ['Artikel-Nr.', 'Behälter-Nr.', 'Abmessung', 'Kopf', 'Bezeichnung', 'Stand', 'Priorität', 'Fertigstellungsdatum', 'HPM-Nr.'],
         )
         self.assertEqual(
             rows[1],
-            ['ART1', str(bedna.behalter_nr), '10,5 x 20', 'Krumm', '', '', str(bedna.cislo_bedny)],
+            [
+                'ART1',
+                str(bedna.behalter_nr),
+                '10,5 x 20',
+                str(self.zakazka.typ_hlavy),
+                self.zakazka.zkraceny_popis,
+                'Krumm',
+                '',
+                '',
+                str(bedna.cislo_bedny),
+            ],
+        )
+
+    def test_export_bedny_to_csv_customer_action_rot_uses_italian_headers(self):
+        self.zakaznik.zkratka = 'ROT'
+        self.zakaznik.save(update_fields=['zkratka'])
+
+        bedna = self.bedna
+        bedna.behalter_nr = 42
+        bedna.rovnat = RovnaniChoice.KRIVA
+        bedna.save(update_fields=['behalter_nr', 'rovnat'])
+
+        self.zakazka.prumer = Decimal('10.5')
+        self.zakazka.delka = Decimal('20.0')
+        self.zakazka.artikl = 'ART1'
+        self.zakazka.save(update_fields=['prumer', 'delka', 'artikl'])
+
+        req_default = self.get_request('get')
+        resp_default = actions.export_bedny_to_csv_customer_action(
+            self.bedna_admin,
+            req_default,
+            Bedna.objects.filter(id=bedna.id),
+        )
+        self.assertIsInstance(resp_default, HttpResponse)
+        rows_default = list(csv.reader(io.StringIO(resp_default.content.decode('utf-8-sig')), delimiter=';'))
+        self.assertEqual(
+            rows_default[0],
+            ['Batch', 'Nr. Cass', 'Dimensione', '', 'Descrizione', 'HPM-Nr.'],
+        )
+
+        req_rovnani = self.get_request('get', {'rovnani': 'k_vyrovnani'})
+        resp_rovnani = actions.export_bedny_to_csv_customer_action(
+            self.bedna_admin,
+            req_rovnani,
+            Bedna.objects.filter(id=bedna.id),
+        )
+        self.assertIsInstance(resp_rovnani, HttpResponse)
+        rows_rovnani = list(csv.reader(io.StringIO(resp_rovnani.content.decode('utf-8-sig')), delimiter=';'))
+        self.assertEqual(
+            rows_rovnani[0],
+            ['Batch', 'Nr. Cass', 'Dimensione', '', 'Descrizione', 'Stato', 'Priorità', 'Data di completamento', 'HPM-Nr.'],
         )
 
     def test_export_bedny_to_csv_customer_action_orders_like_dl(self):
