@@ -413,6 +413,45 @@ class ActionsTests(ActionsBase):
         self.assertTrue(any('nelze provést' in m for m in msgs))
 
     @patch('orders.actions.utilita_tisk_dokumentace')
+    def test_tisk_karet_beden_action_reject_message_contains_bedna_details(self, mock_util):
+        admin_obj = self._messaging_admin()
+
+        self.bedna.stav_bedny = StavBednyChoice.NEPRIJATO
+        self.bedna.hmotnost = Decimal('0')
+        self.bedna.save(update_fields=['stav_bedny', 'hmotnost'])
+
+        unknown = Predpis.objects.create(nazev='Neznámý předpis', skupina=1, zakaznik=self.zakaznik)
+        zakazka_unknown = Zakazka.objects.create(
+            kamion_prijem=self.kamion_prijem,
+            artikl='A2',
+            prumer=1,
+            delka=1,
+            predpis=unknown,
+            typ_hlavy=self.typ_hlavy,
+            popis='p2',
+        )
+        bedna_unknown = Bedna.objects.create(
+            zakazka=zakazka_unknown,
+            hmotnost=Decimal('1'),
+            tara=Decimal('1'),
+            mnozstvi=1,
+            stav_bedny=StavBednyChoice.NEPRIJATO,
+        )
+
+        req = self.get_request('post')
+        qs = Bedna.objects.filter(id__in=[self.bedna.id, bedna_unknown.id])
+        resp = actions.tisk_karet_beden_action(admin_obj, req, qs)
+
+        self.assertIsNone(resp)
+        mock_util.assert_not_called()
+        msgs = self._messages_texts(req)
+        joined = ' | '.join(str(msg) for msg in msgs)
+        self.assertIn(str(self.bedna.cislo_bedny), joined)
+        self.assertIn('neplatná hmotnost', joined)
+        self.assertIn(str(bedna_unknown.cislo_bedny), joined)
+        self.assertIn('neplatný předpis', joined)
+
+    @patch('orders.actions.utilita_tisk_dokumentace')
     def test_tisk_karet_kontroly_kvality_action_rejects_unknown_predpis(self, mock_util):
         admin_obj = self._messaging_admin()
         self.bedna.hmotnost = Decimal('2.5')

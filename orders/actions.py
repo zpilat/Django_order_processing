@@ -188,14 +188,43 @@ def _format_rozmer(zakazka):
 def _abort_if_bedna_has_not_hmotnost_zakazka_predpis(modeladmin, request, queryset, action_label):
     """Vrátí True, pokud výběr obsahuje bednu bez hmotnosti, zakázky, předpisu nebo název předpisu má hodnotu 'Neznámý předpis'."""
     missing_qs = queryset.filter(
-        Q(hmotnost__isnull=True) | Q(hmotnost=0) | Q(zakazka__isnull=True) | Q(zakazka__predpis__isnull=True) | Q(zakazka__predpis__nazev='Neznámý předpis')
+        Q(hmotnost__isnull=True) | Q(hmotnost__lte=0) | Q(zakazka__isnull=True) | Q(zakazka__predpis__isnull=True) | Q(zakazka__predpis__nazev='Neznámý předpis')
         )
     if missing_qs.exists():
         count = missing_qs.count()
+
+        detail_items = []
+        max_detail_items = 20
+        for bedna in missing_qs.select_related('zakazka__predpis')[:max_detail_items]:
+            reasons = []
+            if bedna.hmotnost is None or bedna.hmotnost <= 0:
+                reasons.append('neplatná hmotnost')
+
+            zakazka = getattr(bedna, 'zakazka', None)
+            if zakazka is None:
+                reasons.append('chybí zakázka')
+            else:
+                predpis = getattr(zakazka, 'predpis', None)
+                if predpis is None:
+                    reasons.append('chybí předpis')
+                elif getattr(predpis, 'nazev', None) == 'Neznámý předpis':
+                    reasons.append('neplatný předpis (Neznámý předpis)')
+
+            if reasons:
+                detail_items.append(f"{bedna.cislo_bedny}: {', '.join(reasons)}")
+
+        detail_text = '; '.join(detail_items)
+        remaining = count - len(detail_items)
+        if remaining > 0:
+            detail_text = f"{detail_text}; ... a dalších {remaining} beden" if detail_text else f"... a dalších {remaining} beden"
+
         logger.info(
-            f"Uživatel {request.user} se pokusil provést akci '{action_label}', ale výběr obsahuje {count} beden bez hmotnosti, zakázky nebo předpisu."
+            f"Uživatel {request.user} se pokusil provést akci '{action_label}', ale výběr obsahuje {count} nevalidních beden. Detaily: {detail_text}"
         )
-        message = _(f"Akci \"{action_label}\" nelze provést, protože výběr obsahuje {count} beden bez zadané hmotnosti, zakázky nebo předpisu.")
+        message = _(
+            f"Akci \"{action_label}\" nelze provést, protože výběr obsahuje {count} beden bez zadané hmotnosti, zakázky nebo předpisu. "
+            f"Detaily: {detail_text}."
+        )
         modeladmin.message_user(request, message, level=messages.ERROR)
         return True
     return False
