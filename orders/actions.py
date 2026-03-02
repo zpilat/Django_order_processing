@@ -185,6 +185,21 @@ def _format_rozmer(zakazka):
         return f"{prumer} x {delka}"
     return prumer or delka or ''
 
+def _abort_if_bedna_has_not_hmotnost_zakazka_predpis(modeladmin, request, queryset, action_label):
+    """Vrátí True, pokud výběr obsahuje bednu bez hmotnosti, zakázky, předpisu nebo název předpisu má hodnotu 'Neznámý předpis'."""
+    missing_qs = queryset.filter(
+        Q(hmotnost__isnull=True) | Q(hmotnost=0) | Q(zakazka__isnull=True) | Q(zakazka__predpis__isnull=True) | Q(zakazka__predpis__nazev='Neznámý předpis')
+        )
+    if missing_qs.exists():
+        count = missing_qs.count()
+        logger.info(
+            f"Uživatel {request.user} se pokusil provést akci '{action_label}', ale výběr obsahuje {count} beden bez hmotnosti, zakázky nebo předpisu."
+        )
+        message = _(f"Akci \"{action_label}\" nelze provést, protože výběr obsahuje {count} beden bez zadané hmotnosti, zakázky nebo předpisu.")
+        modeladmin.message_user(request, message, level=messages.ERROR)
+        return True
+    return False
+
 # Akce pro bedny:
 
 @admin.action(description="Export vybraných beden do CSV pro původní rozpracovanost")
@@ -536,11 +551,16 @@ def export_bedny_dl_action(modeladmin, request, queryset):
 @admin.action(description="Vytisknout karty bedny")
 def tisk_karet_beden_action(modeladmin, request, queryset):
     """
-    Vytvoří PDF s kartou bedny pro označené bedny. Bedny musí být od jednoho zákazníka.
+    Vytvoří PDF s kartou bedny pro označené bedny.
+    Bedny musí být od jednoho zákazníka.
+    Bedny musí mít zadanou hmotnost, zakázku a předpis.
     """
     if queryset.values('zakazka__kamion_prijem__zakaznik').distinct().count() != 1:
         logger.error(f"Uživatel {request.user} se pokusil tisknout karty beden, ale vybral bedny od více zákazníků.")
         modeladmin.message_user(request, "Pro tisk karet beden musí být vybrány bedny od jednoho zákazníka.", level=messages.ERROR)
+        return None
+    
+    if _abort_if_bedna_has_not_hmotnost_zakazka_predpis(modeladmin, request, queryset, "tisk karet beden"):
         return None
 
     zakaznik_zkratka = queryset.first().zakazka.kamion_prijem.zakaznik.zkratka
@@ -558,11 +578,16 @@ def tisk_karet_beden_action(modeladmin, request, queryset):
 @admin.action(description="Vytisknout KKK")
 def tisk_karet_kontroly_kvality_action(modeladmin, request, queryset):
     """
-    Vytvoří PDF s kartou kontroly kvality pro označené bedny. Bedny musít být od jednoho zákazníka.
+    Vytvoří PDF s kartou kontroly kvality pro označené bedny.
+    Bedny musít být od jednoho zákazníka.
+    Bedny musí mít zadanou hmotnost, zakázku a předpis.
     """
     if queryset.values('zakazka__kamion_prijem__zakaznik').distinct().count() != 1:
         logger.error(f"Uživatel {request.user} se pokusil tisknout karty beden, ale vybral bedny od více zákazníků.")
         modeladmin.message_user(request, "Pro tisk karet beden musí být vybrány bedny od jednoho zákazníka.", level=messages.ERROR)
+        return None
+    
+    if _abort_if_bedna_has_not_hmotnost_zakazka_predpis(modeladmin, request, queryset, "tisk karet kontroly kvality"):
         return None
 
     zakaznik_zkratka = queryset.first().zakazka.kamion_prijem.zakaznik.zkratka
@@ -580,7 +605,11 @@ def tisk_karet_kontroly_kvality_action(modeladmin, request, queryset):
 
 @admin.action(description="Vytisknout karty bedny + KKK")
 def tisk_karet_bedny_a_kontroly_action(modeladmin, request, queryset):
-    """Vytvoří PDF, kde má každá bedna svoji kartu a navazující kartu kontroly kvality."""
+    """
+    Vytvoří PDF, kde má každá bedna svoji kartu a navazující kartu kontroly kvality.
+    Bedny musít být od jednoho zákazníka.
+    Bedny musí mít zadanou hmotnost, zakázku a předpis.
+    """
     if queryset.values('zakazka__kamion_prijem__zakaznik').distinct().count() != 1:
         logger.error(
             f"Uživatel {getattr(request, 'user', None)} se pokusil tisknout kombinované karty beden, ale vybral bedny od více zákazníků."
@@ -590,6 +619,9 @@ def tisk_karet_bedny_a_kontroly_action(modeladmin, request, queryset):
             "Pro tisk kombinovaných karet musí být vybrány bedny od jednoho zákazníka.",
             level=messages.ERROR,
         )
+        return None
+    
+    if _abort_if_bedna_has_not_hmotnost_zakazka_predpis(modeladmin, request, queryset, "tisk kombinovaných karet"):
         return None
 
     first_bedna = queryset.first()
@@ -2057,6 +2089,7 @@ def tisk_karet_beden_zakazek_action(modeladmin, request, queryset):
     """
     Vytvoří PDF s kartami beden ze zvolených zakázkách. Zakázky mohou být pouze od jednoho zákazníka.
     Zakázky musí obsahovat alespoň jednu bednu.
+    Bedny musí mít zadanou hmotnost, zakázku a předpis.
     """
     if queryset.values_list('kamion_prijem__zakaznik', flat=True).distinct().count() != 1:
         logger.info(f"Uživatel {request.user} se pokusil tisknout karty beden z více zákazníků.")
@@ -2064,9 +2097,13 @@ def tisk_karet_beden_zakazek_action(modeladmin, request, queryset):
         return None
     
     bedny = Bedna.objects.filter(zakazka__in=queryset)
+
     if not bedny.exists():
         logger.info(f"Uživatel {request.user} se pokusil tisknout karty beden, ale v označených zakázkách nejsou žádné bedny.")
         modeladmin.message_user(request, "V označených zakázkách nejsou žádné bedny.", level=messages.ERROR)
+        return None
+    
+    if _abort_if_bedna_has_not_hmotnost_zakazka_predpis(modeladmin, request, bedny, "Tisk karet beden z vybraných zakázek"):
         return None
 
     zakaznik_zkratka = queryset.first().kamion_prijem.zakaznik.zkratka
@@ -2086,6 +2123,7 @@ def tisk_karet_kontroly_kvality_zakazek_action(modeladmin, request, queryset):
     """
     Vytvoří PDF s kartami kontroly kvality ze zvolených zakázkách. Zakázky musí být od jednoho zákazníka.
     Vybrané zakázky musí obsahovat alespoň jednu bednu.
+    Bedny musí mít zadanou hmotnost, zakázku a předpis.
     """
     if queryset.values_list('kamion_prijem__zakaznik', flat=True).distinct().count() != 1:
         logger.info(f"Uživatel {request.user} se pokusil tisknout karty beden z více zákazníků.")
@@ -2093,9 +2131,13 @@ def tisk_karet_kontroly_kvality_zakazek_action(modeladmin, request, queryset):
         return None
     
     bedny = Bedna.objects.filter(zakazka__in=queryset)
+
     if not bedny.exists():
         logger.info(f"Uživatel {request.user} se pokusil tisknout karty kontroly kvality, ale v označených zakázkách nejsou žádné bedny.")
         modeladmin.message_user(request, "V označených zakázkách nejsou žádné bedny.", level=messages.ERROR)
+        return None
+
+    if _abort_if_bedna_has_not_hmotnost_zakazka_predpis(modeladmin, request, bedny, "Tisk karet kontroly kvality z vybraných zakázek"):
         return None
     
     zakaznik_zkratka = queryset.first().kamion_prijem.zakaznik.zkratka
@@ -2419,7 +2461,7 @@ def tisk_karet_beden_kamionu_action(modeladmin, request, queryset):
     Musí být vybrán pouze jeden kamion, jinak se zobrazí chybová zpráva.
     Musí se jednat o kamion s příznakem příjem, jinak se zobrazí chybová zpráva.
     Tisknou se pouze karty beden, které nejsou již expedovány.
-    Pokud jsou v kamionu bedny nepřijaté, zobrazí se chybová zpráva a tisk se přeruší.
+    Bedny musí mít zadanou hmotnost, zakázku a předpis.
     """
     if queryset.count() != 1:
         logger.info(f"Uživatel {request.user} se pokusil tisknout karty beden, ale vybral více než jeden kamion.")
@@ -2430,14 +2472,13 @@ def tisk_karet_beden_kamionu_action(modeladmin, request, queryset):
         modeladmin.message_user(request, "Tisk karet beden je možný pouze pro kamiony příjem.", level=messages.ERROR)
         return None
     bedny = Bedna.objects.filter(zakazka__kamion_prijem__in=queryset).exclude(stav_bedny=StavBednyChoice.EXPEDOVANO)
+
     if not bedny.exists():
         logger.info(f"Uživatel {request.user} se pokusil tisknout karty beden, ale v označeném kamionu nejsou žádné bedny skladem.")
         modeladmin.message_user(request, "V označeném kamionu nejsou žádné bedny skladem.", level=messages.ERROR)
         return None
     
-    if bedny.filter(stav_bedny=StavBednyChoice.NEPRIJATO).exists():
-        logger.info(f"Uživatel {request.user} se pokusil tisknout karty beden kamionu {queryset.first().cislo_dl}, ale některé bedny nejsou přijaty.")
-        modeladmin.message_user(request, "Některé bedny v označeném kamionu nejsou přijaty, lze tisknout pouze komplet přijatý kamion.", level=messages.ERROR)
+    if _abort_if_bedna_has_not_hmotnost_zakazka_predpis(modeladmin, request, bedny, "Tisk karet beden z vybraného kamionu příjem se zakázkami"):
         return None
 
     zakaznik_zkratka = queryset.first().zakaznik.zkratka
@@ -2459,7 +2500,7 @@ def tisk_karet_kontroly_kvality_kamionu_action(modeladmin, request, queryset):
     Musí být vybrán pouze jeden kamion, jinak se zobrazí chybová zpráva.
     Musí se jednat o kamion s příznakem příjem, jinak se zobrazí chybová zpráva.
     Tisknou se pouze karty beden, které nejsou již expedovány.
-    Pokud jsou v kamionu bedny nepřijaté, zobrazí se chybová zpráva a tisk se přeruší.
+    Bedny musí mít zadanou hmotnost, zakázku a předpis.
     """
     if queryset.count() != 1:
         logger.info(f"Uživatel {request.user} se pokusil tisknout karty kontroly kvality, ale vybral více než jeden kamion.")
@@ -2472,15 +2513,14 @@ def tisk_karet_kontroly_kvality_kamionu_action(modeladmin, request, queryset):
         return None
     
     bedny = Bedna.objects.filter(zakazka__kamion_prijem__in=queryset).exclude(stav_bedny=StavBednyChoice.EXPEDOVANO)
+    
     if not bedny.exists():
         logger.info(f"Uživatel {request.user} se pokusil tisknout karty kontroly kvality, ale v označeném kamionu nejsou žádné bedny.")
         modeladmin.message_user(request, "V označeném kamionu nejsou žádné bedny.", level=messages.ERROR)
         return None
     
-    if bedny.filter(stav_bedny=StavBednyChoice.NEPRIJATO).exists():
-        logger.info(f"Uživatel {request.user} se pokusil tisknout karty kontroly kvality kamionu {queryset.first().cislo_dl}, ale některé bedny nejsou přijaty.")
-        modeladmin.message_user(request, "Některé bedny v označeném kamionu nejsou přijaty, lze tisknout pouze komplet přijatý kamion.", level=messages.ERROR)
-        return None    
+    if _abort_if_bedna_has_not_hmotnost_zakazka_predpis(modeladmin, request, bedny, "Tisk karet kontroly kvality z vybraného kamionu příjem se zakázkami"):
+        return None
     
     zakaznik_zkratka = queryset.first().zakaznik.zkratka
     if zakaznik_zkratka:

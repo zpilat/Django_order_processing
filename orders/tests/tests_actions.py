@@ -376,6 +376,114 @@ class ActionsTests(ActionsBase):
             'karty_bedny_a_kontroly_eur.pdf',
         )
 
+    @patch('orders.actions.utilita_tisk_dokumentace')
+    def test_tisk_karet_beden_action_rejects_unknown_predpis(self, mock_util):
+        admin_obj = self._messaging_admin()
+        self.bedna.hmotnost = Decimal('2.5')
+        self.bedna.save(update_fields=['hmotnost'])
+        self.assertGreater(self.bedna.hmotnost, 0)
+        unknown = Predpis.objects.create(nazev='Neznámý předpis', skupina=1, zakaznik=self.zakaznik)
+        self.zakazka.predpis = unknown
+        self.zakazka.save(update_fields=['predpis'])
+
+        req = self.get_request('post')
+        qs = Bedna.objects.filter(id=self.bedna.id)
+        resp = actions.tisk_karet_beden_action(admin_obj, req, qs)
+
+        self.assertIsNone(resp)
+        mock_util.assert_not_called()
+        msgs = self._messages_texts(req)
+        self.assertTrue(any('nelze provést' in m for m in msgs))
+
+    @patch('orders.actions.utilita_tisk_dokumentace')
+    def test_tisk_karet_beden_action_rejects_invalid_hmotnost(self, mock_util):
+        admin_obj = self._messaging_admin()
+        self.bedna.stav_bedny = StavBednyChoice.NEPRIJATO
+        self.bedna.hmotnost = Decimal('0')
+        self.bedna.save(update_fields=['stav_bedny', 'hmotnost'])
+        self.assertLessEqual(self.bedna.hmotnost, 0)
+
+        req = self.get_request('post')
+        qs = Bedna.objects.filter(id=self.bedna.id)
+        resp = actions.tisk_karet_beden_action(admin_obj, req, qs)
+
+        self.assertIsNone(resp)
+        mock_util.assert_not_called()
+        msgs = self._messages_texts(req)
+        self.assertTrue(any('nelze provést' in m for m in msgs))
+
+    @patch('orders.actions.utilita_tisk_dokumentace')
+    def test_tisk_karet_kontroly_kvality_action_rejects_unknown_predpis(self, mock_util):
+        admin_obj = self._messaging_admin()
+        self.bedna.hmotnost = Decimal('2.5')
+        self.bedna.save(update_fields=['hmotnost'])
+        self.assertGreater(self.bedna.hmotnost, 0)
+        unknown = Predpis.objects.create(nazev='Neznámý předpis', skupina=1, zakaznik=self.zakaznik)
+        self.zakazka.predpis = unknown
+        self.zakazka.save(update_fields=['predpis'])
+
+        req = self.get_request('post')
+        qs = Bedna.objects.filter(id=self.bedna.id)
+        resp = actions.tisk_karet_kontroly_kvality_action(admin_obj, req, qs)
+
+        self.assertIsNone(resp)
+        mock_util.assert_not_called()
+        msgs = self._messages_texts(req)
+        self.assertTrue(any('nelze provést' in m for m in msgs))
+
+    @patch('orders.actions.utilita_tisk_dokumentace')
+    def test_tisk_karet_kontroly_kvality_action_rejects_invalid_hmotnost(self, mock_util):
+        admin_obj = self._messaging_admin()
+        self.bedna.stav_bedny = StavBednyChoice.NEPRIJATO
+        self.bedna.hmotnost = Decimal('0')
+        self.bedna.save(update_fields=['stav_bedny', 'hmotnost'])
+        self.assertLessEqual(self.bedna.hmotnost, 0)
+
+        req = self.get_request('post')
+        qs = Bedna.objects.filter(id=self.bedna.id)
+        resp = actions.tisk_karet_kontroly_kvality_action(admin_obj, req, qs)
+
+        self.assertIsNone(resp)
+        mock_util.assert_not_called()
+        msgs = self._messages_texts(req)
+        self.assertTrue(any('nelze provést' in m for m in msgs))
+
+    @patch('orders.actions.utilita_tisk_dokumentace_sablony')
+    def test_tisk_karet_bedny_a_kontroly_action_rejects_unknown_predpis(self, mock_util):
+        admin_obj = self._messaging_admin()
+        self.bedna.hmotnost = Decimal('2.5')
+        self.bedna.save(update_fields=['hmotnost'])
+        self.assertGreater(self.bedna.hmotnost, 0)
+        unknown = Predpis.objects.create(nazev='Neznámý předpis', skupina=1, zakaznik=self.zakaznik)
+        self.zakazka.predpis = unknown
+        self.zakazka.save(update_fields=['predpis'])
+
+        req = self.get_request('post')
+        qs = Bedna.objects.filter(id=self.bedna.id)
+        resp = actions.tisk_karet_bedny_a_kontroly_action(admin_obj, req, qs)
+
+        self.assertIsNone(resp)
+        mock_util.assert_not_called()
+        msgs = self._messages_texts(req)
+        self.assertTrue(any('nelze provést' in m for m in msgs))
+
+    @patch('orders.actions.utilita_tisk_dokumentace_sablony')
+    def test_tisk_karet_bedny_a_kontroly_action_rejects_invalid_hmotnost(self, mock_util):
+        admin_obj = self._messaging_admin()
+        self.bedna.stav_bedny = StavBednyChoice.NEPRIJATO
+        self.bedna.hmotnost = Decimal('0')
+        self.bedna.save(update_fields=['stav_bedny', 'hmotnost'])
+        self.assertLessEqual(self.bedna.hmotnost, 0)
+
+        req = self.get_request('post')
+        qs = Bedna.objects.filter(id=self.bedna.id)
+        resp = actions.tisk_karet_bedny_a_kontroly_action(admin_obj, req, qs)
+
+        self.assertIsNone(resp)
+        mock_util.assert_not_called()
+        msgs = self._messages_texts(req)
+        self.assertTrue(any('nelze provést' in m for m in msgs))
+
     @patch('orders.actions.utilita_expedice_zakazek')
     @patch('orders.actions.utilita_kontrola_zakazek')
     def test_expedice_zakazek_action(self, mock_kontrola, mock_expedice):

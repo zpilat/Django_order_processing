@@ -130,16 +130,12 @@ def utilita_tisk_dokumentace_sablony(modeladmin, request, queryset, html_paths, 
         response = HttpResponse(pdf_file, content_type="application/pdf")
         response['Content-Disposition'] = f'inline; filename={filename}'
         logger.info(
-            "Uživatel %s vygeneroval PDF dokumentaci pro %s beden (%s šablon na bednu).",
-            getattr(request, 'user', None),
-            queryset.count(),
-            len(html_paths),
+            f"Uživatel {getattr(request, 'user', None)} vygeneroval PDF dokumentaci pro {queryset.count()} beden ({len(html_paths)} šablon na bednu)."
         )
         return response
     else:
         logger.warning(
-            "Uživatel %s se pokusil tisknout dokumentaci, ale nebyly vybrány žádné bedny.",
-            getattr(request, 'user', None),
+            f"Uživatel {getattr(request, 'user', None)} se pokusil tisknout dokumentaci, ale nebyly vybrány žádné bedny."
         )
         messages.error(request, "Není vybrána žádná bedna k tisku.")
         return None

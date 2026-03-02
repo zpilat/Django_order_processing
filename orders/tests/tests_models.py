@@ -696,6 +696,28 @@ class TestSarzeModels(ModelsBase):
         with self.assertRaises(ValidationError):
             b.full_clean()
 
+    def test_bedna_clean_rejects_unknown_predpis_when_not_neprijato(self):
+        unknown = Predpis.objects.create(
+            nazev="Neznámý předpis",
+            skupina=1,
+            zakaznik=self.zakaznik,
+        )
+        self.zakazka.predpis = unknown
+        self.zakazka.save(update_fields=["predpis"])
+
+        b = Bedna.objects.create(
+            zakazka=self.zakazka,
+            hmotnost=Decimal("1"),
+            tara=Decimal("1"),
+            mnozstvi=1,
+            stav_bedny=StavBednyChoice.NEPRIJATO,
+        )
+        b.stav_bedny = StavBednyChoice.PRIJATO
+
+        with self.assertRaises(ValidationError) as exc:
+            b.full_clean()
+        self.assertIn("neplatný předpis", str(exc.exception))
+
     def test_fakturovane_agregace_kamionu_a_zakazky(self):
         # Výchozí stav: všechny bedny jsou fakturované
         self.assertEqual(self.kamion_vydej.celkova_hmotnost_fakturovanych_netto, Decimal("4.0"))

@@ -1134,8 +1134,6 @@ class KamionAdmin(SimpleHistoryAdmin):
         elif (request.GET.get('prijem_vydej') == PrijemVydejChoice.PRIJEM_NEPRIJATY):
             actions_to_remove = [
                 'import_kamionu_action',
-                'tisk_karet_beden_kamionu_action',
-                'tisk_karet_kontroly_kvality_kamionu_action',
                 'tisk_dodaciho_listu_kamionu_action',
                 'tisk_proforma_faktury_kamionu_action',
                 'zadat_mereni_action',
@@ -2208,9 +2206,11 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
         Standardně jsou dostupné všechny akce:
         actions = [tisk_karet_beden_zakazek_action, tisk_karet_kontroly_kvality_zakazek_action, expedice_zakazek_action,
         vratit_zakazky_z_expedice_action, expedice_zakazek_kamion_action]        
-        Pokud je filtr skladem == expedovano, zruší se akce expedice_zakazek_action a expedice_zakazek_kamion_action
-        Pokud není filtr skladem aktivovan, zruší se akce vratit_zakazky_z_expedice_action.
-        Pokud je filtr skladem != neprijato, zruší se akce prijmout_zakazku_action.
+        Pokud není filtr skladem nastaven, odeberou se akce pro expedici a vrácení z expedice.
+        Pokud je filtr skladem nastaven na NEPRIJATO, odeberou se akce pro expedici a vrácení z expedice.
+        Pokud je filtr skladem nastaven na BEZ_BEDEN, odeberou se akce pro expedici, vrácení z expedice a příjem zakázky.
+        Pokud je filtr skladem nastaven na EXPEDOVANO, odeberou se akce pro expedici, vrácení z expedice a příjem zakázky, a také možnost hromadného mazání.
+        Pokud je filtr skladem nastaven na PO_EXSPIRACI, odeberou se akce pro vrácení z expedice a příjem zakázky, a také možnost hromadného mazání.
         """
         actions = super().get_actions(request)
         actions_to_remove = []
@@ -2224,7 +2224,6 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
             else:
                 if skladem == SklademZakazkyChoice.NEPRIJATO:
                     actions_to_remove = [
-                        'tisk_karet_beden_zakazek_action', 'tisk_karet_kontroly_kvality_zakazek_action',
                         'vratit_zakazky_z_expedice_action', 'expedice_zakazek_kamion_action',
                         'expedice_zakazek_action'
                     ]
@@ -3230,8 +3229,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     def get_actions(self, request):
         """
         Přizpůsobí dostupné akce v administraci podle filtru stavu bedny, rovnat a tryskat.
-        Pokud není aktivní filtr stav bedny NEPRIJATO, zruší se akce pro přijetí bedny,
-            jinak se zruší akce pro tisk karet beden, kontroly kvality a tisk karet beden a kontroly.
+        Pokud není aktivní filtr stav bedny NEPRIJATO, zruší se akce pro přijetí bedny.
         Pokud není vůbec aktivní filtr stav bedny, zruší se akce export_beden_to_csv_action.            
         Pokud není vůbec aktivní filtr stav bedny nebo není aktivní filtr stav bedny PRIJATO,
         zruší se akce pro změnu stavu bedny na K_NAVEZENI.
@@ -3275,10 +3273,6 @@ class BednaAdmin(SimpleHistoryAdmin):
             if stav_filter != StavBednyChoice.NEPRIJATO:
                 actions_to_remove += [
                     'prijmout_bedny_action',
-                ]
-            else:
-                actions_to_remove += [
-                    'tisk_karet_beden_action', 'tisk_karet_kontroly_kvality_action', 'tisk_karet_bedny_a_kontroly_action',
                 ]
             if stav_filter:
                 actions_to_remove += [

@@ -526,6 +526,14 @@ class KamionAdminTests(AdminBase):
         actions_with = self.admin.get_actions(request)
         self.assertIn('zadat_mereni_action', actions_with)
 
+    def test_get_actions_prijem_neprijaty_keeps_print_card_actions(self):
+        request = self.get_request('get', '/', {'prijem_vydej': PrijemVydejChoice.PRIJEM_NEPRIJATY})
+        actions_filtered = self.admin.get_actions(request)
+
+        self.assertIn('tisk_karet_beden_kamionu_action', actions_filtered)
+        self.assertIn('tisk_karet_kontroly_kvality_kamionu_action', actions_filtered)
+        self.assertNotIn('import_kamionu_action', actions_filtered)
+
     def test_zadani_mereni_view_requires_permission(self):
         kamion_vydej, _ = self._create_vydej_kamion_with_order()
         User = get_user_model()
