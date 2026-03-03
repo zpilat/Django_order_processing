@@ -311,7 +311,7 @@ class KamionAdminTests(AdminBase):
                 'GE': '30,0',
             },
             {
-                'Bestellnr.': 'WO-1',
+                'Bestellnr.': 'SARZE-A',
                 'Material': 'SPX-1',
                 'Kurztext': '6,0*160,0',
                 'Menge': '',
@@ -319,16 +319,16 @@ class KamionAdminTests(AdminBase):
                 'GE': '',
             },
             {
-                'Bestellnr.': 'WO-2',
-                'Material': 'SPX-2',
+                'Bestellnr.': 'WO-1',
+                'Material': 'SPX-1',
                 'Kurztext': 'SPAX-3 SMK vrut 2',
                 'Menge': '6',
                 'ME Gewicht': '12,0',
                 'GE': '15,0',
             },
             {
-                'Bestellnr.': 'WO-2',
-                'Material': 'SPX-2',
+                'Bestellnr.': 'SARZE-B',
+                'Material': 'SPX-1',
                 'Kurztext': '5,0*120,0',
                 'Menge': '',
                 'ME Gewicht': '',
@@ -355,6 +355,104 @@ class KamionAdminTests(AdminBase):
         self.assertEqual(resp.status_code, 302)
         self.assertEqual(Zakazka.objects.count(), zak_before + 2)
         self.assertEqual(Bedna.objects.count(), bedna_before + 2)
+        self.assertCountEqual(
+            list(Bedna.objects.values_list('sarze', flat=True)),
+            ['SARZE-A', 'SARZE-B'],
+        )
+
+    def test_import_view_spx_groups_orders_by_artikl_and_sarze(self):
+        spx = Zakaznik.objects.create(
+            nazev='SPX',
+            zkraceny_nazev='SPX',
+            zkratka='SPX',
+            ciselna_rada=300000,
+        )
+        kamion_spx = Kamion.objects.create(zakaznik=spx, datum=date.today())
+        Predpis.objects.create(nazev='SPAX-3 Ø6_SK', skupina=1, zakaznik=spx)
+        Predpis.objects.create(nazev='SPAX-3 Ø5_SK', skupina=1, zakaznik=spx)
+
+        url = f'/admin/orders/kamion/import-zakazek/?kamion={kamion_spx.pk}'
+        file_mock = SimpleUploadedFile('spx.xlsx', b'fakecontent', content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        valid_req = self.get_request('post', data={'file': file_mock}, path=url)
+        valid_req.FILES['file'] = file_mock
+        valid_req.session = {}
+        valid_req._messages = FallbackStorage(valid_req)
+
+        import pandas as pandas_mod
+        df = pandas_mod.DataFrame([
+            {
+                'Bestellnr.': 'WO-1',
+                'Material': 'SPX-1',
+                'Kurztext': 'SPAX-3 SMK vrut A',
+                'Menge': '10',
+                'ME Gewicht': '20,0',
+                'GE': '25,0',
+            },
+            {
+                'Bestellnr.': 'SARZE-X',
+                'Material': 'SPX-1',
+                'Kurztext': '6,0*160,0',
+                'Menge': '',
+                'ME Gewicht': '',
+                'GE': '',
+            },
+            {
+                'Bestellnr.': 'WO-2',
+                'Material': 'SPX-1',
+                'Kurztext': 'SPAX-3 SMK vrut B',
+                'Menge': '8',
+                'ME Gewicht': '16,0',
+                'GE': '20,0',
+            },
+            {
+                'Bestellnr.': 'SARZE-X',
+                'Material': 'SPX-1',
+                'Kurztext': '6,0*140,0',
+                'Menge': '',
+                'ME Gewicht': '',
+                'GE': '',
+            },
+            {
+                'Bestellnr.': 'WO-3',
+                'Material': 'SPX-1',
+                'Kurztext': 'SPAX-3 SMK vrut C',
+                'Menge': '6',
+                'ME Gewicht': '12,0',
+                'GE': '15,0',
+            },
+            {
+                'Bestellnr.': 'SARZE-Y',
+                'Material': 'SPX-1',
+                'Kurztext': '5,0*120,0',
+                'Menge': '',
+                'ME Gewicht': '',
+                'GE': '',
+            },
+        ])
+
+        with patch.object(self.admin, '_render_import', wraps=self.admin._render_import), patch('orders.admin.pd.read_excel', side_effect=lambda *args, **kwargs: df.copy()):
+            zak_before = Zakazka.objects.count()
+            bedna_before = Bedna.objects.count()
+            preview_resp = self.admin.import_view(valid_req)
+
+        self.assertEqual(preview_resp.status_code, 200)
+        tmp_token = next(iter(valid_req.session.get('import_tmp_files', {})), None)
+        self.assertTrue(tmp_token)
+
+        import_req = self.get_request('post', data={'tmp_token': tmp_token}, path=url)
+        import_req.session = valid_req.session
+        import_req._messages = FallbackStorage(import_req)
+
+        with patch('orders.admin.pd.read_excel', side_effect=lambda *args, **kwargs: df.copy()):
+            resp = self.admin.import_view(import_req)
+
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(Zakazka.objects.count(), zak_before + 2)
+        self.assertEqual(Bedna.objects.count(), bedna_before + 3)
+        self.assertCountEqual(
+            list(Bedna.objects.values_list('sarze', flat=True)),
+            ['SARZE-X', 'SARZE-X', 'SARZE-Y'],
+        )
 
     def test_import_view_eur_orders_bedny_sorted_by_numeric_behalter(self):
         url = f'/admin/orders/kamion/import-zakazek/?kamion={self.kamion.pk}'

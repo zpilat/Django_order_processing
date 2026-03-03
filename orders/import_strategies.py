@@ -347,7 +347,7 @@ class EURImportStrategy(BaseImportStrategy):
 class SPXImportStrategy(BaseImportStrategy):
     name = "SPX"
     required_fields = [
-        'vyrobni_zakazka', 'artikl', 'popis', 'mnozstvi', 'hmotnost', 'tara', 'prumer', 'delka',
+        'vyrobni_zakazka', 'artikl', 'popis', 'mnozstvi', 'hmotnost', 'tara', 'sarze', 'prumer', 'delka',
     ] 
 
     def parse_excel(self, excel_stream, request, kamion):
@@ -400,12 +400,13 @@ class SPXImportStrategy(BaseImportStrategy):
         top_rows = df.iloc[::2].reset_index(drop=True)
         bottom_rows = df.iloc[1::2].reset_index(drop=True)
 
+        top_rows['sarze'] = bottom_rows.iloc[:, 0]
         top_rows['rozmer'] = bottom_rows.iloc[:, 2]
         df = top_rows
 
         # Povinné zdrojové sloupce dle specifikace
         required_src = [
-        'vyrobni_zakazka', 'artikl', 'popis', 'mnozstvi', 'hmotnost', 'brutto', 'rozmer',
+        'vyrobni_zakazka', 'artikl', 'popis', 'mnozstvi', 'hmotnost', 'brutto', 'sarze', 'rozmer',
         ] 
         missing = [c for c in required_src if c not in df.columns]
         if missing:
@@ -491,6 +492,9 @@ class SPXImportStrategy(BaseImportStrategy):
 
         df.drop(columns=['rozmer_prefix', 'rozmer', 'brutto'], inplace=True)
 
+        df['sarze'] = df['sarze'].fillna('').astype(str).str.strip()
+        df['artikl'] = df['artikl'].fillna('').astype(str).str.strip()
+
         logger.debug(f"Import - sloučené a upravené řádky dat: {df.head(2).to_dict(orient='records')}")     
 
         # Setřídění podle sloupce prumer, delka, artikl
@@ -507,6 +511,7 @@ class SPXImportStrategy(BaseImportStrategy):
                 'delka': r.get('delka') if pd.notna(r.get('delka')) else error_values,
                 'popis': r.get('popis') if pd.notna(r.get('popis')) else error_values,
                 'vyrobni_zakazka': r.get('vyrobni_zakazka') if pd.notna(r.get('vyrobni_zakazka')) else error_values,
+                'sarze': r.get('sarze') if pd.notna(r.get('sarze')) else error_values,
                 'hmotnost': r.get('hmotnost') if pd.notna(r.get('hmotnost')) else error_values,
                 'mnozstvi': r.get('mnozstvi') if pd.notna(r.get('mnozstvi')) else error_values,
                 'tara': r.get('tara') if pd.notna(r.get('tara')) else error_values,
@@ -519,8 +524,10 @@ class SPXImportStrategy(BaseImportStrategy):
         return list(self.required_fields)
 
     def get_cache_key(self, row: Any):
-        return row['artikl']
-
+        artikl_key = str(row.get('artikl')).strip() if pd.notna(row.get('artikl')) else None
+        sarze_key = str(row.get('sarze')).strip() if pd.notna(row.get('sarze')) else None
+        return (artikl_key, sarze_key)
+    
     def map_row_to_zakazka_kwargs(self, row: Any, kamion, warnings: List[str]):
         # Určí průměr jako řetězec pro název předpisu
         prumer = row.get('prumer')
@@ -580,7 +587,7 @@ class SPXImportStrategy(BaseImportStrategy):
 
         return {
             'kamion_prijem': kamion,
-            'artikl': row['artikl'],
+            'artikl': row.get('artikl'),
             'prumer': prumer,
             'delka': row.get('delka'),
             'popis': row.get('popis'),
@@ -594,4 +601,5 @@ class SPXImportStrategy(BaseImportStrategy):
             'tara': row.get('tara'),
             'mnozstvi': row.get('mnozstvi', 1),
             'vyrobni_zakazka': row.get('vyrobni_zakazka'),
+            'sarze': row.get('sarze'),
         }
