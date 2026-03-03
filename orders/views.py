@@ -545,7 +545,9 @@ def dashboard_bedny_k_navezeni_view(request):
                     if target_pozice_id:
                         moved_between_positions = True
                         source_note_by_zakazka = {o.zakazka_id: o.poznamka_k_navezeni for o in qs}
+                        source_nasledne_by_zakazka = {o.zakazka_id: o.nasledne for o in qs}
                         moved_note = source_note_by_zakazka.get(zakazka_id)
+                        moved_nasledne = source_nasledne_by_zakazka.get(zakazka_id, False)
                         # uzamkni cílovou pozici
                         dst_orders = list(
                             PoziceZakazkaOrder.objects
@@ -554,6 +556,7 @@ def dashboard_bedny_k_navezeni_view(request):
                             .order_by('poradi', 'zakazka_id')
                         )
                         target_note_by_zakazka = {o.zakazka_id: o.poznamka_k_navezeni for o in dst_orders}
+                        target_nasledne_by_zakazka = {o.zakazka_id: o.nasledne for o in dst_orders}
                         # přesun beden
                         Bedna.objects.filter(zakazka_id=zakazka_id, pozice_id=pozice_id).update(pozice_id=target_pozice_id)
                         # přepiš pořadí ve zdrojové pozici (bez této zakázky)
@@ -565,6 +568,7 @@ def dashboard_bedny_k_navezeni_view(request):
                                 zakazka_id=zid,
                                 poradi=idx,
                                 poznamka_k_navezeni=source_note_by_zakazka.get(zid),
+                                nasledne=source_nasledne_by_zakazka.get(zid, False),
                             )
                             for idx, zid in enumerate(src_ids, start=1)
                         ])
@@ -581,6 +585,11 @@ def dashboard_bedny_k_navezeni_view(request):
                                     if zid == zakazka_id and zakazka_id in target_note_by_zakazka
                                     else (moved_note if zid == zakazka_id else target_note_by_zakazka.get(zid))
                                 ),
+                                nasledne=(
+                                    target_nasledne_by_zakazka.get(zid)
+                                    if zid == zakazka_id and zakazka_id in target_nasledne_by_zakazka
+                                    else (moved_nasledne if zid == zakazka_id else target_nasledne_by_zakazka.get(zid, False))
+                                ),
                             )
                             for idx, zid in enumerate(dst_ids, start=1)
                         ])
@@ -593,7 +602,9 @@ def dashboard_bedny_k_navezeni_view(request):
                     if target_pozice_id:
                         moved_between_positions = True
                         source_note_by_zakazka = {o.zakazka_id: o.poznamka_k_navezeni for o in qs}
+                        source_nasledne_by_zakazka = {o.zakazka_id: o.nasledne for o in qs}
                         moved_note = source_note_by_zakazka.get(zakazka_id)
+                        moved_nasledne = source_nasledne_by_zakazka.get(zakazka_id, False)
                         dst_orders = list(
                             PoziceZakazkaOrder.objects
                             .select_for_update()
@@ -601,6 +612,7 @@ def dashboard_bedny_k_navezeni_view(request):
                             .order_by('poradi', 'zakazka_id')
                         )
                         target_note_by_zakazka = {o.zakazka_id: o.poznamka_k_navezeni for o in dst_orders}
+                        target_nasledne_by_zakazka = {o.zakazka_id: o.nasledne for o in dst_orders}
                         Bedna.objects.filter(zakazka_id=zakazka_id, pozice_id=pozice_id).update(pozice_id=target_pozice_id)
                         # zdrojová pozice bez této zakázky
                         src_ids = [p.zakazka_id for p in qs if p.zakazka_id != zakazka_id]
@@ -611,6 +623,7 @@ def dashboard_bedny_k_navezeni_view(request):
                                 zakazka_id=zid,
                                 poradi=idx,
                                 poznamka_k_navezeni=source_note_by_zakazka.get(zid),
+                                nasledne=source_nasledne_by_zakazka.get(zid, False),
                             )
                             for idx, zid in enumerate(src_ids, start=1)
                         ])
@@ -626,6 +639,11 @@ def dashboard_bedny_k_navezeni_view(request):
                                     (target_note_by_zakazka.get(zid) or moved_note)
                                     if zid == zakazka_id and zakazka_id in target_note_by_zakazka
                                     else (moved_note if zid == zakazka_id else target_note_by_zakazka.get(zid))
+                                ),
+                                nasledne=(
+                                    target_nasledne_by_zakazka.get(zid)
+                                    if zid == zakazka_id and zakazka_id in target_nasledne_by_zakazka
+                                    else (moved_nasledne if zid == zakazka_id else target_nasledne_by_zakazka.get(zid, False))
                                 ),
                             )
                             for idx, zid in enumerate(dst_ids, start=1)

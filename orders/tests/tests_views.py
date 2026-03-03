@@ -361,6 +361,58 @@ class BednyKNavezeniViewTests(ViewsTestBase):
 		merged_order = PoziceZakazkaOrder.objects.get(pozice=self.poz_b, zakazka=self.zak_eur)
 		self.assertEqual(merged_order.poznamka_k_navezeni, "Zdrojová poznámka")
 
+	def test_edge_move_down_preserves_nasledne_on_cross_position_move(self):
+		_get_bedny_k_navezeni_groups()
+		order_a = PoziceZakazkaOrder.objects.get(pozice=self.poz_a, zakazka=self.zak_eur)
+		order_a.nasledne = True
+		order_a.save(update_fields=["nasledne"])
+
+		resp = self.client.post(
+			reverse("dashboard_bedny_k_navezeni"),
+			{
+				"pozice_id": self.poz_a.id,
+				"zakazka_id": self.zak_eur.id,
+				"move": "down",
+			},
+		)
+		self.assertEqual(resp.status_code, 302)
+		self.assertEqual(resp["Location"], reverse("dashboard_bedny_k_navezeni"))
+
+		moved_order = PoziceZakazkaOrder.objects.get(pozice=self.poz_b, zakazka=self.zak_eur)
+		self.assertTrue(moved_order.nasledne)
+
+	def test_edge_move_down_merge_keeps_target_nasledne(self):
+		Bedna.objects.create(
+			zakazka=self.zak_eur,
+			pozice=self.poz_b,
+			stav_bedny=StavBednyChoice.K_NAVEZENI,
+			hmotnost=1,
+			tara=1,
+			mnozstvi=1,
+		)
+
+		_get_bedny_k_navezeni_groups()
+		order_source = PoziceZakazkaOrder.objects.get(pozice=self.poz_a, zakazka=self.zak_eur)
+		order_target = PoziceZakazkaOrder.objects.get(pozice=self.poz_b, zakazka=self.zak_eur)
+		order_source.nasledne = False
+		order_source.save(update_fields=["nasledne"])
+		order_target.nasledne = True
+		order_target.save(update_fields=["nasledne"])
+
+		resp = self.client.post(
+			reverse("dashboard_bedny_k_navezeni"),
+			{
+				"pozice_id": self.poz_a.id,
+				"zakazka_id": self.zak_eur.id,
+				"move": "down",
+			},
+		)
+		self.assertEqual(resp.status_code, 302)
+		self.assertEqual(resp["Location"], reverse("dashboard_bedny_k_navezeni"))
+
+		merged_order = PoziceZakazkaOrder.objects.get(pozice=self.poz_b, zakazka=self.zak_eur)
+		self.assertTrue(merged_order.nasledne)
+
 	def test_edge_move_up_moves_to_prev_position_at_end(self):
 		# inicializuj pořadí
 		_get_bedny_k_navezeni_groups()
