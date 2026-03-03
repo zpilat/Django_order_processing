@@ -12,20 +12,21 @@
     <table class="table table-sm align-middle mb-0 text-center">
       <thead>
         <tr style="font-size: 1.5rem;">
-          <th colspan="5" class="fw-bold" style="background-color: #ffde17; color: #214290;">Bedny k navezení</th>
+          <th colspan="6" class="fw-bold" style="background-color: #ffde17; color: #214290;">Bedny k navezení</th>
         </tr>
       </thead>
       <tbody>      
         {% if groups %}
           {% for group in groups %}
             <tr>
-              <th colspan="5" style="background-color: #ffde17; color: #214290; font-size: 1.2rem;">Do pozice: {{ group.pozice }}</th>
+              <th colspan="6" style="background-color: #ffde17; color: #214290; font-size: 1.2rem;">Do pozice: {{ group.pozice }}</th>
             </tr>
             <tr>
               <th style="background-color: #214290; color: #ffde17;">Artikl</th>
               <th style="background-color: #214290; color: #ffde17;">Rozměr</th>
               <th style="background-color: #214290; color: #ffde17;">Popis</th>
               <th style="background-color: #214290; color: #ffde17;">Poznámka k navezení</th>
+              <th style="background-color: #214290; color: #ffde17;">Následně?</th>
               <th style="background-color: #214290; color: #ffde17;">Číslo bedny</th>          
             </tr>          
             {% for zakazka_group in group.zakazky_group %}
@@ -65,7 +66,7 @@
                           {% endif %}
                         </div>
                       </div>
-                    </td>
+                      </td>
                     <td rowspan="{{ zakazka_group.bedny|length }}">{{ zakazka_group.zakazka.prumer }} x {{ zakazka_group.zakazka.delka }}</td>
                     <td rowspan="{{ zakazka_group.bedny|length }}">{{ zakazka_group.zakazka.popis }}</td>          
                     <td rowspan="{{ zakazka_group.bedny|length }}">
@@ -80,7 +81,14 @@
                           </div>
                         {% endwith %}
                       {% endwith %}
-                    </td>                              
+                    </td>
+                    <td rowspan="{{ zakazka_group.bedny|length }}">
+                      {% with poz=zakazka_group.pozice_id|stringformat:"s" zak=zakazka_group.zakazka.id|stringformat:"s" %}
+                        {% with target_id="nasledne-"|add:poz|add:"-"|add:zak %}
+                          {% include "orders/partials/dashboard_bedny_k_navezeni_nasledne.html" with pozice_id=zakazka_group.pozice_id zakazka_id=zakazka_group.zakazka.id nasledne=zakazka_group.nasledne target_id=target_id %}
+                        {% endwith %}
+                      {% endwith %}
+                    </td>
                   {% endif %}
                   <td>{{ bedna.cislo_bedny }}</td>
                 </tr>
@@ -90,7 +98,7 @@
           {% endfor %}
         {% else %}
           <tr>
-            <th colspan="5" style="background-color: #ffde17; color: #214290;">Žádné bedny ve stavu K_NAVEZENI.</th>
+            <th colspan="6" style="background-color: #ffde17; color: #214290;">Žádné bedny ve stavu K_NAVEZENI.</th>
           </tr>
         {% endif %}
       </tbody>

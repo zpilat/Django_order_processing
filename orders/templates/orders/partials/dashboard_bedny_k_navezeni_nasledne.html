@@ -1,0 +1,19 @@
+<div id="{{ target_id }}" class="d-flex justify-content-center" style="{% if nasledne %}background-color: #f8d7da;{% endif %} padding: 0.25rem; border-radius: 0.2rem;">
+  <form hx-post="{% url 'dashboard_bedny_k_navezeni_nasledne' %}"
+        hx-target="#{{ target_id }}"
+        hx-swap="outerHTML"
+        class="m-0 p-0">
+    {% csrf_token %}
+    <input type="hidden" name="pozice_id" value="{{ pozice_id }}">
+    <input type="hidden" name="zakazka_id" value="{{ zakazka_id }}">
+    <input type="checkbox"
+           name="nasledne"
+           value="1"
+           {% if nasledne %}checked{% endif %}
+           hx-trigger="change"
+           hx-post="{% url 'dashboard_bedny_k_navezeni_nasledne' %}"
+           hx-include="closest form"
+           hx-target="#{{ target_id }}"
+           hx-swap="outerHTML">
+  </form>
+</div>

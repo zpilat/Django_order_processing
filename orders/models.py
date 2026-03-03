@@ -854,6 +854,7 @@ class PoziceZakazkaOrder(models.Model):
     zakazka = models.ForeignKey('Zakazka', on_delete=models.CASCADE, related_name='pozice_poradi')
     poradi = models.PositiveIntegerField(default=1, verbose_name='Pořadí v pozici')
     poznamka_k_navezeni = models.CharField(max_length=50, blank=True, null=True, verbose_name='Poznámka k navezení')
+    nasledne = models.BooleanField(default=False, verbose_name='Následně?')
 
     class Meta:
         verbose_name = 'Pořadí zakázky v pozici'

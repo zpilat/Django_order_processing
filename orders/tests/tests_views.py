@@ -414,6 +414,37 @@ class BednyKNavezeniViewTests(ViewsTestBase):
 		order = PoziceZakazkaOrder.objects.get(pozice=self.poz_a, zakazka=self.zak_eur)
 		self.assertEqual(order.poznamka_k_navezeni, note_text)
 
+	def test_groups_include_nasledne_flag(self):
+		_get_bedny_k_navezeni_groups()
+		order = PoziceZakazkaOrder.objects.get(pozice=self.poz_a, zakazka=self.zak_eur)
+		order.nasledne = True
+		order.save(update_fields=["nasledne"])
+
+		groups = _get_bedny_k_navezeni_groups()
+		a_group = next(g for g in groups if g["pozice"] == "A")
+		eur_group = next(z for z in a_group["zakazky_group"] if z["zakazka"].id == self.zak_eur.id)
+		self.assertTrue(eur_group["nasledne"])
+
+	def test_nasledne_htmx_post_updates_flag(self):
+		_get_bedny_k_navezeni_groups()
+		resp = self.client.post(
+			reverse("dashboard_bedny_k_navezeni_nasledne"),
+			{"pozice_id": self.poz_a.id, "zakazka_id": self.zak_eur.id, "nasledne": "1"},
+			HTTP_HX_REQUEST="true",
+		)
+		self.assertEqual(resp.status_code, 200)
+		order = PoziceZakazkaOrder.objects.get(pozice=self.poz_a, zakazka=self.zak_eur)
+		self.assertTrue(order.nasledne)
+
+		resp_uncheck = self.client.post(
+			reverse("dashboard_bedny_k_navezeni_nasledne"),
+			{"pozice_id": self.poz_a.id, "zakazka_id": self.zak_eur.id},
+			HTTP_HX_REQUEST="true",
+		)
+		self.assertEqual(resp_uncheck.status_code, 200)
+		order.refresh_from_db()
+		self.assertFalse(order.nasledne)
+
 
 class BednyListViewTests(ViewsTestBase):
 	def test_default_excludes_expedovano_and_htmx_partial(self):

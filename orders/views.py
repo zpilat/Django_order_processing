@@ -413,10 +413,12 @@ def _get_bedny_k_navezeni_groups():
 
     order_map = {}
     note_map = {}
+    nasledne_map = {}
     for order_list in orders_by_position.values():
         for order in order_list:
             order_map[(order.pozice_id, order.zakazka_id)] = order.poradi
             note_map[(order.pozice_id, order.zakazka_id)] = order.poznamka_k_navezeni
+            nasledne_map[(order.pozice_id, order.zakazka_id)] = order.nasledne
 
     groups = []
     pozice_map = {}
@@ -444,6 +446,7 @@ def _get_bedny_k_navezeni_groups():
                 'poradi': poradi,
                 'pozice_id': bedna.pozice_id,
                 'poznamka_k_navezeni': note_map.get((bedna.pozice_id, zakazka_id)),
+                'nasledne': nasledne_map.get((bedna.pozice_id, zakazka_id), False),
             }
             pozice_group['zakazky_group'].append(zakazka_group)
 
@@ -457,6 +460,28 @@ def _get_bedny_k_navezeni_groups():
         )
 
     return groups
+
+
+def _split_bedny_k_navezeni_groups_by_nasledne(groups):
+    false_groups = []
+    true_groups = []
+
+    for group in groups:
+        false_items = [z for z in group['zakazky_group'] if not z.get('nasledne')]
+        true_items = [z for z in group['zakazky_group'] if z.get('nasledne')]
+
+        if false_items:
+            false_groups.append({
+                'pozice': group['pozice'],
+                'zakazky_group': false_items,
+            })
+        if true_items:
+            true_groups.append({
+                'pozice': group['pozice'],
+                'zakazky_group': true_items,
+            })
+
+    return false_groups, true_groups
 
 
 @login_required
@@ -720,10 +745,56 @@ def dashboard_bedny_k_navezeni_poznamka_view(request):
 
 
 @login_required
+def dashboard_bedny_k_navezeni_nasledne_view(request):
+    """HTMX endpoint pro inline přepnutí příznaku 'Následně?' pro zakázku v pozici."""
+    pozice_id_raw = request.POST.get('pozice_id') or request.GET.get('pozice_id')
+    zakazka_id_raw = request.POST.get('zakazka_id') or request.GET.get('zakazka_id')
+
+    try:
+        pozice_id = int(pozice_id_raw)
+        zakazka_id = int(zakazka_id_raw)
+    except (TypeError, ValueError):
+        return HttpResponseBadRequest("Neplatné ID pozice nebo zakázky.")
+
+    qs = Bedna.objects.filter(zakazka_id=zakazka_id, pozice_id=pozice_id)
+    if not qs.exists():
+        return HttpResponseBadRequest("Nebyla nalezena kombinace pozice a zakázky.")
+
+    order_obj, _ = PoziceZakazkaOrder.objects.get_or_create(
+        pozice_id=pozice_id,
+        zakazka_id=zakazka_id,
+        defaults={
+            'poradi': (
+                (PoziceZakazkaOrder.objects.filter(pozice_id=pozice_id).order_by('-poradi').values_list('poradi', flat=True).first() or 0)
+                + 1
+            ),
+            'poznamka_k_navezeni': None,
+            'nasledne': False,
+        }
+    )
+
+    if request.method == 'POST':
+        nasledne = request.POST.get('nasledne') in ('1', 'true', 'on', 'yes')
+        order_obj.nasledne = nasledne
+        order_obj.save(update_fields=['nasledne'])
+
+    context = {
+        'pozice_id': pozice_id,
+        'zakazka_id': zakazka_id,
+        'nasledne': order_obj.nasledne,
+        'target_id': f"nasledne-{pozice_id}-{zakazka_id}",
+    }
+    return render(request, "orders/partials/dashboard_bedny_k_navezeni_nasledne.html", context)
+
+
+@login_required
 def dashboard_bedny_k_navezeni_pdf_view(request):
     """PDF verze přehledu beden k navezení (WeasyPrint)."""
+    groups = _get_bedny_k_navezeni_groups()
+    groups_false, groups_true = _split_bedny_k_navezeni_groups_by_nasledne(groups)
     context = {
-        'groups': _get_bedny_k_navezeni_groups(),
+        'groups_false': groups_false,
+        'groups_true': groups_true,
         'current_time': timezone.now(),
     }
     from django.template.loader import render_to_string

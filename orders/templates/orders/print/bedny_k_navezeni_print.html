@@ -3,7 +3,7 @@
 <html lang="cs">
 <head>
   <meta charset="utf-8">
-  <title>Bedny k navezení – tisk</title>
+  <title>Bedny k navezení - tisk</title>
   <style>
     @page { size: A4 portrait; margin: 12mm; }
     :root {
@@ -39,56 +39,114 @@
   </style>
 </head>
 <body>
-  <header>
-    <h4 class="text-center">Přehled beden k navezení vygenerován: {{ current_time|date:"d.m.Y H:i" }}</h4>
-  </header>
-  {% if groups %}
-    <table class="group-table">
-      <thead>
-        <tr class="text-center">
-          <th>Pozice</th>
-          <th>Artikl</th>
-          <th>Zák.</th>
-          <th>Rozměr</th>
-          <th>Pozn. k navezení</th>
-          <th>Č. bedny</th>
-          <th>Navezeno?</th>
-        </tr>
-      </thead>
-      {% for group in groups %}
-        <tbody class="group-body">
-          <tr class="border-group-top"></tr>
-        </tbody>
-        {% for zakazka_group in group.zakazky_group %}
-          {% with bedny_list=zakazka_group.bedny %}
-            <tbody class="zakazka-group">
-              {% for bedna in bedny_list %}
-                <tr class="text-center{% if forloop.first %} border-top{% endif %}">
-                  {% if forloop.first %}
-                    <td rowspan="{{ bedny_list|length }}" style="font-weight: bold; font-size: 14px;">
-                      {{ group.pozice|default:"-" }}
-                      {% if forloop.parentloop and forloop.parentloop.last %}
-                        <br>
-                        <span style="font-size: 12px; font-weight: normal;">(KE ZDI)</span>
-                      {% endif %}
-                    </td>
-                    <td rowspan="{{ bedny_list|length }}" style="font-weight: bold; font-size: 14px;">{{ zakazka_group.zakazka.artikl }}</td>
-                    <td rowspan="{{ bedny_list|length }}">{{ zakazka_group.zakazka.kamion_prijem.zakaznik.zkratka }}</td>
-                    <td rowspan="{{ bedny_list|length }}">{{ zakazka_group.zakazka.prumer }} x {{ zakazka_group.zakazka.delka }}</td>
-                    <td rowspan="{{ bedny_list|length }}" class="text-center" style="font-weight: bold;{% if zakazka_group.poznamka_k_navezeni %} background: var(--highlight); {% endif %}">{{ zakazka_group.poznamka_k_navezeni|default:"vše" }}</td>
-                    <td style="background: var(--first-row);"><span style="font-weight: bold;">{{ bedna.cislo_bedny }}</span>{% if bedna.behalter_nr %} ({{ bedna.behalter_nr }}){% endif %}</td>
-                    <td></td>                  
-                  {% else %}
-                    <td><span style="font-weight: bold;">{{ bedna.cislo_bedny }}</span>{% if bedna.behalter_nr %} ({{ bedna.behalter_nr }}){% endif %}</td>
-                    <td></td>     
-                  {% endif %}             
-                </tr>
-              {% endfor %}
-            </tbody>
-          {% endwith %}
+  {% if groups_false or groups_true %}
+    {% if groups_false %}
+      <table class="group-table">
+        <thead>
+          <tr style="color: #dc3545;">
+            <th colspan="7" class="text-center" style="background-color: #f8d7da;">
+              Bedny k navezení nyní<br>
+              <span style="font-weight: normal; font-size: 12px;">(vygenerováno: {{ current_time|date:"d.m.Y H:i" }})</span>
+            </th>
+          </tr>
+          <tr class="text-center">
+            <th>Pozice</th>
+            <th>Artikl</th>
+            <th>Zák.</th>
+            <th>Rozměr</th>
+            <th>Pozn. k navezení</th>
+            <th>Č. bedny</th>
+            <th>Navezeno?</th>
+          </tr>
+        </thead>
+        {% for group in groups_false %}
+          <tbody class="group-body">
+            <tr class="border-group-top"></tr>
+          </tbody>
+          {% for zakazka_group in group.zakazky_group %}
+            {% with bedny_list=zakazka_group.bedny %}
+              <tbody class="zakazka-group">
+                {% for bedna in bedny_list %}
+                  <tr class="text-center{% if forloop.first %} border-top{% endif %}">
+                    {% if forloop.first %}
+                      <td rowspan="{{ bedny_list|length }}" style="font-weight: bold; font-size: 14px;">
+                        {{ group.pozice|default:"-" }}
+                        {% if forloop.parentloop and forloop.parentloop.last %}
+                          <br>
+                          <span style="font-size: 12px; font-weight: normal;">(KE ZDI)</span>
+                        {% endif %}
+                      </td>
+                      <td rowspan="{{ bedny_list|length }}" style="font-weight: bold; font-size: 14px;">{{ zakazka_group.zakazka.artikl }}</td>
+                      <td rowspan="{{ bedny_list|length }}">{{ zakazka_group.zakazka.kamion_prijem.zakaznik.zkratka }}</td>
+                      <td rowspan="{{ bedny_list|length }}">{{ zakazka_group.zakazka.prumer }} x {{ zakazka_group.zakazka.delka }}</td>
+                      <td rowspan="{{ bedny_list|length }}" class="text-center" style="font-weight: bold;{% if zakazka_group.poznamka_k_navezeni %} background: var(--highlight); {% endif %}">{{ zakazka_group.poznamka_k_navezeni|default:"vše" }}</td>
+                      <td style="background: var(--first-row);"><span style="font-weight: bold;">{{ bedna.cislo_bedny }}</span>{% if bedna.behalter_nr %} ({{ bedna.behalter_nr }}){% endif %}</td>
+                      <td></td>
+                    {% else %}
+                      <td><span style="font-weight: bold;">{{ bedna.cislo_bedny }}</span>{% if bedna.behalter_nr %} ({{ bedna.behalter_nr }}){% endif %}</td>
+                      <td></td>
+                    {% endif %}
+                  </tr>
+                {% endfor %}
+              </tbody>
+            {% endwith %}
+          {% endfor %}
         {% endfor %}
-      {% endfor %}
-    </table>
+      </table>
+    {% endif %}
+
+    {% if groups_true %}
+      <div style="page-break-before: always;"></div>
+      <table class="group-table">
+        <thead>
+          <tr style="color: #28a745;">
+            <th colspan="7" class="text-center" style="background-color: #d4edda;">Bedny k navezení následně</th>
+          </tr>
+          <tr class="text-center">
+            <th>Pozice</th>
+            <th>Artikl</th>
+            <th>Zák.</th>
+            <th>Rozměr</th>
+            <th>Pozn. k navezení</th>
+            <th>Č. bedny</th>
+            <th>Navezeno?</th>
+          </tr>
+        </thead>
+        {% for group in groups_true %}
+          <tbody class="group-body">
+            <tr class="border-group-top"></tr>
+          </tbody>
+          {% for zakazka_group in group.zakazky_group %}
+            {% with bedny_list=zakazka_group.bedny %}
+              <tbody class="zakazka-group">
+                {% for bedna in bedny_list %}
+                  <tr class="text-center{% if forloop.first %} border-top{% endif %}">
+                    {% if forloop.first %}
+                      <td rowspan="{{ bedny_list|length }}" style="font-weight: bold; font-size: 14px;">
+                        {{ group.pozice|default:"-" }}
+                        {% if forloop.parentloop and forloop.parentloop.last %}
+                          <br>
+                          <span style="font-size: 12px; font-weight: normal;">(KE ZDI)</span>
+                        {% endif %}
+                      </td>
+                      <td rowspan="{{ bedny_list|length }}" style="font-weight: bold; font-size: 14px;">{{ zakazka_group.zakazka.artikl }}</td>
+                      <td rowspan="{{ bedny_list|length }}">{{ zakazka_group.zakazka.kamion_prijem.zakaznik.zkratka }}</td>
+                      <td rowspan="{{ bedny_list|length }}">{{ zakazka_group.zakazka.prumer }} x {{ zakazka_group.zakazka.delka }}</td>
+                      <td rowspan="{{ bedny_list|length }}" class="text-center" style="font-weight: bold;{% if zakazka_group.poznamka_k_navezeni %} background: var(--highlight); {% endif %}">{{ zakazka_group.poznamka_k_navezeni|default:"vše" }}</td>
+                      <td style="background: var(--first-row);"><span style="font-weight: bold;">{{ bedna.cislo_bedny }}</span>{% if bedna.behalter_nr %} ({{ bedna.behalter_nr }}){% endif %}</td>
+                      <td></td>
+                    {% else %}
+                      <td><span style="font-weight: bold;">{{ bedna.cislo_bedny }}</span>{% if bedna.behalter_nr %} ({{ bedna.behalter_nr }}){% endif %}</td>
+                      <td></td>
+                    {% endif %}
+                  </tr>
+                {% endfor %}
+              </tbody>
+            {% endwith %}
+          {% endfor %}
+        {% endfor %}
+      </table>
+    {% endif %}
   {% else %}
     <table>
       <tbody>

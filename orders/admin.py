@@ -2906,7 +2906,7 @@ class BednaAdmin(SimpleHistoryAdmin):
                 'stav_bedny', 'tryskat', 'rovnat', 'zinkovat', 'pozastaveno', 'fakturovat'
             )),
             ("K navezení", (
-                'pozice'
+                'pozice',
             )),
             ("Speciální informace", (
                 'dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka'
@@ -3858,7 +3858,7 @@ class PoziceZakazkaOrderAdmin(admin.ModelAdmin):
     """
     Správa pozic zakázek v administraci.
     """
-    list_display = ('zakazka', 'pozice', 'poradi', 'poznamka_k_navezeni')
+    list_display = ('zakazka', 'pozice', 'poradi', 'poznamka_k_navezeni', 'nasledne')
     list_display_links = ('zakazka',)
     ordering = ['pozice', 'poradi']
     list_per_page = 25
