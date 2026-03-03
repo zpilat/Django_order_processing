@@ -67,12 +67,10 @@
 
     </style>
 </head>
-<body>
-    <h1>Přehled rozpracovanosti</h1>
-    
+<body>   
     {% for section in sections %}
         <div class="customer-section">
-            <h2>{{ section.zakaznik.nazev }}</h2>
+            <h2>Rozpracovanost - {{ section.zakaznik.nazev }}</h2>
             <table class={% if section.zakaznik.fakturovat_rovnani and section.zakaznik.fakturovat_tryskani %}"fs-06"{% elif section.zakaznik.fakturovat_rovnani or section.zakaznik.fakturovat_tryskani %}"fs-07"{% else %}"fs-08"{% endif %}>
                 <thead>
                     <tr>
@@ -124,7 +122,7 @@
                                 <td class="text-end">{{ zakazka.rovnani_cena_netto|floatformat:2 }} €</td>
                             {% endif %}
                             {% if section.zakaznik.fakturovat_tryskani %}
-                                <td class="text-end">{{ zakazka.rovnani_pocet_beden }} ks</td>  
+                                <td class="text-end">{{ zakazka.tryskani_pocet_beden }} ks</td>  
                                 <td class="text-end">{{ zakazka.tryskani_hmotnost|floatformat:1 }} kg</td>                          
                                 <td class="text-end">{{ zakazka.tryskani_cena_kg|floatformat:2 }} €/kg</td>
                                 <td class="text-end">{{ zakazka.tryskani_cena_netto|floatformat:2 }} €</td>
