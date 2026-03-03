@@ -267,6 +267,9 @@ class BednyKNavezeniViewTests(ViewsTestBase):
 	def test_edge_move_down_moves_to_next_position_at_beginning(self):
 		# inicializuj pořadí
 		_get_bedny_k_navezeni_groups()
+		order_a = PoziceZakazkaOrder.objects.get(pozice=self.poz_a, zakazka=self.zak_eur)
+		order_a.poznamka_k_navezeni = "Poznámka A"
+		order_a.save(update_fields=["poznamka_k_navezeni"])
 		resp = self.client.post(
 			reverse("dashboard_bedny_k_navezeni"),
 			{
@@ -288,12 +291,82 @@ class BednyKNavezeniViewTests(ViewsTestBase):
 			PoziceZakazkaOrder.objects.filter(pozice=self.poz_b).order_by("poradi").values_list("zakazka_id", flat=True)
 		)
 		self.assertEqual(orders_b, [self.zak_eur.id, self.zak_abc.id])
+		moved_order = PoziceZakazkaOrder.objects.get(pozice=self.poz_b, zakazka=self.zak_eur)
+		self.assertEqual(moved_order.poznamka_k_navezeni, "Poznámka A")
 		orders_a = list(PoziceZakazkaOrder.objects.filter(pozice=self.poz_a))
 		self.assertEqual(len(orders_a), 0)
+
+	def test_edge_move_down_merge_keeps_target_note(self):
+		# Připrav stejnou zakázku i v cílové pozici B (nastane merge do jedné pozice+zakázka)
+		Bedna.objects.create(
+			zakazka=self.zak_eur,
+			pozice=self.poz_b,
+			stav_bedny=StavBednyChoice.K_NAVEZENI,
+			hmotnost=1,
+			tara=1,
+			mnozstvi=1,
+		)
+
+		_get_bedny_k_navezeni_groups()
+		order_source = PoziceZakazkaOrder.objects.get(pozice=self.poz_a, zakazka=self.zak_eur)
+		order_target = PoziceZakazkaOrder.objects.get(pozice=self.poz_b, zakazka=self.zak_eur)
+		order_source.poznamka_k_navezeni = "Zdrojová poznámka"
+		order_source.save(update_fields=["poznamka_k_navezeni"])
+		order_target.poznamka_k_navezeni = "Cílová poznámka"
+		order_target.save(update_fields=["poznamka_k_navezeni"])
+
+		resp = self.client.post(
+			reverse("dashboard_bedny_k_navezeni"),
+			{
+				"pozice_id": self.poz_a.id,
+				"zakazka_id": self.zak_eur.id,
+				"move": "down",
+			},
+		)
+		self.assertEqual(resp.status_code, 302)
+		self.assertEqual(resp["Location"], reverse("dashboard_bedny_k_navezeni"))
+
+		merged_order = PoziceZakazkaOrder.objects.get(pozice=self.poz_b, zakazka=self.zak_eur)
+		self.assertEqual(merged_order.poznamka_k_navezeni, "Cílová poznámka")
+
+	def test_edge_move_down_merge_fills_empty_target_note_from_source(self):
+		Bedna.objects.create(
+			zakazka=self.zak_eur,
+			pozice=self.poz_b,
+			stav_bedny=StavBednyChoice.K_NAVEZENI,
+			hmotnost=1,
+			tara=1,
+			mnozstvi=1,
+		)
+
+		_get_bedny_k_navezeni_groups()
+		order_source = PoziceZakazkaOrder.objects.get(pozice=self.poz_a, zakazka=self.zak_eur)
+		order_target = PoziceZakazkaOrder.objects.get(pozice=self.poz_b, zakazka=self.zak_eur)
+		order_source.poznamka_k_navezeni = "Zdrojová poznámka"
+		order_source.save(update_fields=["poznamka_k_navezeni"])
+		order_target.poznamka_k_navezeni = None
+		order_target.save(update_fields=["poznamka_k_navezeni"])
+
+		resp = self.client.post(
+			reverse("dashboard_bedny_k_navezeni"),
+			{
+				"pozice_id": self.poz_a.id,
+				"zakazka_id": self.zak_eur.id,
+				"move": "down",
+			},
+		)
+		self.assertEqual(resp.status_code, 302)
+		self.assertEqual(resp["Location"], reverse("dashboard_bedny_k_navezeni"))
+
+		merged_order = PoziceZakazkaOrder.objects.get(pozice=self.poz_b, zakazka=self.zak_eur)
+		self.assertEqual(merged_order.poznamka_k_navezeni, "Zdrojová poznámka")
 
 	def test_edge_move_up_moves_to_prev_position_at_end(self):
 		# inicializuj pořadí
 		_get_bedny_k_navezeni_groups()
+		order_b = PoziceZakazkaOrder.objects.get(pozice=self.poz_b, zakazka=self.zak_abc)
+		order_b.poznamka_k_navezeni = "Poznámka B"
+		order_b.save(update_fields=["poznamka_k_navezeni"])
 		resp = self.client.post(
 			reverse("dashboard_bedny_k_navezeni"),
 			{
@@ -313,10 +386,13 @@ class BednyKNavezeniViewTests(ViewsTestBase):
 			PoziceZakazkaOrder.objects.filter(pozice=self.poz_a).order_by("poradi").values_list("zakazka_id", flat=True)
 		)
 		self.assertEqual(orders_a, [self.zak_eur.id, self.zak_abc.id])
+		moved_order = PoziceZakazkaOrder.objects.get(pozice=self.poz_a, zakazka=self.zak_abc)
+		self.assertEqual(moved_order.poznamka_k_navezeni, "Poznámka B")
 		orders_b = list(PoziceZakazkaOrder.objects.filter(pozice=self.poz_b))
 		self.assertEqual(len(orders_b), 0)
 
 	def test_poznamka_htmx_get_and_post(self):
+		_get_bedny_k_navezeni_groups()
 		# GET form
 		resp_get = self.client.get(
 			reverse("dashboard_bedny_k_navezeni_poznamka"),
@@ -335,10 +411,8 @@ class BednyKNavezeniViewTests(ViewsTestBase):
 		)
 		self.assertEqual(resp_post.status_code, 200)
 		self.assertIn(note_text, resp_post.content.decode())
-		self.b_nav1.refresh_from_db()
-		self.b_nav2.refresh_from_db()
-		self.assertEqual(self.b_nav1.poznamka_k_navezeni, note_text)
-		self.assertIsNone(self.b_nav2.poznamka_k_navezeni)
+		order = PoziceZakazkaOrder.objects.get(pozice=self.poz_a, zakazka=self.zak_eur)
+		self.assertEqual(order.poznamka_k_navezeni, note_text)
 
 
 class BednyListViewTests(ViewsTestBase):

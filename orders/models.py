@@ -853,6 +853,7 @@ class PoziceZakazkaOrder(models.Model):
     pozice = models.ForeignKey('Pozice', on_delete=models.CASCADE, related_name='zakazky_poradi')
     zakazka = models.ForeignKey('Zakazka', on_delete=models.CASCADE, related_name='pozice_poradi')
     poradi = models.PositiveIntegerField(default=1, verbose_name='Pořadí v pozici')
+    poznamka_k_navezeni = models.CharField(max_length=50, blank=True, null=True, verbose_name='Poznámka k navezení')
 
     class Meta:
         verbose_name = 'Pořadí zakázky v pozici'
@@ -892,8 +893,7 @@ class Bedna(models.Model):
     pozastaveno = models.BooleanField(default=False, verbose_name='Pozastaveno?',
                                        help_text='Pokud je bedna pozastavena, nelze s ní pracovat, dokud ji odpovědná osoba neuvolní.')
     fakturovat = models.BooleanField(default=True, verbose_name='Fakturovat?',
-                                     help_text='Pokud není bedna určena k fakturaci, nebude zahrnuta do proforma faktury pro zákazníka.')    
-    poznamka_k_navezeni = models.CharField(max_length=50, blank=True, null=True, verbose_name='Poznámka k navezení')
+                                     help_text='Pokud není bedna určena k fakturaci, nebude zahrnuta do proforma faktury pro zákazníka.')
     history = HistoricalRecords()
 
     class Meta:
@@ -1120,7 +1120,7 @@ class Bedna(models.Model):
           * Před uložením nastaví `cislo_bedny` na další číslo v řadě pro daného zákazníka.
           * Pro zákazníka s příznakem `vse_tryskat` nastaví `tryskat` na `SPINAVA`, ale pouze
             pokud je délka bedny menší než 900mm - delší díly se nevlezou do tryskače.
-        - Pokud je stav bedny jiný než K_NAVEZENI nebo NAVEZENO, vymaže pozici a poznámku k navezení.
+                - Pokud je stav bedny jiný než K_NAVEZENI nebo NAVEZENO, vymaže pozici.
         """
         is_existing_instance = bool(self.pk)
 
@@ -1142,10 +1142,9 @@ class Bedna(models.Model):
             if zakaznik.vse_tryskat and self.zakazka.delka and self.zakazka.delka < 900:
                 self.tryskat = TryskaniChoice.SPINAVA
 
-        # Pokud je stav bedny jiný než K_NAVEZENI nebo NAVEZENO, vymaže pozici a poznámku k navezení
+        # Pokud je stav bedny jiný než K_NAVEZENI nebo NAVEZENO, vymaže pozici
         if self.stav_bedny not in [StavBednyChoice.K_NAVEZENI, StavBednyChoice.NAVEZENO]:
             self.pozice = None
-            self.poznamka_k_navezeni = None
 
         super().save(*args, **kwargs)
 

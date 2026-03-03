@@ -2893,7 +2893,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         - Pokud je vyplněna tara a je větší než 0, skryje se pole brutto
         - Pokud není stav bedny ve STAV_BEDNY_SKLADEM, skryje se pole cena_za_kg, cena_za_bednu, cena_rovnani_za_kg,
           cena_rovnani_za_bednu, cena_tryskani_za_kg a cena_tryskani_za_bednu
-        - Pokud není stav bedny ve STAV_BEDNY_PRO_NAVEZENI, skryje se pole pozice a poznamka_k_navezeni
+        - Pokud není stav bedny ve STAV_BEDNY_PRO_NAVEZENI, skryje se pole pozice
         """
         groups = [
             ("Základní údaje", (
@@ -2906,7 +2906,7 @@ class BednaAdmin(SimpleHistoryAdmin):
                 'stav_bedny', 'tryskat', 'rovnat', 'zinkovat', 'pozastaveno', 'fakturovat'
             )),
             ("K navezení", (
-                'pozice', 'poznamka_k_navezeni'
+                'pozice'
             )),
             ("Speciální informace", (
                 'dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka'
@@ -2938,9 +2938,9 @@ class BednaAdmin(SimpleHistoryAdmin):
             if obj.stav_bedny and obj.stav_bedny not in STAV_BEDNY_SKLADEM:
                 exclude_fields.extend(['cena_za_kg', 'cena_za_bednu', 'cena_rovnani_za_kg', 'cena_rovnani_za_bednu',
                                        'cena_tryskani_za_kg', 'cena_tryskani_za_bednu'])
-            # Pokud není stav bedny ve STAV_BEDNY_PRO_NAVEZENI, skryje se pole pozice a poznamka_k_navezeni
+            # Pokud není stav bedny ve STAV_BEDNY_PRO_NAVEZENI, skryje se pole pozice
             if obj.stav_bedny and obj.stav_bedny not in STAV_BEDNY_PRO_NAVEZENI:
-                exclude_fields.extend(['pozice', 'poznamka_k_navezeni'])
+                exclude_fields.append('pozice')
         else:
             # add_view: cislo_bedny se generuje automaticky
             exclude_fields = ['cislo_bedny', 'get_notifikace']
@@ -2974,7 +2974,7 @@ class BednaAdmin(SimpleHistoryAdmin):
             # ale pokud uživatel má speciální oprávnění, povolíme zobrazení některých polí jako readonly.
             added_readonly_fields = [
                 'zakazka', 'cislo_bedny', 'tryskat', 'rovnat', 'stav_bedny', 'pozastaveno',
-                'pozice', 'poznamka_k_navezeni',
+                'pozice',
             ]
         return current_readonly_fields + added_readonly_fields
 
@@ -3858,7 +3858,7 @@ class PoziceZakazkaOrderAdmin(admin.ModelAdmin):
     """
     Správa pozic zakázek v administraci.
     """
-    list_display = ('zakazka', 'pozice', 'poradi')
+    list_display = ('zakazka', 'pozice', 'poradi', 'poznamka_k_navezeni')
     list_display_links = ('zakazka',)
     ordering = ['pozice', 'poradi']
     list_per_page = 25

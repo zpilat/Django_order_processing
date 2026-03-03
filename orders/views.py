@@ -407,13 +407,16 @@ def _get_bedny_k_navezeni_groups():
                     pozice_id=pozice_id,
                     zakazka_id=zakazka_id,
                     poradi=poradi,
+                    poznamka_k_navezeni=None,
                 )
                 order_list.append(new_order)
 
     order_map = {}
+    note_map = {}
     for order_list in orders_by_position.values():
         for order in order_list:
             order_map[(order.pozice_id, order.zakazka_id)] = order.poradi
+            note_map[(order.pozice_id, order.zakazka_id)] = order.poznamka_k_navezeni
 
     groups = []
     pozice_map = {}
@@ -440,6 +443,7 @@ def _get_bedny_k_navezeni_groups():
                 'bedny': [],
                 'poradi': poradi,
                 'pozice_id': bedna.pozice_id,
+                'poznamka_k_navezeni': note_map.get((bedna.pozice_id, zakazka_id)),
             }
             pozice_group['zakazky_group'].append(zakazka_group)
 
@@ -515,6 +519,8 @@ def dashboard_bedny_k_navezeni_view(request):
                     target_pozice_id = pozice_id_by_kod.get(prev_kod)
                     if target_pozice_id:
                         moved_between_positions = True
+                        source_note_by_zakazka = {o.zakazka_id: o.poznamka_k_navezeni for o in qs}
+                        moved_note = source_note_by_zakazka.get(zakazka_id)
                         # uzamkni cílovou pozici
                         dst_orders = list(
                             PoziceZakazkaOrder.objects
@@ -522,20 +528,35 @@ def dashboard_bedny_k_navezeni_view(request):
                             .filter(pozice_id=target_pozice_id)
                             .order_by('poradi', 'zakazka_id')
                         )
+                        target_note_by_zakazka = {o.zakazka_id: o.poznamka_k_navezeni for o in dst_orders}
                         # přesun beden
                         Bedna.objects.filter(zakazka_id=zakazka_id, pozice_id=pozice_id).update(pozice_id=target_pozice_id)
                         # přepiš pořadí ve zdrojové pozici (bez této zakázky)
                         src_ids = [p.zakazka_id for p in qs if p.zakazka_id != zakazka_id]
                         PoziceZakazkaOrder.objects.filter(pozice_id=pozice_id).delete()
                         PoziceZakazkaOrder.objects.bulk_create([
-                            PoziceZakazkaOrder(pozice_id=pozice_id, zakazka_id=zid, poradi=idx)
+                            PoziceZakazkaOrder(
+                                pozice_id=pozice_id,
+                                zakazka_id=zid,
+                                poradi=idx,
+                                poznamka_k_navezeni=source_note_by_zakazka.get(zid),
+                            )
                             for idx, zid in enumerate(src_ids, start=1)
                         ])
                         # vlož do cílové pozice na konec (bez duplicit, kdyby tam zakázka už byla)
                         dst_ids = [p.zakazka_id for p in dst_orders if p.zakazka_id != zakazka_id] + [zakazka_id]
                         PoziceZakazkaOrder.objects.filter(pozice_id=target_pozice_id).delete()
                         PoziceZakazkaOrder.objects.bulk_create([
-                            PoziceZakazkaOrder(pozice_id=target_pozice_id, zakazka_id=zid, poradi=idx)
+                            PoziceZakazkaOrder(
+                                pozice_id=target_pozice_id,
+                                zakazka_id=zid,
+                                poradi=idx,
+                                poznamka_k_navezeni=(
+                                    (target_note_by_zakazka.get(zid) or moved_note)
+                                    if zid == zakazka_id and zakazka_id in target_note_by_zakazka
+                                    else (moved_note if zid == zakazka_id else target_note_by_zakazka.get(zid))
+                                ),
+                            )
                             for idx, zid in enumerate(dst_ids, start=1)
                         ])
 
@@ -546,25 +567,42 @@ def dashboard_bedny_k_navezeni_view(request):
                     target_pozice_id = pozice_id_by_kod.get(next_kod)
                     if target_pozice_id:
                         moved_between_positions = True
+                        source_note_by_zakazka = {o.zakazka_id: o.poznamka_k_navezeni for o in qs}
+                        moved_note = source_note_by_zakazka.get(zakazka_id)
                         dst_orders = list(
                             PoziceZakazkaOrder.objects
                             .select_for_update()
                             .filter(pozice_id=target_pozice_id)
                             .order_by('poradi', 'zakazka_id')
                         )
+                        target_note_by_zakazka = {o.zakazka_id: o.poznamka_k_navezeni for o in dst_orders}
                         Bedna.objects.filter(zakazka_id=zakazka_id, pozice_id=pozice_id).update(pozice_id=target_pozice_id)
                         # zdrojová pozice bez této zakázky
                         src_ids = [p.zakazka_id for p in qs if p.zakazka_id != zakazka_id]
                         PoziceZakazkaOrder.objects.filter(pozice_id=pozice_id).delete()
                         PoziceZakazkaOrder.objects.bulk_create([
-                            PoziceZakazkaOrder(pozice_id=pozice_id, zakazka_id=zid, poradi=idx)
+                            PoziceZakazkaOrder(
+                                pozice_id=pozice_id,
+                                zakazka_id=zid,
+                                poradi=idx,
+                                poznamka_k_navezeni=source_note_by_zakazka.get(zid),
+                            )
                             for idx, zid in enumerate(src_ids, start=1)
                         ])
                         # cílová pozice: vlož na začátek (bez duplicit)
                         dst_ids = [zakazka_id] + [p.zakazka_id for p in dst_orders if p.zakazka_id != zakazka_id]
                         PoziceZakazkaOrder.objects.filter(pozice_id=target_pozice_id).delete()
                         PoziceZakazkaOrder.objects.bulk_create([
-                            PoziceZakazkaOrder(pozice_id=target_pozice_id, zakazka_id=zid, poradi=idx)
+                            PoziceZakazkaOrder(
+                                pozice_id=target_pozice_id,
+                                zakazka_id=zid,
+                                poradi=idx,
+                                poznamka_k_navezeni=(
+                                    (target_note_by_zakazka.get(zid) or moved_note)
+                                    if zid == zakazka_id and zakazka_id in target_note_by_zakazka
+                                    else (moved_note if zid == zakazka_id else target_note_by_zakazka.get(zid))
+                                ),
+                            )
                             for idx, zid in enumerate(dst_ids, start=1)
                         ])
 
@@ -652,15 +690,23 @@ def dashboard_bedny_k_navezeni_poznamka_view(request):
     if not qs.exists():
         return HttpResponseBadRequest("Nebyla nalezena kombinace pozice a zakázky.")
 
-    poznamka = qs.values_list('poznamka_k_navezeni', flat=True).first() or ''
+    order_obj, _ = PoziceZakazkaOrder.objects.get_or_create(
+        pozice_id=pozice_id,
+        zakazka_id=zakazka_id,
+        defaults={
+            'poradi': (
+                (PoziceZakazkaOrder.objects.filter(pozice_id=pozice_id).order_by('-poradi').values_list('poradi', flat=True).first() or 0)
+                + 1
+            ),
+            'poznamka_k_navezeni': None,
+        }
+    )
+    poznamka = order_obj.poznamka_k_navezeni or ''
 
     if request.method == 'POST':
         poznamka = request.POST.get('poznamka') or ''
-        with transaction.atomic():
-            target_bedna = qs.order_by('cislo_bedny', 'id').first()
-            if target_bedna:
-                target_bedna.poznamka_k_navezeni = (poznamka or None)
-                target_bedna.save(update_fields=['poznamka_k_navezeni'])
+        order_obj.poznamka_k_navezeni = (poznamka or None)
+        order_obj.save(update_fields=['poznamka_k_navezeni'])
         mode = 'display'
 
     context = {

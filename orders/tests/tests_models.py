@@ -849,12 +849,10 @@ class TestSarzeModels(ModelsBase):
             mnozstvi=1,
             pozice=p,
         )
-        b.poznamka_k_navezeni = "X"
         b.stav_bedny = StavBednyChoice.PRIJATO
         b.save()
         b.refresh_from_db()
         self.assertIsNone(b.pozice)
-        self.assertIsNone(b.poznamka_k_navezeni)
 
     # --- Kamion delete guard ---
     def test_kamion_prijem_delete_guard_blocks_when_any_bedna_not_neprijato(self):

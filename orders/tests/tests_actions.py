@@ -15,7 +15,7 @@ import json
 
 from orders.models import (
     Zakaznik, Kamion, Zakazka, Bedna, Predpis, TypHlavy,
-    Odberatel, Pozice, Rozpracovanost, RozpracovanostBednaSnapshot, Cena
+    Odberatel, Pozice, PoziceZakazkaOrder, Rozpracovanost, RozpracovanostBednaSnapshot, Cena
 )
 from orders.choices import (
     KamionChoice,
@@ -1540,7 +1540,11 @@ class KNavezeniActionTests(ActionsBase):
             b.refresh_from_db()
             self.assertEqual(b.stav_bedny, StavBednyChoice.K_NAVEZENI)
             self.assertEqual(b.pozice_id, self.pozice_A.id)
-            self.assertEqual(b.poznamka_k_navezeni, 'pozn')
+
+        unique_pairs = set((b.pozice_id, b.zakazka_id) for b in qs)
+        for pozice_id, zakazka_id in unique_pairs:
+            order = PoziceZakazkaOrder.objects.get(pozice_id=pozice_id, zakazka_id=zakazka_id)
+            self.assertEqual(order.poznamka_k_navezeni, 'pozn')
 
     def test_post_redirects_to_dashboard_when_requested(self):
         admin_obj = self._minimal_admin()
@@ -1569,6 +1573,45 @@ class KNavezeniActionTests(ActionsBase):
         for b in qs:
             b.refresh_from_db()
             self.assertEqual(b.stav_bedny, StavBednyChoice.K_NAVEZENI)
+
+    def test_post_keeps_non_empty_note_when_same_pair_has_later_empty_row(self):
+        admin_obj = self._minimal_admin()
+        second = Bedna.objects.create(
+            zakazka=self.zakazka,
+            hmotnost=Decimal(2),
+            tara=Decimal(1),
+            mnozstvi=1,
+            stav_bedny=StavBednyChoice.PRIJATO,
+        )
+        qs = Bedna.objects.filter(pk__in=[self.bedna.pk, second.pk]).order_by('id')
+        from django.contrib import admin as dj_admin
+
+        data = {
+            'apply': '1',
+            'ozn-TOTAL_FORMS': str(qs.count()),
+            'ozn-INITIAL_FORMS': str(qs.count()),
+            'ozn-MIN_NUM_FORMS': '0',
+            'ozn-MAX_NUM_FORMS': '1000',
+        }
+
+        first = qs[0]
+        second_bedna = qs[1]
+        data['ozn-0-bedna_id'] = str(first.id)
+        data['ozn-0-pozice'] = str(self.pozice_A.id)
+        data['ozn-0-poznamka_k_navezeni'] = 'pozn'
+
+        data['ozn-1-bedna_id'] = str(second_bedna.id)
+        data['ozn-1-pozice'] = ''
+        data['ozn-1-poznamka_k_navezeni'] = ''
+
+        data[dj_admin.helpers.ACTION_CHECKBOX_NAME] = [str(first.id), str(second_bedna.id)]
+
+        req = self.get_request('post', data)
+        resp = actions.oznacit_k_navezeni_action(admin_obj, req, qs)
+        self.assertIsNone(resp)
+
+        order = PoziceZakazkaOrder.objects.get(pozice_id=self.pozice_A.id, zakazka_id=self.zakazka.id)
+        self.assertEqual(order.poznamka_k_navezeni, 'pozn')
 
     def test_post_invalid_form_returns_template(self):
         admin_obj = self._minimal_admin()

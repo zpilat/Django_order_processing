@@ -21,7 +21,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from weasyprint import HTML
 from weasyprint import CSS
 
-from .models import Zakazka, Bedna, Kamion, Zakaznik, Pozice, Rozpracovanost, Cena
+from .models import Zakazka, Bedna, Kamion, Zakaznik, Pozice, PoziceZakazkaOrder, Rozpracovanost, Cena
 from .utils import (
     utilita_tisk_dokumentace,
     utilita_tisk_dokumentace_sablony,
@@ -836,6 +836,13 @@ def oznacit_k_navezeni_action(modeladmin, request, queryset):
         if _abort_if_paused_bedny(modeladmin, request, qs, "Změna stavu bedny na K_NAVEZENÍ"):
             return None
 
+        note_map = {
+            (order.pozice_id, order.zakazka_id): order.poznamka_k_navezeni
+            for order in PoziceZakazkaOrder.objects.filter(
+                pozice_id__in=qs.values_list('pozice_id', flat=True),
+                zakazka_id__in=qs.values_list('zakazka_id', flat=True),
+            )
+        }
         initial = [
             {
                 "bedna_id": bedna.pk,
@@ -847,7 +854,7 @@ def oznacit_k_navezeni_action(modeladmin, request, queryset):
                 "artikl": bedna.zakazka.artikl,
                 "typ_hlavy": bedna.zakazka.typ_hlavy,
                 "popis": bedna.zakazka.popis,
-                "poznamka_k_navezeni": bedna.poznamka_k_navezeni,
+                "poznamka_k_navezeni": note_map.get((bedna.pozice_id, bedna.zakazka_id)),
                 "pozice": bedna.pozice
             } for bedna in qs
         ]
@@ -879,6 +886,7 @@ def oznacit_k_navezeni_action(modeladmin, request, queryset):
             bedny_map = {
                 b.pk: b for b in Bedna.objects.select_for_update().filter(pk__in=vybrane_ids)
             }
+            pair_note_map = {}
 
             for form in formset.forms:
                 bedna_id = form.cleaned_data["bedna_id"]
@@ -903,12 +911,46 @@ def oznacit_k_navezeni_action(modeladmin, request, queryset):
 
                 # Přesun + změna stavu (bez ohledu na kapacitu)
                 bedna.pozice = pozice
-                bedna.poznamka_k_navezeni = poznamka_k_navezeni
                 bedna.stav_bedny = StavBednyChoice.K_NAVEZENI
                 bedna.save()
+                pair_key = (pozice.pk, bedna.zakazka_id)
+                note_value = (poznamka_k_navezeni or None)
+                if pair_key not in pair_note_map:
+                    pair_note_map[pair_key] = note_value
+                elif note_value is not None:
+                    pair_note_map[pair_key] = note_value
 
                 obsazenost[pid] += 1
                 uspesne += 1
+
+            for (pozice_id, zakazka_id), note in pair_note_map.items():
+                existing = (
+                    PoziceZakazkaOrder.objects
+                    .select_for_update()
+                    .filter(pozice_id=pozice_id, zakazka_id=zakazka_id)
+                    .first()
+                )
+                if existing:
+                    if existing.poznamka_k_navezeni != note:
+                        existing.poznamka_k_navezeni = note
+                        existing.save(update_fields=['poznamka_k_navezeni'])
+                    continue
+
+                last_poradi = (
+                    PoziceZakazkaOrder.objects
+                    .select_for_update()
+                    .filter(pozice_id=pozice_id)
+                    .order_by('-poradi')
+                    .values_list('poradi', flat=True)
+                    .first()
+                    or 0
+                )
+                PoziceZakazkaOrder.objects.create(
+                    pozice_id=pozice_id,
+                    zakazka_id=zakazka_id,
+                    poradi=last_poradi + 1,
+                    poznamka_k_navezeni=note,
+                )
 
         if uspesne:
             messages.success(request, f"Připraveno k navezení: {uspesne} beden.")
@@ -923,6 +965,13 @@ def oznacit_k_navezeni_action(modeladmin, request, queryset):
         return None
 
     # GET – předvyplň formset
+    note_map = {
+        (order.pozice_id, order.zakazka_id): order.poznamka_k_navezeni
+        for order in PoziceZakazkaOrder.objects.filter(
+            pozice_id__in=queryset.values_list('pozice_id', flat=True),
+            zakazka_id__in=queryset.values_list('zakazka_id', flat=True),
+        )
+    }
     initial = [
         {
             "bedna_id": bedna.pk,
@@ -934,7 +983,7 @@ def oznacit_k_navezeni_action(modeladmin, request, queryset):
             "zakazka_id": bedna.zakazka.pk,
             "typ_hlavy": bedna.zakazka.typ_hlavy,
             "popis": bedna.zakazka.popis,
-            "poznamka_k_navezeni": bedna.poznamka_k_navezeni,
+            "poznamka_k_navezeni": note_map.get((bedna.pozice_id, bedna.zakazka_id)),
             "pozice": bedna.pozice
         } for bedna in queryset
     ]

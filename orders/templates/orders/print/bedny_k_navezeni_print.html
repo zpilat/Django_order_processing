@@ -75,7 +75,7 @@
                     <td rowspan="{{ bedny_list|length }}" style="font-weight: bold; font-size: 14px;">{{ zakazka_group.zakazka.artikl }}</td>
                     <td rowspan="{{ bedny_list|length }}">{{ zakazka_group.zakazka.kamion_prijem.zakaznik.zkratka }}</td>
                     <td rowspan="{{ bedny_list|length }}">{{ zakazka_group.zakazka.prumer }} x {{ zakazka_group.zakazka.delka }}</td>
-                    <td rowspan="{{ bedny_list|length }}" class="text-center" style="font-weight: bold;{% if bedna.poznamka_k_navezeni %} background: var(--highlight); {% endif %}">{{ bedna.poznamka_k_navezeni|default:"vše" }}</td>
+                    <td rowspan="{{ bedny_list|length }}" class="text-center" style="font-weight: bold;{% if zakazka_group.poznamka_k_navezeni %} background: var(--highlight); {% endif %}">{{ zakazka_group.poznamka_k_navezeni|default:"vše" }}</td>
                     <td style="background: var(--first-row);"><span style="font-weight: bold;">{{ bedna.cislo_bedny }}</span>{% if bedna.behalter_nr %} ({{ bedna.behalter_nr }}){% endif %}</td>
                     <td></td>                  
                   {% else %}
