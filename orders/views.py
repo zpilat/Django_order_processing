@@ -189,13 +189,13 @@ def _build_vyroba_dashboard_context(date_value=None):
     yesterday_first_use = _first_use_sarzebedna_qs(date_value, device_codes)
     customer_totals = list(
         yesterday_first_use
-        .values('bedna__zakazka__kamion_prijem__zakaznik__nazev')
+        .values('bedna__zakazka__kamion_prijem__zakaznik__zkraceny_nazev')
         .annotate(total_kg=Sum('bedna__hmotnost'))
-        .order_by('bedna__zakazka__kamion_prijem__zakaznik__nazev')
+        .order_by('bedna__zakazka__kamion_prijem__zakaznik__zkraceny_nazev')
     )
     customer_items = [
         {
-            'name': item['bedna__zakazka__kamion_prijem__zakaznik__nazev'] or '-',
+            'name': item['bedna__zakazka__kamion_prijem__zakaznik__zkraceny_nazev'] or '-',
             'kg': _kg_to_int(item['total_kg']),
             'kg_display': _format_kg(item['total_kg']),
         }
