@@ -417,7 +417,10 @@ def _get_bedny_k_navezeni_groups():
     for order_list in orders_by_position.values():
         for order in order_list:
             order_map[(order.pozice_id, order.zakazka_id)] = order.poradi
-            note_map[(order.pozice_id, order.zakazka_id)] = order.poznamka_k_navezeni
+            note_text = order.poznamka_k_navezeni
+            if isinstance(note_text, str):
+                note_text = note_text.strip()
+            note_map[(order.pozice_id, order.zakazka_id)] = note_text or None
             nasledne_map[(order.pozice_id, order.zakazka_id)] = order.nasledne
 
     groups = []
@@ -744,10 +747,10 @@ def dashboard_bedny_k_navezeni_poznamka_view(request):
             'poznamka_k_navezeni': None,
         }
     )
-    poznamka = order_obj.poznamka_k_navezeni or ''
+    poznamka = (order_obj.poznamka_k_navezeni or '').strip()
 
     if request.method == 'POST':
-        poznamka = request.POST.get('poznamka') or ''
+        poznamka = (request.POST.get('poznamka') or '').strip()
         order_obj.poznamka_k_navezeni = (poznamka or None)
         order_obj.save(update_fields=['poznamka_k_navezeni'])
         mode = 'display'

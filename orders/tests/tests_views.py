@@ -466,6 +466,18 @@ class BednyKNavezeniViewTests(ViewsTestBase):
 		order = PoziceZakazkaOrder.objects.get(pozice=self.poz_a, zakazka=self.zak_eur)
 		self.assertEqual(order.poznamka_k_navezeni, note_text)
 
+	def test_poznamka_htmx_post_strips_whitespace_only_value(self):
+		_get_bedny_k_navezeni_groups()
+		resp_post = self.client.post(
+			reverse("dashboard_bedny_k_navezeni_poznamka"),
+			{"pozice_id": self.poz_a.id, "zakazka_id": self.zak_eur.id, "poznamka": "   "},
+			HTTP_HX_REQUEST="true",
+		)
+		self.assertEqual(resp_post.status_code, 200)
+		self.assertIn("vše", resp_post.content.decode())
+		order = PoziceZakazkaOrder.objects.get(pozice=self.poz_a, zakazka=self.zak_eur)
+		self.assertIsNone(order.poznamka_k_navezeni)
+
 	def test_groups_include_nasledne_flag(self):
 		_get_bedny_k_navezeni_groups()
 		order = PoziceZakazkaOrder.objects.get(pozice=self.poz_a, zakazka=self.zak_eur)
