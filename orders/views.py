@@ -18,6 +18,7 @@ from django.http import HttpResponseBadRequest, HttpResponse
 from django.conf import settings
 from django.utils.text import slugify
 from django.shortcuts import get_object_or_404
+from decimal import Decimal, ROUND_HALF_UP
 
 from .utils import get_verbose_name_for_column, utilita_tisk_dl_a_proforma_faktury
 from .models import Bedna, Zakazka, Kamion, Zakaznik, TypHlavy, Predpis, Odberatel, Cena, Pozice, PoziceZakazkaOrder, Sarze, SarzeBedna
@@ -38,6 +39,19 @@ def _format_tuny(value):
     return f"{value / 1000:.1f}".replace('.', ',')
 
 
+def _kg_to_int(value):
+    if value is None:
+        return 0
+    try:
+        return int(Decimal(value).quantize(Decimal('1'), rounding=ROUND_HALF_UP))
+    except Exception:
+        return 0
+
+
+def _format_kg(value):
+    return f"{_kg_to_int(value):,}".replace(',', ' ')
+
+
 def _calc_prostoj_minutes(sarze_list):
     total_minutes = 0
     for sarze in sarze_list:
@@ -45,6 +59,30 @@ def _calc_prostoj_minutes(sarze_list):
         if isinstance(prodleva, int):
             total_minutes += max(prodleva - 10, 0)
     return total_minutes
+
+
+def _first_use_sarzebedna_qs(target_date, device_codes):
+    sarze_bedny = (
+        SarzeBedna.objects
+        .filter(
+            sarze__datum=target_date,
+            sarze__zarizeni__kod_zarizeni__in=device_codes,
+            bedna__isnull=False,
+            bedna__hmotnost__isnull=False,
+            bedna__hmotnost__gt=0,
+        )
+        .select_related('sarze', 'bedna')
+    )
+
+    prior_exists = SarzeBedna.objects.filter(
+        bedna_id=OuterRef('bedna_id'),
+        sarze__zarizeni_id=OuterRef('sarze__zarizeni_id'),
+    ).exclude(pk=OuterRef('pk')).filter(
+        Q(sarze__datum__lt=OuterRef('sarze__datum'))
+        | Q(sarze__datum=OuterRef('sarze__datum'), sarze__zacatek__lt=OuterRef('sarze__zacatek'))
+    )
+
+    return sarze_bedny.annotate(has_prior=Exists(prior_exists)).filter(has_prior=False)
 
 
 def _build_vyroba_dashboard_context(date_value=None):
@@ -74,31 +112,12 @@ def _build_vyroba_dashboard_context(date_value=None):
     )
 
     def _calc_vykon_vruty_kg(code: list[str]):
-        sarze_bedny = (
-            SarzeBedna.objects
-            .filter(
-                sarze__datum=date_value,
-                sarze__zarizeni__kod_zarizeni__in=code,
-                bedna__isnull=False,
-                bedna__hmotnost__isnull=False,
-                bedna__hmotnost__gt=0,
-            )
-            .select_related('sarze', 'bedna')
-        )
-
-        prior_exists = SarzeBedna.objects.filter(
-            bedna_id=OuterRef('bedna_id'),
-            sarze__zarizeni_id=OuterRef('sarze__zarizeni_id'),
-        ).exclude(pk=OuterRef('pk')).filter(
-            Q(sarze__datum__lt=OuterRef('sarze__datum'))
-            | Q(sarze__datum=OuterRef('sarze__datum'), sarze__zacatek__lt=OuterRef('sarze__zacatek'))
-        )
-
-        first_use_qs = sarze_bedny.annotate(
-            has_prior=Exists(prior_exists),
-        ).filter(has_prior=False)
+        first_use_qs = _first_use_sarzebedna_qs(date_value, code)
 
         return first_use_qs.aggregate(total=Sum('bedna__hmotnost')).get('total') or 0
+
+    def _calc_daily_total_kg(target_day):
+        return _first_use_sarzebedna_qs(target_day, device_codes).aggregate(total=Sum('bedna__hmotnost')).get('total') or 0
 
     def _device_stats(code: list[str]):
         dqs = qs.filter(zarizeni__kod_zarizeni__in=code)
@@ -165,6 +184,69 @@ def _build_vyroba_dashboard_context(date_value=None):
             'night': _shift_stats(night_qs),
         },
     }
+
+    # Včerejší produkce vrutů (zakalené) 0:00-24:00 - pouze první použití bedny
+    yesterday_first_use = _first_use_sarzebedna_qs(date_value, device_codes)
+    customer_totals = list(
+        yesterday_first_use
+        .values('bedna__zakazka__kamion_prijem__zakaznik__nazev')
+        .annotate(total_kg=Sum('bedna__hmotnost'))
+        .order_by('bedna__zakazka__kamion_prijem__zakaznik__nazev')
+    )
+    customer_items = [
+        {
+            'name': item['bedna__zakazka__kamion_prijem__zakaznik__nazev'] or '-',
+            'kg': _kg_to_int(item['total_kg']),
+            'kg_display': _format_kg(item['total_kg']),
+        }
+        for item in customer_totals
+    ]
+    customer_rows = []
+    for idx in range(0, len(customer_items), 3):
+        row = customer_items[idx:idx + 3]
+        while len(row) < 3:
+            row.append(None)
+        customer_rows.append(row)
+
+    dashboard['vcerejsi_produkce_vrutu'] = {
+        'total_kg': _kg_to_int(_calc_daily_total_kg(date_value)),
+        'total_kg_display': _format_kg(_calc_daily_total_kg(date_value)),
+        'customer_rows': customer_rows,
+    }
+
+    # Historie produkce vrutů (posledních 14 dní), pouze první použití bedny
+    day_labels = ["Po", "Út", "St", "Čt", "Pá", "So", "Ne"]
+    history_rows = []
+    for back in range(13, -1, -1):
+        day = date_value - timedelta(days=back)
+        daily_kg_int = _kg_to_int(_calc_daily_total_kg(day))
+        history_rows.append({
+            'date': day,
+            'den_label': f"{day_labels[day.weekday()]} {day.strftime('%d.%m.%Y')}",
+            'daily_kg': daily_kg_int,
+            'daily_kg_display': _format_kg(daily_kg_int),
+            'weekly_avg_display': '',
+            'biweekly_avg_display': '',
+        })
+
+    first_week = [row['daily_kg'] for row in history_rows[:7]]
+    second_week = [row['daily_kg'] for row in history_rows[7:14]]
+    all_days = [row['daily_kg'] for row in history_rows]
+
+    week1_avg = int(round(sum(first_week) / len(first_week))) if first_week else 0
+    week2_avg = int(round(sum(second_week) / len(second_week))) if second_week else 0
+    biweekly_avg = int(round(sum(all_days) / len(all_days))) if all_days else 0
+
+    if history_rows:
+        history_rows[0]['weekly_avg_display'] = _format_kg(week1_avg)
+        history_rows[0]['biweekly_avg_display'] = _format_kg(biweekly_avg)
+    if len(history_rows) > 7:
+        history_rows[7]['weekly_avg_display'] = _format_kg(week2_avg)
+
+    dashboard['historie_produkce_vrutu'] = {
+        'rows': history_rows,
+    }
+
     return {'vyroba_dashboard': dashboard, 'current_time': timezone.now()}
 
 @login_required

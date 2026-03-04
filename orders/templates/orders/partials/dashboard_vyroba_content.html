@@ -7,7 +7,7 @@
 </div>
 
 <div class="row" style="font-family: 'Liberation Sans', Arial;">
-  <div class="col-12 col-xl-6 mb-4">
+  <div class="col-12 col-xl-4 mb-3">
     <div class="card h-100 shadow-sm">
       <div class="card-header fw-bold" style="background-color: #ffde17; color: #214290;">
         Souhrn vsázek pro zařízení TQF XL1 / TQFXL2 / Celkem
@@ -56,11 +56,33 @@
           </tbody>
         </table>
         <div class="small text-muted mt-2">Čas prostoje je očištěn o 10 minut technologického prostoje u každé vsázky.</div>
+
+        <hr class="my-3">
+        <div class="fw-bold mb-2 px-2 py-1 rounded" style="color: #214290; background-color: #ffde17; border: 1px solid #214290;">Včerejší produkce vrutů (zakalené) od 0:00 do 24:00</div>
+        <div class="fw-bold mb-2">{{ vyroba_dashboard.vcerejsi_produkce_vrutu.total_kg_display }} Kg</div>
+        <table class="table table-sm align-middle mb-0">
+          <tbody class="table-striped">
+            {% for row in vyroba_dashboard.vcerejsi_produkce_vrutu.customer_rows %}
+              <tr>
+                <th style="width: 20%;">{% if row.0 %}{{ row.0.name }}{% endif %}</th>
+                <td style="width: 13%;">{% if row.0 %}{{ row.0.kg_display }}{% endif %}</td>
+                <th style="width: 20%;">{% if row.1 %}{{ row.1.name }}{% endif %}</th>
+                <td style="width: 13%;">{% if row.1 %}{{ row.1.kg_display }}{% endif %}</td>
+                <th style="width: 20%;">{% if row.2 %}{{ row.2.name }}{% endif %}</th>
+                <td style="width: 14%;">{% if row.2 %}{{ row.2.kg_display }}{% endif %}</td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="6" class="text-muted">Bez dat.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </div>
     </div>
   </div>
 
-  <div class="col-12 col-xl-6 mb-4">
+  <div class="col-12 col-xl-4 mb-3">
     <div class="card h-100 shadow-sm">
       <div class="card-header fw-bold" style="background-color: #ffde17; color: #214290;">
         Počet vsázek včerejších směn
@@ -100,6 +122,42 @@
               <td>{{ vyroba_dashboard.shifts.night.prostoje.xl2 }}</td>
               <td>{{ vyroba_dashboard.shifts.night.prostoje.total }}</td>
             </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-xl-4 mb-3">
+    <div class="card h-100 shadow-sm">
+      <div class="card-header fw-bold" style="background-color: #ffde17; color: #214290;">
+        Historie produkce vrutů
+      </div>
+      <div class="card-body p-2">
+        <table class="table table-sm align-middle mb-0">
+          <thead>
+            <tr>
+              <th style="background-color: #214290; color: #ffde17;">Den</th>
+              <th style="background-color: #214290; color: #ffde17;">Denní výkon [kg]</th>
+              <th style="background-color: #214290; color: #ffde17;">Týdenní průměr [kg]</th>
+              <th style="background-color: #214290; color: #ffde17;">Dvoutýdenní průměr [kg]</th>
+            </tr>
+          </thead>
+          <tbody class="table-striped">
+            {% for row in vyroba_dashboard.historie_produkce_vrutu.rows %}
+              <tr>
+                <th>{{ row.den_label }}</th>
+                <td style="text-align: center;">{{ row.daily_kg_display }}</td>
+                {% if forloop.counter0 == 0 %}
+                  <td rowspan="7" style="vertical-align: middle; text-align: center;">{{ row.weekly_avg_display }}</td>
+                {% elif forloop.counter0 == 7 %}
+                  <td rowspan="7" style="vertical-align: middle; text-align: center;">{{ row.weekly_avg_display }}</td>
+                {% endif %}
+                {% if forloop.counter0 == 0 %}
+                  <td rowspan="14" style="vertical-align: middle; text-align: center;">{{ row.biweekly_avg_display }}</td>
+                {% endif %}
+              </tr>
+            {% endfor %}
           </tbody>
         </table>
       </div>

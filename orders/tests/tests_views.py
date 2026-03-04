@@ -2,12 +2,13 @@ from django.test import TestCase
 from django.urls import reverse
 from django.contrib.auth import get_user_model
 from django.utils import timezone
+from datetime import date, time, timedelta
 
 from orders.models import (
-	Zakaznik, Odberatel, Kamion, Zakazka, Bedna, Predpis, TypHlavy, Pozice, PoziceZakazkaOrder
+	Zakaznik, Odberatel, Kamion, Zakazka, Bedna, Predpis, TypHlavy, Pozice, PoziceZakazkaOrder, Zarizeni, Sarze, SarzeBedna
 )
 from orders.choices import StavBednyChoice, KamionChoice, TryskaniChoice, RovnaniChoice, PrioritaChoice
-from orders.views import _get_bedny_k_navezeni_groups
+from orders.views import _get_bedny_k_navezeni_groups, _build_vyroba_dashboard_context
 
 
 class ViewsTestBase(TestCase):
@@ -550,4 +551,113 @@ class BednyListViewTests(ViewsTestBase):
 		resp_sort = self.client.get(reverse("bedny_list"), {"sort": "id", "order": "down"})
 		ids = [b.id for b in resp_sort.context["object_list"]]
 		self.assertEqual(ids, sorted(ids, reverse=True))
+
+
+class VyrobaDashboardContextTests(TestCase):
+	def setUp(self):
+		self.z_eur = Zakaznik.objects.create(nazev="Eurotec", zkraceny_nazev="EUR", zkratka="EUR", ciselna_rada=100000)
+		self.z_spx = Zakaznik.objects.create(nazev="SPAX", zkraceny_nazev="SPX", zkratka="SPX", ciselna_rada=300000)
+		self.typ = TypHlavy.objects.create(nazev="SK")
+		self.predpis_eur = Predpis.objects.create(nazev="P-EUR", zakaznik=self.z_eur)
+		self.predpis_spx = Predpis.objects.create(nazev="P-SPX", zakaznik=self.z_spx)
+
+		self.dev_xl1 = Zarizeni.objects.create(
+			kod_zarizeni="TQF_XL1", nazev_zarizeni="XL1", zkraceny_nazev_zarizeni="XL1", prefix_sarze="X1"
+		)
+		self.dev_xl2 = Zarizeni.objects.create(
+			kod_zarizeni="TQF_XL2", nazev_zarizeni="XL2", zkraceny_nazev_zarizeni="XL2", prefix_sarze="X2"
+		)
+
+	def _create_bedna(self, zakaznik, hmotnost):
+		kamion = Kamion.objects.create(zakaznik=zakaznik, datum=date(2026, 3, 1), prijem_vydej=KamionChoice.PRIJEM)
+		predpis = self.predpis_eur if zakaznik == self.z_eur else self.predpis_spx
+		zakazka = Zakazka.objects.create(
+			kamion_prijem=kamion,
+			artikl=f"A-{zakaznik.zkratka}-{hmotnost}",
+			prumer=1,
+			delka=100,
+			predpis=predpis,
+			typ_hlavy=self.typ,
+			popis="test",
+		)
+		return Bedna.objects.create(
+			zakazka=zakazka,
+			stav_bedny=StavBednyChoice.PRIJATO,
+			hmotnost=hmotnost,
+			tara=1,
+			mnozstvi=1,
+		)
+
+	def test_vcerejsi_produkce_vrutu_counts_only_first_use_and_by_customer(self):
+		target_day = date(2026, 3, 3)
+		prev_day = target_day - timedelta(days=1)
+
+		bedna_repeat = self._create_bedna(self.z_eur, 1000)
+		bedna_eur_new = self._create_bedna(self.z_eur, 1200)
+		bedna_spx_new = self._create_bedna(self.z_spx, 700)
+
+		sarze_prev = Sarze.objects.create(
+			zarizeni=self.dev_xl1,
+			datum=prev_day,
+			zacatek=time(8, 0),
+			operator="op",
+			program="p",
+		)
+		SarzeBedna.objects.create(sarze=sarze_prev, bedna=bedna_repeat, patro=1)
+
+		sarze_day_xl1 = Sarze.objects.create(
+			zarizeni=self.dev_xl1,
+			datum=target_day,
+			zacatek=time(7, 0),
+			operator="op",
+			program="p",
+		)
+		SarzeBedna.objects.create(sarze=sarze_day_xl1, bedna=bedna_repeat, patro=1)
+		SarzeBedna.objects.create(sarze=sarze_day_xl1, bedna=bedna_eur_new, patro=2)
+
+		sarze_day_xl2 = Sarze.objects.create(
+			zarizeni=self.dev_xl2,
+			datum=target_day,
+			zacatek=time(9, 0),
+			operator="op",
+			program="p",
+		)
+		SarzeBedna.objects.create(sarze=sarze_day_xl2, bedna=bedna_spx_new, patro=1)
+
+		ctx = _build_vyroba_dashboard_context(date_value=target_day)
+		prod = ctx["vyroba_dashboard"]["vcerejsi_produkce_vrutu"]
+
+		self.assertEqual(prod["total_kg"], 1900)
+		customer_values = {
+			item["name"]: item["kg"]
+			for row in prod["customer_rows"]
+			for item in row
+			if item
+		}
+		self.assertEqual(customer_values.get("Eurotec"), 1200)
+		self.assertEqual(customer_values.get("SPAX"), 700)
+
+	def test_historie_produkce_vrutu_has_14_days_and_weekly_averages(self):
+		target_day = date(2026, 3, 3)
+		for idx in range(14):
+			day = target_day - timedelta(days=13 - idx)
+			bedna = self._create_bedna(self.z_eur, (idx + 1) * 100)
+			sarze = Sarze.objects.create(
+				zarizeni=self.dev_xl1,
+				datum=day,
+				zacatek=time(8, 0),
+				operator="op",
+				program="p",
+			)
+			SarzeBedna.objects.create(sarze=sarze, bedna=bedna, patro=1)
+
+		ctx = _build_vyroba_dashboard_context(date_value=target_day)
+		history = ctx["vyroba_dashboard"]["historie_produkce_vrutu"]["rows"]
+
+		self.assertEqual(len(history), 14)
+		self.assertEqual(history[0]["daily_kg"], 100)
+		self.assertEqual(history[-1]["daily_kg"], 1400)
+		self.assertEqual(history[0]["weekly_avg_display"], "400")
+		self.assertEqual(history[7]["weekly_avg_display"], "1 100")
+		self.assertEqual(history[0]["biweekly_avg_display"], "750")
 
