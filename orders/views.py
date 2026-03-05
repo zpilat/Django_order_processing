@@ -410,25 +410,28 @@ def dashboard_kamiony_view(request):
     start_date = end_date - timedelta(days=13)
     period_days = 14
 
+    import_qs_14 = Kamion.objects.filter(
+        prijem_vydej=KamionChoice.PRIJEM,
+        datum__range=(start_date, end_date),
+    )
+    export_qs_14 = Kamion.objects.filter(
+        prijem_vydej=KamionChoice.VYDEJ,
+        datum__range=(start_date, end_date),
+    )
+
     total_import_kg = (
-        Kamion.objects.filter(
-            prijem_vydej=KamionChoice.PRIJEM,
-            datum__range=(start_date, end_date),
-        ).aggregate(total=Sum('zakazky_prijem__bedny__hmotnost')).get('total')
+        import_qs_14.aggregate(total=Sum('zakazky_prijem__bedny__hmotnost')).get('total')
         or Decimal('0')
     )
     total_export_kg = (
-        Kamion.objects.filter(
-            prijem_vydej=KamionChoice.VYDEJ,
-            datum__range=(start_date, end_date),
-        ).aggregate(total=Sum('zakazky_vydej__bedny__hmotnost')).get('total')
+        export_qs_14.aggregate(total=Sum('zakazky_vydej__bedny__hmotnost')).get('total')
         or Decimal('0')
     )
 
     avg_import_t = Decimal(total_import_kg) / Decimal(period_days * 1000)
     avg_export_t = Decimal(total_export_kg) / Decimal(period_days * 1000)
-    avg_import_trucks = avg_import_t / Decimal('18')
-    avg_export_trucks = avg_export_t / Decimal('18')
+    import_truck_count = (Decimal(total_import_kg) / Decimal(1000)) / Decimal('18')
+    export_truck_count = (Decimal(total_export_kg) / Decimal(1000)) / Decimal('18')
 
     context = {
         'mesicni_pohyby': mesicni_pohyby,
@@ -438,8 +441,8 @@ def dashboard_kamiony_view(request):
             'end_date': end_date,
             'import_t': avg_import_t,
             'export_t': avg_export_t,
-            'import_kamiony': avg_import_trucks,
-            'export_kamiony': avg_export_trucks,
+            'import_kamiony': import_truck_count,
+            'export_kamiony': export_truck_count,
         },
         'db_table': 'dashboard_kamiony',
         'current_time': timezone.now(),

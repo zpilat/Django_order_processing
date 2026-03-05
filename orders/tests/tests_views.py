@@ -187,9 +187,9 @@ class DashboardKamionyViewTests(ViewsTestBase):
 		# CELKEM pro měsíc sčítá příjmy a výdeje
 		self.assertGreaterEqual(data[month]["CELKEM"]["prijem"], 5)
 		self.assertAlmostEqual(float(prumery["import_t"]), 0.2, places=2)
-		self.assertAlmostEqual(float(prumery["import_kamiony"]), 0.2 / 18.0, places=3)
+		self.assertAlmostEqual(float(prumery["import_kamiony"]), 2.8 / 18.0, places=3)
 		self.assertAlmostEqual(float(prumery["export_t"]), 0.18, places=2)
-		self.assertAlmostEqual(float(prumery["export_kamiony"]), 0.18 / 18.0, places=3)
+		self.assertAlmostEqual(float(prumery["export_kamiony"]), 2.52 / 18.0, places=3)
 
 	def test_htmx_partial_template(self):
 		resp = self.client.get(reverse("dashboard_kamiony"), HTTP_HX_REQUEST="true")
