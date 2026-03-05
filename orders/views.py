@@ -405,9 +405,42 @@ def dashboard_kamiony_view(request):
         for zakaznik, pohyby in zakaznici_pohyby.items():
             mesicni_pohyby[mesic][zakaznik]['rozdil'] = pohyby['prijem'] - pohyby['vydej']
 
+    # Přehled průměrného denního importu/exportu za posledních 14 dní
+    end_date = timezone.localdate() - timedelta(days=1)
+    start_date = end_date - timedelta(days=13)
+    period_days = 14
+
+    total_import_kg = (
+        Kamion.objects.filter(
+            prijem_vydej=KamionChoice.PRIJEM,
+            datum__range=(start_date, end_date),
+        ).aggregate(total=Sum('zakazky_prijem__bedny__hmotnost')).get('total')
+        or Decimal('0')
+    )
+    total_export_kg = (
+        Kamion.objects.filter(
+            prijem_vydej=KamionChoice.VYDEJ,
+            datum__range=(start_date, end_date),
+        ).aggregate(total=Sum('zakazky_vydej__bedny__hmotnost')).get('total')
+        or Decimal('0')
+    )
+
+    avg_import_t = Decimal(total_import_kg) / Decimal(period_days * 1000)
+    avg_export_t = Decimal(total_export_kg) / Decimal(period_days * 1000)
+    avg_import_trucks = avg_import_t / Decimal('18')
+    avg_export_trucks = avg_export_t / Decimal('18')
+
     context = {
         'mesicni_pohyby': mesicni_pohyby,
         'rok': rok,
+        'prumery_14_dni': {
+            'start_date': start_date,
+            'end_date': end_date,
+            'import_t': avg_import_t,
+            'export_t': avg_export_t,
+            'import_kamiony': avg_import_trucks,
+            'export_kamiony': avg_export_trucks,
+        },
         'db_table': 'dashboard_kamiony',
         'current_time': timezone.now(),
     }

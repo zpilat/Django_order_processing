@@ -3,6 +3,7 @@ from django.urls import reverse
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from datetime import date, time, timedelta
+from decimal import Decimal
 
 from orders.models import (
 	Zakaznik, Odberatel, Kamion, Zakazka, Bedna, Predpis, TypHlavy, Pozice, PoziceZakazkaOrder, Zarizeni, Sarze, SarzeBedna
@@ -126,21 +127,69 @@ class DashboardBednyViewTests(ViewsTestBase):
 class DashboardKamionyViewTests(ViewsTestBase):
 	def test_renders_and_aggregates(self):
 		year = timezone.now().year
+		yesterday = timezone.localdate() - timedelta(days=1)
+
+		# Data for 14-day average section (import/export)
+		k_prijem_avg = Kamion.objects.create(zakaznik=self.z_eur, datum=yesterday, prijem_vydej=KamionChoice.PRIJEM)
+		zak_prijem_avg = Zakazka.objects.create(
+			kamion_prijem=k_prijem_avg,
+			artikl="AVG-IMP",
+			prumer=1,
+			delka=100,
+			predpis=self.predpis_eur,
+			typ_hlavy=self.typ,
+			celozavit=False,
+			popis="avg import",
+			priorita=PrioritaChoice.NIZKA,
+		)
+		Bedna.objects.create(
+			zakazka=zak_prijem_avg,
+			stav_bedny=StavBednyChoice.PRIJATO,
+			hmotnost=2800,
+			tara=1,
+			mnozstvi=1,
+		)
+
+		k_vydej_avg = Kamion.objects.create(zakaznik=self.z_eur, odberatel=self.odberatel, datum=yesterday, prijem_vydej=KamionChoice.VYDEJ)
+		zak_vydej_avg = Zakazka.objects.create(
+			kamion_prijem=self.k_prijem_eur,
+			kamion_vydej=k_vydej_avg,
+			artikl="AVG-EXP",
+			prumer=1,
+			delka=100,
+			predpis=self.predpis_eur,
+			typ_hlavy=self.typ,
+			celozavit=False,
+			popis="avg export",
+			priorita=PrioritaChoice.NIZKA,
+		)
+		Bedna.objects.create(
+			zakazka=zak_vydej_avg,
+			stav_bedny=StavBednyChoice.K_EXPEDICI,
+			hmotnost=2520,
+			tara=1,
+			mnozstvi=1,
+		)
+
 		resp = self.client.get(reverse("dashboard_kamiony"), {"rok": year})
 		self.assertEqual(resp.status_code, 200)
 		self.assertTemplateUsed(resp, "orders/dashboard_kamiony.html")
 		data = resp.context["mesicni_pohyby"]
+		prumery = resp.context["prumery_14_dni"]
 		month = self.k_prijem_eur.datum.month
 		eur_key = self.z_eur.zkratka
 		self.assertIn(month, data)
 		# pro EUR zákazníka v daném měsíci existuje příjem i výdej
-		# Pozn.: příjem sčítá všechny bedny navázané na příjmový kamion EUR v daném měsíci,
-		# včetně beden ze zakázek, které mají zároveň kamion_vydej nastavený (self.b_vydej).
-		expected_prijem = self.b_eur_pr.hmotnost + self.b_vydej.hmotnost
+		expected_prijem = Decimal("5329")
+		expected_vydej = Decimal("2524")
 		self.assertEqual(data[month][eur_key]["prijem"], expected_prijem)
-		self.assertEqual(data[month][eur_key]["vydej"], self.b_vydej.hmotnost)
+		self.assertEqual(data[month][eur_key]["vydej"], expected_vydej)
 		# CELKEM pro měsíc sčítá příjmy a výdeje
 		self.assertGreaterEqual(data[month]["CELKEM"]["prijem"], 5)
+		self.assertAlmostEqual(float(prumery["import_t"]), 0.2, places=2)
+		self.assertAlmostEqual(float(prumery["import_kamiony"]), 0.2 / 18.0, places=3)
+		self.assertAlmostEqual(float(prumery["export_t"]), 0.18, places=2)
+		self.assertAlmostEqual(float(prumery["export_kamiony"]), 0.18 / 18.0, places=3)
 
 	def test_htmx_partial_template(self):
 		resp = self.client.get(reverse("dashboard_kamiony"), HTTP_HX_REQUEST="true")
@@ -634,8 +683,8 @@ class VyrobaDashboardContextTests(TestCase):
 			for item in row
 			if item
 		}
-		self.assertEqual(customer_values.get("Eurotec"), 1200)
-		self.assertEqual(customer_values.get("SPAX"), 700)
+		self.assertEqual(customer_values.get("EUR"), 1200)
+		self.assertEqual(customer_values.get("SPX"), 700)
 
 	def test_historie_produkce_vrutu_has_14_days_and_weekly_averages(self):
 		target_day = date(2026, 3, 3)

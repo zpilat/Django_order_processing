@@ -8,7 +8,33 @@
         <a class="btn btn-secondary" style="color: #ffde17;" href="{% url 'admin:orders_bedna_changelist' %}">Návrat</a>
       </div>      
       <h6>Naposledy aktualizováno: {{ current_time|date:"d.m.Y H:i" }}</h6>
-    </div>    
+    </div>
+
+    <table class="table table-sm align-middle mb-3 text-center" style="font-family: 'Liberation Sans', Arial;">
+      <thead>
+        <tr style="font-size: 1.1rem;">
+          <th colspan="3" class="fw-bold" style="background-color: #ffde17; color: #214290;">Příjem a výdej za posledních 14 dní</th>
+        </tr>
+        <tr>
+          <th style="background-color: #214290; color: #ffde17;"></th>
+          <th style="background-color: #214290; color: #ffde17;">Průměr / den [t]</th>
+          <th style="background-color: #214290; color: #ffde17;">Počet kamionů (18 t)</th>
+        </tr>
+      </thead>
+      <tbody class="table-striped">
+        <tr>
+          <th>IMPORT</th>
+          <td>{{ prumery_14_dni.import_t|floatformat:1 }}</td>
+          <td>{{ prumery_14_dni.import_kamiony|floatformat:1 }}</td>
+        </tr>
+        <tr>
+          <th>EXPORT</th>
+          <td>{{ prumery_14_dni.export_t|floatformat:1 }}</td>
+          <td>{{ prumery_14_dni.export_kamiony|floatformat:1 }}</td>
+        </tr>
+      </tbody>
+    </table>
+
     <table class="table table-sm align-middle mb-0 text-center">
       <thead>
         <tr style="font-size: 1.2rem;">
