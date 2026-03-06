@@ -68,10 +68,10 @@
               <tr>
                 <th style="width: 20%;" class="text-end">{% if row.0 %}{{ row.0.name }}:{% endif %}</th>
                 <td style="width: 13%;" class="text-start">{% if row.0 %}{{ row.0.kg_display }} kg{% endif %}</td>
-                <th style="width: 20%;">{% if row.1 %}{{ row.1.name }}{% endif %}</th>
-                <td style="width: 13%;">{% if row.1 %}{{ row.1.kg_display }} kg{% endif %}</td>
-                <th style="width: 20%;">{% if row.2 %}{{ row.2.name }}{% endif %}</th>
-                <td style="width: 14%;">{% if row.2 %}{{ row.2.kg_display }} kg{% endif %}</td>
+                <th style="width: 20%;" class="text-end">{% if row.1 %}{{ row.1.name }}:{% endif %}</th>
+                <td style="width: 13%;" class="text-start">{% if row.1 %}{{ row.1.kg_display }} kg{% endif %}</td>
+                <th style="width: 20%;" class="text-end">{% if row.2 %}{{ row.2.name }}:{% endif %}</th>
+                <td style="width: 14%;" class="text-start">{% if row.2 %}{{ row.2.kg_display }} kg{% endif %}</td>
               </tr>
             {% empty %}
               <tr>
