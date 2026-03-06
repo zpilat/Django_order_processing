@@ -107,7 +107,7 @@
               <td>{{ vyroba_dashboard.shifts.day.counts.total }}</td>
             </tr>
             <tr>
-              <th>Prostoje</th>
+              <th>Prostoje [hod.]</th>
               <td>{{ vyroba_dashboard.shifts.day.prostoje.xl1 }}</td>
               <td>{{ vyroba_dashboard.shifts.day.prostoje.xl2 }}</td>
               <td>{{ vyroba_dashboard.shifts.day.prostoje.total }}</td>
@@ -119,13 +119,14 @@
               <td>{{ vyroba_dashboard.shifts.night.counts.total }}</td>
             </tr>
             <tr>
-              <th>Prostoje</th>
+              <th>Prostoje [hod.]</th>
               <td>{{ vyroba_dashboard.shifts.night.prostoje.xl1 }}</td>
               <td>{{ vyroba_dashboard.shifts.night.prostoje.xl2 }}</td>
               <td>{{ vyroba_dashboard.shifts.night.prostoje.total }}</td>
             </tr>
           </tbody>
         </table>
+        <div class="small text-muted mt-2">Čas prostoje je očištěn o 10 minut technologického prostoje u každé vsázky.</div>
       </div>
     </div>
   </div>
