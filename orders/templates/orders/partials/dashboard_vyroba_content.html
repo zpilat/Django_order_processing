@@ -61,13 +61,13 @@
         <div class="fw-bold mb-2 px-2 py-1 rounded" style="color: #214290; background-color: #ffde17; border: 1px solid #214290;">
           Včerejší produkce vrutů (zakalené) od 0:00 do 24:00
         </div>
-        <div class="fw-bold mb-2">{{ vyroba_dashboard.vcerejsi_produkce_vrutu.total_kg_display }} kg</div>
+        <div class="fw-bold mb-2 text-center">{{ vyroba_dashboard.vcerejsi_produkce_vrutu.total_kg_display }} kg</div>
         <table class="table table-sm align-middle mb-0">
           <tbody class="table-striped">
             {% for row in vyroba_dashboard.vcerejsi_produkce_vrutu.customer_rows %}
               <tr>
-                <th style="width: 20%;">{% if row.0 %}{{ row.0.name }}{% endif %}</th>
-                <td style="width: 13%;">{% if row.0 %}{{ row.0.kg_display }} kg{% endif %}</td>
+                <th style="width: 20%;" class="text-end">{% if row.0 %}{{ row.0.name }}:{% endif %}</th>
+                <td style="width: 13%;" class="text-start">{% if row.0 %}{{ row.0.kg_display }} kg{% endif %}</td>
                 <th style="width: 20%;">{% if row.1 %}{{ row.1.name }}{% endif %}</th>
                 <td style="width: 13%;">{% if row.1 %}{{ row.1.kg_display }} kg{% endif %}</td>
                 <th style="width: 20%;">{% if row.2 %}{{ row.2.name }}{% endif %}</th>
