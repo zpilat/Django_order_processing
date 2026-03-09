@@ -2476,6 +2476,33 @@ class BednaAdmin(SimpleHistoryAdmin):
             return 'zakazka__kamion_vydej__datum'
         return 'zakazka__kamion_prijem__datum'
 
+    def _get_inactive_date_hierarchy_prefix(self, request):
+        """Vrátí prefix neaktivní date_hierarchy větve (pro odstranění stale filtrů)."""
+        active_prefix = self.get_date_hierarchy(request)
+        if active_prefix == 'zakazka__kamion_vydej__datum':
+            return 'zakazka__kamion_prijem__datum'
+        return 'zakazka__kamion_vydej__datum'
+
+    def _get_changelist_clean_redirect_url(self, request):
+        """Vrátí URL changelistu bez neaktivních date_hierarchy lookupů, jinak None."""
+        inactive_prefix = self._get_inactive_date_hierarchy_prefix(request)
+        stale_prefix = f'{inactive_prefix}__'
+        query_params = request.GET.copy()
+        removed_any = False
+
+        for key in list(query_params.keys()):
+            if key == inactive_prefix or key.startswith(stale_prefix):
+                removed_any = True
+                query_params.pop(key, None)
+
+        if not removed_any:
+            return None
+
+        encoded = query_params.urlencode()
+        if encoded:
+            return f'{request.path}?{encoded}'
+        return request.path
+
     def lookup_allowed(self, key, value):
         """Povolí drilldown lookupy pro obě datové hierarchie (příjem/výdej)."""
         if key.startswith('zakazka__kamion_prijem__datum__') or key.startswith('zakazka__kamion_vydej__datum__'):
@@ -3075,6 +3102,10 @@ class BednaAdmin(SimpleHistoryAdmin):
         Dynamicky nastaví list_editable podle get_list_editable, ověří, zda jsou tyto pole v list_display nebo v list_display_links.
         Pokud není některé pole z list_editable v list_display nebo je v list_display_links, odstraní ho z list_editable.
         """
+        clean_redirect_url = self._get_changelist_clean_redirect_url(request)
+        if clean_redirect_url is not None:
+            return HttpResponseRedirect(clean_redirect_url)
+
         editable = self.get_list_editable(request)
         links = self.get_list_display_links(request, self.get_list_display(request))
         display = self.get_list_display(request)
