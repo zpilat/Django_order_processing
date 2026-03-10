@@ -1833,6 +1833,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     # Výchozí date_hierarchy pro povolení lookupů; skutečně se přepíná dynamicky v get_date_hierarchy
     date_hierarchy = 'kamion_prijem__datum'
     list_per_page = 25
+    show_full_result_count = False
     formfield_overrides = {
         models.CharField: {'widget': TextInput(attrs={ 'size': '30'})},
         models.DecimalField: {
@@ -2419,6 +2420,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     list_display_links = ('get_cislo_bedny', )
     list_select_related = ("zakazka", "zakazka__kamion_prijem", "zakazka__kamion_vydej")
     list_per_page = 50
+    show_full_result_count = False
     search_fields = (
         'cislo_bedny',
         'behalter_nr',
@@ -3602,6 +3604,7 @@ class PredpisAdmin(SimpleHistoryAdmin):
     list_filter = (ZakaznikPredpisFilter, AktivniPredpisFilter)
     ordering = ['-zakaznik__zkratka', 'nazev']
     list_per_page = 25
+    show_full_result_count = False
 
     history_list_display = ('nazev', 'skupina', 'zakaznik__zkraceny_nazev', 'ohyb', 'krut', 'povrch', 'jadro', 'vrstva', 'popousteni',
                             'sarzovani', 'pletivo', 'poznamka', 'aktivni')
