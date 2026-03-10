@@ -2762,7 +2762,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         """
         return obj.zakazka.typ_hlavy
 
-    @admin.display(description='Prior.', ordering='zakazka__priorita')
+    @admin.display(description='Pr.', ordering='zakazka__priorita')
     def get_priorita(self, obj):
         """
         Zobrazí prioritu zakázky a umožní třídění podle hlavičky pole.
