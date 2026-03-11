@@ -435,5 +435,5 @@ def utilita_validate_excel_upload(uploaded_file):
         try:
             uploaded_file.seek(0)
         except Exception:
-            pass
+            logger.warning("Nepodařilo se vrátit ukazatel nahraného souboru na začátek.", exc_info=True)
     return errors

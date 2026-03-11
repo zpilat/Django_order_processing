@@ -1,5 +1,5 @@
 from django.contrib.admin import SimpleListFilter
-from django.db.models import Exists, OuterRef, Sum
+from django.db.models import Exists, OuterRef, Sum, Count, F
 from django.db.models import Q
 from django.utils import timezone
 
@@ -659,12 +659,18 @@ class KompletZakazkaFilter(DynamicTitleFilter):
     def queryset(self, request, queryset):
         value = self.value()
         if value == 'kompletni':
-            # Vrátí zakázky, jejichž všechny bedny jsou ve stavu K expedici nebo Expedováno
-            for zakazka in queryset:
-                # Zkontroluje, zda má zakázka nějaké bedny a zda všechny bedny v zakázce jsou ve stavu K expedici nebo Expedováno
-                if not zakazka.bedny.exists() or not all(bedna.stav_bedny in (StavBednyChoice.K_EXPEDICI, StavBednyChoice.EXPEDOVANO)
-                                                         for bedna in zakazka.bedny.all()):
-                    queryset = queryset.exclude(id=zakazka.id)
+            # Zakázky, které mají aspoň jednu bednu a všechny bedny jsou ve stavu K_EXPEDICI nebo EXPEDOVANO.
+            return queryset.annotate(
+                _bedny_total=Count('bedny', distinct=True),
+                _bedny_ok=Count(
+                    'bedny',
+                    filter=Q(bedny__stav_bedny__in=(StavBednyChoice.K_EXPEDICI, StavBednyChoice.EXPEDOVANO)),
+                    distinct=True,
+                ),
+            ).filter(
+                _bedny_total__gt=0,
+                _bedny_total=F('_bedny_ok'),
+            )
         elif value == 'k_expedici':
             # Vrátí zakázky, které mají alespoň jednu bednu ve stavu K expedici
             queryset = queryset.filter(bedny__stav_bedny=StavBednyChoice.K_EXPEDICI).distinct()

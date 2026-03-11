@@ -1,4 +1,3 @@
-from django.shortcuts import render
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.contrib.auth.decorators import login_required, permission_required
 from django.shortcuts import render, redirect, get_object_or_404
@@ -17,7 +16,6 @@ from django.contrib.staticfiles import finders
 from django.http import HttpResponseBadRequest, HttpResponse
 from django.conf import settings
 from django.utils.text import slugify
-from django.shortcuts import get_object_or_404
 from decimal import Decimal, ROUND_HALF_UP
 
 from .utils import get_verbose_name_for_column, utilita_tisk_dl_a_proforma_faktury
@@ -45,6 +43,7 @@ def _kg_to_int(value):
     try:
         return int(Decimal(value).quantize(Decimal('1'), rounding=ROUND_HALF_UP))
     except Exception:
+        logger.warning("Nepodařilo se převést hodnotu na celé kg.", exc_info=True)
         return 0
 
 

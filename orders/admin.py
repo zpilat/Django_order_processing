@@ -938,6 +938,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                 try:
                     messages.error(request, r)
                 except Exception:
+                    logger.warning("Nepodařilo se zobrazit chybovou zprávu při mazání kamionu (detail).", exc_info=True)
                     pass
             return  # Nic nemaž – ponech uživatele na stránce
         return super().delete_model(request, obj)
@@ -962,6 +963,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                     try:
                         messages.error(request, f"{obj}: {r}")
                     except Exception:
+                        logger.warning("Nepodařilo se zobrazit chybovou zprávu při hromadném mazání kamionů.", exc_info=True)
                         pass
 
         if allowed_ids:
@@ -1238,6 +1240,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                         'verbose_name_plural': self.model._meta.verbose_name_plural,
                     }
                 except Exception:
+                    logger.warning("Nepodařilo se naformátovat popis admin akce v KamionAdmin.get_action_choices.", exc_info=True)
                     pass
             grouped.setdefault(group, []).append((name, text))
 
@@ -1327,6 +1330,7 @@ class KamionAdmin(SimpleHistoryAdmin):
         try:
             zkratka = getattr(getattr(kamion, 'zakaznik', None), 'zkratka', None)
         except Exception:
+            logger.warning("Nepodařilo se získat zkratku zákazníka pro volbu importní strategie.", exc_info=True)
             zkratka = None
         match zkratka:
             case 'EUR':
@@ -1400,6 +1404,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                             request.session['import_tmp_files'] = tmp_map
                             request.session.modified = True
                         except Exception:
+                            logger.warning("Nepodařilo se uložit mapu dočasných importních souborů do session.", exc_info=True)
                             pass
                         tmp_token = token
                         tmp_filename = file.name
@@ -1432,6 +1437,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                             if saved_path and excel_stream:
                                 excel_stream.close()
                         except Exception:
+                            logger.warning("Nepodařilo se zavřít stream importovaného souboru.", exc_info=True)
                             pass
 
                     # Pokud jsou chyby po parsování, zobrazit náhled a chyby (bez uložení)
@@ -1455,6 +1461,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                         try:
                             messages.info(request, "Zobrazen náhled importu. Data zatím nebyla uložena.")
                         except Exception:
+                            logger.warning("Nepodařilo se zobrazit informační zprávu o náhledu importu.", exc_info=True)
                             pass
                         return self._render_import(
                             request, form, kamion, preview, errors, warnings, tmp_token, tmp_filename
@@ -1491,26 +1498,31 @@ class KamionAdmin(SimpleHistoryAdmin):
                         try:
                             tmp_map = request.session.get('import_tmp_files', {})
                         except Exception:
+                            logger.warning("Nepodařilo se načíst mapu dočasných importních souborů ze session.", exc_info=True)
                             tmp_map = {}
                         info = tmp_map.pop(tmp_token, None)
                         if info and info.get('path'):
                             try:
                                 default_storage.delete(info['path'])
                             except Exception:
+                                logger.warning("Nepodařilo se smazat dočasný importní soubor po dokončení importu.", exc_info=True)
                                 pass
                         try:
                             request.session['import_tmp_files'] = tmp_map
                             request.session.modified = True
                         except Exception:
+                            logger.warning("Nepodařilo se aktualizovat session po úklidu dočasného importního souboru.", exc_info=True)
                             pass
                     for w in warnings:
                         try:
                             messages.warning(request, w)
                         except Exception:
+                            logger.warning("Nepodařilo se zobrazit varování po importu zakázek.", exc_info=True)
                             pass
                     try:
                         self.message_user(request, "Import proběhl úspěšně.", messages.SUCCESS)
                     except Exception:
+                        logger.warning("Nepodařilo se zobrazit úspěšnou zprávu po importu zakázek.", exc_info=True)
                         pass
                     return redirect("..")
 
@@ -1519,6 +1531,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                     try:
                         self.message_user(request, f"Chyba při importu: {e}", messages.ERROR)
                     except Exception:
+                        logger.warning("Nepodařilo se zobrazit chybovou zprávu po selhání importu zakázek.", exc_info=True)
                         pass
                     return redirect("..")
         # Pro GET request zobrazí prázdný formulář pro import
@@ -1565,6 +1578,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                         try:
                             inline_form.save_m2m()
                         except Exception:
+                            logger.warning("Nepodařilo se uložit M2M vazby v inline formuláři zakázky.", exc_info=True)
                             pass
 
                     # Získání dodatečných hodnot z vlastního formuláře zakázky (bezpečné převody z None)
@@ -1617,6 +1631,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                                     _(f"U zakázky {zakazka} {', '.join(warnings_for_order)}.")
                                 )
                             except Exception:
+                                logger.warning("Nepodařilo se zobrazit souhrnné varování pro zakázku při ukládání formsetu.", exc_info=True)
                                 pass
 
                         for i in range(pocet_beden):
@@ -1649,6 +1664,7 @@ class KamionAdmin(SimpleHistoryAdmin):
             try:
                 messages.error(request, _("Zakázku nelze smazat: obsahuje bedny, které nejsou ve stavu NEPRIJATO."))
             except Exception:
+                logger.warning("Nepodařilo se zobrazit zprávu o blokovaném mazání zakázky (ProtectedError).", exc_info=True)
                 pass
             logger.warning("Mazání zakázky zablokováno (ProtectedError).")
             return
@@ -1779,6 +1795,7 @@ class BednaInline(admin.TabularInline):
                                 existing = field.widget.attrs.get('class', '')
                                 field.widget.attrs['class'] = (existing + ' paused-row').strip()
                             except Exception:
+                                logger.warning("Nepodařilo se nastavit CSS třídu pro pozastavený řádek v BednaInline.", exc_info=True)
                                 pass
                             if not request.user.has_perm('orders.change_pozastavena_bedna'):
                                 # Pole DELETE se dá disabled pouze pokud je bedna v stavu NEPRIJATO,
@@ -1887,6 +1904,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
                 try:
                     messages.error(request, r)
                 except Exception:
+                    logger.warning("Nepodařilo se zobrazit chybovou zprávu při mazání zakázky (detail).", exc_info=True)
                     pass
             return
         return super().delete_model(request, obj)
@@ -1909,6 +1927,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
                     try:
                         messages.error(request, f"{obj}: {r}")
                     except Exception:
+                        logger.warning("Nepodařilo se zobrazit chybovou zprávu při hromadném mazání zakázek.", exc_info=True)
                         pass
 
         if allowed_ids:
@@ -1976,7 +1995,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
         Pokud není předpis připojen, vrátí prázdný řetězec.
         """
         if obj.predpis:
-            return mark_safe(f'<a href="{obj.predpis.get_admin_url()}">{obj.predpis.nazev}</a>')
+            return format_html('<a href="{}">{}</a>', obj.predpis.get_admin_url(), obj.predpis.nazev)
         
     @admin.display(description='Délka', ordering='delka', empty_value='-')
     def get_delka_int(self, obj):
@@ -1986,7 +2005,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
         Pokud není délka připojena, vrátí prázdný řetězec.
         """
         if obj.delka is not None:
-            return mark_safe(f'<strong>{int(obj.delka.to_integral_value(rounding=ROUND_DOWN))}</strong>')
+            return format_html('<strong>{}</strong>', int(obj.delka.to_integral_value(rounding=ROUND_DOWN)))
         return '-'
     
     @admin.display(description='Ø', ordering='prumer', empty_value='-')
@@ -1997,7 +2016,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
         Pokud není průměr připojen, vrátí prázdný řetězec.
         """
         if obj.prumer is not None:
-            return mark_safe(f'<strong>{obj.prumer}</strong>')
+            return format_html('<strong>{}</strong>', obj.prumer)
         return '-'
         
     @admin.display(description='Dat. příjem', ordering='kamion_prijem__datum', empty_value='-')
@@ -2068,7 +2087,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
         Zobrazí typ hlavy a umožní třídění podle hlavičky pole.
         """
         if obj.typ_hlavy:
-            return mark_safe(f'<a href="{obj.typ_hlavy.get_admin_url()}">{obj.typ_hlavy.nazev}</a>')
+            return format_html('<a href="{}">{}</a>', obj.typ_hlavy.get_admin_url(), obj.typ_hlavy.nazev)
 
     @admin.display(description="Popis zkr.", ordering='popis')
     def get_zkraceny_popis(self, obj):
@@ -2109,7 +2128,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
         Vytvoří odkaz na detail kamionu příjmu, ke kterému zakázka patří a umožní třídění podle hlavičky pole.
         """
         if obj.kamion_prijem:
-            return mark_safe(f'<a href="{obj.kamion_prijem.get_admin_url()}">{obj.kamion_prijem}</a>')
+            return format_html('<a href="{}">{}</a>', obj.kamion_prijem.get_admin_url(), obj.kamion_prijem)
 
     @admin.display(description='Kam. výdej', ordering='kamion_vydej__id', empty_value='-')
     def kamion_vydej_link(self, obj):
@@ -2117,7 +2136,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
         Vytvoří odkaz na detail kamionu výdeje, ke kterému zakázka patří a umožní třídění podle hlavičky pole.
         """
         if obj.kamion_vydej:
-            return mark_safe(f'<a href="{obj.kamion_vydej.get_admin_url()}">{obj.kamion_vydej}</a>')
+            return format_html('<a href="{}">{}</a>', obj.kamion_vydej.get_admin_url(), obj.kamion_vydej)
 
     @admin.display(description='Komplet')
     def get_komplet(self, obj):
@@ -2290,6 +2309,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
                         'verbose_name_plural': self.model._meta.verbose_name_plural,
                     }
                 except Exception:
+                    logger.warning("Nepodařilo se naformátovat popis admin akce v ZakazkaAdmin.get_action_choices.", exc_info=True)
                     pass
             grouped.setdefault(group, []).append((name, text))
 
@@ -2633,6 +2653,7 @@ class BednaAdmin(SimpleHistoryAdmin):
                 'SSH': '#000000',
             }.get(zkratka)
         except Exception:
+            logger.warning("Nepodařilo se získat zkratku zákazníka pro obarvení čísla bedny.", exc_info=True)
             color = None
 
         if color:
@@ -2708,7 +2729,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         Vytvoří odkaz na detail zakázky, ke které bedna patří a umožní třídění podle hlavičky pole.
         """
         if obj.zakazka:
-            return mark_safe(f'<a href="{obj.zakazka.get_admin_url()}">{obj.zakazka.artikl}</a>')
+            return format_html('<a href="{}">{}</a>', obj.zakazka.get_admin_url(), obj.zakazka.artikl)
 
     @admin.display(boolean=True, description='VG', ordering='zakazka__celozavit')
     def get_celozavit(self, obj):
@@ -2745,7 +2766,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         Vytvoří odkaz na detail kamionu příjmu, ke kterému bedna patří a umožní třídění podle hlavičky pole.
         """
         if obj.zakazka and obj.zakazka.kamion_prijem:
-            return mark_safe(f'<a href="{obj.zakazka.kamion_prijem.get_admin_url()}">{obj.zakazka.kamion_prijem}</a>')
+            return format_html('<a href="{}">{}</a>', obj.zakazka.kamion_prijem.get_admin_url(), obj.zakazka.kamion_prijem)
 
     @admin.display(description='Kam. výdej', ordering='zakazka__kamion_vydej__id', empty_value='-')
     def kamion_vydej_link(self, obj):
@@ -2753,7 +2774,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         Vytvoří odkaz na detail kamionu výdeje, ke kterému bedna patří a umožní třídění podle hlavičky pole.
         """
         if obj.zakazka and obj.zakazka.kamion_vydej:
-            return mark_safe(f'<a href="{obj.zakazka.kamion_vydej.get_admin_url()}">{obj.zakazka.kamion_vydej}</a>')
+            return format_html('<a href="{}">{}</a>', obj.zakazka.kamion_vydej.get_admin_url(), obj.zakazka.kamion_vydej)
 
     @admin.display(description='Hlava', ordering='zakazka__typ_hlavy')
     def get_typ_hlavy(self, obj):
@@ -2791,7 +2812,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         Předá jako html s text bold.
         """
         if obj.zakazka and obj.zakazka.delka is not None:
-            return mark_safe(f'<strong>{int(obj.zakazka.delka.to_integral_value(rounding=ROUND_DOWN))}</strong>')
+            return format_html('<strong>{}</strong>', int(obj.zakazka.delka.to_integral_value(rounding=ROUND_DOWN)))
         return '-'
     
     @admin.display(description='Stav bedny', ordering='stav_bedny', empty_value='-')
@@ -3145,6 +3166,7 @@ class BednaAdmin(SimpleHistoryAdmin):
                                 existing = field.widget.attrs.get('class', '')
                                 field.widget.attrs['class'] = (existing + ' paused-row').strip()
                             except Exception:
+                                logger.warning("Nepodařilo se nastavit CSS třídu pro pozastavený řádek v BednaAdmin changelistu.", exc_info=True)
                                 pass
                             if not request.user.has_perm('orders.change_pozastavena_bedna'):
                                 # Hidden pole se přeskočí, jinak by zmizela hodnota ID bedny a nastala chyba při uložení
@@ -3471,6 +3493,7 @@ class BednaAdmin(SimpleHistoryAdmin):
                     }
                 except Exception:
                     # Při chybě ponechat původní text
+                    logger.warning("Nepodařilo se naformátovat popis admin akce v BednaAdmin.get_action_choices.", exc_info=True)
                     pass
             grouped.setdefault(g, []).append((name, text))
 
@@ -3558,6 +3581,7 @@ class BednaAdmin(SimpleHistoryAdmin):
                 try:
                     messages.error(request, r)
                 except Exception:
+                    logger.warning("Nepodařilo se zobrazit chybovou zprávu při mazání bedny (detail).", exc_info=True)
                     pass
             return  # nic nemaž
         return super().delete_model(request, obj)
@@ -3582,6 +3606,7 @@ class BednaAdmin(SimpleHistoryAdmin):
                     try:
                         messages.error(request, f"{obj}: {r}")
                     except Exception:
+                        logger.warning("Nepodařilo se zobrazit chybovou zprávu při hromadném mazání beden.", exc_info=True)
                         pass
 
         if allowed_ids:
@@ -4066,6 +4091,7 @@ class RozpracovanostAdmin(admin.ModelAdmin):
                     }
                 except Exception:
                     # Při chybě ponechat původní text
+                    logger.warning("Nepodařilo se naformátovat popis admin akce v RozpracovanostAdmin.get_action_choices.", exc_info=True)
                     pass
             grouped.setdefault(g, []).append((name, text))
 

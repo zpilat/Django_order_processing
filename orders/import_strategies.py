@@ -129,6 +129,7 @@ class EURImportStrategy(BaseImportStrategy):
                 prumer_str, delka_str = text.replace(',', '.').split('x')
                 return Decimal(prumer_str.strip()), Decimal(delka_str.strip())
             except Exception:
+                logger.warning("Nelze rozdělit sloupec rozměr při importu EUR.", exc_info=True)
                 messages.info(request, "Chyba: Sloupec 'Abmessung' musí obsahovat hodnoty ve formátu 'prumer x delka'.")
                 errors.append("Chyba: Sloupec 'Abmessung' musí obsahovat hodnoty ve formátu 'prumer x delka'.")
                 return None, None
@@ -170,6 +171,7 @@ class EURImportStrategy(BaseImportStrategy):
                 mnozstvi = int(hmotnost / hmotnost_ks)
                 return max(mnozstvi, 1)
             except Exception:
+                logger.warning("Nelze spočítat množství v bedně při importu EUR.", exc_info=True)
                 return 1
         df['mnozstvi'] = df.apply(vypocet_mnozstvi_v_bedne, axis=1)
 
@@ -230,12 +232,14 @@ class EURImportStrategy(BaseImportStrategy):
                         if pd.notna(dconv):
                             datum_fmt = dconv.strftime('%d.%m.%Y')
                 except Exception:
+                    logger.warning("Nelze převést datum pro preview při importu EUR.", exc_info=True)
                     datum_fmt = error_values
             beh_raw = r.get('behalter_nr')
             beh_nr = str(beh_raw).strip() if pd.notna(beh_raw) else error_values
             try:
                 predpis_val = int(r.get('predpis')) if pd.notna(r.get('predpis')) else error_values
             except Exception:
+                logger.warning("Nelze převést předpis na číslo pro preview při importu EUR.", exc_info=True)
                 predpis_val = error_values
             preview.append({
                 'datum': datum_fmt,
@@ -431,6 +435,7 @@ class SPXImportStrategy(BaseImportStrategy):
             try:
                 return Decimal(match.group(1)).quantize(Decimal('0.0'), rounding=ROUND_HALF_UP)
             except Exception:
+                logger.warning("Nelze převést desetinnou hodnotu při importu SPX.", exc_info=True)
                 errors.append(f"Chyba: Nelze převést hodnotu ve sloupci {label} na číslo.")
                 return None
 
@@ -448,6 +453,7 @@ class SPXImportStrategy(BaseImportStrategy):
             try:
                 return (brutto_val - hmotnost_val).quantize(Decimal('0.0'), rounding=ROUND_HALF_UP)
             except Exception:
+                logger.warning("Nelze spočítat taru při importu SPX.", exc_info=True)
                 errors.append("Chyba: Nelze spočítat taru.")
                 return None
 
@@ -473,6 +479,7 @@ class SPXImportStrategy(BaseImportStrategy):
                 prumer_val = Decimal(match.group('prumer').replace(',', '.')).quantize(Decimal('0.0'), rounding=ROUND_HALF_UP)
                 delka_val = Decimal(match.group('delka').replace(',', '.')).quantize(Decimal('0.0'), rounding=ROUND_HALF_UP)
             except Exception:
+                logger.warning("Nelze převést průměr/délku při importu SPX.", exc_info=True)
                 errors.append("Chyba: Nelze převést hodnoty průměru nebo délky na číslo.")
                 return prefix, None, None
 

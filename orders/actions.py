@@ -162,6 +162,7 @@ def _format_decimal(value):
     try:
         decimal_value = Decimal(value)
     except Exception:
+        logger.warning("Nepodařilo se převést hodnotu na Decimal ve _format_decimal.", exc_info=True)
         return str(value)
     text = format(decimal_value, 'f')
     if '.' in text:
@@ -240,6 +241,7 @@ def export_bedny_to_csv_action(modeladmin, request, queryset):
     try:
         initial_count = queryset.count()
     except Exception:
+        logger.warning("Nepodařilo se získat queryset.count() v export_bedny_to_csv_action, používá se fallback.", exc_info=True)
         initial_count = len(list(queryset))
 
     queryset = queryset.select_related(
@@ -2740,6 +2742,7 @@ def tisk_rozpracovanost_action(modeladmin, request, queryset):
             try:
                 hmotnost = Decimal(hmotnost)
             except Exception:
+                logger.warning("Nepodařilo se převést hmotnost bedny na Decimal při exportu zákazníka, používá se 0.", exc_info=True)
                 hmotnost = Decimal('0')
 
         zakazka_entry['hmotnost'] += hmotnost
