@@ -193,6 +193,17 @@ class TestModels(ModelsBase):
         url = reverse("admin:orders_kamion_change", args=[self.kamion_prijem.pk])
         self.assertEqual(self.kamion_prijem.get_admin_url(), url)
 
+    def test_zakazka_requires_kamion_prijem(self):
+        with self.assertRaises(IntegrityError):
+            Zakazka.objects.create(
+                artikl="NO-KAMION",
+                prumer=Decimal("6"),
+                delka=Decimal("90"),
+                predpis=self.predpis,
+                typ_hlavy=self.typ_hlavy,
+                popis="Bez kamionu příjem",
+            )
+
     # --- Pricing boundaries and non-EUR behavior ---
     def test_zakazka_cena_range_boundaries(self):
         # délka == min je zahrnuta

@@ -5,6 +5,7 @@ from django.contrib.admin.sites import AdminSite
 from django.http import HttpResponse
 from django.urls import reverse
 from django.core.management import call_command
+from django.db import IntegrityError
 
 from decimal import Decimal
 from unittest.mock import patch
@@ -241,7 +242,6 @@ class ActionsTests(ActionsBase):
         self.assertTrue(any('neobsahuje žádné bedny' in msg for msg in self._messages_texts(request)))
 
     def test_tisk_rozpracovanost_action_missing_data(self):
-        admin_obj = self._messaging_admin()
         orphan_zakazka = Zakazka.objects.create(
             kamion_prijem=self.kamion_prijem,
             artikl='OR1',
@@ -251,43 +251,17 @@ class ActionsTests(ActionsBase):
             typ_hlavy=self.typ_hlavy,
             popis='Bez napojení',
         )
-        orphan_bedna = Bedna.objects.create(
-            zakazka=orphan_zakazka,
-            hmotnost=Decimal('1.0'),
-            tara=Decimal('1.0'),
-            mnozstvi=1,
-            stav_bedny=StavBednyChoice.PRIJATO,
-        )
+
         orphan_zakazka.kamion_prijem = None
-        orphan_zakazka.save(update_fields=['kamion_prijem'])
-        orphan_bedna.refresh_from_db()
-        snapshot = Rozpracovanost.objects.create()
-        RozpracovanostBednaSnapshot.objects.create(
-            rozpracovanost=snapshot,
-            bedna=orphan_bedna,
-            stav_bedny=orphan_bedna.stav_bedny,
-            tryskat=orphan_bedna.tryskat,
-            rovnat=orphan_bedna.rovnat,
-            zinkovat=orphan_bedna.zinkovat,
-        )
-
-        request = self.get_request('post')
-
-        response = actions.tisk_rozpracovanost_action(
-            admin_obj,
-            request,
-            Rozpracovanost.objects.filter(pk=snapshot.pk),
-        )
-
-        self.assertIsNone(response)
-        messages = self._messages_texts(request)
-        self.assertTrue(any('nebyla nalezena kompletní data' in msg for msg in messages))
+        with self.assertRaises(IntegrityError):
+            orphan_zakazka.save(update_fields=['kamion_prijem'])
 
     def test_tisk_protokolu_kamionu_vydej_action_success(self):
         self.kamion_vydej.cislo_dl = 'DL123'
         self.kamion_vydej.save()
 
         Zakazka.objects.create(
+            kamion_prijem=self.kamion_prijem,
             kamion_vydej=self.kamion_vydej,
             artikl='ART1',
             prumer=10,
