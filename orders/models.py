@@ -1114,8 +1114,8 @@ class Bedna(models.Model):
         
         if self.stav_bedny in [StavBednyChoice.K_NAVEZENI, StavBednyChoice.NAVEZENO]:
             if not self.pozice:
-                raise ValidationError(_("Pro stav 'K navezení' a 'Navezeno' musí být zadána pozice."))
                 logger.warning(f'Uzivatel se pokusil uložit bednu ve stavu {self.stav_bedny} bez pozice.')
+                raise ValidationError(_("Pro stav 'K navezení' a 'Navezeno' musí být zadána pozice."))
 
         if self.stav_bedny != StavBednyChoice.NEPRIJATO:
             warning_list = []
