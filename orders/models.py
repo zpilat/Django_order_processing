@@ -1,4 +1,4 @@
-from django.db import models
+from django.db import models, transaction, IntegrityError
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.db.models.deletion import ProtectedError
@@ -7,7 +7,8 @@ from django.urls import reverse
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db.models import Sum
-from django.db.models import Q, Max
+from django.db.models import Q, Max, F
+from django.db.models.functions import ExtractYear
 from datetime import datetime, timedelta
 
 from simple_history.models import HistoricalRecords
@@ -117,6 +118,15 @@ class Kamion(models.Model):
         verbose_name = 'Kamión'
         verbose_name_plural = 'kamióny'
         ordering = ['-id']
+        constraints = [
+            models.UniqueConstraint(
+                F('zakaznik'),
+                F('prijem_vydej'),
+                ExtractYear('datum'),
+                F('poradove_cislo'),
+                name='uniq_kamion_poradove_per_year',
+            ),
+        ]
 
     def __str__(self):
         """
@@ -374,25 +384,41 @@ class Kamion(models.Model):
         """
         is_existing_instance = bool(self.pk)
 
-        if not is_existing_instance:
-            zakaznik = self.zakaznik
-            typ_kamionu = self.prijem_vydej
-            rok = self.datum.year
+        if is_existing_instance:
+            return super().save(*args, **kwargs)
 
-            # Při vytváření nového kamionu nastavíme pořadové číslo kamionu na další v řadě - pro daného zákazníka, typ kamionu a rok.
-            posledni = (
-                self.__class__.objects
-                .filter(zakaznik=zakaznik, prijem_vydej=typ_kamionu, datum__year=rok)
-                .order_by("-poradove_cislo")
-                .first()
-            )
-            self.poradove_cislo = ((posledni.poradove_cislo + 1) if posledni else 1)
+        max_attempts = 5
+        last_error = None
 
-            if typ_kamionu == KamionChoice.VYDEJ:
-                # Pokud je kamion pro výdej, nastavíme cislo_dl na požadovaný řetězec.
-                self.cislo_dl = f"EXP-{int(self.poradove_cislo):03d}-{self.datum.year}-{self.zakaznik.zkratka}"
+        for attempt in range(max_attempts):
+            try:
+                with transaction.atomic():
+                    zakaznik = Zakaznik.objects.select_for_update().get(pk=self.zakaznik_id)
+                    typ_kamionu = self.prijem_vydej
+                    rok = self.datum.year
 
-        super().save(*args, **kwargs)
+                    posledni_cislo = (
+                        self.__class__.objects
+                        .filter(zakaznik_id=zakaznik.pk, prijem_vydej=typ_kamionu, datum__year=rok)
+                        .aggregate(max_cislo=Max('poradove_cislo'))
+                        .get('max_cislo')
+                    ) or 0
+
+                    self.poradove_cislo = posledni_cislo + 1
+
+                    if typ_kamionu == KamionChoice.VYDEJ:
+                        self.cislo_dl = f"EXP-{int(self.poradove_cislo):03d}-{self.datum.year}-{zakaznik.zkratka}"
+
+                    return super().save(*args, **kwargs)
+            except IntegrityError as error:
+                last_error = error
+                logger.warning(
+                    f"Kolize pořadového čísla kamionu při ukládání (pokus {attempt + 1}/{max_attempts}), opakuji.",
+                    exc_info=True,
+                )
+                self.poradove_cislo = None
+
+        raise last_error
     
     # --- Delete guards ---
     def delete(self, using=None, keep_parents=False):
@@ -1121,33 +1147,45 @@ class Bedna(models.Model):
           * Před uložením nastaví `cislo_bedny` na další číslo v řadě pro daného zákazníka.
           * Pro zákazníka s příznakem `vse_tryskat` nastaví `tryskat` na `SPINAVA`, ale pouze
             pokud je délka bedny menší než 900mm - delší díly se nevlezou do tryskače.
-                - Pokud je stav bedny jiný než K_NAVEZENI nebo NAVEZENO, vymaže pozici.
+        - Pokud je stav bedny jiný než K_NAVEZENI nebo NAVEZENO, vymaže pozici.
         """
         is_existing_instance = bool(self.pk)
 
-        # Pokud se jedná o novou instanci, nastaví se číslo bedny a další hodnoty
-        if not is_existing_instance:
-            zakaznik = self.zakazka.kamion_prijem.zakaznik
-
-            # Při vytváření nové bedny nastavíme číslo bedny na další v řadě
-            posledni = (
-                self.__class__.objects
-                .filter(zakazka__kamion_prijem__zakaznik=zakaznik)
-                .order_by("-cislo_bedny")
-                .first()
-            )
-            self.cislo_bedny = ((posledni.cislo_bedny + 1) if posledni else zakaznik.ciselna_rada + 1)
-
-            # Pokud je zákazník s příznakem `vse_tryskat`, nastavíme tryskat na SPINAVA, ale pouze
-            # v případě, že je délka menší než 900mm - delší díly se nevlezou do tryskače
-            if zakaznik.vse_tryskat and self.zakazka.delka and self.zakazka.delka < 900:
-                self.tryskat = TryskaniChoice.SPINAVA
-
-        # Pokud je stav bedny jiný než K_NAVEZENI nebo NAVEZENO, vymaže pozici
         if self.stav_bedny not in [StavBednyChoice.K_NAVEZENI, StavBednyChoice.NAVEZENO]:
             self.pozice = None
 
-        super().save(*args, **kwargs)
+        if is_existing_instance:
+            return super().save(*args, **kwargs)
+
+        max_attempts = 5
+        last_error = None
+
+        for attempt in range(max_attempts):
+            try:
+                with transaction.atomic():
+                    zakaznik = Zakaznik.objects.select_for_update().get(pk=self.zakazka.kamion_prijem.zakaznik_id)
+
+                    posledni_cislo = (
+                        self.__class__.objects
+                        .filter(zakazka__kamion_prijem__zakaznik_id=zakaznik.pk)
+                        .aggregate(max_cislo=Max('cislo_bedny'))
+                        .get('max_cislo')
+                    )
+                    self.cislo_bedny = (posledni_cislo + 1) if posledni_cislo else zakaznik.ciselna_rada + 1
+
+                    if zakaznik.vse_tryskat and self.zakazka.delka and self.zakazka.delka < 900:
+                        self.tryskat = TryskaniChoice.SPINAVA
+
+                    return super().save(*args, **kwargs)
+            except IntegrityError as error:
+                last_error = error
+                logger.warning(
+                    f"Kolize čísla bedny při ukládání (pokus {attempt + 1}/{max_attempts}), opakuji.",
+                    exc_info=True,
+                )
+                self.cislo_bedny = None
+
+        raise last_error
 
     def get_allowed_stav_bedny_choices(self):
         """
@@ -1445,17 +1483,36 @@ class Sarze(models.Model):
         return f"{prefix}{self.cislo_sarze:05d}"
 
     def save(self, *args, **kwargs):
-        if not self.cislo_sarze:
-            if not self.zarizeni_id:
-                raise ValidationError("Pro automatické číslování šarže je nutné vyplnit zařízení.")
-            last_number = (
-                Sarze.objects
-                .filter(zarizeni=self.zarizeni)
-                .aggregate(max_cislo=Max('cislo_sarze'))
-                .get('max_cislo')
-            ) or 0
-            self.cislo_sarze = last_number + 1
-        super().save(*args, **kwargs)
+        if self.pk or self.cislo_sarze:
+            return super().save(*args, **kwargs)
+
+        if not self.zarizeni_id:
+            raise ValidationError("Pro automatické číslování šarže je nutné vyplnit zařízení.")
+
+        max_attempts = 5
+        last_error = None
+
+        for attempt in range(max_attempts):
+            try:
+                with transaction.atomic():
+                    Zarizeni.objects.select_for_update().get(pk=self.zarizeni_id)
+                    last_number = (
+                        Sarze.objects
+                        .filter(zarizeni_id=self.zarizeni_id)
+                        .aggregate(max_cislo=Max('cislo_sarze'))
+                        .get('max_cislo')
+                    ) or 0
+                    self.cislo_sarze = last_number + 1
+                    return super().save(*args, **kwargs)
+            except IntegrityError as error:
+                last_error = error
+                logger.warning(
+                    f"Kolize čísla šarže při ukládání (pokus {attempt + 1}/{max_attempts}), opakuji.",
+                    exc_info=True,
+                )
+                self.cislo_sarze = None
+
+        raise last_error
 
     @property
     def prodleva(self):

@@ -204,6 +204,20 @@ class TestModels(ModelsBase):
                 popis="Bez kamionu příjem",
             )
 
+    def test_kamion_unique_poradove_cislo_per_year(self):
+        k2 = Kamion.objects.create(
+            zakaznik=self.zakaznik,
+            datum=date.today(),
+            prijem_vydej=KamionChoice.PRIJEM,
+        )
+        self.assertEqual(self.kamion_prijem.poradove_cislo, 1)
+        self.assertEqual(k2.poradove_cislo, 2)
+
+        k2.poradove_cislo = self.kamion_prijem.poradove_cislo
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                k2.save(update_fields=['poradove_cislo'])
+
     # --- Pricing boundaries and non-EUR behavior ---
     def test_zakazka_cena_range_boundaries(self):
         # délka == min je zahrnuta
