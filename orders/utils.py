@@ -381,18 +381,20 @@ def utilita_kontrola_zakazek(modeladmin, request, queryset):
     Pro zákazníka s příznakem pouze_komplet mohou být expedovány pouze kompletní zakázky, které mají všechny bedny ve stavu `K_EXPEDICI`.
     """
     for zakazka in queryset:
-        if not zakazka.bedny.exists():
+        bedny_qs = zakazka.bedny.all()
+
+        if not bedny_qs.exists():
             logger.warning(f"Zakázka {zakazka} nemá žádné bedny.")
             messages.error(request, f"Zakázka {zakazka} nemá žádné bedny.")
             return
 
-        if not any(bedna.stav_bedny == StavBednyChoice.K_EXPEDICI for bedna in zakazka.bedny.all()):
+        if not bedny_qs.filter(stav_bedny=StavBednyChoice.K_EXPEDICI).exists():
             logger.warning(f"Zakázka {zakazka} nemá žádné bedny ve stavu K_EXPEDICI.")
             messages.error(request, f"Zakázka {zakazka} nemá žádné bedny ve stavu K_EXPEDICI.")
             return
     
         if zakazka.kamion_prijem.zakaznik.pouze_komplet:
-            if not all(bedna.stav_bedny == StavBednyChoice.K_EXPEDICI for bedna in zakazka.bedny.all()):
+            if bedny_qs.exclude(stav_bedny=StavBednyChoice.K_EXPEDICI).exists():
                 logger.warning(f"Zakázka {zakazka} pro zákazníka s příznakem 'Pouze kompletní zakázky' musí mít všechny bedny ve stavu K_EXPEDICI.")
                 messages.error(request, f"Zakázka {zakazka} pro zákazníka s nastaveným příznakem 'Pouze kompletní zakázky' musí mít všechny bedny ve stavu K_EXPEDICI.")
                 return
