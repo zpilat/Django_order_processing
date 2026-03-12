@@ -17,7 +17,6 @@ import pandas as pd
 
 from weasyprint import HTML, CSS
 
-import re
 import gc
 import logging
 logger = logging.getLogger('orders')
@@ -98,9 +97,7 @@ def utilita_tisk_dokumentace_sablony(modeladmin, request, queryset, html_paths, 
 
     gc.collect()  # Uvolní paměť před generováním PDF
     if queryset.count() > 0:
-        from io import BytesIO
-        pdf_buffer = BytesIO()
-        all_html = ""
+        all_html_parts = []
         generated_at = timezone.now()
         user_last_name = ""
         if request and hasattr(request, "user") and request.user.is_authenticated:
@@ -116,17 +113,11 @@ def utilita_tisk_dokumentace_sablony(modeladmin, request, queryset, html_paths, 
             context["user_last_name"] = user_last_name
             for html_path in html_paths:
                 html = render_to_string(html_path, context)
-                all_html += html + '<p style="page-break-after: always"></p>'  # Oddělí stránky
-
-        stylesheets = []
-        css_path = finders.find('orders/css/pdf_shared.css')
-        if css_path:
-            stylesheets.append(CSS(filename=css_path))
-        else:
-            logger.warning("Nepodařilo se najít CSS 'orders/css/pdf_shared.css' pro tisk dokumentace.")
+                all_html_parts.append(html)
+                all_html_parts.append('<p style="page-break-after: always"></p>')  # Oddělí stránky
 
         base_url = request.build_absolute_uri('/') if request else None
-        pdf_file = HTML(string=all_html, base_url=base_url).write_pdf(stylesheets=stylesheets)
+        pdf_file = HTML(string=''.join(all_html_parts), base_url=base_url).write_pdf()
         response = HttpResponse(pdf_file, content_type="application/pdf")
         response['Content-Disposition'] = f'inline; filename={filename}'
         logger.info(
