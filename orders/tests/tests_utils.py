@@ -62,8 +62,8 @@ class GetVerboseNameTests(UtilsBase):
 
 
 class UtilitaTiskDokumentaceTests(UtilsBase):
-    @patch('orders.utils.render_to_string')
-    @patch('orders.utils.HTML.write_pdf')
+    @patch('orders.services.pdf_cards_service.render_to_string')
+    @patch('orders.services.pdf_cards_service.HTML.write_pdf')
     def test_tisk_dokumentace(self, mock_pdf, mock_render):
         qs = Bedna.objects.all()
         mock_render.side_effect = ['H'] * qs.count()
@@ -95,8 +95,8 @@ class UtilitaTiskDokumentaceTests(UtilsBase):
         self.assertEqual(len(msgs), 1)
         self.assertIn('Není vybrána žádná bedna k tisku', msgs[0].message)
 
-    @patch('orders.utils.render_to_string')
-    @patch('orders.utils.HTML.write_pdf')
+    @patch('orders.services.pdf_cards_service.render_to_string')
+    @patch('orders.services.pdf_cards_service.HTML.write_pdf')
     def test_tisk_dokumentace_sablony(self, mock_pdf, mock_render):
         qs = Bedna.objects.all()
         mock_render.side_effect = ['A', 'B'] * qs.count()

@@ -21,6 +21,13 @@ import gc
 import logging
 logger = logging.getLogger('orders')
 
+from .services.pdf_cards_service import build_cards_pdf
+from .services.expedice_service import (
+    expedice_beden_do_existujiciho_kamionu,
+    expedice_zakazek_do_existujiciho_kamionu,
+)
+from .services.exceptions import ServiceValidationError, ServiceOperationError
+
 
 def truncate_with_title(text, max_len=15):
     if text is None:
@@ -90,45 +97,22 @@ def utilita_tisk_dokumentace_sablony(modeladmin, request, queryset, html_paths, 
     """
     Vytvoří PDF, které na každou bednu rendruje všechny dodané šablony za sebou.
     """
-    if not html_paths:
-        logger.error("Chybí šablony pro tisk dokumentace.")
-        messages.error(request, "Není k dispozici žádná šablona pro tisk dokumentace.")
-        return None
-
-    gc.collect()  # Uvolní paměť před generováním PDF
-    if queryset.count() > 0:
-        all_html_parts = []
-        generated_at = timezone.now()
-        user_last_name = ""
-        if request and hasattr(request, "user") and request.user.is_authenticated:
-            user_last_name = (
-                request.user.last_name
-                or request.user.get_full_name()
-                or request.user.get_username()
-            )
-
-        for bedna in queryset:
-            context = {"bedna": bedna}
-            context["generated_at"] = generated_at
-            context["user_last_name"] = user_last_name
-            for html_path in html_paths:
-                html = render_to_string(html_path, context)
-                all_html_parts.append(html)
-                all_html_parts.append('<p style="page-break-after: always"></p>')  # Oddělí stránky
-
-        base_url = request.build_absolute_uri('/') if request else None
-        pdf_file = HTML(string=''.join(all_html_parts), base_url=base_url).write_pdf()
-        response = HttpResponse(pdf_file, content_type="application/pdf")
-        response['Content-Disposition'] = f'inline; filename={filename}'
-        logger.info(
-            f"Uživatel {getattr(request, 'user', None)} vygeneroval PDF dokumentaci pro {queryset.count()} beden ({len(html_paths)} šablon na bednu)."
+    try:
+        return build_cards_pdf(
+            bedny_qs=queryset,
+            template_paths=html_paths,
+            filename=filename,
+            request=request,
         )
-        return response
-    else:
+    except ServiceValidationError as exc:
         logger.warning(
-            f"Uživatel {getattr(request, 'user', None)} se pokusil tisknout dokumentaci, ale nebyly vybrány žádné bedny."
+            f"Uživatel {getattr(request, 'user', None)}: tisk dokumentace se nepodařil kvůli validaci: {exc}"
         )
-        messages.error(request, "Není vybrána žádná bedna k tisku.")
+        messages.error(request, str(exc))
+        return None
+    except Exception:
+        logger.exception("Neočekávaná chyba při generování PDF dokumentace.")
+        messages.error(request, "Došlo k chybě při generování PDF dokumentace.")
         return None
 
 def utilita_tisk_dl_a_proforma_faktury(modeladmin, request, kamion, html_path, filename):
@@ -245,59 +229,28 @@ def utilita_expedice_zakazek(modeladmin, request, queryset, kamion):
     - Pokud zakázka obsahuje i bedny, které nejsou ve stavu K_EXPEDICI,
         vytvoří novou zakázku (se stejnými daty jako původní) a přesune tam pouze bedny ve stavu K_EXPEDICI.
     - Nastaví příznak `expedovano` na zakázce.
+
+    Vrací True při úspěchu, jinak False.
     """
-    for zakazka in queryset:
-        bedny = zakazka.bedny.all()
-        bedny_k_expedici = bedny.filter(stav_bedny=StavBednyChoice.K_EXPEDICI)
-        bedny_ne_k_expedici = bedny.exclude(stav_bedny=StavBednyChoice.K_EXPEDICI)
-
-        if not bedny_k_expedici.exists():
-            logger.info(f"Zakázka {zakazka} nemá žádné bedny ve stavu K_EXPEDICI, přeskočeno.")
-            continue
-
-        if bedny_ne_k_expedici.exists():
-            # Vytvoří novou zakázku pro expedované bedny – původní ponechá neexpedované
-            exclude = {'id', 'kamion_vydej', 'expedovano'}
-            zakazka_data = {}
-            puvodni_zakazka = zakazka.puvodni_zakazka or zakazka
-            for field in Zakazka._meta.fields:
-                if field.name in exclude:
-                    continue
-                if field.is_relation and getattr(field, 'many_to_one', False):
-                    # FK pole
-                    zakazka_data[field.attname] = getattr(zakazka, field.attname)
-                else:
-                    zakazka_data[field.name] = getattr(zakazka, field.name)
-
-            zakazka_data['puvodni_zakazka_id'] = puvodni_zakazka.id
-
-            nova_zakazka = Zakazka.objects.create(**zakazka_data)
-            logger.info(
-                f"Uživatel {request.user} vytvořil novou zakázku {nova_zakazka} pro expedované bedny ze zakázky ID {zakazka}."
-            )
-
-            for bedna in bedny_k_expedici:
-                bedna.zakazka = nova_zakazka
-                bedna.stav_bedny = StavBednyChoice.EXPEDOVANO
-                bedna.save()
-                logger.info(f"Uživatel {request.user} přesunul a expedoval bednu {bedna} do zakázky ID {nova_zakazka}.")
-
-            nova_zakazka.kamion_vydej = kamion
-            nova_zakazka.expedovano = True
-            nova_zakazka.save()
-
-            # Původní zakázku necháváme s neexpedovanými bednami, kamion ani expedovano se nemění
-        else:
-            # všechny bedny jsou K_EXPEDICI
-            for bedna in bedny_k_expedici:
-                bedna.stav_bedny = StavBednyChoice.EXPEDOVANO
-                bedna.save()
-                logger.info(f"Uživatel {request.user} expedoval bednu {bedna} (stav nastaven na EXPEDOVANO).")
-
-            zakazka.kamion_vydej = kamion
-            zakazka.expedovano = True
-            zakazka.save()
-            logger.info(f"Uživatel {request.user} expedoval zakázku {zakazka} do kamionu {kamion}.")
+    try:
+        expedice_zakazek_do_existujiciho_kamionu(
+            zakazky_qs=queryset,
+            kamion_vydej=kamion,
+            actor=getattr(request, "user", None),
+        )
+        return True
+    except ServiceValidationError as exc:
+        logger.warning(f"Expedice zakázek selhala validací: {exc}")
+        messages.error(request, str(exc))
+        return False
+    except ServiceOperationError as exc:
+        logger.error(f"Expedice zakázek selhala operací: {exc}")
+        messages.error(request, str(exc))
+        return False
+    except Exception:
+        logger.exception("Neočekávaná chyba při expedici zakázek.")
+        messages.error(request, "Došlo k neočekávané chybě při expedici zakázek.")
+        return False
             
 @transaction.atomic
 def utilita_expedice_beden(modeladmin, request, bedny_qs, kamion):
@@ -308,68 +261,36 @@ def utilita_expedice_beden(modeladmin, request, bedny_qs, kamion):
     - Přiřadí jejich zakázkám `kamion_vydej` na daný kamion.
     - Pro bedny, které nejsou vybrány k expedici, vytvoří novou zakázku (se stejnými daty jako původní) a přesune je tam.
     - Nastaví příznak `expedovano` na původní zakázce.
+
+    Vrací True při úspěchu, jinak False.
     """
-    # Zpracováváme po zakázkách kvůli nastavení příznaku expedovano a případnému rozdělení zakázky
-    zakazky = Zakazka.objects.filter(bedny__in=bedny_qs).distinct()
-    for zakazka in zakazky:
-        vybrane_bedny = bedny_qs.filter(zakazka=zakazka)
-        vybrane_ids = list(vybrane_bedny.values_list('pk', flat=True))
-
-        zbyvajici_ids = list(zakazka.bedny.exclude(pk__in=vybrane_ids).values_list('pk', flat=True))
-        zbyvajici_bedny = Bedna.objects.filter(pk__in=zbyvajici_ids)
-
-        if zbyvajici_bedny.exists():
-            # Vytvoř novou zakázku pro expedované bedny (vybrane_bedny)
-            exclude = {'id', 'kamion_vydej', 'expedovano'}
-            zakazka_data = {}
-            puvodni_zakazka = zakazka.puvodni_zakazka or zakazka
-            for field in Zakazka._meta.fields:
-                if field.name in exclude:
-                    continue
-                if field.is_relation and getattr(field, 'many_to_one', False):
-                    zakazka_data[field.attname] = getattr(zakazka, field.attname)
-                else:
-                    zakazka_data[field.name] = getattr(zakazka, field.name)
-            zakazka_data['puvodni_zakazka_id'] = puvodni_zakazka.id
-            nova_zakazka = Zakazka.objects.create(**zakazka_data)
-            logger.info(
-                f"Uživatel {request.user} vytvořil novou zakázku {nova_zakazka} pro expedované bedny ze zakázky ID {zakazka}."
-            )
-
-            for bedna in vybrane_bedny:
-                bedna.stav_bedny = StavBednyChoice.EXPEDOVANO
-                bedna.zakazka = nova_zakazka
-                bedna.save()
-                logger.info(
-                    f"Uživatel {request.user} přesunul a expedoval bednu {bedna} do zakázky ID {nova_zakazka}."
-                )
-
-            nova_zakazka.kamion_vydej = kamion
-            nova_zakazka.expedovano = True
-            nova_zakazka.save()
-
-            # Původní zakázka zůstává bez změny kamionu a expedovano, s neexpedovanými bednami
-        else:
-            # Vybrány byly všechny bedny zakázky
-            for bedna in vybrane_bedny:
-                bedna.stav_bedny = StavBednyChoice.EXPEDOVANO
-                bedna.save()
-                logger.info(f"Uživatel {request.user} expedoval bednu {bedna} (stav nastaven na EXPEDOVANO).")
-
-            zakazka.kamion_vydej = kamion
-            zakazka.expedovano = True
-            zakazka.save()
-
-            logger.info(
-                f"Uživatel {request.user} expedoval {vybrane_bedny.count()} beden zakázky {zakazka} do kamionu {kamion}. "
-                f"Zakázka expedovano={zakazka.expedovano}. Nová zakázka pro zbytek: nevytvořena (vše expedováno)."
-            )
+    try:
+        expedice_beden_do_existujiciho_kamionu(
+            bedny_qs=bedny_qs,
+            kamion_vydej=kamion,
+            actor=getattr(request, "user", None),
+        )
+        return True
+    except ServiceValidationError as exc:
+        logger.warning(f"Expedice beden selhala validací: {exc}")
+        messages.error(request, str(exc))
+        return False
+    except ServiceOperationError as exc:
+        logger.error(f"Expedice beden selhala operací: {exc}")
+        messages.error(request, str(exc))
+        return False
+    except Exception:
+        logger.exception("Neočekávaná chyba při expedici beden.")
+        messages.error(request, "Došlo k neočekávané chybě při expedici beden.")
+        return False
 
 def utilita_kontrola_zakazek(modeladmin, request, queryset):
     """
     Kontroluje zakázky na přítomnost beden a jejich stav.
     Pokud zakázka nemá žádné bedny nebo žádné bedny ve stavu K_EXPEDICI, zobrazí chybovou zprávu.
     Pro zákazníka s příznakem pouze_komplet mohou být expedovány pouze kompletní zakázky, které mají všechny bedny ve stavu `K_EXPEDICI`.
+
+    Vrací True, pokud kontroly prošly, jinak False.
     """
     for zakazka in queryset:
         bedny_qs = zakazka.bedny.all()
@@ -377,23 +298,25 @@ def utilita_kontrola_zakazek(modeladmin, request, queryset):
         if not bedny_qs.exists():
             logger.warning(f"Zakázka {zakazka} nemá žádné bedny.")
             messages.error(request, f"Zakázka {zakazka} nemá žádné bedny.")
-            return
+            return False
 
         if not bedny_qs.filter(stav_bedny=StavBednyChoice.K_EXPEDICI).exists():
             logger.warning(f"Zakázka {zakazka} nemá žádné bedny ve stavu K_EXPEDICI.")
             messages.error(request, f"Zakázka {zakazka} nemá žádné bedny ve stavu K_EXPEDICI.")
-            return
+            return False
     
         if zakazka.kamion_prijem.zakaznik.pouze_komplet:
             if bedny_qs.exclude(stav_bedny=StavBednyChoice.K_EXPEDICI).exists():
                 logger.warning(f"Zakázka {zakazka} pro zákazníka s příznakem 'Pouze kompletní zakázky' musí mít všechny bedny ve stavu K_EXPEDICI.")
                 messages.error(request, f"Zakázka {zakazka} pro zákazníka s nastaveným příznakem 'Pouze kompletní zakázky' musí mít všechny bedny ve stavu K_EXPEDICI.")
-                return
+                return False
 
     # Dodatečná kontrola stavu rovnání/tryskání/zinkování pro bedny určené k expedici
     bedny_k_expedici = Bedna.objects.filter(zakazka__in=queryset, stav_bedny=StavBednyChoice.K_EXPEDICI)
     if not validate_bedny_pripraveny_k_expedici(modeladmin, request, bedny_k_expedici):
-        return
+        return False
+
+    return True
 
 def utilita_validate_excel_upload(uploaded_file):
     """

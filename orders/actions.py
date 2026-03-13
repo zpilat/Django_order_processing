@@ -32,6 +32,12 @@ from .utils import (
     utilita_export_beden_zinkovani_csv,
     validate_bedny_pripraveny_k_expedici,
 )
+from .services.pdf_cards_service import resolve_customer_templates
+from .services.expedice_service import (
+    expedice_beden_do_noveho_kamionu,
+    expedice_zakazek_do_noveho_kamionu,
+)
+from .services.exceptions import ServiceValidationError
 from django.urls import reverse
 from .forms import VyberKamionVydejForm, OdberatelForm, KNavezeniForm, NavezenoForm
 from .choices import (
@@ -596,8 +602,15 @@ def tisk_karet_beden_action(modeladmin, request, queryset):
 
     zakaznik_zkratka = queryset.first().zakazka.kamion_prijem.zakaznik.zkratka
     if zakaznik_zkratka:
-        filename = f"karty_beden_{zakaznik_zkratka.lower()}.pdf"
-        html_path = f"orders/karta_bedny_{zakaznik_zkratka.lower()}.html"
+        try:
+            template_paths, filename = resolve_customer_templates(
+                zakaznik_zkratka=zakaznik_zkratka,
+                mode="bedna",
+            )
+            html_path = template_paths[0]
+        except ServiceValidationError as exc:
+            modeladmin.message_user(request, str(exc), level=messages.ERROR)
+            return None
         response = utilita_tisk_dokumentace(modeladmin, request, queryset, html_path, filename)
         logger.info(f"Uživatel {request.user} tiskne karty beden pro {queryset.count()} vybraných beden.")
         return response
@@ -623,8 +636,15 @@ def tisk_karet_kontroly_kvality_action(modeladmin, request, queryset):
 
     zakaznik_zkratka = queryset.first().zakazka.kamion_prijem.zakaznik.zkratka
     if zakaznik_zkratka:
-        filename = f"karty_kontroly_kvality_{zakaznik_zkratka.lower()}.pdf"
-        html_path = f"orders/karta_kontroly_kvality_{zakaznik_zkratka.lower()}.html"
+        try:
+            template_paths, filename = resolve_customer_templates(
+                zakaznik_zkratka=zakaznik_zkratka,
+                mode="kkk",
+            )
+            html_path = template_paths[0]
+        except ServiceValidationError as exc:
+            modeladmin.message_user(request, str(exc), level=messages.ERROR)
+            return None
         response = utilita_tisk_dokumentace(modeladmin, request, queryset, html_path, filename)
         logger.info(f"Uživatel {request.user} tiskne karty kontroly kvality pro {queryset.count()} vybraných beden.")
         return response        
@@ -664,12 +684,14 @@ def tisk_karet_bedny_a_kontroly_action(modeladmin, request, queryset):
     zakaznik = first_bedna.zakazka.kamion_prijem.zakaznik
     zakaznik_zkratka = getattr(zakaznik, 'zkratka', None)
     if zakaznik_zkratka:
-        zkratka_lower = zakaznik_zkratka.lower()
-        filename = f"karty_bedny_a_kontroly_{zkratka_lower}.pdf"
-        html_paths = [
-            f"orders/karta_bedny_{zkratka_lower}.html",
-            f"orders/karta_kontroly_kvality_{zkratka_lower}.html",
-        ]
+        try:
+            html_paths, filename = resolve_customer_templates(
+                zakaznik_zkratka=zakaznik_zkratka,
+                mode="kombi",
+            )
+        except ServiceValidationError as exc:
+            modeladmin.message_user(request, str(exc), level=messages.ERROR)
+            return None
         response = utilita_tisk_dokumentace_sablony(modeladmin, request, queryset, html_paths, filename)
         if response:
             logger.info(
@@ -1394,25 +1416,30 @@ def expedice_beden_action(modeladmin, request, queryset):
         form = OdberatelForm(request.POST)
         if form.is_valid():
             odberatel = form.cleaned_data['odberatel']
-            vytvorene_kamiony = []
-            with transaction.atomic():
-                for zakaznik in zakaznici:
-                    try:
-                        kamion = Kamion.objects.create(
-                            zakaznik=zakaznik,
-                            datum=datetime.date.today(),
-                            prijem_vydej=KamionChoice.VYDEJ,
-                            odberatel=odberatel,
-                        )
-                        vytvorene_kamiony.append(kamion.cislo_dl)
-                        bedny_zakaznika = queryset.filter(zakazka__kamion_prijem__zakaznik=zakaznik)
-                        utilita_expedice_beden(modeladmin, request, bedny_zakaznika, kamion)
-                    except Exception as e:
-                        logger.error(f"Nastala chyba {e} při vytváření kamionu pro zákazníka {zakaznik.zkraceny_nazev}.")
-                        modeladmin.message_user(request, f"Nastala chyba {e} při vytváření kamionu pro zákazníka {zakaznik.zkraceny_nazev}", level=messages.ERROR)
-                        return None
-            logger.info(f"Uživatel {request.user} úspěšně expedoval bedny do nových kamionů: {', '.join(vytvorene_kamiony)}.")
-            modeladmin.message_user(request, f"Bedny byly úspěšně expedovány, vytvořené kamiony výdeje {', '.join(vytvorene_kamiony)}.", level=messages.SUCCESS)
+            try:
+                result = expedice_beden_do_noveho_kamionu(
+                    bedny_qs=queryset,
+                    zakaznici=zakaznici,
+                    odberatel=odberatel,
+                    actor=request.user,
+                    today=datetime.date.today(),
+                )
+            except ServiceValidationError as exc:
+                modeladmin.message_user(request, str(exc), level=messages.ERROR)
+                return None
+            except Exception as e:
+                logger.error(f"Nastala chyba {e} při vytváření kamionu pro expedici beden.")
+                modeladmin.message_user(request, f"Nastala chyba {e} při vytváření kamionu pro expedici beden.", level=messages.ERROR)
+                return None
+
+            logger.info(
+                f"Uživatel {request.user} úspěšně expedoval bedny do nových kamionů: {', '.join(result.created_kamiony)}."
+            )
+            modeladmin.message_user(
+                request,
+                f"Bedny byly úspěšně expedovány, vytvořené kamiony výdeje {', '.join(result.created_kamiony)}.",
+                level=messages.SUCCESS,
+            )
             return None
     else:
         logger.info(f"Uživatel {request.user} expeduje bedny do nového kamionu.")
@@ -1503,7 +1530,8 @@ def expedice_beden_kamion_action(modeladmin, request, queryset):
         form = VyberKamionVydejForm(request.POST, zakaznik=zakaznik_id)
         if form.is_valid():
             kamion = form.cleaned_data['kamion']
-            utilita_expedice_beden(modeladmin, request, queryset, kamion)
+            if not utilita_expedice_beden(modeladmin, request, queryset, kamion):
+                return None
             logger.info(
                 f"Uživatel {request.user} úspěšně expedoval bedny do kamionu {kamion.cislo_dl} zákazníka {kamion.zakaznik.nazev}."
             )
@@ -2064,7 +2092,8 @@ def expedice_zakazek_action(modeladmin, request, queryset):
     if _abort_if_zakazky_maji_pozastavene_bedny(modeladmin, request, queryset, "Expedice zakázek do nového kamionu"):
         return None
 
-    utilita_kontrola_zakazek(modeladmin, request, queryset)
+    if not utilita_kontrola_zakazek(modeladmin, request, queryset):
+        return None
 
     # Stav rovnání/tryskání/zinkování u beden v K_EXPEDICI musí splnit podmínky pro expedici
     bedny_ke_kontrole = Bedna.objects.filter(zakazka__in=queryset, stav_bedny=StavBednyChoice.K_EXPEDICI)
@@ -2078,25 +2107,24 @@ def expedice_zakazek_action(modeladmin, request, queryset):
         if form.is_valid():
             odberatel = form.cleaned_data['odberatel']
 
-            vytvorene_kamiony = []
-            with transaction.atomic():
-                for zakaznik in zakaznici:
-                    try:
-                        kamion = Kamion.objects.create(
-                            zakaznik=zakaznik,
-                            datum=datetime.date.today(),
-                            prijem_vydej=KamionChoice.VYDEJ,
-                            odberatel=odberatel,
-                        )
-                        vytvorene_kamiony.append(kamion.cislo_dl)
-                        zakazky_zakaznika = queryset.filter(kamion_prijem__zakaznik=zakaznik)
-                        utilita_expedice_zakazek(modeladmin, request, zakazky_zakaznika, kamion)                        
-                    except Exception as e:
-                        logger.error(f"Nastala chyba {e} při vytváření kamionu pro zákazníka {zakaznik.zkraceny_nazev}.")
-                        modeladmin.message_user(request, f"Nastala chyba {e} při vytváření kamionu pro zákazníka {zakaznik.zkraceny_nazev}", level=messages.ERROR)
-                        return
-            logger.info(f"Uživatel {request.user} úspěšně expedoval zakázky do nových kamionů: {', '.join(vytvorene_kamiony)}.")
-            modeladmin.message_user(request, f"Zakázky byly úspěšně expedovány, vytvořené kamiony výdeje {', '.join(vytvorene_kamiony)}.", level=messages.SUCCESS)
+            try:
+                result = expedice_zakazek_do_noveho_kamionu(
+                    zakazky_qs=queryset,
+                    zakaznici=zakaznici,
+                    odberatel=odberatel,
+                    actor=request.user,
+                    today=datetime.date.today(),
+                )
+            except ServiceValidationError as exc:
+                modeladmin.message_user(request, str(exc), level=messages.ERROR)
+                return
+            except Exception as e:
+                logger.error(f"Nastala chyba {e} při vytváření kamionu pro zákazníka.")
+                modeladmin.message_user(request, f"Nastala chyba {e} při vytváření kamionu pro zákazníka", level=messages.ERROR)
+                return
+
+            logger.info(f"Uživatel {request.user} úspěšně expedoval zakázky do nových kamionů: {', '.join(result.created_kamiony)}.")
+            modeladmin.message_user(request, f"Zakázky byly úspěšně expedovány, vytvořené kamiony výdeje {', '.join(result.created_kamiony)}.", level=messages.SUCCESS)
             return
     else:
         logger.info(f"Uživatel {request.user} expeduje zakázky do nového kamionu.")
@@ -2136,7 +2164,8 @@ def expedice_zakazek_kamion_action(modeladmin, request, queryset):
     if _abort_if_zakazky_maji_pozastavene_bedny(modeladmin, request, queryset, "Expedice zakázek do existujícího kamionu"):
         return None
 
-    utilita_kontrola_zakazek(modeladmin, request, queryset)
+    if not utilita_kontrola_zakazek(modeladmin, request, queryset):
+        return None
 
     # Stav rovnání/tryskání/zinkování u beden v K_EXPEDICI musí splnit podmínky pro expedici
     bedny_ke_kontrole = Bedna.objects.filter(zakazka__in=queryset, stav_bedny=StavBednyChoice.K_EXPEDICI)
@@ -2149,7 +2178,8 @@ def expedice_zakazek_kamion_action(modeladmin, request, queryset):
         form = VyberKamionVydejForm(request.POST, zakaznik=zakaznik_id)
         if form.is_valid():
             kamion = form.cleaned_data['kamion']
-            utilita_expedice_zakazek(modeladmin, request, queryset, kamion)
+            if not utilita_expedice_zakazek(modeladmin, request, queryset, kamion):
+                return None
             logger.info(f"Uživatel {request.user} úspěšně expedoval zakázky do kamionu {kamion.cislo_dl} zákazníka {kamion.zakaznik.nazev}.")
             modeladmin.message_user(request, f"Zakázky byly úspěšně expedovány do kamionu {kamion} zákazníka {kamion.zakaznik.nazev}.", level=messages.SUCCESS)
             return
@@ -2188,8 +2218,15 @@ def tisk_karet_beden_zakazek_action(modeladmin, request, queryset):
 
     zakaznik_zkratka = queryset.first().kamion_prijem.zakaznik.zkratka
     if zakaznik_zkratka:
-        filename = f"karty_beden_{zakaznik_zkratka.lower()}.pdf"
-        html_path = f"orders/karta_bedny_{zakaznik_zkratka.lower()}.html"
+        try:
+            template_paths, filename = resolve_customer_templates(
+                zakaznik_zkratka=zakaznik_zkratka,
+                mode="bedna",
+            )
+            html_path = template_paths[0]
+        except ServiceValidationError as exc:
+            modeladmin.message_user(request, str(exc), level=messages.ERROR)
+            return None
         response = utilita_tisk_dokumentace(modeladmin, request, bedny, html_path, filename)
         logger.info(f"Uživatel {request.user} tiskne karty beden pro {bedny.count()} vybraných beden.")
         return response
@@ -2222,8 +2259,15 @@ def tisk_karet_kontroly_kvality_zakazek_action(modeladmin, request, queryset):
     
     zakaznik_zkratka = queryset.first().kamion_prijem.zakaznik.zkratka
     if zakaznik_zkratka:
-        filename = f"karty_kontroly_kvality_{zakaznik_zkratka.lower()}.pdf"
-        html_path = f"orders/karta_kontroly_kvality_{zakaznik_zkratka.lower()}.html"
+        try:
+            template_paths, filename = resolve_customer_templates(
+                zakaznik_zkratka=zakaznik_zkratka,
+                mode="kkk",
+            )
+            html_path = template_paths[0]
+        except ServiceValidationError as exc:
+            modeladmin.message_user(request, str(exc), level=messages.ERROR)
+            return None
         response = utilita_tisk_dokumentace(modeladmin, request, bedny, html_path, filename)
         logger.info(f"Uživatel {request.user} tiskne karty kontroly kvality pro {bedny.count()} vybraných beden.")
         return response
@@ -2563,8 +2607,15 @@ def tisk_karet_beden_kamionu_action(modeladmin, request, queryset):
 
     zakaznik_zkratka = queryset.first().zakaznik.zkratka
     if zakaznik_zkratka:
-        filename = f"karty_beden_{zakaznik_zkratka.lower()}.pdf"
-        html_path = f"orders/karta_bedny_{zakaznik_zkratka.lower()}.html"
+        try:
+            template_paths, filename = resolve_customer_templates(
+                zakaznik_zkratka=zakaznik_zkratka,
+                mode="bedna",
+            )
+            html_path = template_paths[0]
+        except ServiceValidationError as exc:
+            modeladmin.message_user(request, str(exc), level=messages.ERROR)
+            return None
         response = utilita_tisk_dokumentace(modeladmin, request, bedny, html_path, filename)
         logger.info(f"Uživatel {request.user} tiskne karty beden pro {bedny.count()} vybraných beden.")
         return response
@@ -2604,8 +2655,15 @@ def tisk_karet_kontroly_kvality_kamionu_action(modeladmin, request, queryset):
     
     zakaznik_zkratka = queryset.first().zakaznik.zkratka
     if zakaznik_zkratka:
-        filename = f"karty_kontroly_kvality_{zakaznik_zkratka.lower()}.pdf"
-        html_path = f"orders/karta_kontroly_kvality_{zakaznik_zkratka.lower()}.html"
+        try:
+            template_paths, filename = resolve_customer_templates(
+                zakaznik_zkratka=zakaznik_zkratka,
+                mode="kkk",
+            )
+            html_path = template_paths[0]
+        except ServiceValidationError as exc:
+            modeladmin.message_user(request, str(exc), level=messages.ERROR)
+            return None
         response = utilita_tisk_dokumentace(modeladmin, request, bedny, html_path, filename)
         logger.info(f"Uživatel {request.user} tiskne karty kontroly kvality pro {bedny.count()} vybraných beden.")
         return response

@@ -8,7 +8,7 @@ from django.core.management import call_command
 from django.db import IntegrityError
 
 from decimal import Decimal
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 from datetime import date
 import csv
 import io
@@ -497,16 +497,16 @@ class ActionsTests(ActionsBase):
         msgs = self._messages_texts(req)
         self.assertTrue(any('nelze provést' in m for m in msgs))
 
-    @patch('orders.actions.utilita_expedice_zakazek')
+    @patch('orders.actions.expedice_zakazek_do_noveho_kamionu')
     @patch('orders.actions.utilita_kontrola_zakazek')
     def test_expedice_zakazek_action(self, mock_kontrola, mock_expedice):
         data = {'apply': '1', 'odberatel': self.odberatel.id}
         req = self.get_request('post', data)
-        with patch('orders.actions.Kamion.objects.create', return_value=self.kamion_vydej) as mock_create:
-            resp = actions.expedice_zakazek_action(self.admin, req, Zakazka.objects.all())
+        mock_expedice.return_value = Mock(created_kamiony=[self.kamion_vydej.cislo_dl])
+        qs = Zakazka.objects.all()
+        resp = actions.expedice_zakazek_action(self.admin, req, qs)
         self.assertIsNone(resp)
-        mock_create.assert_called()
-        mock_expedice.assert_called()
+        mock_expedice.assert_called_once()
 
     def test_expedice_zakazek_action_empty(self):
         resp = actions.expedice_zakazek_action(self.admin, self.get_request('post'), Zakazka.objects.none())
@@ -522,7 +522,7 @@ class ActionsTests(ActionsBase):
         self.assertIsNone(resp)
         mock_expedice.assert_called_with(self.admin, req, qs, self.kamion_vydej)
 
-    @patch('orders.actions.utilita_expedice_beden')
+    @patch('orders.actions.expedice_beden_do_noveho_kamionu')
     def test_expedice_beden_action_success(self, mock_expedice):
         self.bedna.stav_bedny = StavBednyChoice.K_EXPEDICI
         self.bedna.rovnat = RovnaniChoice.ROVNA
@@ -531,10 +531,9 @@ class ActionsTests(ActionsBase):
         data = {'apply': '1', 'odberatel': self.odberatel.id}
         req = self.get_request('post', data)
         qs = Bedna.objects.filter(id=self.bedna.id)
-        with patch('orders.actions.Kamion.objects.create', return_value=self.kamion_vydej) as mock_create:
-            resp = actions.expedice_beden_action(self.admin, req, qs)
+        mock_expedice.return_value = Mock(created_kamiony=[self.kamion_vydej.cislo_dl])
+        resp = actions.expedice_beden_action(self.admin, req, qs)
         self.assertIsNone(resp)
-        mock_create.assert_called_once()
         mock_expedice.assert_called_once()
 
     @patch('orders.actions.Kamion.objects.create')
