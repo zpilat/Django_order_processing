@@ -2433,7 +2433,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     list_display = (
         'get_notif_alert', 'get_cislo_bedny', 'behalter_nr', 'get_poradi_bedny_v_zakazce', 'zakazka_link', 'get_zakaznik_zkratka', 'kamion_prijem_link',
         'kamion_vydej_link', 'stav_bedny', 'rovnat', 'tryskat', 'zinkovat', 'get_pozinkovano', 'get_prumer', 'get_delka_int','get_skupina_TZ',
-        'get_typ_hlavy', 'get_celozavit', 'get_zkraceny_popis', 'hmotnost', 'tara', 'get_hmotnost_brutto',
+        'get_material', 'get_typ_hlavy', 'get_celozavit', 'get_zkraceny_popis', 'hmotnost', 'tara', 'get_hmotnost_brutto',
         'mnozstvi', 'pozice', 'get_priorita', 'get_datum_prijem', 'get_datum_vydej', 'get_postup', 'cena_za_kg', 'get_odberatel','poznamka',
         )
     # list_editable nastavován dynamicky v get_list_editable
@@ -2776,12 +2776,20 @@ class BednaAdmin(SimpleHistoryAdmin):
         if obj.zakazka and obj.zakazka.kamion_vydej:
             return format_html('<a href="{}">{}</a>', obj.zakazka.kamion_vydej.get_admin_url(), obj.zakazka.kamion_vydej)
 
-    @admin.display(description='Hlava', ordering='zakazka__typ_hlavy')
+    @admin.display(description='Hl.', ordering='zakazka__typ_hlavy')
     def get_typ_hlavy(self, obj):
         """
         Zobrazí typ hlavy zakázky a umožní třídění podle hlavičky pole.
         """
         return obj.zakazka.typ_hlavy
+
+    @admin.display(description='Mat.', ordering='material')
+    def get_material(self, obj):
+        """
+        Zobrazí materiál bedny a umožní třídění podle hlavičky pole.
+        """
+        return obj.material
+
 
     @admin.display(description='Pr.', ordering='zakazka__priorita')
     def get_priorita(self, obj):
@@ -3193,7 +3201,9 @@ class BednaAdmin(SimpleHistoryAdmin):
         jinak rovnat, tryskat a zinkovat.
         Pokud není filtr stav bedny == Neprijato, Prijato, Zkontrolováno, Rozpracováno a není aktivní filtr zinkovani,
         vyloučí se sloupce get_zakaznik_zkratka, jinak kamion_prijem_link.
-        Pokud není filtr stav bedny == Prijato nebo K_expedici, get_poradi_bedny_v_zakazce, jinak kamion_prijem_link.
+        Pokud není filtr stav bedny == Prijato nebo K_expedici, vyloučí se sloupec get_poradi_bedny_v_zakazce,
+        jinak kamion_prijem_link.
+        Pokud není filtr stav bedny == Prijato, vyloučí se zobrazení sloupce get_material.
         """
         list_display = list(super().get_list_display(request))
         stav_bedny = request.GET.get('stav_bedny', None)
@@ -3250,7 +3260,10 @@ class BednaAdmin(SimpleHistoryAdmin):
                 list_display.remove('kamion_prijem_link')
         if stav_bedny not in [StavBednyChoice.PRIJATO, StavBednyChoice.K_EXPEDICI]:
             if 'get_poradi_bedny_v_zakazce' in list_display:
-                list_display.remove('get_poradi_bedny_v_zakazce')     
+                list_display.remove('get_poradi_bedny_v_zakazce')
+        if stav_bedny != StavBednyChoice.PRIJATO:
+            if 'get_material' in list_display:
+                list_display.remove('get_material')
                 
         return list_display
     
