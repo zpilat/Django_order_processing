@@ -54,7 +54,7 @@
                         {{ bedna.zakazka.kamion_prijem.zakaznik.zkraceny_nazev }}
                     </td>
                     <td colspan="2" rowspan="7" class="text-center fw-bold fs-35">
-                        {{ bedna.zakazka.predpis.skupina }}
+                        {{ bedna.fake_skupina_TZ|default:"?" }}
                     </td>
                     <td colspan="3" rowspan="3" class="text-center no-border-end">
                         Počet beden:

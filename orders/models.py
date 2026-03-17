@@ -972,7 +972,23 @@ class Bedna(models.Model):
         if self.hmotnost is not None and self.hmotnost > 0 and self.tara is not None and self.tara > 0:
             return self.hmotnost + self.tara
         return 0
-    
+
+    @property
+    def fake_skupina_TZ(self):
+        """
+        Vrací falešnou skupinu TZ, standardně vrací skupinu TZ zakázky, pokud je ale skupina
+        TZ == 1 a materiál bedny 10B21, vrátí skupinu TZ = 10
+        """
+        # najde aktuální skupinu TZ zakázky pokud existuje
+        skupina = None        
+        if self.zakazka and getattr(self.zakazka, "predpis", None) and getattr(self.zakazka.predpis, "skupina", None):
+            skupina = self.zakazka.predpis.skupina
+        
+        # pokud je skupina 1 a materiál 10B21, přemapuje na 10, jinak ponechá
+        if skupina == 1 and str(self.material).upper() == "10B21":
+            return 10
+        return skupina
+
     @property
     def postup_vyroby(self):
         """

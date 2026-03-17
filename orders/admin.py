@@ -1,7 +1,7 @@
 from django.contrib import admin, messages
 from django.contrib.auth.models import Permission
 from django.db import models, transaction
-from django.db.models import Case, When, Value, IntegerField, Prefetch, Exists, OuterRef
+from django.db.models import Case, When, Value, IntegerField, Prefetch, Exists, OuterRef, Q, F
 from django.forms import TextInput, RadioSelect, modelformset_factory
 from django.forms.models import BaseInlineFormSet
 from django.utils.safestring import mark_safe
@@ -2835,20 +2835,31 @@ class BednaAdmin(SimpleHistoryAdmin):
             return f"{label[:max_len - 1]}…"
         return label
 
-    @admin.display(description='TZ', ordering='zakazka__predpis__skupina', empty_value='-')
+    @admin.display(description='TZ', ordering='fake_skupina_TZ_ann', empty_value='-')
     def get_skupina_TZ(self, obj):
         """
-        Zobrazí skupinu tepelného zpracování bedny a umožní třídění podle hlavičky pole.
-        Vrátí html číslo s barvou podle skupiny - BARVA_SKUPINY_TZ.
+        Zobrazí fejkovou skupinu tepelného zpracování bedny a umožní třídění podle hlavičky pole.
+         - Pro zobrazení použije barevné štítky s textem a pozadím definovaným v BARVA_SKUPINY_TZ.
+         - Pokud není skupina TZ definována, zobrazí se '-'.
+         - Pro správné třídění v SQL preferuje anotované pole fake_skupina_TZ_ann, ale pokud není přítomna
+           (např. obj byl načten bez anotace), fallbackne na property fake_skupina_TZ.
+         - Pokud ani jedna není přítomna, vrátí '-'.
+         - Loguje varování, pokud se nepodaří získat hodnotu pro zobrazení.
         """
-        barva = BARVA_SKUPINY_TZ[obj.zakazka.predpis.skupina] if obj.zakazka and obj.zakazka.predpis and obj.zakazka.predpis.skupina in BARVA_SKUPINY_TZ else ''
-        if obj.zakazka and obj.zakazka.predpis and obj.zakazka.predpis.skupina:
-            return mark_safe(
-                f'<span style="color: {barva["text"]}; background-color: {barva["pozadi"]}; padding: 0.1rem 0.35rem; border-radius: 0.25rem; display: inline-block;">'
-                f"{obj.zakazka.predpis.skupina}"
-                "</span>"
-            )
-        return '-'        
+        # Preferovaně se použije anotované pole z querysetu pro správné třídění v SQL.
+        fake_skupina_TZ = getattr(obj, 'fake_skupina_TZ_ann', None)
+        # Pokud anotace není přítomna (např. obj byl načten bez anotace), fallback na property.
+        if fake_skupina_TZ is None:
+            fake_skupina_TZ = getattr(obj, 'fake_skupina_TZ', None)
+        if fake_skupina_TZ is None:
+            logger.warning(f"Nepodařilo se získat hodnotu fake_skupina_TZ pro bednu ID {obj.id}.")
+            return '-'
+        barva = BARVA_SKUPINY_TZ.get(fake_skupina_TZ, {'text': 'black', 'pozadi': '#e0e0e0'})
+        return mark_safe(
+            f'<span style="color: {barva["text"]}; background-color: {barva["pozadi"]}; padding: 0.1rem 0.35rem; border-radius: 0.25rem; display: inline-block;">'
+            f"{fake_skupina_TZ}"
+            "</span>"
+        )      
 
     @admin.display(description='Postup', ordering='postup_vyroby_value', empty_value='-')
     def get_postup(self, obj):
@@ -2917,8 +2928,10 @@ class BednaAdmin(SimpleHistoryAdmin):
         )
 
     def get_queryset(self, request):
-        """Rozšíří queryset o anotaci postup_vyroby_value (SQL ekvivalent property postup_vyroby)
-        a o anotaci has_active_notif, která indikuje, zda bedna má aktivní notifikace vyžadující potvrzení. 
+        """
+        Rozšíří queryset o anotaci postup_vyroby_value (SQL ekvivalent property postup_vyroby), 
+        anotaci has_active_notif, která indikuje, zda bedna má aktivní notifikace vyžadující potvrzení 
+        a anotaci fake__skupina_TZ, která obsahuje fejkovou skupinu tepelného zpracování bedny.
         """
         self._current_user = request.user
         self._request_is_superuser = request.user.is_superuser
@@ -2929,6 +2942,7 @@ class BednaAdmin(SimpleHistoryAdmin):
             postup_vyroby_value=Case(*build_postup_vyroby_cases(), default=Value(0), output_field=IntegerField())
         )
 
+        # Anotace has_active_notif pomocí EXISTS subquery, která zkontroluje existenci aktivních notifikací pro každou bednu.
         notif_filter = Notification.objects.filter(
             bedna=OuterRef('pk'),
             ack_required=True,
@@ -2937,9 +2951,21 @@ class BednaAdmin(SimpleHistoryAdmin):
         if not request.user.is_superuser:
             notif_filter = notif_filter.filter(recipient=request.user)
 
-        return qs.annotate(
+        qs = qs.annotate(
             has_active_notif=Exists(notif_filter)
         )
+
+        # Anotace fake_skupina_TZ, která obsahuje fejkovou skupinu tepelného zpracování bedny.
+        qs = qs.annotate(
+            # Používá se odlišné jméno anotace, aby nedocházelo ke kolizi s property `fake_skupina_TZ`.
+            fake_skupina_TZ_ann=Case(
+                When(Q(zakazka__predpis__skupina=1) & Q(material__iexact='10B21'), then=Value(10)),
+                default=F('zakazka__predpis__skupina'),
+                output_field=IntegerField(),
+            )
+        )
+
+        return qs
 
     def get_fieldsets(self, request, obj=None):
         """
