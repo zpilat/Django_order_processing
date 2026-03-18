@@ -504,8 +504,8 @@ class SPXImportStrategy(BaseImportStrategy):
 
         logger.debug(f"Import - sloučené a upravené řádky dat: {df.head(2).to_dict(orient='records')}")     
 
-        # Setřídění podle sloupce prumer, delka, artikl
-        df.sort_values(by=['prumer', 'delka', 'artikl'], inplace=True)
+        # Setřídění podle sloupce prumer, delka, artikl a sarze
+        df.sort_values(by=['prumer', 'delka', 'artikl', 'sarze'], inplace=True)
         logger.info(f"Uživatel {request.user} úspěšně načetl data z Excel souboru pro import zakázek.")
 
         # Připravení náhledu

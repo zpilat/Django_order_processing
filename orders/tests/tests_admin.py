@@ -455,6 +455,109 @@ class KamionAdminTests(AdminBase):
             ['SARZE-X', 'SARZE-X', 'SARZE-Y'],
         )
 
+    def test_import_view_spx_keeps_bedny_of_same_order_together(self):
+        spx = Zakaznik.objects.create(
+            nazev='SPX2',
+            zkraceny_nazev='SPX2',
+            zkratka='SPX',
+            ciselna_rada=300001,
+        )
+        kamion_spx = Kamion.objects.create(zakaznik=spx, datum=date.today())
+        Predpis.objects.create(nazev='SPAX-3 Ø6_SK', skupina=1, zakaznik=spx)
+
+        url = f'/admin/orders/kamion/import-zakazek/?kamion={kamion_spx.pk}'
+        file_mock = SimpleUploadedFile('spx_alt.xlsx', b'fakecontent', content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        valid_req = self.get_request('post', data={'file': file_mock}, path=url)
+        valid_req.FILES['file'] = file_mock
+        valid_req.session = {}
+        valid_req._messages = FallbackStorage(valid_req)
+
+        import pandas as pandas_mod
+        # Záměrně střídání šarží A, B, A při stejném artiklu/průměru/délce.
+        df = pandas_mod.DataFrame([
+            {
+                'Bestellnr.': 'WO-1',
+                'Material': 'SPX-ALT',
+                'Kurztext': 'SPAX-3 SMK vrut 1',
+                'Menge': '10',
+                'ME Gewicht': '20,0',
+                'GE': '25,0',
+            },
+            {
+                'Bestellnr.': 'SARZE-A',
+                'Material': 'SPX-ALT',
+                'Kurztext': '6,0*160,0',
+                'Menge': '',
+                'ME Gewicht': '',
+                'GE': '',
+            },
+            {
+                'Bestellnr.': 'WO-2',
+                'Material': 'SPX-ALT',
+                'Kurztext': 'SPAX-3 SMK vrut 2',
+                'Menge': '8',
+                'ME Gewicht': '16,0',
+                'GE': '20,0',
+            },
+            {
+                'Bestellnr.': 'SARZE-B',
+                'Material': 'SPX-ALT',
+                'Kurztext': '6,0*160,0',
+                'Menge': '',
+                'ME Gewicht': '',
+                'GE': '',
+            },
+            {
+                'Bestellnr.': 'WO-3',
+                'Material': 'SPX-ALT',
+                'Kurztext': 'SPAX-3 SMK vrut 3',
+                'Menge': '6',
+                'ME Gewicht': '12,0',
+                'GE': '15,0',
+            },
+            {
+                'Bestellnr.': 'SARZE-A',
+                'Material': 'SPX-ALT',
+                'Kurztext': '6,0*160,0',
+                'Menge': '',
+                'ME Gewicht': '',
+                'GE': '',
+            },
+        ])
+
+        with patch.object(self.admin, '_render_import', wraps=self.admin._render_import), patch('orders.admin.pd.read_excel', side_effect=lambda *args, **kwargs: df.copy()):
+            preview_resp = self.admin.import_view(valid_req)
+
+        self.assertEqual(preview_resp.status_code, 200)
+        tmp_token = next(iter(valid_req.session.get('import_tmp_files', {})), None)
+        self.assertTrue(tmp_token)
+
+        import_req = self.get_request('post', data={'tmp_token': tmp_token}, path=url)
+        import_req.session = valid_req.session
+        import_req._messages = FallbackStorage(import_req)
+
+        existing_bedna_ids = set(Bedna.objects.values_list('id', flat=True))
+        with patch('orders.admin.pd.read_excel', side_effect=lambda *args, **kwargs: df.copy()):
+            resp = self.admin.import_view(import_req)
+
+        self.assertEqual(resp.status_code, 302)
+
+        new_bedny = list(
+            Bedna.objects.exclude(id__in=existing_bedna_ids)
+            .select_related('zakazka')
+            .order_by('id')
+        )
+        self.assertEqual(len(new_bedny), 3)
+
+        zakazka_sequence = [bedna.zakazka_id for bedna in new_bedny]
+        # Očekáváme blokové pořadí stejné zakázky: A, A, B (ne A, B, A).
+        self.assertEqual(zakazka_sequence[0], zakazka_sequence[1])
+        self.assertNotEqual(zakazka_sequence[1], zakazka_sequence[2])
+
+        sarze_sequence = [bedna.sarze for bedna in new_bedny]
+        self.assertEqual(sarze_sequence[:2], ['SARZE-A', 'SARZE-A'])
+        self.assertEqual(sarze_sequence[2], 'SARZE-B')
+
     def test_import_view_eur_orders_bedny_sorted_by_numeric_behalter(self):
         url = f'/admin/orders/kamion/import-zakazek/?kamion={self.kamion.pk}'
         file_mock = SimpleUploadedFile('eur.xlsx', b'fake', content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
