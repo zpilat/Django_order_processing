@@ -977,15 +977,17 @@ class Bedna(models.Model):
     def fake_skupina_TZ(self):
         """
         Vrací falešnou skupinu TZ, standardně vrací skupinu TZ zakázky, pokud je ale skupina
-        TZ == 1 a materiál bedny 10B21, vrátí skupinu TZ = 10
+        TZ == 1 a materiál bedny má hodnotu v ("10B21", "17B2"), vrátí skupinu TZ = 10.
+        Při úpravě této property je potřeba změnit i fake_skupina_TZ_ann při tvorbě querysetu pro BednaAdmin,
+        aby se správně zobrazovala v administraci.
         """
         # najde aktuální skupinu TZ zakázky pokud existuje
         skupina = None        
         if self.zakazka and getattr(self.zakazka, "predpis", None) and getattr(self.zakazka.predpis, "skupina", None):
             skupina = self.zakazka.predpis.skupina
         
-        # pokud je skupina 1 a materiál 10B21, přemapuje na 10, jinak ponechá
-        if skupina == 1 and str(self.material).upper() == "10B21":
+        # pokud je skupina 1 a materiál 10B21 nebo 17B2, přemapuje na 10, jinak ponechá
+        if skupina == 1 and str(self.material).upper() in ("10B21", "17B2"):
             return 10
         return skupina
 

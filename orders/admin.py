@@ -2955,11 +2955,13 @@ class BednaAdmin(SimpleHistoryAdmin):
             has_active_notif=Exists(notif_filter)
         )
 
-        # Anotace fake_skupina_TZ, která obsahuje fejkovou skupinu tepelného zpracování bedny.
+        # Anotace fake_skupina_TZ, která obsahuje fejkovou skupinu tepelného zpracování bedny, 
+        # podle logiky z property fake_skupina_TZ v modelu Bedna - standardně je fake_skupina_TZ = zakazka.predpis.skupina,
+        # pouze v případě, že je skupina == 1 a materiál je 10B21 nebo 17B2, se nastaví fake_skupina_TZ na 10.
         qs = qs.annotate(
             # Používá se odlišné jméno anotace, aby nedocházelo ke kolizi s property `fake_skupina_TZ`.
             fake_skupina_TZ_ann=Case(
-                When(Q(zakazka__predpis__skupina=1) & Q(material__iexact='10B21'), then=Value(10)),
+                When(Q(zakazka__predpis__skupina=1) & (Q(material__iexact='10B21') | Q(material__iexact='17B2')), then=Value(10)),
                 default=F('zakazka__predpis__skupina'),
                 output_field=IntegerField(),
             )
