@@ -21,7 +21,17 @@ document.addEventListener('DOMContentLoaded', function () {
     const actionForm = document.getElementById('changelist-form');
     if (!actionForm) return;
 
-    actionForm.addEventListener('submit', function() {
+    actionForm.addEventListener('submit', function(event) {
+        const submitter = (event && event.submitter) || document.activeElement;
+        const submitterName = submitter && submitter.name ? submitter.name : '';
+
+        // Apply target logic only for admin actions ("Provést" button).
+        // For list-editable save and other submits, always submit in current tab.
+        if (submitterName !== 'index') {
+            actionForm.removeAttribute('target');
+            return;
+        }
+
         const actionSelects = actionForm.querySelectorAll('select[name="action"]');
         if (!actionSelects.length) return;
 
