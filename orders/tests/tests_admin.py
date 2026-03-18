@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission, Group
 from django.contrib.messages.storage.fallback import FallbackStorage
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.http import HttpResponse
 from django.urls import reverse
 
 from decimal import Decimal
@@ -1134,7 +1135,7 @@ class BednaAdminTests(AdminBase):
             poznamka='beze zmeny',
         )
 
-        req = self.factory.post('/', {'form-TOTAL_FORMS': '2'})
+        req = self.factory.post('/', {'form-TOTAL_FORMS': '2', '_save': 'Uložit'})
         req.user = self.user
         req.session = {}
         req._messages = FallbackStorage(req)
@@ -1186,7 +1187,7 @@ class BednaAdminTests(AdminBase):
         bedna_changed.poznamka = 'DB_hodnota'
         bedna_changed.save(update_fields=['poznamka'])
 
-        req = self.factory.post('/', {'form-TOTAL_FORMS': '1'})
+        req = self.factory.post('/', {'form-TOTAL_FORMS': '1', '_save': 'Uložit'})
         req.user = self.user
         req.session = {}
         req._messages = FallbackStorage(req)
@@ -1223,6 +1224,7 @@ class BednaAdminTests(AdminBase):
             '/',
             {
                 'form-TOTAL_FORMS': '1',
+                '_save': 'Uložit',
                 '_touched_enabled': '1',
                 '_touched_field': ['form-0-poznamka'],
             },
@@ -1261,6 +1263,26 @@ class BednaAdminTests(AdminBase):
         self.assertEqual(bedna_changed.poznamka, 'NOVA')
         self.assertEqual(bedna_changed.stav_bedny, original_stav)
 
+    def test_changelist_view_post_action_is_not_intercepted_by_custom_save(self):
+        req = self.factory.post(
+            '/',
+            {
+                'form-TOTAL_FORMS': '1',
+                'index': '0',
+                'action': 'export_bedny_to_csv_action',
+            },
+        )
+        req.user = self.user
+        req.session = {}
+        req._messages = FallbackStorage(req)
+
+        with patch('orders.admin.SimpleHistoryAdmin.changelist_view', return_value=HttpResponse('ok')) as super_changelist:
+            response = self.admin.changelist_view(req)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content, b'ok')
+        super_changelist.assert_called_once()
+
     def test_changelist_client_post_stale_untouched_row_does_not_fail_validation(self):
         bedna_touched = self.bedna
         bedna_touched.poznamka = 'puvodni-1'
@@ -1287,6 +1309,7 @@ class BednaAdminTests(AdminBase):
             'form-INITIAL_FORMS': '2',
             'form-MIN_NUM_FORMS': '0',
             'form-MAX_NUM_FORMS': '1000',
+            '_save': 'Uložit',
             '_touched_enabled': '1',
             '_touched_field': ['form-0-poznamka'],
 

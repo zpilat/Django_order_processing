@@ -3183,7 +3183,7 @@ class BednaAdmin(SimpleHistoryAdmin):
 
         # Ošetření POST requestu z inline editace v changelistu,
         # aby se ukládaly pouze skutečné změny polí.
-        if request.method == 'POST' and 'form-TOTAL_FORMS' in request.POST:
+        if request.method == 'POST' and 'form-TOTAL_FORMS' in request.POST and '_save' in request.POST:
             FormSet = self.get_changelist_formset(request)
             form_prefix = FormSet.get_default_prefix() if hasattr(FormSet, 'get_default_prefix') else 'form'
             modified_queryset = self._get_list_editable_queryset(
