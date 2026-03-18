@@ -3190,9 +3190,29 @@ class BednaAdmin(SimpleHistoryAdmin):
                 request,
                 form_prefix,
             )
-            formset = FormSet(request.POST, request.FILES, queryset=modified_queryset)
             touched_enabled = request.POST.get('_touched_enabled') == '1'
             touched_field_names = set(request.POST.getlist('_touched_field'))
+            formset_data = request.POST
+            if touched_enabled and touched_field_names:
+                editable_fields = tuple(self.list_editable or ())
+                if editable_fields:
+                    formset_for_initials = FormSet(queryset=modified_queryset)
+                    normalized_data = request.POST.copy()
+                    for form in getattr(formset_for_initials, 'forms', []):
+                        for field_name in editable_fields:
+                            field_key = f'{form.prefix}-{field_name}'
+                            if field_key in touched_field_names:
+                                continue
+                            if field_key in normalized_data:
+                                initial_value = form.initial.get(field_name)
+                                if initial_value is None:
+                                    normalized_data[field_key] = ''
+                                else:
+                                    prepared_value = form.fields[field_name].prepare_value(initial_value)
+                                    normalized_data[field_key] = '' if prepared_value is None else str(prepared_value)
+                    formset_data = normalized_data
+
+            formset = FormSet(formset_data, request.FILES, queryset=modified_queryset)
             if formset.is_valid():
                 with transaction.atomic():
                     for form in getattr(formset, 'forms', []):

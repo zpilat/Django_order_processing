@@ -1112,6 +1112,104 @@ class BednaAdminTests(AdminBase):
         bedna_changed.refresh_from_db()
         self.assertEqual(bedna_changed.poznamka, 'NOVA')
 
+    def test_changelist_view_post_touched_markers_save_only_touched_fields(self):
+        bedna_changed = self.bedna
+        original_stav = bedna_changed.stav_bedny
+
+        req = self.factory.post(
+            '/',
+            {
+                'form-TOTAL_FORMS': '1',
+                '_touched_enabled': '1',
+                '_touched_field': ['form-0-poznamka'],
+            },
+        )
+        req.user = self.user
+        req.session = {}
+        req._messages = FallbackStorage(req)
+
+        class DummyForm:
+            def __init__(self, instance):
+                self.instance = instance
+                self.prefix = 'form-0'
+                self.changed_data = ['poznamka', 'stav_bedny']
+                self.cleaned_data = {'poznamka': 'NOVA', 'stav_bedny': StavBednyChoice.EXPEDOVANO}
+                self.initial = {'poznamka': instance.poznamka, 'stav_bedny': original_stav}
+
+            def has_changed(self):
+                return True
+
+        class DummyFormSet:
+            def __init__(self, *args, **kwargs):
+                self.forms = [DummyForm(bedna_changed)]
+
+            @staticmethod
+            def get_default_prefix():
+                return 'form'
+
+            def is_valid(self):
+                return True
+
+        with patch.object(self.admin, 'get_changelist_formset', return_value=DummyFormSet):
+            response = self.admin.changelist_view(req)
+
+        self.assertEqual(response.status_code, 302)
+        bedna_changed.refresh_from_db()
+        self.assertEqual(bedna_changed.poznamka, 'NOVA')
+        self.assertEqual(bedna_changed.stav_bedny, original_stav)
+
+    def test_changelist_client_post_stale_untouched_row_does_not_fail_validation(self):
+        bedna_touched = self.bedna
+        bedna_touched.poznamka = 'puvodni-1'
+        bedna_touched.save(update_fields=['poznamka'])
+
+        bedna_untouched = Bedna.objects.create(
+            zakazka=self.zakazka,
+            hmotnost=Decimal(3),
+            tara=Decimal(1),
+            mnozstvi=1,
+            poznamka='puvodni-2',
+        )
+
+        self.client.force_login(self.user)
+        url = reverse('admin:orders_bedna_changelist')
+
+        ordered = list(Bedna.objects.filter(pk__in=[bedna_touched.pk, bedna_untouched.pk]).order_by('id'))
+        self.assertEqual(len(ordered), 2)
+        self.assertEqual(ordered[0].pk, bedna_touched.pk)
+        self.assertEqual(ordered[1].pk, bedna_untouched.pk)
+
+        post_data = {
+            'form-TOTAL_FORMS': '2',
+            'form-INITIAL_FORMS': '2',
+            'form-MIN_NUM_FORMS': '0',
+            'form-MAX_NUM_FORMS': '1000',
+            '_touched_enabled': '1',
+            '_touched_field': ['form-0-poznamka'],
+
+            'form-0-id': str(bedna_touched.pk),
+            'form-0-stav_bedny': bedna_touched.stav_bedny,
+            'form-0-tryskat': bedna_touched.tryskat,
+            'form-0-rovnat': bedna_touched.rovnat,
+            'form-0-hmotnost': str(bedna_touched.hmotnost),
+            'form-0-poznamka': 'zmena-zalozka-2',
+
+            'form-1-id': str(bedna_untouched.pk),
+            'form-1-stav_bedny': '__INVALID_STALE_CHOICE__',
+            'form-1-tryskat': bedna_untouched.tryskat,
+            'form-1-rovnat': bedna_untouched.rovnat,
+            'form-1-hmotnost': str(bedna_untouched.hmotnost),
+            'form-1-poznamka': bedna_untouched.poznamka,
+        }
+
+        response = self.client.post(url, post_data)
+
+        self.assertEqual(response.status_code, 302)
+        bedna_touched.refresh_from_db()
+        bedna_untouched.refresh_from_db()
+        self.assertEqual(bedna_touched.poznamka, 'zmena-zalozka-2')
+        self.assertEqual(bedna_untouched.poznamka, 'puvodni-2')
+
     def test_has_change_permission_neprijato_regular_user(self):
         """NEPRIJATO vyžaduje speciální oprávnění."""
         User = get_user_model()
