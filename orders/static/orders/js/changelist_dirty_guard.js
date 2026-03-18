@@ -6,6 +6,14 @@
 
   const formSel = '#changelist-form';
   let dirty = false;
+  let suppressDirtyEventsUntil = 0;
+
+  try {
+    if (window.sessionStorage && window.sessionStorage.getItem('suppressDirtyWarningOnce') === '1') {
+      suppressDirtyEventsUntil = Date.now() + 1500;
+      window.sessionStorage.removeItem('suppressDirtyWarningOnce');
+    }
+  } catch (_err) {}
 
   function isChangedFromDefault(el) {
     if (!el) return false;
@@ -109,14 +117,37 @@
 
     // Dirty jen při uživatelské změně skutečných datových polí
     $(document).on('change', formSel + ' :input', function (e) {
+      if (Date.now() < suppressDirtyEventsUntil) return;
+
+      const nativeEvent = (e && e.originalEvent) || e;
+      if (nativeEvent && typeof nativeEvent.isTrusted === 'boolean' && nativeEvent.isTrusted === false) return;
+
       if (!isDataField(e.target)) return;
+      if (!isChangedFromDefault(e.target)) return;
       dirty = true;
       showWarning();
     });
 
     // Při odeslání formuláře zrušit varování
-    $(document).on('submit', formSel, function () {
+    $(document).on('submit', formSel, function (e) {
       const formEl = this;
+
+      const nativeEvent = (e && e.originalEvent) || e || null;
+      const submitter = (nativeEvent && nativeEvent.submitter) || document.activeElement;
+      const submitterName = submitter && submitter.name ? submitter.name : '';
+      const isActionSubmit = submitterName === 'index';
+
+      if (isActionSubmit) {
+        try {
+          if (window.sessionStorage) {
+            window.sessionStorage.setItem('suppressDirtyWarningOnce', '1');
+          }
+        } catch (_err) {}
+        dirty = false;
+        hideWarning();
+        return;
+      }
+
       // odstranit staré markery, pokud by došlo k opakovanému submitu
       const stale = formEl.querySelectorAll('input[name="_touched_field"], input[name="_touched_enabled"]');
       stale.forEach((el) => el.remove());
