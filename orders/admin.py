@@ -3167,6 +3167,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         links = self.get_list_display_links(request, self.get_list_display(request))
         display = self.get_list_display(request)
         self.list_editable = [f for f in editable if f in display and f not in links]
+
         extra_context = extra_context or {}
         latest = self._get_latest_change_marker()
         last_change = latest.history_date if latest else None
@@ -3177,6 +3178,53 @@ class BednaAdmin(SimpleHistoryAdmin):
             'bedna_last_change_id': last_history_id if last_history_id else '',
             'bedna_poll_interval': self.poll_interval_ms,
         })
+
+        # Ošetření POST requestu z inline editace v changelistu,
+        # aby se ukládaly pouze skutečné změny polí.
+        if request.method == 'POST' and 'form-TOTAL_FORMS' in request.POST:
+            FormSet = self.get_changelist_formset(request)
+            form_prefix = FormSet.get_default_prefix() if hasattr(FormSet, 'get_default_prefix') else 'form'
+            modified_queryset = self._get_list_editable_queryset(
+                request,
+                form_prefix,
+            )
+            formset = FormSet(request.POST, request.FILES, queryset=modified_queryset)
+            touched_enabled = request.POST.get('_touched_enabled') == '1'
+            touched_field_names = set(request.POST.getlist('_touched_field'))
+            if formset.is_valid():
+                with transaction.atomic():
+                    for form in getattr(formset, 'forms', []):
+                        # Pokud formulář neobsahuje změny, přeskočí se (i když je validní),
+                        # aby nedocházelo k zbytečným DB operacím a potenciálním konfliktům.
+                        if not form.has_changed():
+                            continue
+                        # Získají se pouze pole, která se skutečně změnila, a porovnají se s aktuálními hodnotami v DB.
+                        changed = list(form.changed_data)
+                        if touched_enabled:
+                            changed = [
+                                fname for fname in changed
+                                if f'{form.prefix}-{fname}' in touched_field_names
+                            ]
+                        if not changed:
+                            continue
+                        try:
+                            obj = self.model.objects.select_for_update().get(pk=form.instance.pk)
+                        except self.model.DoesNotExist:
+                            continue
+
+                        # Aplikují se změny z formuláře na objekt.
+                        for fname in changed:
+                            setattr(obj, fname, form.cleaned_data.get(fname))
+
+                        # Uloží se objekt pouze pro formuláře s reálnými změnami.
+                        obj.save()
+
+            if formset.is_valid():
+                # Pokud nebyly detekovány žádné konflikty a formulář je validní, zobrazí se informace
+                # o úspěšném uložení změn a provede se redirect zpět na changelist.
+                self.message_user(request, 'Uloženy změny')
+                return HttpResponseRedirect(request.get_full_path())
+
         response = super().changelist_view(request, extra_context)
         return response
 

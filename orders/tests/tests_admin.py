@@ -1021,6 +1021,97 @@ class BednaAdminTests(AdminBase):
         ld = self.admin.get_list_display(req)
         self.assertNotIn('kamion_vydej_link', ld)        
 
+    def test_changelist_view_post_saves_only_changed_forms(self):
+        bedna_changed = self.bedna
+        bedna_unchanged = Bedna.objects.create(
+            zakazka=self.zakazka,
+            hmotnost=Decimal(3),
+            tara=Decimal(1),
+            mnozstvi=1,
+            poznamka='beze zmeny',
+        )
+
+        req = self.factory.post('/', {'form-TOTAL_FORMS': '2'})
+        req.user = self.user
+        req.session = {}
+        req._messages = FallbackStorage(req)
+
+        class DummyForm:
+            def __init__(self, instance, has_changed, changed_data, cleaned_data, initial):
+                self.instance = instance
+                self._has_changed = has_changed
+                self.changed_data = changed_data
+                self.cleaned_data = cleaned_data
+                self.initial = initial
+
+            def has_changed(self):
+                return self._has_changed
+
+        class DummyFormSet:
+            def __init__(self, *args, **kwargs):
+                self.forms = [
+                    DummyForm(
+                        instance=bedna_changed,
+                        has_changed=True,
+                        changed_data=['poznamka'],
+                        cleaned_data={'poznamka': 'nova poznamka'},
+                        initial={'poznamka': bedna_changed.poznamka},
+                    ),
+                    DummyForm(
+                        instance=bedna_unchanged,
+                        has_changed=False,
+                        changed_data=[],
+                        cleaned_data={'poznamka': bedna_unchanged.poznamka},
+                        initial={'poznamka': bedna_unchanged.poznamka},
+                    ),
+                ]
+
+            def is_valid(self):
+                return True
+
+        with patch.object(self.admin, 'get_changelist_formset', return_value=DummyFormSet):
+            response = self.admin.changelist_view(req)
+
+        self.assertEqual(response.status_code, 302)
+        bedna_changed.refresh_from_db()
+        bedna_unchanged.refresh_from_db()
+        self.assertEqual(bedna_changed.poznamka, 'nova poznamka')
+        self.assertEqual(bedna_unchanged.poznamka, 'beze zmeny')
+
+    def test_changelist_view_post_conflict_adds_warning_and_saves(self):
+        bedna_changed = self.bedna
+        bedna_changed.poznamka = 'DB_hodnota'
+        bedna_changed.save(update_fields=['poznamka'])
+
+        req = self.factory.post('/', {'form-TOTAL_FORMS': '1'})
+        req.user = self.user
+        req.session = {}
+        req._messages = FallbackStorage(req)
+
+        class DummyForm:
+            def __init__(self, instance):
+                self.instance = instance
+                self.changed_data = ['poznamka']
+                self.cleaned_data = {'poznamka': 'NOVA'}
+                self.initial = {'poznamka': 'INITIAL'}
+
+            def has_changed(self):
+                return True
+
+        class DummyFormSet:
+            def __init__(self, *args, **kwargs):
+                self.forms = [DummyForm(bedna_changed)]
+
+            def is_valid(self):
+                return True
+
+        with patch.object(self.admin, 'get_changelist_formset', return_value=DummyFormSet):
+            response = self.admin.changelist_view(req)
+
+        self.assertEqual(response.status_code, 302)
+        bedna_changed.refresh_from_db()
+        self.assertEqual(bedna_changed.poznamka, 'NOVA')
+
     def test_has_change_permission_neprijato_regular_user(self):
         """NEPRIJATO vyžaduje speciální oprávnění."""
         User = get_user_model()

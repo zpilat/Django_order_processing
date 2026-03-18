@@ -7,6 +7,28 @@
   const formSel = '#changelist-form';
   let dirty = false;
 
+  function isChangedFromDefault(el) {
+    if (!el) return false;
+    const tag = (el.tagName || '').toLowerCase();
+    const type = (el.type || '').toLowerCase();
+
+    if (type === 'checkbox' || type === 'radio') {
+      return !!el.checked !== !!el.defaultChecked;
+    }
+
+    if (tag === 'select') {
+      const opts = el.options || [];
+      for (let i = 0; i < opts.length; i += 1) {
+        if (!!opts[i].selected !== !!opts[i].defaultSelected) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    return (el.value || '') !== (el.defaultValue || '');
+  }
+
   function ensureWarning() {
     // Preferované chování: pokud existuje speciální kontejner ve search baru,
     // vlož tam jednoduchý inline element. Jinak fallback na původní messagelist nahoře.
@@ -87,8 +109,6 @@
 
     // Dirty jen při uživatelské změně skutečných datových polí
     $(document).on('change', formSel + ' :input', function (e) {
-      const trusted = (e.originalEvent && e.originalEvent.isTrusted === true);
-      if (!trusted) return;
       if (!isDataField(e.target)) return;
       dirty = true;
       showWarning();
@@ -96,6 +116,30 @@
 
     // Při odeslání formuláře zrušit varování
     $(document).on('submit', formSel, function () {
+      const formEl = this;
+      // odstranit staré markery, pokud by došlo k opakovanému submitu
+      const stale = formEl.querySelectorAll('input[name="_touched_field"], input[name="_touched_enabled"]');
+      stale.forEach((el) => el.remove());
+
+      // marker, že touched režim je aktivní
+      const enabled = document.createElement('input');
+      enabled.type = 'hidden';
+      enabled.name = '_touched_enabled';
+      enabled.value = '1';
+      formEl.appendChild(enabled);
+
+      // přidat markery jen pro pole, která se liší od výchozí hodnoty na stránce
+      const inputs = formEl.querySelectorAll(':is(input, select, textarea)');
+      inputs.forEach((el) => {
+        if (!isDataField(el)) return;
+        if (!el.name) return;
+        if (!isChangedFromDefault(el)) return;
+        const marker = document.createElement('input');
+        marker.type = 'hidden';
+        marker.name = '_touched_field';
+        marker.value = el.name;
+        formEl.appendChild(marker);
+      });
       dirty = false;
       hideWarning();
     });
