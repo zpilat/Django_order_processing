@@ -1,6 +1,7 @@
 from django import forms
 from django.db.models import Exists, OuterRef
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
 from decimal import Decimal, ROUND_HALF_UP
 
@@ -305,6 +306,11 @@ class BednaChangeListForm(forms.ModelForm):
     class Meta:
         model = Bedna
         fields = "__all__"
+
+    CONCURRENT_CHANGE_MESSAGE = _(
+        'Hodnota už není platná (záznam se mezitím změnil v jiné záložce nebo jiným uživatelem). '
+        'Vyberte z aktuálně dostupných možností.'
+    )
         
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -318,6 +324,10 @@ class BednaChangeListForm(forms.ModelForm):
         field_tryskat = self.fields.get("tryskat")
         field_rovnat = self.fields.get("rovnat")
         field_zinkovat = self.fields.get("zinkovat")
+
+        for field in (field_stav_bedny, field_tryskat, field_rovnat, field_zinkovat):
+            if field:
+                field.error_messages['invalid_choice'] = self.CONCURRENT_CHANGE_MESSAGE
 
         # V changelistu vždy pouze editace: vrátí dle logiky v modelu v případě, že existují příslušná pole
         if field_stav_bedny:
