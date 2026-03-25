@@ -1,13 +1,16 @@
-/* Nezávislé scrollování panelu filtrů pouze pro Bedna changelist */
-body.app-orders.model-bedna.change-list #changelist {
+/* Nezávislé scrollování panelu filtrů pro Bedna a Zakazka changelist */
+body.app-orders.model-bedna.change-list #changelist,
+body.app-orders.model-zakazka.change-list #changelist {
   position: relative;
 }
 
-body.app-orders.model-bedna.change-list #changelist .changelist-form-container {
+body.app-orders.model-bedna.change-list #changelist .changelist-form-container,
+body.app-orders.model-zakazka.change-list #changelist .changelist-form-container {
   margin-right: 270px;
 }
 
-body.app-orders.model-bedna.change-list #changelist-filter {
+body.app-orders.model-bedna.change-list #changelist-filter,
+body.app-orders.model-zakazka.change-list #changelist-filter {
   position: fixed;
   top: 92px;
   right: 20px;
@@ -22,7 +25,8 @@ body.app-orders.model-bedna.change-list #changelist-filter {
 }
 
 /* Nadpis filtrů držet při scrollu panelu */
-body.app-orders.model-bedna.change-list #changelist-filter h2 {
+body.app-orders.model-bedna.change-list #changelist-filter h2,
+body.app-orders.model-zakazka.change-list #changelist-filter h2 {
   position: sticky;
   top: 0;
   z-index: 1;
@@ -31,11 +35,13 @@ body.app-orders.model-bedna.change-list #changelist-filter h2 {
 
 /* Na menších displejích ponechat default admin chování */
 @media (max-width: 1024px) {
-  body.app-orders.model-bedna.change-list #changelist .changelist-form-container {
+  body.app-orders.model-bedna.change-list #changelist .changelist-form-container,
+  body.app-orders.model-zakazka.change-list #changelist .changelist-form-container {
     margin-right: 0;
   }
 
-  body.app-orders.model-bedna.change-list #changelist-filter {
+  body.app-orders.model-bedna.change-list #changelist-filter,
+  body.app-orders.model-zakazka.change-list #changelist-filter {
     position: static;
     right: auto;
     width: auto;

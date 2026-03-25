@@ -1873,7 +1873,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
             'orders/js/changelist_dirty_guard.js',
             )
         css = {
-            'all': ('orders/css/admin_paused_rows.css',)
+            'all': ('orders/css/admin_paused_rows.css', 'orders/css/admin_bedna_filters_scroll.css')
         }
 
     # --- UX blokace mazání zakázky ---

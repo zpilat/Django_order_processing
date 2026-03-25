@@ -34,10 +34,10 @@
   top: 4.25rem;
 }
 
-/* Sticky panel filtrů vpravo (globálně), ale ne pro Bedna changelist,
+/* Sticky panel filtrů vpravo (globálně), ale ne pro Bedna/Zakazka changelist,
    kde je použita vlastní logika ve styles admin_bedna_filters_scroll.css */
-body.change-list:not(.model-bedna) #changelist-filter,
-body.change-list:not(.model-bedna) .filters {
+body.change-list:not(.model-bedna):not(.model-zakazka) #changelist-filter,
+body.change-list:not(.model-bedna):not(.model-zakazka) .filters {
   position: sticky;
   top: 0rem;
   align-self: start;
@@ -45,8 +45,8 @@ body.change-list:not(.model-bedna) .filters {
 
 /* Lepší chování jen na širších displejích, na mobilu nelepíme */
 @media (max-width: 767.98px) {
-  body.change-list:not(.model-bedna) #changelist-filter,
-  body.change-list:not(.model-bedna) .filters {
+  body.change-list:not(.model-bedna):not(.model-zakazka) #changelist-filter,
+  body.change-list:not(.model-bedna):not(.model-zakazka) .filters {
     position: static;
     top: auto;
   }
