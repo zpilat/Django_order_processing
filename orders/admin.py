@@ -2379,22 +2379,22 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
             sortable_by,
             self.search_help_text,
         )
-
-    def get_list_editable(self, request):
-        """
-        Přizpůsobení zobrazení sloupců pro editaci v seznamu zakázek podle aktivního filtru.
-        Pokud není aktivní filtr "skladem=SklademZakazkyChoice.EXPEDOVANO", přidá se do list_editable pole priorita.
-        """
-        if request.GET.get('skladem') != SklademZakazkyChoice.EXPEDOVANO:
-            return ['priorita']
-        return []
-
-    def changelist_view(self, request, extra_context=None):
-        """
-        Přizpůsobení zobrazení seznamu zakázek podle aktivního filtru.
-        """
-        self.list_editable = self.get_list_editable(request)
-        return super().changelist_view(request, extra_context)
+    # Prozatím vypnuto
+    # def get_list_editable(self, request):
+    #     """
+    #     Přizpůsobení zobrazení sloupců pro editaci v seznamu zakázek podle aktivního filtru.
+    #     Pokud není aktivní filtr "skladem=SklademZakazkyChoice.EXPEDOVANO", přidá se do list_editable pole priorita.
+    #     """
+    #     if request.GET.get('skladem') != SklademZakazkyChoice.EXPEDOVANO:
+    #         return ['priorita']
+    #     return []
+    #
+    # def changelist_view(self, request, extra_context=None):
+    #     """
+    #     Přizpůsobení zobrazení seznamu zakázek podle aktivního filtru.
+    #     """
+    #     self.list_editable = self.get_list_editable(request)
+    #     return super().changelist_view(request, extra_context)
 
 
 @admin.register(Bedna)
