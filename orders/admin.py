@@ -2379,7 +2379,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
             sortable_by,
             self.search_help_text,
         )
-    # Prozatím vypnuto
+    # Prozatím vypnuto, při opětovné aktivaci aktivovat i test test_get_list_editable_by_filter
     # def get_list_editable(self, request):
     #     """
     #     Přizpůsobení zobrazení sloupců pro editaci v seznamu zakázek podle aktivního filtru.
@@ -3921,6 +3921,73 @@ class CenaAdmin(SimpleHistoryAdmin):
 
     class Media:
         js = ('orders/js/changelist_dirty_guard.js',)
+
+    def changelist_view(self, request, extra_context=None):
+        # Ošetření POST requestu z inline editace v changelistu,
+        # aby se ukládaly pouze skutečné změny polí.
+        if request.method == 'POST' and 'form-TOTAL_FORMS' in request.POST and '_save' in request.POST:
+            FormSet = self.get_changelist_formset(request)
+            form_prefix = FormSet.get_default_prefix() if hasattr(FormSet, 'get_default_prefix') else 'form'
+            modified_queryset = self._get_list_editable_queryset(
+                request,
+                form_prefix,
+            )
+            touched_enabled = request.POST.get('_touched_enabled') == '1'
+            touched_field_names = set(request.POST.getlist('_touched_field'))
+            formset_data = request.POST
+            if touched_enabled and touched_field_names:
+                editable_fields = tuple(self.list_editable or ())
+                if editable_fields:
+                    formset_for_initials = FormSet(queryset=modified_queryset)
+                    normalized_data = request.POST.copy()
+                    for form in getattr(formset_for_initials, 'forms', []):
+                        for field_name in editable_fields:
+                            field_key = f'{form.prefix}-{field_name}'
+                            if field_key in touched_field_names:
+                                continue
+                            if field_key in normalized_data:
+                                initial_value = form.initial.get(field_name)
+                                if initial_value is None:
+                                    normalized_data[field_key] = ''
+                                else:
+                                    prepared_value = form.fields[field_name].prepare_value(initial_value)
+                                    normalized_data[field_key] = '' if prepared_value is None else str(prepared_value)
+                    formset_data = normalized_data
+
+            formset = FormSet(formset_data, request.FILES, queryset=modified_queryset)
+            if formset.is_valid():
+                with transaction.atomic():
+                    for form in getattr(formset, 'forms', []):
+                        # Pokud formulář neobsahuje změny, přeskočí se (i když je validní),
+                        # aby nedocházelo k zbytečným DB operacím.
+                        if not form.has_changed():
+                            continue
+                        # Získají se pouze pole, která se skutečně změnila.
+                        changed = list(form.changed_data)
+                        if touched_enabled:
+                            changed = [
+                                fname for fname in changed
+                                if f'{form.prefix}-{fname}' in touched_field_names
+                            ]
+                        if not changed:
+                            continue
+                        try:
+                            obj = self.model.objects.select_for_update().get(pk=form.instance.pk)
+                        except self.model.DoesNotExist:
+                            continue
+
+                        # Aplikují se změny z formuláře na objekt.
+                        for fname in changed:
+                            setattr(obj, fname, form.cleaned_data.get(fname))
+
+                        # Uloží se objekt pouze pro formuláře s reálnými změnami.
+                        obj.save()
+
+            if formset.is_valid():
+                self.message_user(request, 'Uloženy změny')
+                return HttpResponseRedirect(request.get_full_path())
+
+        return super().changelist_view(request, extra_context)
 
 
     @admin.display(description='Předpisy', ordering='predpis__nazev', empty_value='-')

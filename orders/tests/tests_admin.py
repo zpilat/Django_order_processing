@@ -14,7 +14,7 @@ from django.utils import timezone
 from unittest.mock import patch
 from types import SimpleNamespace
 
-from orders.admin import KamionAdmin, ZakazkaAdmin, BednaAdmin, BednaInline, NotificationAdmin, SarzeAdmin, SarzeBednaInline, PredpisAdmin
+from orders.admin import KamionAdmin, ZakazkaAdmin, BednaAdmin, BednaInline, NotificationAdmin, SarzeAdmin, SarzeBednaInline, PredpisAdmin, CenaAdmin
 from orders.forms import ImportZakazekForm
 from orders.models import Zakaznik, Kamion, Zakazka, Bedna, Predpis, TypHlavy, Odberatel, Cena, Notification, PriorityNotificationRecipient, Zarizeni, Sarze
 from orders.choices import StavBednyChoice, SklademZakazkyChoice, PrijemVydejChoice, KamionChoice, ZinkovaniChoice, PrioritaChoice
@@ -925,13 +925,15 @@ class ZakazkaAdminTests(AdminBase):
         req.user = User.objects.get(pk=req.user.pk)
         self.assertTrue(self.admin.has_change_permission(req, self.zakazka))
 
-    def test_get_list_editable_by_filter(self):
-        # Bez filtru skladem => priorita je editovatelná
-        le_default = self.admin.get_list_editable(self.get_request())
-        self.assertEqual(le_default, ['priorita'])
-        # Expedováno => nic editovatelného
-        le_ex = self.admin.get_list_editable(self.get_request({'skladem': SklademZakazkyChoice.EXPEDOVANO}))
-        self.assertEqual(le_ex, [])
+    # Zatím byla metoda get_list_editable deaktivována,
+    # může se v budoucnu vrátit, proto test ponechávám zakomentovaný.
+    # def test_get_list_editable_by_filter(self):
+    #     # Bez filtru skladem => priorita je editovatelná
+    #     le_default = self.admin.get_list_editable(self.get_request())
+    #     self.assertEqual(le_default, ['priorita'])
+    #     # Expedováno => nic editovatelného
+    #     le_ex = self.admin.get_list_editable(self.get_request({'skladem': SklademZakazkyChoice.EXPEDOVANO}))
+    #     self.assertEqual(le_ex, [])
 
     def test_zakazka_delete_permissions(self):
         # Zakázka s bednou ve stavu PRIJATO – blokováno
@@ -1942,3 +1944,78 @@ class PredpisAdminSaveAsTests(AdminBase):
         source_predpis.refresh_from_db()
 
         self.assertFalse(source_predpis.aktivni)
+
+
+class CenaAdminTests(AdminBase):
+    def setUp(self):
+        self.admin = CenaAdmin(Cena, self.site)
+        self.cena = Cena.objects.create(
+            popis='CENA-TEST',
+            zakaznik=self.zakaznik,
+            delka_min=Decimal('10.0'),
+            delka_max=Decimal('20.0'),
+            cena_za_kg=Decimal('1.00'),
+            cena_rovnani_za_kg=Decimal('2.00'),
+            cena_tryskani_za_kg=Decimal('3.00'),
+        )
+
+    def test_changelist_view_post_touched_markers_save_only_touched_fields(self):
+        cena_instance = self.cena
+        original_rovnani = self.cena.cena_rovnani_za_kg
+
+        req = self.factory.post(
+            '/',
+            {
+                'form-TOTAL_FORMS': '1',
+                '_save': 'Uložit',
+                '_touched_enabled': '1',
+                '_touched_field': ['form-0-cena_za_kg'],
+            },
+        )
+        req.user = self.user
+        req.session = {}
+        req._messages = FallbackStorage(req)
+
+        class DummyForm:
+            def __init__(self, instance):
+                self.instance = instance
+                self.prefix = 'form-0'
+                self.changed_data = ['cena_za_kg', 'cena_rovnani_za_kg']
+                self.cleaned_data = {
+                    'cena_za_kg': Decimal('1.25'),
+                    'cena_rovnani_za_kg': Decimal('2.50'),
+                }
+                self.initial = {
+                    'cena_za_kg': instance.cena_za_kg,
+                    'cena_rovnani_za_kg': original_rovnani,
+                }
+
+            def has_changed(self):
+                return True
+
+        class DummyFormSet:
+            def __init__(self, *args, **kwargs):
+                self.forms = [DummyForm(cena_instance)]
+
+            @staticmethod
+            def get_default_prefix():
+                return 'form'
+
+            def is_valid(self):
+                return True
+
+        with patch.object(self.admin, 'get_changelist_formset', return_value=DummyFormSet):
+            response = self.admin.changelist_view(req)
+
+        self.assertEqual(response.status_code, 302)
+        self.cena.refresh_from_db()
+        self.assertEqual(self.cena.cena_za_kg, Decimal('1.25'))
+        self.assertEqual(self.cena.cena_rovnani_za_kg, original_rovnani)
+
+    def test_changelist_includes_dirty_guard_script(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse('admin:orders_cena_changelist'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'orders/js/changelist_dirty_guard.js')
