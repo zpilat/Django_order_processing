@@ -2485,7 +2485,7 @@ class BednaAdmin(SimpleHistoryAdmin):
             'orders/js/bedny_hmotnost_sum.js',
         )
         css = {
-            'all': ('orders/css/admin_paused_rows.css',)
+            'all': ('orders/css/admin_paused_rows.css', 'orders/css/admin_bedna_filters_scroll.css')
         }
 
     def get_date_hierarchy(self, request):
