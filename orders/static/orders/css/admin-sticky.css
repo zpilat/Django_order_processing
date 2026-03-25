@@ -35,7 +35,7 @@
 }
 
 /* Sticky panel filtrů vpravo (globálně), ale ne pro Bedna/Zakazka changelist,
-   kde je použita vlastní logika ve styles admin_bedna_filters_scroll.css */
+  kde je použita vlastní logika ve styles admin_changelist_filters_scroll.css */
 body.change-list:not(.model-bedna):not(.model-zakazka) #changelist-filter,
 body.change-list:not(.model-bedna):not(.model-zakazka) .filters {
   position: sticky;
