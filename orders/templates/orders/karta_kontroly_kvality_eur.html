@@ -106,10 +106,13 @@
                 </tr>     
                 <tr style="height: 1px;">
                     <td style="padding: 2px 2px; line-height: 1;">                    
-                        OK
+                        OTRYSK.
+                        <span class="fs-07 fw-normal">
+                            (Sandgest.)
+                        </span>
                     </td>
                     <td style="padding: 2px 2px; line-height: 1;">
-                        NOK
+                        OK
                     </td>
                 </tr>                
                 <tr>
@@ -197,15 +200,26 @@
                             {{ bedna.zakazka.predpis.povrch }}
                         </span>
                     </td>
-                    <td class="text-center fs-09 fw-bold" style="width: 10%;">
-                        JÁDRO<br>
-                        Kern<br>
-                        <span class="fs-07 fw-normal">
-                            Mind. 2 Prüfmuster
-                            <div style="height: 6px;"></div>
-                            {{ bedna.zakazka.predpis.jadro }}
-                        </span>
-                    </td>                
+                    {% if bedna.zakazka.predpis.jadro|length > 18 %}                    
+                        <td class="text-center fs-08 fw-bold" style="width: 10%;">
+                            JÁDRO<br>
+                            Kern<br>
+                            <span class="fs-06 fw-normal">
+                                Mind. 2 Prüfmuster<br>
+                                {{ bedna.zakazka.predpis.jadro }}
+                            </span>
+                        </td>                             
+                    {% else %}      
+                        <td class="text-center fs-09 fw-bold" style="width: 10%;">
+                            JÁDRO<br>
+                            Kern<br>                                          
+                            <span class="fs-07 fw-normal">
+                                Mind. 2 Prüfmuster
+                                <div style="height: 6px;"></div>
+                                {{ bedna.zakazka.predpis.jadro }}
+                            </span>
+                        </td>                             
+                    {% endif %}               
                 </tr>
                 <tr style="height: 50px;">
                     <td></td>
