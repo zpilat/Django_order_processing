@@ -429,7 +429,7 @@ def export_bedny_to_csv_customer_action(modeladmin, request, queryset):
     queryset = queryset.select_related(
         'zakazka',
         'zakazka__kamion_prijem',
-    ).order_by('zakazka_id', 'id')
+    ).order_by('cislo_bedny')
 
     is_rovnani_export = request.GET.get('rovnani', '') == 'k_vyrovnani'
     filename_suffix = 'rovnani' if is_rovnani_export else 'expedice'
