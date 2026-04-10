@@ -2483,6 +2483,7 @@ class BednaAdmin(SimpleHistoryAdmin):
             'orders/js/admin_bedna_group_separator.js',
             'orders/js/admin_bedna_change_poll.js',
             'orders/js/bedny_hmotnost_sum.js',
+            'orders/js/bedny_netto_hmotnost_sum.js',
         )
         css = {
             'all': ('orders/css/admin_paused_rows.css', 'orders/css/admin_changelist_filters_scroll.css')

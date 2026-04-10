@@ -1,8 +1,8 @@
 // Skript se spustí až po načtení celé stránky, aby byly dostupné všechny HTML prvky.
 document.addEventListener('DOMContentLoaded', function() {
-    // Ve výpisu beden běží souhrn pouze pro filtr "K expedici" (stav_bedny = KE).
+    // Ve výpisu beden běží souhrn pouze pro filtr "Přijato" (stav_bedny = PR).
     const params = new URLSearchParams(window.location.search);
-    if (params.get('stav_bedny') !== 'KE') return;
+    if (params.get('stav_bedny') !== 'PR') return;
 
     // Tabulka s výsledky v Django adminu.
     const resultsTable = document.getElementById('result_list');
@@ -60,26 +60,34 @@ document.addEventListener('DOMContentLoaded', function() {
 
     /**
      * Přepočítá a zobrazí souhrn pro aktuálně zaškrtnuté bedny:
-     * - počet vybraných řádků,
-     * - celkovou brutto hmotnost (hmotnost + tara) v kg.
+     * - celkovou netto hmotnost (sloupec hmotnost) v kg.
      */
     function updateSummary() {
         let weightSum = 0;
-        let boxCount = 0;
 
         // Projde všechny zaškrtnuté checkboxy v akčním sloupci tabulky.
         document.querySelectorAll('input.action-select:checked').forEach(function(checkbox) {
             const row = checkbox.closest('tr');
             if (!row) return;
 
-            // Brutto hmotnost bedny (hmotnost + tara)
-            const weightCell = row.querySelector('td.field-get_hmotnost_brutto');
+            // Netto hmotnost bedny (hmotnost):
+            // 1) v editable režimu je hodnota v inputu,
+            // 2) jinak fallback na text buňky.
+            const weightCell = row.querySelector('td.field-hmotnost');
             if (weightCell) {
-                const val = parseFloat(weightCell.textContent.replace(',', '.'));
+                const weightInput = weightCell.querySelector('input, textarea, select');
+                const rawValue = weightInput
+                    ? (weightInput.value || '')
+                    : (weightCell.textContent || '');
+
+                const normalized = rawValue
+                    .trim()
+                    .replace(/\s/g, '')
+                    .replace(',', '.');
+
+                const val = parseFloat(normalized);
                 if (!isNaN(val)) weightSum += val;
             }
-
-            boxCount += 1;
         });
 
         // Box vytvoříme jen jednou, další přepočty už jen mění jeho obsah.
@@ -91,17 +99,19 @@ document.addEventListener('DOMContentLoaded', function() {
             box.style.marginBottom = '0.75em';
             box.style.padding = '0.5em 0.75em';
             box.style.fontSize = '0.85rem';
+            box.style.display = 'flex';
+            box.style.alignItems = 'center';
+            box.style.gap = '0.35em';
+            box.style.lineHeight = '1.35';
             applyTheme(box);
             watchTheme(box);
             resultsTable.parentNode.insertBefore(box, resultsTable);
         }
 
         box.innerHTML = `
-            <i class="fas fa-box" style="margin-right:0.5em;"></i>
-            Počet beden vybraných k expedici: <strong>${boxCount}</strong>
-            &nbsp;|&nbsp;
             <i class="fas fa-balance-scale" style="margin-right:0.5em;"></i>
-            Celková brutto hmotnost beden vybraných k expedici: <strong>${weightSum.toFixed(1)} kg</strong>
+            <span>Celková netto hmotnost vybraných beden:</span>
+            <strong style="font-size:0.95rem; white-space:nowrap;">${weightSum.toFixed(1)} kg</strong>
         `;
         applyTheme(box);
     }
@@ -109,6 +119,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // Reakce na změnu výběru jednotlivých řádků.
     document.querySelectorAll('input.action-select').forEach(function(checkbox) {
         checkbox.addEventListener('change', updateSummary);
+    });
+
+    // Reakce na úpravu hmotnosti v editable sloupci (Přijato).
+    document.querySelectorAll('td.field-hmotnost input, td.field-hmotnost textarea, td.field-hmotnost select').forEach(function(field) {
+        field.addEventListener('input', updateSummary);
+        field.addEventListener('change', updateSummary);
     });
 
     // Reakce na globální checkbox "vybrat vše".
