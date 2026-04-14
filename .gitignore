@@ -35,5 +35,8 @@ tmp/
 *.xls
 *.xlsx
 
+# Soubory pdf
+*.pdf
+
 # archivní adresář
 archive/

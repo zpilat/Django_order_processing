@@ -1,82 +1,90 @@
 # Django Order Processing
 
-Order management system for receiving, processing, and shipping orders, including crates management, trucks, and PDF printing. Built with Django, XLSX import via pandas, and PDF via WeasyPrint.
+Systém pro správu zakázek od příjmu přes zpracování až po expedici, včetně práce s bednami, kamiony, importu z XLSX a tisku PDF dokumentů. Postaveno na Django, pandas a WeasyPrint.
 
-## ✨ Features
+## ✨ Funkce
 
-- Dashboards:
-  - Crates status per customer.
-  - Monthly truck inbound/outbound with aggregates.
-  - “Crates to be moved” view with clean print and PDF export.
-- XLSX order import:
-  - Preview before import (no DB writes).
-  - Robust normalization of “article number” (always a string, no trailing “.0”).
-  - Strict `.xlsx` (openpyxl), validation, and atomic import (all-or-nothing).
-  - Persist selected file between preview and import.
-- Printing and PDF (WeasyPrint):
-  - Crate production cards and Quality Control cards (KKK).
-  - Delivery notes and proforma invoices for trucks.
-  - PDF for the “crates to be moved” dashboard.
-- Admin actions and workflow:
-  - Expedite orders (with split of non-ready crates into a new order).
-  - Mark crates “to be moved” with position selection and capacity checks.
-  - Rich admin filters (state, length, blasting, straightening, priority, customer, …).
-- See / change history with django-simple-history.
+- Dashboardy:
+  - stav beden podle zákazníka,
+  - měsíční přehled příjmu/výdeje kamionů,
+  - přehled „Bedny k navezení“ s tiskem a PDF exportem.
+- Import zakázek z XLSX:
+  - náhled před importem (bez zápisu do DB),
+  - robustní normalizace pole artiklu (vždy text, bez koncovky `.0`),
+  - validace a atomický import (all-or-nothing),
+  - zachování nahraného souboru mezi náhledem a potvrzením.
+- Tisk a PDF (WeasyPrint):
+  - karty beden a KKK,
+  - dodací listy a proforma faktury,
+  - PDF export přehledu „Bedny k navezení“.
+- Admin akce a workflow:
+  - expedice zakázek (včetně rozdělení nepřipravených beden do nové zakázky),
+  - označení beden k navezení s kontrolou kapacit,
+  - bohaté filtry podle stavu, délky, tryskání, rovnání, priority, zákazníka atd.
+- Historie změn přes `django-simple-history`.
 
-## 🚀 Quick start
+## 🚀 Rychlý start
 
-- Requirements: Python 3.11+, pip. DB: SQLite (default). Windows supported.
-- Install and run:
-  1) Create and activate a virtual environment.
-  2) Install dependencies: `pip install -r requirements.txt`.
-  3) Migrate: `python manage.py migrate`.
-  4) Create superuser: `python manage.py createsuperuser`.
-  5) Start: `python manage.py runserver` and open `http://127.0.0.1:8000/admin/`.
+- Požadavky: Python 3.11+, pip. Databáze: SQLite (výchozí). Podporováno na Windows.
+- Instalace a spuštění:
+  1. Vytvořte a aktivujte virtuální prostředí.
+  2. Nainstalujte závislosti: `pip install -r requirements.txt`.
+  3. Proveďte migrace: `python manage.py migrate`.
+  4. Vytvořte administrátora: `python manage.py createsuperuser`.
+  5. Spusťte server: `python manage.py runserver` a otevřete `http://127.0.0.1:8000/admin/`.
 
-PDF note: WeasyPrint ships as a dependency. On Windows it usually works out of the box. If system libs (Cairo/Pango) are missing, follow WeasyPrint docs.
+Poznámka k PDF: WeasyPrint je součástí závislostí. Na Windows většinou funguje bez dalších kroků. Pokud chybí systémové knihovny (Cairo/Pango), postupujte podle oficiální dokumentace WeasyPrint.
 
-## 📥 XLSX import
+## 📥 Import XLSX
 
-- Access: in Django Admin, open the orders import page (preview + import flow).
-- Supported files: `.xlsx` (openpyxl only).
-- Preview: shows normalized data without writing to DB.
-- Import: atomic (all-or-nothing) with errors/warnings reporting.
-- Field “article number” (artikl): always stored as text. Numeric-only cells are not converted to floats (e.g., `902925.0` → `902925`).
+- Přístup: v Django adminu přes stránku importu zakázek (náhled + potvrzení importu).
+- Podporovaný formát: `.xlsx` (openpyxl).
+- Náhled: zobrazí zpracovaná data bez zápisu do databáze.
+- Import: atomický (buď vše, nebo nic) s hlášením chyb/varování.
+- Pole „artikl“: vždy se ukládá jako text. Čistě číselné buňky se nepřevádí na float (`902925.0` -> `902925`).
 
-Tips:
-- If Excel mixes numbers and texts in “Artikel-nummer”, import is robust and the final value is always a string.
-- If import fails, double-check headers and `.xlsx` format.
+Tipy:
 
-## 🖨️ Printing & PDF
+- Pokud Excel míchá čísla a texty v artiklu, import zůstává stabilní a výsledek je vždy text.
+- Pokud import selže, zkontrolujte hlavičky a že jde opravdu o `.xlsx`.
 
-- Crate production cards and KKK: available as admin actions for selected objects.
-- Truck delivery note and proforma: actions on the chosen truck.
-- “Crates to be moved”: dedicated print page and PDF export (clean print styles).
+## 🖨️ Tisk a PDF
 
-## 🧭 Project structure (selected)
+- Karty beden a KKK: dostupné jako admin akce nad vybranými záznamy.
+- Dodací list a proforma: dostupné jako akce nad vybraným kamionem.
+- „Bedny k navezení“: vlastní tisková stránka a PDF export.
 
-- `order_processing/` – project settings and URLs.
-- `orders/` – main app (models, admin, actions, filters, forms, views, utils).
-- `templates/` and `orders/templates/` – templates including printing.
-- `static/` and `staticfiles/` – static assets.
-- `requirements.txt` – dependencies (Django, pandas, openpyxl, WeasyPrint, django-simple-history, …).
+## 🧭 Struktura projektu (výběr)
 
-## 🧪 Tests
+- `order_processing/` - nastavení projektu a URL.
+- `orders/` - hlavní aplikace (modely, admin, akce, filtry, formuláře, views, utils).
+- `templates/` a `orders/templates/` - šablony včetně tiskových výstupů.
+- `static/` a `staticfiles/` - statické soubory.
+- `requirements.txt` - závislosti (Django, pandas, openpyxl, WeasyPrint, django-simple-history, ...).
 
-- Run tests: `python manage.py test`
-- Recommendation: add tests for import and key admin actions when extending features.
+## 📚 Uživatelské manuály
 
-## 🚢 Deployment
+- [docs/manual_bedna.md](docs/manual_bedna.md) - manuál práce s bednami (`Bedna`, `BednaAdmin`).
+- [docs/manual_zakazka.md](docs/manual_zakazka.md) - manuál práce se zakázkami (`Zakazka`, `ZakazkaAdmin`).
+- [docs/manual_kamion.md](docs/manual_kamion.md) - manuál práce s kamiony (`Kamion`, `KamionAdmin`).
+- [docs/manual_denik_pece.md](docs/manual_denik_pece.md) - manuál práce s deníkem pece (`SarzeBedna`, `SarzeBednaAdmin`).
 
-- Disable DEBUG and set `ALLOWED_HOSTS`.
-- For static assets run `collectstatic`.
-- Consider production DB (PostgreSQL) and a WSGI/ASGI server (gunicorn/uvicorn + reverse proxy).
+## 🧪 Testy
 
-## 🛠️ Troubleshooting
+- Spuštění testů: `python manage.py test`
+- Doporučení: při rozšíření funkcí doplnit testy hlavně pro import a klíčové admin akce.
 
-- PDF issues: check WeasyPrint version and system libraries as per docs.
-- Import issues: ensure the file is `.xlsx` and contains expected headers; check preview error messages.
+## 🚢 Nasazení
 
-## 📜 License
+- Vypněte `DEBUG` a nastavte `ALLOWED_HOSTS`.
+- Pro statické soubory spusťte `collectstatic`.
+- Pro produkci zvažte PostgreSQL a WSGI/ASGI server (např. gunicorn/uvicorn + reverse proxy).
 
-This project is licensed under the GNU General Public License v3.0 (GPL-3.0). See the `LICENSE` file for the full text or visit https://www.gnu.org/licenses/gpl-3.0.en.html.
+## 🛠️ Řešení problémů
+
+- Problémy s PDF: ověřte verzi WeasyPrint a dostupnost systémových knihoven.
+- Problémy s importem: ověřte `.xlsx`, očekávané hlavičky a chybová hlášení z náhledu.
+
+## 📜 Licence
+
+Projekt je licencován pod GNU General Public License v3.0 (GPL-3.0). Kompletní text je v souboru `LICENSE` nebo na https://www.gnu.org/licenses/gpl-3.0.en.html.
