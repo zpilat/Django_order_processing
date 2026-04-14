@@ -25,7 +25,7 @@ Systém pro správu zakázek od příjmu přes zpracování až po expedici, vč
 
 ## 🚀 Rychlý start
 
-- Požadavky: Python 3.11+, pip. Databáze: SQLite (výchozí). Podporováno na Windows.
+- Požadavky: Python 3.11+, pip. Databáze: SQLite (výchozí). Podporováno na Linux a Windows.
 - Instalace a spuštění:
   1. Vytvořte a aktivujte virtuální prostředí.
   2. Nainstalujte závislosti: `pip install -r requirements.txt`.
@@ -64,10 +64,10 @@ Tipy:
 
 ## 📚 Uživatelské manuály
 
-- [docs/manual_bedna.md](docs/manual_bedna.md) - manuál práce s bednami (`Bedna`, `BednaAdmin`).
-- [docs/manual_zakazka.md](docs/manual_zakazka.md) - manuál práce se zakázkami (`Zakazka`, `ZakazkaAdmin`).
-- [docs/manual_kamion.md](docs/manual_kamion.md) - manuál práce s kamiony (`Kamion`, `KamionAdmin`).
-- [docs/manual_denik_pece.md](docs/manual_denik_pece.md) - manuál práce s deníkem pece (`SarzeBedna`, `SarzeBednaAdmin`).
+- [Manuál pro bedny](docs/manual_bedna.md) - manuál práce s bednami (`Bedna`, `BednaAdmin`).
+- [Manuál pro zakázky](docs/manual_zakazka.md) - manuál práce se zakázkami (`Zakazka`, `ZakazkaAdmin`).
+- [Manuál pro kamióny](docs/manual_kamion.md) - manuál práce s kamiony (`Kamion`, `KamionAdmin`).
+- [Manuál pro deník pece](docs/manual_denik_pece.md) - manuál práce s deníkem pece (`SarzeBedna`, `SarzeBednaAdmin`).
 
 ## 🧪 Testy
 
