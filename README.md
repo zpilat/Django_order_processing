@@ -64,10 +64,10 @@ Tipy:
 
 ## 📚 Uživatelské manuály
 
-- [Manuál pro bedny](docs/manual_bedna.md) - manuál práce s bednami (`Bedna`, `BednaAdmin`).
-- [Manuál pro zakázky](docs/manual_zakazka.md) - manuál práce se zakázkami (`Zakazka`, `ZakazkaAdmin`).
-- [Manuál pro kamióny](docs/manual_kamion.md) - manuál práce s kamiony (`Kamion`, `KamionAdmin`).
-- [Manuál pro deník pece](docs/manual_denik_pece.md) - manuál práce s deníkem pece (`SarzeBedna`, `SarzeBednaAdmin`).
+- [Bedny](docs/manual_bedna.md) - manuál práce s bednami (`Bedna`, `BednaAdmin`).
+- [Zakázky](docs/manual_zakazka.md) - manuál práce se zakázkami (`Zakazka`, `ZakazkaAdmin`).
+- [Kamióny](docs/manual_kamion.md) - manuál práce s kamiony (`Kamion`, `KamionAdmin`).
+- [Deník pece](docs/manual_denik_pece.md) - manuál práce s deníkem pece (`SarzeBedna`, `SarzeBednaAdmin`).
 
 ## 🧪 Testy
 
