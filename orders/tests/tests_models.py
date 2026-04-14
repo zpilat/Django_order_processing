@@ -398,14 +398,24 @@ class TestSarzeModels(ModelsBase):
         self.assertEqual(sarze.takt, 2.0)
 
     def test_sarzebedna_procent_z_patra_validators(self):
-        sb = SarzeBedna(
-            sarze=self.sarze_base,
-            bedna=self.bedna1,
-            patro=1,
-            procent_z_patra=101,
-        )
-        with self.assertRaises(ValidationError):
-            sb.full_clean()
+        base_kwargs = {
+            'sarze': self.sarze_base,
+            'patro': 1,
+            'popis': 'Test zelezo',
+            'zakaznik_mimo_db': 'Mimo DB',
+            'zakazka_mimo_db': 'ZAK-001',
+        }
+
+        for value in (0, 100):
+            with self.subTest(value=value):
+                sb = SarzeBedna(**base_kwargs, procent_z_patra=value)
+                sb.full_clean()
+
+        for value in (-1, 101):
+            with self.subTest(value=value):
+                sb = SarzeBedna(**base_kwargs, procent_z_patra=value)
+                with self.assertRaises(ValidationError):
+                    sb.full_clean()
 
     def test_sarzebedna_unique_constraint(self):
         SarzeBedna.objects.create(

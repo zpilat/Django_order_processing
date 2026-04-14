@@ -132,6 +132,15 @@ class SarzeBednaInline(admin.TabularInline):
         """
         Přizpůsobení widgetů pro pole v administraci.
         """
+        if db_field.name == 'procent_z_patra':
+            formfield = super().formfield_for_dbfield(db_field, request, **kwargs)
+            formfield.widget.attrs.update({
+                'min': 0,
+                'max': 100,
+                'step': 1,
+            })
+            return formfield
+
         if isinstance(db_field, models.ForeignKey):
             # Zruší zobrazení ikon pro ForeignKey pole v administraci, nepřidá RelatedFieldWidgetWrapper.
             formfield = self.formfield_for_foreignkey(db_field, request, **kwargs)
