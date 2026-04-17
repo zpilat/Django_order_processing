@@ -4001,7 +4001,10 @@ class CenaAdmin(SimpleHistoryAdmin):
 
     def formfield_for_manytomany(self, db_field, request, **kwargs):
         """
-        V detailu ceny omezí nabídku předpisů na předpisy stejného zákazníka.
+        Přizpůsobí queryset pro pole ManyToMany 'predpis' v administraci cen.
+         - Pokud je k dispozici object_id (úprava existující ceny), zobrazí se pouze předpisy spojené se stejným zákazníkem
+           jako má daná cena, seřazené tak, že aktivní jsou nahoře.
+         - Pokud není k dispozici object_id (vytváření nové ceny), zobrazí se pouze aktivní předpisy, seřazené podle názvu.
         """
         if db_field.name == 'predpis':
             object_id = getattr(getattr(request, 'resolver_match', None), 'kwargs', {}).get('object_id')
@@ -4009,6 +4012,10 @@ class CenaAdmin(SimpleHistoryAdmin):
                 cena = self.get_object(request, object_id)
                 if cena and cena.zakaznik_id:
                     kwargs['queryset'] = Predpis.objects.filter(zakaznik_id=cena.zakaznik_id).order_by('-aktivni', 'nazev')
+            else:
+                # Pokud není object_id (např. při vytváření nové ceny), zobrazí se pouze aktivní předpisy.
+                kwargs['queryset'] = Predpis.objects.filter(aktivni=True).order_by('nazev')
+
 
         return super().formfield_for_manytomany(db_field, request, **kwargs)
 
