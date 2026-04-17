@@ -3039,7 +3039,7 @@ class BednaAdmin(SimpleHistoryAdmin):
             if obj.stav_bedny and obj.stav_bedny not in STAV_BEDNY_PRO_NAVEZENI:
                 exclude_fields.append('pozice')
         else:
-            # add_view: cislo_bedny se generuje automaticky
+            # add_view: cislo_bedny se generuje automaticky, notifikace nedává smysl, protože bedna ještě neexistuje
             exclude_fields = ['cislo_bedny', 'get_notifikace']
 
         fieldsets = []
