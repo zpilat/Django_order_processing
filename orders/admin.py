@@ -3914,8 +3914,8 @@ class CenaAdmin(SimpleHistoryAdmin):
     list_filter = ('zakaznik',)
     search_fields = ('popis', 'predpis__nazev',)
     search_help_text = "Dle popisu ceny a názvu předpisu"
-    autocomplete_fields = ('predpis',)
     save_as = True
+    filter_horizontal = ('predpis',)
     list_per_page = 25
 
     history_list_display = ['zakaznik', 'delka_min', 'delka_max', 'cena_za_kg']
@@ -3998,6 +3998,19 @@ class CenaAdmin(SimpleHistoryAdmin):
                 return HttpResponseRedirect(request.get_full_path())
 
         return super().changelist_view(request, extra_context)
+
+    def formfield_for_manytomany(self, db_field, request, **kwargs):
+        """
+        V detailu ceny omezí nabídku předpisů na předpisy stejného zákazníka.
+        """
+        if db_field.name == 'predpis':
+            object_id = getattr(getattr(request, 'resolver_match', None), 'kwargs', {}).get('object_id')
+            if object_id:
+                cena = self.get_object(request, object_id)
+                if cena and cena.zakaznik_id:
+                    kwargs['queryset'] = Predpis.objects.filter(zakaznik_id=cena.zakaznik_id).order_by('-aktivni', 'nazev')
+
+        return super().formfield_for_manytomany(db_field, request, **kwargs)
 
 
     @admin.display(description='Předpisy', ordering='predpis__nazev', empty_value='-')
