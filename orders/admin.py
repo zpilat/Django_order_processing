@@ -2480,7 +2480,7 @@ class BednaAdmin(SimpleHistoryAdmin):
 
     # Parametry pro historii změn
     history_list_display = ["cislo_bedny", "behalter_nr", "zakazka_link", "stav_bedny", "rovnat", "tryskat",
-                            "get_prumer", "get_delka_int", "get_skupina_TZ", "poznamka"]
+                            "get_prumer", "get_delka_int", "poznamka"]
     history_search_fields = ["zakazka__kamion_prijem__zakaznik__nazev", "cislo_bedny",]
     history_list_filter = ["zakazka__kamion_prijem__zakaznik__nazev", "zakazka__kamion_prijem__datum", "stav_bedny"]
     history_list_per_page = 20
