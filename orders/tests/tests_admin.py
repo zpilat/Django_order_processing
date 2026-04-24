@@ -1,4 +1,4 @@
-from django.test import TestCase, RequestFactory
+﻿from django.test import TestCase, RequestFactory
 from django.contrib.admin.sites import AdminSite
 from django.contrib import admin
 from django.contrib.auth import get_user_model
@@ -21,6 +21,12 @@ from orders.choices import StavBednyChoice, SklademZakazkyChoice, PrijemVydejCho
 from orders.filters import DelkaFilter
 
 
+class DummySession(dict):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.modified = False
+
+
 class AdminBase(TestCase):
     """
     Základní třída pro testy admin rozhraní.
@@ -39,6 +45,11 @@ class AdminBase(TestCase):
         cls.predpis = Predpis.objects.create(nazev='Test Predpis', skupina=1, zakaznik=cls.zakaznik,)
         cls.typ_hlavy = TypHlavy.objects.create(nazev='SK', popis='Zápustná hlava')
 
+    def with_session_and_messages(self, request):
+        request.session = DummySession()
+        request._messages = FallbackStorage(request)
+        return request
+
 
 class KamionAdminTests(AdminBase):
     """
@@ -51,7 +62,7 @@ class KamionAdminTests(AdminBase):
     def get_request(self, method='get', path='/', data=None, **extra):
         req = getattr(self.factory, method)(path, data=data or {}, **extra)
         req.user = self.user
-        return req
+        return self.with_session_and_messages(req)
 
     def _create_vydej_kamion_with_order(self):
         kamion_vydej = Kamion.objects.create(
@@ -157,7 +168,7 @@ class KamionAdminTests(AdminBase):
         valid_req.FILES['file'] = file_mock
 
         # Mockni _messages storage
-        valid_req.session = {}
+        valid_req.session = DummySession()
         valid_req._messages = FallbackStorage(valid_req)
 
         self.assertTrue(ImportZakazekForm(valid_req.POST, valid_req.FILES).is_valid())
@@ -239,7 +250,7 @@ class KamionAdminTests(AdminBase):
         valid_req.FILES['file'] = file_mock
 
         # Mockni _messages storage
-        valid_req.session = {}
+        valid_req.session = DummySession()
         valid_req._messages = FallbackStorage(valid_req)
 
         self.assertTrue(ImportZakazekForm(valid_req.POST, valid_req.FILES).is_valid())
@@ -299,7 +310,7 @@ class KamionAdminTests(AdminBase):
         file_mock = SimpleUploadedFile('spx.xlsx', b'fakecontent', content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
         valid_req = self.get_request('post', data={'file': file_mock}, path=url)
         valid_req.FILES['file'] = file_mock
-        valid_req.session = {}
+        valid_req.session = DummySession()
         valid_req._messages = FallbackStorage(valid_req)
 
         import pandas as pandas_mod
@@ -377,7 +388,7 @@ class KamionAdminTests(AdminBase):
         file_mock = SimpleUploadedFile('spx.xlsx', b'fakecontent', content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
         valid_req = self.get_request('post', data={'file': file_mock}, path=url)
         valid_req.FILES['file'] = file_mock
-        valid_req.session = {}
+        valid_req.session = DummySession()
         valid_req._messages = FallbackStorage(valid_req)
 
         import pandas as pandas_mod
@@ -470,7 +481,7 @@ class KamionAdminTests(AdminBase):
         file_mock = SimpleUploadedFile('spx_alt.xlsx', b'fakecontent', content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
         valid_req = self.get_request('post', data={'file': file_mock}, path=url)
         valid_req.FILES['file'] = file_mock
-        valid_req.session = {}
+        valid_req.session = DummySession()
         valid_req._messages = FallbackStorage(valid_req)
 
         import pandas as pandas_mod
@@ -564,7 +575,7 @@ class KamionAdminTests(AdminBase):
         file_mock = SimpleUploadedFile('eur.xlsx', b'fake', content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
         valid_req = self.get_request('post', data={'file': file_mock}, path=url)
         valid_req.FILES['file'] = file_mock
-        valid_req.session = {}
+        valid_req.session = DummySession()
         valid_req._messages = FallbackStorage(valid_req)
 
         # Předpoklady pro EUR strategii
@@ -683,7 +694,7 @@ class KamionAdminTests(AdminBase):
 
         request = self.factory.post('/')
         request.user = user
-        request.session = {}
+        request.session = DummySession()
         request._messages = FallbackStorage(request)
 
         queryset = Kamion.objects.filter(pk=kamion_vydej.pk)
@@ -703,7 +714,7 @@ class KamionAdminTests(AdminBase):
 
         request = self.factory.post('/')
         request.user = user
-        request.session = {}
+        request.session = DummySession()
         request._messages = FallbackStorage(request)
 
         queryset = Kamion.objects.filter(pk=kamion_vydej.pk)
@@ -846,7 +857,7 @@ class KamionAdminTests(AdminBase):
         Bedna.objects.create(zakazka=z, hmotnost=1, tara=1, mnozstvi=1, stav_bedny=StavBednyChoice.PRIJATO)
         req = self.get_request()
         # zapnout messages
-        req.session = {}
+        req.session = DummySession()
         req._messages = FallbackStorage(req)
         self.assertFalse(self.admin.has_delete_permission(req, kam_p))
 
@@ -944,7 +955,7 @@ class ZakazkaAdminTests(AdminBase):
         )
         Bedna.objects.create(zakazka=z_block, hmotnost=1, tara=1, mnozstvi=1, stav_bedny=StavBednyChoice.PRIJATO)
         req = self.get_request()
-        req.session = {}
+        req.session = DummySession()
         req._messages = FallbackStorage(req)
         self.assertFalse(self.admin.has_delete_permission(req, z_block))
 
@@ -1139,7 +1150,7 @@ class BednaAdminTests(AdminBase):
 
         req = self.factory.post('/', {'form-TOTAL_FORMS': '2', '_save': 'Uložit'})
         req.user = self.user
-        req.session = {}
+        req.session = DummySession()
         req._messages = FallbackStorage(req)
 
         class DummyForm:
@@ -1191,7 +1202,7 @@ class BednaAdminTests(AdminBase):
 
         req = self.factory.post('/', {'form-TOTAL_FORMS': '1', '_save': 'Uložit'})
         req.user = self.user
-        req.session = {}
+        req.session = DummySession()
         req._messages = FallbackStorage(req)
 
         class DummyForm:
@@ -1232,7 +1243,7 @@ class BednaAdminTests(AdminBase):
             },
         )
         req.user = self.user
-        req.session = {}
+        req.session = DummySession()
         req._messages = FallbackStorage(req)
 
         class DummyForm:
@@ -1275,7 +1286,7 @@ class BednaAdminTests(AdminBase):
             },
         )
         req.user = self.user
-        req.session = {}
+        req.session = DummySession()
         req._messages = FallbackStorage(req)
 
         with patch('orders.admin.SimpleHistoryAdmin.changelist_view', return_value=HttpResponse('ok')) as super_changelist:
@@ -1480,7 +1491,7 @@ class BednaAdminTests(AdminBase):
             zakazka=self.zakazka, hmotnost=1, tara=0, mnozstvi=1, stav_bedny=StavBednyChoice.NEPRIJATO
         )
         req = self.get_request()
-        req.session = {}
+        req.session = DummySession()
         req._messages = FallbackStorage(req)
         before = Bedna.objects.count()
         self.admin.delete_queryset(req, Bedna.objects.filter(id__in=[b_block.id, b_ok.id]))
@@ -1717,7 +1728,7 @@ class SarzeAdminMoveTests(AdminBase):
     def _build_request(self, data, user=None):
         request = self.factory.post('/admin/orders/sarze/', data=data)
         request.user = user or self.user
-        request.session = {}
+        request.session = DummySession()
         request._messages = FallbackStorage(request)
         return request
 
@@ -2013,7 +2024,7 @@ class CenaAdminTests(AdminBase):
             },
         )
         req.user = self.user
-        req.session = {}
+        req.session = DummySession()
         req._messages = FallbackStorage(req)
 
         class DummyForm:
@@ -2059,3 +2070,4 @@ class CenaAdminTests(AdminBase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'orders/js/changelist_dirty_guard.js')
+
