@@ -1,7 +1,13 @@
 from django import template
+from django.conf import settings
 from orders.models import Notification
 
 register = template.Library()
+
+
+@register.simple_tag
+def admin_is_debug():
+    return bool(settings.DEBUG)
 
 
 @register.simple_tag(takes_context=True)

@@ -1,6 +1,8 @@
 {% extends 'admin/base.html' %}
+{% load notifications_admin %}
 
 {% block extrastyle %}{{ block.super }}
+{% admin_is_debug as is_debug %}
 <style>
 html[data-theme="light"], :root {
   --primary: #214290;
@@ -38,6 +40,17 @@ html[data-theme="light"], :root {
   --object-tools-bg:  var(--secondary);
   --object-tools-hover-bg: var(--primary);
 }
+{% if is_debug %}
+html[data-theme="light"], :root {
+  --header-bg: #7a001f;
+  --header-link-color: #ffd166;
+  --header-branding-color: #ffd166;
+  --header-color: #ffd166;
+  --breadcrumbs-bg: #ffd166;
+  --breadcrumbs-fg: #2b2d42;
+  --breadcrumbs-link-fg: #2b2d42;
+}
+{% endif %}
 @media (prefers-color-scheme: dark) {
     :root {
       --primary: #264b5d;
