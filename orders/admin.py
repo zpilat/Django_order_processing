@@ -2650,21 +2650,19 @@ class BednaAdmin(SimpleHistoryAdmin):
         Zobrazí číslo bedny a umožní třídění podle hlavičky pole.
         Číslo bedny se generuje automaticky a je readonly.
         """
-        color = None
-        try:
-            zkratka = obj.zakazka.kamion_prijem.zakaznik.zkratka
-            color = {
-                'EUR': '#dc3545',
-                'HPM': '#0059adff',
-                'SPX': '#f16f3cff',
-                'FIS': '#51096dff',
-                'ROT': '#2a2f7f',
-                'SWG': '#009900',
-                'SSH': '#000000',
-            }.get(zkratka)
-        except Exception:
-            logger.warning("Nepodařilo se získat zkratku zákazníka pro obarvení čísla bedny.", exc_info=True)
-            color = None
+        zakazka = self._safe_get_zakazka(obj)
+        zkratka = None
+        if zakazka and zakazka.kamion_prijem and zakazka.kamion_prijem.zakaznik:
+            zkratka = zakazka.kamion_prijem.zakaznik.zkratka
+        color = {
+            'EUR': '#dc3545',
+            'HPM': '#0059adff',
+            'SPX': '#f16f3cff',
+            'FIS': '#51096dff',
+            'ROT': '#2a2f7f',
+            'SWG': '#009900',
+            'SSH': '#000000',
+        }.get(zkratka)
 
         if color:
             text_color = '#ffffff'
@@ -2682,8 +2680,9 @@ class BednaAdmin(SimpleHistoryAdmin):
         Zobrazí pořadí bedny v zakázce (1/7, 2/7, 3/7, ...).
         Pokud bedna není přiřazena k zakázce, vrátí '-'.
         """
-        if obj.zakazka:
-            poradi = f"{obj.poradi_bedny}/{obj.zakazka.pocet_beden}"
+        zakazka = self._safe_get_zakazka(obj)
+        if zakazka:
+            poradi = f"{obj.poradi_bedny}/{zakazka.pocet_beden}"
             return poradi
         return '-'
 
@@ -2693,15 +2692,17 @@ class BednaAdmin(SimpleHistoryAdmin):
         Zobrazí zkratku zákazníka, ke kterému bedna patří, a umožní třídění podle hlavičky pole.
         Pokud bedna není přiřazena k zakázce nebo zakázka nemá zákazníka, vrátí '-'.
         """
-        if obj.zakazka and obj.zakazka.kamion_prijem and obj.zakazka.kamion_prijem.zakaznik:
-            return obj.zakazka.kamion_prijem.zakaznik.zkratka
+        zakazka = self._safe_get_zakazka(obj)
+        if zakazka and zakazka.kamion_prijem and zakazka.kamion_prijem.zakaznik:
+            return zakazka.kamion_prijem.zakaznik.zkratka
         return '-'
 
     @admin.display(description='Odb.', ordering='zakazka__odberatel__zkratka', empty_value='-')
     def get_odberatel(self, obj):
         """Zobrazí zkratku odběratele zakázky (pokud existuje)."""
-        if obj.zakazka and obj.zakazka.odberatel and obj.zakazka.odberatel.zkratka:
-            return obj.zakazka.odberatel.zkratka
+        zakazka = self._safe_get_zakazka(obj)
+        if zakazka and zakazka.odberatel and zakazka.odberatel.zkratka:
+            return zakazka.odberatel.zkratka
         return '-'
 
     @admin.display(description='Brutto', empty_value='-')        
@@ -2714,15 +2715,17 @@ class BednaAdmin(SimpleHistoryAdmin):
     @admin.display(description='Dat. příjem', ordering='zakazka__kamion_prijem__datum', empty_value='-')
     def get_datum_prijem(self, obj):
         """Zobrazí datum kamionu příjmu, ke kterému bedna patří."""
-        if obj.zakazka and obj.zakazka.kamion_prijem:
-            return obj.zakazka.kamion_prijem.datum.strftime('%d.%m.%Y')
+        zakazka = self._safe_get_zakazka(obj)
+        if zakazka and zakazka.kamion_prijem:
+            return zakazka.kamion_prijem.datum.strftime('%d.%m.%Y')
         return '-'
     
     @admin.display(description='Dat. výdej', ordering='zakazka__kamion_vydej__datum', empty_value='-')
     def get_datum_vydej(self, obj):
         """Zobrazí datum kamionu výdeje, ke kterému bedna patří."""
-        if obj.zakazka and obj.zakazka.kamion_vydej:
-            return obj.zakazka.kamion_vydej.datum.strftime('%d.%m.%Y')
+        zakazka = self._safe_get_zakazka(obj)
+        if zakazka and zakazka.kamion_vydej:
+            return zakazka.kamion_vydej.datum.strftime('%d.%m.%Y')
         return '-'
 
     @admin.display(description='Poz.', ordering='pozice', empty_value='-')
@@ -2733,14 +2736,37 @@ class BednaAdmin(SimpleHistoryAdmin):
         """
         return obj.pozice.kod if obj.pozice else '-'
 
+    def _begin_request_log_scope(self, request):
+        """Inicializuje scope pro logování jednou za request."""
+        self._request_log_scope_id = id(request)
+        self._request_debug_log_keys = set()
+
+    def _end_request_log_scope(self):
+        """Ukončí scope pro logování jednou za request."""
+        self._request_log_scope_id = None
+        self._request_debug_log_keys = set()
+
+    def _debug_log_once_per_request(self, key, message):
+        """Zaloguje debug zprávu pouze jednou v rámci aktuálního requestu."""
+        keys = getattr(self, '_request_debug_log_keys', None)
+        if keys is None:
+            logger.debug(message)
+            return
+        if key in keys:
+            return
+        keys.add(key)
+        logger.debug(message)
+
     def _safe_get_zakazka(self, obj):
         """Bezpečně vrátí zakázku pro bednu i pro historické záznamy s osiřelým FK."""
         try:
             return obj.zakazka
         except ObjectDoesNotExist:
-            logger.warning(
-                f"Nepodařilo se načíst zakázku pro bednu ID {getattr(obj, 'id', None)}.",
-                exc_info=True,
+            obj_id = getattr(obj, 'id', None)
+            history_id = getattr(obj, 'history_id', None)
+            self._debug_log_once_per_request(
+                ('missing_zakazka', obj_id, history_id),
+                f"Nepodařilo se načíst zakázku pro bednu ID {obj_id} (history_id={history_id}).",
             )
             return None
 
@@ -2758,7 +2784,10 @@ class BednaAdmin(SimpleHistoryAdmin):
         """
         Zobrazí boolean, jestli je vrut celozávitový a umožní třídění podle hlavičky pole.
         """
-        return obj.zakazka.celozavit
+        zakazka = self._safe_get_zakazka(obj)
+        if zakazka is None:
+            return False
+        return zakazka.celozavit
 
     @admin.display(boolean=True, description='Zin.')
     def get_pozinkovano(self, obj):
@@ -2774,36 +2803,42 @@ class BednaAdmin(SimpleHistoryAdmin):
         Vrátí zkrácený popis zakázky (první část před čísly) s maximální délkou 15 znaků s tooltipem celého popisu
         a umožní třídění podle hlavičky pole.
         """
-        if not obj.zakazka or not obj.zakazka.popis:
+        zakazka = self._safe_get_zakazka(obj)
+        if not zakazka or not zakazka.popis:
             return '-'
-        if len(obj.zakazka.zkraceny_popis) <= 15:
-            zkraceny_popis = obj.zakazka.zkraceny_popis
+        if len(zakazka.zkraceny_popis) <= 15:
+            zkraceny_popis = zakazka.zkraceny_popis
         else:
-            zkraceny_popis = f"{obj.zakazka.zkraceny_popis[:14]} ..."
-        return format_html('<span title="{}">{}</span>', obj.zakazka.popis, zkraceny_popis)
+            zkraceny_popis = f"{zakazka.zkraceny_popis[:14]} ..."
+        return format_html('<span title="{}">{}</span>', zakazka.popis, zkraceny_popis)
     
     @admin.display(description='Kam. příjem', ordering='zakazka__kamion_prijem__id', empty_value='-')
     def kamion_prijem_link(self, obj):
         """
         Vytvoří odkaz na detail kamionu příjmu, ke kterému bedna patří a umožní třídění podle hlavičky pole.
         """
-        if obj.zakazka and obj.zakazka.kamion_prijem:
-            return format_html('<a href="{}">{}</a>', obj.zakazka.kamion_prijem.get_admin_url(), obj.zakazka.kamion_prijem)
+        zakazka = self._safe_get_zakazka(obj)
+        if zakazka and zakazka.kamion_prijem:
+            return format_html('<a href="{}">{}</a>', zakazka.kamion_prijem.get_admin_url(), zakazka.kamion_prijem)
 
     @admin.display(description='Kam. výdej', ordering='zakazka__kamion_vydej__id', empty_value='-')
     def kamion_vydej_link(self, obj):
         """
         Vytvoří odkaz na detail kamionu výdeje, ke kterému bedna patří a umožní třídění podle hlavičky pole.
         """
-        if obj.zakazka and obj.zakazka.kamion_vydej:
-            return format_html('<a href="{}">{}</a>', obj.zakazka.kamion_vydej.get_admin_url(), obj.zakazka.kamion_vydej)
+        zakazka = self._safe_get_zakazka(obj)
+        if zakazka and zakazka.kamion_vydej:
+            return format_html('<a href="{}">{}</a>', zakazka.kamion_vydej.get_admin_url(), zakazka.kamion_vydej)
 
     @admin.display(description='Hl.', ordering='zakazka__typ_hlavy')
     def get_typ_hlavy(self, obj):
         """
         Zobrazí typ hlavy zakázky a umožní třídění podle hlavičky pole.
         """
-        return obj.zakazka.typ_hlavy
+        zakazka = self._safe_get_zakazka(obj)
+        if zakazka is None:
+            return '-'
+        return zakazka.typ_hlavy
 
     @admin.display(description='Mat.', ordering='material')
     def get_material(self, obj):
@@ -2819,13 +2854,14 @@ class BednaAdmin(SimpleHistoryAdmin):
         Zobrazí prioritu zakázky a umožní třídění podle hlavičky pole.
         Pro prioritu VYSOKA vrátí červenou barvu, STREDNI oranžovou a NIZKA zelenou.
         """
-        priorita = obj.zakazka.get_priorita_display() if obj.zakazka else "-"
+        zakazka = self._safe_get_zakazka(obj)
+        priorita = zakazka.get_priorita_display() if zakazka else "-"
         barva_map = {
             PrioritaChoice.VYSOKA: 'red',
             PrioritaChoice.STREDNI: 'orange',
             PrioritaChoice.NIZKA: 'green',
         }
-        barva = barva_map.get(obj.zakazka.priorita, 'black') if obj.zakazka else 'black'
+        barva = barva_map.get(zakazka.priorita, 'black') if zakazka else 'black'
         return format_html('<span style="color: {};">{}</span>', barva, priorita)
 
     @admin.display(description='Ø', ordering='zakazka__prumer')
@@ -2870,7 +2906,7 @@ class BednaAdmin(SimpleHistoryAdmin):
          - Pro správné třídění v SQL preferuje anotované pole fake_skupina_TZ_ann, ale pokud není přítomna
            (např. obj byl načten bez anotace), fallbackne na property fake_skupina_TZ.
          - Pokud ani jedna není přítomna, vrátí '-'.
-         - Loguje varování, pokud se nepodaří získat hodnotu pro zobrazení.
+         - Loguje debug, pokud se nepodaří získat hodnotu pro zobrazení.
         """
         # Preferovaně se použije anotované pole z querysetu pro správné třídění v SQL.
         fake_skupina_TZ = getattr(obj, 'fake_skupina_TZ_ann', None)
@@ -2879,13 +2915,20 @@ class BednaAdmin(SimpleHistoryAdmin):
             try:
                 fake_skupina_TZ = getattr(obj, 'fake_skupina_TZ', None)
             except ObjectDoesNotExist:
-                logger.warning(
-                    f"Nepodařilo se načíst fake_skupina_TZ pro bednu ID {getattr(obj, 'id', None)}.",
-                    exc_info=True,
+                obj_id = getattr(obj, 'id', None)
+                history_id = getattr(obj, 'history_id', None)
+                self._debug_log_once_per_request(
+                    ('missing_fake_skupina_tz', obj_id, history_id),
+                    f"Nepodařilo se načíst fake_skupina_TZ pro bednu ID {obj_id} (history_id={history_id}).",
                 )
                 return '-'
         if fake_skupina_TZ is None:
-            logger.warning(f"Nepodařilo se získat hodnotu fake_skupina_TZ pro bednu ID {obj.id}.")
+            obj_id = getattr(obj, 'id', None)
+            history_id = getattr(obj, 'history_id', None)
+            self._debug_log_once_per_request(
+                ('missing_fake_skupina_tz_value', obj_id, history_id),
+                f"Nepodařilo se získat hodnotu fake_skupina_TZ pro bednu ID {obj_id} (history_id={history_id}).",
+            )
             return '-'
         barva = BARVA_SKUPINY_TZ.get(fake_skupina_TZ, {'text': 'black', 'pozadi': '#e0e0e0'})
         return mark_safe(
@@ -3194,94 +3237,106 @@ class BednaAdmin(SimpleHistoryAdmin):
         Dynamicky nastaví list_editable podle get_list_editable, ověří, zda jsou tyto pole v list_display nebo v list_display_links.
         Pokud není některé pole z list_editable v list_display nebo je v list_display_links, odstraní ho z list_editable.
         """
-        clean_redirect_url = self._get_changelist_clean_redirect_url(request)
-        if clean_redirect_url is not None:
-            return HttpResponseRedirect(clean_redirect_url)
+        self._begin_request_log_scope(request)
+        try:
+            clean_redirect_url = self._get_changelist_clean_redirect_url(request)
+            if clean_redirect_url is not None:
+                return HttpResponseRedirect(clean_redirect_url)
 
-        editable = self.get_list_editable(request)
-        links = self.get_list_display_links(request, self.get_list_display(request))
-        display = self.get_list_display(request)
-        self.list_editable = [f for f in editable if f in display and f not in links]
+            editable = self.get_list_editable(request)
+            links = self.get_list_display_links(request, self.get_list_display(request))
+            display = self.get_list_display(request)
+            self.list_editable = [f for f in editable if f in display and f not in links]
 
-        extra_context = extra_context or {}
-        latest = self._get_latest_change_marker()
-        last_change = latest.history_date if latest else None
-        last_history_id = latest.history_id if latest else None
-        extra_context.update({
-            'bedna_poll_url': reverse('admin:orders_bedna_poll'),
-            'bedna_last_change': last_change.isoformat() if last_change else '',
-            'bedna_last_change_id': last_history_id if last_history_id else '',
-            'bedna_poll_interval': self.poll_interval_ms,
-        })
+            extra_context = extra_context or {}
+            latest = self._get_latest_change_marker()
+            last_change = latest.history_date if latest else None
+            last_history_id = latest.history_id if latest else None
+            extra_context.update({
+                'bedna_poll_url': reverse('admin:orders_bedna_poll'),
+                'bedna_last_change': last_change.isoformat() if last_change else '',
+                'bedna_last_change_id': last_history_id if last_history_id else '',
+                'bedna_poll_interval': self.poll_interval_ms,
+            })
 
-        # Ošetření POST requestu z inline editace v changelistu,
-        # aby se ukládaly pouze skutečné změny polí.
-        if request.method == 'POST' and 'form-TOTAL_FORMS' in request.POST and '_save' in request.POST:
-            FormSet = self.get_changelist_formset(request)
-            form_prefix = FormSet.get_default_prefix() if hasattr(FormSet, 'get_default_prefix') else 'form'
-            modified_queryset = self._get_list_editable_queryset(
-                request,
-                form_prefix,
-            )
-            touched_enabled = request.POST.get('_touched_enabled') == '1'
-            touched_field_names = set(request.POST.getlist('_touched_field'))
-            formset_data = request.POST
-            if touched_enabled and touched_field_names:
-                editable_fields = tuple(self.list_editable or ())
-                if editable_fields:
-                    formset_for_initials = FormSet(queryset=modified_queryset)
-                    normalized_data = request.POST.copy()
-                    for form in getattr(formset_for_initials, 'forms', []):
-                        for field_name in editable_fields:
-                            field_key = f'{form.prefix}-{field_name}'
-                            if field_key in touched_field_names:
+            # Ošetření POST requestu z inline editace v changelistu,
+            # aby se ukládaly pouze skutečné změny polí.
+            if request.method == 'POST' and 'form-TOTAL_FORMS' in request.POST and '_save' in request.POST:
+                FormSet = self.get_changelist_formset(request)
+                form_prefix = FormSet.get_default_prefix() if hasattr(FormSet, 'get_default_prefix') else 'form'
+                modified_queryset = self._get_list_editable_queryset(
+                    request,
+                    form_prefix,
+                )
+                touched_enabled = request.POST.get('_touched_enabled') == '1'
+                touched_field_names = set(request.POST.getlist('_touched_field'))
+                formset_data = request.POST
+                if touched_enabled and touched_field_names:
+                    editable_fields = tuple(self.list_editable or ())
+                    if editable_fields:
+                        formset_for_initials = FormSet(queryset=modified_queryset)
+                        normalized_data = request.POST.copy()
+                        for form in getattr(formset_for_initials, 'forms', []):
+                            for field_name in editable_fields:
+                                field_key = f'{form.prefix}-{field_name}'
+                                if field_key in touched_field_names:
+                                    continue
+                                if field_key in normalized_data:
+                                    initial_value = form.initial.get(field_name)
+                                    if initial_value is None:
+                                        normalized_data[field_key] = ''
+                                    else:
+                                        prepared_value = form.fields[field_name].prepare_value(initial_value)
+                                        normalized_data[field_key] = '' if prepared_value is None else str(prepared_value)
+                        formset_data = normalized_data
+
+                formset = FormSet(formset_data, request.FILES, queryset=modified_queryset)
+                if formset.is_valid():
+                    with transaction.atomic():
+                        for form in getattr(formset, 'forms', []):
+                            # Pokud formulář neobsahuje změny, přeskočí se (i když je validní),
+                            # aby nedocházelo k zbytečným DB operacím a potenciálním konfliktům.
+                            if not form.has_changed():
                                 continue
-                            if field_key in normalized_data:
-                                initial_value = form.initial.get(field_name)
-                                if initial_value is None:
-                                    normalized_data[field_key] = ''
-                                else:
-                                    prepared_value = form.fields[field_name].prepare_value(initial_value)
-                                    normalized_data[field_key] = '' if prepared_value is None else str(prepared_value)
-                    formset_data = normalized_data
+                            # Získají se pouze pole, která se skutečně změnila, a porovnají se s aktuálními hodnotami v DB.
+                            changed = list(form.changed_data)
+                            if touched_enabled:
+                                changed = [
+                                    fname for fname in changed
+                                    if f'{form.prefix}-{fname}' in touched_field_names
+                                ]
+                            if not changed:
+                                continue
+                            try:
+                                obj = self.model.objects.select_for_update().get(pk=form.instance.pk)
+                            except self.model.DoesNotExist:
+                                continue
 
-            formset = FormSet(formset_data, request.FILES, queryset=modified_queryset)
-            if formset.is_valid():
-                with transaction.atomic():
-                    for form in getattr(formset, 'forms', []):
-                        # Pokud formulář neobsahuje změny, přeskočí se (i když je validní),
-                        # aby nedocházelo k zbytečným DB operacím a potenciálním konfliktům.
-                        if not form.has_changed():
-                            continue
-                        # Získají se pouze pole, která se skutečně změnila, a porovnají se s aktuálními hodnotami v DB.
-                        changed = list(form.changed_data)
-                        if touched_enabled:
-                            changed = [
-                                fname for fname in changed
-                                if f'{form.prefix}-{fname}' in touched_field_names
-                            ]
-                        if not changed:
-                            continue
-                        try:
-                            obj = self.model.objects.select_for_update().get(pk=form.instance.pk)
-                        except self.model.DoesNotExist:
-                            continue
+                            # Aplikují se změny z formuláře na objekt.
+                            for fname in changed:
+                                setattr(obj, fname, form.cleaned_data.get(fname))
 
-                        # Aplikují se změny z formuláře na objekt.
-                        for fname in changed:
-                            setattr(obj, fname, form.cleaned_data.get(fname))
+                            # Uloží se objekt pouze pro formuláře s reálnými změnami.
+                            obj.save()
 
-                        # Uloží se objekt pouze pro formuláře s reálnými změnami.
-                        obj.save()
+                if formset.is_valid():
+                    # Pokud nebyly detekovány žádné konflikty a formulář je validní, zobrazí se informace
+                    # o úspěšném uložení změn a provede se redirect zpět na changelist.
+                    self.message_user(request, 'Uloženy změny')
+                    return HttpResponseRedirect(request.get_full_path())
 
-            if formset.is_valid():
-                # Pokud nebyly detekovány žádné konflikty a formulář je validní, zobrazí se informace
-                # o úspěšném uložení změn a provede se redirect zpět na changelist.
-                self.message_user(request, 'Uloženy změny')
-                return HttpResponseRedirect(request.get_full_path())
+            response = super().changelist_view(request, extra_context)
+            return response
+        finally:
+            self._end_request_log_scope()
 
-        response = super().changelist_view(request, extra_context)
-        return response
+    def history_view(self, request, object_id, extra_context=None):
+        """Zajistí request-scope pro logování i na stránce historie změn."""
+        self._begin_request_log_scope(request)
+        try:
+            return super().history_view(request, object_id, extra_context)
+        finally:
+            self._end_request_log_scope()
 
     def get_changelist_formset(self, request, **kwargs):
         """

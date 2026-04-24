@@ -1515,7 +1515,57 @@ class BednaAdminTests(AdminBase):
         self.assertEqual(self.admin.get_prumer(historical), '-')
         self.assertEqual(self.admin.get_delka_int(historical), '-')
         self.assertEqual(self.admin.get_skupina_TZ(historical), '-')
+        self.assertEqual(self.admin.get_zakaznik_zkratka(historical), '-')
+        self.assertEqual(self.admin.get_odberatel(historical), '-')
+        self.assertEqual(self.admin.get_datum_prijem(historical), '-')
+        self.assertEqual(self.admin.get_datum_vydej(historical), '-')
+        self.assertEqual(self.admin.get_poradi_bedny_v_zakazce(historical), '-')
+        self.assertEqual(self.admin.get_zkraceny_popis(historical), '-')
+        self.assertEqual(self.admin.kamion_prijem_link(historical), None)
+        self.assertEqual(self.admin.kamion_vydej_link(historical), None)
+        self.assertEqual(self.admin.get_typ_hlavy(historical), '-')
+        self.assertEqual(str(self.admin.get_priorita(historical)), '<span style="color: black;">-</span>')
+        self.assertFalse(self.admin.get_celozavit(historical))
         self.assertIsNone(self.admin.zakazka_link(historical))
+
+    def test_missing_zakazka_logs_only_once_per_request_on_debug(self):
+        zakazka = Zakazka.objects.create(
+            kamion_prijem=self.kamion,
+            artikl='H-LOG-ONCE',
+            prumer=Decimal('8.0'),
+            delka=Decimal('321.0'),
+            predpis=self.predpis,
+            typ_hlavy=self.typ_hlavy,
+            popis='historie log once',
+        )
+        bedna = Bedna.objects.create(
+            zakazka=zakazka,
+            hmotnost=Decimal('2.0'),
+            tara=Decimal('1.0'),
+            mnozstvi=1,
+            stav_bedny=StavBednyChoice.NEPRIJATO,
+        )
+        bedna_id = bedna.id
+        zakazka.delete()
+
+        historical = Bedna.history.model.objects.filter(id=bedna_id).order_by('-history_date', '-history_id').first()
+        self.assertIsNotNone(historical)
+
+        req = self.get_request()
+        self.admin._begin_request_log_scope(req)
+        try:
+            with self.assertLogs('orders', level='DEBUG') as cm:
+                # Několik volání, která interně sahají na chybějící obj.zakazka.
+                self.admin.get_prumer(historical)
+                self.admin.get_delka_int(historical)
+                self.admin.zakazka_link(historical)
+                self.admin.get_zakaznik_zkratka(historical)
+                self.admin.get_skupina_TZ(historical)
+        finally:
+            self.admin._end_request_log_scope()
+
+        missing_zakazka_logs = [m for m in cm.output if 'Nepodařilo se načíst zakázku pro bednu ID' in m]
+        self.assertEqual(len(missing_zakazka_logs), 1)
 
 
 class BednaInlineGetFieldsTests(AdminBase):

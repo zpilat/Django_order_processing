@@ -941,7 +941,10 @@ class Bedna(models.Model):
         ]
 
     def __str__(self):
-        return f'{self.cislo_bedny} ({self.zakazka.kamion_prijem.zakaznik.zkratka}-{self.zakazka.artikl}-{self.zakazka.prumer}x{self.zakazka.delka})'
+        try:
+            return f'{self.cislo_bedny} ({self.zakazka.kamion_prijem.zakaznik.zkratka}-{self.zakazka.artikl}-{self.zakazka.prumer}x{self.zakazka.delka})'
+        except ObjectDoesNotExist:
+            return f'{self.cislo_bedny} (bez zakazky)'
     
     def get_admin_url(self):
         """
