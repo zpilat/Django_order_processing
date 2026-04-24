@@ -1487,6 +1487,36 @@ class BednaAdminTests(AdminBase):
         after = Bedna.objects.count()
         self.assertEqual(after, before - 1)
 
+    def test_history_methods_handle_missing_zakazka_reference(self):
+        zakazka = Zakazka.objects.create(
+            kamion_prijem=self.kamion,
+            artikl='H-ORPHAN',
+            prumer=Decimal('7.0'),
+            delka=Decimal('123.0'),
+            predpis=self.predpis,
+            typ_hlavy=self.typ_hlavy,
+            popis='historie orphan',
+        )
+        bedna = Bedna.objects.create(
+            zakazka=zakazka,
+            hmotnost=Decimal('2.0'),
+            tara=Decimal('1.0'),
+            mnozstvi=1,
+            stav_bedny=StavBednyChoice.NEPRIJATO,
+        )
+        bedna_id = bedna.id
+
+        # Smazání zakázky přes ORM zajistí smazání živé bedny, ale historický záznam bedny zůstane.
+        zakazka.delete()
+
+        historical = Bedna.history.model.objects.filter(id=bedna_id).order_by('-history_date', '-history_id').first()
+        self.assertIsNotNone(historical)
+
+        self.assertEqual(self.admin.get_prumer(historical), '-')
+        self.assertEqual(self.admin.get_delka_int(historical), '-')
+        self.assertEqual(self.admin.get_skupina_TZ(historical), '-')
+        self.assertIsNone(self.admin.zakazka_link(historical))
+
 
 class BednaInlineGetFieldsTests(AdminBase):
     """

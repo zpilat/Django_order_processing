@@ -13,7 +13,7 @@ from django.urls import path, reverse
 from django.shortcuts import redirect, render
 from django.utils.html import format_html, format_html_join
 from django.db.models import Count, Max
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.db.models.deletion import ProtectedError
 from django.http import JsonResponse, HttpResponseRedirect
 from django.utils import timezone
@@ -2479,8 +2479,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     }
 
     # Parametry pro historii změn
-    history_list_display = ["cislo_bedny", "behalter_nr", #"zakazka_link",
-                            "stav_bedny", "rovnat", "tryskat",
+    history_list_display = ["cislo_bedny", "behalter_nr", "zakazka_link", "stav_bedny", "rovnat", "tryskat",
                             "get_prumer", "get_delka_int", "get_skupina_TZ", "poznamka"]
     history_search_fields = ["zakazka__kamion_prijem__zakaznik__nazev", "cislo_bedny",]
     history_list_filter = ["zakazka__kamion_prijem__zakaznik__nazev", "zakazka__kamion_prijem__datum", "stav_bedny"]
@@ -2734,13 +2733,25 @@ class BednaAdmin(SimpleHistoryAdmin):
         """
         return obj.pozice.kod if obj.pozice else '-'
 
+    def _safe_get_zakazka(self, obj):
+        """Bezpečně vrátí zakázku pro bednu i pro historické záznamy s osiřelým FK."""
+        try:
+            return obj.zakazka
+        except ObjectDoesNotExist:
+            logger.warning(
+                f"Nepodařilo se načíst zakázku pro bednu ID {getattr(obj, 'id', None)}.",
+                exc_info=True,
+            )
+            return None
+
     @admin.display(description='Zakázka', ordering='zakazka__id', empty_value='-')
     def zakazka_link(self, obj):
         """
         Vytvoří odkaz na detail zakázky, ke které bedna patří a umožní třídění podle hlavičky pole.
         """
-        if obj.zakazka:
-            return format_html('<a href="{}">{}</a>', obj.zakazka.get_admin_url(), obj.zakazka.artikl)
+        zakazka = self._safe_get_zakazka(obj)
+        if zakazka:
+            return format_html('<a href="{}">{}</a>', zakazka.get_admin_url(), zakazka.artikl)
 
     @admin.display(boolean=True, description='VG', ordering='zakazka__celozavit')
     def get_celozavit(self, obj):
@@ -2822,7 +2833,10 @@ class BednaAdmin(SimpleHistoryAdmin):
         """
         Zobrazí průměr zakázky a umožní třídění podle hlavičky pole.
         """
-        return obj.zakazka.prumer
+        zakazka = self._safe_get_zakazka(obj)
+        if zakazka and zakazka.prumer is not None:
+            return zakazka.prumer
+        return '-'
 
     @admin.display(description='Délka', ordering='zakazka__delka', empty_value='-')
     def get_delka_int(self, obj):
@@ -2830,8 +2844,9 @@ class BednaAdmin(SimpleHistoryAdmin):
         Zobrazí délku zakázky jako integer a umožní třídění podle hlavičky pole.
         Předá jako html s text bold.
         """
-        if obj.zakazka and obj.zakazka.delka is not None:
-            return format_html('<strong>{}</strong>', int(obj.zakazka.delka.to_integral_value(rounding=ROUND_DOWN)))
+        zakazka = self._safe_get_zakazka(obj)
+        if zakazka and zakazka.delka is not None:
+            return format_html('<strong>{}</strong>', int(zakazka.delka.to_integral_value(rounding=ROUND_DOWN)))
         return '-'
     
     @admin.display(description='Stav bedny', ordering='stav_bedny', empty_value='-')
@@ -2861,7 +2876,14 @@ class BednaAdmin(SimpleHistoryAdmin):
         fake_skupina_TZ = getattr(obj, 'fake_skupina_TZ_ann', None)
         # Pokud anotace není přítomna (např. obj byl načten bez anotace), fallback na property.
         if fake_skupina_TZ is None:
-            fake_skupina_TZ = getattr(obj, 'fake_skupina_TZ', None)
+            try:
+                fake_skupina_TZ = getattr(obj, 'fake_skupina_TZ', None)
+            except ObjectDoesNotExist:
+                logger.warning(
+                    f"Nepodařilo se načíst fake_skupina_TZ pro bednu ID {getattr(obj, 'id', None)}.",
+                    exc_info=True,
+                )
+                return '-'
         if fake_skupina_TZ is None:
             logger.warning(f"Nepodařilo se získat hodnotu fake_skupina_TZ pro bednu ID {obj.id}.")
             return '-'

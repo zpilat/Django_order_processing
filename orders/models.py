@@ -4,7 +4,7 @@ from django.contrib.auth.models import Group
 from django.db.models.deletion import ProtectedError
 from django.utils.translation import gettext_lazy as _
 from django.urls import reverse
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db.models import Sum
 from django.db.models import Q, Max, F
@@ -982,9 +982,14 @@ class Bedna(models.Model):
         aby se správně zobrazovala v administraci.
         """
         # najde aktuální skupinu TZ zakázky pokud existuje
-        skupina = None        
-        if self.zakazka and getattr(self.zakazka, "predpis", None) and getattr(self.zakazka.predpis, "skupina", None):
-            skupina = self.zakazka.predpis.skupina
+        skupina = None
+        try:
+            zakazka = self.zakazka
+        except ObjectDoesNotExist:
+            return None
+
+        if zakazka and getattr(zakazka, "predpis", None) and getattr(zakazka.predpis, "skupina", None):
+            skupina = zakazka.predpis.skupina
         
         # pokud je skupina 1 a materiál 10B21 nebo 17B2, přemapuje na 10, jinak ponechá
         if skupina == 1 and str(self.material).upper() in ("10B21", "17B2"):
