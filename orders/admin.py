@@ -2736,27 +2736,6 @@ class BednaAdmin(SimpleHistoryAdmin):
         """
         return obj.pozice.kod if obj.pozice else '-'
 
-    def _begin_request_log_scope(self, request):
-        """Inicializuje scope pro logování jednou za request."""
-        self._request_log_scope_id = id(request)
-        self._request_debug_log_keys = set()
-
-    def _end_request_log_scope(self):
-        """Ukončí scope pro logování jednou za request."""
-        self._request_log_scope_id = None
-        self._request_debug_log_keys = set()
-
-    def _debug_log_once_per_request(self, key, message):
-        """Zaloguje debug zprávu pouze jednou v rámci aktuálního requestu."""
-        keys = getattr(self, '_request_debug_log_keys', None)
-        if keys is None:
-            logger.debug(message)
-            return
-        if key in keys:
-            return
-        keys.add(key)
-        logger.debug(message)
-
     def _safe_get_zakazka(self, obj):
         """Bezpečně vrátí zakázku pro bednu i pro historické záznamy s osiřelým FK."""
         try:
@@ -2764,9 +2743,8 @@ class BednaAdmin(SimpleHistoryAdmin):
         except ObjectDoesNotExist:
             obj_id = getattr(obj, 'id', None)
             history_id = getattr(obj, 'history_id', None)
-            self._debug_log_once_per_request(
-                ('missing_zakazka', obj_id, history_id),
-                f"Nepodařilo se načíst zakázku pro bednu ID {obj_id} (history_id={history_id}).",
+            logger.debug(
+                f"Nepodařilo se načíst zakázku pro bednu ID {obj_id} (history_id={history_id})."
             )
             return None
 
@@ -2917,17 +2895,15 @@ class BednaAdmin(SimpleHistoryAdmin):
             except ObjectDoesNotExist:
                 obj_id = getattr(obj, 'id', None)
                 history_id = getattr(obj, 'history_id', None)
-                self._debug_log_once_per_request(
-                    ('missing_fake_skupina_tz', obj_id, history_id),
-                    f"Nepodařilo se načíst fake_skupina_TZ pro bednu ID {obj_id} (history_id={history_id}).",
+                logger.debug(
+                    f"Nepodařilo se načíst fake_skupina_TZ pro bednu ID {obj_id} (history_id={history_id})."
                 )
                 return '-'
         if fake_skupina_TZ is None:
             obj_id = getattr(obj, 'id', None)
             history_id = getattr(obj, 'history_id', None)
-            self._debug_log_once_per_request(
-                ('missing_fake_skupina_tz_value', obj_id, history_id),
-                f"Nepodařilo se získat hodnotu fake_skupina_TZ pro bednu ID {obj_id} (history_id={history_id}).",
+            logger.debug(
+                f"Nepodařilo se získat hodnotu fake_skupina_TZ pro bednu ID {obj_id} (history_id={history_id})."
             )
             return '-'
         barva = BARVA_SKUPINY_TZ.get(fake_skupina_TZ, {'text': 'black', 'pozadi': '#e0e0e0'})
@@ -3237,106 +3213,94 @@ class BednaAdmin(SimpleHistoryAdmin):
         Dynamicky nastaví list_editable podle get_list_editable, ověří, zda jsou tyto pole v list_display nebo v list_display_links.
         Pokud není některé pole z list_editable v list_display nebo je v list_display_links, odstraní ho z list_editable.
         """
-        self._begin_request_log_scope(request)
-        try:
-            clean_redirect_url = self._get_changelist_clean_redirect_url(request)
-            if clean_redirect_url is not None:
-                return HttpResponseRedirect(clean_redirect_url)
+        clean_redirect_url = self._get_changelist_clean_redirect_url(request)
+        if clean_redirect_url is not None:
+            return HttpResponseRedirect(clean_redirect_url)
 
-            editable = self.get_list_editable(request)
-            links = self.get_list_display_links(request, self.get_list_display(request))
-            display = self.get_list_display(request)
-            self.list_editable = [f for f in editable if f in display and f not in links]
+        editable = self.get_list_editable(request)
+        links = self.get_list_display_links(request, self.get_list_display(request))
+        display = self.get_list_display(request)
+        self.list_editable = [f for f in editable if f in display and f not in links]
 
-            extra_context = extra_context or {}
-            latest = self._get_latest_change_marker()
-            last_change = latest.history_date if latest else None
-            last_history_id = latest.history_id if latest else None
-            extra_context.update({
-                'bedna_poll_url': reverse('admin:orders_bedna_poll'),
-                'bedna_last_change': last_change.isoformat() if last_change else '',
-                'bedna_last_change_id': last_history_id if last_history_id else '',
-                'bedna_poll_interval': self.poll_interval_ms,
-            })
+        extra_context = extra_context or {}
+        latest = self._get_latest_change_marker()
+        last_change = latest.history_date if latest else None
+        last_history_id = latest.history_id if latest else None
+        extra_context.update({
+            'bedna_poll_url': reverse('admin:orders_bedna_poll'),
+            'bedna_last_change': last_change.isoformat() if last_change else '',
+            'bedna_last_change_id': last_history_id if last_history_id else '',
+            'bedna_poll_interval': self.poll_interval_ms,
+        })
 
-            # Ošetření POST requestu z inline editace v changelistu,
-            # aby se ukládaly pouze skutečné změny polí.
-            if request.method == 'POST' and 'form-TOTAL_FORMS' in request.POST and '_save' in request.POST:
-                FormSet = self.get_changelist_formset(request)
-                form_prefix = FormSet.get_default_prefix() if hasattr(FormSet, 'get_default_prefix') else 'form'
-                modified_queryset = self._get_list_editable_queryset(
-                    request,
-                    form_prefix,
-                )
-                touched_enabled = request.POST.get('_touched_enabled') == '1'
-                touched_field_names = set(request.POST.getlist('_touched_field'))
-                formset_data = request.POST
-                if touched_enabled and touched_field_names:
-                    editable_fields = tuple(self.list_editable or ())
-                    if editable_fields:
-                        formset_for_initials = FormSet(queryset=modified_queryset)
-                        normalized_data = request.POST.copy()
-                        for form in getattr(formset_for_initials, 'forms', []):
-                            for field_name in editable_fields:
-                                field_key = f'{form.prefix}-{field_name}'
-                                if field_key in touched_field_names:
-                                    continue
-                                if field_key in normalized_data:
-                                    initial_value = form.initial.get(field_name)
-                                    if initial_value is None:
-                                        normalized_data[field_key] = ''
-                                    else:
-                                        prepared_value = form.fields[field_name].prepare_value(initial_value)
-                                        normalized_data[field_key] = '' if prepared_value is None else str(prepared_value)
-                        formset_data = normalized_data
-
-                formset = FormSet(formset_data, request.FILES, queryset=modified_queryset)
-                if formset.is_valid():
-                    with transaction.atomic():
-                        for form in getattr(formset, 'forms', []):
-                            # Pokud formulář neobsahuje změny, přeskočí se (i když je validní),
-                            # aby nedocházelo k zbytečným DB operacím a potenciálním konfliktům.
-                            if not form.has_changed():
+        # Ošetření POST requestu z inline editace v changelistu,
+        # aby se ukládaly pouze skutečné změny polí.
+        if request.method == 'POST' and 'form-TOTAL_FORMS' in request.POST and '_save' in request.POST:
+            FormSet = self.get_changelist_formset(request)
+            form_prefix = FormSet.get_default_prefix() if hasattr(FormSet, 'get_default_prefix') else 'form'
+            modified_queryset = self._get_list_editable_queryset(
+                request,
+                form_prefix,
+            )
+            touched_enabled = request.POST.get('_touched_enabled') == '1'
+            touched_field_names = set(request.POST.getlist('_touched_field'))
+            formset_data = request.POST
+            if touched_enabled and touched_field_names:
+                editable_fields = tuple(self.list_editable or ())
+                if editable_fields:
+                    formset_for_initials = FormSet(queryset=modified_queryset)
+                    normalized_data = request.POST.copy()
+                    for form in getattr(formset_for_initials, 'forms', []):
+                        for field_name in editable_fields:
+                            field_key = f'{form.prefix}-{field_name}'
+                            if field_key in touched_field_names:
                                 continue
-                            # Získají se pouze pole, která se skutečně změnila, a porovnají se s aktuálními hodnotami v DB.
-                            changed = list(form.changed_data)
-                            if touched_enabled:
-                                changed = [
-                                    fname for fname in changed
-                                    if f'{form.prefix}-{fname}' in touched_field_names
-                                ]
-                            if not changed:
-                                continue
-                            try:
-                                obj = self.model.objects.select_for_update().get(pk=form.instance.pk)
-                            except self.model.DoesNotExist:
-                                continue
+                            if field_key in normalized_data:
+                                initial_value = form.initial.get(field_name)
+                                if initial_value is None:
+                                    normalized_data[field_key] = ''
+                                else:
+                                    prepared_value = form.fields[field_name].prepare_value(initial_value)
+                                    normalized_data[field_key] = '' if prepared_value is None else str(prepared_value)
+                    formset_data = normalized_data
 
-                            # Aplikují se změny z formuláře na objekt.
-                            for fname in changed:
-                                setattr(obj, fname, form.cleaned_data.get(fname))
+            formset = FormSet(formset_data, request.FILES, queryset=modified_queryset)
+            if formset.is_valid():
+                with transaction.atomic():
+                    for form in getattr(formset, 'forms', []):
+                        # Pokud formulář neobsahuje změny, přeskočí se (i když je validní),
+                        # aby nedocházelo k zbytečným DB operacím a potenciálním konfliktům.
+                        if not form.has_changed():
+                            continue
+                        # Získají se pouze pole, která se skutečně změnila, a porovnají se s aktuálními hodnotami v DB.
+                        changed = list(form.changed_data)
+                        if touched_enabled:
+                            changed = [
+                                fname for fname in changed
+                                if f'{form.prefix}-{fname}' in touched_field_names
+                            ]
+                        if not changed:
+                            continue
+                        try:
+                            obj = self.model.objects.select_for_update().get(pk=form.instance.pk)
+                        except self.model.DoesNotExist:
+                            continue
 
-                            # Uloží se objekt pouze pro formuláře s reálnými změnami.
-                            obj.save()
+                        # Aplikují se změny z formuláře na objekt.
+                        for fname in changed:
+                            setattr(obj, fname, form.cleaned_data.get(fname))
 
-                if formset.is_valid():
-                    # Pokud nebyly detekovány žádné konflikty a formulář je validní, zobrazí se informace
-                    # o úspěšném uložení změn a provede se redirect zpět na changelist.
-                    self.message_user(request, 'Uloženy změny')
-                    return HttpResponseRedirect(request.get_full_path())
+                        # Uloží se objekt pouze pro formuláře s reálnými změnami.
+                        obj.save()
 
-            response = super().changelist_view(request, extra_context)
-            return response
-        finally:
-            self._end_request_log_scope()
+            if formset.is_valid():
+                # Pokud nebyly detekovány žádné konflikty a formulář je validní, zobrazí se informace
+                # o úspěšném uložení změn a provede se redirect zpět na changelist.
+                self.message_user(request, 'Uloženy změny')
+                return HttpResponseRedirect(request.get_full_path())
 
-    def history_view(self, request, object_id, extra_context=None):
-        """Zajistí request-scope pro logování i na stránce historie změn."""
-        self._begin_request_log_scope(request)
-        try:
-            return super().history_view(request, object_id, extra_context)
-        finally:
-            self._end_request_log_scope()
+        response = super().changelist_view(request, extra_context)
+        return response
 
     def get_changelist_formset(self, request, **kwargs):
         """
