@@ -152,25 +152,31 @@
                             {{ bedna.zakazka.predpis.krut }}
                         </span>
                     </td>
-                    <td rowspan="2" class="text-center fs-09 fw-bold" style="width: 19.6%;">
+                    <td colspan="3" class="text-center fs-09 fw-bold" style="width: 19.6%;">
                         KONTROLA PROHYBU<br>
                         <span class="fs-07 fw-normal">
                             Min. 25 vzorků
-                            <div style="height: 40px;"></div>
-                            L = 90 - 150mm: λ ≤  0,005L [mm]<br>
-                            L > 150mm: λ ≤  0,006L [mm]
                         </span>
                     </td>
                     <td colspan="2" class="text-center fs-09 fw-bold" style="width: 20%;">
                         ZKOUŠKA TVRDOSTI
                     </td>                         
                 </tr>
-                <tr>              
+                <tr>       
+                    <td class="text-center fs-08 fw-bold" style="width: 9.8%;">
+                        PO<br>TZ<br>
+                    </td>
+                    <td class="text-center fs-08 fw-bold" style="width: 9.8%;">
+                        PO<br>KOULENÍ
+                    </td>                    
+                    <td class="text-center fs-08 fw-bold" style="width: 9.8%;">
+                        PO<br>ROVNÁNÍ
+                    </td>                           
                     <td class="text-center fs-09 fw-bold" style="width: 10%;">
                         POVRCH<br>
                         <span class="fs-07 fw-normal">
                             Min. 3 vzorky
-                            <div style="height: 16px;"></div> 
+                            <div style="height: 12px;"></div> 
                             {{ bedna.zakazka.predpis.povrch }}
                         </span>
                     </td>
@@ -178,14 +184,14 @@
                         JÁDRO<br>
                         <span class="fs-07 fw-normal">
                             Min. 3 vzorky
-                            <div style="height: 16px;"></div>
+                            <div style="height: 12px;"></div>
                             {{ bedna.zakazka.predpis.jadro }}
                         </span>
                     </td>                
                 </tr>
                 {% for _ in "x"|ljust:"10" %}
                     <tr style="height: 51px;">
-                        {% for _ in "x"|ljust:"5" %}
+                        {% for _ in "x"|ljust:"7" %}
                             <td></td>
                         {% endfor %}
                     </tr>
@@ -194,7 +200,7 @@
                     <td colspan="2" class="text-start fs-10 fw-bold" style="padding: 3px 2px; line-height: 1;">
                         Kontroloval
                     </td>
-                    <td class="text-start fs-10 fw-bold" style="padding: 3px 2px; line-height: 1;">
+                    <td colspan="3" class="text-start fs-10 fw-bold" style="padding: 3px 2px; line-height: 1;">
                         Kontroloval
                     </td>
                     <td colspan="2" class="text-start fs-10 fw-bold" style="padding: 3px 2px; line-height: 1;">
