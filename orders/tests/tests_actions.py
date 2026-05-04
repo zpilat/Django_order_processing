@@ -1739,6 +1739,39 @@ class StatusChangeActionsTests(ActionsBase):
         self.bedna.refresh_from_db()
         self.assertEqual(self.bedna.stav_bedny, StavBednyChoice.NAVEZENO)
 
+    def test_oznacit_prijato_do_zakaleno_action_wrong_state(self):
+        admin_obj = self._messaging_admin()
+        self.bedna.stav_bedny = StavBednyChoice.K_NAVEZENI
+        self.bedna.save(update_fields=['stav_bedny'])
+
+        req = self.get_request('post')
+        resp = actions.oznacit_prijato_do_zakaleno_action(
+            admin_obj,
+            req,
+            Bedna.objects.filter(id=self.bedna.id),
+        )
+
+        self.assertIsNone(resp)
+        self.bedna.refresh_from_db()
+        self.assertEqual(self.bedna.stav_bedny, StavBednyChoice.K_NAVEZENI)
+        self.assertTrue(any('nejsou ve stavu PŘIJATO' in m for m in self._messages_texts(req)))
+
+    def test_oznacit_prijato_do_zakaleno_action_success(self):
+        admin_obj = self._messaging_admin()
+        self.bedna.stav_bedny = StavBednyChoice.PRIJATO
+        self.bedna.save(update_fields=['stav_bedny'])
+
+        req = self.get_request('post')
+        resp = actions.oznacit_prijato_do_zakaleno_action(
+            admin_obj,
+            req,
+            Bedna.objects.filter(id=self.bedna.id),
+        )
+
+        self.assertIsNone(resp)
+        self.bedna.refresh_from_db()
+        self.assertEqual(self.bedna.stav_bedny, StavBednyChoice.ZAKALENO)
+
     def test_prijmout_bedny_action_blocked_by_paused(self):
         admin_obj = self._messaging_admin()
         self.bedna.stav_bedny = StavBednyChoice.NEPRIJATO

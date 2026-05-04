@@ -1435,6 +1435,44 @@ class BednaAdminTests(AdminBase):
         self.assertIn('oznacit_uvolneno_action', actions_pz)
         self.assertNotIn('export_na_zinkovani_action', actions_pz)
 
+    def test_get_actions_filters_prijato_do_zakaleno_by_stav(self):
+        req_prijato = self.get_request({'stav_bedny': StavBednyChoice.PRIJATO})
+        req_prijato.user = self.user
+        actions_prijato = self.admin.get_actions(req_prijato)
+        self.assertIn('oznacit_prijato_do_zakaleno_action', actions_prijato)
+
+        req_jiny = self.get_request({'stav_bedny': StavBednyChoice.K_NAVEZENI})
+        req_jiny.user = self.user
+        actions_jiny = self.admin.get_actions(req_jiny)
+        self.assertNotIn('oznacit_prijato_do_zakaleno_action', actions_jiny)
+
+    def test_get_actions_prijato_do_zakaleno_requires_custom_permission(self):
+        User = get_user_model()
+        user = User.objects.create_user('user_mark_zak', 'markz@example.com', 'pass', is_staff=True)
+        user.user_permissions.add(Permission.objects.get(codename='change_bedna'))
+
+        req = self.factory.get('/', {'stav_bedny': StavBednyChoice.PRIJATO})
+        req.user = user
+        actions_without = self.admin.get_actions(req)
+        self.assertNotIn('oznacit_prijato_do_zakaleno_action', actions_without)
+
+        user.user_permissions.add(Permission.objects.get(codename='mark_bedna_zakaleno'))
+        req.user = User.objects.get(pk=user.pk)
+        actions_with = self.admin.get_actions(req)
+        self.assertIn('oznacit_prijato_do_zakaleno_action', actions_with)
+
+    def test_has_mark_bedna_zakaleno_permission(self):
+        User = get_user_model()
+        user = User.objects.create_user('user_perm_zak', 'permzak@example.com', 'pass', is_staff=True)
+        req = self.factory.get('/')
+        req.user = user
+
+        self.assertFalse(self.admin.has_mark_bedna_zakaleno_permission(req))
+
+        user.user_permissions.add(Permission.objects.get(codename='mark_bedna_zakaleno'))
+        req.user = User.objects.get(pk=user.pk)
+        self.assertTrue(self.admin.has_mark_bedna_zakaleno_permission(req))
+
     def test_get_readonly_fields_neprijato_poznamka_only(self):
         """Při oprávnění jen na poznámku jsou ostatní pole readonly."""
         user = get_user_model().objects.create_user('user_ro', 'ro@example.com', 'pass', is_staff=True)

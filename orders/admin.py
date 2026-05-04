@@ -41,7 +41,7 @@ from .actions import (
     tisk_karet_beden_kamionu_action, tisk_dodaciho_listu_kamionu_action, vratit_zakazky_z_expedice_action, expedice_zakazek_kamion_action,
     tisk_karet_kontroly_kvality_action, tisk_karet_kontroly_kvality_zakazek_action, tisk_karet_kontroly_kvality_kamionu_action,
     tisk_karet_bedny_a_kontroly_action, tisk_protokolu_kamionu_vydej_action, tisk_proforma_faktury_kamionu_action,
-    oznacit_k_navezeni_action, vratit_bedny_ze_stavu_k_navezeni_do_stavu_prijato_action, oznacit_navezeno_action,
+    oznacit_k_navezeni_action, vratit_bedny_ze_stavu_k_navezeni_do_stavu_prijato_action, oznacit_navezeno_action, oznacit_prijato_do_zakaleno_action,
     oznacit_prijato_navezeno_action, vratit_bedny_z_rozpracovanosti_do_stavu_prijato_action, vratit_bedny_ze_stavu_navezeno_do_stavu_prijato_action,
     oznacit_do_zpracovani_action, oznacit_zakaleno_action, oznacit_zkontrolovano_action, oznacit_k_expedici_action, oznacit_rovna_action,
     oznacit_kriva_action, oznacit_kouleni_action, oznacit_rovna_se_action, oznacit_vyrovnana_action, oznacit_cista_action, oznacit_spinava_action,
@@ -2427,7 +2427,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         vratit_bedny_ze_stavu_navezeno_do_stavu_prijato_action, vratit_bedny_z_rozpracovanosti_do_stavu_prijato_action,
         oznacit_do_zpracovani_action, oznacit_zakaleno_action, oznacit_zkontrolovano_action, oznacit_k_expedici_action,
         oznacit_rovna_action, oznacit_kriva_action, oznacit_kouleni_action, oznacit_rovna_se_action, oznacit_vyrovnana_action,
-        oznacit_cista_action, oznacit_spinava_action, oznacit_otryskana_action,
+        oznacit_cista_action, oznacit_spinava_action, oznacit_otryskana_action, oznacit_prijato_do_zakaleno_action,
         oznacit_k_zinkovani_action, oznacit_po_zinkovani_action, oznacit_uvolneno_action, odeslat_na_zinkovani_action, export_na_zinkovani_action,
         prijmout_bedny_action, expedice_beden_action, expedice_beden_kamion_action,
     ]
@@ -3200,6 +3200,9 @@ class BednaAdmin(SimpleHistoryAdmin):
 
     def has_mark_bedna_navezeno_permission(self, request):
         return request.user.has_perm('orders.mark_bedna_navezeno')
+
+    def has_mark_bedna_zakaleno_permission(self, request):
+        return request.user.has_perm('orders.mark_bedna_zakaleno')
     
     def get_changelist_form(self, request, **kwargs):
         """
@@ -3449,7 +3452,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         Pokud není aktivní filtr stav bedny NEPRIJATO, zruší se akce pro přijetí bedny.
         Pokud není vůbec aktivní filtr stav bedny, zruší se akce export_beden_to_csv_action.            
         Pokud není vůbec aktivní filtr stav bedny nebo není aktivní filtr stav bedny PRIJATO,
-        zruší se akce pro změnu stavu bedny na K_NAVEZENI.
+        zruší se akce pro změnu stavu bedny na K_NAVEZENI a pro změnu stavu bedny na ZAKALENO.
         Pokud není aktivní filtr stav bedny K_NAVEZENI, zruší se akce pro vrácení bedny ze stavu K_NAVEZENI do stavu PRIJATO
             a akce pro označení bedny jako NAVEZENO.
         Pokud není aktivní filtr stav bedny NAVEZENO nebo RO, zruší se akce pro označení bedny do stavu DO_ZPRACOVANI
@@ -3497,7 +3500,7 @@ class BednaAdmin(SimpleHistoryAdmin):
                 ]
             if stav_filter and stav_filter != StavBednyChoice.PRIJATO:
                 actions_to_remove += [
-                    'oznacit_k_navezeni_action',
+                    'oznacit_k_navezeni_action', 'oznacit_prijato_do_zakaleno_action',
                 ]
             if stav_filter != StavBednyChoice.K_NAVEZENI:
                 actions_to_remove += [
@@ -3613,7 +3616,8 @@ class BednaAdmin(SimpleHistoryAdmin):
             'tisk_karet_bedny_a_kontroly_action': 'Tisk',
             'prijmout_bedny_action': 'Stav bedny',
             'oznacit_k_navezeni_action': 'Stav bedny',
-            'oznacit_prijato_navezeno_action': 'Stav bedny',            
+            'oznacit_prijato_navezeno_action': 'Stav bedny',
+            'oznacit_prijato_do_zakaleno_action': 'Stav bedny',
             'oznacit_navezeno_action': 'Stav bedny',
             'vratit_bedny_ze_stavu_k_navezeni_do_stavu_prijato_action': 'Stav bedny',
             'oznacit_do_zpracovani_action': 'Stav bedny',

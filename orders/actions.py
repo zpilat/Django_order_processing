@@ -1137,6 +1137,30 @@ def oznacit_prijato_navezeno_action(modeladmin, request, queryset):
     formset = NavezenoFormSet(initial=initial, prefix="ozn")
     return _render_oznacit_prijato_navezeno(modeladmin, request, queryset, formset)
 
+@admin.action(description="Změnit stav bedny z PŘIJATO rovnou do ZAKALENO (při reklamaci)", permissions=('mark_bedna_zakaleno',))
+def oznacit_prijato_do_zakaleno_action(modeladmin, request, queryset):
+    """
+    
+    """
+    if _abort_if_paused_bedny(modeladmin, request, queryset, "Změnit stav bedny z PŘIJATO rovnou do ZAKALENO (při reklamaci)"):
+        return None
+
+    # kontrola, zda jsou všechny zakázky v querysetu ve stavu PRIJATO
+    if queryset.exclude(stav_bedny=StavBednyChoice.PRIJATO).exists():
+        logger.info(f"Uživatel {request.user} se pokusil změnit stav z PŘIJATO do ZAKALENO, ale některé bedny nejsou ve stavu PŘIJATO.")
+        messages.error(request, "Některé vybrané bedny nejsou ve stavu PŘIJATO.")
+        return None
+
+    with transaction.atomic():
+        for bedna in queryset:
+            if bedna.stav_bedny == StavBednyChoice.PRIJATO:
+                bedna.stav_bedny = StavBednyChoice.ZAKALENO
+                bedna.save()
+
+    logger.info(f"Uživatel {request.user} změnil stav z PŘIJATO do ZAKALENO u {queryset.count()} beden.")
+    messages.success(request, f"Změněno z PŘIJATO do ZAKALENO: {queryset.count()} beden.")
+    return None      
+
 @admin.action(description="Vrátit bedny ze stavu K NAVEZENÍ do stavu PŘIJATO", permissions=('change',))
 def vratit_bedny_ze_stavu_k_navezeni_do_stavu_prijato_action(modeladmin, request, queryset):
     """
