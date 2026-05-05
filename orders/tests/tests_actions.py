@@ -2166,6 +2166,70 @@ class StatusChangeActionsTests(ActionsBase):
         self.assertEqual(b1.zinkovat, ZinkovaniChoice.UVOLNENO)
         self.assertEqual(b2.zinkovat, ZinkovaniChoice.UVOLNENO)
 
+    def test_uvolnit_pozastavene_bedny_action_success(self):
+        admin_obj = self._messaging_admin()
+        b1 = self._create_bedna_in_state(StavBednyChoice.PRIJATO)
+        b2 = self._create_bedna_in_state(StavBednyChoice.K_EXPEDICI)
+        b1.pozastaveno = True
+        b2.pozastaveno = True
+        b1.save(update_fields=['pozastaveno'])
+        b2.save(update_fields=['pozastaveno'])
+
+        req = self.get_request('post')
+        resp = actions.uvolnit_pozastavene_bedny_action(
+            admin_obj,
+            req,
+            Bedna.objects.filter(id__in=[b1.id, b2.id]),
+        )
+
+        self.assertIsNone(resp)
+        b1.refresh_from_db()
+        b2.refresh_from_db()
+        self.assertFalse(b1.pozastaveno)
+        self.assertFalse(b2.pozastaveno)
+        self.assertTrue(any('Uvolněno: 2 beden.' in m for m in self._messages_texts(req)))
+
+    def test_uvolnit_pozastavene_bedny_action_rejects_non_paused(self):
+        admin_obj = self._messaging_admin()
+        b1 = self._create_bedna_in_state(StavBednyChoice.PRIJATO)
+        b2 = self._create_bedna_in_state(StavBednyChoice.PRIJATO)
+        b1.pozastaveno = True
+        b2.pozastaveno = False
+        b1.save(update_fields=['pozastaveno'])
+        b2.save(update_fields=['pozastaveno'])
+
+        req = self.get_request('post')
+        resp = actions.uvolnit_pozastavene_bedny_action(
+            admin_obj,
+            req,
+            Bedna.objects.filter(id__in=[b1.id, b2.id]),
+        )
+
+        self.assertIsNone(resp)
+        b1.refresh_from_db()
+        b2.refresh_from_db()
+        self.assertTrue(b1.pozastaveno)
+        self.assertFalse(b2.pozastaveno)
+        self.assertTrue(any('Některé vybrané bedny nejsou pozastavené.' in m for m in self._messages_texts(req)))
+
+    def test_uvolnit_pozastavene_bedny_action_rejects_expedovano(self):
+        admin_obj = self._messaging_admin()
+        bedna = self._create_bedna_in_state(StavBednyChoice.EXPEDOVANO)
+        bedna.pozastaveno = True
+        bedna.save(update_fields=['pozastaveno'])
+
+        req = self.get_request('post')
+        resp = actions.uvolnit_pozastavene_bedny_action(
+            admin_obj,
+            req,
+            Bedna.objects.filter(id=bedna.id),
+        )
+
+        self.assertIsNone(resp)
+        bedna.refresh_from_db()
+        self.assertTrue(bedna.pozastaveno)
+        self.assertTrue(any('Některé vybrané bedny jsou ve stavu EXPEDOVANO a nelze je uvolnit.' in m for m in self._messages_texts(req)))
+
 
 class RozpracovanostCommandTests(ActionsBase):
     def test_rozpracovanost_command_creates_snapshot_with_status_fields(self):

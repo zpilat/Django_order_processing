@@ -1034,7 +1034,7 @@ def oznacit_navezeno_action(modeladmin, request, queryset):
                 bedna.stav_bedny = StavBednyChoice.NAVEZENO
                 bedna.save()
 
-    messages.success(request, f"Navezeno: {queryset.count()} beden.")
+    modeladmin.message_user(request, f"Navezeno: {queryset.count()} beden.", level=messages.SUCCESS)
     logger.info(f"Uživatel {request.user} změnil stav na NAVEZENO u {queryset.count()} beden.")
     return None
 
@@ -1121,7 +1121,7 @@ def oznacit_prijato_navezeno_action(modeladmin, request, queryset):
                 uspesne += 1
 
         if uspesne:
-            messages.success(request, f"Navezeno: {uspesne} beden.")
+            modeladmin.message_user(request, f"Navezeno: {uspesne} beden.", level=messages.SUCCESS)
             logger.info(f"Uživatel {request.user} změnil stav na NAVEZENO u {uspesne} beden.")
 
         return None
@@ -1196,7 +1196,7 @@ def vratit_bedny_ze_stavu_navezeno_do_stavu_prijato_action(modeladmin, request, 
     # kontrola, zda jsou všechny zakázky v querysetu ve stavu NAVEZENO
     if queryset.exclude(stav_bedny=StavBednyChoice.NAVEZENO).exists():
         logger.info(f"Uživatel {request.user} se pokusil vrátit bedny do stavu PŘIJATO, ale některé nejsou ve stavu NAVEZENO.")
-        messages.error(request, "Některé vybrané bedny nejsou ve stavu NAVEZENO.")
+        modeladmin.message_user(request, "Některé vybrané bedny nejsou ve stavu NAVEZENO.", level=messages.ERROR)
         return None
 
     with transaction.atomic():
@@ -1206,7 +1206,7 @@ def vratit_bedny_ze_stavu_navezeno_do_stavu_prijato_action(modeladmin, request, 
                 bedna.save()
 
     logger.info(f"Uživatel {request.user} vrátil do stavu PŘIJATO {queryset.count()} beden.")
-    messages.success(request, f"Vráceno do stavu PŘIJATO: {queryset.count()} beden.")
+    modeladmin.message_user(request, f"Vráceno do stavu PŘIJATO: {queryset.count()} beden.", level=messages.SUCCESS)
     return None    
 
 @admin.action(description="Vrátit bedny z rozpracovanosti do stavu PŘIJATO", permissions=('change',))
@@ -1220,7 +1220,7 @@ def vratit_bedny_z_rozpracovanosti_do_stavu_prijato_action(modeladmin, request, 
     # kontrola, zda jsou všechny zakázky v querysetu v rozpracovanosti
     if queryset.exclude(stav_bedny__in=STAV_BEDNY_ROZPRACOVANOST).exists():
         logger.info(f"Uživatel {request.user} se pokusil vrátit bedny do stavu PŘIJATO, ale některé nejsou v rozpracovanosti.")
-        messages.error(request, "Některé vybrané bedny nejsou v rozpracovanosti.")
+        modeladmin.message_user(request, "Některé vybrané bedny nejsou v rozpracovanosti.", level=messages.ERROR)
         return None
 
     with transaction.atomic():
@@ -1230,7 +1230,7 @@ def vratit_bedny_z_rozpracovanosti_do_stavu_prijato_action(modeladmin, request, 
                 bedna.save()
 
     logger.info(f"Uživatel {request.user} vrátil do stavu PŘIJATO {queryset.count()} beden.")
-    messages.success(request, f"Vráceno do stavu PŘIJATO: {queryset.count()} beden.")
+    modeladmin.message_user(request, f"Vráceno do stavu PŘIJATO: {queryset.count()} beden.", level=messages.SUCCESS)
     return None    
 
 @admin.action(description="Změna stavu bedny na DO ZPRACOVÁNÍ", permissions=('change',))
@@ -1253,7 +1253,7 @@ def oznacit_do_zpracovani_action(modeladmin, request, queryset):
                 bedna.stav_bedny = StavBednyChoice.DO_ZPRACOVANI
                 bedna.save()
 
-    messages.success(request, f"Do zpracování: {queryset.count()} beden.")
+    modeladmin.message_user(request, f"Do zpracování: {queryset.count()} beden.", level=messages.SUCCESS)
     logger.info(f"Uživatel {request.user} změnil stav na DO ZPRACOVÁNÍ u {queryset.count()} beden.")
     return None
 
@@ -1277,7 +1277,7 @@ def oznacit_zakaleno_action(modeladmin, request, queryset):
                 bedna.stav_bedny = StavBednyChoice.ZAKALENO
                 bedna.save()
 
-    messages.success(request, f"Zakaleno: {queryset.count()} beden.")
+    modeladmin.message_user(request, f"Zakaleno: {queryset.count()} beden.", level=messages.SUCCESS)
     logger.info(f"Uživatel {request.user} změnil stav na ZAKALENO u {queryset.count()} beden.")
     return None
 
@@ -1302,8 +1302,35 @@ def oznacit_zkontrolovano_action(modeladmin, request, queryset):
                 bedna.stav_bedny = StavBednyChoice.ZKONTROLOVANO
                 bedna.save()
 
-    messages.success(request, f"Zkontrolováno: {queryset.count()} beden.")
+    modeladmin.message_user(request, f"Zkontrolováno: {queryset.count()} beden.", level=messages.SUCCESS)
     logger.info(f"Uživatel {request.user} změnil stav na ZKONTROLOVANO u {queryset.count()} beden.")
+    return None
+
+@admin.action(description="Uvolnění pozastavených beden", permissions=('change_pozastavena_bedna',))
+def uvolnit_pozastavene_bedny_action(modeladmin, request, queryset):
+    """
+    Uvolní pozastavené bedny (parametr bedna.pozastaveno z True na False).
+    """    
+    # kontrola, zda nejsou žádné bedny expedované (stav EXPEDOVANO)
+    if queryset.filter(stav_bedny=StavBednyChoice.EXPEDOVANO).exists():
+        logger.info(f"Uživatel {request.user} se pokusil uvolnit pozastavené bedny, ale některé jsou ve stavu EXPEDOVANO.")
+        modeladmin.message_user(request, "Některé vybrané bedny jsou ve stavu EXPEDOVANO a nelze je uvolnit.", level=messages.ERROR)
+        return None
+
+    # kontrola, zda jsou všechny bedny v querysetu pozastavené
+    if queryset.exclude(pozastaveno=True).exists():
+        logger.info(f"Uživatel {request.user} se pokusil uvolnit pozastavené bedny, ale některé nejsou pozastavené.")
+        modeladmin.message_user(request, "Některé vybrané bedny nejsou pozastavené.", level=messages.ERROR)
+        return None
+    
+    with transaction.atomic():
+        for bedna in queryset:
+            if bedna.pozastaveno and bedna.stav_bedny != StavBednyChoice.EXPEDOVANO:
+                bedna.pozastaveno = False
+                bedna.save()
+
+    modeladmin.message_user(request, f"Uvolněno: {queryset.count()} beden.", level=messages.SUCCESS)
+    logger.info(f"Uživatel {request.user} uvolnil {queryset.count()} beden.")
     return None
 
 
@@ -1354,7 +1381,7 @@ def oznacit_k_expedici_action(modeladmin, request, queryset):
                 bedna.stav_bedny = StavBednyChoice.K_EXPEDICI
                 bedna.save()
 
-    messages.success(request, f"Změněno na K EXPEDICI: {queryset.count()} beden.")
+    modeladmin.message_user(request, f"Změněno na K EXPEDICI: {queryset.count()} beden.", level=messages.SUCCESS)
     logger.info(f"Uživatel {request.user} změnil stav na K_EXPEDICI u {queryset.count()} beden.")
     return None
 
@@ -1598,7 +1625,7 @@ def oznacit_rovna_action(modeladmin, request, queryset):
                 bedna.rovnat = RovnaniChoice.ROVNA
                 bedna.save()
 
-    messages.success(request, f"Změněno: {queryset.count()} beden.")
+    modeladmin.message_user(request, f"Změněno: {queryset.count()} beden.", level=messages.SUCCESS)
     logger.info(f"Uživatel {request.user} změnil stav rovnání na ROVNA u {queryset.count()} beden.")
     return None
 
@@ -1622,7 +1649,7 @@ def oznacit_kriva_action(modeladmin, request, queryset):
                 bedna.rovnat = RovnaniChoice.KRIVA
                 bedna.save()
 
-    messages.success(request, f"Změněno: {queryset.count()} beden.")
+    modeladmin.message_user(request, f"Změněno: {queryset.count()} beden.", level=messages.SUCCESS)
     logger.info(f"Uživatel {request.user} změnil stav rovnání na KRIVA u {queryset.count()} beden.")
     return None
 
@@ -1727,7 +1754,7 @@ def oznacit_kouleni_action(modeladmin, request, queryset):
                 bedna.rovnat = RovnaniChoice.KOULENI
                 bedna.save()
 
-    messages.success(request, f"Změněno: {queryset.count()} beden.")
+    modeladmin.message_user(request, f"Změněno: {queryset.count()} beden.", level=messages.SUCCESS)
     logger.info(f"Uživatel {request.user} změnil stav rovnání na KOULENI u {queryset.count()} beden.")
     return None
 
@@ -1751,7 +1778,7 @@ def oznacit_vyrovnana_action(modeladmin, request, queryset):
                 bedna.rovnat = RovnaniChoice.VYROVNANA
                 bedna.save()
 
-    messages.success(request, f"Změněno: {queryset.count()} beden.")
+    modeladmin.message_user(request, f"Změněno: {queryset.count()} beden.", level=messages.SUCCESS)
     logger.info(f"Uživatel {request.user} změnil stav rovnání na VYROVNANÁ u {queryset.count()} beden.")
     return None
 
@@ -1775,7 +1802,7 @@ def oznacit_cista_action(modeladmin, request, queryset):
                 bedna.tryskat = TryskaniChoice.CISTA
                 bedna.save()
 
-    messages.success(request, f"Změněno: {queryset.count()} beden.")
+    modeladmin.message_user(request, f"Změněno: {queryset.count()} beden.", level=messages.SUCCESS)
     logger.info(f"Uživatel {request.user} změnil stav tryskání na CISTA u {queryset.count()} beden.")
     return None
 
@@ -1799,7 +1826,7 @@ def oznacit_spinava_action(modeladmin, request, queryset):
                 bedna.tryskat = TryskaniChoice.SPINAVA
                 bedna.save()
 
-    messages.success(request, f"Změněno: {queryset.count()} beden.")
+    modeladmin.message_user(request, f"Změněno: {queryset.count()} beden.", level=messages.SUCCESS)
     logger.info(f"Uživatel {request.user} změnil stav tryskání na SPINAVA u {queryset.count()} beden.")
     return None
 
@@ -1823,7 +1850,7 @@ def oznacit_otryskana_action(modeladmin, request, queryset):
                 bedna.tryskat = TryskaniChoice.OTRYSKANA
                 bedna.save()
 
-    messages.success(request, f"Změněno: {queryset.count()} beden.")
+    modeladmin.message_user(request, f"Změněno: {queryset.count()} beden.", level=messages.SUCCESS)
     logger.info(f"Uživatel {request.user} změnil stav tryskání na OTRYSKANA u {queryset.count()} beden.")
     return None
 
@@ -1917,7 +1944,7 @@ def oznacit_k_zinkovani_action(modeladmin, request, queryset):
                 bedna.zinkovat = ZinkovaniChoice.ZINKOVAT
                 bedna.save()
 
-    messages.success(request, f"Změněno: {queryset.count()} beden.")
+    modeladmin.message_user(request, f"Změněno: {queryset.count()} beden.", level=messages.SUCCESS)
     logger.info(f"Uživatel {request.user} změnil stav zinkování na ZINKOVAT u {queryset.count()} beden.")
     return None
 
@@ -1947,7 +1974,7 @@ def oznacit_po_zinkovani_action(modeladmin, request, queryset):
                 bedna.zinkovat = ZinkovaniChoice.POZINKOVANO
                 bedna.save()
 
-    messages.success(request, f"Změněno: {queryset.count()} beden.")
+    modeladmin.message_user(request, f"Změněno: {queryset.count()} beden.", level=messages.SUCCESS)
     logger.info(f"Uživatel {request.user} změnil stav zinkování na POZINKOVANO u {queryset.count()} beden.")
     return None
 
@@ -1977,7 +2004,7 @@ def oznacit_uvolneno_action(modeladmin, request, queryset):
                 bedna.zinkovat = ZinkovaniChoice.UVOLNENO
                 bedna.save()
 
-    messages.success(request, f"Změněno: {queryset.count()} beden.")
+    modeladmin.message_user(request, f"Změněno: {queryset.count()} beden.", level=messages.SUCCESS)
     logger.info(f"Uživatel {request.user} změnil stav zinkování na UVOLNĚNO u {queryset.count()} beden.")
     return None
 
@@ -2108,7 +2135,7 @@ def expedice_zakazek_action(modeladmin, request, queryset):
         - Pro zákazníka s příznakem pouze_komplet mohou být expedovány pouze kompletní zakázky, které mají všechny bedny ve stavu `K_EXPEDICI` - kontrola v utilitě.
         - Pokud ne, vyexpeduje bedny K_EXPEDICI a vytvoří novou zakázku se stejnými daty jako původní a převede do ní bedny, které nejsou ve stavu `K_EXPEDICI`.      
         - Pokud nemá žádné bedny ve stavu `K_EXPEDICI`, zakázka se přeskočí.      
-    6. Po úspěšném průběhu odešle `messages.success`. V případě nesplnění podmínek vrátí chybu pomocí `messages.error` a akce se přeruší.
+    6. Po úspěšném průběhu odešle `modeladmin.message_user` s úrovní `messages.SUCCESS`. V případě nesplnění podmínek vrátí chybu pomocí `modeladmin.message_user` s úrovní `messages.ERROR` a akce se přeruší.
     """        
     if not queryset.exists():
         return None
@@ -2177,7 +2204,7 @@ def expedice_zakazek_kamion_action(modeladmin, request, queryset):
             - Pro zákazníka s příznakem pouze_komplet mohou být expedovány pouze kompletní zakázky, které mají všechny bedny ve stavu `K_EXPEDICI` - kontrola v utilitě.
             - Pokud ne, vyexpeduje bedny K_EXPEDICI a vytvoří novou zakázku se stejnými daty jako původní a převede do ní bedny, které nejsou ve stavu `K_EXPEDICI`.      
             - Pokud nemá žádné bedny ve stavu `K_EXPEDICI`, zakázka se přeskočí.      
-    5. Po úspěšném průběhu odešle `messages.success`. V případě nesplnění podmínek vrátí chybu pomocí `messages.error` a akce se přeruší.
+    5. Po úspěšném průběhu odešle `modeladmin.message_user` s úrovní `messages.SUCCESS`. V případě nesplnění podmínek vrátí chybu pomocí `modeladmin.message_user` s úrovní `messages.ERROR` a akce se přeruší.
     """
     zakaznici = queryset.values_list('kamion_prijem__zakaznik', flat=True).distinct()
     if zakaznici.count() != 1:

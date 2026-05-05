@@ -1473,6 +1473,50 @@ class BednaAdminTests(AdminBase):
         req.user = User.objects.get(pk=user.pk)
         self.assertTrue(self.admin.has_mark_bedna_zakaleno_permission(req))
 
+    def test_has_change_pozastavena_bedna_permission(self):
+        User = get_user_model()
+        user = User.objects.create_user('user_perm_pause', 'pauseperm@example.com', 'pass', is_staff=True)
+        req = self.factory.get('/')
+        req.user = user
+
+        self.assertFalse(self.admin.has_change_pozastavena_bedna_permission(req))
+
+        user.user_permissions.add(Permission.objects.get(codename='change_pozastavena_bedna'))
+        req.user = User.objects.get(pk=user.pk)
+        self.assertTrue(self.admin.has_change_pozastavena_bedna_permission(req))
+
+    def test_get_actions_uvolnit_pozastavene_visible_regardless_of_filter_with_permission(self):
+        User = get_user_model()
+        user = User.objects.create_user('user_uvolnit', 'uvolnit@example.com', 'pass', is_staff=True)
+        user.user_permissions.add(Permission.objects.get(codename='change_bedna'))
+        user.user_permissions.add(Permission.objects.get(codename='change_pozastavena_bedna'))
+        user = User.objects.get(pk=user.pk)
+
+        req_no_filter = self.factory.get('/')
+        req_no_filter.user = user
+        actions_no_filter = self.admin.get_actions(req_no_filter)
+        self.assertIn('uvolnit_pozastavene_bedny_action', actions_no_filter)
+
+        req_ex = self.factory.get('/', {'stav_bedny': StavBednyChoice.EXPEDOVANO})
+        req_ex.user = user
+        actions_ex = self.admin.get_actions(req_ex)
+        self.assertIn('uvolnit_pozastavene_bedny_action', actions_ex)
+
+        req_pr = self.factory.get('/', {'stav_bedny': StavBednyChoice.PRIJATO})
+        req_pr.user = user
+        actions_pr = self.admin.get_actions(req_pr)
+        self.assertIn('uvolnit_pozastavene_bedny_action', actions_pr)
+
+    def test_get_actions_uvolnit_pozastavene_hidden_without_permission(self):
+        User = get_user_model()
+        user = User.objects.create_user('user_no_uvolnit', 'nouvolnit@example.com', 'pass', is_staff=True)
+        user.user_permissions.add(Permission.objects.get(codename='change_bedna'))
+
+        req = self.factory.get('/', {'stav_bedny': StavBednyChoice.PRIJATO})
+        req.user = user
+        actions = self.admin.get_actions(req)
+        self.assertNotIn('uvolnit_pozastavene_bedny_action', actions)
+
     def test_get_readonly_fields_neprijato_poznamka_only(self):
         """Při oprávnění jen na poznámku jsou ostatní pole readonly."""
         user = get_user_model().objects.create_user('user_ro', 'ro@example.com', 'pass', is_staff=True)

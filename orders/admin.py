@@ -48,7 +48,7 @@ from .actions import (
     oznacit_otryskana_action, odeslat_na_zinkovani_action, export_na_zinkovani_action, oznacit_k_zinkovani_action, oznacit_po_zinkovani_action,
     oznacit_uvolneno_action, prijmout_kamion_action, prijmout_zakazku_action, prijmout_bedny_action,
     export_bedny_to_csv_action, export_bedny_to_csv_customer_action, export_bedny_dl_action, tisk_rozpracovanost_action, tisk_prehledu_zakazek_kamionu_action, expedice_beden_action,
-    expedice_beden_kamion_action,
+    expedice_beden_kamion_action, uvolnit_pozastavene_bedny_action,
 )
 from .filters import (
     SklademZakazkaFilter, StavBednyFilter, KompletZakazkaFilter, AktivniPredpisFilter, SkupinaFilter, ZakaznikBednyFilter,
@@ -2429,7 +2429,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         oznacit_rovna_action, oznacit_kriva_action, oznacit_kouleni_action, oznacit_rovna_se_action, oznacit_vyrovnana_action,
         oznacit_cista_action, oznacit_spinava_action, oznacit_otryskana_action, oznacit_prijato_do_zakaleno_action,
         oznacit_k_zinkovani_action, oznacit_po_zinkovani_action, oznacit_uvolneno_action, odeslat_na_zinkovani_action, export_na_zinkovani_action,
-        prijmout_bedny_action, expedice_beden_action, expedice_beden_kamion_action,
+        prijmout_bedny_action, expedice_beden_action, expedice_beden_kamion_action, uvolnit_pozastavene_bedny_action,
     ]
     form = BednaAdminForm
 
@@ -3201,6 +3201,10 @@ class BednaAdmin(SimpleHistoryAdmin):
     def has_mark_bedna_navezeno_permission(self, request):
         return request.user.has_perm('orders.mark_bedna_navezeno')
 
+    def has_change_pozastavena_bedna_permission(self, request):
+        """Permission hook for admin actions requiring change_pozastavena_bedna."""
+        return request.user.has_perm('orders.change_pozastavena_bedna')
+
     def has_mark_bedna_zakaleno_permission(self, request):
         return request.user.has_perm('orders.mark_bedna_zakaleno')
     
@@ -3478,7 +3482,6 @@ class BednaAdmin(SimpleHistoryAdmin):
             - odeslat_na_zinkovani_action je viditelná jen při filtru zinkovani ZINKOVAT.
             - export_na_zinkovani_action a oznacit_po_zinkovani_action jsou viditelné jen při filtru zinkovani V ZINKOVNĚ.
             - oznacit_uvolneno_action je viditelná jen při filtru zinkovani V ZINKOVNĚ nebo POZINKOVANO.
-        
         """
         actions = super().get_actions(request)
 
@@ -3595,11 +3598,12 @@ class BednaAdmin(SimpleHistoryAdmin):
         Skupiny:
         - Stav bedny
         - Tisk
-        - Export        
+        - Export
         - Rovnání
         - Tryskání
         - Zinkování
         - Expedice
+        - Uvolnění bedny        
     
         Ostatní akce (např. delete_selected) spadnou do 'Ostatní'.
         """
@@ -3641,8 +3645,9 @@ class BednaAdmin(SimpleHistoryAdmin):
             'export_na_zinkovani_action': 'Zinkování',
             'oznacit_po_zinkovani_action': 'Zinkování',
             'oznacit_uvolneno_action': 'Zinkování',
+            'uvolnit_pozastavene_bedny_action': 'Uvolnění bedny',
         }
-        order = ['Stav bedny', 'Tisk', 'Export', 'Rovnání', 'Tryskání', 'Zinkování', 'Expedice']
+        order = ['Stav bedny', 'Tisk', 'Export', 'Rovnání', 'Tryskání', 'Zinkování', 'Expedice', 'Uvolnění bedny']
         grouped = {g: [] for g in order}
 
         for name, (_func, _action_name, desc) in actions.items():
