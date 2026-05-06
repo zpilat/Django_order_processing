@@ -217,6 +217,64 @@ class ActionsTests(ActionsBase):
         self.assertEqual(section['sum_rovnani_cena_netto'], Decimal('3.84'))
         self.assertEqual(section['sum_cena_netto'], Decimal('8.00'))
 
+    @patch('orders.actions.render_to_string', return_value='<html></html>')
+    @patch('orders.actions.finders.find', return_value=None)
+    @patch('orders.actions.HTML')
+    def test_tisk_rozpracovanost_action_ignores_non_fakturovat_bedny(self, html_mock, find_mock, render_mock):
+        cena = Cena.objects.create(
+            popis='Test cena',
+            zakaznik=self.zakaznik,
+            delka_min=Decimal('0.0'),
+            delka_max=Decimal('10.0'),
+            cena_za_kg=Decimal('2.50'),
+        )
+        cena.predpis.add(self.predpis)
+
+        self.bedna.hmotnost = Decimal('2.0')
+        self.bedna.fakturovat = True
+        self.bedna.save(update_fields=['hmotnost', 'fakturovat'])
+
+        nefakturovana = self._create_bedna_in_state(StavBednyChoice.PRIJATO)
+        nefakturovana.hmotnost = Decimal('9.0')
+        nefakturovana.fakturovat = False
+        nefakturovana.save(update_fields=['hmotnost', 'fakturovat'])
+
+        snapshot = Rozpracovanost.objects.create()
+        RozpracovanostBednaSnapshot.objects.create(
+            rozpracovanost=snapshot,
+            bedna=self.bedna,
+            stav_bedny=self.bedna.stav_bedny,
+            tryskat=self.bedna.tryskat,
+            rovnat=self.bedna.rovnat,
+            zinkovat=self.bedna.zinkovat,
+        )
+        RozpracovanostBednaSnapshot.objects.create(
+            rozpracovanost=snapshot,
+            bedna=nefakturovana,
+            stav_bedny=nefakturovana.stav_bedny,
+            tryskat=nefakturovana.tryskat,
+            rovnat=nefakturovana.rovnat,
+            zinkovat=nefakturovana.zinkovat,
+        )
+
+        request = self.get_request('post')
+        queryset = Rozpracovanost.objects.filter(pk=snapshot.pk)
+
+        html_instance = html_mock.return_value
+        html_instance.write_pdf.return_value = b'%PDF-1.4%'
+
+        response = actions.tisk_rozpracovanost_action(self.admin, request, queryset)
+
+        self.assertEqual(response.status_code, 200)
+        context = render_mock.call_args[0][1]
+        self.assertEqual(len(context['sections']), 1)
+        section = context['sections'][0]
+        self.assertEqual(section['sum_beden'], 1)
+        self.assertEqual(section['sum_hmotnost'], Decimal('2.0'))
+        self.assertEqual(len(section['zakazky']), 1)
+        self.assertEqual(section['zakazky'][0]['pocet_beden'], 1)
+        self.assertEqual(section['zakazky'][0]['hmotnost'], Decimal('2.0'))
+
     def test_tisk_rozpracovanost_action_requires_single_selection(self):
         admin_obj = self._messaging_admin()
         request = self.get_request('post')
@@ -2232,6 +2290,19 @@ class StatusChangeActionsTests(ActionsBase):
 
 
 class RozpracovanostCommandTests(ActionsBase):
+    def test_rozpracovanost_command_uses_only_fakturovat_true(self):
+        fakturovana = self._create_bedna_in_state(StavBednyChoice.ZKONTROLOVANO)
+        nefakturovana = self._create_bedna_in_state(StavBednyChoice.ZKONTROLOVANO)
+        nefakturovana.fakturovat = False
+        nefakturovana.save(update_fields=['fakturovat'])
+
+        call_command('rozpracovanost')
+
+        snapshot = Rozpracovanost.objects.latest('cas_zaznamu')
+        snapshots = RozpracovanostBednaSnapshot.objects.filter(rozpracovanost=snapshot)
+        self.assertEqual(snapshots.count(), 1)
+        self.assertEqual(snapshots.first().bedna_id, fakturovana.id)
+
     def test_rozpracovanost_command_creates_snapshot_with_status_fields(self):
         bedna = self._create_bedna_in_state(
             StavBednyChoice.ZKONTROLOVANO,

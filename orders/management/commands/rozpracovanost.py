@@ -29,6 +29,7 @@ class Command(BaseCommand):
         bedny_qs = Bedna.objects.filter(
             stav_bedny__in=STAV_BEDNY_VYPOCET_ROZPRACOVANOSTI,
             zakazka__kamion_prijem__isnull=False,
+            fakturovat=True,
         )
         snapshot_rows = list(
             bedny_qs.values('pk', 'stav_bedny', 'tryskat', 'rovnat', 'zinkovat')

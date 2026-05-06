@@ -2846,7 +2846,7 @@ def tisk_rozpracovanost_action(modeladmin, request, queryset):
         modeladmin.message_user(request, "Neplatný výběr pro tisk rozpracovanosti.", level=messages.ERROR)
         return None
 
-    bedny_qs = snapshot.bedny.select_related(
+    bedny_qs = snapshot.bedny.filter(fakturovat=True).select_related(
         'zakazka',
         'zakazka__kamion_prijem',
         'zakazka__kamion_prijem__zakaznik',
