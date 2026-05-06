@@ -48,7 +48,7 @@ from .actions import (
     oznacit_otryskana_action, odeslat_na_zinkovani_action, export_na_zinkovani_action, oznacit_k_zinkovani_action, oznacit_po_zinkovani_action,
     oznacit_uvolneno_action, prijmout_kamion_action, prijmout_zakazku_action, prijmout_bedny_action,
     export_bedny_to_csv_action, export_bedny_to_csv_customer_action, export_bedny_dl_action, tisk_rozpracovanost_action, tisk_prehledu_zakazek_kamionu_action, expedice_beden_action,
-    expedice_beden_kamion_action, uvolnit_pozastavene_bedny_action,
+    expedice_beden_kamion_action, uvolnit_pozastavene_bedny_action, oznacit_nefakturovat_action,
 )
 from .filters import (
     SklademZakazkaFilter, StavBednyFilter, KompletZakazkaFilter, AktivniPredpisFilter, SkupinaFilter, ZakaznikBednyFilter,
@@ -2430,7 +2430,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         oznacit_rovna_action, oznacit_kriva_action, oznacit_kouleni_action, oznacit_rovna_se_action, oznacit_vyrovnana_action,
         oznacit_cista_action, oznacit_spinava_action, oznacit_otryskana_action, oznacit_prijato_do_zakaleno_action,
         oznacit_k_zinkovani_action, oznacit_po_zinkovani_action, oznacit_uvolneno_action, odeslat_na_zinkovani_action, export_na_zinkovani_action,
-        prijmout_bedny_action, expedice_beden_action, expedice_beden_kamion_action, uvolnit_pozastavene_bedny_action,
+        prijmout_bedny_action, expedice_beden_action, expedice_beden_kamion_action, uvolnit_pozastavene_bedny_action, oznacit_nefakturovat_action,
     ]
     form = BednaAdminForm
 
@@ -3468,6 +3468,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         Pokud není aktivní filtr stav bedny NAVEZENO, DO_ZPRACOVANI, ZAKALENO, ZKONTROLOVANO nebo RO,
         zruší se akce pro označení bedny jako K_EXPEDICI.
         Pokud není aktivní filtr stav bedny EXPEDOVANO nebo K_EXPEDICI, zruší se akce pro export_bedny_dl_action.
+        Pokud je aktivní filtr stav bedny EXPEDOVANO, zruší se akce pro uvolnění bedny a označení nefakturovat.
         Pokud není aktivní filtr stav bedny RO, zruší se akce pro vrácení bedny z rozpracovanosti do stavu PRIJATO.
         Pokud není aktivní filtr stav bedny K_EXPEDICI, zruší se akce expedice_beden a expedice_beden_kamion.
         Pokud není aktivní filtr rovnani NEZADANO, zruší se akce pro označení bedny jako ROVNA a KŘIVÁ.
@@ -3542,6 +3543,11 @@ class BednaAdmin(SimpleHistoryAdmin):
                 actions_to_remove += [
                     'export_bedny_dl_action',
                 ]
+            if stav_filter == StavBednyChoice.EXPEDOVANO:
+                actions_to_remove += [
+                    'oznacit_uvolneno_action',
+                    'oznacit_nefakturovat_action',
+                ]
             if rovnani_filter != RovnaniChoice.NEZADANO:
                 actions_to_remove += [
                     'oznacit_rovna_action', 'oznacit_kriva_action',
@@ -3605,7 +3611,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         - Tryskání
         - Zinkování
         - Expedice
-        - Uvolnění bedny        
+        - Další parametry bedny        
     
         Ostatní akce (např. delete_selected) spadnou do 'Ostatní'.
         """
@@ -3647,9 +3653,10 @@ class BednaAdmin(SimpleHistoryAdmin):
             'export_na_zinkovani_action': 'Zinkování',
             'oznacit_po_zinkovani_action': 'Zinkování',
             'oznacit_uvolneno_action': 'Zinkování',
-            'uvolnit_pozastavene_bedny_action': 'Uvolnění bedny',
+            'uvolnit_pozastavene_bedny_action': 'Další parametry bedny',
+            'oznacit_nefakturovat_action': 'Další parametry bedny',
         }
-        order = ['Stav bedny', 'Tisk', 'Export', 'Rovnání', 'Tryskání', 'Zinkování', 'Expedice', 'Uvolnění bedny']
+        order = ['Stav bedny', 'Tisk', 'Export', 'Rovnání', 'Tryskání', 'Zinkování', 'Expedice', 'Další parametry bedny']
         grouped = {g: [] for g in order}
 
         for name, (_func, _action_name, desc) in actions.items():

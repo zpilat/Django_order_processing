@@ -1334,6 +1334,34 @@ def uvolnit_pozastavene_bedny_action(modeladmin, request, queryset):
     return None
 
 
+@admin.action(description="Označení nefakturovat", permissions=('change',))
+def oznacit_nefakturovat_action(modeladmin, request, queryset):
+    """
+    Nastaví příznak fakturovat=False u vybraných beden.
+    """
+    # kontrola, zda nejsou žádné bedny expedované (stav EXPEDOVANO)
+    if queryset.filter(stav_bedny=StavBednyChoice.EXPEDOVANO).exists():
+        logger.info(f"Uživatel {request.user} se pokusil označit bedny jako nefakturovat, ale některé jsou ve stavu EXPEDOVANO.")
+        modeladmin.message_user(request, "Některé vybrané bedny jsou ve stavu EXPEDOVANO a nelze je označit jako nefakturovat.", level=messages.ERROR)
+        return None
+
+    # kontrola, zda jsou všechny bedny v querysetu aktuálně fakturovat=True
+    if queryset.exclude(fakturovat=True).exists():
+        logger.info(f"Uživatel {request.user} se pokusil označit bedny jako nefakturovat, ale některé už mají příznak nefakturovat.")
+        modeladmin.message_user(request, "Některé vybrané bedny už jsou označené jako nefakturovat.", level=messages.ERROR)
+        return None
+
+    with transaction.atomic():
+        for bedna in queryset:
+            if bedna.stav_bedny != StavBednyChoice.EXPEDOVANO and bedna.fakturovat:
+                bedna.fakturovat = False
+                bedna.save(update_fields=['fakturovat'])
+
+    modeladmin.message_user(request, f"Označeno nefakturovat: {queryset.count()} beden.", level=messages.SUCCESS)
+    logger.info(f"Uživatel {request.user} označil jako nefakturovat {queryset.count()} beden.")
+    return None
+
+
 @admin.action(description="Změna stavu bedny na K_EXPEDICI", permissions=('change',))
 def oznacit_k_expedici_action(modeladmin, request, queryset):
     """

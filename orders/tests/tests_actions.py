@@ -2288,6 +2288,70 @@ class StatusChangeActionsTests(ActionsBase):
         self.assertTrue(bedna.pozastaveno)
         self.assertTrue(any('Některé vybrané bedny jsou ve stavu EXPEDOVANO a nelze je uvolnit.' in m for m in self._messages_texts(req)))
 
+    def test_oznacit_nefakturovat_action_success(self):
+        admin_obj = self._messaging_admin()
+        b1 = self._create_bedna_in_state(StavBednyChoice.PRIJATO)
+        b2 = self._create_bedna_in_state(StavBednyChoice.ZAKALENO)
+        b1.fakturovat = True
+        b2.fakturovat = True
+        b1.save(update_fields=['fakturovat'])
+        b2.save(update_fields=['fakturovat'])
+
+        req = self.get_request('post')
+        resp = actions.oznacit_nefakturovat_action(
+            admin_obj,
+            req,
+            Bedna.objects.filter(id__in=[b1.id, b2.id]),
+        )
+
+        self.assertIsNone(resp)
+        b1.refresh_from_db()
+        b2.refresh_from_db()
+        self.assertFalse(b1.fakturovat)
+        self.assertFalse(b2.fakturovat)
+        self.assertTrue(any('Označeno nefakturovat: 2 beden.' in m for m in self._messages_texts(req)))
+
+    def test_oznacit_nefakturovat_action_rejects_already_non_fakturovat(self):
+        admin_obj = self._messaging_admin()
+        b1 = self._create_bedna_in_state(StavBednyChoice.PRIJATO)
+        b2 = self._create_bedna_in_state(StavBednyChoice.PRIJATO)
+        b1.fakturovat = True
+        b2.fakturovat = False
+        b1.save(update_fields=['fakturovat'])
+        b2.save(update_fields=['fakturovat'])
+
+        req = self.get_request('post')
+        resp = actions.oznacit_nefakturovat_action(
+            admin_obj,
+            req,
+            Bedna.objects.filter(id__in=[b1.id, b2.id]),
+        )
+
+        self.assertIsNone(resp)
+        b1.refresh_from_db()
+        b2.refresh_from_db()
+        self.assertTrue(b1.fakturovat)
+        self.assertFalse(b2.fakturovat)
+        self.assertTrue(any('Některé vybrané bedny už jsou označené jako nefakturovat.' in m for m in self._messages_texts(req)))
+
+    def test_oznacit_nefakturovat_action_rejects_expedovano(self):
+        admin_obj = self._messaging_admin()
+        bedna = self._create_bedna_in_state(StavBednyChoice.EXPEDOVANO)
+        bedna.fakturovat = True
+        bedna.save(update_fields=['fakturovat'])
+
+        req = self.get_request('post')
+        resp = actions.oznacit_nefakturovat_action(
+            admin_obj,
+            req,
+            Bedna.objects.filter(id=bedna.id),
+        )
+
+        self.assertIsNone(resp)
+        bedna.refresh_from_db()
+        self.assertTrue(bedna.fakturovat)
+        self.assertTrue(any('Některé vybrané bedny jsou ve stavu EXPEDOVANO a nelze je označit jako nefakturovat.' in m for m in self._messages_texts(req)))
+
 
 class RozpracovanostCommandTests(ActionsBase):
     def test_rozpracovanost_command_uses_only_fakturovat_true(self):
