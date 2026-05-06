@@ -149,6 +149,14 @@ class DashboardKamionyViewTests(ViewsTestBase):
 			tara=1,
 			mnozstvi=1,
 		)
+		Bedna.objects.create(
+			zakazka=zak_prijem_avg,
+			stav_bedny=StavBednyChoice.PRIJATO,
+			hmotnost=999,
+			tara=1,
+			mnozstvi=1,
+			fakturovat=False,
+		)
 
 		k_vydej_avg = Kamion.objects.create(zakaznik=self.z_eur, odberatel=self.odberatel, datum=yesterday, prijem_vydej=KamionChoice.VYDEJ)
 		zak_vydej_avg = Zakazka.objects.create(
@@ -169,6 +177,14 @@ class DashboardKamionyViewTests(ViewsTestBase):
 			hmotnost=2520,
 			tara=1,
 			mnozstvi=1,
+		)
+		Bedna.objects.create(
+			zakazka=zak_vydej_avg,
+			stav_bedny=StavBednyChoice.K_EXPEDICI,
+			hmotnost=888,
+			tara=1,
+			mnozstvi=1,
+			fakturovat=False,
 		)
 
 		resp = self.client.get(reverse("dashboard_kamiony"), {"rok": year})

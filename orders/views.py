@@ -345,13 +345,19 @@ def dashboard_kamiony_view(request):
     kamiony_prijem = kamiony_prijem_rok.values(
         'datum__month', 'zakaznik__zkratka'
     ).annotate(
-        celkova_hmotnost=Sum('zakazky_prijem__bedny__hmotnost')
+        celkova_hmotnost=Sum(
+            'zakazky_prijem__bedny__hmotnost',
+            filter=Q(zakazky_prijem__bedny__fakturovat=True),
+        )
     )
 
     kamiony_vydej = kamiony_vydej_rok.values(
         'datum__month', 'zakaznik__zkratka'
     ).annotate(
-        celkova_hmotnost=Sum('zakazky_vydej__bedny__hmotnost')
+        celkova_hmotnost=Sum(
+            'zakazky_vydej__bedny__hmotnost',
+            filter=Q(zakazky_vydej__bedny__fakturovat=True),
+        )
     )
 
     # Inicializace slovníku pro měsíční pohyby
@@ -419,11 +425,21 @@ def dashboard_kamiony_view(request):
     )
 
     total_import_kg = (
-        import_qs_14.aggregate(total=Sum('zakazky_prijem__bedny__hmotnost')).get('total')
+        import_qs_14.aggregate(
+            total=Sum(
+                'zakazky_prijem__bedny__hmotnost',
+                filter=Q(zakazky_prijem__bedny__fakturovat=True),
+            )
+        ).get('total')
         or Decimal('0')
     )
     total_export_kg = (
-        export_qs_14.aggregate(total=Sum('zakazky_vydej__bedny__hmotnost')).get('total')
+        export_qs_14.aggregate(
+            total=Sum(
+                'zakazky_vydej__bedny__hmotnost',
+                filter=Q(zakazky_vydej__bedny__fakturovat=True),
+            )
+        ).get('total')
         or Decimal('0')
     )
 
