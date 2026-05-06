@@ -1102,17 +1102,27 @@ def oznacit_prijato_navezeno_action(modeladmin, request, queryset):
         uspesne = 0
 
         with transaction.atomic():
-            bedny_map = {
-                b.pk: b for b in Bedna.objects.select_for_update().filter(pk__in=vybrane_ids)
-            }
+            locked_qs = Bedna.objects.select_for_update().filter(pk__in=vybrane_ids)
+            if _abort_if_paused_bedny(modeladmin, request, locked_qs, "Navezení beden (PŘIJATO, K_NAVEZENÍ -> NAVEZENO)"):
+                return None
+
+            if locked_qs.exclude(stav_bedny__in=[StavBednyChoice.PRIJATO, StavBednyChoice.K_NAVEZENI]).exists():
+                logger.info(
+                    f"Uživatel {request.user} se pokusil změnit stav na NAVEZENO, ale některé bedny už nejsou ve stavu PŘIJATO nebo K_NAVEZENÍ."
+                )
+                modeladmin.message_user(
+                    request,
+                    "Některé vybrané bedny už nejsou ve stavu PŘIJATO nebo K_NAVEZENÍ.",
+                    level=messages.ERROR,
+                )
+                return None
+
+            bedny_map = {b.pk: b for b in locked_qs}
 
             for bedna_id, pozice in formularova_data:
                 bedna = bedny_map.get(bedna_id)
                 if not bedna:
                     messages.warning(request, f"Bedna s ID {bedna_id} nebyla nalezena, přeskočena.")
-                    continue
-
-                if bedna.stav_bedny not in [StavBednyChoice.PRIJATO, StavBednyChoice.K_NAVEZENI]:
                     continue
 
                 bedna.stav_bedny = StavBednyChoice.NAVEZENO
@@ -1151,14 +1161,24 @@ def oznacit_prijato_do_zakaleno_action(modeladmin, request, queryset):
         messages.error(request, "Některé vybrané bedny nejsou ve stavu PŘIJATO.")
         return None
 
+    selected_ids = list(queryset.values_list('pk', flat=True))
     with transaction.atomic():
-        for bedna in queryset:
-            if bedna.stav_bedny == StavBednyChoice.PRIJATO:
-                bedna.stav_bedny = StavBednyChoice.ZAKALENO
-                bedna.save()
+        locked_qs = Bedna.objects.select_for_update().filter(pk__in=selected_ids)
 
-    logger.info(f"Uživatel {request.user} změnil stav z PŘIJATO do ZAKALENO u {queryset.count()} beden.")
-    messages.success(request, f"Změněno z PŘIJATO do ZAKALENO: {queryset.count()} beden.")
+        if _abort_if_paused_bedny(modeladmin, request, locked_qs, "Změnit stav bedny z PŘIJATO rovnou do ZAKALENO (při reklamaci)"):
+            return None
+
+        if locked_qs.exclude(stav_bedny=StavBednyChoice.PRIJATO).exists():
+            logger.info(
+                f"Uživatel {request.user} se pokusil změnit stav z PŘIJATO do ZAKALENO, ale některé bedny už nejsou ve stavu PŘIJATO."
+            )
+            messages.error(request, "Některé vybrané bedny už nejsou ve stavu PŘIJATO.")
+            return None
+
+        zmeneno = locked_qs.update(stav_bedny=StavBednyChoice.ZAKALENO)
+
+    logger.info(f"Uživatel {request.user} změnil stav z PŘIJATO do ZAKALENO u {zmeneno} beden.")
+    messages.success(request, f"Změněno z PŘIJATO do ZAKALENO: {zmeneno} beden.")
     return None      
 
 @admin.action(description="Vrátit bedny ze stavu K NAVEZENÍ do stavu PŘIJATO", permissions=('change',))
@@ -1175,14 +1195,24 @@ def vratit_bedny_ze_stavu_k_navezeni_do_stavu_prijato_action(modeladmin, request
         messages.error(request, "Některé vybrané bedny nejsou ve stavu K NAVEZENÍ.")
         return None
 
+    selected_ids = list(queryset.values_list('pk', flat=True))
     with transaction.atomic():
-        for bedna in queryset:
-            if bedna.stav_bedny == StavBednyChoice.K_NAVEZENI:
-                bedna.stav_bedny = StavBednyChoice.PRIJATO
-                bedna.save()
+        locked_qs = Bedna.objects.select_for_update().filter(pk__in=selected_ids)
 
-    logger.info(f"Uživatel {request.user} vrátil do stavu PŘIJATO {queryset.count()} beden.")
-    messages.success(request, f"Vráceno do stavu PŘIJATO: {queryset.count()} beden.")
+        if _abort_if_paused_bedny(modeladmin, request, locked_qs, "Vrátit bedny ze stavu K NAVEZENÍ do stavu PŘIJATO"):
+            return None
+
+        if locked_qs.exclude(stav_bedny=StavBednyChoice.K_NAVEZENI).exists():
+            logger.info(
+                f"Uživatel {request.user} se pokusil vrátit bedny do stavu PŘIJATO, ale některé už nejsou ve stavu K NAVEZENÍ."
+            )
+            messages.error(request, "Některé vybrané bedny už nejsou ve stavu K NAVEZENÍ.")
+            return None
+
+        vraceno = locked_qs.update(stav_bedny=StavBednyChoice.PRIJATO)
+
+    logger.info(f"Uživatel {request.user} vrátil do stavu PŘIJATO {vraceno} beden.")
+    messages.success(request, f"Vráceno do stavu PŘIJATO: {vraceno} beden.")
     return None
 
 @admin.action(description="Vrátit bedny ze stavu NAVEZENO do stavu PŘIJATO", permissions=('mark_bedna_navezeno',))
@@ -1199,14 +1229,24 @@ def vratit_bedny_ze_stavu_navezeno_do_stavu_prijato_action(modeladmin, request, 
         modeladmin.message_user(request, "Některé vybrané bedny nejsou ve stavu NAVEZENO.", level=messages.ERROR)
         return None
 
+    selected_ids = list(queryset.values_list('pk', flat=True))
     with transaction.atomic():
-        for bedna in queryset:
-            if bedna.stav_bedny == StavBednyChoice.NAVEZENO:
-                bedna.stav_bedny = StavBednyChoice.PRIJATO
-                bedna.save()
+        locked_qs = Bedna.objects.select_for_update().filter(pk__in=selected_ids)
 
-    logger.info(f"Uživatel {request.user} vrátil do stavu PŘIJATO {queryset.count()} beden.")
-    modeladmin.message_user(request, f"Vráceno do stavu PŘIJATO: {queryset.count()} beden.", level=messages.SUCCESS)
+        if _abort_if_paused_bedny(modeladmin, request, locked_qs, "Vrátit bedny ze stavu NAVEZENO do stavu PŘIJATO"):
+            return None
+
+        if locked_qs.exclude(stav_bedny=StavBednyChoice.NAVEZENO).exists():
+            logger.info(
+                f"Uživatel {request.user} se pokusil vrátit bedny do stavu PŘIJATO, ale některé už nejsou ve stavu NAVEZENO."
+            )
+            modeladmin.message_user(request, "Některé vybrané bedny už nejsou ve stavu NAVEZENO.", level=messages.ERROR)
+            return None
+
+        vraceno = locked_qs.update(stav_bedny=StavBednyChoice.PRIJATO)
+
+    logger.info(f"Uživatel {request.user} vrátil do stavu PŘIJATO {vraceno} beden.")
+    modeladmin.message_user(request, f"Vráceno do stavu PŘIJATO: {vraceno} beden.", level=messages.SUCCESS)
     return None    
 
 @admin.action(description="Vrátit bedny z rozpracovanosti do stavu PŘIJATO", permissions=('change',))
@@ -1223,14 +1263,24 @@ def vratit_bedny_z_rozpracovanosti_do_stavu_prijato_action(modeladmin, request, 
         modeladmin.message_user(request, "Některé vybrané bedny nejsou v rozpracovanosti.", level=messages.ERROR)
         return None
 
+    selected_ids = list(queryset.values_list('pk', flat=True))
     with transaction.atomic():
-        for bedna in queryset:
-            if bedna.stav_bedny in STAV_BEDNY_ROZPRACOVANOST:
-                bedna.stav_bedny = StavBednyChoice.PRIJATO
-                bedna.save()
+        locked_qs = Bedna.objects.select_for_update().filter(pk__in=selected_ids)
 
-    logger.info(f"Uživatel {request.user} vrátil do stavu PŘIJATO {queryset.count()} beden.")
-    modeladmin.message_user(request, f"Vráceno do stavu PŘIJATO: {queryset.count()} beden.", level=messages.SUCCESS)
+        if _abort_if_paused_bedny(modeladmin, request, locked_qs, "Vrátit bedny z rozpracovanosti do stavu PŘIJATO"):
+            return None
+
+        if locked_qs.exclude(stav_bedny__in=STAV_BEDNY_ROZPRACOVANOST).exists():
+            logger.info(
+                f"Uživatel {request.user} se pokusil vrátit bedny do stavu PŘIJATO, ale některé už nejsou v rozpracovanosti."
+            )
+            modeladmin.message_user(request, "Některé vybrané bedny už nejsou v rozpracovanosti.", level=messages.ERROR)
+            return None
+
+        vraceno = locked_qs.update(stav_bedny=StavBednyChoice.PRIJATO)
+
+    logger.info(f"Uživatel {request.user} vrátil do stavu PŘIJATO {vraceno} beden.")
+    modeladmin.message_user(request, f"Vráceno do stavu PŘIJATO: {vraceno} beden.", level=messages.SUCCESS)
     return None    
 
 @admin.action(description="Změna stavu bedny na DO ZPRACOVÁNÍ", permissions=('change',))
@@ -1402,15 +1452,45 @@ def oznacit_k_expedici_action(modeladmin, request, queryset):
         )
         return None
 
-    # pokud nějaká bedna nesplňuje podmínky, akce se přeruší
+    selected_ids = list(queryset.values_list('pk', flat=True))
     with transaction.atomic():
-        for bedna in queryset:
-            if bedna.stav_bedny in STAV_BEDNY_ROZPRACOVANOST:
-                bedna.stav_bedny = StavBednyChoice.K_EXPEDICI
-                bedna.save()
+        locked_qs = Bedna.objects.select_for_update().filter(pk__in=selected_ids)
 
-    modeladmin.message_user(request, f"Změněno na K EXPEDICI: {queryset.count()} beden.", level=messages.SUCCESS)
-    logger.info(f"Uživatel {request.user} změnil stav na K_EXPEDICI u {queryset.count()} beden.")
+        if _abort_if_paused_bedny(modeladmin, request, locked_qs, "Změna stavu bedny na K EXPEDICI"):
+            return None
+
+        if locked_qs.exclude(stav_bedny__in=STAV_BEDNY_ROZPRACOVANOST).exists():
+            logger.info(
+                f"Uživatel {request.user} se pokusil změnit stav na K_EXPEDICI, ale některé bedny už nejsou ve stavu ROZPRACOVANOST."
+            )
+            modeladmin.message_user(request, "Některé vybrané bedny už nejsou ve stavu ROZPRACOVANOST.", level=messages.ERROR)
+            return None
+
+        if locked_qs.exclude(rovnat__in=[RovnaniChoice.ROVNA, RovnaniChoice.VYROVNANA]).exists():
+            logger.warning(f'Uživatel {request.user} se pokusil změnit stav na K_EXPEDICI s neplatným stavem rovnání.')
+            modeladmin.message_user(request, _("Pro změnu stavu bedny na 'K expedici' musí být rovnání buď Rovná nebo Vyrovnaná " \
+            "a tryskání buď Čistá nebo Otryskaná."), level=messages.ERROR)
+            return None
+
+        if locked_qs.exclude(tryskat__in=[TryskaniChoice.CISTA, TryskaniChoice.OTRYSKANA]).exists():
+            logger.warning(f'Uživatel {request.user} se pokusil změnit stav na K_EXPEDICI s neplatným stavem tryskání.')
+            modeladmin.message_user(request, _("Pro změnu stavu bedny na 'K expedici' musí být rovnání buď Rovná nebo Vyrovnaná " \
+            "a tryskání buď Čistá nebo Otryskaná."), level=messages.ERROR)
+            return None
+
+        if locked_qs.exclude(zinkovat__in=[ZinkovaniChoice.NEZINKOVAT, ZinkovaniChoice.UVOLNENO]).exists():
+            logger.warning(f'Uživatel {request.user} se pokusil změnit stav na K_EXPEDICI s neplatným stavem zinkování.')
+            modeladmin.message_user(
+                request,
+                _("Pro změnu stavu bedny na 'K expedici' musí být zinkování buď Nezinkovat nebo Uvolněno."),
+                level=messages.ERROR,
+            )
+            return None
+
+        zmeneno = locked_qs.update(stav_bedny=StavBednyChoice.K_EXPEDICI)
+
+    modeladmin.message_user(request, f"Změněno na K EXPEDICI: {zmeneno} beden.", level=messages.SUCCESS)
+    logger.info(f"Uživatel {request.user} změnil stav na K_EXPEDICI u {zmeneno} beden.")
     return None
 
 
