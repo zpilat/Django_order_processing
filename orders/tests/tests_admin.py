@@ -1485,7 +1485,7 @@ class BednaAdminTests(AdminBase):
         req.user = User.objects.get(pk=user.pk)
         self.assertTrue(self.admin.has_change_pozastavena_bedna_permission(req))
 
-    def test_get_actions_uvolnit_pozastavene_visible_regardless_of_filter_with_permission(self):
+    def test_get_actions_uvolnit_pozastavene_visibility_with_permission(self):
         User = get_user_model()
         user = User.objects.create_user('user_uvolnit', 'uvolnit@example.com', 'pass', is_staff=True)
         user.user_permissions.add(Permission.objects.get(codename='change_bedna'))
@@ -1500,7 +1500,7 @@ class BednaAdminTests(AdminBase):
         req_ex = self.factory.get('/', {'stav_bedny': StavBednyChoice.EXPEDOVANO})
         req_ex.user = user
         actions_ex = self.admin.get_actions(req_ex)
-        self.assertIn('uvolnit_pozastavene_bedny_action', actions_ex)
+        self.assertNotIn('uvolnit_pozastavene_bedny_action', actions_ex)
 
         req_pr = self.factory.get('/', {'stav_bedny': StavBednyChoice.PRIJATO})
         req_pr.user = user
