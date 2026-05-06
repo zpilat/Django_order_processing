@@ -1409,72 +1409,82 @@ def expedice_beden_action(modeladmin, request, queryset):
     if not queryset.exists():
         return None
 
-    # Kontrola pozastavených beden v querysetu
-    if _abort_if_paused_bedny(modeladmin, request, queryset, "Expedice beden"):
-        return None
-
-    # Všechny vybrané bedny musí být K_EXPEDICI
-    if queryset.exclude(stav_bedny=StavBednyChoice.K_EXPEDICI).exists():
-        modeladmin.message_user(request, "Všechny vybrané bedny musí být ve stavu K_EXPEDICI.", level=messages.ERROR)
-        return None
-
-    # Kontrola zakázek pouze pro zákazníky s příznakem pouze_komplet: všechny bedny zakázky musí být K_EXPEDICI a všechny musí být ve výběru
-    zakaznici_ids = list(queryset.values_list('zakazka__kamion_prijem__zakaznik', flat=True).distinct())
-    zakaznici = Zakaznik.objects.filter(id__in=zakaznici_ids)
-    zakaznici_pouze_komplet = [z for z in zakaznici if z.pouze_komplet]
-
-    for zakaznik in zakaznici_pouze_komplet:
-        zakazky_ids = (
-            queryset.filter(zakazka__kamion_prijem__zakaznik=zakaznik)
-            .values_list('zakazka_id', flat=True)
-            .distinct()
-        )
-        zakazky_dotcene = Zakazka.objects.filter(id__in=zakazky_ids).select_related('kamion_prijem')
-        for zakazka in zakazky_dotcene:
-            if not zakazka.kamion_prijem:
-                modeladmin.message_user(
-                    request,
-                    f"Zakázka {zakazka} nemá kamion příjem – nelze ověřit příznak 'Pouze kompletní zakázky'.",
-                    level=messages.ERROR,
-                )
-                return None
-
-            vsechny_bedny = zakazka.bedny.all()
-            vse_k_expedici = vsechny_bedny.filter(stav_bedny=StavBednyChoice.K_EXPEDICI)
-            vybrane_count = queryset.filter(zakazka=zakazka).count()
-
-            if not vse_k_expedici.exists() or vse_k_expedici.count() != vsechny_bedny.count():
-                modeladmin.message_user(
-                    request,
-                    f"Zakázka {zakazka} pro zákazníka s příznakem 'Pouze kompletní zakázky' musí mít všechny bedny ve stavu K_EXPEDICI.",
-                    level=messages.ERROR,
-                )
-                return None
-
-            if vybrane_count != vse_k_expedici.count():
-                modeladmin.message_user(
-                    request,
-                    f"Zakázka {zakazka} pro zákazníka s příznakem 'Pouze kompletní zakázky' musí být expedována celá (vyberte všechny bedny ze zakázky).",
-                    level=messages.ERROR,
-                )
-                return None
-
-    # Stav rovnání/tryskání/zinkování musí splnit podmínky pro expedici
-    if not validate_bedny_pripraveny_k_expedici(modeladmin, request, queryset):
-        return None
-
     if 'apply' in request.POST:
         form = OdberatelForm(request.POST)
         if form.is_valid():
             odberatel = form.cleaned_data['odberatel']
             try:
-                result = expedice_beden_do_noveho_kamionu(
-                    bedny_qs=queryset,
-                    zakaznici=zakaznici,
-                    odberatel=odberatel,
-                    actor=request.user,
-                    today=datetime.date.today(),
-                )
+                selected_ids = list(queryset.values_list('pk', flat=True))
+                with transaction.atomic():
+                    locked_qs = Bedna.objects.select_for_update().filter(pk__in=selected_ids)
+
+                    if not locked_qs.exists():
+                        modeladmin.message_user(request, "Nebyla vybrána žádná bedna.", level=messages.ERROR)
+                        return None
+
+                    if _abort_if_paused_bedny(modeladmin, request, locked_qs, "Expedice beden"):
+                        return None
+
+                    if locked_qs.exclude(stav_bedny=StavBednyChoice.K_EXPEDICI).exists():
+                        modeladmin.message_user(
+                            request,
+                            "Všechny vybrané bedny musí být ve stavu K_EXPEDICI.",
+                            level=messages.ERROR,
+                        )
+                        return None
+
+                    locked_zakaznici_ids = list(
+                        locked_qs.values_list('zakazka__kamion_prijem__zakaznik', flat=True).distinct()
+                    )
+                    locked_zakaznici = Zakaznik.objects.filter(id__in=locked_zakaznici_ids)
+                    locked_zakaznici_pouze_komplet = [z for z in locked_zakaznici if z.pouze_komplet]
+
+                    for zakaznik in locked_zakaznici_pouze_komplet:
+                        zakazky_ids = (
+                            locked_qs.filter(zakazka__kamion_prijem__zakaznik=zakaznik)
+                            .values_list('zakazka_id', flat=True)
+                            .distinct()
+                        )
+                        zakazky_dotcene = Zakazka.objects.filter(id__in=zakazky_ids).select_related('kamion_prijem')
+                        for zakazka in zakazky_dotcene:
+                            if not zakazka.kamion_prijem:
+                                modeladmin.message_user(
+                                    request,
+                                    f"Zakázka {zakazka} nemá kamion příjem – nelze ověřit příznak 'Pouze kompletní zakázky'.",
+                                    level=messages.ERROR,
+                                )
+                                return None
+
+                            vsechny_bedny = zakazka.bedny.all()
+                            vse_k_expedici = vsechny_bedny.filter(stav_bedny=StavBednyChoice.K_EXPEDICI)
+                            vybrane_count = locked_qs.filter(zakazka=zakazka).count()
+
+                            if not vse_k_expedici.exists() or vse_k_expedici.count() != vsechny_bedny.count():
+                                modeladmin.message_user(
+                                    request,
+                                    f"Zakázka {zakazka} pro zákazníka s příznakem 'Pouze kompletní zakázky' musí mít všechny bedny ve stavu K_EXPEDICI.",
+                                    level=messages.ERROR,
+                                )
+                                return None
+
+                            if vybrane_count != vse_k_expedici.count():
+                                modeladmin.message_user(
+                                    request,
+                                    f"Zakázka {zakazka} pro zákazníka s příznakem 'Pouze kompletní zakázky' musí být expedována celá (vyberte všechny bedny ze zakázky).",
+                                    level=messages.ERROR,
+                                )
+                                return None
+
+                    if not validate_bedny_pripraveny_k_expedici(modeladmin, request, locked_qs):
+                        return None
+
+                    result = expedice_beden_do_noveho_kamionu(
+                        bedny_qs=locked_qs,
+                        zakaznici=locked_zakaznici,
+                        odberatel=odberatel,
+                        actor=request.user,
+                        today=datetime.date.today(),
+                    )
             except ServiceValidationError as exc:
                 modeladmin.message_user(request, str(exc), level=messages.ERROR)
                 return None
@@ -1522,67 +1532,81 @@ def expedice_beden_kamion_action(modeladmin, request, queryset):
     if not queryset.exists():
         return None
 
-    if _abort_if_paused_bedny(modeladmin, request, queryset, "Expedice beden do existujícího kamionu"):
-        return None
-
-    if queryset.exclude(stav_bedny=StavBednyChoice.K_EXPEDICI).exists():
-        modeladmin.message_user(request, "Všechny vybrané bedny musí být ve stavu K_EXPEDICI.", level=messages.ERROR)
-        return None
-
     zakaznici_ids = list({pk for pk in queryset.values_list('zakazka__kamion_prijem__zakaznik', flat=True) if pk is not None})
     if len(zakaznici_ids) != 1:
         modeladmin.message_user(request, f"Vybrané bedny musí patřit jednomu zákazníkovi.", level=messages.ERROR)
         return None
 
     zakaznik_id = zakaznici_ids[0]
-    zakaznik = Zakaznik.objects.get(id=zakaznik_id)
-
-    if zakaznik.pouze_komplet:
-        zakazky_ids = (
-            queryset.filter(zakazka__kamion_prijem__zakaznik=zakaznik)
-            .values_list('zakazka_id', flat=True)
-            .distinct()
-        )
-        zakazky_dotcene = Zakazka.objects.filter(id__in=zakazky_ids).select_related('kamion_prijem')
-        for zakazka in zakazky_dotcene:
-            if not zakazka.kamion_prijem:
-                modeladmin.message_user(
-                    request,
-                    f"Zakázka {zakazka} nemá kamion příjem – nelze ověřit příznak 'Pouze kompletní zakázky'.",
-                    level=messages.ERROR,
-                )
-                return None
-
-            vsechny_bedny = zakazka.bedny.all()
-            vse_k_expedici = vsechny_bedny.filter(stav_bedny=StavBednyChoice.K_EXPEDICI)
-            vybrane_count = queryset.filter(zakazka=zakazka).count()
-
-            if not vse_k_expedici.exists() or vse_k_expedici.count() != vsechny_bedny.count():
-                modeladmin.message_user(
-                    request,
-                    f"Zakázka {zakazka} pro zákazníka s příznakem 'Pouze kompletní zakázky' musí mít všechny bedny ve stavu K_EXPEDICI.",
-                    level=messages.ERROR,
-                )
-                return None
-
-            if vybrane_count != vse_k_expedici.count():
-                modeladmin.message_user(
-                    request,
-                    f"Zakázka {zakazka} pro zákazníka s příznakem 'Pouze kompletní zakázky' musí být expedována celá (vyberte všechny bedny ze zakázky).",
-                    level=messages.ERROR,
-                )
-                return None
-
-    # Stav rovnání/tryskání/zinkování musí splnit podmínky pro expedici
-    if not validate_bedny_pripraveny_k_expedici(modeladmin, request, queryset):
-        return None
 
     if 'apply' in request.POST:
         form = VyberKamionVydejForm(request.POST, zakaznik=zakaznik_id)
         if form.is_valid():
             kamion = form.cleaned_data['kamion']
-            if not utilita_expedice_beden(modeladmin, request, queryset, kamion):
-                return None
+            selected_ids = list(queryset.values_list('pk', flat=True))
+            with transaction.atomic():
+                locked_qs = Bedna.objects.select_for_update().filter(pk__in=selected_ids)
+
+                if not locked_qs.exists():
+                    modeladmin.message_user(request, "Nebyla vybrána žádná bedna.", level=messages.ERROR)
+                    return None
+
+                if _abort_if_paused_bedny(modeladmin, request, locked_qs, "Expedice beden do existujícího kamionu"):
+                    return None
+
+                if locked_qs.exclude(stav_bedny=StavBednyChoice.K_EXPEDICI).exists():
+                    modeladmin.message_user(request, "Všechny vybrané bedny musí být ve stavu K_EXPEDICI.", level=messages.ERROR)
+                    return None
+
+                locked_zakaznici_ids = list(
+                    {pk for pk in locked_qs.values_list('zakazka__kamion_prijem__zakaznik', flat=True) if pk is not None}
+                )
+                if len(locked_zakaznici_ids) != 1:
+                    modeladmin.message_user(request, "Vybrané bedny musí patřit jednomu zákazníkovi.", level=messages.ERROR)
+                    return None
+
+                locked_zakaznik = Zakaznik.objects.get(id=locked_zakaznici_ids[0])
+                if locked_zakaznik.pouze_komplet:
+                    zakazky_ids = (
+                        locked_qs.filter(zakazka__kamion_prijem__zakaznik=locked_zakaznik)
+                        .values_list('zakazka_id', flat=True)
+                        .distinct()
+                    )
+                    zakazky_dotcene = Zakazka.objects.filter(id__in=zakazky_ids).select_related('kamion_prijem')
+                    for zakazka in zakazky_dotcene:
+                        if not zakazka.kamion_prijem:
+                            modeladmin.message_user(
+                                request,
+                                f"Zakázka {zakazka} nemá kamion příjem – nelze ověřit příznak 'Pouze kompletní zakázky'.",
+                                level=messages.ERROR,
+                            )
+                            return None
+
+                        vsechny_bedny = zakazka.bedny.all()
+                        vse_k_expedici = vsechny_bedny.filter(stav_bedny=StavBednyChoice.K_EXPEDICI)
+                        vybrane_count = locked_qs.filter(zakazka=zakazka).count()
+
+                        if not vse_k_expedici.exists() or vse_k_expedici.count() != vsechny_bedny.count():
+                            modeladmin.message_user(
+                                request,
+                                f"Zakázka {zakazka} pro zákazníka s příznakem 'Pouze kompletní zakázky' musí mít všechny bedny ve stavu K_EXPEDICI.",
+                                level=messages.ERROR,
+                            )
+                            return None
+
+                        if vybrane_count != vse_k_expedici.count():
+                            modeladmin.message_user(
+                                request,
+                                f"Zakázka {zakazka} pro zákazníka s příznakem 'Pouze kompletní zakázky' musí být expedována celá (vyberte všechny bedny ze zakázky).",
+                                level=messages.ERROR,
+                            )
+                            return None
+
+                if not validate_bedny_pripraveny_k_expedici(modeladmin, request, locked_qs):
+                    return None
+
+                if not utilita_expedice_beden(modeladmin, request, queryset, kamion):
+                    return None
             logger.info(
                 f"Uživatel {request.user} úspěšně expedoval bedny do kamionu {kamion.cislo_dl} zákazníka {kamion.zakaznik.nazev}."
             )
@@ -1594,7 +1618,7 @@ def expedice_beden_kamion_action(modeladmin, request, queryset):
             return None
     else:
         logger.info(
-            f"Uživatel {request.user} expeduje bedny do existujícího kamionu zákazníka {zakaznik.nazev}."
+            f"Uživatel {request.user} expeduje bedny do existujícího kamionu zákazníka {Zakaznik.objects.get(id=zakaznik_id).nazev}."
         )
         form = VyberKamionVydejForm(zakaznik=zakaznik_id)
 
@@ -2143,29 +2167,44 @@ def expedice_zakazek_action(modeladmin, request, queryset):
     if _abort_if_zakazky_maji_pozastavene_bedny(modeladmin, request, queryset, "Expedice zakázek do nového kamionu"):
         return None
 
-    if not utilita_kontrola_zakazek(modeladmin, request, queryset):
-        return None
-
-    # Stav rovnání/tryskání/zinkování u beden v K_EXPEDICI musí splnit podmínky pro expedici
-    bedny_ke_kontrole = Bedna.objects.filter(zakazka__in=queryset, stav_bedny=StavBednyChoice.K_EXPEDICI)
-    if not validate_bedny_pripraveny_k_expedici(modeladmin, request, bedny_ke_kontrole):
-        return None
-
-    zakaznici = Zakaznik.objects.filter(kamiony__zakazky_prijem__in=queryset).distinct()
-
     if 'apply' in request.POST:
         form = OdberatelForm(request.POST)
         if form.is_valid():
             odberatel = form.cleaned_data['odberatel']
 
             try:
-                result = expedice_zakazek_do_noveho_kamionu(
-                    zakazky_qs=queryset,
-                    zakaznici=zakaznici,
-                    odberatel=odberatel,
-                    actor=request.user,
-                    today=datetime.date.today(),
-                )
+                selected_ids = list(queryset.values_list('pk', flat=True))
+                with transaction.atomic():
+                    locked_zakazky_qs = Zakazka.objects.select_for_update().filter(pk__in=selected_ids)
+
+                    if not locked_zakazky_qs.exists():
+                        modeladmin.message_user(request, "Nebyla vybrána žádná zakázka.", level=messages.ERROR)
+                        return None
+
+                    if _abort_if_zakazky_maji_pozastavene_bedny(
+                        modeladmin, request, locked_zakazky_qs, "Expedice zakázek do nového kamionu"
+                    ):
+                        return None
+
+                    if not utilita_kontrola_zakazek(modeladmin, request, locked_zakazky_qs):
+                        return None
+
+                    locked_bedny_ke_kontrole = Bedna.objects.filter(
+                        zakazka__in=locked_zakazky_qs,
+                        stav_bedny=StavBednyChoice.K_EXPEDICI,
+                    )
+                    if not validate_bedny_pripraveny_k_expedici(modeladmin, request, locked_bedny_ke_kontrole):
+                        return None
+
+                    locked_zakaznici = Zakaznik.objects.filter(kamiony__zakazky_prijem__in=locked_zakazky_qs).distinct()
+
+                    result = expedice_zakazek_do_noveho_kamionu(
+                        zakazky_qs=locked_zakazky_qs,
+                        zakaznici=locked_zakaznici,
+                        odberatel=odberatel,
+                        actor=request.user,
+                        today=datetime.date.today(),
+                    )
             except ServiceValidationError as exc:
                 modeladmin.message_user(request, str(exc), level=messages.ERROR)
                 return
@@ -2211,16 +2250,8 @@ def expedice_zakazek_kamion_action(modeladmin, request, queryset):
         logger.error(f"Uživatel {request.user} se pokusil expedovat zakázky do existujícího kamionu, ale vybrané zakázky nepatří jednomu zákazníkovi.")
         modeladmin.message_user(request, "Všechny vybrané zakázky musí patřit jednomu zákazníkovi.", level=messages.ERROR)
         return
-    
+
     if _abort_if_zakazky_maji_pozastavene_bedny(modeladmin, request, queryset, "Expedice zakázek do existujícího kamionu"):
-        return None
-
-    if not utilita_kontrola_zakazek(modeladmin, request, queryset):
-        return None
-
-    # Stav rovnání/tryskání/zinkování u beden v K_EXPEDICI musí splnit podmínky pro expedici
-    bedny_ke_kontrole = Bedna.objects.filter(zakazka__in=queryset, stav_bedny=StavBednyChoice.K_EXPEDICI)
-    if not validate_bedny_pripraveny_k_expedici(modeladmin, request, bedny_ke_kontrole):
         return None
 
     zakaznik_id = zakaznici[0]
@@ -2229,8 +2260,36 @@ def expedice_zakazek_kamion_action(modeladmin, request, queryset):
         form = VyberKamionVydejForm(request.POST, zakaznik=zakaznik_id)
         if form.is_valid():
             kamion = form.cleaned_data['kamion']
-            if not utilita_expedice_zakazek(modeladmin, request, queryset, kamion):
-                return None
+            selected_ids = list(queryset.values_list('pk', flat=True))
+            with transaction.atomic():
+                locked_zakazky_qs = Zakazka.objects.select_for_update().filter(pk__in=selected_ids)
+
+                if not locked_zakazky_qs.exists():
+                    modeladmin.message_user(request, "Nebyla vybrána žádná zakázka.", level=messages.ERROR)
+                    return None
+
+                locked_zakaznici = locked_zakazky_qs.values_list('kamion_prijem__zakaznik', flat=True).distinct()
+                if locked_zakaznici.count() != 1:
+                    modeladmin.message_user(request, "Všechny vybrané zakázky musí patřit jednomu zákazníkovi.", level=messages.ERROR)
+                    return None
+
+                if _abort_if_zakazky_maji_pozastavene_bedny(
+                    modeladmin, request, locked_zakazky_qs, "Expedice zakázek do existujícího kamionu"
+                ):
+                    return None
+
+                if not utilita_kontrola_zakazek(modeladmin, request, locked_zakazky_qs):
+                    return None
+
+                locked_bedny_ke_kontrole = Bedna.objects.filter(
+                    zakazka__in=locked_zakazky_qs,
+                    stav_bedny=StavBednyChoice.K_EXPEDICI,
+                )
+                if not validate_bedny_pripraveny_k_expedici(modeladmin, request, locked_bedny_ke_kontrole):
+                    return None
+
+                if not utilita_expedice_zakazek(modeladmin, request, queryset, kamion):
+                    return None
             logger.info(f"Uživatel {request.user} úspěšně expedoval zakázky do kamionu {kamion.cislo_dl} zákazníka {kamion.zakaznik.nazev}.")
             modeladmin.message_user(request, f"Zakázky byly úspěšně expedovány do kamionu {kamion} zákazníka {kamion.zakaznik.nazev}.", level=messages.SUCCESS)
             return
@@ -2352,66 +2411,74 @@ def vratit_zakazky_z_expedice_action(modeladmin, request, queryset):
     uspely = 0
 
     for zakazka in queryset.select_related("puvodni_zakazka"):
-        if not zakazka.expedovano:
-            logger.info(
-                f"Uživatel {request.user} se pokusil vrátit zakázku {zakazka}, ale ta není vyexpedována."
-            )
-            modeladmin.message_user(
-                request,
-                f"Zakázka {zakazka} není vyexpedována.",
-                level=messages.ERROR,
-            )
-            continue
-
-        if zakazka.bedny.exclude(stav_bedny=StavBednyChoice.EXPEDOVANO).exists():
-            logger.error(
-                f"Uživatel {request.user} se pokusil vrátit zakázku {zakazka}, ale ne všechny bedny jsou ve stavu EXPEDOVANO."
-            )
-            modeladmin.message_user(
-                request,
-                f"Zakázku {zakazka} nelze vrátit: některé bedny nejsou ve stavu EXPEDOVANO.",
-                level=messages.ERROR,
-            )
-            continue
-
-        puvodni_zakazka = zakazka.puvodni_zakazka
-
-        # Varianta A: žádná původní zakázka, nebo byla už expedována – obnovíme aktuální zakázku
-        if puvodni_zakazka is None or puvodni_zakazka.expedovano:
-            with transaction.atomic():
-                zakazka.expedovano = False
-                zakazka.kamion_vydej = None
-                zakazka.save(update_fields=["expedovano", "kamion_vydej"])
-                zakazka.bedny.update(stav_bedny=StavBednyChoice.K_EXPEDICI)
-            uspely += 1
-            logger.info(
-                f"Uživatel {request.user} úspěšně vrátil zakázku {zakazka} z expedice do původního stavu."
-            )
-            continue
-
-        # Varianta B: existuje původní zakázka, která ještě není expedována – přesuneme bedny zpět
         with transaction.atomic():
-            bedny = list(zakazka.bedny.all())
+            locked_zakazka = (
+                Zakazka.objects
+                .select_for_update()
+                .select_related("puvodni_zakazka")
+                .get(pk=zakazka.pk)
+            )
+
+            if not locked_zakazka.expedovano:
+                logger.info(
+                    f"Uživatel {request.user} se pokusil vrátit zakázku {locked_zakazka}, ale ta není vyexpedována."
+                )
+                modeladmin.message_user(
+                    request,
+                    f"Zakázka {locked_zakazka} není vyexpedována.",
+                    level=messages.ERROR,
+                )
+                continue
+
+            locked_bedny_qs = Bedna.objects.select_for_update().filter(zakazka=locked_zakazka)
+            if locked_bedny_qs.exclude(stav_bedny=StavBednyChoice.EXPEDOVANO).exists():
+                logger.error(
+                    f"Uživatel {request.user} se pokusil vrátit zakázku {locked_zakazka}, ale ne všechny bedny jsou ve stavu EXPEDOVANO."
+                )
+                modeladmin.message_user(
+                    request,
+                    f"Zakázku {locked_zakazka} nelze vrátit: některé bedny nejsou ve stavu EXPEDOVANO.",
+                    level=messages.ERROR,
+                )
+                continue
+
+            puvodni_zakazka = locked_zakazka.puvodni_zakazka
+
+            # Varianta A: žádná původní zakázka, nebo byla už expedována – obnovíme aktuální zakázku
+            if puvodni_zakazka is None or puvodni_zakazka.expedovano:
+                locked_zakazka.expedovano = False
+                locked_zakazka.kamion_vydej = None
+                locked_zakazka.save(update_fields=["expedovano", "kamion_vydej"])
+                locked_bedny_qs.update(stav_bedny=StavBednyChoice.K_EXPEDICI)
+                uspely += 1
+                logger.info(
+                    f"Uživatel {request.user} úspěšně vrátil zakázku {locked_zakazka} z expedice do původního stavu."
+                )
+                continue
+
+            # Varianta B: existuje původní zakázka, která ještě není expedována – přesuneme bedny zpět
+            Zakazka.objects.select_for_update().filter(pk=puvodni_zakazka.pk).exists()
+            bedny = list(locked_bedny_qs)
             for bedna in bedny:
                 bedna.stav_bedny = StavBednyChoice.K_EXPEDICI
                 bedna.zakazka = puvodni_zakazka
             Bedna.objects.bulk_update(bedny, ["stav_bedny", "zakazka"])
 
-            if zakazka.bedny.exists():
+            if Bedna.objects.filter(zakazka=locked_zakazka).exists():
                 logger.error(
-                    f"Uživatel {request.user} nemůže smazat zakázku {zakazka}, protože v ní stále jsou bedny."
+                    f"Uživatel {request.user} nemůže smazat zakázku {locked_zakazka}, protože v ní stále jsou bedny."
                 )
                 modeladmin.message_user(
                     request,
-                    f"Nelze smazat zakázku {zakazka}, protože stále obsahuje bedny.",
+                    f"Nelze smazat zakázku {locked_zakazka}, protože stále obsahuje bedny.",
                     level=messages.ERROR,
                 )
                 continue
 
-            zakazka.delete()
+            locked_zakazka.delete()
             uspely += 1
             logger.info(
-                f"Uživatel {request.user} vrátil bedny ze zakázky {zakazka} do původní zakázky {puvodni_zakazka} a zakázku smazal."
+                f"Uživatel {request.user} vrátil bedny ze zakázky {locked_zakazka} do původní zakázky {puvodni_zakazka} a zakázku smazal."
             )
 
     if uspely:
