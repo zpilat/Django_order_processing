@@ -398,6 +398,32 @@ class PozastavenoFilter(DynamicTitleFilter):
         return queryset.filter()
 
 
+class FakturovatFilter(DynamicTitleFilter):
+    """
+    Filtrovat bedny podle toho, jestli mají být fakturovány.
+    """
+    title = "Fakturovat"
+    parameter_name = "fakturovat"
+
+    def __init__(self, request, params, model, model_admin):
+        self.label_dict = {
+        'True': "Ano",            
+        'False': "Ne",
+        }
+        super().__init__(request, params, model, model_admin)
+
+    def lookups(self, request, model_admin):
+        return self.label_dict.items()
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if value == 'True':
+            return queryset.filter(fakturovat=True)
+        elif value == 'False':
+            return queryset.filter(fakturovat=False)
+        return queryset.filter()
+
+
 class SkupinaFilter(DynamicTitleFilter):
     """
     Filtrovat bedny podle skupiny tepelného zpracování.

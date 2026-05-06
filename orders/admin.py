@@ -55,6 +55,7 @@ from .filters import (
     ZakaznikZakazkyFilter, ZakaznikKamionuFilter, PrijemVydejFilter, TryskaniFilter, RovnaniFilter, PrioritaBednyFilter, PrioritaZakazkyFilter,
     OberflacheFilter, TypHlavyBednyFilter, TypHlavyZakazkyFilter, CelozavitBednyFilter, CelozavitZakazkyFilter, DelkaFilter, PozastavenoFilter,
     OdberatelFilter, OdberatelBednyFilter, AktivniNotifikaceBednyFilter, ZakaznikPredpisFilter, ZinkovaniFilter, ZarizeniSarzeFilter, ZarizeniSarzeBednaFilter,
+    FakturovatFilter,
 )
 from .forms import (
     BednaAdminForm,
@@ -2460,7 +2461,8 @@ class BednaAdmin(SimpleHistoryAdmin):
     search_help_text = "Dle čísla bedny, č.b. zákazníka, zakázky a popisu zakázky"
     list_filter = (
         ZakaznikBednyFilter, StavBednyFilter, TryskaniFilter, RovnaniFilter, ZinkovaniFilter, SkupinaFilter,
-        DelkaFilter, CelozavitBednyFilter, TypHlavyBednyFilter, PrioritaBednyFilter, PozastavenoFilter, AktivniNotifikaceBednyFilter, OdberatelBednyFilter,
+        DelkaFilter, CelozavitBednyFilter, TypHlavyBednyFilter, PrioritaBednyFilter, PozastavenoFilter, AktivniNotifikaceBednyFilter,
+        OdberatelBednyFilter, FakturovatFilter, 
         )
     ordering = ('id',)
     # Výchozí date_hierarchy pro povolení lookupů; skutečně se přepíná dynamicky v get_date_hierarchy
