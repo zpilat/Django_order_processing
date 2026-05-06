@@ -3545,7 +3545,7 @@ class BednaAdmin(SimpleHistoryAdmin):
                 ]
             if stav_filter == StavBednyChoice.EXPEDOVANO:
                 actions_to_remove += [
-                    'oznacit_uvolneno_action',
+                    'uvolnit_pozastavene_bedny_action',
                     'oznacit_nefakturovat_action',
                 ]
             if rovnani_filter != RovnaniChoice.NEZADANO:
