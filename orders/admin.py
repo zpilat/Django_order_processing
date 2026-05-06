@@ -182,10 +182,7 @@ class SarzeAdmin(SimpleHistoryAdmin):
     list_filter = (ZarizeniSarzeFilter,)
     search_fields = ('cislo_sarze', 'operator',)
     autocomplete_fields = ('zarizeni',)
-    readonly_fields = ('cislo_sarze',)
-    date_hierarchy = 'datum'
-    ordering = ('-datum', '-zacatek',)
-    inlines = [SarzeBednaInline]
+    # readonly_fields = ('cislo_sarze',) # dočasně se zruší readonly_fields pro cislo_sarze
     actions = ['move_sarze_to_zarizeni']
     formfield_overrides = {
         models.TimeField: {'widget': forms.TimeInput(format='%H:%M')},
