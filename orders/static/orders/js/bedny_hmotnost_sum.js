@@ -115,6 +115,30 @@ document.addEventListener('DOMContentLoaded', function() {
     const selectAll = document.getElementById('action-toggle');
     if (selectAll) selectAll.addEventListener('change', updateSummary);
 
+    // Django admin odkazy "Vybrat všechny" / "Zrušit výběr" mění výběr skriptem,
+    // proto explicitně plánujeme přepočet i po jejich kliknutí.
+    function scheduleSummaryRefresh() {
+        setTimeout(updateSummary, 0);
+        setTimeout(updateSummary, 80);
+    }
+
+    document.addEventListener('click', function(event) {
+        const bulkLink = event.target.closest('.actions span.question a, .actions span.all a, .actions span.clear a');
+        if (bulkLink) scheduleSummaryRefresh();
+    });
+
+    // Fallback: při změně textu/stavu akční lišty (počty vybraných) přepočítej souhrn.
+    const actionsBar = document.querySelector('.actions');
+    if (actionsBar) {
+        const actionsObserver = new MutationObserver(scheduleSummaryRefresh);
+        actionsObserver.observe(actionsBar, {
+            subtree: true,
+            childList: true,
+            characterData: true,
+            attributes: true,
+        });
+    }
+
     // Po načtení stránky ihned vykreslí počáteční stav souhrnu.
     updateSummary();
 });

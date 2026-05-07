@@ -64,6 +64,7 @@ document.addEventListener('DOMContentLoaded', function() {
      */
     function updateSummary() {
         let weightSum = 0;
+        let boxCount = 0;
 
         // Projde všechny zaškrtnuté checkboxy v akčním sloupci tabulky.
         document.querySelectorAll('input.action-select:checked').forEach(function(checkbox) {
@@ -88,6 +89,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 const val = parseFloat(normalized);
                 if (!isNaN(val)) weightSum += val;
             }
+
+            boxCount += 1;
         });
 
         // Box vytvoříme jen jednou, další přepočty už jen mění jeho obsah.
@@ -110,8 +113,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         box.innerHTML = `
             <i class="fas fa-balance-scale" style="margin-right:0.5em;"></i>
-            <span>Celková netto hmotnost vybraných beden:</span>
-            <strong style="font-size:0.95rem; white-space:nowrap;">${weightSum.toFixed(1)} kg</strong>
+            <span>Celková netto hmotnost v ${boxCount} vybraných bednách: <strong style="font-size:0.95rem; white-space:nowrap;">${weightSum.toFixed(1)} kg</strong></span>
         `;
         applyTheme(box);
     }
@@ -130,6 +132,30 @@ document.addEventListener('DOMContentLoaded', function() {
     // Reakce na globální checkbox "vybrat vše".
     const selectAll = document.getElementById('action-toggle');
     if (selectAll) selectAll.addEventListener('change', updateSummary);
+
+    // Django admin odkazy "Vybrat všechny" / "Zrušit výběr" mění výběr skriptem,
+    // proto explicitně plánujeme přepočet i po jejich kliknutí.
+    function scheduleSummaryRefresh() {
+        setTimeout(updateSummary, 0);
+        setTimeout(updateSummary, 80);
+    }
+
+    document.addEventListener('click', function(event) {
+        const bulkLink = event.target.closest('.actions span.question a, .actions span.all a, .actions span.clear a');
+        if (bulkLink) scheduleSummaryRefresh();
+    });
+
+    // Fallback: při změně textu/stavu akční lišty (počty vybraných) přepočítej souhrn.
+    const actionsBar = document.querySelector('.actions');
+    if (actionsBar) {
+        const actionsObserver = new MutationObserver(scheduleSummaryRefresh);
+        actionsObserver.observe(actionsBar, {
+            subtree: true,
+            childList: true,
+            characterData: true,
+            attributes: true,
+        });
+    }
 
     // Po načtení stránky ihned vykreslí počáteční stav souhrnu.
     updateSummary();
