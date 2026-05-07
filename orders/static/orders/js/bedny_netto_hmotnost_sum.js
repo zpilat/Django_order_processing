@@ -1,8 +1,8 @@
 // Skript se spustí až po načtení celé stránky, aby byly dostupné všechny HTML prvky.
 document.addEventListener('DOMContentLoaded', function() {
-    // Ve výpisu beden běží souhrn pouze pro filtr "Přijato" (stav_bedny = PR).
+    // Ve výpisu beden běží souhrn pro všechny filtry kromě "K expedici" (stav_bedny = KE) a "Expedováno" (stav_bedny = EX).
     const params = new URLSearchParams(window.location.search);
-    if (params.get('stav_bedny') !== 'PR') return;
+    if (params.get('stav_bedny') === 'KE' || params.get('stav_bedny') === 'EX') return;
 
     // Tabulka s výsledky v Django adminu.
     const resultsTable = document.getElementById('result_list');
