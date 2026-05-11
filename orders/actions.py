@@ -2533,76 +2533,92 @@ def vratit_zakazky_z_expedice_action(modeladmin, request, queryset):
     """
     uspely = 0
 
-    for zakazka in queryset.select_related("puvodni_zakazka"):
-        with transaction.atomic():
-            locked_zakazka = (
-                Zakazka.objects
-                .select_for_update()
-                .select_related("puvodni_zakazka")
-                .get(pk=zakazka.pk)
-            )
-
-            if not locked_zakazka.expedovano:
-                logger.info(
-                    f"Uživatel {request.user} se pokusil vrátit zakázku {locked_zakazka}, ale ta není vyexpedována."
+    for zakazka in queryset:
+        try:
+            with transaction.atomic():
+                locked_zakazka = (
+                    Zakazka.objects
+                    .select_for_update()
+                    .get(pk=zakazka.pk)
                 )
-                modeladmin.message_user(
-                    request,
-                    f"Zakázka {locked_zakazka} není vyexpedována.",
-                    level=messages.ERROR,
-                )
-                continue
 
-            locked_bedny_qs = Bedna.objects.select_for_update().filter(zakazka=locked_zakazka)
-            if locked_bedny_qs.exclude(stav_bedny=StavBednyChoice.EXPEDOVANO).exists():
-                logger.error(
-                    f"Uživatel {request.user} se pokusil vrátit zakázku {locked_zakazka}, ale ne všechny bedny jsou ve stavu EXPEDOVANO."
-                )
-                modeladmin.message_user(
-                    request,
-                    f"Zakázku {locked_zakazka} nelze vrátit: některé bedny nejsou ve stavu EXPEDOVANO.",
-                    level=messages.ERROR,
-                )
-                continue
+                if not locked_zakazka.expedovano:
+                    logger.info(
+                        f"Uživatel {request.user} se pokusil vrátit zakázku {locked_zakazka}, ale ta není vyexpedována."
+                    )
+                    modeladmin.message_user(
+                        request,
+                        f"Zakázka {locked_zakazka} není vyexpedována.",
+                        level=messages.ERROR,
+                    )
+                    continue
 
-            puvodni_zakazka = locked_zakazka.puvodni_zakazka
+                locked_bedny_qs = Bedna.objects.select_for_update().filter(zakazka=locked_zakazka)
+                if locked_bedny_qs.exclude(stav_bedny=StavBednyChoice.EXPEDOVANO).exists():
+                    logger.error(
+                        f"Uživatel {request.user} se pokusil vrátit zakázku {locked_zakazka}, ale ne všechny bedny jsou ve stavu EXPEDOVANO."
+                    )
+                    modeladmin.message_user(
+                        request,
+                        f"Zakázku {locked_zakazka} nelze vrátit: některé bedny nejsou ve stavu EXPEDOVANO.",
+                        level=messages.ERROR,
+                    )
+                    continue
 
-            # Varianta A: žádná původní zakázka, nebo byla už expedována – obnovíme aktuální zakázku
-            if puvodni_zakazka is None or puvodni_zakazka.expedovano:
-                locked_zakazka.expedovano = False
-                locked_zakazka.kamion_vydej = None
-                locked_zakazka.save(update_fields=["expedovano", "kamion_vydej"])
-                locked_bedny_qs.update(stav_bedny=StavBednyChoice.K_EXPEDICI)
+                puvodni_zakazka = None
+                if locked_zakazka.puvodni_zakazka_id:
+                    puvodni_zakazka = (
+                        Zakazka.objects
+                        .select_for_update()
+                        .filter(pk=locked_zakazka.puvodni_zakazka_id)
+                        .first()
+                    )
+
+                # Varianta A: žádná původní zakázka, nebo byla už expedována – obnovíme aktuální zakázku
+                if puvodni_zakazka is None or puvodni_zakazka.expedovano:
+                    locked_zakazka.expedovano = False
+                    locked_zakazka.kamion_vydej = None
+                    locked_zakazka.save(update_fields=["expedovano", "kamion_vydej"])
+                    locked_bedny_qs.update(stav_bedny=StavBednyChoice.K_EXPEDICI)
+                    uspely += 1
+                    logger.info(
+                        f"Uživatel {request.user} úspěšně vrátil zakázku {locked_zakazka} z expedice do původního stavu."
+                    )
+                    continue
+
+                # Varianta B: existuje původní zakázka, která ještě není expedována – přesuneme bedny zpět
+                bedny = list(locked_bedny_qs)
+                for bedna in bedny:
+                    bedna.stav_bedny = StavBednyChoice.K_EXPEDICI
+                    bedna.zakazka = puvodni_zakazka
+                Bedna.objects.bulk_update(bedny, ["stav_bedny", "zakazka"])
+
+                if Bedna.objects.filter(zakazka=locked_zakazka).exists():
+                    logger.error(
+                        f"Uživatel {request.user} nemůže smazat zakázku {locked_zakazka}, protože v ní stále jsou bedny."
+                    )
+                    modeladmin.message_user(
+                        request,
+                        f"Nelze smazat zakázku {locked_zakazka}, protože stále obsahuje bedny.",
+                        level=messages.ERROR,
+                    )
+                    continue
+
+                locked_zakazka.delete()
                 uspely += 1
                 logger.info(
-                    f"Uživatel {request.user} úspěšně vrátil zakázku {locked_zakazka} z expedice do původního stavu."
+                    f"Uživatel {request.user} vrátil bedny ze zakázky {locked_zakazka} do původní zakázky {puvodni_zakazka} a zakázku smazal."
                 )
-                continue
-
-            # Varianta B: existuje původní zakázka, která ještě není expedována – přesuneme bedny zpět
-            Zakazka.objects.select_for_update().filter(pk=puvodni_zakazka.pk).exists()
-            bedny = list(locked_bedny_qs)
-            for bedna in bedny:
-                bedna.stav_bedny = StavBednyChoice.K_EXPEDICI
-                bedna.zakazka = puvodni_zakazka
-            Bedna.objects.bulk_update(bedny, ["stav_bedny", "zakazka"])
-
-            if Bedna.objects.filter(zakazka=locked_zakazka).exists():
-                logger.error(
-                    f"Uživatel {request.user} nemůže smazat zakázku {locked_zakazka}, protože v ní stále jsou bedny."
-                )
-                modeladmin.message_user(
-                    request,
-                    f"Nelze smazat zakázku {locked_zakazka}, protože stále obsahuje bedny.",
-                    level=messages.ERROR,
-                )
-                continue
-
-            locked_zakazka.delete()
-            uspely += 1
-            logger.info(
-                f"Uživatel {request.user} vrátil bedny ze zakázky {locked_zakazka} do původní zakázky {puvodni_zakazka} a zakázku smazal."
+        except Exception as e:
+            logger.error(
+                f"Nastala chyba {e} při vracení zakázky {getattr(zakazka, 'pk', '?')} z expedice."
             )
+            modeladmin.message_user(
+                request,
+                f"Zakázku {zakazka} se nepodařilo vrátit z expedice kvůli neočekávané chybě.",
+                level=messages.ERROR,
+            )
+            continue
 
     if uspely:
         modeladmin.message_user(
