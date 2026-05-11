@@ -960,21 +960,41 @@ def oznacit_k_navezeni_action(modeladmin, request, queryset):
                         existing.save(update_fields=['poznamka_k_navezeni'])
                     continue
 
-                last_poradi = (
-                    PoziceZakazkaOrder.objects
-                    .select_for_update()
-                    .filter(pozice_id=pozice_id)
-                    .order_by('-poradi')
-                    .values_list('poradi', flat=True)
-                    .first()
-                    or 0
-                )
-                PoziceZakazkaOrder.objects.create(
-                    pozice_id=pozice_id,
-                    zakazka_id=zakazka_id,
-                    poradi=last_poradi + 1,
-                    poznamka_k_navezeni=note,
-                )
+                # Soubeh: dve transakce mohou soucasne chtit zalozit stejny zaznam
+                # nebo stejne poradi v pozici. Pri kolizi proto retry.
+                max_attempts = 5
+                for attempt in range(max_attempts):
+                    last_poradi = (
+                        PoziceZakazkaOrder.objects
+                        .select_for_update()
+                        .filter(pozice_id=pozice_id)
+                        .order_by('-poradi')
+                        .values_list('poradi', flat=True)
+                        .first()
+                        or 0
+                    )
+                    try:
+                        PoziceZakazkaOrder.objects.create(
+                            pozice_id=pozice_id,
+                            zakazka_id=zakazka_id,
+                            poradi=last_poradi + 1,
+                            poznamka_k_navezeni=note,
+                        )
+                        break
+                    except IntegrityError:
+                        existing_retry = (
+                            PoziceZakazkaOrder.objects
+                            .select_for_update()
+                            .filter(pozice_id=pozice_id, zakazka_id=zakazka_id)
+                            .first()
+                        )
+                        if existing_retry:
+                            if existing_retry.poznamka_k_navezeni != note:
+                                existing_retry.poznamka_k_navezeni = note
+                                existing_retry.save(update_fields=['poznamka_k_navezeni'])
+                            break
+                        if attempt == max_attempts - 1:
+                            raise
 
         if uspesne:
             messages.success(request, f"Připraveno k navezení: {uspesne} beden.")
@@ -1524,7 +1544,25 @@ def expedice_beden_action(modeladmin, request, queryset):
             try:
                 selected_ids = list(queryset.values_list('pk', flat=True))
                 with transaction.atomic():
-                    locked_qs = Bedna.objects.select_for_update().filter(pk__in=selected_ids)
+                    zakazky_ids = list(
+                        {
+                            pk
+                            for pk in Zakazka.objects.filter(bedny__pk__in=selected_ids).values_list('pk', flat=True)
+                            if pk is not None
+                        }
+                    )
+                    locked_zakazky_qs = (
+                        Zakazka.objects
+                        .select_for_update()
+                        .filter(pk__in=zakazky_ids)
+                        .order_by('pk')
+                    )
+                    locked_qs = (
+                        Bedna.objects
+                        .select_for_update()
+                        .filter(pk__in=selected_ids)
+                        .order_by('pk')
+                    )
 
                     if not locked_qs.exists():
                         modeladmin.message_user(request, "Nebyla vybrána žádná bedna.", level=messages.ERROR)
@@ -1656,7 +1694,25 @@ def expedice_beden_kamion_action(modeladmin, request, queryset):
             kamion = form.cleaned_data['kamion']
             selected_ids = list(queryset.values_list('pk', flat=True))
             with transaction.atomic():
-                locked_qs = Bedna.objects.select_for_update().filter(pk__in=selected_ids)
+                zakazky_ids = list(
+                    {
+                        pk
+                        for pk in Zakazka.objects.filter(bedny__pk__in=selected_ids).values_list('pk', flat=True)
+                        if pk is not None
+                    }
+                )
+                locked_zakazky_qs = (
+                    Zakazka.objects
+                    .select_for_update()
+                    .filter(pk__in=zakazky_ids)
+                    .order_by('pk')
+                )
+                locked_qs = (
+                    Bedna.objects
+                    .select_for_update()
+                    .filter(pk__in=selected_ids)
+                    .order_by('pk')
+                )
 
                 if not locked_qs.exists():
                     modeladmin.message_user(request, "Nebyla vybrána žádná bedna.", level=messages.ERROR)
