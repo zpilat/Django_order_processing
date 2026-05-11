@@ -575,6 +575,11 @@ class ZakazkaAutomatizovanyPrijemInline(admin.TabularInline):
         }
     }
 
+    class Media:
+        js = (
+            'orders/js/admin_inline_prevent_enter_submit.js',
+        )
+
     def get_formset(self, request, obj=None, **kwargs):
         """
         Přizpůsobení formsetu pro inline.
