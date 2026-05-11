@@ -1542,16 +1542,19 @@ def expedice_beden_action(modeladmin, request, queryset):
                         return None
 
                     locked_zakaznici_ids = list(
-                        locked_qs.values_list('zakazka__kamion_prijem__zakaznik', flat=True).distinct()
+                        {pk for pk in locked_qs.values_list('zakazka__kamion_prijem__zakaznik', flat=True) if pk is not None}
                     )
                     locked_zakaznici = Zakaznik.objects.filter(id__in=locked_zakaznici_ids)
                     locked_zakaznici_pouze_komplet = [z for z in locked_zakaznici if z.pouze_komplet]
 
                     for zakaznik in locked_zakaznici_pouze_komplet:
-                        zakazky_ids = (
-                            locked_qs.filter(zakazka__kamion_prijem__zakaznik=zakaznik)
-                            .values_list('zakazka_id', flat=True)
-                            .distinct()
+                        zakazky_ids = list(
+                            {
+                                pk
+                                for pk in locked_qs.filter(zakazka__kamion_prijem__zakaznik=zakaznik)
+                                .values_list('zakazka_id', flat=True)
+                                if pk is not None
+                            }
                         )
                         zakazky_dotcene = Zakazka.objects.filter(id__in=zakazky_ids).select_related('kamion_prijem')
                         for zakazka in zakazky_dotcene:
@@ -1675,10 +1678,13 @@ def expedice_beden_kamion_action(modeladmin, request, queryset):
 
                 locked_zakaznik = Zakaznik.objects.get(id=locked_zakaznici_ids[0])
                 if locked_zakaznik.pouze_komplet:
-                    zakazky_ids = (
-                        locked_qs.filter(zakazka__kamion_prijem__zakaznik=locked_zakaznik)
-                        .values_list('zakazka_id', flat=True)
-                        .distinct()
+                    zakazky_ids = list(
+                        {
+                            pk
+                            for pk in locked_qs.filter(zakazka__kamion_prijem__zakaznik=locked_zakaznik)
+                            .values_list('zakazka_id', flat=True)
+                            if pk is not None
+                        }
                     )
                     zakazky_dotcene = Zakazka.objects.filter(id__in=zakazky_ids).select_related('kamion_prijem')
                     for zakazka in zakazky_dotcene:
@@ -2304,7 +2310,14 @@ def expedice_zakazek_action(modeladmin, request, queryset):
                     if not validate_bedny_pripraveny_k_expedici(modeladmin, request, locked_bedny_ke_kontrole):
                         return None
 
-                    locked_zakaznici = Zakaznik.objects.filter(kamiony__zakazky_prijem__in=locked_zakazky_qs).distinct()
+                    locked_zakaznici_ids = list(
+                        {
+                            pk
+                            for pk in locked_zakazky_qs.values_list('kamion_prijem__zakaznik', flat=True)
+                            if pk is not None
+                        }
+                    )
+                    locked_zakaznici = Zakaznik.objects.filter(id__in=locked_zakaznici_ids)
 
                     result = expedice_zakazek_do_noveho_kamionu(
                         zakazky_qs=locked_zakazky_qs,
@@ -2376,8 +2389,10 @@ def expedice_zakazek_kamion_action(modeladmin, request, queryset):
                     modeladmin.message_user(request, "Nebyla vybrána žádná zakázka.", level=messages.ERROR)
                     return None
 
-                locked_zakaznici = locked_zakazky_qs.values_list('kamion_prijem__zakaznik', flat=True).distinct()
-                if locked_zakaznici.count() != 1:
+                locked_zakaznici = {
+                    pk for pk in locked_zakazky_qs.values_list('kamion_prijem__zakaznik', flat=True) if pk is not None
+                }
+                if len(locked_zakaznici) != 1:
                     modeladmin.message_user(request, "Všechny vybrané zakázky musí patřit jednomu zákazníkovi.", level=messages.ERROR)
                     return None
 
