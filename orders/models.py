@@ -1721,6 +1721,22 @@ class SarzeBedna(models.Model):
         ):
             return False
 
+        # V rámci jedné šarže smí být "první použití" jen jednou:
+        # bere se nejdřívější záznam podle patra (a jako tie-breaker PK).
+        same_sarze_prior_qs = SarzeBedna.objects.filter(
+            sarze_id=self.sarze_id,
+            bedna_id=self.bedna_id,
+        )
+        if self.pk:
+            same_sarze_prior_qs = same_sarze_prior_qs.exclude(pk=self.pk)
+
+        same_sarze_prior_filter = Q(patro__lt=self.patro)
+        if self.pk:
+            same_sarze_prior_filter |= Q(patro=self.patro, pk__lt=self.pk)
+
+        if same_sarze_prior_qs.filter(same_sarze_prior_filter).exists():
+            return False
+
         return not SarzeBedna.objects.filter(
             bedna=self.bedna,
             sarze__zarizeni=self.sarze.zarizeni,

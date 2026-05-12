@@ -81,7 +81,21 @@ def _first_use_sarzebedna_qs(target_date, device_codes):
         | Q(sarze__datum=OuterRef('sarze__datum'), sarze__zacatek__lt=OuterRef('sarze__zacatek'))
     )
 
-    return sarze_bedny.annotate(has_prior=Exists(prior_exists)).filter(has_prior=False)
+    same_sarze_prior_exists = SarzeBedna.objects.filter(
+        sarze_id=OuterRef('sarze_id'),
+        bedna_id=OuterRef('bedna_id'),
+    ).exclude(pk=OuterRef('pk')).filter(
+        Q(patro__lt=OuterRef('patro'))
+        | Q(patro=OuterRef('patro'), pk__lt=OuterRef('pk'))
+    )
+
+    return sarze_bedny.annotate(
+        has_prior=Exists(prior_exists),
+        has_same_sarze_prior=Exists(same_sarze_prior_exists),
+    ).filter(
+        has_prior=False,
+        has_same_sarze_prior=False,
+    )
 
 
 def _build_vyroba_dashboard_context(date_value=None):

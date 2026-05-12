@@ -462,6 +462,28 @@ class TestSarzeModels(ModelsBase):
         self.assertTrue(sb1.prvni_pouziti)
         self.assertFalse(sb2.prvni_pouziti)
 
+    def test_sarzebedna_prvni_pouziti_only_once_within_same_sarze(self):
+        zar = Zarizeni.objects.create(
+            kod_zarizeni="ZP2",
+            nazev_zarizeni="Zařízení P2",
+            prefix_sarze="P2",
+        )
+        sarze = Sarze.objects.create(
+            zarizeni=zar,
+            cislo_sarze=1,
+            datum=date(2026, 2, 18),
+            zacatek=time(8, 0),
+            konec=time(9, 0),
+            operator="Op",
+            program="P",
+        )
+
+        sb_patro_1 = SarzeBedna.objects.create(sarze=sarze, bedna=self.bedna1, patro=1)
+        sb_patro_2 = SarzeBedna.objects.create(sarze=sarze, bedna=self.bedna1, patro=2)
+
+        self.assertTrue(sb_patro_1.prvni_pouziti)
+        self.assertFalse(sb_patro_2.prvni_pouziti)
+
     def test_sarzebedna_clean_requires_bedna_or_popis(self):
         sb = SarzeBedna(sarze=self.sarze_base, patro=1)
         with self.assertRaises(ValidationError):

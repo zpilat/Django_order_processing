@@ -678,6 +678,7 @@ class VyrobaDashboardContextTests(TestCase):
 			program="p",
 		)
 		SarzeBedna.objects.create(sarze=sarze_day_xl1, bedna=bedna_repeat, patro=1)
+		SarzeBedna.objects.create(sarze=sarze_day_xl1, bedna=bedna_eur_new, patro=1)
 		SarzeBedna.objects.create(sarze=sarze_day_xl1, bedna=bedna_eur_new, patro=2)
 
 		sarze_day_xl2 = Sarze.objects.create(
