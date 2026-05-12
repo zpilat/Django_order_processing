@@ -122,7 +122,7 @@ class SarzeBednaInline(admin.TabularInline):
     def get_extra(self, request, obj=None, **kwargs):
         """
         Dynamické nastavení počtu extra formulářů pro inline SarzeBedna.
-        Pokud je objekt Sarze již uložen, nastaví extra na 0, jinak na 3.
+        Pokud je objekt Sarze již uložen, nastaví extra na 0, jinak na 5.
         """
         # obj je instance Sarze, pro kterou se inline zobrazuje
         if obj and obj.pk:
@@ -183,6 +183,9 @@ class SarzeAdmin(SimpleHistoryAdmin):
     search_fields = ('cislo_sarze', 'operator',)
     autocomplete_fields = ('zarizeni',)
     # readonly_fields = ('cislo_sarze',) # dočasně se zruší readonly_fields pro cislo_sarze
+    date_hierarchy = 'datum'
+    ordering = ('-datum', '-zacatek',)
+    inlines = [SarzeBednaInline]
     actions = ['move_sarze_to_zarizeni']
     formfield_overrides = {
         models.TimeField: {'widget': forms.TimeInput(format='%H:%M')},
