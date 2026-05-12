@@ -182,7 +182,7 @@ class SarzeAdmin(SimpleHistoryAdmin):
     list_filter = (ZarizeniSarzeFilter,)
     search_fields = ('cislo_sarze', 'operator',)
     autocomplete_fields = ('zarizeni',)
-    # readonly_fields = ('cislo_sarze',) # dočasně se zruší readonly_fields pro cislo_sarze
+    readonly_fields = ('cislo_sarze',)
     date_hierarchy = 'datum'
     ordering = ('-datum', '-zacatek',)
     inlines = [SarzeBednaInline]
