@@ -566,8 +566,8 @@ class ZakazkaAutomatizovanyPrijemInline(admin.TabularInline):
     verbose_name = 'Zakázka - automatizovaný příjem'
     verbose_name_plural = 'Zakázky - automatizovaný příjem'
     extra = 5
-    fields = ('artikl', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit', 'popis',
-              'priorita', 'pocet_beden', 'celkova_hmotnost', 'celkove_mnozstvi', 'tara', 'material', 'odfosfatovat',)
+    fields = ('artikl', 'prumer', 'delka', 'predpis', 'typ_hlavy', 'celozavit', 'popis', 'priorita', 'pocet_beden',
+              'celkova_hmotnost', 'celkove_mnozstvi', 'tara', 'material', 'sarze', 'odfosfatovat',)
     select_related = ('predpis',)
     show_change_link = True
     formfield_overrides = {
@@ -1602,6 +1602,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                     pocet_beden = inline_form.cleaned_data.get("pocet_beden")
                     tara = inline_form.cleaned_data.get("tara")
                     material = inline_form.cleaned_data.get("material")
+                    sarze = inline_form.cleaned_data.get("sarze")
                     # BooleanField nepřenáší False, když není zaškrtnuto -> může být None
                     odfosfatovat = bool(inline_form.cleaned_data.get("odfosfatovat") or False)
 
@@ -1655,6 +1656,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                                 hmotnost=hodnoty[i],
                                 tara=tara,
                                 material=material,
+                                sarze=sarze,
                                 mnozstvi=mnozstvi_bedny,
                                 odfosfatovat=odfosfatovat,
                                 # cislo_bedny se dopočítá v metodě save() modelu Bedna

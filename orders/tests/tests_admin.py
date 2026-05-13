@@ -654,6 +654,75 @@ class KamionAdminTests(AdminBase):
         self.assertEqual(Zakazka.objects.count(), 1)
         self.assertEqual(Bedna.objects.count(), 2)
 
+    def test_save_formset_propagates_sarze_to_created_bedny(self):
+        admin_form = type('F', (), {'instance': self.kamion})()
+
+        zak = Zakazka(
+            artikl='A1', prumer=1, delka=1,
+            predpis=self.predpis, typ_hlavy=self.typ_hlavy,
+            popis='p'
+        )
+
+        class DummyForm:
+            def __init__(self):
+                self.cleaned_data = {
+                    'celkova_hmotnost': 2,
+                    'pocet_beden': 2,
+                    'tara': 1,
+                    'material': '42CrMo4',
+                    'sarze': 'S-2026-05',
+                }
+
+        class DummyFormset:
+            def __init__(self):
+                self.forms = [DummyForm()]
+
+            def save(self, commit=True):
+                if commit:
+                    return []
+                return [zak]
+
+        fs = DummyFormset()
+        self.admin.save_formset(self.get_request(), admin_form, fs, False)
+
+        self.assertEqual(Bedna.objects.count(), 2)
+        self.assertEqual(Bedna.objects.filter(material='42CrMo4').count(), 2)
+        self.assertEqual(Bedna.objects.filter(sarze='S-2026-05').count(), 2)
+
+    def test_save_formset_leaves_sarze_null_when_missing_in_form_data(self):
+        admin_form = type('F', (), {'instance': self.kamion})()
+
+        zak = Zakazka(
+            artikl='A1', prumer=1, delka=1,
+            predpis=self.predpis, typ_hlavy=self.typ_hlavy,
+            popis='p'
+        )
+
+        class DummyForm:
+            def __init__(self):
+                self.cleaned_data = {
+                    'celkova_hmotnost': 2,
+                    'pocet_beden': 2,
+                    'tara': 1,
+                    'material': '42CrMo4',
+                }
+
+        class DummyFormset:
+            def __init__(self):
+                self.forms = [DummyForm()]
+
+            def save(self, commit=True):
+                if commit:
+                    return []
+                return [zak]
+
+        fs = DummyFormset()
+        self.admin.save_formset(self.get_request(), admin_form, fs, False)
+
+        self.assertEqual(Bedna.objects.count(), 2)
+        self.assertEqual(Bedna.objects.filter(material='42CrMo4').count(), 2)
+        self.assertEqual(Bedna.objects.filter(sarze__isnull=True).count(), 2)
+
     def test_save_formset_change_doesnt_create_bedny(self):
         """
         Testuje, že při změně kamionu se nevytvoří nové bedny.
