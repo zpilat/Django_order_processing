@@ -2551,13 +2551,19 @@ class BednaAdmin(SimpleHistoryAdmin):
         return super().lookup_allowed(key, value)
 
     def get_changelist_instance(self, request):
-        """Použije dynamickou date_hierarchy (z get_date_hierarchy)."""
+        """
+        Použije dynamickou date_hierarchy (z get_date_hierarchy).
+        Nastaví dynamicky list_per_page - při aktivním filtru stav_bedny = StavBednyChoice.PRIJATO nastaví 100, jinak zůstává default.
+        """
         list_display = self.get_list_display(request)
         list_display_links = self.get_list_display_links(request, list_display)
         if self.get_actions(request):
             list_display = ['action_checkbox', *list_display]
         sortable_by = self.get_sortable_by(request)
         ChangeList = self.get_changelist(request)
+
+        per_page = 100 if request.GET.get('stav_bedny', None) == StavBednyChoice.PRIJATO else self.list_per_page
+
         return ChangeList(
             request,
             self.model,
@@ -2567,7 +2573,7 @@ class BednaAdmin(SimpleHistoryAdmin):
             self.get_date_hierarchy(request),
             self.get_search_fields(request),
             self.get_list_select_related(request),
-            self.list_per_page,
+            per_page,
             self.list_max_show_all,
             self.list_editable,
             self,
