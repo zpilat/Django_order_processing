@@ -342,7 +342,7 @@ class SarzeBednaAdmin(SimpleHistoryAdmin):
     autocomplete_fields = ('bedna',)
     list_select_related = ('sarze', 'sarze__zarizeni', 'bedna')
     date_hierarchy = 'sarze__datum'
-    ordering = ('-sarze__datum', '-sarze__zacatek', 'patro',)
+    ordering = ('-sarze__datum', '-sarze__zacatek', '-patro',)
 
     history_list_display = ["sarze", "bedna", "popis", "zakaznik_mimo_db", "patro", "procent_z_patra",]
     history_search_fields = ["sarze__cislo_sarze", "bedna__cislo_bedny", "popis", "zakaznik_mimo_db"]
