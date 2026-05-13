@@ -532,7 +532,7 @@ class Zakazka(models.Model):
     delka = models.DecimalField(max_digits=6, decimal_places=1, verbose_name='Délka')
     predpis = models.ForeignKey(Predpis, on_delete=models.PROTECT, related_name='zakazky', verbose_name='Předpis / Výkres')
     typ_hlavy = models.ForeignKey(TypHlavy, on_delete=models.PROTECT, related_name='zakazky', verbose_name='Typ hlavy')
-    celozavit = models.BooleanField(default=False, verbose_name='Celozávit')
+    celozavit = models.BooleanField(default=False, verbose_name='VG')
     popis = models.CharField(max_length=100, verbose_name='Popis')
     vrstva = models.CharField(max_length=20, null=True, blank=True, verbose_name='Beschichtung')
     povrch = models.CharField(max_length=20, null=True, blank=True, verbose_name='Oberfläche')
@@ -1651,7 +1651,7 @@ class SarzeBedna(models.Model):
     def clean(self):
         """
         Validace pro zajištění:
-        Buď je vyplněna bedna, nebo popis, ale ne obojí současně.
+        Buď je vyplněna bedna nebo popis, ale ne obojí současně.
         Buď je vyplněna bedna nebo číslo bedny pro "železo", zákazník pro "železo" a zakázka pro "železo", ale ne obojí současně.
         Pokud je vyplněna bedna, musí být ve stavu bedny STAV_BEDNY_SKLADEM.
         Pokud je vyplněn popis, musí být také vyplněn zákazník mimo databázi a zakázka mimo databázi.
