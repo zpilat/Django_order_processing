@@ -496,6 +496,8 @@ def dashboard_vyroba_view(request):
 
 def _get_bedny_k_navezeni_groups():
     """Sestaví seskupená data beden k navezení podle pozice a zakázky."""
+    pozice_list = list(Pozice.objects.order_by('kod'))
+
     qs = (
         Bedna.objects
         .filter(stav_bedny=StavBednyChoice.K_NAVEZENI)
@@ -572,17 +574,34 @@ def _get_bedny_k_navezeni_groups():
     groups = []
     pozice_map = {}
 
+    # V dashboardu zobrazujeme vždy všechny pozice, i když jsou prázdné.
+    for pozice in pozice_list:
+        poznamka_pozice = (pozice.poznamka_k_pozici or '').strip() or None
+        pozice_group = {
+            'pozice': pozice.kod,
+            'pozice_id': pozice.id,
+            'poznamka_k_pozici': poznamka_pozice,
+            'zakazky_group': [],
+        }
+        groups.append(pozice_group)
+        pozice_map[pozice.kod] = pozice_group
+
     for bedna in bedny:
         pozice_kod = bedna.pozice.kod if bedna.pozice else None
+        pozice_id = bedna.pozice_id
         zakazka_id = bedna.zakazka.id if bedna.zakazka else None
 
-        # Najde nebo vytvoří skupinu pro pozici
+        # Najde nebo vytvoří skupinu pro pozici (fallback pro nekonzistentní data).
         if pozice_kod not in pozice_map:
-            pozice_group = {'pozice': pozice_kod, 'zakazky_group': []}
+            pozice_group = {
+                'pozice': pozice_kod,
+                'pozice_id': pozice_id,
+                'poznamka_k_pozici': None,
+                'zakazky_group': [],
+            }
             pozice_map[pozice_kod] = pozice_group
             groups.append(pozice_group)
-        else:
-            pozice_group = pozice_map[pozice_kod]
+        pozice_group = pozice_map[pozice_kod]
 
         # Najde nebo vytvoří podskupinu pro zakázku
         zakazka_group = next((z for z in pozice_group['zakazky_group'] if z['zakazka'].id == zakazka_id), None)
@@ -618,15 +637,22 @@ def _split_bedny_k_navezeni_groups_by_nasledne(groups):
     for group in groups:
         false_items = [z for z in group['zakazky_group'] if not z.get('nasledne')]
         true_items = [z for z in group['zakazky_group'] if z.get('nasledne')]
+        poznamka_k_pozici = group.get('poznamka_k_pozici')
 
-        if false_items:
+        # Poznámka k pozici se tiskne pouze ve skupině "nyní".
+        # Pokud je pozice bez beden, ale má poznámku, stále ji zařadíme do "nyní".
+        if false_items or poznamka_k_pozici:
             false_groups.append({
                 'pozice': group['pozice'],
+                'pozice_id': group.get('pozice_id'),
+                'poznamka_k_pozici': poznamka_k_pozici,
                 'zakazky_group': false_items,
             })
         if true_items:
             true_groups.append({
                 'pozice': group['pozice'],
+                'pozice_id': group.get('pozice_id'),
+                'poznamka_k_pozici': None,
                 'zakazky_group': true_items,
             })
 
@@ -909,6 +935,35 @@ def dashboard_bedny_k_navezeni_poznamka_view(request):
         'target_id': f"note-{pozice_id}-{zakazka_id}",
     }
     return render(request, "orders/partials/dashboard_bedny_k_navezeni_note.html", context)
+
+
+@login_required
+def dashboard_bedny_k_navezeni_poznamka_pozice_view(request):
+    """HTMX endpoint pro inline úpravu poznámky na úrovni pozice."""
+    pozice_id_raw = request.GET.get('pozice_id') or request.POST.get('pozice_id')
+    mode = (request.GET.get('mode') or request.POST.get('mode') or '').lower()
+
+    try:
+        pozice_id = int(pozice_id_raw)
+    except (TypeError, ValueError):
+        return HttpResponseBadRequest("Neplatné ID pozice.")
+
+    pozice = get_object_or_404(Pozice, pk=pozice_id)
+    poznamka = (pozice.poznamka_k_pozici or '').strip()
+
+    if request.method == 'POST':
+        poznamka = (request.POST.get('poznamka') or '').strip()
+        pozice.poznamka_k_pozici = (poznamka or None)
+        pozice.save(update_fields=['poznamka_k_pozici'])
+        mode = 'display'
+
+    context = {
+        'mode': 'form' if mode == 'form' and request.method == 'GET' else 'display',
+        'pozice_id': pozice_id,
+        'poznamka': poznamka,
+        'target_id': f"position-note-{pozice_id}",
+    }
+    return render(request, "orders/partials/dashboard_bedny_k_navezeni_pozice_note.html", context)
 
 
 @login_required

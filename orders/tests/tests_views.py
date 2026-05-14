@@ -2,6 +2,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.contrib.auth import get_user_model
 from django.utils import timezone
+from django.template.loader import render_to_string
 from datetime import date, time, timedelta
 from decimal import Decimal
 
@@ -9,7 +10,7 @@ from orders.models import (
 	Zakaznik, Odberatel, Kamion, Zakazka, Bedna, Predpis, TypHlavy, Pozice, PoziceZakazkaOrder, Zarizeni, Sarze, SarzeBedna
 )
 from orders.choices import StavBednyChoice, KamionChoice, TryskaniChoice, RovnaniChoice, PrioritaChoice
-from orders.views import _get_bedny_k_navezeni_groups, _build_vyroba_dashboard_context
+from orders.views import _get_bedny_k_navezeni_groups, _split_bedny_k_navezeni_groups_by_nasledne, _build_vyroba_dashboard_context
 
 
 class ViewsTestBase(TestCase):
@@ -256,6 +257,18 @@ class BednyKNavezeniViewTests(ViewsTestBase):
 		a_group = groups[0]
 		self.assertEqual(len(a_group["zakazky_group"]), 1)
 		self.assertEqual(len(a_group["zakazky_group"][0]["bedny"]), 2)
+
+	def test_groups_include_empty_positions_without_bedny(self):
+		Bedna.objects.filter(pk__in=[self.b_nav1.pk, self.b_nav2.pk, self.b_nav3.pk]).update(
+			stav_bedny=StavBednyChoice.PRIJATO,
+			pozice=None,
+		)
+
+		groups = _get_bedny_k_navezeni_groups()
+		pozice_list = [g["pozice"] for g in groups]
+		self.assertEqual(pozice_list, ["A", "B"])
+		self.assertEqual(groups[0]["zakazky_group"], [])
+		self.assertEqual(groups[1]["zakazky_group"], [])
 
 	def test_htmx_partial_and_pdf(self):
 		# partial
@@ -543,6 +556,104 @@ class BednyKNavezeniViewTests(ViewsTestBase):
 		self.assertIn("vše", resp_post.content.decode())
 		order = PoziceZakazkaOrder.objects.get(pozice=self.poz_a, zakazka=self.zak_eur)
 		self.assertIsNone(order.poznamka_k_navezeni)
+
+	def test_poznamka_pozice_htmx_get_and_post(self):
+		# GET form
+		resp_get = self.client.get(
+			reverse("dashboard_bedny_k_navezeni_pozice_poznamka"),
+			{"pozice_id": self.poz_a.id, "mode": "form"},
+			HTTP_HX_REQUEST="true",
+		)
+		self.assertEqual(resp_get.status_code, 200)
+		self.assertIn("Uložit", resp_get.content.decode())
+
+		# POST update
+		note_text = "Pozice A - k čelu"
+		resp_post = self.client.post(
+			reverse("dashboard_bedny_k_navezeni_pozice_poznamka"),
+			{"pozice_id": self.poz_a.id, "poznamka": note_text},
+			HTTP_HX_REQUEST="true",
+		)
+		self.assertEqual(resp_post.status_code, 200)
+		self.assertIn(note_text, resp_post.content.decode())
+		self.poz_a.refresh_from_db()
+		self.assertEqual(self.poz_a.poznamka_k_pozici, note_text)
+
+	def test_poznamka_pozice_htmx_post_strips_whitespace_only_value(self):
+		self.poz_a.poznamka_k_pozici = "Původní"
+		self.poz_a.save(update_fields=["poznamka_k_pozici"])
+
+		resp_post = self.client.post(
+			reverse("dashboard_bedny_k_navezeni_pozice_poznamka"),
+			{"pozice_id": self.poz_a.id, "poznamka": "   "},
+			HTTP_HX_REQUEST="true",
+		)
+		self.assertEqual(resp_post.status_code, 200)
+		self.assertIn("Poznámka k pozici...", resp_post.content.decode())
+		self.poz_a.refresh_from_db()
+		self.assertIsNone(self.poz_a.poznamka_k_pozici)
+
+	def test_groups_include_pozice_note(self):
+		self.poz_a.poznamka_k_pozici = "Navezt až po čištění"
+		self.poz_a.save(update_fields=["poznamka_k_pozici"])
+
+		groups = _get_bedny_k_navezeni_groups()
+		a_group = next(g for g in groups if g["pozice"] == "A")
+		self.assertEqual(a_group["poznamka_k_pozici"], "Navezt až po čištění")
+
+	def test_print_template_shows_pozice_note_only_when_non_empty(self):
+		groups = _get_bedny_k_navezeni_groups()
+		groups_false = [{
+			"pozice": "A",
+			"pozice_id": self.poz_a.id,
+			"poznamka_k_pozici": "Poznámka pozice A",
+			"zakazky_group": groups[0]["zakazky_group"],
+		}]
+		html_with_note = render_to_string("orders/print/bedny_k_navezeni_print.html", {
+			"groups_false": groups_false,
+			"groups_true": [],
+			"current_time": timezone.now(),
+		})
+		self.assertIn("Poznámka pozice A", html_with_note)
+
+		groups_false[0]["poznamka_k_pozici"] = None
+		html_without_note = render_to_string("orders/print/bedny_k_navezeni_print.html", {
+			"groups_false": groups_false,
+			"groups_true": [],
+			"current_time": timezone.now(),
+		})
+		self.assertNotIn("Poznámka k pozici A:", html_without_note)
+
+	def test_split_keeps_position_note_in_now_group_even_without_bedny(self):
+		groups = [{
+			"pozice": "A",
+			"pozice_id": self.poz_a.id,
+			"poznamka_k_pozici": "Poznámka prázdné pozice",
+			"zakazky_group": [],
+		}]
+
+		groups_false, groups_true = _split_bedny_k_navezeni_groups_by_nasledne(groups)
+		self.assertEqual(len(groups_false), 1)
+		self.assertEqual(groups_false[0]["poznamka_k_pozici"], "Poznámka prázdné pozice")
+		self.assertEqual(groups_false[0]["zakazky_group"], [])
+		self.assertEqual(groups_true, [])
+
+	def test_split_hides_position_note_in_nasledne_group(self):
+		groups = [{
+			"pozice": "A",
+			"pozice_id": self.poz_a.id,
+			"poznamka_k_pozici": "Poznámka pouze pro nyní",
+			"zakazky_group": [
+				{"nasledne": True, "bedny": [], "zakazka": self.zak_eur},
+			],
+		}]
+
+		groups_false, groups_true = _split_bedny_k_navezeni_groups_by_nasledne(groups)
+		self.assertEqual(len(groups_false), 1)
+		self.assertEqual(groups_false[0]["poznamka_k_pozici"], "Poznámka pouze pro nyní")
+		self.assertEqual(groups_false[0]["zakazky_group"], [])
+		self.assertEqual(len(groups_true), 1)
+		self.assertIsNone(groups_true[0]["poznamka_k_pozici"])
 
 	def test_groups_include_nasledne_flag(self):
 		_get_bedny_k_navezeni_groups()

@@ -846,6 +846,7 @@ class Cena(models.Model):
 class Pozice(models.Model):
     kod = models.CharField(max_length=1, choices=AlphabetChoice.choices, verbose_name='Kód pozice', unique=True)
     kapacita = models.PositiveIntegerField(verbose_name='Kapacita', default=15)
+    poznamka_k_pozici = models.CharField(max_length=100, blank=True, null=True, verbose_name='Poznámka k pozici')
 
     class Meta:
         verbose_name = 'Pozice'

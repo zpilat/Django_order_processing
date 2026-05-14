@@ -22,6 +22,17 @@
               <th colspan="6" style="background-color: #ffde17; color: #214290; font-size: 1.2rem;">Do pozice: {{ group.pozice }}</th>
             </tr>
             <tr>
+              <td colspan="6" style="background-color: #fff6bf; color: #214290;">
+                {% if group.pozice_id %}
+                  {% with poz=group.pozice_id|stringformat:"s" %}
+                    {% with target_id="position-note-"|add:poz %}
+                      {% include "orders/partials/dashboard_bedny_k_navezeni_pozice_note.html" with pozice_id=group.pozice_id poznamka=group.poznamka_k_pozici target_id=target_id %}
+                    {% endwith %}
+                  {% endwith %}
+                {% endif %}
+              </td>
+            </tr>
+            <tr>
               <th style="background-color: #214290; color: #ffde17;">Artikl</th>
               <th style="background-color: #214290; color: #ffde17;">Rozměr</th>
               <th style="background-color: #214290; color: #ffde17;">Popis</th>
@@ -95,6 +106,11 @@
               {% endfor %}
               {% endwith %}
             {% endfor %}
+            {% if not group.zakazky_group %}
+              <tr>
+                <td colspan="6" style="background-color: #f8f9fa; color: #214290;">Pozice je prázdná.</td>
+              </tr>
+            {% endif %}
           {% endfor %}
         {% else %}
           <tr>

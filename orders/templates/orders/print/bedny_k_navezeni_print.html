@@ -63,6 +63,14 @@
           <tbody class="group-body">
             <tr class="border-group-top"></tr>
           </tbody>
+          {% if group.poznamka_k_pozici %}
+            <tbody>
+              <tr>
+                <td class="text-center" style="font-weight: bold;">{{ group.pozice|default:"-" }}</td>
+                <td colspan="6" style="background: var(--highlight); font-weight: 600;">{{ group.poznamka_k_pozici }}</td>
+              </tr>
+            </tbody>
+          {% endif %}
           {% for zakazka_group in group.zakazky_group %}
             {% with bedny_list=zakazka_group.bedny %}
               <tbody class="zakazka-group">
