@@ -67,7 +67,7 @@
             <tbody>
               <tr>
                 <td class="text-center" style="font-weight: bold;">{{ group.pozice|default:"-" }}</td>
-                <td colspan="6" style="background: var(--highlight); font-weight: 600;">{{ group.poznamka_k_pozici }}</td>
+                <td colspan="6" style="background: var(--highlight); font-weight: 600;">{{ group.poznamka_k_pozici|linebreaksbr }}</td>
               </tr>
             </tbody>
           {% endif %}
