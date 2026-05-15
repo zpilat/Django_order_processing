@@ -331,14 +331,15 @@ class SarzeBednaAdmin(SimpleHistoryAdmin):
     readonly_fields = ('sarze', 'bedna', 'popis', 'zakaznik_mimo_db', 'zakazka_mimo_db', 'cislo_bedny_mimo_db', 'patro', 'procent_z_patra',)
     list_display = (
         'get_sarze', 'get_kod_zarizeni', 'get_datum', 'get_zacatek', 'get_konec', 'get_operator',
-        'get_zkraceny_popis', 'get_cislo_bedny', 'get_zakaznik', 'patro', #'get_procent_z_patra',
+        'get_zkraceny_popis', 'get_cislo_bedny', 'get_zakaznik', 'get_predpis', 'patro', #'get_procent_z_patra',
         'get_cislo_pripravku', 'get_program', 'get_zakazka_skupina', 'get_poznamka', 'get_alarm', 'get_prodleva',
-        'get_takt', 'get_prvni_pouziti',
+        'get_takt', #'get_prvni_pouziti',
     )
     change_list_template = 'admin/orders/sarzebedna/change_list.html'
     list_display_links = ('get_cislo_bedny',)
     list_filter = (ZarizeniSarzeBednaFilter,)
-    search_fields = ('sarze__cislo_sarze', 'bedna__cislo_bedny')
+    search_fields = ('sarze__cislo_sarze', 'bedna__cislo_bedny', 'bedna__zakazka__predpis__nazev',)
+    search_help_text = "Dle čísla šarže, čísla bedny a předpisu"
     autocomplete_fields = ('bedna',)
     list_select_related = ('sarze', 'sarze__zarizeni', 'bedna')
     date_hierarchy = 'sarze__datum'
@@ -424,20 +425,26 @@ class SarzeBednaAdmin(SimpleHistoryAdmin):
 
     @admin.display(description='Poznámka', ordering='sarze__poznamka')
     def get_poznamka(self, obj):
-        return truncate_with_title(obj.sarze.poznamka) if obj.sarze else '-'
+        return truncate_with_title(obj.sarze.poznamka, max_len=10) if obj.sarze else '-'
     
     @admin.display(description='Alarm', ordering='sarze__alarm')
     def get_alarm(self, obj):
         alarm = obj.sarze.alarm if obj.sarze else None
-        return truncate_with_title(alarm)
+        return truncate_with_title(alarm, max_len=10)
 
-    @admin.display(description='Prodleva (m)')
+    @admin.display(description='Prodl. (m)')
     def get_prodleva(self, obj):
         return obj.sarze.prodleva if obj.sarze else '-'
 
     @admin.display(description='Takt (h)')
     def get_takt(self, obj):
         return obj.sarze.takt if obj.sarze else '-'
+
+    @admin.display(description='Předpis', ordering='bedna__zakazka__predpis')
+    def get_predpis(self, obj):
+        if obj.bedna and obj.bedna.zakazka and obj.bedna.zakazka.predpis:
+            return obj.bedna.zakazka.predpis.nazev or obj.bedna.zakazka.predpis
+        return "--------"
     
     @admin.display(boolean=True, description='První?')
     def get_prvni_pouziti(self, obj):
