@@ -1480,43 +1480,22 @@ class Zarizeni(models.Model):
 
 class Sarze(models.Model):
     cislo_sarze = models.PositiveIntegerField(blank=True, verbose_name='Číslo šarže')
-    zarizeni = models.ForeignKey(Zarizeni, on_delete=models.PROTECT, related_name='sarze', verbose_name='Zařízení')
-    datum = models.DateField(verbose_name='Datum')
-    zacatek = models.TimeField(verbose_name='Začátek')
-    konec = models.TimeField(blank=True, null=True, verbose_name='Konec')
-    operator = models.CharField(max_length=30, verbose_name='Operátor')
-    program = models.CharField(max_length=20, verbose_name='Program')
-    cislo_pripravku = models.PositiveSmallIntegerField(blank=True, null=True, verbose_name='Číslo přípravku')
-    poznamka = models.CharField(max_length=100, blank=True, null=True, verbose_name='Poznámka')      
-    alarm = models.CharField(max_length=50, blank=True, null=True, verbose_name='Alarm')
+    datum_zalozeni = models.DateField(verbose_name='Datum založení')
+    aktivni = models.BooleanField(default=True, verbose_name='Aktivní')
+    poznamka = models.CharField(max_length=100, blank=True, null=True, verbose_name='Poznámka')
     history = HistoricalRecords()
-    bedny = models.ManyToManyField('Bedna', through='SarzeBedna', related_name='sarze_zarizeni', verbose_name='Bedny',)
 
     class Meta:
         verbose_name = 'Šarže'
         verbose_name_plural = 'šarže'
-        ordering = ['-datum', 'zarizeni__kod_zarizeni', 'cislo_sarze']
-        permissions = [
-            ('can_move_sarze', 'Může přesouvat šarže mezi zařízeními'),
-        ]
-        constraints = [
-            models.UniqueConstraint(fields=['zarizeni', 'cislo_sarze'], name='uniq_sarze_zarizeni'),
-        ]
+        ordering = ['-datum_zalozeni', '-cislo_sarze']
 
     def __str__(self):
-        return f"{self.cislo_sarze_zobrazeni} ({self.zarizeni.kod_zarizeni.upper()})"
-
-    @property
-    def cislo_sarze_zobrazeni(self):
-        prefix = self.zarizeni.prefix_sarze if self.zarizeni_id else ''
-        return f"{prefix}{self.cislo_sarze:05d}"
+        return f"S{self.cislo_sarze:05d}"
 
     def save(self, *args, **kwargs):
         if self.pk or self.cislo_sarze:
             return super().save(*args, **kwargs)
-
-        if not self.zarizeni_id:
-            raise ValidationError("Pro automatické číslování šarže je nutné vyplnit zařízení.")
 
         max_attempts = 5
         last_error = None
@@ -1524,10 +1503,8 @@ class Sarze(models.Model):
         for attempt in range(max_attempts):
             try:
                 with transaction.atomic():
-                    Zarizeni.objects.select_for_update().get(pk=self.zarizeni_id)
                     last_number = (
                         Sarze.objects
-                        .filter(zarizeni_id=self.zarizeni_id)
                         .aggregate(max_cislo=Max('cislo_sarze'))
                         .get('max_cislo')
                     ) or 0
@@ -1543,89 +1520,158 @@ class Sarze(models.Model):
 
         raise last_error
 
+class SarzeKrok(models.Model):
+    sarze = models.ForeignKey(Sarze, on_delete=models.CASCADE, related_name='kroky', verbose_name='Šarže')
+    poradi = models.PositiveIntegerField(verbose_name='Pořadí')
+    zarizeni = models.ForeignKey(Zarizeni, on_delete=models.PROTECT, related_name='sarze_kroky', verbose_name='Zařízení')
+    zacatek = models.TimeField(verbose_name='Začátek')
+    konec = models.TimeField(blank=True, null=True, verbose_name='Konec')
+    operator = models.CharField(max_length=30, verbose_name='Operátor')
+    program = models.CharField(max_length=20, blank=True, null=True, verbose_name='Program')
+    cislo_pripravku = models.PositiveSmallIntegerField(blank=True, null=True, verbose_name='Číslo přípravku')
+    alarm = models.CharField(max_length=50, blank=True, null=True, verbose_name='Alarm')
+    poznamka = models.CharField(max_length=100, blank=True, null=True, verbose_name='Poznámka')
+    history = HistoricalRecords()
+
+    class Meta:
+        verbose_name = 'Krok šarže'
+        verbose_name_plural = 'kroky šarže'
+        ordering = ['sarze_id', 'poradi']
+        constraints = [
+            models.UniqueConstraint(fields=['sarze', 'poradi'], name='uniq_sarzekrok_sarze_poradi'),
+        ]
+
+    def __str__(self):
+        return f"{self.sarze} / krok {self.poradi} ({self.zarizeni.kod_zarizeni})"
+
+    def save(self, *args, **kwargs):
+        if self.pk or self.poradi:
+            return super().save(*args, **kwargs)
+
+        max_attempts = 5
+        last_error = None
+
+        for attempt in range(max_attempts):
+            try:
+                with transaction.atomic():
+                    Sarze.objects.select_for_update().get(pk=self.sarze_id)
+                    last_number = (
+                        SarzeKrok.objects
+                        .filter(sarze_id=self.sarze_id)
+                        .aggregate(max_poradi=Max('poradi'))
+                        .get('max_poradi')
+                    ) or 0
+                    self.poradi = last_number + 1
+                    return super().save(*args, **kwargs)
+            except IntegrityError as error:
+                last_error = error
+                logger.warning(
+                    f"Kolize pořadí kroku při ukládání (pokus {attempt + 1}/{max_attempts}), opakuji.",
+                    exc_info=True,
+                )
+                self.poradi = None
+
+        raise last_error
+
     @property
     def prodleva(self):
         """
-        Rozdíl mezi začátkem aktuální šarže a koncem předchozí šarže v minutách.
+        Rozdíl mezi začátkem aktuálního kroku a koncem předchozího kroku
+        na stejném zařízení v minutách.
+        Počítá se pouze pro zařízení typu VICEUCELOVKA.
         """
-        if not self.zacatek or not self.datum:
+        if (
+            not self.zarizeni_id
+            or self.zarizeni.typ_zarizeni != TypZarizeniChoice.VICEUCELOVKA
+            or not self.sarze
+            or not self.sarze.datum_zalozeni
+            or not self.zacatek
+        ):
             return '-'
 
-        predchozi_sarze = (
-            Sarze.objects
+        predchozi_krok = (
+            SarzeKrok.objects
             .filter(zarizeni=self.zarizeni)
             .exclude(pk=self.pk)
             .filter(
-                Q(datum__lt=self.datum)
-                | Q(datum=self.datum, zacatek__lt=self.zacatek)
+                Q(sarze__datum_zalozeni__lt=self.sarze.datum_zalozeni)
+                | Q(sarze__datum_zalozeni=self.sarze.datum_zalozeni, zacatek__lt=self.zacatek)
+                | Q(
+                    sarze__datum_zalozeni=self.sarze.datum_zalozeni,
+                    zacatek=self.zacatek,
+                    poradi__lt=self.poradi,
+                )
             )
-            .order_by('-datum', '-zacatek')
+            .order_by('-sarze__datum_zalozeni', '-zacatek', '-poradi')
             .first()
         )
 
         if (
-            not predchozi_sarze
-            or not predchozi_sarze.konec
-            or not predchozi_sarze.zacatek
-            or not predchozi_sarze.datum
+            not predchozi_krok
+            or not predchozi_krok.konec
+            or not predchozi_krok.zacatek
+            or not predchozi_krok.sarze
+            or not predchozi_krok.sarze.datum_zalozeni
         ):
             return '-'
 
-        datum_predchozi_sarze = predchozi_sarze.datum
-        if predchozi_sarze.konec < predchozi_sarze.zacatek:
-            # Pokud je konec předchozí šarže dříve než začátek, znamená to, že šarže probíhala přes půlnoc.
-            # V tomto případě přidáme 24 hodin k času konce předchozí šarže pro správný výpočet prodlevy.
-            # Předpokládáme, že šarže nikdy nepřesahuje 24 hodin, takže přidáme vždy 1 den.
-            datum_predchozi_sarze += timedelta(days=1)
+        datum_predchoziho_kroku = predchozi_krok.sarze.datum_zalozeni
+        if predchozi_krok.konec < predchozi_krok.zacatek:
+            datum_predchoziho_kroku += timedelta(days=1)
 
         prodleva = (
-            datetime.combine(self.datum, self.zacatek)
-            - datetime.combine(datum_predchozi_sarze, predchozi_sarze.konec)
+            datetime.combine(self.sarze.datum_zalozeni, self.zacatek)
+            - datetime.combine(datum_predchoziho_kroku, predchozi_krok.konec)
         ).total_seconds() / 60
         return int(prodleva)
 
     @property
     def takt(self):
         """
-        Celkový čas zpracování šarže v hodinách.
+        Celkový čas kroku v hodinách.
+        Počítá se pouze pro zařízení typu VICEUCELOVKA.
         """
-        if not self.zacatek or not self.konec or not self.datum:
+        if (
+            not self.zarizeni_id
+            or self.zarizeni.typ_zarizeni != TypZarizeniChoice.VICEUCELOVKA
+            or not self.sarze
+            or not self.sarze.datum_zalozeni
+            or not self.zacatek
+            or not self.konec
+        ):
             return '-'
 
-        datum_konec = self.datum
+        datum_konce = self.sarze.datum_zalozeni
         if self.konec < self.zacatek:
-            # Pokud je konec šarže dříve než začátek, znamená to, že šarže probíhala přes půlnoc.
-            # V tomto případě přidáme 24 hodin k času konce pro správný výpočet taktu.
-            # Předpokládáme, že šarže nikdy nepřesahuje 24 hodin, takže přidáme vždy 1 den.
-            datum_konec += timedelta(days=1)
+            datum_konce += timedelta(days=1)
 
         takt = (
-            datetime.combine(datum_konec, self.konec)
-            - datetime.combine(self.datum, self.zacatek)
+            datetime.combine(datum_konce, self.konec)
+            - datetime.combine(self.sarze.datum_zalozeni, self.zacatek)
         ).total_seconds() / 3600
         return round(takt, 1)
 
 
-class SarzeBedna(models.Model):
-    sarze = models.ForeignKey(Sarze, on_delete=models.CASCADE, related_name='sarze_bedny', verbose_name='Šarže',)
+class SarzeKrokBedna(models.Model):
+    krok = models.ForeignKey(SarzeKrok, on_delete=models.CASCADE, related_name='krok_bedny', verbose_name='Krok šarže')
     bedna = models.ForeignKey(
-        Bedna, on_delete=models.PROTECT, related_name='sarze_bedny', verbose_name='Bedna', blank=True, null=True,
+        Bedna, on_delete=models.PROTECT, related_name='sarze_krok_bedny', verbose_name='Bedna', blank=True, null=True,
         help_text='Při zpracování vrutů vyberte bednu z databáze.',
     )
-    popis = models.CharField(
-        max_length=50, blank=True, null=True, verbose_name='Popis pro "železo"',
+    popis_mimo_db = models.CharField(
+        max_length=50, blank=True, null=True, verbose_name='Popis mimo DB',
         help_text='Při zpracování "železa" zadejte popis zakázky.',
     )
     zakaznik_mimo_db = models.CharField(
-        max_length=50, blank=True, null=True, verbose_name='Zákazník pro "železo"',
+        max_length=50, blank=True, null=True, verbose_name='Zákazník mimo DB',
         help_text='Při zpracování "železa" zadejte název zákazníka.',
     )
     zakazka_mimo_db = models.CharField(
-        max_length=30, blank=True, null=True, verbose_name='Zakázka pro "železo"',
+        max_length=30, blank=True, null=True, verbose_name='Zakázka mimo DB',
         help_text='Při zpracování "železa" zadejte zakázku.',
     )
     cislo_bedny_mimo_db = models.CharField(
-        max_length=30, blank=True, null=True, verbose_name='Číslo bedny pro "železo"',
+        max_length=30, blank=True, null=True, verbose_name='Číslo bedny mimo DB',
         help_text='Při zpracování "železa" zadejte číslo bedny.',
     )
     patro = models.PositiveSmallIntegerField(verbose_name='Patro')
@@ -1636,46 +1682,46 @@ class SarzeBedna(models.Model):
     history = HistoricalRecords()
 
     class Meta:
-        verbose_name = 'Bedna v šarži'
+        verbose_name = 'Bedna v kroku šarže'
         verbose_name_plural = 'deník pece'
-        ordering = ['sarze_id', 'patro', 'bedna_id']
+        ordering = ['krok_id', 'patro', 'bedna_id']
         constraints = [
-            models.UniqueConstraint(fields=['sarze', 'bedna', 'patro'], name='uniq_sarze_bedna_patro'),
+            models.UniqueConstraint(fields=['krok', 'bedna', 'patro'], name='uniq_sarzekrokbedna_krok_bedna_patro'),
+            models.CheckConstraint(
+                check=Q(procent_z_patra__isnull=True) | Q(procent_z_patra__gte=0, procent_z_patra__lte=100),
+                name='ck_sarzekrokbedna_procent_0_100',
+            ),
         ]
 
     def __str__(self):
         if self.bedna_id:
             popis_text = self.bedna.cislo_bedny
         else:
-            popis_text = self.popis or '-'
-        return f"{self.sarze.cislo_sarze_zobrazeni} - {popis_text} ({self.patro}.patro)"
+            popis_text = self.popis_mimo_db or '-'
+        return f"{self.krok} - {popis_text} ({self.patro}.patro)"
 
     def clean(self):
         """
-        Validace pro zajištění:
-        Buď je vyplněna bedna nebo popis, ale ne obojí současně.
-        Buď je vyplněna bedna nebo číslo bedny pro "železo", zákazník pro "železo" a zakázka pro "železo", ale ne obojí současně.
-        Pokud je vyplněna bedna, musí být ve stavu bedny STAV_BEDNY_SKLADEM.
-        Pokud je vyplněn popis, musí být také vyplněn zákazník mimo databázi a zakázka mimo databázi.
+        Validace zajišťuje, že je vyplněna buď bedna, nebo popis mimo DB.
         """
         super().clean()
-        if not self.bedna and not self.popis:
-            raise ValidationError(_("Musí být vyplněna buď bedna nebo popis."))
-        if self.bedna and self.popis:
-            raise ValidationError(_("Nelze vyplnit současně bednu i popis."))
+        if not self.bedna and not self.popis_mimo_db:
+            raise ValidationError(_("Musí být vyplněna buď bedna, nebo popis mimo DB."))
+        if self.bedna and self.popis_mimo_db:
+            raise ValidationError(_("Nelze vyplnit současně bednu i popis mimo DB."))
 
         mutually_exclusive_with_bedna = [
             (
                 "cislo_bedny_mimo_db",
-                "Nelze vyplnit současně bednu i číslo bedny pro 'železo'.",
+                "Nelze vyplnit současně bednu i číslo bedny mimo DB.",
             ),
             (
                 "zakaznik_mimo_db",
-                "Nelze vyplnit současně bednu i zákazníka pro 'železo'.",
+                "Nelze vyplnit současně bednu i zákazníka mimo DB.",
             ),
             (
                 "zakazka_mimo_db",
-                "Nelze vyplnit současně bednu i zakázku pro 'železo'.",
+                "Nelze vyplnit současně bednu i zakázku mimo DB.",
             ),
         ]
         for field_name, error_message in mutually_exclusive_with_bedna:
@@ -1697,55 +1743,77 @@ class SarzeBedna(models.Model):
         required_with_popis = [
             (
                 "zakaznik_mimo_db",
-                "Při vyplnění popisu musí být také vyplněn zákazník pro 'železo'.",
+                "Při vyplnění popisu mimo DB musí být také vyplněn zákazník mimo DB.",
             ),
             (
                 "zakazka_mimo_db",
-                "Při vyplnění popisu musí být také vyplněna zakázka pro 'železo'.",
+                "Při vyplnění popisu mimo DB musí být také vyplněna zakázka mimo DB.",
             ),
         ]
         for field_name, error_message in required_with_popis:
-            if self.popis and not getattr(self, field_name):
+            if self.popis_mimo_db and not getattr(self, field_name):
                 raise ValidationError(_(error_message))
-            
+
+        # Ochrana proti "polovičním" záznamům mimo DB bez popisu.
+        if not self.popis_mimo_db and any([
+            self.zakaznik_mimo_db,
+            self.zakazka_mimo_db,
+            self.cislo_bedny_mimo_db,
+        ]):
+            raise ValidationError(
+                _("Pole zákazník/zakázka/číslo bedny mimo DB lze vyplnit pouze společně s popisem mimo DB.")
+            )
 
     @property
     def prvni_pouziti(self):
         """
-        True, pokud je tato bedna v rámci daného zařízení poprvé zpracována v této šarži.
+        True, pokud je tato bedna na daném zařízení poprvé použita v tomto kroku.
+        Počítá se pouze pro zařízení typu VICEUCELOVKA.
         """
         if (
-            not self.sarze
+            not self.krok
             or not self.bedna
-            or not self.sarze.zarizeni
-            or not self.sarze.datum
-            or not self.sarze.zacatek
+            or not self.krok.zarizeni
+            or self.krok.zarizeni.typ_zarizeni != TypZarizeniChoice.VICEUCELOVKA
+            or not self.krok.sarze
+            or not self.krok.sarze.datum_zalozeni
+            or not self.krok.zacatek
         ):
             return False
 
-        # V rámci jedné šarže smí být "první použití" jen jednou:
-        # bere se nejdřívější záznam podle patra (a jako tie-breaker PK).
-        same_sarze_prior_qs = SarzeBedna.objects.filter(
-            sarze_id=self.sarze_id,
+        same_krok_prior_qs = SarzeKrokBedna.objects.filter(
+            krok_id=self.krok_id,
             bedna_id=self.bedna_id,
         )
         if self.pk:
-            same_sarze_prior_qs = same_sarze_prior_qs.exclude(pk=self.pk)
+            same_krok_prior_qs = same_krok_prior_qs.exclude(pk=self.pk)
 
-        same_sarze_prior_filter = Q(patro__lt=self.patro)
+        same_krok_prior_filter = Q(patro__lt=self.patro)
         if self.pk:
-            same_sarze_prior_filter |= Q(patro=self.patro, pk__lt=self.pk)
+            same_krok_prior_filter |= Q(patro=self.patro, pk__lt=self.pk)
 
-        if same_sarze_prior_qs.filter(same_sarze_prior_filter).exists():
+        if same_krok_prior_qs.filter(same_krok_prior_filter).exists():
             return False
 
-        return not SarzeBedna.objects.filter(
+        return not SarzeKrokBedna.objects.filter(
             bedna=self.bedna,
-            sarze__zarizeni=self.sarze.zarizeni,
-        ).exclude(sarze_id=self.sarze_id).filter(
-            Q(sarze__datum__lt=self.sarze.datum)
-            | Q(sarze__datum=self.sarze.datum, sarze__zacatek__lt=self.sarze.zacatek)
+            krok__zarizeni=self.krok.zarizeni,
+        ).exclude(krok_id=self.krok_id).filter(
+            Q(krok__sarze__datum_zalozeni__lt=self.krok.sarze.datum_zalozeni)
+            | Q(
+                krok__sarze__datum_zalozeni=self.krok.sarze.datum_zalozeni,
+                krok__zacatek__lt=self.krok.zacatek,
+            )
+            | Q(
+                krok__sarze__datum_zalozeni=self.krok.sarze.datum_zalozeni,
+                krok__zacatek=self.krok.zacatek,
+                krok__poradi__lt=self.krok.poradi,
+            )
         ).exists()
+
+
+# Dočasný alias pro postupný refaktor dalších vrstev (admin/filtry/views/testy).
+SarzeBedna = SarzeKrokBedna
 
 
 class PriorityNotificationRecipient(models.Model):

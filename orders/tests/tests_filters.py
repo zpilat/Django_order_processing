@@ -2,7 +2,7 @@ from django.test import TestCase, RequestFactory
 from django.utils import timezone
 
 from orders.models import (
-	Zakaznik, Odberatel, Kamion, Zakazka, Bedna, Predpis, TypHlavy, Zarizeni, Sarze, SarzeBedna
+	Zakaznik, Odberatel, Kamion, Zakazka, Bedna, Predpis, TypHlavy, Zarizeni, Sarze, SarzeKrok, SarzeBedna
 )
 from orders.choices import (
 	StavBednyChoice, TryskaniChoice, RovnaniChoice, PrioritaChoice, KamionChoice,
@@ -410,31 +410,44 @@ class SarzeBednaFiltersTests(FilterTestBase):
 		)
 
 		self.sar_pp = Sarze.objects.create(
+			cislo_sarze=9001,
+			datum_zalozeni=today,
+			aktivni=True,
+		)
+		self.sar_vu = Sarze.objects.create(
+			cislo_sarze=9002,
+			datum_zalozeni=today,
+			aktivni=True,
+		)
+
+		self.krok_pp = SarzeKrok.objects.create(
+			sarze=self.sar_pp,
+			poradi=1,
 			zarizeni=self.zar_pp,
-			datum=today,
 			zacatek='06:00',
 			operator='OP',
 			program='P1',
 		)
-		self.sar_vu = Sarze.objects.create(
+		self.krok_vu = SarzeKrok.objects.create(
+			sarze=self.sar_vu,
+			poradi=1,
 			zarizeni=self.zar_vu,
-			datum=today,
 			zacatek='07:00',
 			operator='OP',
 			program='P2',
 		)
 
 		self.sb_pp = SarzeBedna.objects.create(
-			sarze=self.sar_pp,
+			krok=self.krok_pp,
 			patro=1,
-			popis='test pp',
+			popis_mimo_db='test pp',
 			zakaznik_mimo_db='Zak A',
 			zakazka_mimo_db='Zak-1',
 		)
 		self.sb_vu = SarzeBedna.objects.create(
-			sarze=self.sar_vu,
+			krok=self.krok_vu,
 			patro=1,
-			popis='test vu',
+			popis_mimo_db='test vu',
 			zakaznik_mimo_db='Zak B',
 			zakazka_mimo_db='Zak-2',
 		)

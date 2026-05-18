@@ -15,6 +15,7 @@ from orders.models import (
     Pozice,
     Zarizeni,
     Sarze,
+    SarzeKrok,
     SarzeBedna,
 )
 from orders.choices import (
@@ -23,6 +24,7 @@ from orders.choices import (
     TryskaniChoice,
     RovnaniChoice,
     ZinkovaniChoice,
+    TypZarizeniChoice,
 )
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
@@ -296,88 +298,87 @@ class TestSarzeModels(ModelsBase):
             kod_zarizeni="ZBASE",
             nazev_zarizeni="Základní zařízení",
             prefix_sarze="1X",
+            typ_zarizeni=TypZarizeniChoice.VICEUCELOVKA,
         )
         cls.sarze_base = Sarze.objects.create(
+            cislo_sarze=1,
+            datum_zalozeni=date(2026, 2, 16),
+            aktivni=True,
+        )
+        cls.krok_base = SarzeKrok.objects.create(
+            sarze=cls.sarze_base,
+            poradi=1,
             zarizeni=cls.zarizeni_base,
-            datum=date(2026, 2, 16),
             zacatek=time(8, 0),
             konec=time(9, 0),
             operator="Operátor",
             program="P1",
         )
 
-    def test_sarze_auto_numbering_per_device(self):
+    def test_sarze_auto_numbering_is_global(self):
         zar1 = Zarizeni.objects.create(
             kod_zarizeni="Z1",
             nazev_zarizeni="Zařízení 1",
             prefix_sarze="A",
+            typ_zarizeni=TypZarizeniChoice.VICEUCELOVKA,
         )
         zar2 = Zarizeni.objects.create(
             kod_zarizeni="Z2",
             nazev_zarizeni="Zařízení 2",
             prefix_sarze="B",
+            typ_zarizeni=TypZarizeniChoice.POPOUSTECKA,
         )
 
-        s1 = Sarze.objects.create(
-            zarizeni=zar1,
-            datum=date(2026, 2, 16),
-            zacatek=time(10, 0),
-            konec=time(11, 0),
-            operator="Op",
-            program="P",
-        )
-        s2 = Sarze.objects.create(
-            zarizeni=zar1,
-            datum=date(2026, 2, 16),
-            zacatek=time(12, 0),
-            konec=time(13, 0),
-            operator="Op",
-            program="P",
-        )
-        s3 = Sarze.objects.create(
-            zarizeni=zar2,
-            datum=date(2026, 2, 16),
-            zacatek=time(10, 0),
-            konec=time(11, 0),
-            operator="Op",
-            program="P",
-        )
+        s1 = Sarze.objects.create(datum_zalozeni=date(2026, 2, 16), aktivni=True)
+        s2 = Sarze.objects.create(datum_zalozeni=date(2026, 2, 16), aktivni=True)
+        s3 = Sarze.objects.create(datum_zalozeni=date(2026, 2, 16), aktivni=True)
 
-        self.assertEqual(s1.cislo_sarze, 1)
-        self.assertEqual(s2.cislo_sarze, 2)
-        self.assertEqual(s3.cislo_sarze, 1)
+        SarzeKrok.objects.create(sarze=s1, poradi=1, zarizeni=zar1, zacatek=time(10, 0), konec=time(11, 0), operator="Op", program="P")
+        SarzeKrok.objects.create(sarze=s2, poradi=1, zarizeni=zar1, zacatek=time(12, 0), konec=time(13, 0), operator="Op", program="P")
+        SarzeKrok.objects.create(sarze=s3, poradi=1, zarizeni=zar2, zacatek=time(10, 0), konec=time(11, 0), operator="Op", program="P")
 
-    def test_cislo_sarze_zobrazeni(self):
+        self.assertEqual(s1.cislo_sarze, 2)
+        self.assertEqual(s2.cislo_sarze, 3)
+        self.assertEqual(s3.cislo_sarze, 4)
+
+    def test_sarze_str_format(self):
         sarze = Sarze.objects.create(
-            zarizeni=self.zarizeni_base,
             cislo_sarze=3,
-            datum=date(2026, 2, 16),
-            zacatek=time(10, 0),
-            konec=time(11, 0),
-            operator="Op",
-            program="P",
+            datum_zalozeni=date(2026, 2, 16),
+            aktivni=True,
         )
-        self.assertEqual(sarze.cislo_sarze_zobrazeni, "1X00003")
+        self.assertEqual(str(sarze), "S00003")
 
-    def test_sarze_prodleva(self):
+    def test_sarzekrok_prodleva(self):
         zar = Zarizeni.objects.create(
             kod_zarizeni="ZP",
             nazev_zarizeni="Zařízení prodleva",
             prefix_sarze="P",
+            typ_zarizeni=TypZarizeniChoice.VICEUCELOVKA,
         )
-        Sarze.objects.create(
+        sarze_prev = Sarze.objects.create(
+            cislo_sarze=100,
+            datum_zalozeni=date(2026, 2, 16),
+            aktivni=True,
+        )
+        SarzeKrok.objects.create(
+            sarze=sarze_prev,
+            poradi=1,
             zarizeni=zar,
-            cislo_sarze=1,
-            datum=date(2026, 2, 16),
             zacatek=time(10, 0),
             konec=time(11, 0),
             operator="Op",
             program="P",
         )
-        current = Sarze.objects.create(
+        sarze_current = Sarze.objects.create(
+            cislo_sarze=101,
+            datum_zalozeni=date(2026, 2, 16),
+            aktivni=True,
+        )
+        current = SarzeKrok.objects.create(
+            sarze=sarze_current,
+            poradi=1,
             zarizeni=zar,
-            cislo_sarze=2,
-            datum=date(2026, 2, 16),
             zacatek=time(12, 30),
             konec=time(13, 0),
             operator="Op",
@@ -385,23 +386,28 @@ class TestSarzeModels(ModelsBase):
         )
         self.assertEqual(current.prodleva, 90)
 
-    def test_sarze_takt_cross_midnight(self):
+    def test_sarzekrok_takt_cross_midnight(self):
         sarze = Sarze.objects.create(
-            zarizeni=self.zarizeni_base,
             cislo_sarze=10,
-            datum=date(2026, 2, 16),
+            datum_zalozeni=date(2026, 2, 16),
+            aktivni=True,
+        )
+        krok = SarzeKrok.objects.create(
+            sarze=sarze,
+            poradi=1,
+            zarizeni=self.zarizeni_base,
             zacatek=time(23, 0),
             konec=time(1, 0),
             operator="Op",
             program="P",
         )
-        self.assertEqual(sarze.takt, 2.0)
+        self.assertEqual(krok.takt, 2.0)
 
     def test_sarzebedna_procent_z_patra_validators(self):
         base_kwargs = {
-            'sarze': self.sarze_base,
+            'krok': self.krok_base,
             'patro': 1,
-            'popis': 'Test zelezo',
+            'popis_mimo_db': 'Test zelezo',
             'zakaznik_mimo_db': 'Mimo DB',
             'zakazka_mimo_db': 'ZAK-001',
         }
@@ -419,14 +425,14 @@ class TestSarzeModels(ModelsBase):
 
     def test_sarzebedna_unique_constraint(self):
         SarzeBedna.objects.create(
-            sarze=self.sarze_base,
+            krok=self.krok_base,
             bedna=self.bedna1,
             patro=1,
         )
         with self.assertRaises(IntegrityError):
             with transaction.atomic():
                 SarzeBedna.objects.create(
-                    sarze=self.sarze_base,
+                    krok=self.krok_base,
                     bedna=self.bedna1,
                     patro=1,
                 )
@@ -436,28 +442,39 @@ class TestSarzeModels(ModelsBase):
             kod_zarizeni="ZP1",
             nazev_zarizeni="Zařízení P1",
             prefix_sarze="P1",
+            typ_zarizeni=TypZarizeniChoice.VICEUCELOVKA,
         )
         sarze1 = Sarze.objects.create(
-            zarizeni=zar,
             cislo_sarze=1,
-            datum=date(2026, 2, 16),
+            datum_zalozeni=date(2026, 2, 16),
+            aktivni=True,
+        )
+        krok1 = SarzeKrok.objects.create(
+            sarze=sarze1,
+            poradi=1,
+            zarizeni=zar,
             zacatek=time(8, 0),
             konec=time(9, 0),
             operator="Op",
             program="P",
         )
         sarze2 = Sarze.objects.create(
-            zarizeni=zar,
             cislo_sarze=2,
-            datum=date(2026, 2, 17),
+            datum_zalozeni=date(2026, 2, 17),
+            aktivni=True,
+        )
+        krok2 = SarzeKrok.objects.create(
+            sarze=sarze2,
+            poradi=1,
+            zarizeni=zar,
             zacatek=time(8, 0),
             konec=time(9, 0),
             operator="Op",
             program="P",
         )
 
-        sb1 = SarzeBedna.objects.create(sarze=sarze1, bedna=self.bedna1, patro=1)
-        sb2 = SarzeBedna.objects.create(sarze=sarze2, bedna=self.bedna1, patro=1)
+        sb1 = SarzeBedna.objects.create(krok=krok1, bedna=self.bedna1, patro=1)
+        sb2 = SarzeBedna.objects.create(krok=krok2, bedna=self.bedna1, patro=1)
 
         self.assertTrue(sb1.prvni_pouziti)
         self.assertFalse(sb2.prvni_pouziti)
@@ -467,34 +484,41 @@ class TestSarzeModels(ModelsBase):
             kod_zarizeni="ZP2",
             nazev_zarizeni="Zařízení P2",
             prefix_sarze="P2",
+            typ_zarizeni=TypZarizeniChoice.VICEUCELOVKA,
         )
         sarze = Sarze.objects.create(
-            zarizeni=zar,
             cislo_sarze=1,
-            datum=date(2026, 2, 18),
+            datum_zalozeni=date(2026, 2, 18),
+            aktivni=True,
+        )
+        krok = SarzeKrok.objects.create(
+            sarze=sarze,
+            poradi=1,
+            zarizeni=zar,
             zacatek=time(8, 0),
             konec=time(9, 0),
             operator="Op",
             program="P",
         )
 
-        sb_patro_1 = SarzeBedna.objects.create(sarze=sarze, bedna=self.bedna1, patro=1)
-        sb_patro_2 = SarzeBedna.objects.create(sarze=sarze, bedna=self.bedna1, patro=2)
+        sb_patro_1 = SarzeBedna.objects.create(krok=krok, bedna=self.bedna1, patro=1)
+        sb_patro_2 = SarzeBedna.objects.create(krok=krok, bedna=self.bedna1, patro=2)
 
         self.assertTrue(sb_patro_1.prvni_pouziti)
         self.assertFalse(sb_patro_2.prvni_pouziti)
 
     def test_sarzebedna_clean_requires_bedna_or_popis(self):
-        sb = SarzeBedna(sarze=self.sarze_base, patro=1)
+        sb = SarzeBedna(krok=self.krok_base, patro=1)
         with self.assertRaises(ValidationError):
             sb.full_clean()
 
     def test_sarzebedna_clean_disallows_bedna_and_popis(self):
         sb = SarzeBedna(
-            sarze=self.sarze_base,
+            krok=self.krok_base,
             bedna=self.bedna1,
-            popis="Železo",
+            popis_mimo_db="Železo",
             zakaznik_mimo_db="Zákazník",
+            zakazka_mimo_db="ZAK-001",
             patro=1,
         )
         with self.assertRaises(ValidationError):
@@ -502,8 +526,8 @@ class TestSarzeModels(ModelsBase):
 
     def test_sarzebedna_clean_requires_customer_for_popis(self):
         sb = SarzeBedna(
-            sarze=self.sarze_base,
-            popis="Železo",
+            krok=self.krok_base,
+            popis_mimo_db="Železo",
             patro=1,
         )
         with self.assertRaises(ValidationError):
@@ -511,8 +535,8 @@ class TestSarzeModels(ModelsBase):
 
     def test_sarzebedna_clean_requires_zakazka_for_popis(self):
         sb = SarzeBedna(
-            sarze=self.sarze_base,
-            popis="Železo",
+            krok=self.krok_base,
+            popis_mimo_db="Železo",
             zakaznik_mimo_db="Test zákazník",
             patro=1,
         )
@@ -523,7 +547,7 @@ class TestSarzeModels(ModelsBase):
         self.bedna1.stav_bedny = StavBednyChoice.PRIJATO
         self.bedna1.save(update_fields=['stav_bedny'])
         sb = SarzeBedna(
-            sarze=self.sarze_base,
+            krok=self.krok_base,
             bedna=self.bedna1,
             patro=1,
         )
@@ -534,7 +558,7 @@ class TestSarzeModels(ModelsBase):
         self.bedna1.save(update_fields=['stav_bedny'])
 
         sb = SarzeBedna(
-            sarze=self.sarze_base,
+            krok=self.krok_base,
             bedna=self.bedna1,
             patro=1,
         )
@@ -543,8 +567,8 @@ class TestSarzeModels(ModelsBase):
 
     def test_sarzebedna_clean_valid_popis_and_customer(self):
         sb = SarzeBedna(
-            sarze=self.sarze_base,
-            popis="Železo",
+            krok=self.krok_base,
+            popis_mimo_db="Železo",
             zakaznik_mimo_db="Test zákazník",
             zakazka_mimo_db="ZAK-001",
             patro=1,

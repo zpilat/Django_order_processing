@@ -14,9 +14,9 @@ from django.utils import timezone
 from unittest.mock import patch
 from types import SimpleNamespace
 
-from orders.admin import KamionAdmin, ZakazkaAdmin, BednaAdmin, BednaInline, NotificationAdmin, SarzeAdmin, SarzeBednaInline, PredpisAdmin, CenaAdmin
+from orders.admin import KamionAdmin, ZakazkaAdmin, BednaAdmin, BednaInline, NotificationAdmin, SarzeAdmin, SarzeKrokAdmin, SarzeKrokBednaAdmin, SarzeKrokBednaInline, PredpisAdmin, CenaAdmin
 from orders.forms import ImportZakazekForm
-from orders.models import Zakaznik, Kamion, Zakazka, Bedna, Predpis, TypHlavy, Odberatel, Cena, Notification, PriorityNotificationRecipient, Zarizeni, Sarze
+from orders.models import Zakaznik, Kamion, Zakazka, Bedna, Predpis, TypHlavy, Odberatel, Cena, Notification, PriorityNotificationRecipient, Zarizeni, Sarze, SarzeKrok, SarzeKrokBedna
 from orders.choices import StavBednyChoice, SklademZakazkyChoice, PrijemVydejChoice, KamionChoice, ZinkovaniChoice, PrioritaChoice
 from orders.filters import DelkaFilter
 
@@ -1844,115 +1844,9 @@ class NotificationAdminTests(AdminBase):
         self.assertEqual(qs.first().recipient, current_user)
 
 
-class SarzeAdminMoveTests(AdminBase):
+class SarzeKrokBednaInlineAdminTests(AdminBase):
     def setUp(self):
-        self.admin = SarzeAdmin(Sarze, self.site)
-        self.zarizeni_source = Zarizeni.objects.create(
-            kod_zarizeni='Z1',
-            nazev_zarizeni='Zarizeni 1',
-            zkraceny_nazev_zarizeni='Z1',
-            prefix_sarze='Z1',
-        )
-        self.zarizeni_target = Zarizeni.objects.create(
-            kod_zarizeni='Z2',
-            nazev_zarizeni='Zarizeni 2',
-            zkraceny_nazev_zarizeni='Z2',
-            prefix_sarze='Z2',
-        )
-        Sarze.objects.create(
-            zarizeni=self.zarizeni_target,
-            cislo_sarze=5,
-            datum=date.today(),
-            zacatek=time(6, 0),
-            operator='OP',
-            program='P1',
-        )
-        self.sarze = Sarze.objects.create(
-            zarizeni=self.zarizeni_source,
-            cislo_sarze=1,
-            datum=date.today(),
-            zacatek=time(7, 0),
-            operator='OP',
-            program='P1',
-        )
-
-    def _build_request(self, data, user=None):
-        request = self.factory.post('/admin/orders/sarze/', data=data)
-        request.user = user or self.user
-        request.session = DummySession()
-        request._messages = FallbackStorage(request)
-        return request
-
-    def _create_staff_user(self, username, with_move_permission=False):
-        User = get_user_model()
-        user = User.objects.create_user(
-            username=username,
-            email=f'{username}@example.com',
-            password='pass',
-            is_staff=True,
-        )
-        if with_move_permission:
-            permission = Permission.objects.get(codename='can_move_sarze')
-            user.user_permissions.add(permission)
-        return user
-
-    def test_move_sarze_to_zarizeni_action(self):
-        allowed_user = self._create_staff_user('sarze_move_allowed', with_move_permission=True)
-        data = {
-            'action': 'move_sarze_to_zarizeni',
-            admin.helpers.ACTION_CHECKBOX_NAME: [str(self.sarze.pk)],
-            'apply': '1',
-            'target_zarizeni': str(self.zarizeni_target.pk),
-            'move_reason': 'Test presun',
-        }
-        request = self._build_request(data, user=allowed_user)
-        queryset = Sarze.objects.filter(pk=self.sarze.pk)
-
-        self.admin.move_sarze_to_zarizeni(request, queryset)
-
-        self.sarze.refresh_from_db()
-        self.assertEqual(self.sarze.zarizeni, self.zarizeni_target)
-        self.assertEqual(self.sarze.cislo_sarze, 6)
-
-        self.assertTrue(
-            self.sarze.history.filter(
-                history_change_reason='Přesun šarže: Test presun'
-            ).exists()
-        )
-
-    def test_move_sarze_to_zarizeni_action_requires_special_permission(self):
-        denied_user = self._create_staff_user('sarze_move_denied', with_move_permission=False)
-        original_zarizeni_id = self.sarze.zarizeni_id
-        original_cislo_sarze = self.sarze.cislo_sarze
-
-        data = {
-            'action': 'move_sarze_to_zarizeni',
-            admin.helpers.ACTION_CHECKBOX_NAME: [str(self.sarze.pk)],
-            'apply': '1',
-            'target_zarizeni': str(self.zarizeni_target.pk),
-            'move_reason': 'Bez prava',
-        }
-        request = self._build_request(data, user=denied_user)
-        queryset = Sarze.objects.filter(pk=self.sarze.pk)
-
-        actions = self.admin.get_actions(request)
-        self.assertNotIn('move_sarze_to_zarizeni', actions)
-
-        self.admin.move_sarze_to_zarizeni(request, queryset)
-
-        self.sarze.refresh_from_db()
-        self.assertEqual(self.sarze.zarizeni_id, original_zarizeni_id)
-        self.assertEqual(self.sarze.cislo_sarze, original_cislo_sarze)
-        self.assertFalse(
-            self.sarze.history.filter(
-                history_change_reason='Přesun šarže: Bez prava'
-            ).exists()
-        )
-
-
-class SarzeBednaInlineAdminTests(AdminBase):
-    def setUp(self):
-        self.sarze_inline = SarzeBednaInline(Sarze, self.site)
+        self.sarze_inline = SarzeKrokBednaInline(SarzeKrok, self.site)
         self.zarizeni = Zarizeni.objects.create(
             kod_zarizeni='SZ1',
             nazev_zarizeni='Sarze Zarizeni',
@@ -1960,9 +1854,14 @@ class SarzeBednaInlineAdminTests(AdminBase):
             prefix_sarze='SZ1',
         )
         self.sarze = Sarze.objects.create(
-            zarizeni=self.zarizeni,
             cislo_sarze=10,
-            datum=date.today(),
+            datum_zalozeni=date.today(),
+            aktivni=True,
+        )
+        self.krok = SarzeKrok.objects.create(
+            sarze=self.sarze,
+            poradi=1,
+            zarizeni=self.zarizeni,
             zacatek=time(8, 0),
             operator='OP',
             program='P1',
@@ -2007,7 +1906,7 @@ class SarzeBednaInlineAdminTests(AdminBase):
             reverse('admin:autocomplete'),
             {
                 'app_label': 'orders',
-                'model_name': 'sarzebedna',
+                'model_name': 'sarzekrokbedna',
                 'field_name': 'bedna',
                 'term': 'ZKRTEST',
             },
@@ -2021,10 +1920,10 @@ class SarzeBednaInlineAdminTests(AdminBase):
         self.assertNotIn(str(ne_skladem_bedna.pk), returned_ids)
 
     def test_sarze_inline_formset_rejects_bedna_outside_skladem_states(self):
-        request = self.factory.get('/admin/orders/sarze/')
+        request = self.factory.get('/admin/orders/sarzekrok/')
         request.user = self.user
 
-        formset_class = self.sarze_inline.get_formset(request, obj=self.sarze)
+        formset_class = self.sarze_inline.get_formset(request, obj=self.krok)
         prefix = formset_class.get_default_prefix()
 
         bedna_mimo_skladem = Bedna.objects.create(
@@ -2051,16 +1950,152 @@ class SarzeBednaInlineAdminTests(AdminBase):
             f'{prefix}-0-bedna': str(bedna_mimo_skladem.pk),
             f'{prefix}-0-patro': '1',
             f'{prefix}-0-procent_z_patra': '100',
-            f'{prefix}-0-popis': '',
+            f'{prefix}-0-popis_mimo_db': '',
             f'{prefix}-0-zakaznik_mimo_db': '',
             f'{prefix}-0-zakazka_mimo_db': '',
             f'{prefix}-0-cislo_bedny_mimo_db': '',
         }
 
-        formset = formset_class(data=data, instance=self.sarze, prefix=prefix)
+        formset = formset_class(data=data, instance=self.krok, prefix=prefix)
 
         self.assertFalse(formset.is_valid())
         self.assertTrue(any('nejsou ve stavu skladem' in str(err) for err in formset.non_form_errors()))
+
+
+class SarzeKrokBednaAdminActionTests(AdminBase):
+    def setUp(self):
+        self.admin = SarzeKrokBednaAdmin(SarzeKrokBedna, self.site)
+        self.zarizeni_1 = Zarizeni.objects.create(
+            kod_zarizeni='A1',
+            nazev_zarizeni='Zarizeni A1',
+            zkraceny_nazev_zarizeni='A1',
+            prefix_sarze='A1',
+        )
+        self.zarizeni_2 = Zarizeni.objects.create(
+            kod_zarizeni='A2',
+            nazev_zarizeni='Zarizeni A2',
+            zkraceny_nazev_zarizeni='A2',
+            prefix_sarze='A2',
+        )
+        self.sarze = Sarze.objects.create(
+            cislo_sarze=100,
+            datum_zalozeni=date.today(),
+            aktivni=True,
+        )
+        self.krok_1 = SarzeKrok.objects.create(
+            sarze=self.sarze,
+            poradi=1,
+            zarizeni=self.zarizeni_1,
+            zacatek=time(8, 0),
+            operator='OP1',
+            program='P1',
+        )
+        self.krok_2 = SarzeKrok.objects.create(
+            sarze=self.sarze,
+            poradi=2,
+            zarizeni=self.zarizeni_2,
+            zacatek=time(9, 0),
+            operator='OP2',
+            program='P2',
+        )
+        self.zakazka = Zakazka.objects.create(
+            kamion_prijem=self.kamion,
+            artikl='AKCE-1',
+            prumer=Decimal('10.0'),
+            delka=Decimal('50.0'),
+            predpis=self.predpis,
+            typ_hlavy=self.typ_hlavy,
+            popis='test akce',
+        )
+        self.bedna = Bedna.objects.create(
+            zakazka=self.zakazka,
+            hmotnost=Decimal('2.0'),
+            tara=Decimal('1.0'),
+            mnozstvi=1,
+            stav_bedny=StavBednyChoice.PRIJATO,
+        )
+
+    def test_action_moves_record_to_next_step(self):
+        source = SarzeKrokBedna.objects.create(
+            krok=self.krok_1,
+            bedna=self.bedna,
+            patro=1,
+            procent_z_patra=100,
+        )
+        request = self.factory.post('/admin/orders/sarzekrokbedna/')
+        request.user = self.user
+        request.session = DummySession()
+        request._messages = FallbackStorage(request)
+
+        self.admin.posunout_do_dalsiho_zarizeni_action(request, SarzeKrokBedna.objects.filter(pk=source.pk))
+
+        self.assertFalse(SarzeKrokBedna.objects.filter(pk=source.pk).exists())
+        self.assertTrue(
+            SarzeKrokBedna.objects.filter(
+                krok=self.krok_2,
+                bedna=self.bedna,
+                patro=1,
+            ).exists()
+        )
+
+    def test_action_keeps_record_when_next_step_missing(self):
+        source = SarzeKrokBedna.objects.create(
+            krok=self.krok_2,
+            bedna=self.bedna,
+            patro=2,
+            procent_z_patra=50,
+        )
+        request = self.factory.post('/admin/orders/sarzekrokbedna/')
+        request.user = self.user
+        request.session = DummySession()
+        request._messages = FallbackStorage(request)
+
+        self.admin.posunout_do_dalsiho_zarizeni_action(request, SarzeKrokBedna.objects.filter(pk=source.pk))
+
+        self.assertTrue(SarzeKrokBedna.objects.filter(pk=source.pk).exists())
+
+    def test_action_skips_record_when_bedna_not_skladem(self):
+        self.bedna.stav_bedny = StavBednyChoice.EXPEDOVANO
+        self.bedna.save(update_fields=['stav_bedny'])
+
+        source = SarzeKrokBedna.objects.create(
+            krok=self.krok_1,
+            bedna=self.bedna,
+            patro=3,
+            procent_z_patra=100,
+        )
+        request = self.factory.post('/admin/orders/sarzekrokbedna/')
+        request.user = self.user
+        request.session = DummySession()
+        request._messages = FallbackStorage(request)
+
+        self.admin.posunout_do_dalsiho_zarizeni_action(request, SarzeKrokBedna.objects.filter(pk=source.pk))
+
+        self.assertTrue(SarzeKrokBedna.objects.filter(pk=source.pk).exists())
+        self.assertFalse(SarzeKrokBedna.objects.filter(krok=self.krok_2, bedna=self.bedna, patro=3).exists())
+
+    def test_action_skips_when_target_duplicate_exists(self):
+        source = SarzeKrokBedna.objects.create(
+            krok=self.krok_1,
+            bedna=self.bedna,
+            patro=4,
+            procent_z_patra=100,
+        )
+        SarzeKrokBedna.objects.create(
+            krok=self.krok_2,
+            bedna=self.bedna,
+            patro=4,
+            procent_z_patra=100,
+        )
+
+        request = self.factory.post('/admin/orders/sarzekrokbedna/')
+        request.user = self.user
+        request.session = DummySession()
+        request._messages = FallbackStorage(request)
+
+        self.admin.posunout_do_dalsiho_zarizeni_action(request, SarzeKrokBedna.objects.filter(pk=source.pk))
+
+        self.assertTrue(SarzeKrokBedna.objects.filter(pk=source.pk).exists())
 
 
 class PredpisAdminSaveAsTests(AdminBase):

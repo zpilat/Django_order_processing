@@ -11,7 +11,7 @@ ORDERS_ADMIN_SECTIONS = (
     {
         'key': 'vyroba',
         'title': 'Výroba',
-        'models': ('sarzebedna', 'sarze', 'zarizeni',),
+        'models': ('sarzekrokbedna', 'sarzekrok', 'sarze', 'zarizeni',),
     },
     {
         'key': 'ciselniky',

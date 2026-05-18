@@ -34,7 +34,7 @@ from .import_strategies import BaseImportStrategy, EURImportStrategy, SPXImportS
 
 from .models import (
     Zakaznik, Kamion, Zakazka, Bedna, Predpis, Odberatel, TypHlavy, Cena, Pozice, Pletivo, PoziceZakazkaOrder, Rozpracovanost,
-    Zarizeni, Sarze, SarzeBedna, Notification, PriorityNotificationRecipient,
+    Zarizeni, Sarze, SarzeKrok, SarzeKrokBedna, Notification, PriorityNotificationRecipient,
 )
 from .actions import (
     expedice_zakazek_action, import_kamionu_action, tisk_karet_beden_action, tisk_karet_beden_zakazek_action,
@@ -54,8 +54,8 @@ from .filters import (
     SklademZakazkaFilter, StavBednyFilter, KompletZakazkaFilter, AktivniPredpisFilter, SkupinaFilter, ZakaznikBednyFilter,
     ZakaznikZakazkyFilter, ZakaznikKamionuFilter, PrijemVydejFilter, TryskaniFilter, RovnaniFilter, PrioritaBednyFilter, PrioritaZakazkyFilter,
     OberflacheFilter, TypHlavyBednyFilter, TypHlavyZakazkyFilter, CelozavitBednyFilter, CelozavitZakazkyFilter, DelkaFilter, PozastavenoFilter,
-    OdberatelFilter, OdberatelBednyFilter, AktivniNotifikaceBednyFilter, ZakaznikPredpisFilter, ZinkovaniFilter, ZarizeniSarzeFilter, ZarizeniSarzeBednaFilter,
-    TypZarizeniSarzeBednaFilter, FakturovatFilter,
+    OdberatelFilter, OdberatelBednyFilter, AktivniNotifikaceBednyFilter, ZakaznikPredpisFilter, ZinkovaniFilter, ZarizeniSarzeFilter,
+    ZarizeniSarzeKrokFilter, TypZarizeniSarzeKrokFilter, ZarizeniSarzeBednaFilter, TypZarizeniSarzeBednaFilter, FakturovatFilter,
 )
 from .forms import (
     BednaAdminForm,
@@ -64,7 +64,6 @@ from .forms import (
     ZakazkaInlineForm,
     ZakazkaAdminForm,
     ZakazkaMeasurementForm,
-    SarzeMoveForm,
 )
 from .choices import (
     StavBednyChoice, RovnaniChoice, TryskaniChoice, ZinkovaniChoice, PrioritaChoice, KamionChoice, PrijemVydejChoice, SklademZakazkyChoice,
@@ -76,7 +75,7 @@ import logging
 logger = logging.getLogger('orders')
 
 
-class SarzeBednaInlineFormSet(BaseInlineFormSet):
+class SarzeKrokBednaInlineFormSet(BaseInlineFormSet):
     def clean(self):
         super().clean()
 
@@ -107,24 +106,21 @@ class SarzeBednaInlineFormSet(BaseInlineFormSet):
             )
 
 
-class SarzeBednaInline(admin.TabularInline):
-    """
-    Inline pro správu vztahu mezi Sarze a Bedna v administraci.
-    """
-    model = SarzeBedna
-    # extra se dynamicky nastavuje v get_extra, defaultně 5 pro nový objekt Sarze, 0 pro existující
-    formset = SarzeBednaInlineFormSet
+class SarzeKrokBednaInline(admin.TabularInline):
+    """Inline pro správu beden v kroku šarže."""
+    model = SarzeKrokBedna
+    formset = SarzeKrokBednaInlineFormSet
     autocomplete_fields = ('bedna',)
     fields = (
-        'bedna', 'patro', 'procent_z_patra', 'popis', 'zakaznik_mimo_db', 'zakazka_mimo_db', 'cislo_bedny_mimo_db',
+        'bedna', 'patro', 'procent_z_patra', 'popis_mimo_db', 'zakaznik_mimo_db', 'zakazka_mimo_db', 'cislo_bedny_mimo_db',
     )
 
     def get_extra(self, request, obj=None, **kwargs):
         """
-        Dynamické nastavení počtu extra formulářů pro inline SarzeBedna.
-        Pokud je objekt Sarze již uložen, nastaví extra na 0, jinak na 5.
+        Dynamické nastavení počtu extra formulářů pro inline SarzeKrokBedna.
+        Pokud je objekt SarzeKrok již uložen, nastaví extra na 0, jinak na 5.
         """
-        # obj je instance Sarze, pro kterou se inline zobrazuje
+        # obj je instance SarzeKrok, pro kterou se inline zobrazuje
         if obj and obj.pk:
             return 0
         return 5
@@ -161,6 +157,18 @@ class SarzeBednaInline(admin.TabularInline):
         return super().formfield_for_dbfield(db_field, request, **kwargs)
 
 
+class SarzeKrokInline(admin.TabularInline):
+    """Inline pro správu kroků šarže."""
+    model = SarzeKrok
+    fields = ('poradi', 'zarizeni', 'zacatek', 'konec', 'operator', 'program', 'cislo_pripravku', 'alarm', 'poznamka')
+    readonly_fields = ('poradi',)
+    autocomplete_fields = ('zarizeni',)
+    extra = 0
+    formfield_overrides = {
+        models.TimeField: {'widget': forms.TimeInput(format='%H:%M')},
+    }
+
+
 @admin.register(Zarizeni)
 class ZarizeniAdmin(SimpleHistoryAdmin):
     list_display = ('kod_zarizeni', 'nazev_zarizeni', 'zkraceny_nazev_zarizeni', 'prefix_sarze', 'umisteni', 'typ_zarizeni')
@@ -175,48 +183,72 @@ class ZarizeniAdmin(SimpleHistoryAdmin):
 
 @admin.register(Sarze)
 class SarzeAdmin(SimpleHistoryAdmin):
-    fields = ('cislo_sarze', 'zarizeni', 'datum', 'zacatek', 'konec', 'operator', 'program', 'cislo_pripravku', 'poznamka', 'alarm',)
-    list_display = ('get_cislo_sarze', 'get_kod_zarizeni', 'get_datum', 'zacatek', 'konec', 'operator',
-                    'cislo_pripravku', 'program', 'get_poznamka', 'get_alarm', 'get_prodleva', 'get_takt', 'get_bedny',)
-    change_form_template = 'admin/orders/sarze/change_form.html'
-    list_filter = (ZarizeniSarzeFilter,)
-    search_fields = ('cislo_sarze', 'operator',)
-    autocomplete_fields = ('zarizeni',)
+    fields = ('cislo_sarze', 'datum_zalozeni', 'aktivni', 'poznamka',)
+    list_display = ('get_cislo_sarze', 'datum_zalozeni', 'aktivni', 'get_poznamka', 'get_pocet_kroku',)
+    list_filter = ('aktivni', ZarizeniSarzeFilter)
+    search_fields = ('cislo_sarze',)
     readonly_fields = ('cislo_sarze',)
-    date_hierarchy = 'datum'
-    ordering = ('-datum', '-zacatek',)
-    inlines = [SarzeBednaInline]
-    actions = ['move_sarze_to_zarizeni']
+    date_hierarchy = 'datum_zalozeni'
+    ordering = ('-datum_zalozeni', '-cislo_sarze',)
+    inlines = [SarzeKrokInline]
+
+    history_list_display = [
+        "cislo_sarze", "datum_zalozeni", "aktivni", "poznamka",
+    ]
+    history_search_fields = ["cislo_sarze", "poznamka"]
+    history_list_filter = ["aktivni", "datum_zalozeni"]
+    history_list_per_page = 20
+
+    @admin.display(description='Šarže', ordering='cislo_sarze')
+    def get_cislo_sarze(self, obj):
+        return obj
+
+    @admin.display(description='Poznámka', ordering='poznamka')
+    def get_poznamka(self, obj):
+        return truncate_with_title(obj.poznamka)
+
+    @admin.display(description='Kroků')
+    def get_pocet_kroku(self, obj):
+        return obj.kroky.count()
+
+
+@admin.register(SarzeKrok)
+class SarzeKrokAdmin(SimpleHistoryAdmin):
+    fields = ('sarze', 'poradi', 'zarizeni', 'zacatek', 'konec', 'operator', 'program', 'cislo_pripravku', 'alarm', 'poznamka',)
+    readonly_fields = ('poradi',)
+    list_display = (
+        'get_sarze', 'poradi', 'get_datum_zalozeni', 'get_zarizeni', 'zacatek', 'konec', 'operator',
+        'cislo_pripravku', 'program', 'get_prodleva', 'get_takt', 'get_poznamka', 'get_alarm',
+    )
+    autocomplete_fields = ('sarze', 'zarizeni',)
+    list_filter = (ZarizeniSarzeKrokFilter, TypZarizeniSarzeKrokFilter)
+    search_fields = ('sarze__cislo_sarze', 'operator', 'program')
+    list_select_related = ('sarze', 'zarizeni')
+    date_hierarchy = 'sarze__datum_zalozeni'
+    ordering = ('-sarze__datum_zalozeni', '-zacatek', '-poradi')
+    inlines = [SarzeKrokBednaInline]
     formfield_overrides = {
         models.TimeField: {'widget': forms.TimeInput(format='%H:%M')},
     }
 
     history_list_display = [
-        "cislo_sarze", "zarizeni", "datum", "zacatek", "konec", "operator", "program", "cislo_pripravku",
-        "poznamka", "alarm",
+        "sarze", "poradi", "zarizeni", "zacatek", "konec", "operator", "program", "cislo_pripravku", "alarm", "poznamka",
     ]
-    history_search_fields = ["cislo_sarze", "operator", "program"]
-    history_list_filter = ["zarizeni", "datum"]
+    history_search_fields = ["sarze__cislo_sarze", "operator", "program"]
+    history_list_filter = ["zarizeni", "sarze__datum_zalozeni"]
     history_list_per_page = 20
 
-    @admin.display(description='Číslo šarže', ordering='cislo_sarze_zobrazeni')
-    def get_cislo_sarze(self, obj):
-        return obj.cislo_sarze_zobrazeni
-    
+    @admin.display(description='Šarže', ordering='sarze__cislo_sarze')
+    def get_sarze(self, obj):
+        return obj.sarze
+
+    @admin.display(description='Datum', ordering='sarze__datum_zalozeni')
+    def get_datum_zalozeni(self, obj):
+        return obj.sarze.datum_zalozeni.strftime('%d.%m.%Y') if obj.sarze and obj.sarze.datum_zalozeni else '-'
+
     @admin.display(description='Zařízení', ordering='zarizeni__kod_zarizeni')
-    def get_kod_zarizeni(self, obj):
+    def get_zarizeni(self, obj):
         return obj.zarizeni.kod_zarizeni if obj.zarizeni else '-'
-
-    @admin.display(description='Datum', ordering='datum')
-    def get_datum(self, obj):
-        return obj.datum.strftime('%d.%m.%Y') if obj.datum else '-'
-
-    @admin.display(description='Bedny')
-    def get_bedny(self, obj):
-        if obj.bedny.exists():
-            bedny_str = ', '.join(str(bedna.cislo_bedny) for bedna in obj.bedny.all())
-            return bedny_str
-        return '-'
 
     @admin.display(description='Prodleva (m)')
     def get_prodleva(self, obj):
@@ -234,120 +266,31 @@ class SarzeAdmin(SimpleHistoryAdmin):
     def get_alarm(self, obj):
         return truncate_with_title(obj.alarm)
 
-    def has_move_sarze_permission(self, request):
-        return request.user.has_perm('orders.can_move_sarze')
 
-    def get_actions(self, request):
-        actions = super().get_actions(request)
-        if not self.has_move_sarze_permission(request):
-            actions.pop('move_sarze_to_zarizeni', None)
-        return actions
-
-    def get_readonly_fields(self, request, obj=None):
-        readonly_fields = list(super().get_readonly_fields(request, obj) or [])
-        if obj and 'zarizeni' not in readonly_fields:
-            readonly_fields.append('zarizeni')
-        return readonly_fields
-
-    @admin.action(description='Přesunout šarži na jiné zařízení')
-    def move_sarze_to_zarizeni(self, request, queryset):
-        if not self.has_move_sarze_permission(request):
-            self.message_user(
-                request,
-                "Nemáte oprávnění pro přesun šarže mezi zařízeními.",
-                messages.ERROR,
-            )
-            return
-
-        if queryset.count() != 1:
-            self.message_user(
-                request,
-                f"Vyberte právě jednu šarži (vybráno: {queryset.count()}).",
-                messages.ERROR,
-            )
-            return
-
-        if request.POST.get('apply'):
-            form = SarzeMoveForm(request.POST)
-            if not form.is_valid():
-                self.message_user(request, "Vyplňte nové zařízení a důvod přesunu.", messages.ERROR)
-            else:
-                target_zarizeni = form.cleaned_data['target_zarizeni']
-                reason = form.cleaned_data['move_reason'].strip()
-
-                sarze = queryset.first()
-                if sarze.zarizeni_id == target_zarizeni.id:
-                    self.message_user(request, "Šarže už je na zvoleném zařízení.", messages.WARNING)
-                else:
-                    last_number = (
-                        Sarze.objects
-                        .filter(zarizeni=target_zarizeni)
-                        .aggregate(max_cislo=Max('cislo_sarze'))
-                        .get('max_cislo')
-                    ) or 0
-
-                    sarze.zarizeni = target_zarizeni
-                    sarze.cislo_sarze = last_number + 1
-                    sarze._change_reason = f"Přesun šarže: {reason}"
-                    sarze.save()
-
-                    self.message_user(
-                        request,
-                        f"Šarže byla přesunuta na {target_zarizeni.kod_zarizeni} a přečíslována.",
-                        messages.SUCCESS,
-                    )
-                    logger.info(
-                        f"Šarže {sarze.cislo_sarze_zobrazeni} přesunuta na zařízení {target_zarizeni.kod_zarizeni} z důvodu: {reason}"
-                    )
-                return
-        else:
-            form = SarzeMoveForm()
-
-        context = {
-            **self.admin_site.each_context(request),
-            'opts': self.model._meta,
-            'title': 'Přesunout šarži na jiné zařízení',
-            'queryset': queryset,
-            'action_checkbox_name': admin.helpers.ACTION_CHECKBOX_NAME,
-            'action_name': 'move_sarze_to_zarizeni',
-            'form': form,
-        }
-        return render(request, 'admin/orders/sarze/move_sarze_action.html', context)
-
-    def response_add(self, request, obj, post_url_continue=None):
-        if "_save_to_sarzebedna" in request.POST:
-            return HttpResponseRedirect(reverse('admin:orders_sarzebedna_changelist'))
-        return super().response_add(request, obj, post_url_continue)
-
-    def response_change(self, request, obj):
-        if "_save_to_sarzebedna" in request.POST:
-            return HttpResponseRedirect(reverse('admin:orders_sarzebedna_changelist'))
-        return super().response_change(request, obj)
-
-
-@admin.register(SarzeBedna)
-class SarzeBednaAdmin(SimpleHistoryAdmin):
-    fields = ('sarze', 'bedna', 'popis', 'zakaznik_mimo_db', 'zakazka_mimo_db', 'cislo_bedny_mimo_db', 'patro', 'procent_z_patra',)
-    readonly_fields = ('sarze', 'bedna', 'popis', 'zakaznik_mimo_db', 'zakazka_mimo_db', 'cislo_bedny_mimo_db', 'patro', 'procent_z_patra',)
+@admin.register(SarzeKrokBedna)
+class SarzeKrokBednaAdmin(SimpleHistoryAdmin):
+    fields = ('krok', 'bedna', 'popis_mimo_db', 'zakaznik_mimo_db', 'zakazka_mimo_db', 'cislo_bedny_mimo_db', 'patro', 'procent_z_patra',)
+    readonly_fields = ('krok', 'bedna', 'popis_mimo_db', 'zakaznik_mimo_db', 'zakazka_mimo_db', 'cislo_bedny_mimo_db', 'patro', 'procent_z_patra',)
+    actions = ('posunout_do_dalsiho_zarizeni_action',)
     list_display = (
         'get_sarze', 'get_kod_zarizeni', 'get_datum', 'get_zacatek', 'get_konec', 'get_operator',
-        'get_zkraceny_popis', 'get_cislo_bedny', 'get_zakaznik', 'get_predpis', 'patro', #'get_procent_z_patra',
+        'get_zkraceny_popis', 'get_cislo_bedny', 'get_zakaznik', 'get_predpis', 'patro',
         'get_cislo_pripravku', 'get_program', 'get_zakazka_skupina', 'get_poznamka', 'get_alarm', 'get_prodleva',
-        'get_takt', #'get_prvni_pouziti',
+        'get_takt', 'get_prvni_pouziti',
     )
     change_list_template = 'admin/orders/sarzebedna/change_list.html'
     list_display_links = ('get_cislo_bedny',)
     list_filter = (ZarizeniSarzeBednaFilter, TypZarizeniSarzeBednaFilter)
-    search_fields = ('sarze__cislo_sarze', 'bedna__cislo_bedny', 'bedna__zakazka__predpis__nazev',)
+    search_fields = ('krok__sarze__cislo_sarze', 'bedna__cislo_bedny', 'bedna__zakazka__predpis__nazev',)
     search_help_text = "Dle čísla šarže, čísla bedny a předpisu"
     autocomplete_fields = ('bedna',)
-    list_select_related = ('sarze', 'sarze__zarizeni', 'bedna')
-    date_hierarchy = 'sarze__datum'
-    ordering = ('-sarze__datum', '-sarze__zacatek', 'patro',)
+    list_select_related = ('krok', 'krok__sarze', 'krok__zarizeni', 'bedna')
+    date_hierarchy = 'krok__sarze__datum_zalozeni'
+    ordering = ('-krok__sarze__datum_zalozeni', '-krok__zacatek', 'patro',)
 
-    history_list_display = ["sarze", "bedna", "popis", "zakaznik_mimo_db", "patro", "procent_z_patra",]
-    history_search_fields = ["sarze__cislo_sarze", "bedna__cislo_bedny", "popis", "zakaznik_mimo_db"]
-    history_list_filter = ["sarze", "bedna"]
+    history_list_display = ["krok", "bedna", "popis_mimo_db", "zakaznik_mimo_db", "patro", "procent_z_patra",]
+    history_search_fields = ["krok__sarze__cislo_sarze", "bedna__cislo_bedny", "popis_mimo_db", "zakaznik_mimo_db"]
+    history_list_filter = ["krok", "bedna"]
     history_list_per_page = 20
 
     class Media:
@@ -358,16 +301,134 @@ class SarzeBednaAdmin(SimpleHistoryAdmin):
             'all': ('orders/css/admin_paused_rows.css',)
         }
 
-    @admin.display(description='Zařízení', ordering='sarze__zarizeni__kod_zarizeni')
+    def get_readonly_fields(self, request, obj=None):
+        # V add formuláři má být možné záznam vytvořit ručně.
+        if obj is None:
+            return ()
+        return self.readonly_fields
+
+    @admin.action(description='Do dalšího zařízení')
+    def posunout_do_dalsiho_zarizeni_action(self, request, queryset):
+        moved_count = 0
+        skipped_without_next = 0
+        skipped_invalid_state = 0
+        skipped_conflict = 0
+
+        allowed_states = {
+            state.value if hasattr(state, 'value') else state
+            for state in STAV_BEDNY_SKLADEM
+        }
+
+        queryset = queryset.select_related('krok', 'krok__sarze', 'bedna')
+
+        with transaction.atomic():
+            for zaznam in queryset:
+                if not zaznam.krok_id or not zaznam.krok.sarze_id:
+                    skipped_without_next += 1
+                    continue
+
+                dalsi_krok = (
+                    SarzeKrok.objects
+                    .filter(sarze_id=zaznam.krok.sarze_id, poradi__gt=zaznam.krok.poradi)
+                    .order_by('poradi')
+                    .first()
+                )
+
+                if not dalsi_krok:
+                    skipped_without_next += 1
+                    continue
+
+                if zaznam.bedna_id and zaznam.bedna.stav_bedny not in allowed_states:
+                    skipped_invalid_state += 1
+                    continue
+
+                if zaznam.bedna_id:
+                    target_qs = SarzeKrokBedna.objects.filter(
+                        krok=dalsi_krok,
+                        bedna=zaznam.bedna,
+                        patro=zaznam.patro,
+                    )
+                    if target_qs.exists():
+                        skipped_conflict += 1
+                        continue
+
+                    target = SarzeKrokBedna.objects.create(
+                        krok=dalsi_krok,
+                        bedna=zaznam.bedna,
+                        patro=zaznam.patro,
+                        procent_z_patra=zaznam.procent_z_patra,
+                        popis_mimo_db=zaznam.popis_mimo_db,
+                        zakaznik_mimo_db=zaznam.zakaznik_mimo_db,
+                        zakazka_mimo_db=zaznam.zakazka_mimo_db,
+                        cislo_bedny_mimo_db=zaznam.cislo_bedny_mimo_db,
+                    )
+                else:
+                    target_qs = SarzeKrokBedna.objects.filter(
+                        krok=dalsi_krok,
+                        bedna__isnull=True,
+                        patro=zaznam.patro,
+                        popis_mimo_db=zaznam.popis_mimo_db,
+                        zakaznik_mimo_db=zaznam.zakaznik_mimo_db,
+                        zakazka_mimo_db=zaznam.zakazka_mimo_db,
+                        cislo_bedny_mimo_db=zaznam.cislo_bedny_mimo_db,
+                    )
+                    if target_qs.exists():
+                        skipped_conflict += 1
+                        continue
+
+                    target = SarzeKrokBedna.objects.create(
+                        krok=dalsi_krok,
+                        bedna=None,
+                        patro=zaznam.patro,
+                        procent_z_patra=zaznam.procent_z_patra,
+                        popis_mimo_db=zaznam.popis_mimo_db,
+                        zakaznik_mimo_db=zaznam.zakaznik_mimo_db,
+                        zakazka_mimo_db=zaznam.zakazka_mimo_db,
+                        cislo_bedny_mimo_db=zaznam.cislo_bedny_mimo_db,
+                    )
+
+                target._change_reason = f'Přesunuto do dalšího zařízení z kroku {zaznam.krok.poradi}'
+                target.save()
+
+                zaznam._change_reason = f'Přesunuto do dalšího zařízení do kroku {dalsi_krok.poradi}'
+                zaznam.delete()
+                moved_count += 1
+
+        if moved_count:
+            self.message_user(
+                request,
+                f'Přesunuto do dalšího zařízení: {moved_count} záznam(ů).',
+                level=messages.SUCCESS,
+            )
+        if skipped_without_next:
+            self.message_user(
+                request,
+                f'Přeskočeno bez navazujícího kroku: {skipped_without_next} záznam(ů).',
+                level=messages.WARNING,
+            )
+        if skipped_invalid_state:
+            self.message_user(
+                request,
+                f'Přeskočeno mimo stav skladem: {skipped_invalid_state} záznam(ů).',
+                level=messages.WARNING,
+            )
+        if skipped_conflict:
+            self.message_user(
+                request,
+                f'Přeskočeno kvůli duplicitě v cílovém kroku: {skipped_conflict} záznam(ů).',
+                level=messages.WARNING,
+            )
+
+    @admin.display(description='Zařízení', ordering='krok__zarizeni__kod_zarizeni')
     def get_kod_zarizeni(self, obj):
-        return obj.sarze.zarizeni.kod_zarizeni if obj.sarze and obj.sarze.zarizeni else '-'
+        return obj.krok.zarizeni.kod_zarizeni if obj.krok and obj.krok.zarizeni else '-'
     
-    @admin.display(description='Šarže', ordering='sarze__id')
+    @admin.display(description='Šarže', ordering='krok__sarze__id')
     def get_sarze(self, obj):
-        if not obj.sarze:
+        if not obj.krok or not obj.krok.sarze:
             return '-'
-        sarze_url = reverse('admin:orders_sarze_change', args=[obj.sarze_id])
-        return format_html('<a href="{}">{}</a>', sarze_url, obj.sarze.cislo_sarze_zobrazeni)
+        sarze_url = reverse('admin:orders_sarze_change', args=[obj.krok.sarze_id])
+        return format_html('<a href="{}">{}</a>', sarze_url, obj.krok.sarze)
 
     @admin.display(description='Bedna', ordering='bedna__cislo_bedny')
     def get_cislo_bedny(self, obj):
@@ -375,31 +436,33 @@ class SarzeBednaAdmin(SimpleHistoryAdmin):
             return obj.bedna.cislo_bedny if obj.bedna.cislo_bedny is not None else '-'
         return obj.cislo_bedny_mimo_db if obj.cislo_bedny_mimo_db is not None else '--------'
 
-    @admin.display(description='Datum', ordering='sarze__datum')
+    @admin.display(description='Datum', ordering='krok__sarze__datum_zalozeni')
     def get_datum(self, obj):
-        return obj.sarze.datum.strftime('%d.%m.%Y') if obj.sarze and obj.sarze.datum else '-'
+        if obj.krok and obj.krok.sarze and obj.krok.sarze.datum_zalozeni:
+            return obj.krok.sarze.datum_zalozeni.strftime('%d.%m.%Y')
+        return '-'
     
     @admin.display(description='Z patra', ordering='procent_z_patra')
     def get_procent_z_patra(self, obj):
         return f"{obj.procent_z_patra}%" if obj.procent_z_patra is not None else '-'
 
-    @admin.display(description='Začátek', ordering='sarze__zacatek')
+    @admin.display(description='Začátek', ordering='krok__zacatek')
     def get_zacatek(self, obj):
-        return obj.sarze.zacatek.strftime('%H:%M') if obj.sarze and obj.sarze.zacatek else '-'
+        return obj.krok.zacatek.strftime('%H:%M') if obj.krok and obj.krok.zacatek else '-'
     
-    @admin.display(description='Konec', ordering='sarze__konec')
+    @admin.display(description='Konec', ordering='krok__konec')
     def get_konec(self, obj):
-        return obj.sarze.konec.strftime('%H:%M') if obj.sarze and obj.sarze.konec else '-'
+        return obj.krok.konec.strftime('%H:%M') if obj.krok and obj.krok.konec else '-'
 
-    @admin.display(description='Operátor', ordering='sarze__operator')
+    @admin.display(description='Operátor', ordering='krok__operator')
     def get_operator(self, obj):
-        return obj.sarze.operator if obj.sarze else '-'
+        return obj.krok.operator if obj.krok else '-'
     
     @admin.display(description='Zkrácený popis', ordering='bedna__zakazka__zkraceny_popis')
     def get_zkraceny_popis(self, obj):
         if obj.bedna and obj.bedna.zakazka:
             return obj.bedna.zakazka.zkraceny_popis
-        return truncate_with_title(obj.popis)
+        return truncate_with_title(obj.popis_mimo_db)
 
     @admin.display(description='Zákazník')
     def get_zakaznik(self, obj):
@@ -409,13 +472,13 @@ class SarzeBednaAdmin(SimpleHistoryAdmin):
         else:
             return truncate_with_title(obj.zakaznik_mimo_db)
 
-    @admin.display(description='Přípr.', ordering='sarze__cislo_pripravku')
+    @admin.display(description='Přípr.', ordering='krok__cislo_pripravku')
     def get_cislo_pripravku(self, obj):
-        return obj.sarze.cislo_pripravku if obj.sarze else '-'
+        return obj.krok.cislo_pripravku if obj.krok else '-'
     
-    @admin.display(description='Prog.', ordering='sarze__program')
+    @admin.display(description='Prog.', ordering='krok__program')
     def get_program(self, obj):
-        return obj.sarze.program if obj.sarze else '-'
+        return obj.krok.program if obj.krok else '-'
 
     @admin.display(description='Zakázka')
     def get_zakazka_skupina(self, obj):
@@ -423,22 +486,22 @@ class SarzeBednaAdmin(SimpleHistoryAdmin):
             return f"SK{obj.bedna.zakazka.predpis.skupina}"
         return truncate_with_title(obj.zakazka_mimo_db)
 
-    @admin.display(description='Poznámka', ordering='sarze__poznamka')
+    @admin.display(description='Poznámka', ordering='krok__poznamka')
     def get_poznamka(self, obj):
-        return truncate_with_title(obj.sarze.poznamka, max_len=10) if obj.sarze else '-'
+        return truncate_with_title(obj.krok.poznamka, max_len=10) if obj.krok else '-'
     
-    @admin.display(description='Alarm', ordering='sarze__alarm')
+    @admin.display(description='Alarm', ordering='krok__alarm')
     def get_alarm(self, obj):
-        alarm = obj.sarze.alarm if obj.sarze else None
+        alarm = obj.krok.alarm if obj.krok else None
         return truncate_with_title(alarm, max_len=10)
 
     @admin.display(description='Prodl. (m)')
     def get_prodleva(self, obj):
-        return obj.sarze.prodleva if obj.sarze else '-'
+        return obj.krok.prodleva if obj.krok else '-'
 
     @admin.display(description='Takt (h)')
     def get_takt(self, obj):
-        return obj.sarze.takt if obj.sarze else '-'
+        return obj.krok.takt if obj.krok else '-'
 
     @admin.display(description='Předpis', ordering='bedna__zakazka__predpis')
     def get_predpis(self, obj):
@@ -2590,7 +2653,7 @@ class BednaAdmin(SimpleHistoryAdmin):
 
     def get_search_results(self, request, queryset, search_term):
         """
-        Přizpůsobí výsledky hledání pro inline autocomplete pole 'bedna' v SarzeBednaAdmin,
+        Přizpůsobí výsledky hledání pro inline autocomplete pole 'bedna' v deníku pece,
         aby se zobrazovaly pouze bedny se stavem bedny STAV_BEDNY_SKLADEM.
         """
         queryset, use_distinct = super().get_search_results(request, queryset, search_term)
@@ -2598,7 +2661,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         is_sarze_inline_autocomplete = (
             request.path.endswith('/autocomplete/')
             and request.GET.get('app_label') == 'orders'
-            and request.GET.get('model_name') == 'sarzebedna'
+            and request.GET.get('model_name') in ('sarzebedna', 'sarzekrokbedna')
             and request.GET.get('field_name') == 'bedna'
         )
 

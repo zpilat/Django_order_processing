@@ -7,7 +7,7 @@ from datetime import date, time, timedelta
 from decimal import Decimal
 
 from orders.models import (
-	Zakaznik, Odberatel, Kamion, Zakazka, Bedna, Predpis, TypHlavy, Pozice, PoziceZakazkaOrder, Zarizeni, Sarze, SarzeBedna
+	Zakaznik, Odberatel, Kamion, Zakazka, Bedna, Predpis, TypHlavy, Pozice, PoziceZakazkaOrder, Zarizeni, Sarze, SarzeKrok, SarzeKrokBedna
 )
 from orders.choices import StavBednyChoice, KamionChoice, TryskaniChoice, RovnaniChoice, PrioritaChoice
 from orders.views import _get_bedny_k_navezeni_groups, _split_bedny_k_navezeni_groups_by_nasledne, _build_vyroba_dashboard_context
@@ -773,33 +773,51 @@ class VyrobaDashboardContextTests(TestCase):
 		bedna_spx_new = self._create_bedna(self.z_spx, 700)
 
 		sarze_prev = Sarze.objects.create(
+			cislo_sarze=1,
+			datum_zalozeni=prev_day,
+			aktivni=True,
+		)
+		krok_prev = SarzeKrok.objects.create(
+			sarze=sarze_prev,
+			poradi=1,
 			zarizeni=self.dev_xl1,
-			datum=prev_day,
 			zacatek=time(8, 0),
 			operator="op",
 			program="p",
 		)
-		SarzeBedna.objects.create(sarze=sarze_prev, bedna=bedna_repeat, patro=1)
+		SarzeKrokBedna.objects.create(krok=krok_prev, bedna=bedna_repeat, patro=1)
 
 		sarze_day_xl1 = Sarze.objects.create(
+			cislo_sarze=2,
+			datum_zalozeni=target_day,
+			aktivni=True,
+		)
+		krok_day_xl1 = SarzeKrok.objects.create(
+			sarze=sarze_day_xl1,
+			poradi=1,
 			zarizeni=self.dev_xl1,
-			datum=target_day,
 			zacatek=time(7, 0),
 			operator="op",
 			program="p",
 		)
-		SarzeBedna.objects.create(sarze=sarze_day_xl1, bedna=bedna_repeat, patro=1)
-		SarzeBedna.objects.create(sarze=sarze_day_xl1, bedna=bedna_eur_new, patro=1)
-		SarzeBedna.objects.create(sarze=sarze_day_xl1, bedna=bedna_eur_new, patro=2)
+		SarzeKrokBedna.objects.create(krok=krok_day_xl1, bedna=bedna_repeat, patro=1)
+		SarzeKrokBedna.objects.create(krok=krok_day_xl1, bedna=bedna_eur_new, patro=1)
+		SarzeKrokBedna.objects.create(krok=krok_day_xl1, bedna=bedna_eur_new, patro=2)
 
 		sarze_day_xl2 = Sarze.objects.create(
+			cislo_sarze=3,
+			datum_zalozeni=target_day,
+			aktivni=True,
+		)
+		krok_day_xl2 = SarzeKrok.objects.create(
+			sarze=sarze_day_xl2,
+			poradi=1,
 			zarizeni=self.dev_xl2,
-			datum=target_day,
 			zacatek=time(9, 0),
 			operator="op",
 			program="p",
 		)
-		SarzeBedna.objects.create(sarze=sarze_day_xl2, bedna=bedna_spx_new, patro=1)
+		SarzeKrokBedna.objects.create(krok=krok_day_xl2, bedna=bedna_spx_new, patro=1)
 
 		ctx = _build_vyroba_dashboard_context(date_value=target_day)
 		prod = ctx["vyroba_dashboard"]["vcerejsi_produkce_vrutu"]
@@ -820,13 +838,19 @@ class VyrobaDashboardContextTests(TestCase):
 			day = target_day - timedelta(days=13 - idx)
 			bedna = self._create_bedna(self.z_eur, (idx + 1) * 100)
 			sarze = Sarze.objects.create(
+				cislo_sarze=100 + idx,
+				datum_zalozeni=day,
+				aktivni=True,
+			)
+			krok = SarzeKrok.objects.create(
+				sarze=sarze,
+				poradi=1,
 				zarizeni=self.dev_xl1,
-				datum=day,
 				zacatek=time(8, 0),
 				operator="op",
 				program="p",
 			)
-			SarzeBedna.objects.create(sarze=sarze, bedna=bedna, patro=1)
+			SarzeKrokBedna.objects.create(krok=krok, bedna=bedna, patro=1)
 
 		ctx = _build_vyroba_dashboard_context(date_value=target_day)
 		history = ctx["vyroba_dashboard"]["historie_produkce_vrutu"]["rows"]

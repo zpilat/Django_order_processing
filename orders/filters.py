@@ -6,7 +6,7 @@ from django.utils import timezone
 from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 
-from .models import Zakazka, Bedna, Zakaznik, Kamion, TypHlavy, Predpis, Odberatel, Zarizeni, Sarze, SarzeBedna, Notification
+from .models import Zakazka, Bedna, Zakaznik, Kamion, TypHlavy, Predpis, Odberatel, Zarizeni, Sarze, Notification
 from .choices import (
     StavBednyChoice, TryskaniChoice, RovnaniChoice, ZinkovaniChoice, PrioritaChoice, PrijemVydejChoice, SklademZakazkyChoice,
     TypZarizeniChoice, STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM,
@@ -952,9 +952,62 @@ class ZarizeniSarzeFilter(DynamicTitleFilter):
             return queryset
         try:
             zarizeni = Zarizeni.objects.get(kod_zarizeni=value)
+            # Sarze už nemá přímé FK na zařízení; filtruje se přes kroky.
+            model_field_names = {field.name for field in queryset.model._meta.get_fields()}
+            if 'zarizeni' in model_field_names:
+                return queryset.filter(zarizeni=zarizeni)
+            return queryset.filter(kroky__zarizeni=zarizeni).distinct()
+        except Zarizeni.DoesNotExist:
+            return queryset.none()
+
+
+# filtry pro ŠaržeKrok
+
+class ZarizeniSarzeKrokFilter(DynamicTitleFilter):
+    """
+    Filtrovat kroky šarží podle zařízení.
+    """
+    title = "Zařízení"
+    parameter_name = "zarizeni"
+
+    def __init__(self, request, params, model, model_admin):
+        self.label_dict = dict(Zarizeni.objects.values_list('kod_zarizeni', 'zkraceny_nazev_zarizeni').order_by('kod_zarizeni'))
+        super().__init__(request, params, model, model_admin)
+
+    def lookups(self, request, model_admin):
+        return self.label_dict.items()
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if not value:
+            return queryset
+        try:
+            zarizeni = Zarizeni.objects.get(kod_zarizeni=value)
             return queryset.filter(zarizeni=zarizeni)
         except Zarizeni.DoesNotExist:
             return queryset.none()
+
+
+class TypZarizeniSarzeKrokFilter(DynamicTitleFilter):
+    """
+    Filtrovat kroky šarží podle typu zařízení.
+    """
+    title = "Typ zařízení"
+    parameter_name = "typ_zarizeni"
+    vse = "Vše"
+
+    def __init__(self, request, params, model, model_admin):
+        self.label_dict = {**dict(TypZarizeniChoice.choices)}
+        super().__init__(request, params, model, model_admin)
+
+    def lookups(self, request, model_admin):
+        return self.label_dict.items()
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if not value:
+            return queryset
+        return queryset.filter(zarizeni__typ_zarizeni=value)
         
 # filtry pro ŠaržeBedna
 
@@ -978,7 +1031,7 @@ class ZarizeniSarzeBednaFilter(DynamicTitleFilter):
             return queryset
         try:
             zarizeni = Zarizeni.objects.get(kod_zarizeni=value)
-            return queryset.filter(sarze__zarizeni=zarizeni)
+            return queryset.filter(krok__zarizeni=zarizeni)
         except Zarizeni.DoesNotExist:
             return queryset.none()
 
@@ -1002,4 +1055,4 @@ class TypZarizeniSarzeBednaFilter(DynamicTitleFilter):
         value = self.value()
         if not value:
             return queryset
-        return queryset.filter(sarze__zarizeni__typ_zarizeni=value)
+        return queryset.filter(krok__zarizeni__typ_zarizeni=value)

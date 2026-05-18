@@ -19,7 +19,7 @@ from django.utils.text import slugify
 from decimal import Decimal, ROUND_HALF_UP
 
 from .utils import get_verbose_name_for_column, utilita_tisk_dl_a_proforma_faktury
-from .models import Bedna, Zakazka, Kamion, Zakaznik, TypHlavy, Predpis, Odberatel, Cena, Pozice, PoziceZakazkaOrder, Sarze, SarzeBedna
+from .models import Bedna, Zakazka, Kamion, Zakaznik, TypHlavy, Predpis, Odberatel, Cena, Pozice, PoziceZakazkaOrder, Sarze, SarzeKrok, SarzeKrokBedna
 from .choices import  StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice, ZinkovaniChoice, STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM
 from weasyprint import HTML, CSS
 
@@ -51,50 +51,58 @@ def _format_kg(value):
     return f"{_kg_to_int(value):,}".replace(',', ' ')
 
 
-def _calc_prostoj_minutes(sarze_list):
+def _calc_prostoj_minutes(kroky_list):
     total_minutes = 0
-    for sarze in sarze_list:
-        prodleva = sarze.prodleva
+    for krok in kroky_list:
+        prodleva = krok.prodleva
         if isinstance(prodleva, int):
             total_minutes += max(prodleva - 10, 0)
     return total_minutes
 
 
-def _first_use_sarzebedna_qs(target_date, device_codes):
-    sarze_bedny = (
-        SarzeBedna.objects
+def _first_use_sarzekrokbedna_qs(target_date, device_codes):
+    sarze_krok_bedny = (
+        SarzeKrokBedna.objects
         .filter(
-            sarze__datum=target_date,
-            sarze__zarizeni__kod_zarizeni__in=device_codes,
+            krok__sarze__datum_zalozeni=target_date,
+            krok__zarizeni__kod_zarizeni__in=device_codes,
             bedna__isnull=False,
             bedna__hmotnost__isnull=False,
             bedna__hmotnost__gt=0,
         )
-        .select_related('sarze', 'bedna')
+        .select_related('krok', 'krok__sarze', 'krok__zarizeni', 'bedna')
     )
 
-    prior_exists = SarzeBedna.objects.filter(
+    prior_exists = SarzeKrokBedna.objects.filter(
         bedna_id=OuterRef('bedna_id'),
-        sarze__zarizeni_id=OuterRef('sarze__zarizeni_id'),
+        krok__zarizeni_id=OuterRef('krok__zarizeni_id'),
     ).exclude(pk=OuterRef('pk')).filter(
-        Q(sarze__datum__lt=OuterRef('sarze__datum'))
-        | Q(sarze__datum=OuterRef('sarze__datum'), sarze__zacatek__lt=OuterRef('sarze__zacatek'))
+        Q(krok__sarze__datum_zalozeni__lt=OuterRef('krok__sarze__datum_zalozeni'))
+        | Q(
+            krok__sarze__datum_zalozeni=OuterRef('krok__sarze__datum_zalozeni'),
+            krok__zacatek__lt=OuterRef('krok__zacatek'),
+        )
+        | Q(
+            krok__sarze__datum_zalozeni=OuterRef('krok__sarze__datum_zalozeni'),
+            krok__zacatek=OuterRef('krok__zacatek'),
+            krok__poradi__lt=OuterRef('krok__poradi'),
+        )
     )
 
-    same_sarze_prior_exists = SarzeBedna.objects.filter(
-        sarze_id=OuterRef('sarze_id'),
+    same_krok_prior_exists = SarzeKrokBedna.objects.filter(
+        krok_id=OuterRef('krok_id'),
         bedna_id=OuterRef('bedna_id'),
     ).exclude(pk=OuterRef('pk')).filter(
         Q(patro__lt=OuterRef('patro'))
         | Q(patro=OuterRef('patro'), pk__lt=OuterRef('pk'))
     )
 
-    return sarze_bedny.annotate(
+    return sarze_krok_bedny.annotate(
         has_prior=Exists(prior_exists),
-        has_same_sarze_prior=Exists(same_sarze_prior_exists),
+        has_same_krok_prior=Exists(same_krok_prior_exists),
     ).filter(
         has_prior=False,
-        has_same_sarze_prior=False,
+        has_same_krok_prior=False,
     )
 
 
@@ -103,20 +111,20 @@ def _build_vyroba_dashboard_context(date_value=None):
     today = date_value + timedelta(days=1)
     device_codes = ["TQF_XL1", "TQF_XL2"]
 
-    base_qs = Sarze.objects.filter(
-        datum=date_value,
+    base_qs = SarzeKrok.objects.filter(
+        sarze__datum_zalozeni=date_value,
         zarizeni__kod_zarizeni__in=device_codes,
-    ).select_related('zarizeni')
+    ).select_related('sarze', 'zarizeni')
 
-    bedna_exists = SarzeBedna.objects.filter(
-        sarze=OuterRef('pk'),
+    bedna_exists = SarzeKrokBedna.objects.filter(
+        krok=OuterRef('pk'),
         bedna__isnull=False,
     )
-    manual_exists = SarzeBedna.objects.filter(
-        sarze=OuterRef('pk'),
+    manual_exists = SarzeKrokBedna.objects.filter(
+        krok=OuterRef('pk'),
         bedna__isnull=True,
     ).filter(
-        popis__isnull=False,
+        popis_mimo_db__isnull=False,
     )
 
     qs = base_qs.annotate(
@@ -125,12 +133,12 @@ def _build_vyroba_dashboard_context(date_value=None):
     )
 
     def _calc_vykon_vruty_kg(code: list[str]):
-        first_use_qs = _first_use_sarzebedna_qs(date_value, code)
+        first_use_qs = _first_use_sarzekrokbedna_qs(date_value, code)
 
         return first_use_qs.aggregate(total=Sum('bedna__hmotnost')).get('total') or 0
 
     def _calc_daily_total_kg(target_day):
-        return _first_use_sarzebedna_qs(target_day, device_codes).aggregate(total=Sum('bedna__hmotnost')).get('total') or 0
+        return _first_use_sarzekrokbedna_qs(target_day, device_codes).aggregate(total=Sum('bedna__hmotnost')).get('total') or 0
 
     def _device_stats(code: list[str]):
         dqs = qs.filter(zarizeni__kod_zarizeni__in=code)
@@ -178,12 +186,12 @@ def _build_vyroba_dashboard_context(date_value=None):
         }
 
     day_qs = base_qs.filter(zacatek__gte=time(7, 0), zacatek__lt=time(19, 0))
-    night_qs = Sarze.objects.filter(
+    night_qs = SarzeKrok.objects.filter(
         zarizeni__kod_zarizeni__in=device_codes,
     ).filter(
-        Q(datum=date_value, zacatek__gte=time(19, 0))
-        | Q(datum=today, zacatek__lt=time(7, 0))
-    ).select_related('zarizeni')
+        Q(sarze__datum_zalozeni=date_value, zacatek__gte=time(19, 0))
+        | Q(sarze__datum_zalozeni=today, zacatek__lt=time(7, 0))
+    ).select_related('sarze', 'zarizeni')
 
     dashboard = {
         'date_label': date_value.strftime('%d.%m.%Y'),
@@ -199,7 +207,7 @@ def _build_vyroba_dashboard_context(date_value=None):
     }
 
     # Včerejší produkce vrutů (zakalené) 0:00-24:00 - pouze první použití bedny
-    yesterday_first_use = _first_use_sarzebedna_qs(date_value, device_codes)
+    yesterday_first_use = _first_use_sarzekrokbedna_qs(date_value, device_codes)
     customer_totals = list(
         yesterday_first_use
         .values('bedna__zakazka__kamion_prijem__zakaznik__zkraceny_nazev')
