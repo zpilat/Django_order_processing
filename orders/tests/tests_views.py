@@ -780,6 +780,7 @@ class VyrobaDashboardContextTests(TestCase):
 		krok_prev = SarzeKrok.objects.create(
 			sarze=sarze_prev,
 			poradi=1,
+			datum=prev_day,
 			zarizeni=self.dev_xl1,
 			zacatek=time(8, 0),
 			operator="op",
@@ -795,6 +796,7 @@ class VyrobaDashboardContextTests(TestCase):
 		krok_day_xl1 = SarzeKrok.objects.create(
 			sarze=sarze_day_xl1,
 			poradi=1,
+			datum=target_day,
 			zarizeni=self.dev_xl1,
 			zacatek=time(7, 0),
 			operator="op",
@@ -812,6 +814,7 @@ class VyrobaDashboardContextTests(TestCase):
 		krok_day_xl2 = SarzeKrok.objects.create(
 			sarze=sarze_day_xl2,
 			poradi=1,
+			datum=target_day,
 			zarizeni=self.dev_xl2,
 			zacatek=time(9, 0),
 			operator="op",
@@ -845,6 +848,7 @@ class VyrobaDashboardContextTests(TestCase):
 			krok = SarzeKrok.objects.create(
 				sarze=sarze,
 				poradi=1,
+				datum=day,
 				zarizeni=self.dev_xl1,
 				zacatek=time(8, 0),
 				operator="op",

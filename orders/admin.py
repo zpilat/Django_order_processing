@@ -114,16 +114,7 @@ class SarzeKrokBednaInline(admin.TabularInline):
     fields = (
         'bedna', 'patro', 'procent_z_patra', 'popis_mimo_db', 'zakaznik_mimo_db', 'zakazka_mimo_db', 'cislo_bedny_mimo_db',
     )
-
-    def get_extra(self, request, obj=None, **kwargs):
-        """
-        Dynamické nastavení počtu extra formulářů pro inline SarzeKrokBedna.
-        Pokud je objekt SarzeKrok již uložen, nastaví extra na 0, jinak na 5.
-        """
-        # obj je instance SarzeKrok, pro kterou se inline zobrazuje
-        if obj and obj.pk:
-            return 0
-        return 5
+    extra = 5
 
     def formfield_for_dbfield(self, db_field, request, **kwargs):
         """
@@ -160,13 +151,34 @@ class SarzeKrokBednaInline(admin.TabularInline):
 class SarzeKrokInline(admin.TabularInline):
     """Inline pro správu kroků šarže."""
     model = SarzeKrok
-    fields = ('poradi', 'zarizeni', 'zacatek', 'konec', 'operator', 'program', 'cislo_pripravku', 'alarm', 'poznamka')
+    fields = ('poradi', 'datum', 'zarizeni', 'zacatek', 'konec', 'operator', 'program', 'alarm', 'poznamka')
     readonly_fields = ('poradi',)
     autocomplete_fields = ('zarizeni',)
     extra = 0
+    validate_min = True
     formfield_overrides = {
         models.TimeField: {'widget': forms.TimeInput(format='%H:%M')},
     }
+
+    def get_fields(self, request, obj=None):
+        if obj is None:
+            return ('datum', 'zarizeni', 'zacatek', 'konec', 'operator', 'program', 'alarm', 'poznamka')
+        return self.fields
+
+    def get_extra(self, request, obj=None, **kwargs):
+        if obj is None:
+            return 1
+        return 0
+
+    def get_min_num(self, request, obj=None, **kwargs):
+        if obj is None:
+            return 1
+        return 0
+
+    def get_max_num(self, request, obj=None, **kwargs):
+        if obj is None:
+            return 1
+        return super().get_max_num(request, obj, **kwargs)
 
 
 @admin.register(Zarizeni)
@@ -183,8 +195,8 @@ class ZarizeniAdmin(SimpleHistoryAdmin):
 
 @admin.register(Sarze)
 class SarzeAdmin(SimpleHistoryAdmin):
-    fields = ('cislo_sarze', 'datum_zalozeni', 'aktivni', 'poznamka',)
-    list_display = ('get_cislo_sarze', 'datum_zalozeni', 'aktivni', 'get_poznamka', 'get_pocet_kroku',)
+    fields = ('cislo_sarze', 'datum_zalozeni', 'cislo_pripravku', 'aktivni', 'poznamka',)
+    list_display = ('get_cislo_sarze', 'datum_zalozeni', 'cislo_pripravku', 'aktivni', 'get_poznamka', 'get_pocet_kroku',)
     list_filter = ('aktivni', ZarizeniSarzeFilter)
     search_fields = ('cislo_sarze',)
     readonly_fields = ('cislo_sarze',)
@@ -193,7 +205,7 @@ class SarzeAdmin(SimpleHistoryAdmin):
     inlines = [SarzeKrokInline]
 
     history_list_display = [
-        "cislo_sarze", "datum_zalozeni", "aktivni", "poznamka",
+        "cislo_sarze", "datum_zalozeni", "cislo_pripravku", "aktivni", "poznamka",
     ]
     history_search_fields = ["cislo_sarze", "poznamka"]
     history_list_filter = ["aktivni", "datum_zalozeni"]
@@ -211,40 +223,55 @@ class SarzeAdmin(SimpleHistoryAdmin):
     def get_pocet_kroku(self, obj):
         return obj.kroky.count()
 
+    def response_add(self, request, obj, post_url_continue=None):
+        if '_save_to_sarzekrokbedna' in request.POST:
+            prvni_krok = obj.kroky.order_by('poradi', 'id').first()
+            if prvni_krok:
+                return HttpResponseRedirect(reverse('admin:orders_sarzekrok_change', args=[prvni_krok.pk]))
+
+            self.message_user(
+                request,
+                'Šarže byla uložena, ale nepodařilo se najít vytvořený krok šarže.',
+                level=messages.WARNING,
+            )
+            return HttpResponseRedirect(reverse('admin:orders_sarze_change', args=[obj.pk]))
+
+        return super().response_add(request, obj, post_url_continue)
+
 
 @admin.register(SarzeKrok)
 class SarzeKrokAdmin(SimpleHistoryAdmin):
-    fields = ('sarze', 'poradi', 'zarizeni', 'zacatek', 'konec', 'operator', 'program', 'cislo_pripravku', 'alarm', 'poznamka',)
+    fields = ('sarze', 'poradi', 'datum', 'zarizeni', 'zacatek', 'konec', 'operator', 'program', 'alarm', 'poznamka',)
     readonly_fields = ('poradi',)
     list_display = (
-        'get_sarze', 'poradi', 'get_datum_zalozeni', 'get_zarizeni', 'zacatek', 'konec', 'operator',
-        'cislo_pripravku', 'program', 'get_prodleva', 'get_takt', 'get_poznamka', 'get_alarm',
+        'get_sarze', 'poradi', 'get_datum', 'get_zarizeni', 'zacatek', 'konec', 'operator',
+        'program', 'get_prodleva', 'get_takt', 'get_poznamka', 'get_alarm',
     )
     autocomplete_fields = ('sarze', 'zarizeni',)
     list_filter = (ZarizeniSarzeKrokFilter, TypZarizeniSarzeKrokFilter)
     search_fields = ('sarze__cislo_sarze', 'operator', 'program')
     list_select_related = ('sarze', 'zarizeni')
-    date_hierarchy = 'sarze__datum_zalozeni'
-    ordering = ('-sarze__datum_zalozeni', '-zacatek', '-poradi')
+    date_hierarchy = 'datum'
+    ordering = ('-datum', '-zacatek', '-poradi')
     inlines = [SarzeKrokBednaInline]
     formfield_overrides = {
         models.TimeField: {'widget': forms.TimeInput(format='%H:%M')},
     }
 
     history_list_display = [
-        "sarze", "poradi", "zarizeni", "zacatek", "konec", "operator", "program", "cislo_pripravku", "alarm", "poznamka",
+        "sarze", "poradi", "datum", "zarizeni", "zacatek", "konec", "operator", "program", "alarm", "poznamka",
     ]
     history_search_fields = ["sarze__cislo_sarze", "operator", "program"]
-    history_list_filter = ["zarizeni", "sarze__datum_zalozeni"]
+    history_list_filter = ["zarizeni", "datum"]
     history_list_per_page = 20
 
     @admin.display(description='Šarže', ordering='sarze__cislo_sarze')
     def get_sarze(self, obj):
         return obj.sarze
 
-    @admin.display(description='Datum', ordering='sarze__datum_zalozeni')
-    def get_datum_zalozeni(self, obj):
-        return obj.sarze.datum_zalozeni.strftime('%d.%m.%Y') if obj.sarze and obj.sarze.datum_zalozeni else '-'
+    @admin.display(description='Datum', ordering='datum')
+    def get_datum(self, obj):
+        return obj.datum.strftime('%d.%m.%Y') if obj.datum else '-'
 
     @admin.display(description='Zařízení', ordering='zarizeni__kod_zarizeni')
     def get_zarizeni(self, obj):
@@ -266,6 +293,16 @@ class SarzeKrokAdmin(SimpleHistoryAdmin):
     def get_alarm(self, obj):
         return truncate_with_title(obj.alarm)
 
+    def response_add(self, request, obj, post_url_continue=None):
+        if '_save_to_sarzebedna' in request.POST:
+            return HttpResponseRedirect(reverse('admin:orders_sarzekrokbedna_changelist'))
+        return super().response_add(request, obj, post_url_continue)
+
+    def response_change(self, request, obj):
+        if '_save_to_sarzebedna' in request.POST:
+            return HttpResponseRedirect(reverse('admin:orders_sarzekrokbedna_changelist'))
+        return super().response_change(request, obj)
+
 
 @admin.register(SarzeKrokBedna)
 class SarzeKrokBednaAdmin(SimpleHistoryAdmin):
@@ -285,8 +322,8 @@ class SarzeKrokBednaAdmin(SimpleHistoryAdmin):
     search_help_text = "Dle čísla šarže, čísla bedny a předpisu"
     autocomplete_fields = ('bedna',)
     list_select_related = ('krok', 'krok__sarze', 'krok__zarizeni', 'bedna')
-    date_hierarchy = 'krok__sarze__datum_zalozeni'
-    ordering = ('-krok__sarze__datum_zalozeni', '-krok__zacatek', 'patro',)
+    date_hierarchy = 'krok__datum'
+    ordering = ('-krok__datum', '-krok__zacatek', 'patro',)
 
     history_list_display = ["krok", "bedna", "popis_mimo_db", "zakaznik_mimo_db", "patro", "procent_z_patra",]
     history_search_fields = ["krok__sarze__cislo_sarze", "bedna__cislo_bedny", "popis_mimo_db", "zakaznik_mimo_db"]
@@ -436,10 +473,10 @@ class SarzeKrokBednaAdmin(SimpleHistoryAdmin):
             return obj.bedna.cislo_bedny if obj.bedna.cislo_bedny is not None else '-'
         return obj.cislo_bedny_mimo_db if obj.cislo_bedny_mimo_db is not None else '--------'
 
-    @admin.display(description='Datum', ordering='krok__sarze__datum_zalozeni')
+    @admin.display(description='Datum', ordering='krok__datum')
     def get_datum(self, obj):
-        if obj.krok and obj.krok.sarze and obj.krok.sarze.datum_zalozeni:
-            return obj.krok.sarze.datum_zalozeni.strftime('%d.%m.%Y')
+        if obj.krok and obj.krok.datum:
+            return obj.krok.datum.strftime('%d.%m.%Y')
         return '-'
     
     @admin.display(description='Z patra', ordering='procent_z_patra')
@@ -472,9 +509,11 @@ class SarzeKrokBednaAdmin(SimpleHistoryAdmin):
         else:
             return truncate_with_title(obj.zakaznik_mimo_db)
 
-    @admin.display(description='Přípr.', ordering='krok__cislo_pripravku')
+    @admin.display(description='Přípr.', ordering='krok__sarze__cislo_pripravku')
     def get_cislo_pripravku(self, obj):
-        return obj.krok.cislo_pripravku if obj.krok else '-'
+        if obj.krok and obj.krok.sarze:
+            return obj.krok.sarze.cislo_pripravku
+        return '-'
     
     @admin.display(description='Prog.', ordering='krok__program')
     def get_program(self, obj):

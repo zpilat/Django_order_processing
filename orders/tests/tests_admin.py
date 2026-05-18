@@ -1861,6 +1861,7 @@ class SarzeKrokBednaInlineAdminTests(AdminBase):
         self.krok = SarzeKrok.objects.create(
             sarze=self.sarze,
             poradi=1,
+            datum=date.today(),
             zarizeni=self.zarizeni,
             zacatek=time(8, 0),
             operator='OP',
@@ -1980,11 +1981,13 @@ class SarzeKrokBednaAdminActionTests(AdminBase):
         self.sarze = Sarze.objects.create(
             cislo_sarze=100,
             datum_zalozeni=date.today(),
+            cislo_pripravku=21,
             aktivni=True,
         )
         self.krok_1 = SarzeKrok.objects.create(
             sarze=self.sarze,
             poradi=1,
+            datum=date.today(),
             zarizeni=self.zarizeni_1,
             zacatek=time(8, 0),
             operator='OP1',
@@ -1993,6 +1996,7 @@ class SarzeKrokBednaAdminActionTests(AdminBase):
         self.krok_2 = SarzeKrok.objects.create(
             sarze=self.sarze,
             poradi=2,
+            datum=date.today(),
             zarizeni=self.zarizeni_2,
             zacatek=time(9, 0),
             operator='OP2',

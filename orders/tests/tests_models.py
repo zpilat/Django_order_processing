@@ -303,11 +303,13 @@ class TestSarzeModels(ModelsBase):
         cls.sarze_base = Sarze.objects.create(
             cislo_sarze=1,
             datum_zalozeni=date(2026, 2, 16),
+            cislo_pripravku=11,
             aktivni=True,
         )
         cls.krok_base = SarzeKrok.objects.create(
             sarze=cls.sarze_base,
             poradi=1,
+            datum=date(2026, 2, 16),
             zarizeni=cls.zarizeni_base,
             zacatek=time(8, 0),
             konec=time(9, 0),
@@ -333,9 +335,9 @@ class TestSarzeModels(ModelsBase):
         s2 = Sarze.objects.create(datum_zalozeni=date(2026, 2, 16), aktivni=True)
         s3 = Sarze.objects.create(datum_zalozeni=date(2026, 2, 16), aktivni=True)
 
-        SarzeKrok.objects.create(sarze=s1, poradi=1, zarizeni=zar1, zacatek=time(10, 0), konec=time(11, 0), operator="Op", program="P")
-        SarzeKrok.objects.create(sarze=s2, poradi=1, zarizeni=zar1, zacatek=time(12, 0), konec=time(13, 0), operator="Op", program="P")
-        SarzeKrok.objects.create(sarze=s3, poradi=1, zarizeni=zar2, zacatek=time(10, 0), konec=time(11, 0), operator="Op", program="P")
+        SarzeKrok.objects.create(sarze=s1, poradi=1, datum=date(2026, 2, 16), zarizeni=zar1, zacatek=time(10, 0), konec=time(11, 0), operator="Op", program="P")
+        SarzeKrok.objects.create(sarze=s2, poradi=1, datum=date(2026, 2, 16), zarizeni=zar1, zacatek=time(12, 0), konec=time(13, 0), operator="Op", program="P")
+        SarzeKrok.objects.create(sarze=s3, poradi=1, datum=date(2026, 2, 16), zarizeni=zar2, zacatek=time(10, 0), konec=time(11, 0), operator="Op", program="P")
 
         self.assertEqual(s1.cislo_sarze, 2)
         self.assertEqual(s2.cislo_sarze, 3)
@@ -345,6 +347,7 @@ class TestSarzeModels(ModelsBase):
         sarze = Sarze.objects.create(
             cislo_sarze=3,
             datum_zalozeni=date(2026, 2, 16),
+            cislo_pripravku=7,
             aktivni=True,
         )
         self.assertEqual(str(sarze), "S00003")
@@ -364,6 +367,7 @@ class TestSarzeModels(ModelsBase):
         SarzeKrok.objects.create(
             sarze=sarze_prev,
             poradi=1,
+            datum=date(2026, 2, 16),
             zarizeni=zar,
             zacatek=time(10, 0),
             konec=time(11, 0),
@@ -378,6 +382,7 @@ class TestSarzeModels(ModelsBase):
         current = SarzeKrok.objects.create(
             sarze=sarze_current,
             poradi=1,
+            datum=date(2026, 2, 16),
             zarizeni=zar,
             zacatek=time(12, 30),
             konec=time(13, 0),
@@ -395,6 +400,7 @@ class TestSarzeModels(ModelsBase):
         krok = SarzeKrok.objects.create(
             sarze=sarze,
             poradi=1,
+            datum=date(2026, 2, 16),
             zarizeni=self.zarizeni_base,
             zacatek=time(23, 0),
             konec=time(1, 0),
@@ -452,6 +458,7 @@ class TestSarzeModels(ModelsBase):
         krok1 = SarzeKrok.objects.create(
             sarze=sarze1,
             poradi=1,
+            datum=date(2026, 2, 16),
             zarizeni=zar,
             zacatek=time(8, 0),
             konec=time(9, 0),
@@ -466,6 +473,7 @@ class TestSarzeModels(ModelsBase):
         krok2 = SarzeKrok.objects.create(
             sarze=sarze2,
             poradi=1,
+            datum=date(2026, 2, 17),
             zarizeni=zar,
             zacatek=time(8, 0),
             konec=time(9, 0),
@@ -494,6 +502,7 @@ class TestSarzeModels(ModelsBase):
         krok = SarzeKrok.objects.create(
             sarze=sarze,
             poradi=1,
+            datum=date(2026, 2, 18),
             zarizeni=zar,
             zacatek=time(8, 0),
             konec=time(9, 0),

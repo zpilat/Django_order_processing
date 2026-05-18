@@ -423,6 +423,7 @@ class SarzeBednaFiltersTests(FilterTestBase):
 		self.krok_pp = SarzeKrok.objects.create(
 			sarze=self.sar_pp,
 			poradi=1,
+			datum=today,
 			zarizeni=self.zar_pp,
 			zacatek='06:00',
 			operator='OP',
@@ -431,6 +432,7 @@ class SarzeBednaFiltersTests(FilterTestBase):
 		self.krok_vu = SarzeKrok.objects.create(
 			sarze=self.sar_vu,
 			poradi=1,
+			datum=today,
 			zarizeni=self.zar_vu,
 			zacatek='07:00',
 			operator='OP',

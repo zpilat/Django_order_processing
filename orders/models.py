@@ -1481,6 +1481,7 @@ class Zarizeni(models.Model):
 class Sarze(models.Model):
     cislo_sarze = models.PositiveIntegerField(blank=True, verbose_name='Číslo šarže')
     datum_zalozeni = models.DateField(verbose_name='Datum založení')
+    cislo_pripravku = models.PositiveSmallIntegerField(blank=True, null=True, verbose_name='Číslo přípravku')
     aktivni = models.BooleanField(default=True, verbose_name='Aktivní')
     poznamka = models.CharField(max_length=100, blank=True, null=True, verbose_name='Poznámka')
     history = HistoricalRecords()
@@ -1523,12 +1524,12 @@ class Sarze(models.Model):
 class SarzeKrok(models.Model):
     sarze = models.ForeignKey(Sarze, on_delete=models.CASCADE, related_name='kroky', verbose_name='Šarže')
     poradi = models.PositiveIntegerField(verbose_name='Pořadí')
+    datum = models.DateField(blank=True, null=True, verbose_name='Datum')
     zarizeni = models.ForeignKey(Zarizeni, on_delete=models.PROTECT, related_name='sarze_kroky', verbose_name='Zařízení')
     zacatek = models.TimeField(verbose_name='Začátek')
     konec = models.TimeField(blank=True, null=True, verbose_name='Konec')
     operator = models.CharField(max_length=30, verbose_name='Operátor')
     program = models.CharField(max_length=20, blank=True, null=True, verbose_name='Program')
-    cislo_pripravku = models.PositiveSmallIntegerField(blank=True, null=True, verbose_name='Číslo přípravku')
     alarm = models.CharField(max_length=50, blank=True, null=True, verbose_name='Alarm')
     poznamka = models.CharField(max_length=100, blank=True, null=True, verbose_name='Poznámka')
     history = HistoricalRecords()
@@ -1545,6 +1546,9 @@ class SarzeKrok(models.Model):
         return f"{self.sarze} / krok {self.poradi} ({self.zarizeni.kod_zarizeni})"
 
     def save(self, *args, **kwargs):
+        if not self.datum and self.sarze_id:
+            self.datum = self.sarze.datum_zalozeni
+
         if self.pk or self.poradi:
             return super().save(*args, **kwargs)
 
@@ -1583,8 +1587,7 @@ class SarzeKrok(models.Model):
         if (
             not self.zarizeni_id
             or self.zarizeni.typ_zarizeni != TypZarizeniChoice.VICEUCELOVKA
-            or not self.sarze
-            or not self.sarze.datum_zalozeni
+            or not self.datum
             or not self.zacatek
         ):
             return '-'
@@ -1594,15 +1597,15 @@ class SarzeKrok(models.Model):
             .filter(zarizeni=self.zarizeni)
             .exclude(pk=self.pk)
             .filter(
-                Q(sarze__datum_zalozeni__lt=self.sarze.datum_zalozeni)
-                | Q(sarze__datum_zalozeni=self.sarze.datum_zalozeni, zacatek__lt=self.zacatek)
+                Q(datum__lt=self.datum)
+                | Q(datum=self.datum, zacatek__lt=self.zacatek)
                 | Q(
-                    sarze__datum_zalozeni=self.sarze.datum_zalozeni,
+                    datum=self.datum,
                     zacatek=self.zacatek,
                     poradi__lt=self.poradi,
                 )
             )
-            .order_by('-sarze__datum_zalozeni', '-zacatek', '-poradi')
+            .order_by('-datum', '-zacatek', '-poradi')
             .first()
         )
 
@@ -1610,17 +1613,16 @@ class SarzeKrok(models.Model):
             not predchozi_krok
             or not predchozi_krok.konec
             or not predchozi_krok.zacatek
-            or not predchozi_krok.sarze
-            or not predchozi_krok.sarze.datum_zalozeni
+            or not predchozi_krok.datum
         ):
             return '-'
 
-        datum_predchoziho_kroku = predchozi_krok.sarze.datum_zalozeni
+        datum_predchoziho_kroku = predchozi_krok.datum
         if predchozi_krok.konec < predchozi_krok.zacatek:
             datum_predchoziho_kroku += timedelta(days=1)
 
         prodleva = (
-            datetime.combine(self.sarze.datum_zalozeni, self.zacatek)
+            datetime.combine(self.datum, self.zacatek)
             - datetime.combine(datum_predchoziho_kroku, predchozi_krok.konec)
         ).total_seconds() / 60
         return int(prodleva)
@@ -1634,20 +1636,19 @@ class SarzeKrok(models.Model):
         if (
             not self.zarizeni_id
             or self.zarizeni.typ_zarizeni != TypZarizeniChoice.VICEUCELOVKA
-            or not self.sarze
-            or not self.sarze.datum_zalozeni
+            or not self.datum
             or not self.zacatek
             or not self.konec
         ):
             return '-'
 
-        datum_konce = self.sarze.datum_zalozeni
+        datum_konce = self.datum
         if self.konec < self.zacatek:
             datum_konce += timedelta(days=1)
 
         takt = (
             datetime.combine(datum_konce, self.konec)
-            - datetime.combine(self.sarze.datum_zalozeni, self.zacatek)
+            - datetime.combine(self.datum, self.zacatek)
         ).total_seconds() / 3600
         return round(takt, 1)
 
@@ -1775,8 +1776,7 @@ class SarzeKrokBedna(models.Model):
             or not self.bedna
             or not self.krok.zarizeni
             or self.krok.zarizeni.typ_zarizeni != TypZarizeniChoice.VICEUCELOVKA
-            or not self.krok.sarze
-            or not self.krok.sarze.datum_zalozeni
+            or not self.krok.datum
             or not self.krok.zacatek
         ):
             return False
@@ -1799,13 +1799,13 @@ class SarzeKrokBedna(models.Model):
             bedna=self.bedna,
             krok__zarizeni=self.krok.zarizeni,
         ).exclude(krok_id=self.krok_id).filter(
-            Q(krok__sarze__datum_zalozeni__lt=self.krok.sarze.datum_zalozeni)
+            Q(krok__datum__lt=self.krok.datum)
             | Q(
-                krok__sarze__datum_zalozeni=self.krok.sarze.datum_zalozeni,
+                krok__datum=self.krok.datum,
                 krok__zacatek__lt=self.krok.zacatek,
             )
             | Q(
-                krok__sarze__datum_zalozeni=self.krok.sarze.datum_zalozeni,
+                krok__datum=self.krok.datum,
                 krok__zacatek=self.krok.zacatek,
                 krok__poradi__lt=self.krok.poradi,
             )

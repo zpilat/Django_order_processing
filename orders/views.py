@@ -64,7 +64,7 @@ def _first_use_sarzekrokbedna_qs(target_date, device_codes):
     sarze_krok_bedny = (
         SarzeKrokBedna.objects
         .filter(
-            krok__sarze__datum_zalozeni=target_date,
+            krok__datum=target_date,
             krok__zarizeni__kod_zarizeni__in=device_codes,
             bedna__isnull=False,
             bedna__hmotnost__isnull=False,
@@ -77,13 +77,13 @@ def _first_use_sarzekrokbedna_qs(target_date, device_codes):
         bedna_id=OuterRef('bedna_id'),
         krok__zarizeni_id=OuterRef('krok__zarizeni_id'),
     ).exclude(pk=OuterRef('pk')).filter(
-        Q(krok__sarze__datum_zalozeni__lt=OuterRef('krok__sarze__datum_zalozeni'))
+        Q(krok__datum__lt=OuterRef('krok__datum'))
         | Q(
-            krok__sarze__datum_zalozeni=OuterRef('krok__sarze__datum_zalozeni'),
+            krok__datum=OuterRef('krok__datum'),
             krok__zacatek__lt=OuterRef('krok__zacatek'),
         )
         | Q(
-            krok__sarze__datum_zalozeni=OuterRef('krok__sarze__datum_zalozeni'),
+            krok__datum=OuterRef('krok__datum'),
             krok__zacatek=OuterRef('krok__zacatek'),
             krok__poradi__lt=OuterRef('krok__poradi'),
         )
@@ -112,7 +112,7 @@ def _build_vyroba_dashboard_context(date_value=None):
     device_codes = ["TQF_XL1", "TQF_XL2"]
 
     base_qs = SarzeKrok.objects.filter(
-        sarze__datum_zalozeni=date_value,
+        datum=date_value,
         zarizeni__kod_zarizeni__in=device_codes,
     ).select_related('sarze', 'zarizeni')
 
@@ -189,8 +189,8 @@ def _build_vyroba_dashboard_context(date_value=None):
     night_qs = SarzeKrok.objects.filter(
         zarizeni__kod_zarizeni__in=device_codes,
     ).filter(
-        Q(sarze__datum_zalozeni=date_value, zacatek__gte=time(19, 0))
-        | Q(sarze__datum_zalozeni=today, zacatek__lt=time(7, 0))
+        Q(datum=date_value, zacatek__gte=time(19, 0))
+        | Q(datum=today, zacatek__lt=time(7, 0))
     ).select_related('sarze', 'zarizeni')
 
     dashboard = {

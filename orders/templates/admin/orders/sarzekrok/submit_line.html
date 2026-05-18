@@ -2,11 +2,7 @@
 
 <div class="submit-row">
     {% if show_save %}
-        {% if add %}
-            <input type="submit" value="Uložit a přidat bedny do kroku šarže" class="default" name="_save_to_sarzekrokbedna">
-        {% else %}
-            <input type="submit" value="Uložit a zpět do deníku pece" class="default" name="_save_to_sarzebedna">
-        {% endif %}
+        <input type="submit" value="Uložit a zpět do deníku pece" class="default" name="_save_to_sarzebedna">
     {% endif %}
     {% if show_save_as_new %}
         <input type="submit" value="{% translate 'Save as new' %}" name="_saveasnew">
