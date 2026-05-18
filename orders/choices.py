@@ -118,6 +118,13 @@ class SklademZakazkyChoice(models.TextChoices):
     PO_EXSPIRACI = 'po_exspiraci', 'Po exspiraci'
     EXPEDOVANO = 'expedovano', 'Expedováno'
 
+class TypZarizeniChoice(models.TextChoices):
+    VICEUCELOVKA = 'VU', 'Víceúčelová pec'    
+    POPOUSTECKA = 'PP', 'Popouštěcí pec'
+    PRACKA = 'PR', 'Pračka'
+    TRYSKAC = 'TR', 'Tryskač'
+    PREDEHREV = 'PD', 'Předehřev'
+
 # Mapping skupiny TZ na barvy
 BARVA_SKUPINY_TZ = {
     1: {'pozadi': '#f0f0f0', 'text': '#000000'},
@@ -141,3 +148,4 @@ BARVA_SKUPINY_TZ = {
     19: {'pozadi': '#B4B45F', 'text': '#000000'},
     20: {'pozadi': '#ff7f50', 'text': '#000000'},
 }
+

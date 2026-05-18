@@ -2,11 +2,11 @@ from django.test import TestCase, RequestFactory
 from django.utils import timezone
 
 from orders.models import (
-	Zakaznik, Odberatel, Kamion, Zakazka, Bedna, Predpis, TypHlavy
+	Zakaznik, Odberatel, Kamion, Zakazka, Bedna, Predpis, TypHlavy, Zarizeni, Sarze, SarzeBedna
 )
 from orders.choices import (
 	StavBednyChoice, TryskaniChoice, RovnaniChoice, PrioritaChoice, KamionChoice,
-	SklademZakazkyChoice, ZinkovaniChoice
+	SklademZakazkyChoice, ZinkovaniChoice, TypZarizeniChoice
 )
 from orders import filters as F
 from orders.templatetags import custom_filters
@@ -387,6 +387,67 @@ class PredpisFiltersTests(FilterTestBase):
 		qs = f.queryset(None, Predpis.objects.all())
 		self.assertIn(self.p1, qs)
 		self.assertNotIn(self.p2, qs)
+
+
+class SarzeBednaFiltersTests(FilterTestBase):
+	def setUp(self):
+		super().setUp()
+		today = timezone.localdate()
+
+		self.zar_pp = Zarizeni.objects.create(
+			kod_zarizeni='PP1',
+			nazev_zarizeni='Popousteci 1',
+			zkraceny_nazev_zarizeni='PP1',
+			prefix_sarze='PP',
+			typ_zarizeni=TypZarizeniChoice.POPOUSTECKA,
+		)
+		self.zar_vu = Zarizeni.objects.create(
+			kod_zarizeni='VU1',
+			nazev_zarizeni='Viceucelova 1',
+			zkraceny_nazev_zarizeni='VU1',
+			prefix_sarze='VU',
+			typ_zarizeni=TypZarizeniChoice.VICEUCELOVKA,
+		)
+
+		self.sar_pp = Sarze.objects.create(
+			zarizeni=self.zar_pp,
+			datum=today,
+			zacatek='06:00',
+			operator='OP',
+			program='P1',
+		)
+		self.sar_vu = Sarze.objects.create(
+			zarizeni=self.zar_vu,
+			datum=today,
+			zacatek='07:00',
+			operator='OP',
+			program='P2',
+		)
+
+		self.sb_pp = SarzeBedna.objects.create(
+			sarze=self.sar_pp,
+			patro=1,
+			popis='test pp',
+			zakaznik_mimo_db='Zak A',
+			zakazka_mimo_db='Zak-1',
+		)
+		self.sb_vu = SarzeBedna.objects.create(
+			sarze=self.sar_vu,
+			patro=1,
+			popis='test vu',
+			zakaznik_mimo_db='Zak B',
+			zakazka_mimo_db='Zak-2',
+		)
+
+	def test_typ_zarizeni_sarzebedna_filter(self):
+		f = self._make_filter(
+			F.TypZarizeniSarzeBednaFilter,
+			SarzeBedna,
+			params={'typ_zarizeni': TypZarizeniChoice.POPOUSTECKA},
+		)
+		qs = f.queryset(None, SarzeBedna.objects.all())
+		self.assertIn(self.sb_pp, qs)
+		self.assertNotIn(self.sb_vu, qs)
 
 
 class CustomTemplateFiltersTests(TestCase):

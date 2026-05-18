@@ -24,6 +24,7 @@ from .choices import (
     PrioritaChoice,
     KamionChoice,
     AlphabetChoice,
+    TypZarizeniChoice,
     STAV_BEDNY_SKLADEM,
     STAV_BEDNY_ROZPRACOVANOST,
 )
@@ -1465,7 +1466,7 @@ class Zarizeni(models.Model):
     zkraceny_nazev_zarizeni = models.CharField(max_length=50, verbose_name='Zkrácený název')
     prefix_sarze = models.CharField(max_length=3, verbose_name='Prefix šarže')
     umisteni = models.CharField(max_length=20, blank=True, null=True, verbose_name='Umístění')
-    typ_zarizeni = models.CharField(max_length=35, blank=True, null=True, verbose_name='Typ zařízení')
+    typ_zarizeni = models.CharField(max_length=2, choices=TypZarizeniChoice.choices, blank=True, null=True, verbose_name='Typ zařízení')
     history = HistoricalRecords()
 
     class Meta:

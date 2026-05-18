@@ -55,7 +55,7 @@ from .filters import (
     ZakaznikZakazkyFilter, ZakaznikKamionuFilter, PrijemVydejFilter, TryskaniFilter, RovnaniFilter, PrioritaBednyFilter, PrioritaZakazkyFilter,
     OberflacheFilter, TypHlavyBednyFilter, TypHlavyZakazkyFilter, CelozavitBednyFilter, CelozavitZakazkyFilter, DelkaFilter, PozastavenoFilter,
     OdberatelFilter, OdberatelBednyFilter, AktivniNotifikaceBednyFilter, ZakaznikPredpisFilter, ZinkovaniFilter, ZarizeniSarzeFilter, ZarizeniSarzeBednaFilter,
-    FakturovatFilter,
+    TypZarizeniSarzeBednaFilter, FakturovatFilter,
 )
 from .forms import (
     BednaAdminForm,
@@ -337,7 +337,7 @@ class SarzeBednaAdmin(SimpleHistoryAdmin):
     )
     change_list_template = 'admin/orders/sarzebedna/change_list.html'
     list_display_links = ('get_cislo_bedny',)
-    list_filter = (ZarizeniSarzeBednaFilter,)
+    list_filter = (ZarizeniSarzeBednaFilter, TypZarizeniSarzeBednaFilter)
     search_fields = ('sarze__cislo_sarze', 'bedna__cislo_bedny', 'bedna__zakazka__predpis__nazev',)
     search_help_text = "Dle čísla šarže, čísla bedny a předpisu"
     autocomplete_fields = ('bedna',)

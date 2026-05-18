@@ -9,7 +9,7 @@ from decimal import Decimal, InvalidOperation
 from .models import Zakazka, Bedna, Zakaznik, Kamion, TypHlavy, Predpis, Odberatel, Zarizeni, Sarze, SarzeBedna, Notification
 from .choices import (
     StavBednyChoice, TryskaniChoice, RovnaniChoice, ZinkovaniChoice, PrioritaChoice, PrijemVydejChoice, SklademZakazkyChoice,
-    STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM,
+    TypZarizeniChoice, STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM,
 )
 
 class DynamicTitleFilter(SimpleListFilter):
@@ -981,3 +981,25 @@ class ZarizeniSarzeBednaFilter(DynamicTitleFilter):
             return queryset.filter(sarze__zarizeni=zarizeni)
         except Zarizeni.DoesNotExist:
             return queryset.none()
+
+
+class TypZarizeniSarzeBednaFilter(DynamicTitleFilter):
+    """
+    Filtrovat bedny v šaržích podle typu zařízení.
+    """
+    title = "Typ zařízení"
+    parameter_name = "typ_zarizeni"
+    vse = "Vše"
+
+    def __init__(self, request, params, model, model_admin):
+        self.label_dict = {**dict(TypZarizeniChoice.choices)}
+        super().__init__(request, params, model, model_admin)
+
+    def lookups(self, request, model_admin):
+        return self.label_dict.items()
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if not value:
+            return queryset
+        return queryset.filter(sarze__zarizeni__typ_zarizeni=value)
