@@ -21,7 +21,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from weasyprint import HTML
 from weasyprint import CSS
 
-from .models import Zakazka, Bedna, Kamion, Zakaznik, Pozice, PoziceZakazkaOrder, Rozpracovanost, Cena
+from .models import Zakazka, Bedna, Kamion, Zakaznik, Pozice, PoziceZakazkaOrder, Rozpracovanost, Cena, SarzeKrok, SarzeKrokBedna
 from .utils import (
     utilita_tisk_dokumentace,
     utilita_tisk_dokumentace_sablony,
@@ -235,6 +235,113 @@ def _abort_if_bedna_has_not_hmotnost_zakazka_predpis(modeladmin, request, querys
         modeladmin.message_user(request, message, level=messages.ERROR)
         return True
     return False
+
+
+@admin.action(description='Vytvořit nový krok šarže z vybraných řádků deníku')
+def posunout_do_dalsiho_kroku_sarze_action(modeladmin, request, queryset):
+    source_rows = list(queryset.select_related('krok', 'krok__sarze', 'bedna'))
+    if not source_rows:
+        modeladmin.message_user(request, 'Nebyl vybrán žádný záznam.', level=messages.WARNING)
+        return None
+
+    source_krok_ids = {row.krok_id for row in source_rows if row.krok_id}
+    if len(source_krok_ids) != 1:
+        modeladmin.message_user(
+            request,
+            'Vyberte záznamy pouze z jednoho kroku šarže.',
+            level=messages.ERROR,
+        )
+        return None
+
+    source_krok = source_rows[0].krok
+    if not source_krok or not source_krok.sarze_id:
+        modeladmin.message_user(request, 'Zdrojový krok šarže není validní.', level=messages.ERROR)
+        return None
+
+    with transaction.atomic():
+        target_krok = SarzeKrok.objects.create(
+            sarze=source_krok.sarze,
+            datum=source_krok.datum,
+            zarizeni=source_krok.zarizeni,
+            zacatek=source_krok.zacatek,
+            konec=source_krok.konec,
+            operator=source_krok.operator,
+            program=source_krok.program,
+            alarm=source_krok.alarm,
+            poznamka=source_krok.poznamka,
+        )
+
+        copied_count = 0
+        for row in source_rows:
+            SarzeKrokBedna.objects.create(
+                krok=target_krok,
+                bedna=row.bedna,
+                patro=row.patro,
+                procent_z_patra=row.procent_z_patra,
+                popis_mimo_db=row.popis_mimo_db,
+                zakaznik_mimo_db=row.zakaznik_mimo_db,
+                zakazka_mimo_db=row.zakazka_mimo_db,
+                cislo_bedny_mimo_db=row.cislo_bedny_mimo_db,
+            )
+            copied_count += 1
+
+    modeladmin.message_user(
+        request,
+        f'Vytvořen nový krok šarže {target_krok} a zkopírováno {copied_count} řádků deníku.',
+        level=messages.SUCCESS,
+    )
+    return HttpResponseRedirect(reverse('admin:orders_sarzekrok_change', args=[target_krok.pk]))
+
+
+@admin.action(description='Vytvořit nový krok šarže jako kopii vybraného kroku')
+def vytvorit_novy_krok_z_kroku_sarze_action(modeladmin, request, queryset):
+    source_kroky = list(queryset.select_related('sarze', 'zarizeni'))
+    if len(source_kroky) != 1:
+        modeladmin.message_user(
+            request,
+            'Vyberte právě jeden krok šarže.',
+            level=messages.ERROR,
+        )
+        return None
+
+    source_krok = source_kroky[0]
+    source_rows = list(
+        SarzeKrokBedna.objects.filter(krok=source_krok).select_related('bedna')
+    )
+
+    with transaction.atomic():
+        target_krok = SarzeKrok.objects.create(
+            sarze=source_krok.sarze,
+            datum=source_krok.datum,
+            zarizeni=source_krok.zarizeni,
+            zacatek=source_krok.zacatek,
+            konec=source_krok.konec,
+            operator=source_krok.operator,
+            program=source_krok.program,
+            alarm=source_krok.alarm,
+            poznamka=source_krok.poznamka,
+        )
+
+        copied_count = 0
+        for row in source_rows:
+            SarzeKrokBedna.objects.create(
+                krok=target_krok,
+                bedna=row.bedna,
+                patro=row.patro,
+                procent_z_patra=row.procent_z_patra,
+                popis_mimo_db=row.popis_mimo_db,
+                zakaznik_mimo_db=row.zakaznik_mimo_db,
+                zakazka_mimo_db=row.zakazka_mimo_db,
+                cislo_bedny_mimo_db=row.cislo_bedny_mimo_db,
+            )
+            copied_count += 1
+
+    modeladmin.message_user(
+        request,
+        f'Vytvořen nový krok šarže {target_krok} a zkopírováno {copied_count} řádků deníku.',
+        level=messages.SUCCESS,
+    )
+    return HttpResponseRedirect(reverse('admin:orders_sarzekrok_change', args=[target_krok.pk]))
 
 # Akce pro bedny:
 

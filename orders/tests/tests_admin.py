@@ -15,6 +15,7 @@ from unittest.mock import patch
 from types import SimpleNamespace
 
 from orders.admin import KamionAdmin, ZakazkaAdmin, BednaAdmin, BednaInline, NotificationAdmin, SarzeAdmin, SarzeKrokAdmin, SarzeKrokBednaAdmin, SarzeKrokBednaInline, PredpisAdmin, CenaAdmin
+from orders.actions import posunout_do_dalsiho_kroku_sarze_action, vytvorit_novy_krok_z_kroku_sarze_action
 from orders.forms import ImportZakazekForm
 from orders.models import Zakaznik, Kamion, Zakazka, Bedna, Predpis, TypHlavy, Odberatel, Cena, Notification, PriorityNotificationRecipient, Zarizeni, Sarze, SarzeKrok, SarzeKrokBedna
 from orders.choices import StavBednyChoice, SklademZakazkyChoice, PrijemVydejChoice, KamionChoice, ZinkovaniChoice, PrioritaChoice
@@ -2019,7 +2020,7 @@ class SarzeKrokBednaAdminActionTests(AdminBase):
             stav_bedny=StavBednyChoice.PRIJATO,
         )
 
-    def test_action_moves_record_to_next_step(self):
+    def test_action_creates_new_step_and_copies_selected_rows(self):
         source = SarzeKrokBedna.objects.create(
             krok=self.krok_1,
             bedna=self.bedna,
@@ -2031,22 +2032,35 @@ class SarzeKrokBednaAdminActionTests(AdminBase):
         request.session = DummySession()
         request._messages = FallbackStorage(request)
 
-        self.admin.posunout_do_dalsiho_zarizeni_action(request, SarzeKrokBedna.objects.filter(pk=source.pk))
+        response = posunout_do_dalsiho_kroku_sarze_action(self.admin, request, SarzeKrokBedna.objects.filter(pk=source.pk))
 
-        self.assertFalse(SarzeKrokBedna.objects.filter(pk=source.pk).exists())
+        self.assertEqual(response.status_code, 302)
+
+        novy_krok = SarzeKrok.objects.exclude(pk__in=[self.krok_1.pk, self.krok_2.pk]).get()
+        self.assertEqual(novy_krok.sarze_id, self.krok_1.sarze_id)
+        self.assertEqual(novy_krok.datum, self.krok_1.datum)
+        self.assertEqual(novy_krok.zarizeni_id, self.krok_1.zarizeni_id)
+
+        self.assertTrue(SarzeKrokBedna.objects.filter(pk=source.pk).exists())
         self.assertTrue(
             SarzeKrokBedna.objects.filter(
-                krok=self.krok_2,
+                krok=novy_krok,
                 bedna=self.bedna,
                 patro=1,
             ).exists()
         )
 
-    def test_action_keeps_record_when_next_step_missing(self):
-        source = SarzeKrokBedna.objects.create(
-            krok=self.krok_2,
+    def test_action_requires_rows_from_one_source_step(self):
+        source_a = SarzeKrokBedna.objects.create(
+            krok=self.krok_1,
             bedna=self.bedna,
             patro=2,
+            procent_z_patra=50,
+        )
+        source_b = SarzeKrokBedna.objects.create(
+            krok=self.krok_2,
+            bedna=self.bedna,
+            patro=3,
             procent_z_patra=50,
         )
         request = self.factory.post('/admin/orders/sarzekrokbedna/')
@@ -2054,52 +2068,140 @@ class SarzeKrokBednaAdminActionTests(AdminBase):
         request.session = DummySession()
         request._messages = FallbackStorage(request)
 
-        self.admin.posunout_do_dalsiho_zarizeni_action(request, SarzeKrokBedna.objects.filter(pk=source.pk))
+        response = posunout_do_dalsiho_kroku_sarze_action(
+            self.admin,
+            request,
+            SarzeKrokBedna.objects.filter(pk__in=[source_a.pk, source_b.pk]),
+        )
 
-        self.assertTrue(SarzeKrokBedna.objects.filter(pk=source.pk).exists())
+        self.assertIsNone(response)
+        self.assertEqual(SarzeKrok.objects.count(), 2)
 
-    def test_action_skips_record_when_bedna_not_skladem(self):
-        self.bedna.stav_bedny = StavBednyChoice.EXPEDOVANO
-        self.bedna.save(update_fields=['stav_bedny'])
-
+    def test_action_copies_mimo_db_row(self):
         source = SarzeKrokBedna.objects.create(
             krok=self.krok_1,
-            bedna=self.bedna,
-            patro=3,
-            procent_z_patra=100,
+            bedna=None,
+            patro=7,
+            procent_z_patra=80,
+            popis_mimo_db='ZELEZO',
+            zakaznik_mimo_db='TEST',
+            zakazka_mimo_db='Z-1',
+            cislo_bedny_mimo_db='M-001',
         )
         request = self.factory.post('/admin/orders/sarzekrokbedna/')
         request.user = self.user
         request.session = DummySession()
         request._messages = FallbackStorage(request)
 
-        self.admin.posunout_do_dalsiho_zarizeni_action(request, SarzeKrokBedna.objects.filter(pk=source.pk))
+        response = posunout_do_dalsiho_kroku_sarze_action(self.admin, request, SarzeKrokBedna.objects.filter(pk=source.pk))
+
+        self.assertEqual(response.status_code, 302)
+        novy_krok = SarzeKrok.objects.exclude(pk__in=[self.krok_1.pk, self.krok_2.pk]).get()
 
         self.assertTrue(SarzeKrokBedna.objects.filter(pk=source.pk).exists())
-        self.assertFalse(SarzeKrokBedna.objects.filter(krok=self.krok_2, bedna=self.bedna, patro=3).exists())
-
-    def test_action_skips_when_target_duplicate_exists(self):
-        source = SarzeKrokBedna.objects.create(
-            krok=self.krok_1,
-            bedna=self.bedna,
-            patro=4,
-            procent_z_patra=100,
+        self.assertTrue(
+            SarzeKrokBedna.objects.filter(
+                krok=novy_krok,
+                bedna__isnull=True,
+                patro=7,
+                popis_mimo_db='ZELEZO',
+                zakaznik_mimo_db='TEST',
+                zakazka_mimo_db='Z-1',
+                cislo_bedny_mimo_db='M-001',
+            ).exists()
         )
+
+
+class SarzeKrokAdminActionTests(AdminBase):
+    def setUp(self):
+        self.admin = SarzeKrokAdmin(SarzeKrok, self.site)
+        self.zarizeni = Zarizeni.objects.create(
+            kod_zarizeni='B1',
+            nazev_zarizeni='Zarizeni B1',
+            zkraceny_nazev_zarizeni='B1',
+            prefix_sarze='B1',
+        )
+        self.sarze = Sarze.objects.create(
+            cislo_sarze=101,
+            datum_zalozeni=date.today(),
+            cislo_pripravku=11,
+            aktivni=True,
+        )
+        self.krok = SarzeKrok.objects.create(
+            sarze=self.sarze,
+            poradi=1,
+            datum=date.today(),
+            zarizeni=self.zarizeni,
+            zacatek=time(7, 30),
+            operator='OPX',
+            program='PGX',
+        )
+        self.zakazka = Zakazka.objects.create(
+            kamion_prijem=self.kamion,
+            artikl='AKCE-2',
+            prumer=Decimal('10.0'),
+            delka=Decimal('50.0'),
+            predpis=self.predpis,
+            typ_hlavy=self.typ_hlavy,
+            popis='test akce 2',
+        )
+        self.bedna = Bedna.objects.create(
+            zakazka=self.zakazka,
+            hmotnost=Decimal('2.0'),
+            tara=Decimal('1.0'),
+            mnozstvi=1,
+            stav_bedny=StavBednyChoice.PRIJATO,
+        )
+
+    def test_action_creates_new_step_with_all_rows(self):
+        SarzeKrokBedna.objects.create(krok=self.krok, bedna=self.bedna, patro=1, procent_z_patra=100)
         SarzeKrokBedna.objects.create(
-            krok=self.krok_2,
-            bedna=self.bedna,
-            patro=4,
-            procent_z_patra=100,
+            krok=self.krok,
+            bedna=None,
+            patro=2,
+            procent_z_patra=60,
+            popis_mimo_db='ZELEZO',
+            zakaznik_mimo_db='TEST',
+            zakazka_mimo_db='Z-2',
+            cislo_bedny_mimo_db='M-002',
         )
 
-        request = self.factory.post('/admin/orders/sarzekrokbedna/')
+        request = self.factory.post('/admin/orders/sarzekrok/')
         request.user = self.user
         request.session = DummySession()
         request._messages = FallbackStorage(request)
 
-        self.admin.posunout_do_dalsiho_zarizeni_action(request, SarzeKrokBedna.objects.filter(pk=source.pk))
+        response = vytvorit_novy_krok_z_kroku_sarze_action(self.admin, request, SarzeKrok.objects.filter(pk=self.krok.pk))
 
-        self.assertTrue(SarzeKrokBedna.objects.filter(pk=source.pk).exists())
+        self.assertEqual(response.status_code, 302)
+        novy_krok = SarzeKrok.objects.exclude(pk=self.krok.pk).get()
+        self.assertEqual(novy_krok.sarze_id, self.krok.sarze_id)
+        self.assertEqual(SarzeKrokBedna.objects.filter(krok=self.krok).count(), 2)
+        self.assertEqual(SarzeKrokBedna.objects.filter(krok=novy_krok).count(), 2)
+
+    def test_action_requires_exactly_one_step(self):
+        druhy_krok = SarzeKrok.objects.create(
+            sarze=self.sarze,
+            poradi=2,
+            datum=date.today(),
+            zarizeni=self.zarizeni,
+            zacatek=time(8, 30),
+            operator='OPY',
+            program='PGY',
+        )
+
+        request = self.factory.post('/admin/orders/sarzekrok/')
+        request.user = self.user
+        request.session = DummySession()
+        request._messages = FallbackStorage(request)
+
+        response = vytvorit_novy_krok_z_kroku_sarze_action(
+            self.admin,
+            request,
+            SarzeKrok.objects.filter(pk__in=[self.krok.pk, druhy_krok.pk]),
+        )
+
+        self.assertIsNone(response)
 
 
 class PredpisAdminSaveAsTests(AdminBase):

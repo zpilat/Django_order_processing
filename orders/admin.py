@@ -49,6 +49,7 @@ from .actions import (
     oznacit_uvolneno_action, prijmout_kamion_action, prijmout_zakazku_action, prijmout_bedny_action,
     export_bedny_to_csv_action, export_bedny_to_csv_customer_action, export_bedny_dl_action, tisk_rozpracovanost_action, tisk_prehledu_zakazek_kamionu_action, expedice_beden_action,
     expedice_beden_kamion_action, uvolnit_pozastavene_bedny_action, oznacit_nefakturovat_action,
+    posunout_do_dalsiho_kroku_sarze_action, vytvorit_novy_krok_z_kroku_sarze_action,
 )
 from .filters import (
     SklademZakazkaFilter, StavBednyFilter, KompletZakazkaFilter, AktivniPredpisFilter, SkupinaFilter, ZakaznikBednyFilter,
@@ -114,7 +115,7 @@ class SarzeKrokBednaInline(admin.TabularInline):
     fields = (
         'bedna', 'patro', 'procent_z_patra', 'popis_mimo_db', 'zakaznik_mimo_db', 'zakazka_mimo_db', 'cislo_bedny_mimo_db',
     )
-    extra = 5
+    extra = 5 
 
     def formfield_for_dbfield(self, db_field, request, **kwargs):
         """
@@ -155,10 +156,43 @@ class SarzeKrokInline(admin.TabularInline):
     readonly_fields = ('poradi',)
     autocomplete_fields = ('zarizeni',)
     extra = 0
+    show_change_link = True    
     validate_min = True
     formfield_overrides = {
-        models.TimeField: {'widget': forms.TimeInput(format='%H:%M')},
+        models.TimeField: {'widget': forms.TimeInput(format='%H:%M', attrs={'size': '5'})},
+        models.CharField: {'widget': TextInput(attrs={'size': '20'})},
+        models.DecimalField: {
+            'widget': TextInput(attrs={'size': '5'}),
+            'localize': True
+        },
+        models.IntegerField: {'widget': TextInput(attrs={'size': '5'})},
     }
+
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
+        """
+        Přizpůsobení widgetů pro pole v administraci.
+        """
+        if isinstance(db_field, models.ForeignKey):
+            # Zruší zobrazení ikon pro ForeignKey pole v administraci, nepřidá RelatedFieldWidgetWrapper.
+            formfield = self.formfield_for_foreignkey(db_field, request, **kwargs)
+            # Zúžení šířky pro všechna FK pole (včetně autocomplete) v tomto inline.
+            style = formfield.widget.attrs.get('style', '').strip()
+            width_style = 'width: 12em;'
+            formfield.widget.attrs['style'] = f'{style} {width_style}'.strip()
+            # DŮLEŽITÉ: znovu obalit widget
+            rel = db_field.remote_field
+            formfield.widget = RelatedFieldWidgetWrapper(
+                formfield.widget,
+                rel,
+                self.admin_site,
+                can_add_related=False,
+                can_change_related=False,
+                can_delete_related=False,
+                can_view_related=False,
+            )
+            return formfield
+
+        return super().formfield_for_dbfield(db_field, request, **kwargs)    
 
     def get_fields(self, request, obj=None):
         if obj is None:
@@ -253,6 +287,7 @@ class SarzeKrokAdmin(SimpleHistoryAdmin):
     list_select_related = ('sarze', 'zarizeni')
     date_hierarchy = 'datum'
     ordering = ('-datum', '-zacatek', '-poradi')
+    actions = (vytvorit_novy_krok_z_kroku_sarze_action,)
     inlines = [SarzeKrokBednaInline]
     formfield_overrides = {
         models.TimeField: {'widget': forms.TimeInput(format='%H:%M')},
@@ -308,7 +343,7 @@ class SarzeKrokAdmin(SimpleHistoryAdmin):
 class SarzeKrokBednaAdmin(SimpleHistoryAdmin):
     fields = ('krok', 'bedna', 'popis_mimo_db', 'zakaznik_mimo_db', 'zakazka_mimo_db', 'cislo_bedny_mimo_db', 'patro', 'procent_z_patra',)
     readonly_fields = ('krok', 'bedna', 'popis_mimo_db', 'zakaznik_mimo_db', 'zakazka_mimo_db', 'cislo_bedny_mimo_db', 'patro', 'procent_z_patra',)
-    actions = ('posunout_do_dalsiho_zarizeni_action',)
+    actions = (posunout_do_dalsiho_kroku_sarze_action,)
     list_display = (
         'get_sarze', 'get_kod_zarizeni', 'get_datum', 'get_zacatek', 'get_konec', 'get_operator',
         'get_zkraceny_popis', 'get_cislo_bedny', 'get_zakaznik', 'get_predpis', 'patro',
@@ -343,118 +378,6 @@ class SarzeKrokBednaAdmin(SimpleHistoryAdmin):
         if obj is None:
             return ()
         return self.readonly_fields
-
-    @admin.action(description='Do dalšího zařízení')
-    def posunout_do_dalsiho_zarizeni_action(self, request, queryset):
-        moved_count = 0
-        skipped_without_next = 0
-        skipped_invalid_state = 0
-        skipped_conflict = 0
-
-        allowed_states = {
-            state.value if hasattr(state, 'value') else state
-            for state in STAV_BEDNY_SKLADEM
-        }
-
-        queryset = queryset.select_related('krok', 'krok__sarze', 'bedna')
-
-        with transaction.atomic():
-            for zaznam in queryset:
-                if not zaznam.krok_id or not zaznam.krok.sarze_id:
-                    skipped_without_next += 1
-                    continue
-
-                dalsi_krok = (
-                    SarzeKrok.objects
-                    .filter(sarze_id=zaznam.krok.sarze_id, poradi__gt=zaznam.krok.poradi)
-                    .order_by('poradi')
-                    .first()
-                )
-
-                if not dalsi_krok:
-                    skipped_without_next += 1
-                    continue
-
-                if zaznam.bedna_id and zaznam.bedna.stav_bedny not in allowed_states:
-                    skipped_invalid_state += 1
-                    continue
-
-                if zaznam.bedna_id:
-                    target_qs = SarzeKrokBedna.objects.filter(
-                        krok=dalsi_krok,
-                        bedna=zaznam.bedna,
-                        patro=zaznam.patro,
-                    )
-                    if target_qs.exists():
-                        skipped_conflict += 1
-                        continue
-
-                    target = SarzeKrokBedna.objects.create(
-                        krok=dalsi_krok,
-                        bedna=zaznam.bedna,
-                        patro=zaznam.patro,
-                        procent_z_patra=zaznam.procent_z_patra,
-                        popis_mimo_db=zaznam.popis_mimo_db,
-                        zakaznik_mimo_db=zaznam.zakaznik_mimo_db,
-                        zakazka_mimo_db=zaznam.zakazka_mimo_db,
-                        cislo_bedny_mimo_db=zaznam.cislo_bedny_mimo_db,
-                    )
-                else:
-                    target_qs = SarzeKrokBedna.objects.filter(
-                        krok=dalsi_krok,
-                        bedna__isnull=True,
-                        patro=zaznam.patro,
-                        popis_mimo_db=zaznam.popis_mimo_db,
-                        zakaznik_mimo_db=zaznam.zakaznik_mimo_db,
-                        zakazka_mimo_db=zaznam.zakazka_mimo_db,
-                        cislo_bedny_mimo_db=zaznam.cislo_bedny_mimo_db,
-                    )
-                    if target_qs.exists():
-                        skipped_conflict += 1
-                        continue
-
-                    target = SarzeKrokBedna.objects.create(
-                        krok=dalsi_krok,
-                        bedna=None,
-                        patro=zaznam.patro,
-                        procent_z_patra=zaznam.procent_z_patra,
-                        popis_mimo_db=zaznam.popis_mimo_db,
-                        zakaznik_mimo_db=zaznam.zakaznik_mimo_db,
-                        zakazka_mimo_db=zaznam.zakazka_mimo_db,
-                        cislo_bedny_mimo_db=zaznam.cislo_bedny_mimo_db,
-                    )
-
-                target._change_reason = f'Přesunuto do dalšího zařízení z kroku {zaznam.krok.poradi}'
-                target.save()
-
-                zaznam._change_reason = f'Přesunuto do dalšího zařízení do kroku {dalsi_krok.poradi}'
-                zaznam.delete()
-                moved_count += 1
-
-        if moved_count:
-            self.message_user(
-                request,
-                f'Přesunuto do dalšího zařízení: {moved_count} záznam(ů).',
-                level=messages.SUCCESS,
-            )
-        if skipped_without_next:
-            self.message_user(
-                request,
-                f'Přeskočeno bez navazujícího kroku: {skipped_without_next} záznam(ů).',
-                level=messages.WARNING,
-            )
-        if skipped_invalid_state:
-            self.message_user(
-                request,
-                f'Přeskočeno mimo stav skladem: {skipped_invalid_state} záznam(ů).',
-                level=messages.WARNING,
-            )
-        if skipped_conflict:
-            self.message_user(
-                request,
-                f'Přeskočeno kvůli duplicitě v cílovém kroku: {skipped_conflict} záznam(ů).',
-                level=messages.WARNING,
-            )
 
     @admin.display(description='Zařízení', ordering='krok__zarizeni__kod_zarizeni')
     def get_kod_zarizeni(self, obj):
