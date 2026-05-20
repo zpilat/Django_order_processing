@@ -5,7 +5,7 @@
         {% if add %}
             <input type="submit" value="Uložit a přidat bedny do kroku šarže" class="default" name="_save_to_sarzekrokbedna">
         {% else %}
-            <input type="submit" value="Uložit a zpět do deníku pece" class="default" name="_save_to_sarzebedna">
+            <input type="submit" value="{% translate 'Save' %}" class="default" name="_save">
         {% endif %}
     {% endif %}
     {% if show_save_as_new %}

@@ -287,7 +287,7 @@ class SarzeAdmin(SimpleHistoryAdmin):
 @admin.register(SarzeKrok)
 class SarzeKrokAdmin(SimpleHistoryAdmin):
     fields = ('sarze', 'poradi', 'datum', 'zarizeni', 'zacatek', 'konec', 'operator', 'program', 'alarm', 'poznamka',)
-    readonly_fields = ('poradi',)
+    readonly_fields = ('sarze', 'poradi',)
     list_display = (
         'get_sarze', 'poradi', 'get_datum', 'get_zarizeni', 'zacatek', 'konec', 'operator',
         'program', 'get_prodleva', 'get_takt', 'get_poznamka', 'get_alarm',
