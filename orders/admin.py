@@ -364,7 +364,7 @@ class SarzeKrokBednaAdmin(SimpleHistoryAdmin):
     readonly_fields = ('krok', 'bedna', 'popis_mimo_db', 'zakaznik_mimo_db', 'zakazka_mimo_db', 'cislo_bedny_mimo_db', 'patro', 'procent_z_patra',)
     actions = (vytvorit_dalsi_krok_sarze_action,)
     list_display = (
-        'get_sarze', 'get_kod_zarizeni', 'get_datum', 'get_zacatek', 'get_konec', 'get_operator',
+        'get_krok', 'get_kod_zarizeni', 'get_datum', 'get_zacatek', 'get_konec', 'get_operator',
         'get_zkraceny_popis', 'get_cislo_bedny', 'get_zakaznik', 'get_predpis', 'patro',
         'get_cislo_pripravku', 'get_program', 'get_zakazka_skupina', 'get_poznamka', 'get_alarm', 'get_prodleva',
         'get_takt', 'get_prvni_pouziti',
@@ -402,12 +402,12 @@ class SarzeKrokBednaAdmin(SimpleHistoryAdmin):
     def get_kod_zarizeni(self, obj):
         return obj.krok.zarizeni.kod_zarizeni if obj.krok and obj.krok.zarizeni else '-'
     
-    @admin.display(description='Šarže', ordering='krok__sarze__id')
-    def get_sarze(self, obj):
-        if not obj.krok or not obj.krok.sarze:
+    @admin.display(description='Krok', ordering='krok__id')
+    def get_krok(self, obj):
+        if not obj.krok or not obj.krok.poradi or not obj.krok.sarze:
             return '-'
-        sarze_url = reverse('admin:orders_sarze_change', args=[obj.krok.sarze_id])
-        return format_html('<a href="{}">{}</a>', sarze_url, obj.krok.sarze)
+        krok_url = reverse('admin:orders_sarzekrok_change', args=[obj.krok_id])
+        return format_html('<a href="{}">{}</a>', krok_url, f"{obj.krok.sarze}-{obj.krok.poradi}")
 
     @admin.display(description='Bedna', ordering='bedna__cislo_bedny')
     def get_cislo_bedny(self, obj):
