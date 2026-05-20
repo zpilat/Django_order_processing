@@ -9,7 +9,7 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db.models import Sum
 from django.db.models import Q, Max, F
 from django.db.models.functions import ExtractYear
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from simple_history.models import HistoricalRecords
 
@@ -1554,8 +1554,9 @@ class SarzeKrok(models.Model):
         return f"{self.sarze} / krok {self.poradi} ({kod_zarizeni})"
 
     def save(self, *args, **kwargs):
-        if not self.datum and self.sarze_id:
-            self.datum = self.sarze.datum_zalozeni
+        # Pokud není datum zadáno, nastaví se na aktuální datum. 
+        if not self.datum:
+            self.datum = timezone.localdate()
 
         if self.pk or self.poradi:
             return super().save(*args, **kwargs)
