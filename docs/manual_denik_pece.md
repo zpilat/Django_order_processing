@@ -1,161 +1,140 @@
-# Uživatelský manuál: Deník pece
+# Uživatelský manuál: Deník pece (aktuální stav)
 
-Tento dokument popisuje praktické ovládání Deníku pece v Django administraci.
-Je zaměřený na modely `SarzeKrok` (kroky šarže) a `SarzeKrokBedna` (řádky deníku), admin `SarzeKrokBednaAdmin` (přehled deníku) a související části (`SarzeAdmin`, `SarzeKrokAdmin`, filtry zařízení, akce přesunu do dalšího zařízení).
+Tento manuál popisuje aktuální fungování po úpravách v této větvi pro tyto části:
+- Šarže (Sarze)
+- Krok šarže (SarzeKrok)
+- Deník pece (SarzeKrokBedna)
 
-## 1. K čemu Deník pece slouží
+## 1. Jak jsou části navázané
 
-Deník pece eviduje, co bylo v konkrétním kroku šarže zpracováno:
+1. Šarže je hlavička výrobního celku.
+2. Každá šarže má jeden nebo více kroků šarže.
+3. Každý krok šarže má řádky deníku pece.
+4. Řádek deníku je konkrétní bedna nebo položka mimo databázi na konkrétním patře.
 
-- standardní bedny z databáze (`bedna`),
-- nebo položky mimo databázi (tzv. "železo") přes textová pole (`popis_mimo_db`, `zakaznik_mimo_db`, `zakazka_mimo_db`, `cislo_bedny_mimo_db`).
+Pracovní pořadí v UI:
+1. Založit šarži.
+2. Otevřít nebo založit krok šarže.
+3. Vyplnit řádky deníku pece.
 
-Každý řádek deníku je jedna položka modelu `SarzeKrokBedna`.
+## 2. Šarže (Sarze)
 
-## 2. Kde v administraci pracovat
+### 2.1 Co uživatel vidí
 
-Používejte hlavně tři obrazovky:
+1. V seznamu šarží je filtr pouze Aktivní.
+2. Při vytvoření šarže se pole datum založení nezobrazuje.
+3. Na detailu šarže je standardní tlačítko Uložit.
+4. Na formuláři přidání šarže je speciální tlačítko Uložit a přidat bedny do kroku šarže.
 
-- `Šarže` (`SarzeAdmin`) - hlavička šarže.
-- `Kroky šarže` (`SarzeKrokAdmin`) - zařízení a průběh jednotlivých kroků.
-- `Deník pece` (`SarzeKrokBednaAdmin`) - přehled všech řádků napříč kroky.
+### 2.2 Co dělá systém
 
-Prakticky:
+1. Datum založení se při vytvoření doplní automaticky na dnešní lokální datum.
+2. Po použití tlačítka Uložit a přidat bedny do kroku šarže se provede přesměrování na první krok této šarže.
+3. Pokud první krok nelze najít, systém uloží šarži a zobrazí varování.
 
-1. Otevřete seznam `Deník pece`.
-2. Klikněte na tlačítko `1) Šarže: Přidat`.
-3. Přidejte alespoň jeden krok šarže (`2) Krok: Přidat`).
-4. Přidejte položky deníku (`3) Deník pece: Přidat záznam`) nebo přes inline tabulku kroku.
-5. Uložte.
+## 3. Krok šarže (SarzeKrok)
 
-Poznámka: V `SarzeKrokBednaAdmin` jsou při editaci existujícího záznamu pole read-only; při přidání nového záznamu jsou editovatelná.
+### 3.1 Co uživatel vidí
 
-## 3. Jak přidat položku deníku správně
+1. Krok má pole zařízení, operátor a začátek.
+2. Na formuláři vytvoření kroku tato pole mohou zůstat prázdná.
+3. Na formuláři editace kroku jsou tato pole povinná.
+4. Na detailu kroku je tlačítko Uložit a zpět do deníku pece.
 
-U každého řádku platí režim "buď anebo":
+### 3.2 Co dělá systém
 
-- Režim A: vyberu `bedna` z databáze.
-- Režim B: vyplním `popis_mimo_db` + `zakaznik_mimo_db` + `zakazka_mimo_db` (volitelně i `cislo_bedny_mimo_db`).
+1. Při novém kroku dopočítá pořadí automaticky v rámci šarže.
+2. Pokud není vyplněné datum kroku, doplní se z data založení šarže.
+3. U kroku se počítají metriky prodleva a takt, pokud jsou k dispozici potřebná data a zařízení je příslušného typu.
 
-Nesmí být současně vyplněno:
+## 4. Deník pece (SarzeKrokBedna)
 
-- `bedna` a textová pole pro "železo".
+### 4.1 Co uživatel vidí
 
-Povinné společné pole je `patro`.
+1. Seznam deníku zobrazuje řádky napříč kroky.
+2. Sloupec Krok je odkaz na detail kroku.
+3. Nahoře jsou rychlé odkazy:
+- 1) Šarže: Přidat
+- 2) Krok: Přidat
+- 3) Deník pece: Přidat záznam
+4. V seznamu je vizuální oddělení mezi různými kroky podle ID kroku.
 
-## 4. Validace a pravidla (co hlídá systém)
+### 4.2 Co dělá systém
 
-### 4.1 Pravidla pro výběr bedny
+1. Řádky se seskupují a oddělují podle odlišného kroku (ID SarzeKrok).
+2. Validace řádku vyžaduje buď bednu, nebo popis mimo DB.
+3. Nesmí být současně vyplněna bedna a data mimo DB.
+4. Pokud je vyplněn popis mimo DB, musí být vyplněn i zákazník a zakázka mimo DB.
+5. Je hlídaná unikátnost kombinace krok + bedna + patro.
+6. U bedny z DB musí být bedna ve stavu skladem.
 
-Pokud je vyplněna `bedna`, musí být ve stavu "skladem" (tj. v povolených stavech pro sklad).
+## 5. Akce pro kopírování do nového kroku
 
-To se kontroluje:
+### 5.1 Akce z Deníku pece
 
-- na úrovni modelu `SarzeKrokBedna.clean()`,
-- a zároveň v inline formsetu při ukládání kroku.
+Název: Vytvořit nový krok šarže z vybraných řádků deníku
 
-### 4.2 Pravidla pro položky mimo DB
+Průběh:
+1. Uživatel označí řádky deníku.
+2. Systém ověří, že všechny řádky patří do jednoho zdrojového kroku.
+3. Vytvoří nový krok stejné šarže.
+4. U nového kroku záměrně nastaví zařízení, operátor a začátek na prázdno.
+5. Zkopíruje vybrané řádky deníku.
+6. Přesměruje na detail nového kroku.
 
-Pokud vyplníte `popis_mimo_db`, musíte vyplnit i:
+### 5.2 Akce z Kroku šarže
 
-- `zakaznik_mimo_db`,
-- `zakazka_mimo_db`.
+Název: Vytvořit nový krok šarže jako kopii vybraného kroku
 
-Současně platí, že zákazník/zakázka/číslo bedny mimo DB nelze vyplnit bez `popis_mimo_db`.
+Průběh:
+1. Uživatel označí právě jeden krok.
+2. Systém vytvoří nový krok stejné šarže.
+3. U nového kroku záměrně nastaví zařízení, operátor a začátek na prázdno.
+4. Zkopíruje všechny řádky deníku ze zdrojového kroku.
+5. Přesměruje na detail nového kroku.
 
-### 4.3 Unikátnost v kroku
+## 6. Doporučený pracovní postup pro obsluhu
 
-Je hlídané unikátní omezení `(krok, bedna, patro)`.
+1. Otevřít Deník pece.
+2. Založit šarži přes odkaz 1) Šarže: Přidat.
+3. Uložit šarži tlačítkem Uložit a přidat bedny do kroku šarže.
+4. V detailu kroku zkontrolovat data a doplnit řádky deníku.
+5. Pokud je potřeba navazující krok, použít akci kopie z deníku nebo z kroku.
+6. Na novém kroku doplnit zařízení, operátora a začátek.
+7. Uložit krok tlačítkem Uložit a zpět do deníku pece.
 
-To znamená, že stejná bedna nemůže být v jednom kroku dvakrát na stejném patře.
+## 7. Nejčastější chyby a řešení
 
-## 5. Ovládání seznamu Deníku pece (`SarzeKrokBednaAdmin`)
+1. Chyba při kopii z deníku: Vyberte záznamy pouze z jednoho kroku šarže.
+Řešení: Označit pouze řádky ze stejného kroku.
 
-### 5.1 Sloupce
+2. Chyba validace: Musí být vyplněna buď bedna, nebo popis mimo DB.
+Řešení: Vyplnit přesně jednu variantu.
 
-V přehledu uvidíte mimo jiné:
+3. Chyba validace: Nelze vyplnit současně bednu i pole mimo DB.
+Řešení: Vyčistit jednu větev dat.
 
-- šarži, pořadí kroku, zařízení, datum, časy, operátora,
-- číslo bedny nebo číslo bedny mimo DB,
-- zákazníka,
-- patro,
-- číslo přípravku, program,
-- poznámku, alarm,
-- prodlevu, takt,
-- indikátor `První?` (první použití bedny na daném zařízení).
+4. Chyba validace: Při popisu mimo DB chybí zákazník nebo zakázka mimo DB.
+Řešení: Dovyplnit obě povinná pole.
 
-### 5.2 Filtry
+5. Chyba duplicity kombinace krok + bedna + patro.
+Řešení: Změnit patro nebo nepřidávat duplicitní řádek.
 
-- `Zařízení` (`ZarizeniSarzeBednaFilter`)
-- `Typ zařízení` (`TypZarizeniSarzeBednaFilter`)
+## 8. Kde je logika v kódu
 
-### 5.3 Vyhledávání
+1. Admin logika:
+- orders/admin.py
 
-- Hledá podle čísla šarže a čísla bedny.
+2. Akce kopírování kroků:
+- orders/actions.py
 
-## 6. Akce související s deníkem
+3. Datový model a validace:
+- orders/models.py
 
-### 6.1 Na `SarzeKrokBednaAdmin`
+4. Šablony tlačítek a odkazy:
+- orders/templates/admin/orders/sarze/submit_line.html
+- orders/templates/admin/orders/sarzekrok/submit_line.html
+- orders/templates/admin/orders/sarzebedna/change_list.html
 
-- Akce `Do dalšího zařízení` přesune vybrané řádky do navazujícího kroku stejné šarže.
-- Ochranná pravidla akce:
-  - přeskočí záznam bez navazujícího kroku,
-  - přeskočí bednu mimo stav skladem,
-  - přeskočí záznam, pokud by v cílovém kroku vznikla duplicita.
-
-### 6.2 Na `SarzeAdmin`
-
-- Přesun celé šarže na jiné zařízení je odstraněn.
-
-## 7. Typický pracovní postup (doporučený)
-
-1. Vytvořit šarži v `SarzeAdmin`.
-2. Přidat kroky v `SarzeKrokAdmin`.
-3. Přidat řádky deníku přes inline tabulku kroku nebo přes `SarzeKrokBednaAdmin`.
-4. Otevřít `Deník pece` (`SarzeKrokBednaAdmin`) a zkontrolovat výsledek (filtry zařízení, vyhledání čísla bedny).
-5. Pokud je potřeba postoupit položky dál, použít akci `Do dalšího zařízení`.
-
-## 8. Nejčastější problémy a rychlé řešení
-
-### Chyba: "Musí být vyplněna buď bedna nebo popis"
-
-- Řádek je prázdný nebo nebyla zvolena žádná varianta.
-
-### Chyba: "Nelze vyplnit současně bednu i popis"
-
-- Smí být vyplněná jen jedna větev (bedna, nebo železo).
-
-### Chyba: "Vybraná bedna musí být ve stavu skladem"
-
-- Vybraná bedna není ve stavu, který je povolený pro zařazení do kroku.
-
-### Chyba při ukládání duplicity
-
-- Už existuje stejná kombinace `krok + bedna + patro`.
-
-## 9. Co je dobré vědět o oprávněních
-
-- Pro hromadnou akci přesunu je nutné oprávnění měnit záznamy deníku pece.
-
-## 10. Technická mapa (kde je logika v kódu)
-
-- `orders/models.py`
-  - `Sarze`
-  - `SarzeKrok`
-  - `SarzeKrokBedna`
-  - validace `SarzeKrokBedna.clean()`
-
-- `orders/admin.py`
-  - `SarzeAdmin`
-  - `SarzeKrokAdmin`
-  - `SarzeKrokBednaInline`
-  - `SarzeKrokBednaInlineFormSet`
-  - `SarzeKrokBednaAdmin`
-
-- `orders/filters.py`
-  - `ZarizeniSarzeFilter`
-  - `ZarizeniSarzeKrokFilter`
-  - `ZarizeniSarzeBednaFilter`
-
-- `orders/templates/admin/orders/sarzebedna/change_list.html`
-  - tlačítka pro řízené založení šarže, kroku a řádku deníku
+5. Seskupování řádků v deníku:
+- orders/static/orders/js/admin_sarzebedna_group_separator.js
