@@ -2205,6 +2205,35 @@ class SarzeKrokAdminActionTests(AdminBase):
 
         self.assertIsNone(response)
 
+    def test_change_form_requires_zarizeni_operator_a_zacatek(self):
+        novy_krok = SarzeKrok.objects.create(
+            sarze=self.sarze,
+            datum=date.today(),
+            zarizeni=None,
+            zacatek=None,
+            operator=None,
+            program='PG0',
+        )
+
+        request = self.factory.get(f'/admin/orders/sarzekrok/{novy_krok.pk}/change/')
+        request.user = self.user
+
+        form_class = self.admin.get_form(request, obj=novy_krok, change=True)
+
+        self.assertTrue(form_class.base_fields['zarizeni'].required)
+        self.assertTrue(form_class.base_fields['operator'].required)
+        self.assertTrue(form_class.base_fields['zacatek'].required)
+
+    def test_add_form_necha_zarizeni_operator_a_zacatek_nepovinne(self):
+        request = self.factory.get('/admin/orders/sarzekrok/add/')
+        request.user = self.user
+
+        form_class = self.admin.get_form(request, obj=None, change=False)
+
+        self.assertFalse(form_class.base_fields['zarizeni'].required)
+        self.assertFalse(form_class.base_fields['operator'].required)
+        self.assertFalse(form_class.base_fields['zacatek'].required)
+
 
 class SarzeAdminCreateBehaviorTests(AdminBase):
     def setUp(self):
@@ -2240,35 +2269,6 @@ class SarzeAdminCreateBehaviorTests(AdminBase):
 
         self.assertIsNotNone(sarze.pk)
         self.assertEqual(sarze.datum_zalozeni, date.today())
-
-    def test_change_form_requires_zarizeni_operator_a_zacatek(self):
-        novy_krok = SarzeKrok.objects.create(
-            sarze=self.sarze,
-            datum=date.today(),
-            zarizeni=None,
-            zacatek=None,
-            operator=None,
-            program='PG0',
-        )
-
-        request = self.factory.get(f'/admin/orders/sarzekrok/{novy_krok.pk}/change/')
-        request.user = self.user
-
-        form_class = self.admin.get_form(request, obj=novy_krok, change=True)
-
-        self.assertTrue(form_class.base_fields['zarizeni'].required)
-        self.assertTrue(form_class.base_fields['operator'].required)
-        self.assertTrue(form_class.base_fields['zacatek'].required)
-
-    def test_add_form_necha_zarizeni_operator_a_zacatek_nepovinne(self):
-        request = self.factory.get('/admin/orders/sarzekrok/add/')
-        request.user = self.user
-
-        form_class = self.admin.get_form(request, obj=None, change=False)
-
-        self.assertFalse(form_class.base_fields['zarizeni'].required)
-        self.assertFalse(form_class.base_fields['operator'].required)
-        self.assertFalse(form_class.base_fields['zacatek'].required)
 
 
 class PredpisAdminSaveAsTests(AdminBase):
