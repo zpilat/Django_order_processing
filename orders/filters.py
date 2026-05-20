@@ -930,37 +930,6 @@ class ZakaznikPredpisFilter(DynamicTitleFilter):
         except Zakaznik.DoesNotExist:
             return queryset.none()
 
-# filtry pro Šarže
-
-class ZarizeniSarzeFilter(DynamicTitleFilter):
-    """
-    Filtrovat šarže podle zařízení.
-    """
-    title = "Zařízení"
-    parameter_name = "zarizeni"
-
-    def __init__(self, request, params, model, model_admin):
-        self.label_dict = dict(Zarizeni.objects.values_list('kod_zarizeni', 'zkraceny_nazev_zarizeni').order_by('kod_zarizeni'))
-        super().__init__(request, params, model, model_admin)
-
-    def lookups(self, request, model_admin):
-        return self.label_dict.items()    
-
-    def queryset(self, request, queryset):
-        value = self.value()
-        if not value:
-            return queryset
-        try:
-            zarizeni = Zarizeni.objects.get(kod_zarizeni=value)
-            # Sarze už nemá přímé FK na zařízení; filtruje se přes kroky.
-            model_field_names = {field.name for field in queryset.model._meta.get_fields()}
-            if 'zarizeni' in model_field_names:
-                return queryset.filter(zarizeni=zarizeni)
-            return queryset.filter(kroky__zarizeni=zarizeni).distinct()
-        except Zarizeni.DoesNotExist:
-            return queryset.none()
-
-
 # filtry pro ŠaržeKrok
 
 class ZarizeniSarzeKrokFilter(DynamicTitleFilter):

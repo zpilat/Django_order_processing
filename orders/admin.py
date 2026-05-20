@@ -55,7 +55,7 @@ from .filters import (
     SklademZakazkaFilter, StavBednyFilter, KompletZakazkaFilter, AktivniPredpisFilter, SkupinaFilter, ZakaznikBednyFilter,
     ZakaznikZakazkyFilter, ZakaznikKamionuFilter, PrijemVydejFilter, TryskaniFilter, RovnaniFilter, PrioritaBednyFilter, PrioritaZakazkyFilter,
     OberflacheFilter, TypHlavyBednyFilter, TypHlavyZakazkyFilter, CelozavitBednyFilter, CelozavitZakazkyFilter, DelkaFilter, PozastavenoFilter,
-    OdberatelFilter, OdberatelBednyFilter, AktivniNotifikaceBednyFilter, ZakaznikPredpisFilter, ZinkovaniFilter, ZarizeniSarzeFilter,
+    OdberatelFilter, OdberatelBednyFilter, AktivniNotifikaceBednyFilter, ZakaznikPredpisFilter, ZinkovaniFilter,
     ZarizeniSarzeKrokFilter, TypZarizeniSarzeKrokFilter, ZarizeniSarzeBednaFilter, TypZarizeniSarzeBednaFilter, FakturovatFilter,
 )
 from .forms import (
@@ -231,7 +231,7 @@ class ZarizeniAdmin(SimpleHistoryAdmin):
 class SarzeAdmin(SimpleHistoryAdmin):
     fields = ('cislo_sarze', 'datum_zalozeni', 'cislo_pripravku', 'aktivni', 'poznamka',)
     list_display = ('get_cislo_sarze', 'datum_zalozeni', 'cislo_pripravku', 'aktivni', 'get_poznamka', 'get_pocet_kroku',)
-    list_filter = ('aktivni', ZarizeniSarzeFilter)
+    list_filter = ('aktivni',)
     search_fields = ('cislo_sarze',)
     readonly_fields = ('cislo_sarze',)
     date_hierarchy = 'datum_zalozeni'
