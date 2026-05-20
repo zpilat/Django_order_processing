@@ -238,7 +238,7 @@ def _abort_if_bedna_has_not_hmotnost_zakazka_predpis(modeladmin, request, querys
 
 
 @admin.action(description='Vytvořit nový krok šarže z vybraných řádků deníku')
-def posunout_do_dalsiho_kroku_sarze_action(modeladmin, request, queryset):
+def vytvorit_dalsi_krok_sarze_action(modeladmin, request, queryset):
     source_rows = list(queryset.select_related('krok', 'krok__sarze', 'bedna'))
     if not source_rows:
         modeladmin.message_user(request, 'Nebyl vybrán žádný záznam.', level=messages.WARNING)
@@ -262,17 +262,27 @@ def posunout_do_dalsiho_kroku_sarze_action(modeladmin, request, queryset):
         target_krok = SarzeKrok.objects.create(
             sarze=source_krok.sarze,
             datum=source_krok.datum,
-            zarizeni=source_krok.zarizeni,
-            zacatek=source_krok.zacatek,
+            zarizeni=None,
+            zacatek=None,
             konec=source_krok.konec,
-            operator=source_krok.operator,
+            operator=None,
             program=source_krok.program,
             alarm=source_krok.alarm,
             poznamka=source_krok.poznamka,
         )
 
         copied_count = 0
+        skipped_conflict = 0
         for row in source_rows:
+            exists = SarzeKrokBedna.objects.filter(
+                krok=target_krok,
+                bedna=row.bedna,
+                patro=row.patro,
+            ).exists()
+            if exists:
+                skipped_conflict += 1
+                continue
+
             SarzeKrokBedna.objects.create(
                 krok=target_krok,
                 bedna=row.bedna,
@@ -287,9 +297,15 @@ def posunout_do_dalsiho_kroku_sarze_action(modeladmin, request, queryset):
 
     modeladmin.message_user(
         request,
-        f'Vytvořen nový krok šarže {target_krok} a zkopírováno {copied_count} řádků deníku.',
+        f'Vytvořen nový krok šarže {target_krok} bez zařízení a zkopírováno {copied_count} řádků deníku.',
         level=messages.SUCCESS,
     )
+    if skipped_conflict:
+        modeladmin.message_user(
+            request,
+            f'Přeskočeno {skipped_conflict} řádků kvůli duplicitě (bedna + patro).',
+            level=messages.WARNING,
+        )
     return HttpResponseRedirect(reverse('admin:orders_sarzekrok_change', args=[target_krok.pk]))
 
 
@@ -306,24 +322,34 @@ def vytvorit_novy_krok_z_kroku_sarze_action(modeladmin, request, queryset):
 
     source_krok = source_kroky[0]
     source_rows = list(
-        SarzeKrokBedna.objects.filter(krok=source_krok).select_related('bedna')
+        SarzeKrokBedna.objects.filter(krok=source_krok).select_related('bedna').order_by('pk')
     )
 
     with transaction.atomic():
         target_krok = SarzeKrok.objects.create(
             sarze=source_krok.sarze,
             datum=source_krok.datum,
-            zarizeni=source_krok.zarizeni,
-            zacatek=source_krok.zacatek,
+            zarizeni=None,
+            zacatek=None,
             konec=source_krok.konec,
-            operator=source_krok.operator,
+            operator=None,
             program=source_krok.program,
             alarm=source_krok.alarm,
             poznamka=source_krok.poznamka,
         )
 
         copied_count = 0
+        skipped_conflict = 0
         for row in source_rows:
+            exists = SarzeKrokBedna.objects.filter(
+                krok=target_krok,
+                bedna=row.bedna,
+                patro=row.patro,
+            ).exists()
+            if exists:
+                skipped_conflict += 1
+                continue
+
             SarzeKrokBedna.objects.create(
                 krok=target_krok,
                 bedna=row.bedna,
@@ -338,9 +364,15 @@ def vytvorit_novy_krok_z_kroku_sarze_action(modeladmin, request, queryset):
 
     modeladmin.message_user(
         request,
-        f'Vytvořen nový krok šarže {target_krok} a zkopírováno {copied_count} řádků deníku.',
+        f'Vytvořen nový krok šarže {target_krok} bez zařízení a zkopírováno {copied_count} řádků deníku.',
         level=messages.SUCCESS,
     )
+    if skipped_conflict:
+        modeladmin.message_user(
+            request,
+            f'Přeskočeno {skipped_conflict} řádků kvůli duplicitě (bedna + patro).',
+            level=messages.WARNING,
+        )
     return HttpResponseRedirect(reverse('admin:orders_sarzekrok_change', args=[target_krok.pk]))
 
 # Akce pro bedny:

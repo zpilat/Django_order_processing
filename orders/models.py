@@ -1525,10 +1525,17 @@ class SarzeKrok(models.Model):
     sarze = models.ForeignKey(Sarze, on_delete=models.CASCADE, related_name='kroky', verbose_name='Šarže')
     poradi = models.PositiveIntegerField(verbose_name='Pořadí')
     datum = models.DateField(blank=True, null=True, verbose_name='Datum')
-    zarizeni = models.ForeignKey(Zarizeni, on_delete=models.PROTECT, related_name='sarze_kroky', verbose_name='Zařízení')
-    zacatek = models.TimeField(verbose_name='Začátek')
+    zarizeni = models.ForeignKey(
+        Zarizeni,
+        on_delete=models.PROTECT,
+        related_name='sarze_kroky',
+        verbose_name='Zařízení',
+        blank=True,
+        null=True,
+    )
+    zacatek = models.TimeField(blank=True, null=True, verbose_name='Začátek')
     konec = models.TimeField(blank=True, null=True, verbose_name='Konec')
-    operator = models.CharField(max_length=30, verbose_name='Operátor')
+    operator = models.CharField(max_length=30, blank=True, null=True, verbose_name='Operátor')
     program = models.CharField(max_length=20, blank=True, null=True, verbose_name='Program')
     alarm = models.CharField(max_length=50, blank=True, null=True, verbose_name='Alarm')
     poznamka = models.CharField(max_length=100, blank=True, null=True, verbose_name='Poznámka')
@@ -1543,7 +1550,8 @@ class SarzeKrok(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.sarze} / krok {self.poradi} ({self.zarizeni.kod_zarizeni})"
+        kod_zarizeni = self.zarizeni.kod_zarizeni if self.zarizeni_id else '-'
+        return f"{self.sarze} / krok {self.poradi} ({kod_zarizeni})"
 
     def save(self, *args, **kwargs):
         if not self.datum and self.sarze_id:

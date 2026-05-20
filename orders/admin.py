@@ -49,7 +49,7 @@ from .actions import (
     oznacit_uvolneno_action, prijmout_kamion_action, prijmout_zakazku_action, prijmout_bedny_action,
     export_bedny_to_csv_action, export_bedny_to_csv_customer_action, export_bedny_dl_action, tisk_rozpracovanost_action, tisk_prehledu_zakazek_kamionu_action, expedice_beden_action,
     expedice_beden_kamion_action, uvolnit_pozastavene_bedny_action, oznacit_nefakturovat_action,
-    posunout_do_dalsiho_kroku_sarze_action, vytvorit_novy_krok_z_kroku_sarze_action,
+    vytvorit_dalsi_krok_sarze_action, vytvorit_novy_krok_z_kroku_sarze_action,
 )
 from .filters import (
     SklademZakazkaFilter, StavBednyFilter, KompletZakazkaFilter, AktivniPredpisFilter, SkupinaFilter, ZakaznikBednyFilter,
@@ -257,6 +257,17 @@ class SarzeAdmin(SimpleHistoryAdmin):
     def get_pocet_kroku(self, obj):
         return obj.kroky.count()
 
+    def get_fields(self, request, obj=None):
+        fields = list(super().get_fields(request, obj))
+        if obj is None and 'datum_zalozeni' in fields:
+            fields.remove('datum_zalozeni')
+        return fields
+
+    def save_model(self, request, obj, form, change):
+        if not change and not obj.datum_zalozeni:
+            obj.datum_zalozeni = timezone.localdate()
+        super().save_model(request, obj, form, change)
+
     def response_add(self, request, obj, post_url_continue=None):
         if '_save_to_sarzekrokbedna' in request.POST:
             prvni_krok = obj.kroky.order_by('poradi', 'id').first()
@@ -328,6 +339,14 @@ class SarzeKrokAdmin(SimpleHistoryAdmin):
     def get_alarm(self, obj):
         return truncate_with_title(obj.alarm)
 
+    def get_form(self, request, obj=None, change=False, **kwargs):
+        form = super().get_form(request, obj=obj, change=change, **kwargs)
+        if obj is not None:
+            for field_name in ('zarizeni', 'operator', 'zacatek'):
+                if field_name in form.base_fields:
+                    form.base_fields[field_name].required = True
+        return form
+
     def response_add(self, request, obj, post_url_continue=None):
         if '_save_to_sarzebedna' in request.POST:
             return HttpResponseRedirect(reverse('admin:orders_sarzekrokbedna_changelist'))
@@ -343,7 +362,7 @@ class SarzeKrokAdmin(SimpleHistoryAdmin):
 class SarzeKrokBednaAdmin(SimpleHistoryAdmin):
     fields = ('krok', 'bedna', 'popis_mimo_db', 'zakaznik_mimo_db', 'zakazka_mimo_db', 'cislo_bedny_mimo_db', 'patro', 'procent_z_patra',)
     readonly_fields = ('krok', 'bedna', 'popis_mimo_db', 'zakaznik_mimo_db', 'zakazka_mimo_db', 'cislo_bedny_mimo_db', 'patro', 'procent_z_patra',)
-    actions = (posunout_do_dalsiho_kroku_sarze_action,)
+    actions = (vytvorit_dalsi_krok_sarze_action,)
     list_display = (
         'get_sarze', 'get_kod_zarizeni', 'get_datum', 'get_zacatek', 'get_konec', 'get_operator',
         'get_zkraceny_popis', 'get_cislo_bedny', 'get_zakaznik', 'get_predpis', 'patro',

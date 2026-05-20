@@ -15,7 +15,7 @@ from unittest.mock import patch
 from types import SimpleNamespace
 
 from orders.admin import KamionAdmin, ZakazkaAdmin, BednaAdmin, BednaInline, NotificationAdmin, SarzeAdmin, SarzeKrokAdmin, SarzeKrokBednaAdmin, SarzeKrokBednaInline, PredpisAdmin, CenaAdmin
-from orders.actions import posunout_do_dalsiho_kroku_sarze_action, vytvorit_novy_krok_z_kroku_sarze_action
+from orders.actions import vytvorit_dalsi_krok_sarze_action, vytvorit_novy_krok_z_kroku_sarze_action
 from orders.forms import ImportZakazekForm
 from orders.models import Zakaznik, Kamion, Zakazka, Bedna, Predpis, TypHlavy, Odberatel, Cena, Notification, PriorityNotificationRecipient, Zarizeni, Sarze, SarzeKrok, SarzeKrokBedna
 from orders.choices import StavBednyChoice, SklademZakazkyChoice, PrijemVydejChoice, KamionChoice, ZinkovaniChoice, PrioritaChoice
@@ -2032,15 +2032,14 @@ class SarzeKrokBednaAdminActionTests(AdminBase):
         request.session = DummySession()
         request._messages = FallbackStorage(request)
 
-        response = posunout_do_dalsiho_kroku_sarze_action(self.admin, request, SarzeKrokBedna.objects.filter(pk=source.pk))
+        response = vytvorit_dalsi_krok_sarze_action(self.admin, request, SarzeKrokBedna.objects.filter(pk=source.pk))
 
         self.assertEqual(response.status_code, 302)
-
         novy_krok = SarzeKrok.objects.exclude(pk__in=[self.krok_1.pk, self.krok_2.pk]).get()
         self.assertEqual(novy_krok.sarze_id, self.krok_1.sarze_id)
-        self.assertEqual(novy_krok.datum, self.krok_1.datum)
-        self.assertEqual(novy_krok.zarizeni_id, self.krok_1.zarizeni_id)
-
+        self.assertIsNone(novy_krok.zarizeni_id)
+        self.assertIsNone(novy_krok.zacatek)
+        self.assertIsNone(novy_krok.operator)
         self.assertTrue(SarzeKrokBedna.objects.filter(pk=source.pk).exists())
         self.assertTrue(
             SarzeKrokBedna.objects.filter(
@@ -2068,7 +2067,7 @@ class SarzeKrokBednaAdminActionTests(AdminBase):
         request.session = DummySession()
         request._messages = FallbackStorage(request)
 
-        response = posunout_do_dalsiho_kroku_sarze_action(
+        response = vytvorit_dalsi_krok_sarze_action(
             self.admin,
             request,
             SarzeKrokBedna.objects.filter(pk__in=[source_a.pk, source_b.pk]),
@@ -2093,11 +2092,11 @@ class SarzeKrokBednaAdminActionTests(AdminBase):
         request.session = DummySession()
         request._messages = FallbackStorage(request)
 
-        response = posunout_do_dalsiho_kroku_sarze_action(self.admin, request, SarzeKrokBedna.objects.filter(pk=source.pk))
+        response = vytvorit_dalsi_krok_sarze_action(self.admin, request, SarzeKrokBedna.objects.filter(pk=source.pk))
 
         self.assertEqual(response.status_code, 302)
         novy_krok = SarzeKrok.objects.exclude(pk__in=[self.krok_1.pk, self.krok_2.pk]).get()
-
+        self.assertIsNone(novy_krok.zarizeni_id)
         self.assertTrue(SarzeKrokBedna.objects.filter(pk=source.pk).exists())
         self.assertTrue(
             SarzeKrokBedna.objects.filter(
@@ -2176,6 +2175,9 @@ class SarzeKrokAdminActionTests(AdminBase):
         self.assertEqual(response.status_code, 302)
         novy_krok = SarzeKrok.objects.exclude(pk=self.krok.pk).get()
         self.assertEqual(novy_krok.sarze_id, self.krok.sarze_id)
+        self.assertIsNone(novy_krok.zarizeni_id)
+        self.assertIsNone(novy_krok.zacatek)
+        self.assertIsNone(novy_krok.operator)
         self.assertEqual(SarzeKrokBedna.objects.filter(krok=self.krok).count(), 2)
         self.assertEqual(SarzeKrokBedna.objects.filter(krok=novy_krok).count(), 2)
 
@@ -2202,6 +2204,71 @@ class SarzeKrokAdminActionTests(AdminBase):
         )
 
         self.assertIsNone(response)
+
+
+class SarzeAdminCreateBehaviorTests(AdminBase):
+    def setUp(self):
+        self.admin = SarzeAdmin(Sarze, self.site)
+
+    def test_get_fields_hides_datum_zalozeni_on_add(self):
+        request = self.factory.get('/admin/orders/sarze/add/')
+        request.user = self.user
+
+        fields = self.admin.get_fields(request, obj=None)
+
+        self.assertNotIn('datum_zalozeni', fields)
+
+    def test_get_fields_shows_datum_zalozeni_on_change(self):
+        sarze = Sarze.objects.create(
+            datum_zalozeni=date.today(),
+            cislo_pripravku=5,
+            aktivni=True,
+        )
+        request = self.factory.get(f'/admin/orders/sarze/{sarze.pk}/change/')
+        request.user = self.user
+
+        fields = self.admin.get_fields(request, obj=sarze)
+
+        self.assertIn('datum_zalozeni', fields)
+
+    def test_save_model_autofills_datum_zalozeni_on_create(self):
+        request = self.factory.post('/admin/orders/sarze/add/')
+        request.user = self.user
+
+        sarze = Sarze(cislo_pripravku=9, aktivni=True)
+        self.admin.save_model(request, sarze, form=None, change=False)
+
+        self.assertIsNotNone(sarze.pk)
+        self.assertEqual(sarze.datum_zalozeni, date.today())
+
+    def test_change_form_requires_zarizeni_operator_a_zacatek(self):
+        novy_krok = SarzeKrok.objects.create(
+            sarze=self.sarze,
+            datum=date.today(),
+            zarizeni=None,
+            zacatek=None,
+            operator=None,
+            program='PG0',
+        )
+
+        request = self.factory.get(f'/admin/orders/sarzekrok/{novy_krok.pk}/change/')
+        request.user = self.user
+
+        form_class = self.admin.get_form(request, obj=novy_krok, change=True)
+
+        self.assertTrue(form_class.base_fields['zarizeni'].required)
+        self.assertTrue(form_class.base_fields['operator'].required)
+        self.assertTrue(form_class.base_fields['zacatek'].required)
+
+    def test_add_form_necha_zarizeni_operator_a_zacatek_nepovinne(self):
+        request = self.factory.get('/admin/orders/sarzekrok/add/')
+        request.user = self.user
+
+        form_class = self.admin.get_form(request, obj=None, change=False)
+
+        self.assertFalse(form_class.base_fields['zarizeni'].required)
+        self.assertFalse(form_class.base_fields['operator'].required)
+        self.assertFalse(form_class.base_fields['zacatek'].required)
 
 
 class PredpisAdminSaveAsTests(AdminBase):
