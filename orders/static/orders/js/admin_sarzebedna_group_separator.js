@@ -7,11 +7,14 @@
       return;
     }
 
-    var isSarzeBednaChangeList = body.classList.contains("app-orders") &&
+    var isSarzeKrokBednaChangeList = body.classList.contains("app-orders") &&
       body.classList.contains("change-list") &&
-      body.classList.contains("model-sarzebedna");
+      (
+        body.classList.contains("model-sarzekrokbedna") ||
+        body.classList.contains("model-sarzebedna")
+      );
 
-    if (!isSarzeBednaChangeList && !document.querySelector("#result_list .field-get_sarze")) {
+    if (!isSarzeKrokBednaChangeList && !document.querySelector("#result_list .field-get_krok")) {
       return;
     }
 
@@ -22,14 +25,15 @@
 
     var lastGroupKey = null;
     rows.forEach(function (row, index) {
-      var sarzeCell = row.querySelector("td.field-get_sarze");
-      if (!sarzeCell) {
+      var krokCell = row.querySelector("td.field-get_krok");
+      if (!krokCell) {
         return;
       }
 
-      var sarzeLink = sarzeCell.querySelector('a[href*="/admin/orders/sarze/"]');
-      var sarzeKey = sarzeLink ? sarzeLink.textContent.trim() : sarzeCell.textContent.trim();
-      var currentGroupKey = sarzeKey;
+      var krokLink = krokCell.querySelector('a[href*="/admin/orders/sarzekrok/"]');
+      var href = krokLink ? krokLink.getAttribute("href") || "" : "";
+      var idMatch = href.match(/\/admin\/orders\/sarzekrok\/(\d+)\//);
+      var currentGroupKey = idMatch ? idMatch[1] : (krokLink ? krokLink.textContent.trim() : krokCell.textContent.trim());
 
       if (index === 0) {
         lastGroupKey = currentGroupKey;
