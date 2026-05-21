@@ -1963,6 +1963,41 @@ class SarzeKrokBednaInlineAdminTests(AdminBase):
         self.assertFalse(formset.is_valid())
         self.assertTrue(any('nejsou ve stavu skladem' in str(err) for err in formset.non_form_errors()))
 
+    def test_sarze_inline_formset_rejects_sum_procent_over_100_in_same_patro(self):
+        request = self.factory.get('/admin/orders/sarzekrok/')
+        request.user = self.user
+
+        formset_class = self.sarze_inline.get_formset(request, obj=self.krok)
+        prefix = formset_class.get_default_prefix()
+
+        data = {
+            f'{prefix}-TOTAL_FORMS': '2',
+            f'{prefix}-INITIAL_FORMS': '0',
+            f'{prefix}-MIN_NUM_FORMS': '0',
+            f'{prefix}-MAX_NUM_FORMS': '1000',
+
+            f'{prefix}-0-bedna': '',
+            f'{prefix}-0-patro': '1',
+            f'{prefix}-0-procent_z_patra': '60',
+            f'{prefix}-0-popis_mimo_db': 'ZELEZO-A',
+            f'{prefix}-0-zakaznik_mimo_db': 'Zak',
+            f'{prefix}-0-zakazka_mimo_db': 'Z-1',
+            f'{prefix}-0-cislo_bedny_mimo_db': 'M-1',
+
+            f'{prefix}-1-bedna': '',
+            f'{prefix}-1-patro': '1',
+            f'{prefix}-1-procent_z_patra': '50',
+            f'{prefix}-1-popis_mimo_db': 'ZELEZO-B',
+            f'{prefix}-1-zakaznik_mimo_db': 'Zak',
+            f'{prefix}-1-zakazka_mimo_db': 'Z-2',
+            f'{prefix}-1-cislo_bedny_mimo_db': 'M-2',
+        }
+
+        formset = formset_class(data=data, instance=self.krok, prefix=prefix)
+
+        self.assertFalse(formset.is_valid())
+        self.assertTrue(any('Součet procent v rámci jednoho patra nesmí překročit 100 %.' in str(err) for err in formset.non_form_errors()))
+
 
 class SarzeKrokBednaAdminActionTests(AdminBase):
     def setUp(self):

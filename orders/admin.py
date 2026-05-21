@@ -105,6 +105,49 @@ class SarzeKrokBednaInlineFormSet(BaseInlineFormSet):
                 )
             )
 
+        if not self.instance or not self.instance.pk:
+            return
+
+        submitted_existing_ids = set()
+        for form in self.forms:
+            if not hasattr(form, 'cleaned_data'):
+                continue
+            instance_pk = getattr(form.instance, 'pk', None)
+            if instance_pk:
+                submitted_existing_ids.add(instance_pk)
+
+        totals_by_patro = {}
+        existing_rows = (
+            SarzeKrokBedna.objects
+            .filter(krok=self.instance)
+            .exclude(pk__in=submitted_existing_ids)
+            .values_list('patro', 'procent_z_patra')
+        )
+        for patro, procent in existing_rows:
+            totals_by_patro[patro] = totals_by_patro.get(patro, 0) + (procent or 0)
+
+        for form in self.forms:
+            if not hasattr(form, 'cleaned_data'):
+                continue
+            if form.cleaned_data.get('DELETE'):
+                continue
+
+            patro = form.cleaned_data.get('patro')
+            if patro is None:
+                continue
+
+            procent = form.cleaned_data.get('procent_z_patra') or 0
+            totals_by_patro[patro] = totals_by_patro.get(patro, 0) + procent
+
+        overflow_patra = [str(patro) for patro, total in totals_by_patro.items() if total > 100]
+        if overflow_patra:
+            raise ValidationError(
+                _(
+                    f"Součet procent v rámci jednoho patra nesmí překročit 100 %%. "
+                    f"Překročeno pro patra: {', '.join(sorted(overflow_patra, key=int))}."
+                )
+            )
+
 
 class SarzeKrokBednaInline(admin.TabularInline):
     """Inline pro správu beden v kroku šarže."""

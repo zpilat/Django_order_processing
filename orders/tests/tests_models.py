@@ -429,6 +429,28 @@ class TestSarzeModels(ModelsBase):
                 with self.assertRaises(ValidationError):
                     sb.full_clean()
 
+    def test_sarzebedna_procent_z_patra_sum_in_same_patro_must_not_exceed_100(self):
+        SarzeBedna.objects.create(
+            krok=self.krok_base,
+            patro=1,
+            procent_z_patra=60,
+            popis_mimo_db='Prvni',
+            zakaznik_mimo_db='Zak',
+            zakazka_mimo_db='ZAK-001',
+        )
+
+        sb = SarzeBedna(
+            krok=self.krok_base,
+            patro=1,
+            procent_z_patra=50,
+            popis_mimo_db='Druhy',
+            zakaznik_mimo_db='Zak',
+            zakazka_mimo_db='ZAK-001',
+        )
+
+        with self.assertRaises(ValidationError):
+            sb.full_clean()
+
     def test_sarzebedna_unique_constraint(self):
         SarzeBedna.objects.create(
             krok=self.krok_base,

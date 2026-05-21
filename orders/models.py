@@ -1774,6 +1774,23 @@ class SarzeKrokBedna(models.Model):
                 _("Pole zákazník/zakázka/číslo bedny mimo DB lze vyplnit pouze společně s popisem mimo DB.")
             )
 
+        if self.krok_id and self.patro and self.procent_z_patra is not None:
+            existing_total = (
+                SarzeKrokBedna.objects
+                .filter(krok_id=self.krok_id, patro=self.patro)
+                .exclude(pk=self.pk)
+                .aggregate(total=Sum('procent_z_patra'))
+                .get('total')
+            ) or 0
+            if existing_total + self.procent_z_patra > 100:
+                raise ValidationError(
+                    {
+                        'procent_z_patra': _(
+                            "Součet procent v rámci stejného kroku a patra nesmí překročit 100 %."
+                        )
+                    }
+                )
+
     @property
     def prvni_pouziti(self):
         """
