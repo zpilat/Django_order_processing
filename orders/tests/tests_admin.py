@@ -2271,6 +2271,118 @@ class SarzeAdminCreateBehaviorTests(AdminBase):
         self.assertEqual(sarze.datum_zalozeni, date.today())
 
 
+class SarzeAdminSearchByDisplayedNumberTests(AdminBase):
+    def setUp(self):
+        self.sarze_admin = SarzeAdmin(Sarze, self.site)
+        self.sarzekrok_admin = SarzeKrokAdmin(SarzeKrok, self.site)
+        self.sarzekrokbedna_admin = SarzeKrokBednaAdmin(SarzeKrokBedna, self.site)
+
+        self.sarze_25 = Sarze.objects.create(
+            cislo_sarze=25,
+            datum_zalozeni=date.today(),
+            cislo_pripravku=1,
+            aktivni=True,
+        )
+        self.sarze_125 = Sarze.objects.create(
+            cislo_sarze=125,
+            datum_zalozeni=date.today(),
+            cislo_pripravku=2,
+            aktivni=True,
+        )
+
+        self.zarizeni = Zarizeni.objects.create(
+            kod_zarizeni='S1',
+            nazev_zarizeni='Zarizeni S1',
+            zkraceny_nazev_zarizeni='S1',
+            prefix_sarze='S1',
+        )
+
+        self.krok_25 = SarzeKrok.objects.create(
+            sarze=self.sarze_25,
+            poradi=1,
+            datum=date.today(),
+            zarizeni=self.zarizeni,
+            zacatek=time(8, 0),
+            operator='OP25',
+            program='PG25',
+        )
+        self.krok_125 = SarzeKrok.objects.create(
+            sarze=self.sarze_125,
+            poradi=1,
+            datum=date.today(),
+            zarizeni=self.zarizeni,
+            zacatek=time(9, 0),
+            operator='OP125',
+            program='PG125',
+        )
+
+        self.zakazka = Zakazka.objects.create(
+            kamion_prijem=self.kamion,
+            artikl='SARZE-SEARCH',
+            prumer=Decimal('10.0'),
+            delka=Decimal('20.0'),
+            predpis=self.predpis,
+            typ_hlavy=self.typ_hlavy,
+            popis='Sarze search',
+        )
+        self.bedna = Bedna.objects.create(
+            zakazka=self.zakazka,
+            hmotnost=Decimal('1.0'),
+            tara=Decimal('1.0'),
+            mnozstvi=1,
+            stav_bedny=StavBednyChoice.PRIJATO,
+        )
+
+        self.radek_25 = SarzeKrokBedna.objects.create(
+            krok=self.krok_25,
+            bedna=self.bedna,
+            patro=1,
+            procent_z_patra=100,
+        )
+        self.radek_125 = SarzeKrokBedna.objects.create(
+            krok=self.krok_125,
+            bedna=self.bedna,
+            patro=2,
+            procent_z_patra=100,
+        )
+
+    def test_sarze_admin_find_by_displayed_sarze_number(self):
+        request = self.factory.get('/admin/orders/sarze/')
+        request.user = self.user
+
+        queryset, _ = self.sarze_admin.get_search_results(
+            request,
+            Sarze.objects.all(),
+            'S00025',
+        )
+
+        self.assertSetEqual(set(queryset.values_list('id', flat=True)), {self.sarze_25.id})
+
+    def test_sarzekrok_admin_find_by_displayed_sarze_number(self):
+        request = self.factory.get('/admin/orders/sarzekrok/')
+        request.user = self.user
+
+        queryset, _ = self.sarzekrok_admin.get_search_results(
+            request,
+            SarzeKrok.objects.all(),
+            'S00025',
+        )
+
+        self.assertSetEqual(set(queryset.values_list('id', flat=True)), {self.krok_25.id})
+
+    def test_sarzekrokbedna_admin_find_by_displayed_sarze_number(self):
+        request = self.factory.get('/admin/orders/sarzekrokbedna/')
+        request.user = self.user
+
+        queryset, _ = self.sarzekrokbedna_admin.get_search_results(
+            request,
+            SarzeKrokBedna.objects.all(),
+            'S00025',
+        )
+
+        self.assertSetEqual(set(queryset.values_list('id', flat=True)), {self.radek_25.id})
+
+
 class PredpisAdminSaveAsTests(AdminBase):
     def setUp(self):
         self.admin = PredpisAdmin(Predpis, self.site)

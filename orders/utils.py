@@ -8,6 +8,7 @@ from django.utils import timezone
 from django.utils.html import format_html
 
 import csv
+import re
 
 from .choices import StavBednyChoice, RovnaniChoice, TryskaniChoice, ZinkovaniChoice
 from django.db.models import When, Value, Q
@@ -39,6 +40,22 @@ def truncate_with_title(text, max_len=15):
         return text
     short = f"{text[:max_len]}..."
     return format_html('<span title="{}">{}</span>', text, short)
+
+
+def parse_sarze_search_term(search_term):
+    """Vrati cislo sarze z formatu S00025 nebo 00025; jinak None."""
+    if not search_term:
+        return None
+
+    normalized = search_term.strip().upper()
+    if not normalized:
+        return None
+
+    match = re.fullmatch(r'S?0*(\d+)', normalized)
+    if not match:
+        return None
+
+    return int(match.group(1))
 
 
 def build_postup_vyroby_cases():

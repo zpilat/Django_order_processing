@@ -70,11 +70,10 @@ from .choices import (
     StavBednyChoice, RovnaniChoice, TryskaniChoice, ZinkovaniChoice, PrioritaChoice, KamionChoice, PrijemVydejChoice, SklademZakazkyChoice,
     BARVA_SKUPINY_TZ, STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM, STAV_BEDNY_PRO_NAVEZENI, STAV_BEDNY_KONTROLA_ZMENY_PRIORITY,
 )
-from .utils import utilita_validate_excel_upload, build_postup_vyroby_cases, truncate_with_title
+from .utils import utilita_validate_excel_upload, build_postup_vyroby_cases, truncate_with_title, parse_sarze_search_term
 
 import logging
 logger = logging.getLogger('orders')
-
 
 class SarzeKrokBednaInlineFormSet(BaseInlineFormSet):
     def clean(self):
@@ -268,6 +267,15 @@ class SarzeAdmin(SimpleHistoryAdmin):
             obj.datum_zalozeni = timezone.localdate()
         super().save_model(request, obj, form, change)
 
+    def get_search_results(self, request, queryset, search_term):
+        queryset, use_distinct = super().get_search_results(request, queryset, search_term)
+
+        parsed_cislo_sarze = parse_sarze_search_term(search_term)
+        if parsed_cislo_sarze is not None:
+            queryset = queryset | self.model.objects.filter(cislo_sarze=parsed_cislo_sarze)
+
+        return queryset, use_distinct
+
     def response_add(self, request, obj, post_url_continue=None):
         if '_save_to_sarzekrokbedna' in request.POST:
             prvni_krok = obj.kroky.order_by('poradi', 'id').first()
@@ -346,6 +354,15 @@ class SarzeKrokAdmin(SimpleHistoryAdmin):
                 if field_name in form.base_fields:
                     form.base_fields[field_name].required = True
         return form
+
+    def get_search_results(self, request, queryset, search_term):
+        queryset, use_distinct = super().get_search_results(request, queryset, search_term)
+
+        parsed_cislo_sarze = parse_sarze_search_term(search_term)
+        if parsed_cislo_sarze is not None:
+            queryset = queryset | self.model.objects.filter(sarze__cislo_sarze=parsed_cislo_sarze)
+
+        return queryset, use_distinct
 
     def response_add(self, request, obj, post_url_continue=None):
         if '_save_to_sarzebedna' in request.POST:
@@ -493,6 +510,15 @@ class SarzeKrokBednaAdmin(SimpleHistoryAdmin):
     @admin.display(boolean=True, description='První?')
     def get_prvni_pouziti(self, obj):
         return obj.prvni_pouziti
+
+    def get_search_results(self, request, queryset, search_term):
+        queryset, use_distinct = super().get_search_results(request, queryset, search_term)
+
+        parsed_cislo_sarze = parse_sarze_search_term(search_term)
+        if parsed_cislo_sarze is not None:
+            queryset = queryset | self.model.objects.filter(krok__sarze__cislo_sarze=parsed_cislo_sarze)
+
+        return queryset, use_distinct
 
 
 @admin.register(Permission)
