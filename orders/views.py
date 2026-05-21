@@ -379,7 +379,14 @@ def dashboard_kamiony_view(request):
         celkova_hmotnost=Sum(
             'zakazky_vydej__bedny__hmotnost',
             filter=Q(zakazky_vydej__bedny__fakturovat=True),
-        )
+        ),
+        hmotnost_krivych=Sum(
+            'zakazky_vydej__bedny__hmotnost',
+            filter=Q(
+                zakazky_vydej__bedny__fakturovat=True,
+                zakazky_vydej__bedny__rovnat=RovnaniChoice.VYROVNANA,
+            ),
+        ),
     )
 
     # Inicializace slovníku pro měsíční pohyby
@@ -394,7 +401,11 @@ def dashboard_kamiony_view(request):
         mesicni_pohyby[mesic] = {}
         # Přidání všech zákazníků do každého měsíce, aby se zajistilo, že budou zobrazeny i zákazníci bez pohybu v daném měsíci
         for zakaznik in zakaznici:
-            mesicni_pohyby[mesic][zakaznik.zkratka] = {'prijem': 0, 'vydej': 0}
+            mesicni_pohyby[mesic][zakaznik.zkratka] = {
+                'prijem': 0,
+                'vydej': 0,
+                'hmotnost_krivych': 0,
+            }
 
     # Sčítání příjmů a výdejů pro jednotlivé měsíce a zákazníky
     for kamion_prijem in kamiony_prijem:
@@ -406,14 +417,17 @@ def dashboard_kamiony_view(request):
         mesic = kamion_vydej['datum__month']
         zakaznik = kamion_vydej['zakaznik__zkratka']
         mesicni_pohyby[mesic][zakaznik]['vydej'] += kamion_vydej['celkova_hmotnost'] or 0
+        mesicni_pohyby[mesic][zakaznik]['hmotnost_krivych'] += kamion_vydej['hmotnost_krivych'] or 0
 
     # Přidání celkových součtů pro každý měsíc
     for mesic, zakaznici_pohyby in mesicni_pohyby.items():
         celkovy_prijem = sum(pohyby['prijem'] for pohyby in zakaznici_pohyby.values())
         celkovy_vydej = sum(pohyby['vydej'] for pohyby in zakaznici_pohyby.values())
+        celkova_hmotnost_krivych = sum(pohyby['hmotnost_krivych'] for pohyby in zakaznici_pohyby.values())
         mesicni_pohyby[mesic]['CELKEM'] = {
             'prijem': celkovy_prijem,
-            'vydej': celkovy_vydej
+            'vydej': celkovy_vydej,
+            'hmotnost_krivych': celkova_hmotnost_krivych,
         }
 
     # Přidání celkových součtů dle zákazníků za celý rok
@@ -421,9 +435,10 @@ def dashboard_kamiony_view(request):
     for mesic, zakaznici_pohyby in mesicni_pohyby.items():
         for zakaznik, pohyby in zakaznici_pohyby.items():
             if zakaznik not in rocni_pohyby:
-                rocni_pohyby[zakaznik] = {'prijem': 0, 'vydej': 0}
+                rocni_pohyby[zakaznik] = {'prijem': 0, 'vydej': 0, 'hmotnost_krivych': 0}
             rocni_pohyby[zakaznik]['prijem'] += pohyby['prijem']
             rocni_pohyby[zakaznik]['vydej'] += pohyby['vydej']
+            rocni_pohyby[zakaznik]['hmotnost_krivych'] += pohyby['hmotnost_krivych']
 
     mesicni_pohyby['CELKEM'] = rocni_pohyby
 
@@ -431,6 +446,12 @@ def dashboard_kamiony_view(request):
     for mesic, zakaznici_pohyby in mesicni_pohyby.items():
         for zakaznik, pohyby in zakaznici_pohyby.items():
             mesicni_pohyby[mesic][zakaznik]['rozdil'] = pohyby['prijem'] - pohyby['vydej']
+            if pohyby['vydej']:
+                mesicni_pohyby[mesic][zakaznik]['procento_krivych'] = (
+                    Decimal(pohyby['hmotnost_krivych']) / Decimal(pohyby['vydej'])
+                ) * Decimal('100')
+            else:
+                mesicni_pohyby[mesic][zakaznik]['procento_krivych'] = None
 
     # Přehled průměrného denního importu/exportu za posledních 14 dní
     end_date = timezone.localdate() - timedelta(days=1)
