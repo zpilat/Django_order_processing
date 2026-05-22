@@ -44,7 +44,7 @@ Pracovní pořadí v UI:
 ### 3.2 Co dělá systém
 
 1. Při novém kroku dopočítá pořadí automaticky v rámci šarže.
-2. Pokud není vyplněné datum kroku, doplní se z data založení šarže.
+2. Pokud není vyplněné datum kroku, doplní se automaticky na dnešní lokální datum.
 3. U kroku se počítají metriky prodleva a takt, pokud jsou k dispozici potřebná data a zařízení je příslušného typu.
 
 ## 4. Deník pece (SarzeKrokBedna)
@@ -67,31 +67,34 @@ Pracovní pořadí v UI:
 4. Pokud je vyplněn popis mimo DB, musí být vyplněn i zákazník a zakázka mimo DB.
 5. Je hlídaná unikátnost kombinace krok + bedna + patro.
 6. U bedny z DB musí být bedna ve stavu skladem.
+7. V rámci jednoho kroku a patra nesmí součet procent přesáhnout 100 %.
 
 ## 5. Akce pro kopírování do nového kroku
 
 ### 5.1 Akce z Deníku pece
 
-Název: Vytvořit nový krok šarže z vybraných řádků deníku
+Název: Přesunout šarži do dalšího kroku z vybraných beden
 
 Průběh:
 1. Uživatel označí řádky deníku.
 2. Systém ověří, že všechny řádky patří do jednoho zdrojového kroku.
 3. Vytvoří nový krok stejné šarže.
-4. U nového kroku záměrně nastaví zařízení, operátor a začátek na prázdno.
+4. Do nového kroku přenese pouze vazbu na šarži. Ostatní pole kroku se nekopírují a zůstávají na výchozích hodnotách.
 5. Zkopíruje vybrané řádky deníku.
 6. Přesměruje na detail nového kroku.
+7. Pokud zdrojový krok nemá vyplněný konec, zobrazí varování.
 
 ### 5.2 Akce z Kroku šarže
 
-Název: Vytvořit nový krok šarže jako kopii vybraného kroku
+Název: Přesunout šarži do dalšího kroku
 
 Průběh:
 1. Uživatel označí právě jeden krok.
 2. Systém vytvoří nový krok stejné šarže.
-3. U nového kroku záměrně nastaví zařízení, operátor a začátek na prázdno.
+3. Do nového kroku přenese pouze vazbu na šarži. Ostatní pole kroku se nekopírují a zůstávají na výchozích hodnotách.
 4. Zkopíruje všechny řádky deníku ze zdrojového kroku.
 5. Přesměruje na detail nového kroku.
+6. Pokud zdrojový krok nemá vyplněný konec, zobrazí varování.
 
 ## 6. Doporučený pracovní postup pro obsluhu
 
@@ -101,7 +104,8 @@ Průběh:
 4. V detailu kroku zkontrolovat data a doplnit řádky deníku.
 5. Pokud je potřeba navazující krok, použít akci kopie z deníku nebo z kroku.
 6. Na novém kroku doplnit zařízení, operátora a začátek.
-7. Uložit krok tlačítkem Uložit a zpět do deníku pece.
+7. Pokud se po akci zobrazí varování o nevyplněném konci zdrojového kroku, doplnit konec i ve zdrojovém kroku.
+8. Uložit krok tlačítkem Uložit a zpět do deníku pece.
 
 ## 7. Nejčastější chyby a řešení
 
@@ -119,6 +123,12 @@ Průběh:
 
 5. Chyba duplicity kombinace krok + bedna + patro.
 Řešení: Změnit patro nebo nepřidávat duplicitní řádek.
+
+6. Varování: Původní krok šarže nemá vyplněný konec, nezapomeňte jej vyplnit.
+Řešení: Otevřít zdrojový krok a doplnit pole Konec.
+
+7. Chyba validace: Součet procent v rámci jednoho patra nesmí překročit 100 %.
+Řešení: Upravit rozložení procent mezi řádky ve stejném patře.
 
 ## 8. Kde je logika v kódu
 

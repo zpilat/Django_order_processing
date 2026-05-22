@@ -20,6 +20,7 @@ Systém pro správu zakázek od příjmu přes zpracování až po expedici, vč
 - Admin akce a workflow:
   - expedice zakázek (včetně rozdělení nepřipravených beden do nové zakázky),
   - označení beden k navezení s kontrolou kapacit,
+  - deník pece: akce „Přesunout šarži do dalšího kroku z vybraných beden“ a „Přesunout šarži do dalšího kroku“,
   - bohaté filtry podle stavu, délky, tryskání, rovnání, priority, zákazníka atd.
 - Historie změn přes `django-simple-history`.
 
@@ -67,7 +68,7 @@ Tipy:
 - [Bedny](docs/manual_bedna.md) - manuál práce s bednami (`Bedna`, `BednaAdmin`).
 - [Zakázky](docs/manual_zakazka.md) - manuál práce se zakázkami (`Zakazka`, `ZakazkaAdmin`).
 - [Kamióny](docs/manual_kamion.md) - manuál práce s kamiony (`Kamion`, `KamionAdmin`).
-- [Deník pece](docs/manual_denik_pece.md) - manuál práce s deníkem pece (`SarzeBedna`, `SarzeBednaAdmin`).
+- [Deník pece](docs/manual_denik_pece.md) - manuál práce s deníkem pece (`SarzeKrokBedna`, `SarzeKrokBednaAdmin`).
 
 ## 🧪 Testy
 

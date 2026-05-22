@@ -20,6 +20,7 @@ Order management system for receiving, processing, and shipping orders, includin
 - Admin actions and workflow:
   - Expedite orders (with split of non-ready crates into a new order).
   - Mark crates "to be moved" with position selection and capacity checks.
+  - Furnace log: actions "Přesunout šarži do dalšího kroku z vybraných beden" and "Přesunout šarži do dalšího kroku".
   - Rich admin filters (state, length, blasting, straightening, priority, customer, ...).
 - See / change history with django-simple-history.
 
@@ -61,6 +62,13 @@ Tips:
 - `templates/` and `orders/templates/` - templates including printing.
 - `static/` and `staticfiles/` - static assets.
 - `requirements.txt` - dependencies (Django, pandas, openpyxl, WeasyPrint, django-simple-history, ...).
+
+## 📚 User manuals
+
+- [Crates](docs/manual_bedna.md) - working guide for crates (`Bedna`, `BednaAdmin`).
+- [Orders](docs/manual_zakazka.md) - working guide for orders (`Zakazka`, `ZakazkaAdmin`).
+- [Trucks](docs/manual_kamion.md) - working guide for trucks (`Kamion`, `KamionAdmin`).
+- [Furnace log](docs/manual_denik_pece.md) - working guide for furnace log (`SarzeKrokBedna`, `SarzeKrokBednaAdmin`).
 
 ## 🧪 Tests
 
