@@ -748,10 +748,10 @@ class VyrobaDashboardContextTests(TestCase):
 		self.predpis_spx = Predpis.objects.create(nazev="P-SPX", zakaznik=self.z_spx)
 
 		self.dev_xl1 = Zarizeni.objects.create(
-			kod_zarizeni="TQF_XL1", nazev_zarizeni="XL1", zkraceny_nazev_zarizeni="XL1", prefix_sarze="X1"
+			kod_zarizeni="TQF_XL1", nazev_zarizeni="XL1", zkraceny_nazev_zarizeni="XL1"
 		)
 		self.dev_xl2 = Zarizeni.objects.create(
-			kod_zarizeni="TQF_XL2", nazev_zarizeni="XL2", zkraceny_nazev_zarizeni="XL2", prefix_sarze="X2"
+			kod_zarizeni="TQF_XL2", nazev_zarizeni="XL2", zkraceny_nazev_zarizeni="XL2"
 		)
 
 	def _create_bedna(self, zakaznik, hmotnost):

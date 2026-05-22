@@ -1459,12 +1459,11 @@ class Bedna(models.Model):
             )
         return super().delete(using=using, keep_parents=keep_parents)
 
-
+# Model je v UI přejmenován na "Pracoviště"
 class Zarizeni(models.Model):
     kod_zarizeni = models.CharField(max_length=10, verbose_name='Kód pracoviště', unique=True)
     nazev_zarizeni = models.CharField(max_length=100, verbose_name='Název pracoviště')
     zkraceny_nazev_zarizeni = models.CharField(max_length=50, verbose_name='Zkrácený název')
-    prefix_sarze = models.CharField(max_length=3, verbose_name='Prefix šarže')
     umisteni = models.CharField(max_length=20, blank=True, null=True, verbose_name='Umístění')
     typ_zarizeni = models.CharField(max_length=2, choices=TypZarizeniChoice.choices, blank=True, null=True, verbose_name='Typ pracoviště')
     history = HistoricalRecords()

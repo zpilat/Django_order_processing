@@ -259,11 +259,11 @@ class SarzeKrokInline(admin.TabularInline):
 
 @admin.register(Zarizeni)
 class ZarizeniAdmin(SimpleHistoryAdmin):
-    list_display = ('kod_zarizeni', 'nazev_zarizeni', 'zkraceny_nazev_zarizeni', 'prefix_sarze', 'umisteni', 'typ_zarizeni')
+    list_display = ('kod_zarizeni', 'nazev_zarizeni', 'zkraceny_nazev_zarizeni', 'umisteni', 'typ_zarizeni')
     search_fields = ('kod_zarizeni', 'nazev_zarizeni',)
     ordering = ('kod_zarizeni',)
 
-    history_list_display = ["kod_zarizeni", "nazev_zarizeni", "zkraceny_nazev_zarizeni", "prefix_sarze", "umisteni", "typ_zarizeni",]
+    history_list_display = ["kod_zarizeni", "nazev_zarizeni", "zkraceny_nazev_zarizeni", "umisteni", "typ_zarizeni",]
     history_search_fields = ["kod_zarizeni", "nazev_zarizeni", "zkraceny_nazev_zarizeni"]
     history_list_filter = ["umisteni", "typ_zarizeni"]
     history_list_per_page = 20

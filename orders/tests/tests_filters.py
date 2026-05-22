@@ -398,14 +398,12 @@ class SarzeBednaFiltersTests(FilterTestBase):
 			kod_zarizeni='PP1',
 			nazev_zarizeni='Popousteci 1',
 			zkraceny_nazev_zarizeni='PP1',
-			prefix_sarze='PP',
 			typ_zarizeni=TypZarizeniChoice.POPOUSTECKA,
 		)
 		self.zar_vu = Zarizeni.objects.create(
 			kod_zarizeni='VU1',
 			nazev_zarizeni='Viceucelova 1',
 			zkraceny_nazev_zarizeni='VU1',
-			prefix_sarze='VU',
 			typ_zarizeni=TypZarizeniChoice.VICEUCELOVKA,
 		)
 

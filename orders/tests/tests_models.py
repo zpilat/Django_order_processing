@@ -297,7 +297,6 @@ class TestSarzeModels(ModelsBase):
         cls.zarizeni_base = Zarizeni.objects.create(
             kod_zarizeni="ZBASE",
             nazev_zarizeni="Základní zařízení",
-            prefix_sarze="1X",
             typ_zarizeni=TypZarizeniChoice.VICEUCELOVKA,
         )
         cls.sarze_base = Sarze.objects.create(
@@ -321,13 +320,11 @@ class TestSarzeModels(ModelsBase):
         zar1 = Zarizeni.objects.create(
             kod_zarizeni="Z1",
             nazev_zarizeni="Zařízení 1",
-            prefix_sarze="A",
             typ_zarizeni=TypZarizeniChoice.VICEUCELOVKA,
         )
         zar2 = Zarizeni.objects.create(
             kod_zarizeni="Z2",
             nazev_zarizeni="Zařízení 2",
-            prefix_sarze="B",
             typ_zarizeni=TypZarizeniChoice.POPOUSTECKA,
         )
 
@@ -356,7 +353,6 @@ class TestSarzeModels(ModelsBase):
         zar = Zarizeni.objects.create(
             kod_zarizeni="ZP",
             nazev_zarizeni="Zařízení prodleva",
-            prefix_sarze="P",
             typ_zarizeni=TypZarizeniChoice.VICEUCELOVKA,
         )
         sarze_prev = Sarze.objects.create(
@@ -469,7 +465,6 @@ class TestSarzeModels(ModelsBase):
         zar = Zarizeni.objects.create(
             kod_zarizeni="ZP1",
             nazev_zarizeni="Zařízení P1",
-            prefix_sarze="P1",
             typ_zarizeni=TypZarizeniChoice.VICEUCELOVKA,
         )
         sarze1 = Sarze.objects.create(
@@ -513,7 +508,6 @@ class TestSarzeModels(ModelsBase):
         zar = Zarizeni.objects.create(
             kod_zarizeni="ZP2",
             nazev_zarizeni="Zařízení P2",
-            prefix_sarze="P2",
             typ_zarizeni=TypZarizeniChoice.VICEUCELOVKA,
         )
         sarze = Sarze.objects.create(

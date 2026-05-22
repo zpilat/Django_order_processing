@@ -1852,7 +1852,6 @@ class SarzeKrokBednaInlineAdminTests(AdminBase):
             kod_zarizeni='SZ1',
             nazev_zarizeni='Sarze Zarizeni',
             zkraceny_nazev_zarizeni='SZ1',
-            prefix_sarze='SZ1',
         )
         self.sarze = Sarze.objects.create(
             cislo_sarze=10,
@@ -2006,13 +2005,11 @@ class SarzeKrokBednaAdminActionTests(AdminBase):
             kod_zarizeni='A1',
             nazev_zarizeni='Zarizeni A1',
             zkraceny_nazev_zarizeni='A1',
-            prefix_sarze='A1',
         )
         self.zarizeni_2 = Zarizeni.objects.create(
             kod_zarizeni='A2',
             nazev_zarizeni='Zarizeni A2',
             zkraceny_nazev_zarizeni='A2',
-            prefix_sarze='A2',
         )
         self.sarze = Sarze.objects.create(
             cislo_sarze=100,
@@ -2153,7 +2150,6 @@ class SarzeKrokAdminActionTests(AdminBase):
             kod_zarizeni='B1',
             nazev_zarizeni='Zarizeni B1',
             zkraceny_nazev_zarizeni='B1',
-            prefix_sarze='B1',
         )
         self.sarze = Sarze.objects.create(
             cislo_sarze=101,
@@ -2329,7 +2325,6 @@ class SarzeAdminSearchByDisplayedNumberTests(AdminBase):
             kod_zarizeni='S1',
             nazev_zarizeni='Zarizeni S1',
             zkraceny_nazev_zarizeni='S1',
-            prefix_sarze='S1',
         )
 
         self.krok_25 = SarzeKrok.objects.create(
