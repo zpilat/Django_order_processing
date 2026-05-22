@@ -424,6 +424,7 @@ class SarzeBednaFiltersTests(FilterTestBase):
 			datum=today,
 			zarizeni=self.zar_pp,
 			zacatek='06:00',
+			konec='08:00',
 			operator='OP',
 			program='P1',
 		)
@@ -461,6 +462,46 @@ class SarzeBednaFiltersTests(FilterTestBase):
 		qs = f.queryset(None, SarzeBedna.objects.all())
 		self.assertIn(self.sb_pp, qs)
 		self.assertNotIn(self.sb_vu, qs)
+
+	def test_konec_sarzekrok_filter_vyplneno(self):
+		f = self._make_filter(
+			F.KonecSarzeKrokFilter,
+			SarzeKrok,
+			params={'konec_kroku': 'vyplneno'},
+		)
+		qs = f.queryset(None, SarzeKrok.objects.all())
+		self.assertIn(self.krok_pp, qs)
+		self.assertNotIn(self.krok_vu, qs)
+
+	def test_konec_sarzekrok_filter_nevyplneno(self):
+		f = self._make_filter(
+			F.KonecSarzeKrokFilter,
+			SarzeKrok,
+			params={'konec_kroku': 'nevyplneno'},
+		)
+		qs = f.queryset(None, SarzeKrok.objects.all())
+		self.assertNotIn(self.krok_pp, qs)
+		self.assertIn(self.krok_vu, qs)
+
+	def test_konec_sarzebedna_filter_vyplneno(self):
+		f = self._make_filter(
+			F.KonecSarzeBednaFilter,
+			SarzeBedna,
+			params={'konec_kroku': 'vyplneno'},
+		)
+		qs = f.queryset(None, SarzeBedna.objects.all())
+		self.assertIn(self.sb_pp, qs)
+		self.assertNotIn(self.sb_vu, qs)
+
+	def test_konec_sarzebedna_filter_nevyplneno(self):
+		f = self._make_filter(
+			F.KonecSarzeBednaFilter,
+			SarzeBedna,
+			params={'konec_kroku': 'nevyplneno'},
+		)
+		qs = f.queryset(None, SarzeBedna.objects.all())
+		self.assertNotIn(self.sb_pp, qs)
+		self.assertIn(self.sb_vu, qs)
 
 
 class CustomTemplateFiltersTests(TestCase):

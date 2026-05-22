@@ -56,7 +56,8 @@ from .filters import (
     ZakaznikZakazkyFilter, ZakaznikKamionuFilter, PrijemVydejFilter, TryskaniFilter, RovnaniFilter, PrioritaBednyFilter, PrioritaZakazkyFilter,
     OberflacheFilter, TypHlavyBednyFilter, TypHlavyZakazkyFilter, CelozavitBednyFilter, CelozavitZakazkyFilter, DelkaFilter, PozastavenoFilter,
     OdberatelFilter, OdberatelBednyFilter, AktivniNotifikaceBednyFilter, ZakaznikPredpisFilter, ZinkovaniFilter,
-    ZarizeniSarzeKrokFilter, TypZarizeniSarzeKrokFilter, ZarizeniSarzeBednaFilter, TypZarizeniSarzeBednaFilter, FakturovatFilter,
+    ZarizeniSarzeKrokFilter, TypZarizeniSarzeKrokFilter, KonecSarzeKrokFilter,
+    ZarizeniSarzeBednaFilter, TypZarizeniSarzeBednaFilter, KonecSarzeBednaFilter, FakturovatFilter,
 )
 from .forms import (
     BednaAdminForm,
@@ -344,7 +345,7 @@ class SarzeKrokAdmin(SimpleHistoryAdmin):
         'program', 'get_prodleva', 'get_takt', 'get_poznamka', 'get_alarm',
     )
     autocomplete_fields = ('sarze', 'zarizeni',)
-    list_filter = (ZarizeniSarzeKrokFilter, TypZarizeniSarzeKrokFilter)
+    list_filter = (ZarizeniSarzeKrokFilter, TypZarizeniSarzeKrokFilter, KonecSarzeKrokFilter)
     search_fields = ('sarze__cislo_sarze', 'operator', 'program')
     list_select_related = ('sarze', 'zarizeni')
     date_hierarchy = 'datum'
@@ -431,7 +432,7 @@ class SarzeKrokBednaAdmin(SimpleHistoryAdmin):
     )
     change_list_template = 'admin/orders/sarzebedna/change_list.html'
     list_display_links = ('get_cislo_bedny',)
-    list_filter = (ZarizeniSarzeBednaFilter, TypZarizeniSarzeBednaFilter)
+    list_filter = (ZarizeniSarzeBednaFilter, TypZarizeniSarzeBednaFilter, KonecSarzeBednaFilter)
     search_fields = ('krok__sarze__cislo_sarze', 'bedna__cislo_bedny', 'bedna__zakazka__predpis__nazev',)
     search_help_text = "Dle čísla šarže, čísla bedny a předpisu"
     autocomplete_fields = ('bedna',)

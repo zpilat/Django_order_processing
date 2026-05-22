@@ -977,6 +977,33 @@ class TypZarizeniSarzeKrokFilter(DynamicTitleFilter):
         if not value:
             return queryset
         return queryset.filter(zarizeni__typ_zarizeni=value)
+
+
+class KonecSarzeKrokFilter(DynamicTitleFilter):
+    """
+    Filtrovat kroky šarží podle vyplnění pole konec.
+    """
+    title = "Konec"
+    parameter_name = "konec_kroku"
+    vse = "Vše"
+
+    def __init__(self, request, params, model, model_admin):
+        self.label_dict = {
+            'vyplneno': 'Ano',
+            'nevyplneno': 'Ne',
+        }
+        super().__init__(request, params, model, model_admin)
+
+    def lookups(self, request, model_admin):
+        return self.label_dict.items()
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if value == 'vyplneno':
+            return queryset.filter(konec__isnull=False)
+        if value == 'nevyplneno':
+            return queryset.filter(konec__isnull=True)
+        return queryset
         
 # filtry pro ŠaržeBedna
 
@@ -1025,3 +1052,30 @@ class TypZarizeniSarzeBednaFilter(DynamicTitleFilter):
         if not value:
             return queryset
         return queryset.filter(krok__zarizeni__typ_zarizeni=value)
+
+
+class KonecSarzeBednaFilter(DynamicTitleFilter):
+    """
+    Filtrovat deník pece podle vyplnění pole konec na kroku šarže.
+    """
+    title = "Konec"
+    parameter_name = "konec_kroku"
+    vse = "Vše"
+
+    def __init__(self, request, params, model, model_admin):
+        self.label_dict = {
+            'vyplneno': 'Ano',
+            'nevyplneno': 'Ne',
+        }
+        super().__init__(request, params, model, model_admin)
+
+    def lookups(self, request, model_admin):
+        return self.label_dict.items()
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if value == 'vyplneno':
+            return queryset.filter(krok__konec__isnull=False)
+        if value == 'nevyplneno':
+            return queryset.filter(krok__konec__isnull=True)
+        return queryset
