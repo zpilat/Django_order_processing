@@ -143,7 +143,7 @@ class SarzeKrokBednaInlineFormSet(BaseInlineFormSet):
         if overflow_patra:
             raise ValidationError(
                 _(
-                    f"Součet procent v rámci jednoho patra nesmí překročit 100 %%. "
+                    f"Součet procent v rámci jednoho patra nesmí překročit 100 %. "
                     f"Překročeno pro patra: {', '.join(sorted(overflow_patra, key=int))}."
                 )
             )
@@ -370,7 +370,7 @@ class SarzeKrokAdmin(SimpleHistoryAdmin):
     def get_datum(self, obj):
         return obj.datum.strftime('%d.%m.%Y') if obj.datum else '-'
 
-    @admin.display(description='Zařízení', ordering='zarizeni__kod_zarizeni')
+    @admin.display(description='Pracoviště', ordering='zarizeni__kod_zarizeni')
     def get_zarizeni(self, obj):
         return obj.zarizeni.kod_zarizeni if obj.zarizeni else '-'
 
@@ -458,7 +458,7 @@ class SarzeKrokBednaAdmin(SimpleHistoryAdmin):
             return ()
         return self.readonly_fields
 
-    @admin.display(description='Zařízení', ordering='krok__zarizeni__kod_zarizeni')
+    @admin.display(description='Pracoviště', ordering='krok__zarizeni__kod_zarizeni')
     def get_kod_zarizeni(self, obj):
         return obj.krok.zarizeni.kod_zarizeni if obj.krok and obj.krok.zarizeni else '-'
     

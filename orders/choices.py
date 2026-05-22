@@ -124,6 +124,7 @@ class TypZarizeniChoice(models.TextChoices):
     PRACKA = 'PR', 'Pračka'
     TRYSKAC = 'TR', 'Tryskač'
     PREDEHREV = 'PD', 'Předehřev'
+    SARZOVANI = 'SZ', 'Šaržování'
 
 # Mapping skupiny TZ na barvy
 BARVA_SKUPINY_TZ = {

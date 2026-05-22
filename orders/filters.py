@@ -936,7 +936,7 @@ class ZarizeniSarzeKrokFilter(DynamicTitleFilter):
     """
     Filtrovat kroky šarží podle zařízení.
     """
-    title = "Zařízení"
+    title = "Pracoviště"
     parameter_name = "zarizeni"
 
     def __init__(self, request, params, model, model_admin):
@@ -961,7 +961,7 @@ class TypZarizeniSarzeKrokFilter(DynamicTitleFilter):
     """
     Filtrovat kroky šarží podle typu zařízení.
     """
-    title = "Typ zařízení"
+    title = "Typ pracoviště"
     parameter_name = "typ_zarizeni"
     vse = "Vše"
 
@@ -984,7 +984,7 @@ class ZarizeniSarzeBednaFilter(DynamicTitleFilter):
     """
     Filtrovat bedny v šaržích podle zařízení.
     """
-    title = "Zařízení"
+    title = "Pracoviště"
     parameter_name = "zarizeni"
 
     def __init__(self, request, params, model, model_admin):
@@ -1009,7 +1009,7 @@ class TypZarizeniSarzeBednaFilter(DynamicTitleFilter):
     """
     Filtrovat bedny v šaržích podle typu zařízení.
     """
-    title = "Typ zařízení"
+    title = "Typ pracoviště"
     parameter_name = "typ_zarizeni"
     vse = "Vše"
 

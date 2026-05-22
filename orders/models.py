@@ -1461,17 +1461,17 @@ class Bedna(models.Model):
 
 
 class Zarizeni(models.Model):
-    kod_zarizeni = models.CharField(max_length=10, verbose_name='Kód zařízení', unique=True)
-    nazev_zarizeni = models.CharField(max_length=100, verbose_name='Název zařízení')
+    kod_zarizeni = models.CharField(max_length=10, verbose_name='Kód pracoviště', unique=True)
+    nazev_zarizeni = models.CharField(max_length=100, verbose_name='Název pracoviště')
     zkraceny_nazev_zarizeni = models.CharField(max_length=50, verbose_name='Zkrácený název')
     prefix_sarze = models.CharField(max_length=3, verbose_name='Prefix šarže')
     umisteni = models.CharField(max_length=20, blank=True, null=True, verbose_name='Umístění')
-    typ_zarizeni = models.CharField(max_length=2, choices=TypZarizeniChoice.choices, blank=True, null=True, verbose_name='Typ zařízení')
+    typ_zarizeni = models.CharField(max_length=2, choices=TypZarizeniChoice.choices, blank=True, null=True, verbose_name='Typ pracoviště')
     history = HistoricalRecords()
 
     class Meta:
-        verbose_name = 'Zařízení'
-        verbose_name_plural = 'zařízení'
+        verbose_name = 'Pracoviště'
+        verbose_name_plural = 'pracoviště'
         ordering = ['kod_zarizeni']
 
     def __str__(self):
@@ -1529,7 +1529,7 @@ class SarzeKrok(models.Model):
         Zarizeni,
         on_delete=models.PROTECT,
         related_name='sarze_kroky',
-        verbose_name='Zařízení',
+        verbose_name='Pracoviště',
         blank=True,
         null=True,
     )
