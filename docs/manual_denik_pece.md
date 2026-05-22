@@ -1,150 +1,111 @@
-# Uživatelský manuál: Deník pece (aktuální stav)
+# Uživatelský návod: Deník pece
 
-Tento manuál popisuje aktuální fungování po úpravách v této větvi pro tyto části:
-- Šarže (Sarze)
-- Krok šarže (SarzeKrok)
-- Deník pece (SarzeKrokBedna)
+Tento návod je určen pro běžnou obsluhu v administraci. Popisuje praktický postup práce se šarží, krokem šarže a deníkem pece.
 
-## 1. Jak jsou části navázané
+## 1. Co je co
 
-1. Šarže je hlavička výrobního celku.
-2. Každá šarže má jeden nebo více kroků šarže.
-3. Každý krok šarže má řádky deníku pece.
-4. Řádek deníku je konkrétní bedna nebo položka mimo databázi na konkrétním patře.
+1. Šarže: výrobní celek, který má své číslo a datum.
+2. Krok šarže: konkrétní průchod šarže přes pracoviště.
+3. Deník pece: jednotlivé řádky v kroku šarže (bedny nebo položky mimo DB) s patrem a procentem využití.
 
-Pracovní pořadí v UI:
-1. Založit šarži.
-2. Otevřít nebo založit krok šarže.
-3. Vyplnit řádky deníku pece.
+## 2. Běžný pracovní postup
 
-## 2. Šarže (Sarze)
+1. Otevřete Deník pece.
+2. Klikněte na rychlý odkaz Šarže: Přidat.
+3. Uložte šarži tlačítkem Uložit a přidat bedny do kroku šarže.
+4. Otevře se detail prvního kroku šarže.
+5. Doplňte údaje kroku (zejména pracoviště, začátek, operátor).
+6. Přidejte řádky deníku pece.
+7. Pokud potřebujete navazující krok, použijte jednu z akcí Přesunout šarži do dalšího kroku.
+8. Na novém kroku doplňte pracoviště, začátek, operátora a uložte.
 
-### 2.1 Co uživatel vidí
+## 3. Vyplnění šarže
 
-1. V seznamu šarží je filtr pouze Aktivní.
-2. Při vytvoření šarže se pole datum založení nezobrazuje.
-3. Na detailu šarže je standardní tlačítko Uložit.
-4. Na formuláři přidání šarže je speciální tlačítko Uložit a přidat bedny do kroku šarže.
+1. Při vytvoření šarže se datum založení doplní automaticky.
+2. Filtr v seznamu šarží je zaměřený na aktivní šarže.
+3. Po uložení šarže můžete pokračovat rovnou do kroku šarže.
 
-### 2.2 Co dělá systém
+## 4. Vyplnění kroku šarže
 
-1. Datum založení se při vytvoření doplní automaticky na dnešní lokální datum.
-2. Po použití tlačítka Uložit a přidat bedny do kroku šarže se provede přesměrování na první krok této šarže.
-3. Pokud první krok nelze najít, systém uloží šarži a zobrazí varování.
+1. Pole pracoviště, operátor a začátek:
+	- při založení kroku mohou být prázdná,
+	- při editaci existujícího kroku jsou povinná.
+2. Pole konec doporučujeme vyplnit hned po dokončení kroku.
+3. Pokud konec není vyplněn a provedete přesun do dalšího kroku, systém zobrazí varování.
 
-## 3. Krok šarže (SarzeKrok)
+## 5. Vyplnění řádku deníku pece
 
-### 3.1 Co uživatel vidí
+Pro každý řádek platí:
 
-1. Krok má pole zařízení, operátor a začátek.
-2. Na formuláři vytvoření kroku tato pole mohou zůstat prázdná.
-3. Na formuláři editace kroku jsou tato pole povinná.
-4. Na detailu kroku je tlačítko Uložit a zpět do deníku pece.
+1. Vyplňte buď bednu z databáze, nebo popis mimo DB.
+2. Není možné vyplnit bednu i data mimo DB současně.
+3. Pokud vyplníte popis mimo DB, vyplňte i zákazníka mimo DB a zakázku mimo DB.
+4. U bedny z databáze musí být bedna ve stavu skladem.
+5. Kombinace krok + bedna + patro musí být unikátní.
+6. V rámci jednoho kroku a jednoho patra nesmí součet procent přesáhnout 100 %.
 
-### 3.2 Co dělá systém
+## 6. Akce pro navazující krok
 
-1. Při novém kroku dopočítá pořadí automaticky v rámci šarže.
-2. Pokud není vyplněné datum kroku, doplní se automaticky na dnešní lokální datum.
-3. U kroku se počítají metriky prodleva a takt, pokud jsou k dispozici potřebná data a zařízení je příslušného typu.
+### 6.1 Přesunout šarži do dalšího kroku z vybraných beden
 
-## 4. Deník pece (SarzeKrokBedna)
+Použití:
 
-### 4.1 Co uživatel vidí
+1. Označte vybrané řádky v deníku pece.
+2. Spusťte akci Přesunout šarži do dalšího kroku z vybraných beden.
 
-1. Seznam deníku zobrazuje řádky napříč kroky.
-2. Sloupec Krok je odkaz na detail kroku.
-3. Nahoře jsou rychlé odkazy:
-- 1) Šarže: Přidat
-- 2) Krok: Přidat
-- 3) Deník pece: Přidat záznam
-4. V seznamu je vizuální oddělení mezi různými kroky podle ID kroku.
+Co se stane:
 
-### 4.2 Co dělá systém
+1. Všechny vybrané řádky musí patřit do jednoho zdrojového kroku.
+2. Vytvoří se nový krok stejné šarže.
+3. Do nového kroku se přenese jen vazba na šarži, ostatní údaje kroku se nekopírují.
+4. Zkopírují se vybrané řádky deníku.
+5. Systém vás přesměruje na detail nového kroku.
 
-1. Řádky se seskupují a oddělují podle odlišného kroku (ID SarzeKrok).
-2. Validace řádku vyžaduje buď bednu, nebo popis mimo DB.
-3. Nesmí být současně vyplněna bedna a data mimo DB.
-4. Pokud je vyplněn popis mimo DB, musí být vyplněn i zákazník a zakázka mimo DB.
-5. Je hlídaná unikátnost kombinace krok + bedna + patro.
-6. U bedny z DB musí být bedna ve stavu skladem.
-7. V rámci jednoho kroku a patra nesmí součet procent přesáhnout 100 %.
+### 6.2 Přesunout šarži do dalšího kroku
 
-## 5. Akce pro kopírování do nového kroku
+Použití:
 
-### 5.1 Akce z Deníku pece
+1. V přehledu kroků šarže označte právě jeden krok.
+2. Spusťte akci Přesunout šarži do dalšího kroku.
 
-Název: Přesunout šarži do dalšího kroku z vybraných beden
+Co se stane:
 
-Průběh:
-1. Uživatel označí řádky deníku.
-2. Systém ověří, že všechny řádky patří do jednoho zdrojového kroku.
-3. Vytvoří nový krok stejné šarže.
-4. Do nového kroku přenese pouze vazbu na šarži. Ostatní pole kroku se nekopírují a zůstávají na výchozích hodnotách.
-5. Zkopíruje vybrané řádky deníku.
-6. Přesměruje na detail nového kroku.
-7. Pokud zdrojový krok nemá vyplněný konec, zobrazí varování.
+1. Vytvoří se nový krok stejné šarže.
+2. Do nového kroku se přenese jen vazba na šarži.
+3. Zkopírují se všechny řádky deníku ze zdrojového kroku.
+4. Systém vás přesměruje na detail nového kroku.
 
-### 5.2 Akce z Kroku šarže
+## 7. Filtry, které se hodí v praxi
 
-Název: Přesunout šarži do dalšího kroku
+1. Přehled Krok šarže:
+	- Pracoviště
+	- Typ pracoviště
+	- Konec: Ano/Ne
+2. Přehled Deník pece:
+	- Pracoviště
+	- Typ pracoviště
+	- Konec: Ano/Ne
 
-Průběh:
-1. Uživatel označí právě jeden krok.
-2. Systém vytvoří nový krok stejné šarže.
-3. Do nového kroku přenese pouze vazbu na šarži. Ostatní pole kroku se nekopírují a zůstávají na výchozích hodnotách.
-4. Zkopíruje všechny řádky deníku ze zdrojového kroku.
-5. Přesměruje na detail nového kroku.
-6. Pokud zdrojový krok nemá vyplněný konec, zobrazí varování.
+Tip: Filtr Konec: Ne pomáhá najít nedokončené kroky.
 
-## 6. Doporučený pracovní postup pro obsluhu
+## 8. Nejčastější hlášky a co s nimi
 
-1. Otevřít Deník pece.
-2. Založit šarži přes odkaz 1) Šarže: Přidat.
-3. Uložit šarži tlačítkem Uložit a přidat bedny do kroku šarže.
-4. V detailu kroku zkontrolovat data a doplnit řádky deníku.
-5. Pokud je potřeba navazující krok, použít akci kopie z deníku nebo z kroku.
-6. Na novém kroku doplnit zařízení, operátora a začátek.
-7. Pokud se po akci zobrazí varování o nevyplněném konci zdrojového kroku, doplnit konec i ve zdrojovém kroku.
-8. Uložit krok tlačítkem Uložit a zpět do deníku pece.
+1. Vyberte záznamy pouze z jednoho kroku šarže.
+	- Označili jste řádky z více kroků. Vyberte jen jeden krok.
+2. Vyberte právě jeden krok šarže.
+	- Pro akci z přehledu kroků musí být označený přesně jeden krok.
+3. Musí být vyplněna buď bedna, nebo popis mimo DB.
+	- Vyplňte jen jednu větev zadání.
+4. Nelze vyplnit současně bednu i pole mimo DB.
+	- Pokud je vybraná bedna, smažte mimo-DB pole.
+5. Původní krok šarže nemá vyplněný konec, nezapomeňte jej vyplnit.
+	- Doplňte konec na zdrojovém kroku, aby evidence byla kompletní.
+6. Součet procent v rámci jednoho patra nesmí překročit 100 %.
+	- Upravte procenta řádků ve stejném patře.
 
-## 7. Nejčastější chyby a řešení
+## 9. Doporučení pro čistá data
 
-1. Chyba při kopii z deníku: Vyberte záznamy pouze z jednoho kroku šarže.
-Řešení: Označit pouze řádky ze stejného kroku.
-
-2. Chyba validace: Musí být vyplněna buď bedna, nebo popis mimo DB.
-Řešení: Vyplnit přesně jednu variantu.
-
-3. Chyba validace: Nelze vyplnit současně bednu i pole mimo DB.
-Řešení: Vyčistit jednu větev dat.
-
-4. Chyba validace: Při popisu mimo DB chybí zákazník nebo zakázka mimo DB.
-Řešení: Dovyplnit obě povinná pole.
-
-5. Chyba duplicity kombinace krok + bedna + patro.
-Řešení: Změnit patro nebo nepřidávat duplicitní řádek.
-
-6. Varování: Původní krok šarže nemá vyplněný konec, nezapomeňte jej vyplnit.
-Řešení: Otevřít zdrojový krok a doplnit pole Konec.
-
-7. Chyba validace: Součet procent v rámci jednoho patra nesmí překročit 100 %.
-Řešení: Upravit rozložení procent mezi řádky ve stejném patře.
-
-## 8. Kde je logika v kódu
-
-1. Admin logika:
-- orders/admin.py
-
-2. Akce kopírování kroků:
-- orders/actions.py
-
-3. Datový model a validace:
-- orders/models.py
-
-4. Šablony tlačítek a odkazy:
-- orders/templates/admin/orders/sarze/submit_line.html
-- orders/templates/admin/orders/sarzekrok/submit_line.html
-- orders/templates/admin/orders/sarzebedna/change_list.html
-
-5. Seskupování řádků v deníku:
-- orders/static/orders/js/admin_sarzebedna_group_separator.js
+1. Po dokončení každého kroku doplňte pole konec.
+2. Používejte poznámku jen pro opravdu důležité provozní informace.
+3. Průběžně kontrolujte krokové přehledy filtrem Konec: Ne.
+4. Před přesunem do dalšího kroku zkontrolujte, že řádky patří do správného zdrojového kroku.

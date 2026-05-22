@@ -371,9 +371,9 @@ class SarzeKrokAdmin(SimpleHistoryAdmin):
     def get_datum(self, obj):
         return obj.datum.strftime('%d.%m.%Y') if obj.datum else '-'
 
-    @admin.display(description='Pracoviště', ordering='zarizeni__kod_zarizeni')
+    @admin.display(description='Pracoviště', ordering='zarizeni__zkraceny_nazev_zarizeni')
     def get_zarizeni(self, obj):
-        return obj.zarizeni.kod_zarizeni if obj.zarizeni else '-'
+        return obj.zarizeni.zkraceny_nazev_zarizeni if obj.zarizeni else '-'
 
     @admin.display(description='Prodleva (m)')
     def get_prodleva(self, obj):
@@ -459,9 +459,9 @@ class SarzeKrokBednaAdmin(SimpleHistoryAdmin):
             return ()
         return self.readonly_fields
 
-    @admin.display(description='Pracoviště', ordering='krok__zarizeni__kod_zarizeni')
+    @admin.display(description='Pracoviště', ordering='krok__zarizeni__zkraceny_nazev_zarizeni')
     def get_kod_zarizeni(self, obj):
-        return obj.krok.zarizeni.kod_zarizeni if obj.krok and obj.krok.zarizeni else '-'
+        return obj.krok.zarizeni.zkraceny_nazev_zarizeni if obj.krok and obj.krok.zarizeni else '-'
     
     @admin.display(description='Krok', ordering='krok__id')
     def get_krok(self, obj):
