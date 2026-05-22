@@ -9,7 +9,8 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db.models import Sum
 from django.db.models import Q, Max, F
 from django.db.models.functions import ExtractYear
-from datetime import datetime, timedelta, timezone
+from django.utils import timezone
+from datetime import datetime, timedelta
 
 from simple_history.models import HistoricalRecords
 

@@ -237,7 +237,7 @@ def _abort_if_bedna_has_not_hmotnost_zakazka_predpis(modeladmin, request, querys
     return False
 
 
-@admin.action(description='Vytvořit nový krok šarže z vybraných řádků deníku')
+@admin.action(description='Přesunout šarži do dalšího kroku z vybraných beden')
 def vytvorit_dalsi_krok_sarze_action(modeladmin, request, queryset):
     source_rows = list(queryset.select_related('krok', 'krok__sarze', 'bedna'))
     if not source_rows:
@@ -257,18 +257,16 @@ def vytvorit_dalsi_krok_sarze_action(modeladmin, request, queryset):
     if not source_krok or not source_krok.sarze_id:
         modeladmin.message_user(request, 'Zdrojový krok šarže není validní.', level=messages.ERROR)
         return None
+    if not source_krok.konec:
+        modeladmin.message_user(
+            request,
+            'Původní krok šarže nemá vyplněný konec, nezapomeňte jej vyplnit.',
+            level=messages.WARNING,
+        )
 
     with transaction.atomic():
         target_krok = SarzeKrok.objects.create(
             sarze=source_krok.sarze,
-            datum=source_krok.datum,
-            zarizeni=None,
-            zacatek=None,
-            konec=source_krok.konec,
-            operator=None,
-            program=source_krok.program,
-            alarm=source_krok.alarm,
-            poznamka=source_krok.poznamka,
         )
 
         copied_count = 0
@@ -309,7 +307,7 @@ def vytvorit_dalsi_krok_sarze_action(modeladmin, request, queryset):
     return HttpResponseRedirect(reverse('admin:orders_sarzekrok_change', args=[target_krok.pk]))
 
 
-@admin.action(description='Vytvořit nový krok šarže jako kopii vybraného kroku')
+@admin.action(description='Přesunout šarži do dalšího kroku')
 def vytvorit_novy_krok_z_kroku_sarze_action(modeladmin, request, queryset):
     source_kroky = list(queryset.select_related('sarze', 'zarizeni'))
     if len(source_kroky) != 1:
@@ -321,6 +319,13 @@ def vytvorit_novy_krok_z_kroku_sarze_action(modeladmin, request, queryset):
         return None
 
     source_krok = source_kroky[0]
+    if not source_krok.konec:
+        modeladmin.message_user(
+            request,
+            'Původní krok šarže nemá vyplněný konec, nezapomeňte jej vyplnit.',
+            level=messages.WARNING,
+        )
+
     source_rows = list(
         SarzeKrokBedna.objects.filter(krok=source_krok).select_related('bedna').order_by('pk')
     )
@@ -328,14 +333,6 @@ def vytvorit_novy_krok_z_kroku_sarze_action(modeladmin, request, queryset):
     with transaction.atomic():
         target_krok = SarzeKrok.objects.create(
             sarze=source_krok.sarze,
-            datum=source_krok.datum,
-            zarizeni=None,
-            zacatek=None,
-            konec=source_krok.konec,
-            operator=None,
-            program=source_krok.program,
-            alarm=source_krok.alarm,
-            poznamka=source_krok.poznamka,
         )
 
         copied_count = 0

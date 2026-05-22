@@ -2142,6 +2142,30 @@ class SarzeKrokBednaAdminActionTests(AdminBase):
             ).exists()
         )
 
+    def test_action_warns_when_source_step_has_no_konec(self):
+        source = SarzeKrokBedna.objects.create(
+            krok=self.krok_1,
+            bedna=self.bedna,
+            patro=9,
+            procent_z_patra=100,
+        )
+        request = self.factory.post('/admin/orders/sarzekrokbedna/')
+        request.user = self.user
+        request.session = DummySession()
+        request._messages = FallbackStorage(request)
+
+        response = vytvorit_dalsi_krok_sarze_action(
+            self.admin,
+            request,
+            SarzeKrokBedna.objects.filter(pk=source.pk),
+        )
+
+        self.assertEqual(response.status_code, 302)
+        messages_text = [message.message for message in request._messages]
+        self.assertTrue(
+            any('Původní krok šarže nemá vyplněný konec, nezapomeňte jej vyplnit.' in text for text in messages_text)
+        )
+
 
 class SarzeKrokAdminActionTests(AdminBase):
     def setUp(self):
@@ -2235,6 +2259,24 @@ class SarzeKrokAdminActionTests(AdminBase):
         )
 
         self.assertIsNone(response)
+
+    def test_action_warns_when_source_step_has_no_konec(self):
+        request = self.factory.post('/admin/orders/sarzekrok/')
+        request.user = self.user
+        request.session = DummySession()
+        request._messages = FallbackStorage(request)
+
+        response = vytvorit_novy_krok_z_kroku_sarze_action(
+            self.admin,
+            request,
+            SarzeKrok.objects.filter(pk=self.krok.pk),
+        )
+
+        self.assertEqual(response.status_code, 302)
+        messages_text = [message.message for message in request._messages]
+        self.assertTrue(
+            any('Původní krok šarže nemá vyplněný konec, nezapomeňte jej vyplnit.' in text for text in messages_text)
+        )
 
     def test_change_form_requires_zarizeni_operator_a_zacatek(self):
         novy_krok = SarzeKrok.objects.create(
