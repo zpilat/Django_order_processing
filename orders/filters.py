@@ -1056,7 +1056,7 @@ class TypZarizeniSarzeBednaFilter(DynamicTitleFilter):
 
 class KonecSarzeBednaFilter(DynamicTitleFilter):
     """
-    Filtrovat deník pece podle vyplnění pole konec na kroku šarže.
+    Filtrovat deník beden v krocích šarže podle vyplnění pole konec na kroku šarže.
     """
     title = "Konec"
     parameter_name = "konec_kroku"

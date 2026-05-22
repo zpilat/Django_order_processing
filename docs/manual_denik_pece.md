@@ -1,4 +1,4 @@
-# Uživatelský návod: Deník pece
+# Uživatelský návod: Deník beden v krocích šarže
 
 Tento návod je určen pro běžnou obsluhu v administraci. Popisuje praktický postup práce se šarží, krokem šarže a deníkem pece.
 
@@ -6,16 +6,16 @@ Tento návod je určen pro běžnou obsluhu v administraci. Popisuje praktický 
 
 1. Šarže: výrobní celek, který má své číslo a datum.
 2. Krok šarže: konkrétní průchod šarže přes pracoviště.
-3. Deník pece: jednotlivé řádky v kroku šarže (bedny nebo položky mimo DB) s patrem a procentem využití.
+3. Deník beden v krocích šarže: jednotlivé řádky v kroku šarže (bedny nebo položky mimo DB) s patrem a procentem využití.
 
 ## 2. Běžný pracovní postup
 
-1. Otevřete Deník pece.
+1. Otevřete Deník beden v krocích šarže.
 2. Klikněte na rychlý odkaz Šarže: Přidat.
 3. Uložte šarži tlačítkem Uložit a přidat bedny do kroku šarže.
 4. Otevře se detail prvního kroku šarže.
 5. Doplňte údaje kroku (zejména pracoviště, začátek, operátor).
-6. Přidejte řádky deníku pece.
+6. Přidejte řádky deníku beden v krocích šarže.
 7. Pokud potřebujete navazující krok, použijte jednu z akcí Přesunout šarži do dalšího kroku.
 8. Na novém kroku doplňte pracoviště, začátek, operátora a uložte.
 
@@ -33,7 +33,7 @@ Tento návod je určen pro běžnou obsluhu v administraci. Popisuje praktický 
 2. Pole konec doporučujeme vyplnit hned po dokončení kroku.
 3. Pokud konec není vyplněn a provedete přesun do dalšího kroku, systém zobrazí varování.
 
-## 5. Vyplnění řádku deníku pece
+## 5. Vyplnění řádku deníku beden v krocích šarže
 
 Pro každý řádek platí:
 
@@ -50,7 +50,7 @@ Pro každý řádek platí:
 
 Použití:
 
-1. Označte vybrané řádky v deníku pece.
+1. Označte vybrané řádky v deníku beden v krocích šarže.
 2. Spusťte akci Přesunout šarži do dalšího kroku z vybraných beden.
 
 Co se stane:
@@ -81,7 +81,7 @@ Co se stane:
 	- Pracoviště
 	- Typ pracoviště
 	- Konec: Ano/Ne
-2. Přehled Deník pece:
+2. Přehled Deník beden v krocích šarže:
 	- Pracoviště
 	- Typ pracoviště
 	- Konec: Ano/Ne

@@ -2704,7 +2704,7 @@ class BednaAdmin(SimpleHistoryAdmin):
 
     def get_search_results(self, request, queryset, search_term):
         """
-        Přizpůsobí výsledky hledání pro inline autocomplete pole 'bedna' v deníku pece,
+        Přizpůsobí výsledky hledání pro inline autocomplete pole 'bedna' v deníku beden v krocích šarže,
         aby se zobrazovaly pouze bedny se stavem bedny STAV_BEDNY_SKLADEM.
         """
         queryset, use_distinct = super().get_search_results(request, queryset, search_term)
