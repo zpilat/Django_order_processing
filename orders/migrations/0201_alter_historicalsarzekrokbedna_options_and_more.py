@@ -34,6 +34,10 @@ def _noop_reverse(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
+    # PostgreSQL: data update + ALTER TABLE over the same table in one transaction
+    # can fail with "cannot ALTER TABLE ... because it has pending trigger events".
+    atomic = False
+
     dependencies = [
         ('orders', '0200_alter_historicalzarizeni_options_and_more'),
     ]
