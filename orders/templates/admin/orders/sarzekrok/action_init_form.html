@@ -1,0 +1,176 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrahead %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'admin/css/widgets.css' %}">
+  <script src="{% url 'admin:jsi18n' %}"></script>
+  {{ media }}
+{% endblock %}
+
+{% block content %}
+
+  <style>
+    .sarzekrok-action-form .module.aligned .form-row {
+      display: grid;
+      grid-template-columns: 220px minmax(320px, 1fr);
+      align-items: center;
+      gap: 16px;
+      padding: 10px 12px;
+      border-top: 1px solid var(--hairline-color, #ddd);
+    }
+
+    .sarzekrok-action-form .module.aligned .form-row:last-child {
+      border-bottom: 1px solid var(--hairline-color, #ddd);
+    }
+
+    .sarzekrok-action-form .module.aligned .form-row > label {
+      font-weight: 400;
+      margin: 0;
+      width: auto;
+      padding: 0;
+    }
+
+    .sarzekrok-action-form .module.aligned .form-row > label.required {
+      font-weight: 700;
+    }
+
+    .sarzekrok-action-form .module.aligned .form-row .readonly {
+      padding: 6px 0;
+      color: var(--body-quiet-color, #444);
+      font-weight: 500;
+    }
+
+    .sarzekrok-action-form .module.aligned .form-row .field-value input,
+    .sarzekrok-action-form .module.aligned .form-row .field-value select,
+    .sarzekrok-action-form .module.aligned .form-row .field-value textarea {
+      max-width: 100%;
+      width: min(100%, 420px);
+      box-sizing: border-box;
+    }
+
+    .sarzekrok-action-form .module.aligned .form-row .field-value .errorlist {
+      margin: 0 0 6px;
+    }
+
+    .sarzekrok-action-form .module.aligned .table-wrap {
+      border-top: 1px solid var(--hairline-color, #ddd);
+      margin-top: 10px;
+      padding-top: 12px;
+    }
+  </style>
+
+  {% if source_krok %}
+    <p>
+      Zdrojový krok: <strong>{{ source_krok }}</strong>
+    </p>
+    <p>
+      Nový krok se vytvoří pro šarži <strong>{{ source_krok.sarze }}</strong>
+      {% if predicted_poradi %}
+        jako pořadí <strong>{{ predicted_poradi }}</strong>.
+      {% endif %}
+    </p>
+  {% endif %}
+
+  <form method="post" class="sarzekrok-action-form">
+    {% csrf_token %}
+
+    {% for obj in queryset %}
+      <input type="hidden" name="{{ action_checkbox_name }}" value="{{ obj.pk }}">
+    {% endfor %}
+    <input type="hidden" name="action" value="{{ action_name }}">
+    <input type="hidden" name="apply" value="1">
+
+    <fieldset class="module aligned">
+      <h2>Údaje nového kroku šarže</h2>
+
+      {% if form.non_field_errors %}
+        <div class="errornote">
+          {{ form.non_field_errors }}
+        </div>
+      {% endif %}
+
+      <div class="form-row">
+        <label>Šarže:</label>
+        <div class="field-value readonly">{{ source_krok.sarze }}</div>
+      </div>
+      <div class="form-row">
+        <label>Pořadí:</label>
+        <div class="field-value readonly">{{ predicted_poradi }}</div>
+      </div>
+
+      <div class="form-row">
+        <label for="{{ form.datum.id_for_label }}"{% if form.datum.field.required %} class="required"{% endif %}>{{ form.datum.label }}:</label>
+        <div class="field-value">{{ form.datum.errors }}{{ form.datum }}</div>
+      </div>
+      <div class="form-row">
+        <label for="{{ form.zarizeni.id_for_label }}"{% if form.zarizeni.field.required %} class="required"{% endif %}>{{ form.zarizeni.label }}:</label>
+        <div class="field-value">{{ form.zarizeni.errors }}{{ form.zarizeni }}</div>
+      </div>
+      <div class="form-row">
+        <label for="{{ form.zacatek.id_for_label }}"{% if form.zacatek.field.required %} class="required"{% endif %}>{{ form.zacatek.label }}:</label>
+        <div class="field-value">{{ form.zacatek.errors }}{{ form.zacatek }}</div>
+      </div>
+      <div class="form-row">
+        <label for="{{ form.konec.id_for_label }}"{% if form.konec.field.required %} class="required"{% endif %}>{{ form.konec.label }}:</label>
+        <div class="field-value">{{ form.konec.errors }}{{ form.konec }}</div>
+      </div>
+      <div class="form-row">
+        <label for="{{ form.operator.id_for_label }}"{% if form.operator.field.required %} class="required"{% endif %}>{{ form.operator.label }}:</label>
+        <div class="field-value">{{ form.operator.errors }}{{ form.operator }}</div>
+      </div>
+      <div class="form-row">
+        <label for="{{ form.program.id_for_label }}"{% if form.program.field.required %} class="required"{% endif %}>{{ form.program.label }}:</label>
+        <div class="field-value">{{ form.program.errors }}{{ form.program }}</div>
+      </div>
+      <div class="form-row">
+        <label for="{{ form.alarm.id_for_label }}"{% if form.alarm.field.required %} class="required"{% endif %}>{{ form.alarm.label }}:</label>
+        <div class="field-value">{{ form.alarm.errors }}{{ form.alarm }}</div>
+      </div>
+      <div class="form-row">
+        <label for="{{ form.poznamka.id_for_label }}"{% if form.poznamka.field.required %} class="required"{% endif %}>{{ form.poznamka.label }}:</label>
+        <div class="field-value">{{ form.poznamka.errors }}{{ form.poznamka }}</div>
+      </div>
+    </fieldset>
+
+    <fieldset class="module aligned">
+      <h2>Kopírované položky deníku (jen náhled)</h2>
+      <p>Počet řádků ke zkopírování: <strong>{{ source_row_count }}</strong></p>
+      <div class="table-wrap">
+        <table class="adminlist">
+          <thead>
+            <tr>
+              <th>Bedna</th>
+              <th>Patro</th>
+              <th>% z patra</th>
+              <th>Popis</th>
+              <th>Zákazník</th>
+              <th>Zakázka</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in source_row_preview %}
+              <tr>
+                <td>{{ row.bedna }}</td>
+                <td>{{ row.patro }}</td>
+                <td>{{ row.procent_z_patra }}</td>
+                <td>{{ row.popis|default:'-' }}</td>
+                <td>{{ row.zakaznik|default:'-' }}</td>
+                <td>{{ row.zakazka|default:'-' }}</td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="6">Žádné položky k náhledu.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </fieldset>
+
+    <div class="submit-row">
+      <input type="submit" class="default" value="Vytvořit nový krok šarže">
+      <a href="{{ cancel_url }}" class="button">Zrušit</a>
+    </div>
+  </form>
+{% endblock %}

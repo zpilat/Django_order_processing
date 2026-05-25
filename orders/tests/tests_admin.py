@@ -2059,7 +2059,18 @@ class SarzeKrokBednaAdminActionTests(AdminBase):
             patro=1,
             procent_z_patra=100,
         )
-        request = self.factory.post('/admin/orders/sarzekrokbedna/')
+        request = self.factory.post(
+            '/admin/orders/sarzekrokbedna/',
+            {
+                'apply': '1',
+                'action': 'vytvorit_dalsi_krok_sarze_action',
+                '_selected_action': [source.pk],
+                'datum': date.today().strftime('%Y-%m-%d'),
+                'zarizeni': self.zarizeni_2.pk,
+                'operator': 'OP-NOVY',
+                'zacatek': '10:15',
+            },
+        )
         request.user = self.user
         request.session = DummySession()
         request._messages = FallbackStorage(request)
@@ -2069,9 +2080,9 @@ class SarzeKrokBednaAdminActionTests(AdminBase):
         self.assertEqual(response.status_code, 302)
         novy_krok = SarzeKrok.objects.exclude(pk__in=[self.krok_1.pk, self.krok_2.pk]).get()
         self.assertEqual(novy_krok.sarze_id, self.krok_1.sarze_id)
-        self.assertIsNone(novy_krok.zarizeni_id)
-        self.assertIsNone(novy_krok.zacatek)
-        self.assertIsNone(novy_krok.operator)
+        self.assertEqual(novy_krok.zarizeni_id, self.zarizeni_2.pk)
+        self.assertEqual(novy_krok.zacatek, time(10, 15))
+        self.assertEqual(novy_krok.operator, 'OP-NOVY')
         self.assertTrue(SarzeKrokBedna.objects.filter(pk=source.pk).exists())
         self.assertTrue(
             SarzeKrokBedna.objects.filter(
@@ -2080,6 +2091,24 @@ class SarzeKrokBednaAdminActionTests(AdminBase):
                 patro=1,
             ).exists()
         )
+
+    def test_action_first_step_renders_init_form(self):
+        source = SarzeKrokBedna.objects.create(
+            krok=self.krok_1,
+            bedna=self.bedna,
+            patro=8,
+            procent_z_patra=100,
+        )
+
+        request = self.factory.post('/admin/orders/sarzekrokbedna/')
+        request.user = self.user
+        request.session = DummySession()
+        request._messages = FallbackStorage(request)
+
+        response = vytvorit_dalsi_krok_sarze_action(self.admin, request, SarzeKrokBedna.objects.filter(pk=source.pk))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(SarzeKrok.objects.count(), 2)
 
     def test_action_requires_rows_from_one_source_step(self):
         source_a = SarzeKrokBedna.objects.create(
@@ -2119,7 +2148,18 @@ class SarzeKrokBednaAdminActionTests(AdminBase):
             zakazka_mimo_db='Z-1',
             cislo_bedny_mimo_db='M-001',
         )
-        request = self.factory.post('/admin/orders/sarzekrokbedna/')
+        request = self.factory.post(
+            '/admin/orders/sarzekrokbedna/',
+            {
+                'apply': '1',
+                'action': 'vytvorit_dalsi_krok_sarze_action',
+                '_selected_action': [source.pk],
+                'datum': date.today().strftime('%Y-%m-%d'),
+                'zarizeni': self.zarizeni_2.pk,
+                'operator': 'OP-MIMO',
+                'zacatek': '11:00',
+            },
+        )
         request.user = self.user
         request.session = DummySession()
         request._messages = FallbackStorage(request)
@@ -2128,7 +2168,7 @@ class SarzeKrokBednaAdminActionTests(AdminBase):
 
         self.assertEqual(response.status_code, 302)
         novy_krok = SarzeKrok.objects.exclude(pk__in=[self.krok_1.pk, self.krok_2.pk]).get()
-        self.assertIsNone(novy_krok.zarizeni_id)
+        self.assertEqual(novy_krok.zarizeni_id, self.zarizeni_2.pk)
         self.assertTrue(SarzeKrokBedna.objects.filter(pk=source.pk).exists())
         self.assertTrue(
             SarzeKrokBedna.objects.filter(
@@ -2149,7 +2189,18 @@ class SarzeKrokBednaAdminActionTests(AdminBase):
             patro=9,
             procent_z_patra=100,
         )
-        request = self.factory.post('/admin/orders/sarzekrokbedna/')
+        request = self.factory.post(
+            '/admin/orders/sarzekrokbedna/',
+            {
+                'apply': '1',
+                'action': 'vytvorit_dalsi_krok_sarze_action',
+                '_selected_action': [source.pk],
+                'datum': date.today().strftime('%Y-%m-%d'),
+                'zarizeni': self.zarizeni_2.pk,
+                'operator': 'OP-WARN',
+                'zacatek': '12:00',
+            },
+        )
         request.user = self.user
         request.session = DummySession()
         request._messages = FallbackStorage(request)
@@ -2220,7 +2271,18 @@ class SarzeKrokAdminActionTests(AdminBase):
             cislo_bedny_mimo_db='M-002',
         )
 
-        request = self.factory.post('/admin/orders/sarzekrok/')
+        request = self.factory.post(
+            '/admin/orders/sarzekrok/',
+            {
+                'apply': '1',
+                'action': 'vytvorit_novy_krok_z_kroku_sarze_action',
+                '_selected_action': [self.krok.pk],
+                'datum': date.today().strftime('%Y-%m-%d'),
+                'zarizeni': self.zarizeni.pk,
+                'operator': 'OPX-2',
+                'zacatek': '13:30',
+            },
+        )
         request.user = self.user
         request.session = DummySession()
         request._messages = FallbackStorage(request)
@@ -2230,11 +2292,22 @@ class SarzeKrokAdminActionTests(AdminBase):
         self.assertEqual(response.status_code, 302)
         novy_krok = SarzeKrok.objects.exclude(pk=self.krok.pk).get()
         self.assertEqual(novy_krok.sarze_id, self.krok.sarze_id)
-        self.assertIsNone(novy_krok.zarizeni_id)
-        self.assertIsNone(novy_krok.zacatek)
-        self.assertIsNone(novy_krok.operator)
+        self.assertEqual(novy_krok.zarizeni_id, self.zarizeni.pk)
+        self.assertEqual(novy_krok.zacatek, time(13, 30))
+        self.assertEqual(novy_krok.operator, 'OPX-2')
         self.assertEqual(SarzeKrokBedna.objects.filter(krok=self.krok).count(), 2)
         self.assertEqual(SarzeKrokBedna.objects.filter(krok=novy_krok).count(), 2)
+
+    def test_action_first_step_renders_init_form(self):
+        request = self.factory.post('/admin/orders/sarzekrok/')
+        request.user = self.user
+        request.session = DummySession()
+        request._messages = FallbackStorage(request)
+
+        response = vytvorit_novy_krok_z_kroku_sarze_action(self.admin, request, SarzeKrok.objects.filter(pk=self.krok.pk))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(SarzeKrok.objects.count(), 1)
 
     def test_action_requires_exactly_one_step(self):
         druhy_krok = SarzeKrok.objects.create(
@@ -2247,7 +2320,18 @@ class SarzeKrokAdminActionTests(AdminBase):
             program='PGY',
         )
 
-        request = self.factory.post('/admin/orders/sarzekrok/')
+        request = self.factory.post(
+            '/admin/orders/sarzekrok/',
+            {
+                'apply': '1',
+                'action': 'vytvorit_novy_krok_z_kroku_sarze_action',
+                '_selected_action': [self.krok.pk],
+                'datum': date.today().strftime('%Y-%m-%d'),
+                'zarizeni': self.zarizeni.pk,
+                'operator': 'OPX-3',
+                'zacatek': '14:45',
+            },
+        )
         request.user = self.user
         request.session = DummySession()
         request._messages = FallbackStorage(request)
@@ -2261,7 +2345,18 @@ class SarzeKrokAdminActionTests(AdminBase):
         self.assertIsNone(response)
 
     def test_action_warns_when_source_step_has_no_konec(self):
-        request = self.factory.post('/admin/orders/sarzekrok/')
+        request = self.factory.post(
+            '/admin/orders/sarzekrok/',
+            {
+                'apply': '1',
+                'action': 'vytvorit_novy_krok_z_kroku_sarze_action',
+                '_selected_action': [self.krok.pk],
+                'datum': date.today().strftime('%Y-%m-%d'),
+                'zarizeni': self.zarizeni.pk,
+                'operator': 'OPX-4',
+                'zacatek': '15:00',
+            },
+        )
         request.user = self.user
         request.session = DummySession()
         request._messages = FallbackStorage(request)
@@ -2282,9 +2377,9 @@ class SarzeKrokAdminActionTests(AdminBase):
         novy_krok = SarzeKrok.objects.create(
             sarze=self.sarze,
             datum=date.today(),
-            zarizeni=None,
-            zacatek=None,
-            operator=None,
+            zarizeni=self.zarizeni,
+            zacatek=time(6, 0),
+            operator='OP-REQ',
             program='PG0',
         )
 
@@ -2297,15 +2392,15 @@ class SarzeKrokAdminActionTests(AdminBase):
         self.assertTrue(form_class.base_fields['operator'].required)
         self.assertTrue(form_class.base_fields['zacatek'].required)
 
-    def test_add_form_necha_zarizeni_operator_a_zacatek_nepovinne(self):
+    def test_add_form_vyzaduje_zarizeni_operator_a_zacatek(self):
         request = self.factory.get('/admin/orders/sarzekrok/add/')
         request.user = self.user
 
         form_class = self.admin.get_form(request, obj=None, change=False)
 
-        self.assertFalse(form_class.base_fields['zarizeni'].required)
-        self.assertFalse(form_class.base_fields['operator'].required)
-        self.assertFalse(form_class.base_fields['zacatek'].required)
+        self.assertTrue(form_class.base_fields['zarizeni'].required)
+        self.assertTrue(form_class.base_fields['operator'].required)
+        self.assertTrue(form_class.base_fields['zacatek'].required)
 
 
 class SarzeAdminCreateBehaviorTests(AdminBase):

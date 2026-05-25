@@ -391,14 +391,6 @@ class SarzeKrokAdmin(SimpleHistoryAdmin):
     def get_alarm(self, obj):
         return truncate_with_title(obj.alarm)
 
-    def get_form(self, request, obj=None, change=False, **kwargs):
-        form = super().get_form(request, obj=obj, change=change, **kwargs)
-        if obj is not None:
-            for field_name in ('zarizeni', 'operator', 'zacatek'):
-                if field_name in form.base_fields:
-                    form.base_fields[field_name].required = True
-        return form
-
     def get_search_results(self, request, queryset, search_term):
         queryset, use_distinct = super().get_search_results(request, queryset, search_term)
 

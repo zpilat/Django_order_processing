@@ -1530,12 +1530,12 @@ class SarzeKrok(models.Model):
         on_delete=models.PROTECT,
         related_name='sarze_kroky',
         verbose_name='Pracoviště',
-        blank=True,
-        null=True,
+        blank=False,
+        null=False,
     )
-    zacatek = models.TimeField(blank=True, null=True, verbose_name='Začátek')
+    zacatek = models.TimeField(blank=False, null=False, verbose_name='Začátek')
     konec = models.TimeField(blank=True, null=True, verbose_name='Konec')
-    operator = models.CharField(max_length=30, blank=True, null=True, verbose_name='Operátor')
+    operator = models.CharField(max_length=30, blank=False, null=False, verbose_name='Operátor')
     program = models.CharField(max_length=20, blank=True, null=True, verbose_name='Program')
     alarm = models.CharField(max_length=50, blank=True, null=True, verbose_name='Alarm')
     poznamka = models.CharField(max_length=100, blank=True, null=True, verbose_name='Poznámka')

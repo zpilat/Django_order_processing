@@ -11,6 +11,7 @@ from django.forms import formset_factory
 from django.template.response import TemplateResponse
 from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
+from django.contrib.admin.widgets import AdminDateWidget
 from django.conf import settings
 from django.contrib.staticfiles import finders
 from django.db.models import Count, Q
@@ -21,7 +22,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from weasyprint import HTML
 from weasyprint import CSS
 
-from .models import Zakazka, Bedna, Kamion, Zakaznik, Pozice, PoziceZakazkaOrder, Rozpracovanost, Cena, SarzeKrok, SarzeKrokBedna
+from .models import Zakazka, Bedna, Kamion, Zakaznik, Pozice, PoziceZakazkaOrder, Rozpracovanost, Cena, Zarizeni, SarzeKrok, SarzeKrokBedna
 from .utils import (
     utilita_tisk_dokumentace,
     utilita_tisk_dokumentace_sablony,
@@ -53,6 +54,133 @@ from .choices import (
 
 import logging
 logger = logging.getLogger('orders')
+
+
+class SarzeKrokActionInitForm(forms.Form):
+    datum = forms.DateField(
+        required=True,
+        label='Datum',
+        input_formats=['%d.%m.%Y', '%Y-%m-%d'],
+        widget=AdminDateWidget(),
+    )
+    zarizeni = forms.ModelChoiceField(
+        queryset=Zarizeni.objects.order_by('kod_zarizeni', 'nazev_zarizeni'),
+        required=True,
+        label='Pracoviště',
+    )
+    zacatek = forms.TimeField(required=True, label='Začátek', input_formats=['%H:%M', '%H.%M'])
+    konec = forms.TimeField(required=False, label='Konec', input_formats=['%H:%M', '%H.%M'])
+    operator = forms.CharField(max_length=30, required=True, label='Operátor')
+    program = forms.CharField(max_length=20, required=False, label='Program')
+    alarm = forms.CharField(max_length=50, required=False, label='Alarm')
+    poznamka = forms.CharField(max_length=100, required=False, label='Poznámka')
+
+    def clean_operator(self):
+        operator = (self.cleaned_data.get('operator') or '').strip()
+        if not operator:
+            raise ValidationError('Pole Operátor je povinné.')
+        return operator
+
+
+def _get_changelist_url(modeladmin):
+    opts = modeladmin.model._meta
+    return reverse(f'admin:{opts.app_label}_{opts.model_name}_changelist')
+
+
+def _build_sarzekrokbedna_preview_rows(source_rows):
+    preview_rows = []
+    for row in source_rows:
+        bedna_value = None
+        if row.bedna:
+            bedna_value = row.bedna.cislo_bedny if row.bedna.cislo_bedny is not None else row.bedna.pk
+        if bedna_value is None:
+            bedna_value = row.cislo_bedny_mimo_db or '--------'
+
+        preview_rows.append(
+            {
+                'bedna': bedna_value,
+                'patro': row.patro,
+                'procent_z_patra': row.procent_z_patra,
+                'popis': row.popis_mimo_db,
+                'zakaznik': row.zakaznik_mimo_db,
+                'zakazka': row.zakazka_mimo_db,
+            }
+        )
+    return preview_rows
+
+
+def _render_sarzekrok_action_init_form(modeladmin, request, queryset, form, action_name, source_krok, source_rows):
+    source_row_preview = _build_sarzekrokbedna_preview_rows(source_rows)
+    predicted_poradi = (source_krok.poradi or 0) + 1 if source_krok else None
+    context = {
+        **modeladmin.admin_site.each_context(request),
+        'title': 'Založení nového kroku šarže',
+        'opts': modeladmin.model._meta,
+        'media': modeladmin.media + form.media,
+        'form': form,
+        'queryset': queryset,
+        'source_krok': source_krok,
+        'source_row_preview': source_row_preview,
+        'source_row_count': len(source_row_preview),
+        'predicted_poradi': predicted_poradi,
+        'action_name': action_name,
+        'action_checkbox_name': admin.helpers.ACTION_CHECKBOX_NAME,
+        'cancel_url': _get_changelist_url(modeladmin),
+    }
+    return TemplateResponse(request, 'admin/orders/sarzekrok/action_init_form.html', context)
+
+
+def _create_sarzekrok_and_copy_rows(
+    source_krok,
+    source_rows,
+    *,
+    datum,
+    zarizeni,
+    zacatek,
+    konec,
+    operator,
+    program,
+    alarm,
+    poznamka,
+):
+    with transaction.atomic():
+        target_krok = SarzeKrok.objects.create(
+            sarze=source_krok.sarze,
+            datum=datum,
+            zarizeni=zarizeni,
+            zacatek=zacatek,
+            konec=konec,
+            operator=operator,
+            program=program,
+            alarm=alarm,
+            poznamka=poznamka,
+        )
+
+        copied_count = 0
+        skipped_conflict = 0
+        for row in source_rows:
+            exists = SarzeKrokBedna.objects.filter(
+                krok=target_krok,
+                bedna=row.bedna,
+                patro=row.patro,
+            ).exists()
+            if exists:
+                skipped_conflict += 1
+                continue
+
+            SarzeKrokBedna.objects.create(
+                krok=target_krok,
+                bedna=row.bedna,
+                patro=row.patro,
+                procent_z_patra=row.procent_z_patra,
+                popis_mimo_db=row.popis_mimo_db,
+                zakaznik_mimo_db=row.zakaznik_mimo_db,
+                zakazka_mimo_db=row.zakazka_mimo_db,
+                cislo_bedny_mimo_db=row.cislo_bedny_mimo_db,
+            )
+            copied_count += 1
+
+    return target_krok, copied_count, skipped_conflict
 
 
 def _safe_filename(label: str, fallback: str = "soubor") -> str:
@@ -264,38 +392,47 @@ def vytvorit_dalsi_krok_sarze_action(modeladmin, request, queryset):
             level=messages.WARNING,
         )
 
-    with transaction.atomic():
-        target_krok = SarzeKrok.objects.create(
-            sarze=source_krok.sarze,
+    if 'apply' not in request.POST:
+        initial = {'datum': timezone.localdate()}
+        form = SarzeKrokActionInitForm(initial=initial)
+        return _render_sarzekrok_action_init_form(
+            modeladmin,
+            request,
+            queryset,
+            form,
+            'vytvorit_dalsi_krok_sarze_action',
+            source_krok,
+            source_rows,
         )
 
-        copied_count = 0
-        skipped_conflict = 0
-        for row in source_rows:
-            exists = SarzeKrokBedna.objects.filter(
-                krok=target_krok,
-                bedna=row.bedna,
-                patro=row.patro,
-            ).exists()
-            if exists:
-                skipped_conflict += 1
-                continue
+    form = SarzeKrokActionInitForm(request.POST)
+    if not form.is_valid():
+        return _render_sarzekrok_action_init_form(
+            modeladmin,
+            request,
+            queryset,
+            form,
+            'vytvorit_dalsi_krok_sarze_action',
+            source_krok,
+            source_rows,
+        )
 
-            SarzeKrokBedna.objects.create(
-                krok=target_krok,
-                bedna=row.bedna,
-                patro=row.patro,
-                procent_z_patra=row.procent_z_patra,
-                popis_mimo_db=row.popis_mimo_db,
-                zakaznik_mimo_db=row.zakaznik_mimo_db,
-                zakazka_mimo_db=row.zakazka_mimo_db,
-                cislo_bedny_mimo_db=row.cislo_bedny_mimo_db,
-            )
-            copied_count += 1
+    target_krok, copied_count, skipped_conflict = _create_sarzekrok_and_copy_rows(
+        source_krok,
+        source_rows,
+        datum=form.cleaned_data['datum'],
+        zarizeni=form.cleaned_data['zarizeni'],
+        zacatek=form.cleaned_data['zacatek'],
+        konec=form.cleaned_data['konec'],
+        operator=form.cleaned_data['operator'],
+        program=form.cleaned_data['program'],
+        alarm=form.cleaned_data['alarm'],
+        poznamka=form.cleaned_data['poznamka'],
+    )
 
     modeladmin.message_user(
         request,
-        f'Vytvořen nový krok šarže {target_krok} bez zařízení a zkopírováno {copied_count} řádků deníku.',
+        f'Vytvořen nový krok šarže {target_krok} a zkopírováno {copied_count} řádků deníku.',
         level=messages.SUCCESS,
     )
     if skipped_conflict:
@@ -304,7 +441,7 @@ def vytvorit_dalsi_krok_sarze_action(modeladmin, request, queryset):
             f'Přeskočeno {skipped_conflict} řádků kvůli duplicitě (bedna + patro).',
             level=messages.WARNING,
         )
-    return HttpResponseRedirect(reverse('admin:orders_sarzekrok_change', args=[target_krok.pk]))
+    return HttpResponseRedirect(_get_changelist_url(modeladmin))
 
 
 @admin.action(description='Přesunout šarži do dalšího kroku')
@@ -330,38 +467,47 @@ def vytvorit_novy_krok_z_kroku_sarze_action(modeladmin, request, queryset):
         SarzeKrokBedna.objects.filter(krok=source_krok).select_related('bedna').order_by('pk')
     )
 
-    with transaction.atomic():
-        target_krok = SarzeKrok.objects.create(
-            sarze=source_krok.sarze,
+    if 'apply' not in request.POST:
+        initial = {'datum': timezone.localdate()}
+        form = SarzeKrokActionInitForm(initial=initial)
+        return _render_sarzekrok_action_init_form(
+            modeladmin,
+            request,
+            queryset,
+            form,
+            'vytvorit_novy_krok_z_kroku_sarze_action',
+            source_krok,
+            source_rows,
         )
 
-        copied_count = 0
-        skipped_conflict = 0
-        for row in source_rows:
-            exists = SarzeKrokBedna.objects.filter(
-                krok=target_krok,
-                bedna=row.bedna,
-                patro=row.patro,
-            ).exists()
-            if exists:
-                skipped_conflict += 1
-                continue
+    form = SarzeKrokActionInitForm(request.POST)
+    if not form.is_valid():
+        return _render_sarzekrok_action_init_form(
+            modeladmin,
+            request,
+            queryset,
+            form,
+            'vytvorit_novy_krok_z_kroku_sarze_action',
+            source_krok,
+            source_rows,
+        )
 
-            SarzeKrokBedna.objects.create(
-                krok=target_krok,
-                bedna=row.bedna,
-                patro=row.patro,
-                procent_z_patra=row.procent_z_patra,
-                popis_mimo_db=row.popis_mimo_db,
-                zakaznik_mimo_db=row.zakaznik_mimo_db,
-                zakazka_mimo_db=row.zakazka_mimo_db,
-                cislo_bedny_mimo_db=row.cislo_bedny_mimo_db,
-            )
-            copied_count += 1
+    target_krok, copied_count, skipped_conflict = _create_sarzekrok_and_copy_rows(
+        source_krok,
+        source_rows,
+        datum=form.cleaned_data['datum'],
+        zarizeni=form.cleaned_data['zarizeni'],
+        zacatek=form.cleaned_data['zacatek'],
+        konec=form.cleaned_data['konec'],
+        operator=form.cleaned_data['operator'],
+        program=form.cleaned_data['program'],
+        alarm=form.cleaned_data['alarm'],
+        poznamka=form.cleaned_data['poznamka'],
+    )
 
     modeladmin.message_user(
         request,
-        f'Vytvořen nový krok šarže {target_krok} bez zařízení a zkopírováno {copied_count} řádků deníku.',
+        f'Vytvořen nový krok šarže {target_krok} a zkopírováno {copied_count} řádků deníku.',
         level=messages.SUCCESS,
     )
     if skipped_conflict:
@@ -370,7 +516,7 @@ def vytvorit_novy_krok_z_kroku_sarze_action(modeladmin, request, queryset):
             f'Přeskočeno {skipped_conflict} řádků kvůli duplicitě (bedna + patro).',
             level=messages.WARNING,
         )
-    return HttpResponseRedirect(reverse('admin:orders_sarzekrok_change', args=[target_krok.pk]))
+    return HttpResponseRedirect(_get_changelist_url(modeladmin))
 
 # Akce pro bedny:
 
