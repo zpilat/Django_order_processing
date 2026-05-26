@@ -14,7 +14,7 @@ from django.utils import timezone
 from unittest.mock import patch
 from types import SimpleNamespace
 
-from orders.admin import KamionAdmin, ZakazkaAdmin, BednaAdmin, BednaInline, NotificationAdmin, SarzeAdmin, SarzeKrokAdmin, SarzeKrokBednaAdmin, SarzeKrokBednaInline, PredpisAdmin, CenaAdmin
+from orders.admin import KamionAdmin, ZakazkaAdmin, BednaAdmin, BednaInline, NotificationAdmin, SarzeAdmin, SarzeKrokAdmin, SarzeKrokBednaAdmin, SarzeKrokBednaInline, SarzeKrokInline, PredpisAdmin, CenaAdmin
 from orders.actions import vytvorit_dalsi_krok_sarze_action, vytvorit_novy_krok_z_kroku_sarze_action
 from orders.forms import ImportZakazekForm
 from orders.models import Zakaznik, Kamion, Zakazka, Bedna, Predpis, TypHlavy, Odberatel, Cena, Notification, PriorityNotificationRecipient, Zarizeni, Sarze, SarzeKrok, SarzeKrokBedna
@@ -1962,6 +1962,68 @@ class SarzeKrokBednaInlineAdminTests(AdminBase):
         self.assertFalse(formset.is_valid())
         self.assertTrue(any('nejsou ve stavu skladem' in str(err) for err in formset.non_form_errors()))
 
+    def test_sarze_inline_formset_requires_any_row_on_add(self):
+        request = self.factory.get('/admin/orders/sarzekrok/add/')
+        request.user = self.user
+
+        formset_class = self.sarze_inline.get_formset(request, obj=None)
+        prefix = formset_class.get_default_prefix()
+
+        data = {
+            f'{prefix}-TOTAL_FORMS': '1',
+            f'{prefix}-INITIAL_FORMS': '0',
+            f'{prefix}-MIN_NUM_FORMS': '0',
+            f'{prefix}-MAX_NUM_FORMS': '1000',
+            f'{prefix}-0-bedna': '',
+            f'{prefix}-0-patro': '',
+            f'{prefix}-0-procent_z_patra': '',
+            f'{prefix}-0-popis_mimo_db': '',
+            f'{prefix}-0-zakaznik_mimo_db': '',
+            f'{prefix}-0-zakazka_mimo_db': '',
+            f'{prefix}-0-cislo_bedny_mimo_db': '',
+        }
+
+        krok = SarzeKrok(
+            sarze=self.sarze,
+            datum=date.today(),
+            zarizeni=self.zarizeni,
+            zacatek=time(8, 0),
+            operator='OP-ADD',
+        )
+        formset = formset_class(data=data, instance=krok, prefix=prefix)
+
+        self.assertFalse(formset.is_valid())
+        self.assertTrue(
+            any(
+                'Krok šarže nebyl uložen. Vyplňte v inline alespoň Bedna nebo Popis mimo DB.' in str(err)
+                for err in formset.non_form_errors()
+            )
+        )
+
+    def test_sarze_inline_formset_requires_any_row_on_existing_step(self):
+        request = self.factory.get('/admin/orders/sarzekrok/')
+        request.user = self.user
+
+        formset_class = self.sarze_inline.get_formset(request, obj=self.krok)
+        prefix = formset_class.get_default_prefix()
+
+        data = {
+            f'{prefix}-TOTAL_FORMS': '0',
+            f'{prefix}-INITIAL_FORMS': '0',
+            f'{prefix}-MIN_NUM_FORMS': '0',
+            f'{prefix}-MAX_NUM_FORMS': '1000',
+        }
+
+        formset = formset_class(data=data, instance=self.krok, prefix=prefix)
+
+        self.assertFalse(formset.is_valid())
+        self.assertTrue(
+            any(
+                'Krok šarže nebyl uložen. Vyplňte v inline alespoň Bedna nebo Popis mimo DB.' in str(err)
+                for err in formset.non_form_errors()
+            )
+        )
+
     def test_sarze_inline_formset_rejects_sum_procent_over_100_in_same_patro(self):
         request = self.factory.get('/admin/orders/sarzekrok/')
         request.user = self.user
@@ -2437,6 +2499,74 @@ class SarzeAdminCreateBehaviorTests(AdminBase):
 
         self.assertIsNotNone(sarze.pk)
         self.assertEqual(sarze.datum_zalozeni, date.today())
+
+    def test_inline_krok_vyzaduje_povinna_pole_pri_vytvoreni_sarze(self):
+        request = self.factory.post('/admin/orders/sarze/add/')
+        request.user = self.user
+
+        inline = SarzeKrokInline(Sarze, self.site)
+        formset_class = inline.get_formset(request, obj=None)
+        prefix = formset_class.get_default_prefix()
+
+        data = {
+            f'{prefix}-TOTAL_FORMS': '1',
+            f'{prefix}-INITIAL_FORMS': '0',
+            f'{prefix}-MIN_NUM_FORMS': '1',
+            f'{prefix}-MAX_NUM_FORMS': '1',
+            f'{prefix}-0-datum': '',
+            f'{prefix}-0-zarizeni': '',
+            f'{prefix}-0-zacatek': '',
+            f'{prefix}-0-operator': '',
+            f'{prefix}-0-konec': '',
+            f'{prefix}-0-program': '',
+            f'{prefix}-0-alarm': '',
+            f'{prefix}-0-poznamka': '',
+        }
+
+        sarze = Sarze(cislo_pripravku=7, aktivni=True, datum_zalozeni=date.today())
+        formset = formset_class(data=data, instance=sarze, prefix=prefix)
+
+        self.assertFalse(formset.is_valid())
+        self.assertTrue(
+            any(
+                'Šarže nebyla uložena. Vyplňte v inline prvního kroku povinná pole: Datum, Pracoviště, Začátek a Operátor.' in str(err)
+                for err in formset.non_form_errors()
+            )
+        )
+
+    def test_inline_krok_s_castecne_vyplnenim_spadne_na_django_required(self):
+        request = self.factory.post('/admin/orders/sarze/add/')
+        request.user = self.user
+
+        zarizeni = Zarizeni.objects.create(
+            kod_zarizeni='I1',
+            nazev_zarizeni='Inline Zarizeni 1',
+            zkraceny_nazev_zarizeni='I1',
+        )
+
+        inline = SarzeKrokInline(Sarze, self.site)
+        formset_class = inline.get_formset(request, obj=None)
+        prefix = formset_class.get_default_prefix()
+
+        data = {
+            f'{prefix}-TOTAL_FORMS': '1',
+            f'{prefix}-INITIAL_FORMS': '0',
+            f'{prefix}-MIN_NUM_FORMS': '1',
+            f'{prefix}-MAX_NUM_FORMS': '1',
+            f'{prefix}-0-datum': date.today().strftime('%Y-%m-%d'),
+            f'{prefix}-0-zarizeni': '',
+            f'{prefix}-0-zacatek': '',
+            f'{prefix}-0-operator': '',
+            f'{prefix}-0-konec': '',
+            f'{prefix}-0-program': '',
+            f'{prefix}-0-alarm': '',
+            f'{prefix}-0-poznamka': '',
+        }
+
+        sarze = Sarze(cislo_pripravku=8, aktivni=True, datum_zalozeni=date.today())
+        formset = formset_class(data=data, instance=sarze, prefix=prefix)
+
+        self.assertFalse(formset.is_valid())
 
 
 class SarzeAdminSearchByDisplayedNumberTests(AdminBase):

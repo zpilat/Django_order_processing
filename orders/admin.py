@@ -77,8 +77,44 @@ import logging
 logger = logging.getLogger('orders')
 
 class SarzeKrokBednaInlineFormSet(BaseInlineFormSet):
+    """
+    Formset pro validaci beden v krocích šarže.
+    Validace zajišťuje:
+    - že uživatel začal vyplňovat první bednu kroku šarže,
+    - že všechny vybrané bedny jsou ve stavu skladem,
+    - že součet procent z patra nepřekročí 100%.
+    """
     def clean(self):
         super().clean()
+
+        any_step_entered = False
+
+        for form in self.forms:
+            if not hasattr(form, 'cleaned_data'):
+                continue
+            if form.cleaned_data.get('DELETE'):
+                continue
+            if not form.cleaned_data:
+                continue
+
+            # Django samo ohlídá povinná pole. Tady hlídáme jen to,
+            # že uživatel vůbec začal vyplňovat první bednu kroku šarže.
+            has_any_user_value = any(
+                form.cleaned_data.get(name)
+                for name in ('bedna', 'popis_mimo_db')
+            )
+            if not has_any_user_value:
+                continue
+
+            any_step_entered = True
+            break
+
+        if not any_step_entered:
+            raise ValidationError(
+                _(
+                    'Krok šarže nebyl uložen. Vyplňte v inline alespoň jeden řádek s bednou nebo popisem mimo DB.'
+                )
+            )
 
         allowed_states = {
             state.value if hasattr(state, 'value') else state
@@ -192,9 +228,51 @@ class SarzeKrokBednaInline(admin.TabularInline):
         return super().formfield_for_dbfield(db_field, request, **kwargs)
 
 
+class SarzeKrokInlineFormSet(BaseInlineFormSet):
+    """Formset pro validaci kroků šarže."""
+    def clean(self):
+        super().clean()
+
+        # Při vytvoření nové šarže musí být inline prvního kroku vyplněn.
+        if self.instance and self.instance.pk:
+            return
+
+        any_step_entered = False
+
+        for form in self.forms:
+            if not hasattr(form, 'cleaned_data'):
+                continue
+            if form.cleaned_data.get('DELETE'):
+                continue
+
+            if not form.cleaned_data:
+                continue
+
+            # Django samo ohlídá povinná pole. Tady hlídáme jen to,
+            # že uživatel vůbec začal vyplňovat první krok šarže.
+            has_any_user_value = any(
+                form.cleaned_data.get(name)
+                for name in ('datum', 'zarizeni', 'zacatek', 'konec', 'operator', 'program', 'alarm', 'poznamka')
+            )
+            if not has_any_user_value:
+                continue
+
+            any_step_entered = True
+            break
+
+        if not any_step_entered:
+            raise ValidationError(
+                _(
+                    'Šarže nebyla uložena. Vyplňte v inline prvního kroku povinná pole: '
+                    'Datum, Pracoviště, Začátek a Operátor.'
+                )
+            )
+
+
 class SarzeKrokInline(admin.TabularInline):
     """Inline pro správu kroků šarže."""
     model = SarzeKrok
+    formset = SarzeKrokInlineFormSet
     fields = ('poradi', 'datum', 'zarizeni', 'zacatek', 'konec', 'operator', 'program', 'alarm', 'poznamka')
     readonly_fields = ('poradi',)
     autocomplete_fields = ('zarizeni',)
@@ -335,7 +413,6 @@ class SarzeAdmin(SimpleHistoryAdmin):
 
         return super().response_add(request, obj, post_url_continue)
 
-
 @admin.register(SarzeKrok)
 class SarzeKrokAdmin(SimpleHistoryAdmin):
     fields = ('sarze', 'poradi', 'datum', 'zarizeni', 'zacatek', 'konec', 'operator', 'program', 'alarm', 'poznamka',)
@@ -355,6 +432,11 @@ class SarzeKrokAdmin(SimpleHistoryAdmin):
     formfield_overrides = {
         models.TimeField: {'widget': forms.TimeInput(format='%H:%M')},
     }
+
+    class Media:
+        js = (
+            'orders/js/admin_inline_prevent_enter_submit.js',
+        )
 
     history_list_display = [
         "sarze", "poradi", "datum", "zarizeni", "zacatek", "konec", "operator", "program", "alarm", "poznamka",
@@ -895,7 +977,10 @@ class KamionAdmin(SimpleHistoryAdmin):
     history_list_per_page = 20
 
     class Media:
-        js = ('orders/js/admin_actions_target_blank.js',)
+        js = (
+            'orders/js/admin_actions_target_blank.js',
+            'orders/js/admin_inline_prevent_enter_submit.js',
+        )
 
     def zadat_mereni_action(self, request, queryset):
         """Přesměruje na formulář pro zadání měření po kontrole oprávnění."""
