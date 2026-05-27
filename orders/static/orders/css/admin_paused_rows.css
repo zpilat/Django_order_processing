@@ -21,5 +21,7 @@ textarea.paused-row,
 /* Separate zakazka groups in Bedna changelist */
 tr.bedna-group-separator td,
 tr.bedna-group-separator th {
-  border-top: 2px solid #bbbbbb;
+  border-top: 2px solid #4b5563 !important;
+  /* Inset line keeps separator visible even when table border rendering differs by browser/theme. */
+  /* box-shadow: inset 0 1px 0 #4b5563 !important;
 }
