@@ -502,7 +502,7 @@ class SarzeKrokBednaAdmin(SimpleHistoryAdmin):
         'get_krok', 'get_kod_zarizeni', 'get_datum', 'get_zacatek', 'get_konec', 'get_operator',
         'get_zkraceny_popis', 'get_cislo_bedny', 'get_zakaznik', 'get_predpis', 'patro',
         'get_cislo_pripravku', 'get_program', 'get_zakazka_skupina', 'get_poznamka', 'get_alarm', 'get_prodleva',
-        'get_takt', 'get_prvni_pouziti',
+        'get_takt', #'get_prvni_pouziti',
     )
     change_list_template = 'admin/orders/sarzebedna/change_list.html'
     list_display_links = ('get_cislo_bedny',)
