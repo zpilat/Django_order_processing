@@ -1,0 +1,46 @@
+<div class="alert" role="alert" style="background-color: #214290; color: #ffde17; font-family: 'Liberation Sans', Arial;">
+  <div class="d-flex align-items-center justify-content-between mb-2">
+    <h3 class="mb-0">{{ vyroba_historie.title }} - Denní rozpis</h3>
+    <a class="btn btn-secondary" style="color: #ffde17;" href="{% url 'admin:orders_sarzekrokbedna_changelist' %}">Návrat</a>
+  </div>
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <h6 class="mb-0">Naposledy aktualizováno {{ current_time|date:"d.m.Y H:i" }}</h6>
+    <a class="btn btn-sm btn-outline-light" href="{% url 'dashboard_vyroba_historie' %}?rok={{ vyroba_historie.selected_year }}">Návrat na hlavní přehled</a>
+  </div>
+</div>
+
+<div class="row" style="font-family: 'Liberation Sans', Arial;">
+  <div class="col-12 mb-3">
+    <div class="card shadow-sm">
+      <div class="card-header fw-bold d-flex align-items-center justify-content-between" style="background-color: #ffde17; color: #214290;">
+        <span>Denní produkce - {{ vyroba_historie.month_detail.label }} {{ vyroba_historie.selected_year }}</span>
+      </div>
+      <div class="card-body p-2">
+        <table class="table table-sm align-middle mb-0">
+          <thead>
+            <tr>
+              <th style="background-color: #214290; color: #ffde17;">Den</th>
+              <th style="background-color: #214290; color: #ffde17;">TQF XL1 [kg]</th>
+              <th style="background-color: #214290; color: #ffde17;">TQF XL2 [kg]</th>
+              <th style="background-color: #214290; color: #ffde17;">CELKEM [kg]</th>
+            </tr>
+          </thead>
+          <tbody class="table-striped">
+            {% for row in vyroba_historie.month_detail.rows %}
+              <tr>
+                <th>{{ row.label }}</th>
+                <td>{{ row.xl1_display }}</td>
+                <td>{{ row.xl2_display }}</td>
+                <td class="fw-bold">{{ row.total_display }}</td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="4" class="text-muted">Ve zvoleném měsíci zatím nejsou žádné uplynulé dny s daty.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>

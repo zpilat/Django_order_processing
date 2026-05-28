@@ -10,7 +10,12 @@ from orders.models import (
 	Zakaznik, Odberatel, Kamion, Zakazka, Bedna, Predpis, TypHlavy, Pozice, PoziceZakazkaOrder, Zarizeni, Sarze, SarzeKrok, SarzeKrokBedna
 )
 from orders.choices import StavBednyChoice, KamionChoice, TryskaniChoice, RovnaniChoice, PrioritaChoice
-from orders.views import _get_bedny_k_navezeni_groups, _split_bedny_k_navezeni_groups_by_nasledne, _build_vyroba_dashboard_context
+from orders.views import (
+	_get_bedny_k_navezeni_groups,
+	_split_bedny_k_navezeni_groups_by_nasledne,
+	_build_vyroba_dashboard_context,
+	_build_vyroba_historie_context,
+)
 
 
 class ViewsTestBase(TestCase):
@@ -875,4 +880,91 @@ class VyrobaDashboardContextTests(TestCase):
 		self.assertEqual(history[0]["weekly_avg_display"], "400")
 		self.assertEqual(history[7]["weekly_avg_display"], "1 100")
 		self.assertEqual(history[0]["biweekly_avg_display"], "750")
+
+	def test_vyroba_historie_yearly_average_uses_elapsed_days(self):
+		today_value = date(2026, 1, 10)
+
+		bedna_1 = self._create_bedna(self.z_eur, 1000)
+		bedna_2 = self._create_bedna(self.z_spx, 500)
+
+		sarze_1 = Sarze.objects.create(cislo_sarze=301, datum_zalozeni=date(2026, 1, 1), aktivni=True)
+		krok_1 = SarzeKrok.objects.create(
+			sarze=sarze_1,
+			poradi=1,
+			datum=date(2026, 1, 1),
+			zarizeni=self.dev_xl1,
+			zacatek=time(8, 0),
+			operator="op",
+			program="p",
+		)
+		SarzeKrokBedna.objects.create(krok=krok_1, bedna=bedna_1, patro=1)
+
+		sarze_2 = Sarze.objects.create(cislo_sarze=302, datum_zalozeni=date(2026, 1, 2), aktivni=True)
+		krok_2 = SarzeKrok.objects.create(
+			sarze=sarze_2,
+			poradi=1,
+			datum=date(2026, 1, 2),
+			zarizeni=self.dev_xl2,
+			zacatek=time(8, 0),
+			operator="op",
+			program="p",
+		)
+		SarzeKrokBedna.objects.create(krok=krok_2, bedna=bedna_2, patro=1)
+
+		ctx = _build_vyroba_historie_context(year_value=2026, today_value=today_value)
+		yearly = ctx["vyroba_historie"]["yearly"]
+
+		self.assertEqual(yearly["elapsed_days"], 10)
+		self.assertEqual(yearly["avg"]["xl1_display"], "100")
+		self.assertEqual(yearly["avg"]["xl2_display"], "50")
+		self.assertEqual(yearly["avg"]["total_display"], "150")
+
+	def test_vyroba_historie_month_detail_shows_only_elapsed_days(self):
+		today_value = date(2026, 1, 10)
+
+		bedna_elapsed = self._create_bedna(self.z_eur, 600)
+		bedna_future = self._create_bedna(self.z_eur, 900)
+
+		sarze_elapsed = Sarze.objects.create(cislo_sarze=401, datum_zalozeni=date(2026, 1, 5), aktivni=True)
+		krok_elapsed = SarzeKrok.objects.create(
+			sarze=sarze_elapsed,
+			poradi=1,
+			datum=date(2026, 1, 5),
+			zarizeni=self.dev_xl1,
+			zacatek=time(8, 0),
+			operator="op",
+			program="p",
+		)
+		SarzeKrokBedna.objects.create(krok=krok_elapsed, bedna=bedna_elapsed, patro=1)
+
+		sarze_future = Sarze.objects.create(cislo_sarze=402, datum_zalozeni=date(2026, 1, 20), aktivni=True)
+		krok_future = SarzeKrok.objects.create(
+			sarze=sarze_future,
+			poradi=1,
+			datum=date(2026, 1, 20),
+			zarizeni=self.dev_xl2,
+			zacatek=time(8, 0),
+			operator="op",
+			program="p",
+		)
+		SarzeKrokBedna.objects.create(krok=krok_future, bedna=bedna_future, patro=1)
+
+		ctx = _build_vyroba_historie_context(year_value=2026, month_value=1, today_value=today_value)
+		month_detail = ctx["vyroba_historie"]["month_detail"]
+
+		self.assertEqual(len(month_detail["rows"]), 10)
+		labels = [row["label"] for row in month_detail["rows"]]
+		self.assertIn("05.01.2026", labels)
+		self.assertNotIn("20.01.2026", labels)
+
+class VyrobaHistorieViewTests(ViewsTestBase):
+	def test_historie_mesic_view_renders_detail_page(self):
+		resp = self.client.get(reverse("dashboard_vyroba_historie_mesic"), {"rok": timezone.localdate().year, "mesic": 1})
+		self.assertEqual(resp.status_code, 200)
+		self.assertTemplateUsed(resp, "orders/dashboard_vyroba_historie_mesic.html")
+
+	def test_historie_mesic_view_redirects_without_month(self):
+		resp = self.client.get(reverse("dashboard_vyroba_historie_mesic"), {"rok": timezone.localdate().year})
+		self.assertEqual(resp.status_code, 302)
+		self.assertIn(reverse("dashboard_vyroba_historie"), resp["Location"])
 

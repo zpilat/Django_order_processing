@@ -5,11 +5,12 @@ from django.template.loader import render_to_string
 from django.views.generic import ListView
 from django.views.generic.edit import CreateView, UpdateView, DeleteView
 from django.views.generic.detail import DetailView
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
 from django.db.models import Q, Sum, Count, F, Exists, OuterRef
 from django.utils.translation import gettext_lazy as _
 import django.utils.timezone as timezone
 from datetime import timedelta, time, date
+import calendar
 from django.db import transaction
 from django.contrib import messages
 from django.contrib.staticfiles import finders
@@ -104,6 +105,294 @@ def _first_use_sarzekrokbedna_qs(target_date, device_codes):
         has_prior=False,
         has_same_krok_prior=False,
     )
+
+
+def _first_use_sarzekrokbedna_range_qs(start_date, end_date, device_codes):
+    sarze_krok_bedny = (
+        SarzeKrokBedna.objects
+        .filter(
+            krok__datum__gte=start_date,
+            krok__datum__lte=end_date,
+            krok__zarizeni__kod_zarizeni__in=device_codes,
+            bedna__isnull=False,
+            bedna__hmotnost__isnull=False,
+            bedna__hmotnost__gt=0,
+        )
+        .select_related('krok', 'krok__zarizeni', 'bedna')
+    )
+
+    prior_exists = SarzeKrokBedna.objects.filter(
+        bedna_id=OuterRef('bedna_id'),
+        krok__zarizeni_id=OuterRef('krok__zarizeni_id'),
+    ).exclude(pk=OuterRef('pk')).filter(
+        Q(krok__datum__lt=OuterRef('krok__datum'))
+        | Q(
+            krok__datum=OuterRef('krok__datum'),
+            krok__zacatek__lt=OuterRef('krok__zacatek'),
+        )
+        | Q(
+            krok__datum=OuterRef('krok__datum'),
+            krok__zacatek=OuterRef('krok__zacatek'),
+            krok__poradi__lt=OuterRef('krok__poradi'),
+        )
+    )
+
+    same_krok_prior_exists = SarzeKrokBedna.objects.filter(
+        krok_id=OuterRef('krok_id'),
+        bedna_id=OuterRef('bedna_id'),
+    ).exclude(pk=OuterRef('pk')).filter(
+        Q(patro__lt=OuterRef('patro'))
+        | Q(patro=OuterRef('patro'), pk__lt=OuterRef('pk'))
+    )
+
+    return sarze_krok_bedny.annotate(
+        has_prior=Exists(prior_exists),
+        has_same_krok_prior=Exists(same_krok_prior_exists),
+    ).filter(
+        has_prior=False,
+        has_same_krok_prior=False,
+    )
+
+
+def _avg_kg_per_day_int(total_kg, day_count):
+    if day_count <= 0:
+        return 0
+    try:
+        return _kg_to_int(Decimal(total_kg) / Decimal(day_count))
+    except Exception:
+        logger.warning("Nepodařilo se spočítat průměr kg/den.", exc_info=True)
+        return 0
+
+
+def _build_vyroba_historie_context(year_value=None, month_value=None, today_value=None):
+    today = today_value or timezone.localdate()
+    device_codes = ["TQF_XL1", "TQF_XL2"]
+
+    years_with_data = sorted(
+        {
+            y.year
+            for y in SarzeKrok.objects.filter(
+                zarizeni__kod_zarizeni__in=device_codes,
+                krok_bedny__bedna__isnull=False,
+                krok_bedny__bedna__hmotnost__gt=0,
+            ).dates('datum', 'year')
+        },
+        reverse=True,
+    )
+    if today.year not in years_with_data:
+        years_with_data.append(today.year)
+        years_with_data = sorted(set(years_with_data), reverse=True)
+
+    try:
+        selected_year = int(year_value) if year_value is not None else years_with_data[0]
+    except (TypeError, ValueError):
+        selected_year = years_with_data[0]
+    if selected_year not in years_with_data:
+        selected_year = years_with_data[0]
+
+    selected_month = None
+    try:
+        if month_value is not None and str(month_value).strip() != '':
+            month_int = int(month_value)
+            if 1 <= month_int <= 12:
+                selected_month = month_int
+    except (TypeError, ValueError):
+        selected_month = None
+
+    year_start = date(selected_year, 1, 1)
+    year_end = date(selected_year, 12, 31)
+    elapsed_end = min(today, year_end) if selected_year == today.year else year_end
+    if elapsed_end < year_start:
+        elapsed_end = None
+
+    first_use_year_qs = _first_use_sarzekrokbedna_range_qs(year_start, year_end, device_codes)
+    grouped = (
+        first_use_year_qs
+        .values('krok__datum', 'krok__zarizeni__kod_zarizeni')
+        .annotate(total_kg=Sum('bedna__hmotnost'))
+    )
+
+    day_data = {}
+    for row in grouped:
+        row_date = row['krok__datum']
+        code = row['krok__zarizeni__kod_zarizeni']
+        total_kg = row['total_kg'] or Decimal('0')
+        bucket = day_data.setdefault(
+            row_date,
+            {
+                'xl1': Decimal('0'),
+                'xl2': Decimal('0'),
+                'total': Decimal('0'),
+            },
+        )
+        if code == 'TQF_XL1':
+            bucket['xl1'] += total_kg
+        elif code == 'TQF_XL2':
+            bucket['xl2'] += total_kg
+        bucket['total'] += total_kg
+
+    month_labels = [
+        'Leden', 'Únor', 'Březen', 'Duben', 'Květen', 'Červen',
+        'Červenec', 'Srpen', 'Září', 'Říjen', 'Listopad', 'Prosinec',
+    ]
+
+    def _sum_day_range(start_day, end_day):
+        if not start_day or not end_day or end_day < start_day:
+            return {'xl1': Decimal('0'), 'xl2': Decimal('0'), 'total': Decimal('0')}
+        d = start_day
+        out = {'xl1': Decimal('0'), 'xl2': Decimal('0'), 'total': Decimal('0')}
+        while d <= end_day:
+            row = day_data.get(d)
+            if row:
+                out['xl1'] += row['xl1']
+                out['xl2'] += row['xl2']
+                out['total'] += row['total']
+            d += timedelta(days=1)
+        return out
+
+    if elapsed_end is None:
+        elapsed_days_year = 0
+        year_totals = {'xl1': Decimal('0'), 'xl2': Decimal('0'), 'total': Decimal('0')}
+    else:
+        elapsed_days_year = (elapsed_end - year_start).days + 1
+        year_totals = _sum_day_range(year_start, elapsed_end)
+
+    yearly_avg = {
+        'xl1': _avg_kg_per_day_int(year_totals['xl1'], elapsed_days_year),
+        'xl2': _avg_kg_per_day_int(year_totals['xl2'], elapsed_days_year),
+        'total': _avg_kg_per_day_int(year_totals['total'], elapsed_days_year),
+    }
+
+    monthly_rows = []
+    for month_no in range(1, 13):
+        month_start = date(selected_year, month_no, 1)
+        month_end = date(selected_year, month_no, calendar.monthrange(selected_year, month_no)[1])
+        if elapsed_end is None or month_start > elapsed_end:
+            elapsed_days = 0
+            totals = {'xl1': Decimal('0'), 'xl2': Decimal('0'), 'total': Decimal('0')}
+        else:
+            month_elapsed_end = min(month_end, elapsed_end)
+            elapsed_days = (month_elapsed_end - month_start).days + 1
+            totals = _sum_day_range(month_start, month_elapsed_end)
+
+        avg_xl1 = _avg_kg_per_day_int(totals['xl1'], elapsed_days)
+        avg_xl2 = _avg_kg_per_day_int(totals['xl2'], elapsed_days)
+        avg_total = _avg_kg_per_day_int(totals['total'], elapsed_days)
+
+        monthly_rows.append(
+            {
+                'month': month_no,
+                'label': month_labels[month_no - 1],
+                'elapsed_days': elapsed_days,
+                'avg': {
+                    'xl1': avg_xl1,
+                    'xl2': avg_xl2,
+                    'total': avg_total,
+                    'xl1_display': _format_kg(avg_xl1),
+                    'xl2_display': _format_kg(avg_xl2),
+                    'total_display': _format_kg(avg_total),
+                },
+            }
+        )
+
+    total_days_in_year = 366 if calendar.isleap(selected_year) else 365
+    week_count = (total_days_in_year + 6) // 7
+    weekly_rows = []
+    for week_no in range(1, week_count + 1):
+        week_start = year_start + timedelta(days=(week_no - 1) * 7)
+        week_end = min(week_start + timedelta(days=6), year_end)
+        if elapsed_end is None or week_start > elapsed_end:
+            elapsed_days = 0
+            totals = {'xl1': Decimal('0'), 'xl2': Decimal('0'), 'total': Decimal('0')}
+        else:
+            week_elapsed_end = min(week_end, elapsed_end)
+            elapsed_days = (week_elapsed_end - week_start).days + 1
+            totals = _sum_day_range(week_start, week_elapsed_end)
+
+        avg_xl1 = _avg_kg_per_day_int(totals['xl1'], elapsed_days)
+        avg_xl2 = _avg_kg_per_day_int(totals['xl2'], elapsed_days)
+        avg_total = _avg_kg_per_day_int(totals['total'], elapsed_days)
+
+        weekly_rows.append(
+            {
+                'week_no': week_no,
+                'label': f'Týden {week_no:02d}',
+                'date_range': f"{week_start.strftime('%d.%m.')} - {week_end.strftime('%d.%m.')}",
+                'elapsed_days': elapsed_days,
+                'avg': {
+                    'xl1': avg_xl1,
+                    'xl2': avg_xl2,
+                    'total': avg_total,
+                    'xl1_display': _format_kg(avg_xl1),
+                    'xl2_display': _format_kg(avg_xl2),
+                    'total_display': _format_kg(avg_total),
+                },
+            }
+        )
+
+    month_detail = None
+    if selected_month is not None:
+        month_start = date(selected_year, selected_month, 1)
+        month_end = date(selected_year, selected_month, calendar.monthrange(selected_year, selected_month)[1])
+        detail_end = None
+        if elapsed_end is not None and month_start <= elapsed_end:
+            detail_end = min(month_end, elapsed_end)
+
+        day_rows = []
+        if detail_end is not None:
+            d = month_start
+            while d <= detail_end:
+                totals = day_data.get(
+                    d,
+                    {'xl1': Decimal('0'), 'xl2': Decimal('0'), 'total': Decimal('0')},
+                )
+                xl1_int = _kg_to_int(totals['xl1'])
+                xl2_int = _kg_to_int(totals['xl2'])
+                total_int = _kg_to_int(totals['total'])
+                day_rows.append(
+                    {
+                        'date': d,
+                        'label': d.strftime('%d.%m.%Y'),
+                        'xl1': xl1_int,
+                        'xl2': xl2_int,
+                        'total': total_int,
+                        'xl1_display': _format_kg(xl1_int),
+                        'xl2_display': _format_kg(xl2_int),
+                        'total_display': _format_kg(total_int),
+                    }
+                )
+                d += timedelta(days=1)
+
+        month_detail = {
+            'month': selected_month,
+            'label': month_labels[selected_month - 1],
+            'rows': day_rows,
+        }
+
+    return {
+        'vyroba_historie': {
+            'title': 'Přehled výroby historie',
+            'selected_year': selected_year,
+            'available_years': years_with_data,
+            'selected_month': selected_month,
+            'yearly': {
+                'elapsed_days': elapsed_days_year,
+                'avg': {
+                    'xl1': yearly_avg['xl1'],
+                    'xl2': yearly_avg['xl2'],
+                    'total': yearly_avg['total'],
+                    'xl1_display': _format_kg(yearly_avg['xl1']),
+                    'xl2_display': _format_kg(yearly_avg['xl2']),
+                    'total_display': _format_kg(yearly_avg['total']),
+                },
+            },
+            'monthly_rows': monthly_rows,
+            'weekly_rows': weekly_rows,
+            'month_detail': month_detail,
+        },
+        'db_table': 'dashboard_vyroba',
+        'current_time': timezone.now(),
+    }
 
 
 def _build_vyroba_dashboard_context(date_value=None):
@@ -514,13 +803,47 @@ def dashboard_kamiony_view(request):
 @login_required
 def dashboard_vyroba_view(request):
     """
-    Včerejší přehledy pro výrobu (TQF_XL1, TQF_XL2).
+    Přehled výroby (včerejší den + 14denní historie).
     """
-    # pro produkci se použije bez parametru, aby se vždy zobrazil včerejší den: date_value=None
     context = _build_vyroba_dashboard_context()
     if request.htmx:
         return render(request, "orders/partials/dashboard_vyroba_content.html", context)
     return render(request, 'orders/dashboard_vyroba.html', context)
+
+
+@login_required
+def dashboard_vyroba_historie_view(request):
+    """
+    Roční přehled historie výroby vrutů pro TQF XL1 / TQF XL2.
+    """
+    year_value = request.GET.get('rok')
+    context = _build_vyroba_historie_context(year_value=year_value)
+    if request.htmx:
+        return render(request, "orders/partials/dashboard_vyroba_historie_content.html", context)
+    return render(request, 'orders/dashboard_vyroba_historie.html', context)
+
+
+@login_required
+def dashboard_vyroba_historie_mesic_view(request):
+    """
+    Detail denní produkce za zvolený měsíc v roční historii výroby.
+    """
+    year_value = request.GET.get('rok')
+    month_value = request.GET.get('mesic')
+    if month_value is None or str(month_value).strip() == '':
+        if year_value:
+            return redirect(f"{reverse('dashboard_vyroba_historie')}?rok={year_value}")
+        return redirect('dashboard_vyroba_historie')
+
+    context = _build_vyroba_historie_context(year_value=year_value, month_value=month_value)
+    if context['vyroba_historie'].get('month_detail') is None:
+        if year_value:
+            return redirect(f"{reverse('dashboard_vyroba_historie')}?rok={year_value}")
+        return redirect('dashboard_vyroba_historie')
+
+    if request.htmx:
+        return render(request, "orders/partials/dashboard_vyroba_historie_mesic_content.html", context)
+    return render(request, 'orders/dashboard_vyroba_historie_mesic.html', context)
 
 
 def _get_bedny_k_navezeni_groups():
