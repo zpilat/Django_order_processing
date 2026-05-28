@@ -212,7 +212,72 @@ class KamionAdminTests(AdminBase):
         Zakazka.objects.all().delete()
         Bedna.objects.all().delete()
         predpis_import.delete()
-        typ_hlavy_import.delete()
+
+    def test_import_view_eur_prefers_active_predpis_when_duplicate_name(self):
+        url = f'/admin/orders/kamion/import-zakazek/?kamion={self.kamion.pk}'
+
+        predpis_name = '00123_Ø10'
+        inactive_predpis = Predpis.objects.create(
+            nazev=predpis_name,
+            skupina=1,
+            zakaznik=self.zakaznik,
+            aktivni=False,
+        )
+        active_predpis = Predpis.objects.create(
+            nazev=predpis_name,
+            skupina=1,
+            zakaznik=self.zakaznik,
+            aktivni=True,
+        )
+        TypHlavy.objects.create(nazev='TK', popis='Test')
+
+        predpis_column_name = 'n. Zg. / \n' 'as drg'
+        df_data = {
+            'Abhol- datum': ['2024-01-01'],
+            'Unnamed: 7': ['10 x 50'],
+            'Bezeichnung': ['desc 1'],
+            'Sonder / Zusatzinfo': [''],
+            'Artikel- nummer': ['A1'],
+            predpis_column_name: ['123'],
+            'Material- charge': ['M1'],
+            'Material': ['steel'],
+            'Ober- fläche': ['ZP'],
+            'Gewicht in kg': [1],
+            'Gew.': [1],
+            'Tara kg': [1],
+            'Behälter-Nr.:': [1],
+            'Lief.': ['L1'],
+            'Fertigungs- auftrags Nr.': ['F1'],
+            'Unnamed: 6': ['TK'],
+        }
+
+        import pandas as pandas_mod
+        df = pandas_mod.DataFrame(df_data)
+        file_mock = SimpleUploadedFile('f.xlsx', b'fakecontent', content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+        preview_req = self.get_request('post', data={'file': file_mock}, path=url)
+        preview_req.FILES['file'] = file_mock
+        preview_req.session = DummySession()
+        preview_req._messages = FallbackStorage(preview_req)
+
+        with patch.object(self.admin, '_render_import', wraps=self.admin._render_import), patch('orders.admin.pd.read_excel', side_effect=lambda *args, **kwargs: df.copy()):
+            preview_resp = self.admin.import_view(preview_req)
+
+        self.assertEqual(preview_resp.status_code, 200)
+        tmp_token = next(iter(preview_req.session.get('import_tmp_files', {})), None)
+        self.assertTrue(tmp_token)
+
+        import_req = self.get_request('post', data={'tmp_token': tmp_token}, path=url)
+        import_req.session = preview_req.session
+        import_req._messages = FallbackStorage(import_req)
+
+        with patch('orders.admin.pd.read_excel', side_effect=lambda *args, **kwargs: df.copy()):
+            resp = self.admin.import_view(import_req)
+
+        self.assertEqual(resp.status_code, 302)
+        created_zakazka = Zakazka.objects.filter(artikl='A1', kamion_prijem=self.kamion).latest('id')
+        self.assertEqual(created_zakazka.predpis_id, active_predpis.id)
+        self.assertNotEqual(created_zakazka.predpis_id, inactive_predpis.id)
  
     def test_import_view_eur_same_artikl_sarze_diff_surface_creates_new_order(self):
         url = f'/admin/orders/kamion/import-zakazek/?kamion={self.kamion.pk}'
