@@ -2047,7 +2047,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
 
     # Parametry pro zobrazení detailu v administraci
     exclude = ('tvrdost_povrchu', 'tvrdost_jadra', 'ohyb', 'krut', 'hazeni')    
-    readonly_fields = ('expedovano', 'get_komplet',)
+    readonly_fields = ('expedovano', 'get_komplet', 'predpis_link',)
     autocomplete_fields = ('predpis',)
     
     # Parametry pro zobrazení seznamu v administraci
@@ -2203,7 +2203,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
            priorita_pred == PrioritaChoice.STREDNI and obj.priorita == PrioritaChoice.VYSOKA:
             self._create_priority_notifications(request, obj)
 
-    @admin.display(description='Předpis', ordering='predpis__id', empty_value='-')
+    @admin.display(description='Předpis link', ordering='predpis__id', empty_value='-')
     def predpis_link(self, obj):
         """
         Zobrazí odkaz na předpis zakázky a umožní třídění podle hlavičky pole.
@@ -2396,7 +2396,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
                 my_fieldsets = [
                     ('Zakázka skladem:', {
                         'fields': ['kamion_prijem', 'artikl', 'puvodni_zakazka', 'typ_hlavy', 'celozavit', 'prumer', 'delka', 'predpis',
-                                   'priorita', 'popis', 'odberatel', 'get_komplet', 'expedovano'],
+                                   'predpis_link', 'priorita', 'popis', 'odberatel', 'get_komplet', 'expedovano'],
                     }),
                 ]
                
@@ -2426,19 +2426,14 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
         
     def get_readonly_fields(self, request, obj = None):
         """
-        Přizpůsobí readonly_fields podle toho:
-        1. zda je zakázka expedovaná.
-            Pokud je zakázka expedovaná a uživatel má oprávnění 'orders.change_expedovana_zakazka',
-            přidají se další pole jako readonly, kvůli případným vzniklým nekonzistencím po změně těchto polí.
-        2. zda má neaktivní předpis, pokud ano, tak se přidá pole predpis jako readonly.    
+        Přizpůsobí readonly_fields podle toho, zda je zakázka expedovaná.
+        Pokud je zakázka expedovaná a uživatel má oprávnění 'orders.change_expedovana_zakazka',
+        přidají se další pole jako readonly, kvůli případným vzniklým nekonzistencím po změně těchto polí.
         """
         current_readonly_fields = list(super().get_readonly_fields(request, obj))
         added_readonly_fields = []
         if obj and obj.expedovano:
-            added_readonly_fields.append('kamion_prijem')
-            added_readonly_fields.append('kamion_vydej')
-        if obj and obj.predpis and not obj.predpis.aktivni:
-            added_readonly_fields.append('predpis')
+            added_readonly_fields = ['kamion_prijem', 'kamion_vydej',]
         return current_readonly_fields + added_readonly_fields        
    
     def get_actions(self, request):
