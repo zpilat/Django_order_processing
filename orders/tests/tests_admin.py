@@ -1995,7 +1995,7 @@ class SarzeKrokBednaInlineAdminTests(AdminBase):
         self.assertFalse(formset.is_valid())
         self.assertTrue(
             any(
-                'Krok šarže nebyl uložen. Vyplňte v inline alespoň Bedna nebo Popis mimo DB.' in str(err)
+                'Krok šarže nebyl uložen. Vyplňte v inline alespoň jeden řádek s bednou nebo popisem mimo DB.' in str(err)
                 for err in formset.non_form_errors()
             )
         )
@@ -2019,7 +2019,7 @@ class SarzeKrokBednaInlineAdminTests(AdminBase):
         self.assertFalse(formset.is_valid())
         self.assertTrue(
             any(
-                'Krok šarže nebyl uložen. Vyplňte v inline alespoň Bedna nebo Popis mimo DB.' in str(err)
+                'Krok šarže nebyl uložen. Vyplňte v inline alespoň jeden řádek s bednou nebo popisem mimo DB.' in str(err)
                 for err in formset.non_form_errors()
             )
         )
