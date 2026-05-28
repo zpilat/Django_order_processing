@@ -155,6 +155,20 @@ class ZakazkaAdminFormTests(FormsBase):
         form = ZakazkaAdminForm(data)
         self.assertTrue(form.is_valid())
 
+    def test_queryset_for_change_includes_current_inactive_predpis(self):
+        inactive_predpis = Predpis.objects.create(
+            nazev="P1-inactive",
+            skupina=1,
+            zakaznik=self.z1,
+            aktivni=False,
+        )
+        self.zakazka_edit.predpis = inactive_predpis
+        self.zakazka_edit.save(update_fields=["predpis"])
+
+        form = ZakazkaAdminForm(instance=self.zakazka_edit)
+        self.assertIn(inactive_predpis, form.fields["predpis"].queryset)
+        self.assertIn(self.pred1, form.fields["predpis"].queryset)
+
 
 class ZakazkaInlineFormTests(FormsBase):
     def test_querysets_default_and_with_zakaznik(self):
@@ -167,6 +181,20 @@ class ZakazkaInlineFormTests(FormsBase):
     def test_queryset_for_existing_instance(self):
         form = ZakazkaInlineForm(instance=self.zakazka_edit)
         self.assertEqual(set(form.fields["predpis"].queryset), {self.pred1})
+
+    def test_queryset_for_existing_instance_includes_current_inactive_predpis(self):
+        inactive_predpis = Predpis.objects.create(
+            nazev="P1-inline-inactive",
+            skupina=1,
+            zakaznik=self.z1,
+            aktivni=False,
+        )
+        self.zakazka_edit.predpis = inactive_predpis
+        self.zakazka_edit.save(update_fields=["predpis"])
+
+        form = ZakazkaInlineForm(instance=self.zakazka_edit)
+        self.assertIn(inactive_predpis, form.fields["predpis"].queryset)
+        self.assertIn(self.pred1, form.fields["predpis"].queryset)
 
 
 class BednaAdminFormTests(FormsBase):

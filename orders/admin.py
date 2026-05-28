@@ -2047,7 +2047,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
 
     # Parametry pro zobrazení detailu v administraci
     exclude = ('tvrdost_povrchu', 'tvrdost_jadra', 'ohyb', 'krut', 'hazeni')    
-    readonly_fields = ('expedovano', 'get_komplet', 'predpis_link',)
+    readonly_fields = ('expedovano', 'get_komplet',)
     autocomplete_fields = ('predpis',)
     
     # Parametry pro zobrazení seznamu v administraci
@@ -2203,7 +2203,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
            priorita_pred == PrioritaChoice.STREDNI and obj.priorita == PrioritaChoice.VYSOKA:
             self._create_priority_notifications(request, obj)
 
-    @admin.display(description='Předpis link', ordering='predpis__id', empty_value='-')
+    @admin.display(description='Předpis', ordering='predpis__id', empty_value='-')
     def predpis_link(self, obj):
         """
         Zobrazí odkaz na předpis zakázky a umožní třídění podle hlavičky pole.
@@ -2396,7 +2396,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
                 my_fieldsets = [
                     ('Zakázka skladem:', {
                         'fields': ['kamion_prijem', 'artikl', 'puvodni_zakazka', 'typ_hlavy', 'celozavit', 'prumer', 'delka', 'predpis',
-                                   'predpis_link', 'priorita', 'popis', 'odberatel', 'get_komplet', 'expedovano'],
+                                   'priorita', 'popis', 'odberatel', 'get_komplet', 'expedovano'],
                     }),
                 ]
                

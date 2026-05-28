@@ -1,5 +1,5 @@
 from django import forms
-from django.db.models import Exists, OuterRef
+from django.db.models import Exists, OuterRef, Q
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -81,7 +81,13 @@ class ZakazkaAdminForm(ZakazkaPredpisValidatorMixin, forms.ModelForm):
         if 'predpis' in self.fields:
             if inst and inst.pk:
                 if not inst.expedovano and inst.kamion_prijem and inst.kamion_prijem.zakaznik:
-                    self.fields['predpis'].queryset = inst.kamion_prijem.zakaznik.predpisy.filter(aktivni=True)
+                    predpis_qs = inst.kamion_prijem.zakaznik.predpisy.filter(aktivni=True)
+                    # Při editaci zachová ve výběru i aktuálně přiřazený (potenciálně neaktivní) předpis.
+                    if inst.predpis_id:
+                        predpis_qs = inst.kamion_prijem.zakaznik.predpisy.filter(
+                            Q(aktivni=True) | Q(pk=inst.predpis_id)
+                        )
+                    self.fields['predpis'].queryset = predpis_qs
             else:
                 self.fields['predpis'].queryset = Predpis.objects.filter(aktivni=True)
          
@@ -155,7 +161,13 @@ class ZakazkaInlineForm(ZakazkaPredpisValidatorMixin, forms.ModelForm):
         inst = getattr(self, "instance", None)
 
         if inst and inst.pk and inst.kamion_prijem and inst.kamion_prijem.zakaznik:
-            self.fields['predpis'].queryset = inst.kamion_prijem.zakaznik.predpisy.filter(aktivni=True)
+            predpis_qs = inst.kamion_prijem.zakaznik.predpisy.filter(aktivni=True)
+            # Při editaci zachová ve výběru i aktuálně přiřazený (potenciálně neaktivní) předpis.
+            if inst.predpis_id:
+                predpis_qs = inst.kamion_prijem.zakaznik.predpisy.filter(
+                    Q(aktivni=True) | Q(pk=inst.predpis_id)
+                )
+            self.fields['predpis'].queryset = predpis_qs
         elif zakaznik:
             self.fields['predpis'].queryset = zakaznik.predpisy.filter(aktivni=True)
         else:
