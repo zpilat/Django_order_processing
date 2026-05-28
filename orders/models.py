@@ -441,6 +441,7 @@ class Pletivo(models.Model):
     Pletivo použité v předpisech.
     """
     nazev = models.CharField(max_length=1, verbose_name='Název pletiva', choices=AlphabetChoice.choices, unique=True)
+    pocet_vrutu = models.PositiveSmallIntegerField(verbose_name='Počet vrutů', validators=[MinValueValidator(1)], blank=True, null=True)
     rozmer_oka = models.PositiveSmallIntegerField(verbose_name='Rozměr oka', validators=[MaxValueValidator(30)], blank=True, null=True)
     tloustka_dratu = models.DecimalField(verbose_name='Tloušťka drátu', max_digits=3, decimal_places=1, blank=True, null=True)
     history = HistoricalRecords()

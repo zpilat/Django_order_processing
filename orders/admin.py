@@ -4381,12 +4381,12 @@ class PletivoAdmin(SimpleHistoryAdmin):
     """
     Správa pletiv v administraci.
     """
-    list_display = ('nazev', 'rozmer_oka', 'tloustka_dratu')
+    list_display = ('nazev', 'pocet_vrutu', 'rozmer_oka', 'tloustka_dratu')
     list_display_links = ('nazev',)
     ordering = ['nazev']
     list_per_page = 25
 
-    history_list_display = ['nazev', 'rozmer_oka', 'tloustka_dratu']
+    history_list_display = ['nazev', 'pocet_vrutu', 'rozmer_oka', 'tloustka_dratu']
     history_search_fields = ['nazev']
     history_list_per_page = 20
 
