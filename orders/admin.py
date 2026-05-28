@@ -2437,7 +2437,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
         if obj and obj.expedovano:
             added_readonly_fields.append('kamion_prijem')
             added_readonly_fields.append('kamion_vydej')
-        if obj and obj.predpis and not obj.predpis.active:
+        if obj and obj.predpis and not obj.predpis.aktivni:
             added_readonly_fields.append('predpis')
         return current_readonly_fields + added_readonly_fields        
    
