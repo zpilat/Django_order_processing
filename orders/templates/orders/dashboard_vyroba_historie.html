@@ -5,7 +5,7 @@
 {% block content %}
   <div id="dashboard-content"
       hx-get="{% url 'dashboard_vyroba_historie' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}"
-       hx-trigger="every 10m"
+       hx-trigger="every 60m"
        hx-swap="innerHTML">
     {% include "orders/partials/dashboard_vyroba_historie_content.html" %}
   </div>
