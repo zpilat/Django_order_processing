@@ -9,7 +9,7 @@ from decimal import Decimal
 from orders.models import (
 	Zakaznik, Odberatel, Kamion, Zakazka, Bedna, Predpis, TypHlavy, Pozice, PoziceZakazkaOrder, Zarizeni, Sarze, SarzeKrok, SarzeKrokBedna
 )
-from orders.choices import StavBednyChoice, KamionChoice, TryskaniChoice, RovnaniChoice, PrioritaChoice
+from orders.choices import StavBednyChoice, KamionChoice, TryskaniChoice, RovnaniChoice, PrioritaChoice, TypZarizeniChoice
 from orders.views import (
 	_get_bedny_k_navezeni_groups,
 	_split_bedny_k_navezeni_groups_by_nasledne,
@@ -753,10 +753,10 @@ class VyrobaDashboardContextTests(TestCase):
 		self.predpis_spx = Predpis.objects.create(nazev="P-SPX", zakaznik=self.z_spx)
 
 		self.dev_xl1 = Zarizeni.objects.create(
-			kod_zarizeni="TQF_XL1", nazev_zarizeni="XL1", zkraceny_nazev_zarizeni="XL1"
+			kod_zarizeni="TQF_XL1", nazev_zarizeni="XL1", zkraceny_nazev_zarizeni="XL1", typ_zarizeni=TypZarizeniChoice.VICEUCELOVKA
 		)
 		self.dev_xl2 = Zarizeni.objects.create(
-			kod_zarizeni="TQF_XL2", nazev_zarizeni="XL2", zkraceny_nazev_zarizeni="XL2"
+			kod_zarizeni="TQF_XL2", nazev_zarizeni="XL2", zkraceny_nazev_zarizeni="XL2", typ_zarizeni=TypZarizeniChoice.VICEUCELOVKA
 		)
 
 	def _create_bedna(self, zakaznik, hmotnost):
@@ -887,6 +887,19 @@ class VyrobaDashboardContextTests(TestCase):
 		bedna_1 = self._create_bedna(self.z_eur, 1000)
 		bedna_2 = self._create_bedna(self.z_spx, 500)
 
+		# Předešlé kroky pro výpočet prostoje (prodleva) u kroků s bednami.
+		sarze_prev_xl1 = Sarze.objects.create(cislo_sarze=300, datum_zalozeni=date(2026, 1, 1), aktivni=True)
+		SarzeKrok.objects.create(
+			sarze=sarze_prev_xl1,
+			poradi=1,
+			datum=date(2026, 1, 1),
+			zarizeni=self.dev_xl1,
+			zacatek=time(6, 0),
+			konec=time(7, 0),
+			operator="op",
+			program="p",
+		)
+
 		sarze_1 = Sarze.objects.create(cislo_sarze=301, datum_zalozeni=date(2026, 1, 1), aktivni=True)
 		krok_1 = SarzeKrok.objects.create(
 			sarze=sarze_1,
@@ -899,13 +912,25 @@ class VyrobaDashboardContextTests(TestCase):
 		)
 		SarzeKrokBedna.objects.create(krok=krok_1, bedna=bedna_1, patro=1)
 
+		sarze_prev_xl2 = Sarze.objects.create(cislo_sarze=304, datum_zalozeni=date(2026, 1, 2), aktivni=True)
+		SarzeKrok.objects.create(
+			sarze=sarze_prev_xl2,
+			poradi=1,
+			datum=date(2026, 1, 2),
+			zarizeni=self.dev_xl2,
+			zacatek=time(6, 0),
+			konec=time(7, 0),
+			operator="op",
+			program="p",
+		)
+
 		sarze_2 = Sarze.objects.create(cislo_sarze=302, datum_zalozeni=date(2026, 1, 2), aktivni=True)
 		krok_2 = SarzeKrok.objects.create(
 			sarze=sarze_2,
 			poradi=1,
 			datum=date(2026, 1, 2),
 			zarizeni=self.dev_xl2,
-			zacatek=time(8, 0),
+			zacatek=time(9, 0),
 			operator="op",
 			program="p",
 		)
@@ -933,8 +958,13 @@ class VyrobaDashboardContextTests(TestCase):
 		self.assertEqual(yearly["avg"]["xl2_display"], "50")
 		self.assertEqual(yearly["avg"]["total_display"], "150")
 		self.assertEqual(yearly["vytizeni_rostu"]["display"], "750")
+		self.assertEqual(yearly["prostoj_avg"]["xl1_display"], "0,1")
+		self.assertEqual(yearly["prostoj_avg"]["xl2_display"], "0,2")
+		self.assertEqual(yearly["prostoj_avg"]["total_display"], "0,3")
 		self.assertEqual(monthly_rows[0]["vytizeni_rostu"]["display"], "750")
 		self.assertEqual(weekly_rows[0]["vytizeni_rostu"]["display"], "750")
+		self.assertEqual(monthly_rows[0]["prostoj_avg"]["total_display"], "0,3")
+		self.assertEqual(weekly_rows[0]["prostoj_avg"]["total_display"], "0,7")
 
 	def test_vyroba_historie_month_detail_shows_only_elapsed_days(self):
 		today_value = date(2026, 1, 10)
@@ -943,6 +973,17 @@ class VyrobaDashboardContextTests(TestCase):
 		bedna_future = self._create_bedna(self.z_eur, 900)
 
 		sarze_elapsed = Sarze.objects.create(cislo_sarze=401, datum_zalozeni=date(2026, 1, 5), aktivni=True)
+		sarze_prev = Sarze.objects.create(cislo_sarze=400, datum_zalozeni=date(2026, 1, 5), aktivni=True)
+		SarzeKrok.objects.create(
+			sarze=sarze_prev,
+			poradi=1,
+			datum=date(2026, 1, 5),
+			zarizeni=self.dev_xl1,
+			zacatek=time(6, 0),
+			konec=time(7, 0),
+			operator="op",
+			program="p",
+		)
 		krok_elapsed = SarzeKrok.objects.create(
 			sarze=sarze_elapsed,
 			poradi=1,
@@ -975,6 +1016,8 @@ class VyrobaDashboardContextTests(TestCase):
 		self.assertNotIn("20.01.2026", labels)
 		row_by_label = {row["label"]: row for row in month_detail["rows"]}
 		self.assertEqual(row_by_label["05.01.2026"]["vytizeni_rostu"]["display"], "600")
+		self.assertEqual(row_by_label["05.01.2026"]["prostoj_avg"]["xl1_display"], "0,8")
+		self.assertEqual(row_by_label["05.01.2026"]["prostoj_avg"]["total_display"], "0,8")
 
 	def test_vyroba_historie_weeks_start_on_monday_and_week_one_contains_jan_first(self):
 		ctx = _build_vyroba_historie_context(year_value=2026, today_value=date(2026, 1, 10))
