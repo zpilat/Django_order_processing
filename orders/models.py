@@ -1631,6 +1631,10 @@ class SarzeKrok(models.Model):
         if predchozi_krok.konec < predchozi_krok.zacatek:
             datum_predchoziho_kroku += timedelta(days=1)
 
+        # Dlouhá odstávka stroje (více než 1 den) se do prostoje nepočítá.
+        if datum_predchoziho_kroku < (self.datum - timedelta(days=1)):
+            return 0
+
         prodleva = (
             datetime.combine(self.datum, self.zacatek)
             - datetime.combine(datum_predchoziho_kroku, predchozi_krok.konec)

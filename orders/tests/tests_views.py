@@ -958,13 +958,13 @@ class VyrobaDashboardContextTests(TestCase):
 		self.assertEqual(yearly["avg"]["xl2_display"], "50")
 		self.assertEqual(yearly["avg"]["total_display"], "150")
 		self.assertEqual(yearly["vytizeni_rostu"]["display"], "750")
-		self.assertEqual(yearly["prostoj_avg"]["xl1_display"], "0,1")
-		self.assertEqual(yearly["prostoj_avg"]["xl2_display"], "0,2")
-		self.assertEqual(yearly["prostoj_avg"]["total_display"], "0,3")
+		self.assertEqual(yearly["prostoj_avg"]["xl1_display"], "0,8")
+		self.assertEqual(yearly["prostoj_avg"]["xl2_display"], "1,8")
+		self.assertEqual(yearly["prostoj_avg"]["total_display"], "2,6")
 		self.assertEqual(monthly_rows[0]["vytizeni_rostu"]["display"], "750")
 		self.assertEqual(weekly_rows[0]["vytizeni_rostu"]["display"], "750")
-		self.assertEqual(monthly_rows[0]["prostoj_avg"]["total_display"], "0,3")
-		self.assertEqual(weekly_rows[0]["prostoj_avg"]["total_display"], "0,7")
+		self.assertEqual(monthly_rows[0]["prostoj_avg"]["total_display"], "2,6")
+		self.assertEqual(weekly_rows[0]["prostoj_avg"]["total_display"], "2,6")
 
 	def test_vyroba_historie_month_detail_shows_only_elapsed_days(self):
 		today_value = date(2026, 1, 10)
@@ -1028,6 +1028,41 @@ class VyrobaDashboardContextTests(TestCase):
 		self.assertEqual(weekly_rows[1]["date_range"], "05.01. - 11.01.")
 		self.assertEqual(weekly_rows[0]["label"], "01")
 		self.assertEqual(weekly_rows[1]["label"], "02")
+
+	def test_vyroba_historie_prostoj_ignores_shutdown_longer_than_one_day(self):
+		today_value = date(2026, 1, 10)
+		bedna = self._create_bedna(self.z_eur, 500)
+
+		sarze_prev = Sarze.objects.create(cislo_sarze=510, datum_zalozeni=date(2026, 1, 7), aktivni=True)
+		SarzeKrok.objects.create(
+			sarze=sarze_prev,
+			poradi=1,
+			datum=date(2026, 1, 7),
+			zarizeni=self.dev_xl1,
+			zacatek=time(6, 0),
+			konec=time(7, 0),
+			operator="op",
+			program="p",
+		)
+
+		sarze_current = Sarze.objects.create(cislo_sarze=511, datum_zalozeni=date(2026, 1, 10), aktivni=True)
+		krok_current = SarzeKrok.objects.create(
+			sarze=sarze_current,
+			poradi=1,
+			datum=date(2026, 1, 10),
+			zarizeni=self.dev_xl1,
+			zacatek=time(8, 0),
+			operator="op",
+			program="p",
+		)
+		SarzeKrokBedna.objects.create(krok=krok_current, bedna=bedna, patro=1)
+
+		ctx = _build_vyroba_historie_context(year_value=2026, month_value=1, today_value=today_value)
+		month_detail = ctx["vyroba_historie"]["month_detail"]
+		row_by_label = {row["label"]: row for row in month_detail["rows"]}
+
+		self.assertEqual(row_by_label["10.01.2026"]["prostoj_avg"]["xl1_display"], "0,0")
+		self.assertEqual(row_by_label["10.01.2026"]["prostoj_avg"]["total_display"], "0,0")
 
 class VyrobaHistorieViewTests(ViewsTestBase):
 	def test_historie_mesic_view_renders_detail_page(self):

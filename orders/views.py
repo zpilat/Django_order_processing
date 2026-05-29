@@ -245,6 +245,7 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
     krok_data = {row['datum']: (row['step_count'] or 0) for row in krok_grouped}
 
     prostoj_day_data = {}
+    work_day_data = {}
     prostoj_kroky = (
         SarzeKrok.objects
         .filter(
@@ -259,6 +260,20 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
         code = krok.zarizeni.kod_zarizeni
         prodleva = krok.prodleva
         prostoj_minutes = max(prodleva - 10, 0) if isinstance(prodleva, int) else 0
+
+        work_bucket = work_day_data.setdefault(
+            row_date,
+            {
+                'xl1': False,
+                'xl2': False,
+                'total': False,
+            },
+        )
+        if code == 'TQF_XL1':
+            work_bucket['xl1'] = True
+        elif code == 'TQF_XL2':
+            work_bucket['xl2'] = True
+        work_bucket['total'] = True
 
         bucket = prostoj_day_data.setdefault(
             row_date,
@@ -314,10 +329,35 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
                 day += timedelta(days=1)
         return out
 
-    def _avg_prostoj_hours_display(total_minutes, day_count):
-        if day_count <= 0:
+    def _sum_work_days_range(start_day, end_day):
+        out = {'xl1': 0, 'xl2': 0, 'total': 0}
+        if start_day and end_day and end_day >= start_day:
+            day = start_day
+            while day <= end_day:
+                row = work_day_data.get(day)
+                if row:
+                    if row['xl1']:
+                        out['xl1'] += 1
+                    if row['xl2']:
+                        out['xl2'] += 1
+                    if row['total']:
+                        out['total'] += 1
+                day += timedelta(days=1)
+        return out
+
+    def _avg_prostoj_hours_display(total_minutes, work_day_count):
+        if work_day_count <= 0:
             return '0,0'
-        return _format_hours((total_minutes / 60) / day_count)
+        return _format_hours((total_minutes / 60) / work_day_count)
+
+    def _sum_hours_display(left_display, right_display):
+        try:
+            left = float((left_display or '0').replace(',', '.'))
+            right = float((right_display or '0').replace(',', '.'))
+            return _format_hours(left + right)
+        except Exception:
+            logger.warning("Nepodařilo se sečíst hodnoty prostoje XL1 a XL2.", exc_info=True)
+            return '0,0'
 
     def _kg_per_rost_int(total_kg, step_count):
         if step_count <= 0:
@@ -333,11 +373,13 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
         year_totals = {'xl1': Decimal('0'), 'xl2': Decimal('0'), 'total': Decimal('0')}
         year_step_count = 0
         year_prostoj_minutes = {'xl1': 0, 'xl2': 0, 'total': 0}
+        year_work_days = {'xl1': 0, 'xl2': 0, 'total': 0}
     else:
         elapsed_days_year = (elapsed_end - year_start).days + 1
         year_totals = _sum_day_range(year_start, elapsed_end)
         year_step_count = _sum_step_range(year_start, elapsed_end)
         year_prostoj_minutes = _sum_prostoj_minutes_range(year_start, elapsed_end)
+        year_work_days = _sum_work_days_range(year_start, elapsed_end)
 
     yearly_avg = {
         'xl1': _avg_kg_per_day_int(year_totals['xl1'], elapsed_days_year),
@@ -345,10 +387,12 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
         'total': _avg_kg_per_day_int(year_totals['total'], elapsed_days_year),
     }
     yearly_rost_utilization = _kg_per_rost_int(year_totals['total'], year_step_count)
+    yearly_xl1_prostoj = _avg_prostoj_hours_display(year_prostoj_minutes['xl1'], year_work_days['xl1'])
+    yearly_xl2_prostoj = _avg_prostoj_hours_display(year_prostoj_minutes['xl2'], year_work_days['xl2'])
     yearly_prostoj_avg = {
-        'xl1_display': _avg_prostoj_hours_display(year_prostoj_minutes['xl1'], elapsed_days_year),
-        'xl2_display': _avg_prostoj_hours_display(year_prostoj_minutes['xl2'], elapsed_days_year),
-        'total_display': _avg_prostoj_hours_display(year_prostoj_minutes['total'], elapsed_days_year),
+        'xl1_display': yearly_xl1_prostoj,
+        'xl2_display': yearly_xl2_prostoj,
+        'total_display': _sum_hours_display(yearly_xl1_prostoj, yearly_xl2_prostoj),
     }
 
     monthly_rows = []
@@ -360,17 +404,22 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
             totals = {'xl1': Decimal('0'), 'xl2': Decimal('0'), 'total': Decimal('0')}
             step_count = 0
             prostoj_minutes = {'xl1': 0, 'xl2': 0, 'total': 0}
+            work_days = {'xl1': 0, 'xl2': 0, 'total': 0}
         else:
             month_elapsed_end = min(month_end, elapsed_end)
             elapsed_days = (month_elapsed_end - month_start).days + 1
             totals = _sum_day_range(month_start, month_elapsed_end)
             step_count = _sum_step_range(month_start, month_elapsed_end)
             prostoj_minutes = _sum_prostoj_minutes_range(month_start, month_elapsed_end)
+            work_days = _sum_work_days_range(month_start, month_elapsed_end)
 
         avg_xl1 = _avg_kg_per_day_int(totals['xl1'], elapsed_days)
         avg_xl2 = _avg_kg_per_day_int(totals['xl2'], elapsed_days)
         avg_total = _avg_kg_per_day_int(totals['total'], elapsed_days)
         rost_utilization = _kg_per_rost_int(totals['total'], step_count)
+
+        month_xl1_prostoj = _avg_prostoj_hours_display(prostoj_minutes['xl1'], work_days['xl1'])
+        month_xl2_prostoj = _avg_prostoj_hours_display(prostoj_minutes['xl2'], work_days['xl2'])
 
         monthly_rows.append(
             {
@@ -390,9 +439,9 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
                     'display': _format_kg(rost_utilization),
                 },
                 'prostoj_avg': {
-                    'xl1_display': _avg_prostoj_hours_display(prostoj_minutes['xl1'], elapsed_days),
-                    'xl2_display': _avg_prostoj_hours_display(prostoj_minutes['xl2'], elapsed_days),
-                    'total_display': _avg_prostoj_hours_display(prostoj_minutes['total'], elapsed_days),
+                    'xl1_display': month_xl1_prostoj,
+                    'xl2_display': month_xl2_prostoj,
+                    'total_display': _sum_hours_display(month_xl1_prostoj, month_xl2_prostoj),
                 },
             }
         )
@@ -410,17 +459,22 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
             totals = {'xl1': Decimal('0'), 'xl2': Decimal('0'), 'total': Decimal('0')}
             step_count = 0
             prostoj_minutes = {'xl1': 0, 'xl2': 0, 'total': 0}
+            work_days = {'xl1': 0, 'xl2': 0, 'total': 0}
         else:
             week_elapsed_end = min(in_year_end, elapsed_end)
             elapsed_days = (week_elapsed_end - in_year_start).days + 1
             totals = _sum_day_range(in_year_start, week_elapsed_end)
             step_count = _sum_step_range(in_year_start, week_elapsed_end)
             prostoj_minutes = _sum_prostoj_minutes_range(in_year_start, week_elapsed_end)
+            work_days = _sum_work_days_range(in_year_start, week_elapsed_end)
 
         avg_xl1 = _avg_kg_per_day_int(totals['xl1'], elapsed_days)
         avg_xl2 = _avg_kg_per_day_int(totals['xl2'], elapsed_days)
         avg_total = _avg_kg_per_day_int(totals['total'], elapsed_days)
         rost_utilization = _kg_per_rost_int(totals['total'], step_count)
+
+        week_xl1_prostoj = _avg_prostoj_hours_display(prostoj_minutes['xl1'], work_days['xl1'])
+        week_xl2_prostoj = _avg_prostoj_hours_display(prostoj_minutes['xl2'], work_days['xl2'])
 
         weekly_rows.append(
             {
@@ -441,9 +495,9 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
                     'display': _format_kg(rost_utilization),
                 },
                 'prostoj_avg': {
-                    'xl1_display': _avg_prostoj_hours_display(prostoj_minutes['xl1'], elapsed_days),
-                    'xl2_display': _avg_prostoj_hours_display(prostoj_minutes['xl2'], elapsed_days),
-                    'total_display': _avg_prostoj_hours_display(prostoj_minutes['total'], elapsed_days),
+                    'xl1_display': week_xl1_prostoj,
+                    'xl2_display': week_xl2_prostoj,
+                    'total_display': _sum_hours_display(week_xl1_prostoj, week_xl2_prostoj),
                 },
             }
         )
@@ -489,7 +543,10 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
                         'prostoj_avg': {
                             'xl1_display': _avg_prostoj_hours_display(day_prostoj['xl1'], 1),
                             'xl2_display': _avg_prostoj_hours_display(day_prostoj['xl2'], 1),
-                            'total_display': _avg_prostoj_hours_display(day_prostoj['total'], 1),
+                            'total_display': _sum_hours_display(
+                                _avg_prostoj_hours_display(day_prostoj['xl1'], 1),
+                                _avg_prostoj_hours_display(day_prostoj['xl2'], 1),
+                            ),
                         },
                     }
                 )
