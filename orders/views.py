@@ -232,22 +232,21 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
         bucket['total'] += total_kg
 
     month_labels = [
-        'Leden', 'Únor', 'Březen', 'Duben', 'Květen', 'Červen',
-        'Červenec', 'Srpen', 'Září', 'Říjen', 'Listopad', 'Prosinec',
+        '01 Leden', '02 Únor', '03 Březen', '04 Duben', '05 Květen', '06 Červen',
+        '07 Červenec', '08 Srpen', '09 Září', '10 Říjen', '11 Listopad', '12 Prosinec',
     ]
 
     def _sum_day_range(start_day, end_day):
-        if not start_day or not end_day or end_day < start_day:
-            return {'xl1': Decimal('0'), 'xl2': Decimal('0'), 'total': Decimal('0')}
-        d = start_day
-        out = {'xl1': Decimal('0'), 'xl2': Decimal('0'), 'total': Decimal('0')}
-        while d <= end_day:
-            row = day_data.get(d)
-            if row:
-                out['xl1'] += row['xl1']
-                out['xl2'] += row['xl2']
-                out['total'] += row['total']
-            d += timedelta(days=1)
+        out = {'xl1': Decimal('0'), 'xl2': Decimal('0'), 'total': Decimal('0')}        
+        if start_day and end_day and end_day >= start_day:
+            day = start_day
+            while day <= end_day:
+                row = day_data.get(day)
+                if row:
+                    out['xl1'] += row['xl1']
+                    out['xl2'] += row['xl2']
+                    out['total'] += row['total']
+                day += timedelta(days=1)
         return out
 
     if elapsed_end is None:
@@ -295,19 +294,21 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
             }
         )
 
-    total_days_in_year = 366 if calendar.isleap(selected_year) else 365
-    week_count = (total_days_in_year + 6) // 7
     weekly_rows = []
-    for week_no in range(1, week_count + 1):
-        week_start = year_start + timedelta(days=(week_no - 1) * 7)
-        week_end = min(week_start + timedelta(days=6), year_end)
-        if elapsed_end is None or week_start > elapsed_end:
+    week_start = year_start - timedelta(days=year_start.weekday())
+    week_no = 1
+    while week_start <= year_end:
+        week_end = week_start + timedelta(days=6)
+        in_year_start = max(week_start, year_start)
+        in_year_end = min(week_end, year_end)
+
+        if elapsed_end is None or in_year_start > elapsed_end:
             elapsed_days = 0
             totals = {'xl1': Decimal('0'), 'xl2': Decimal('0'), 'total': Decimal('0')}
         else:
-            week_elapsed_end = min(week_end, elapsed_end)
-            elapsed_days = (week_elapsed_end - week_start).days + 1
-            totals = _sum_day_range(week_start, week_elapsed_end)
+            week_elapsed_end = min(in_year_end, elapsed_end)
+            elapsed_days = (week_elapsed_end - in_year_start).days + 1
+            totals = _sum_day_range(in_year_start, week_elapsed_end)
 
         avg_xl1 = _avg_kg_per_day_int(totals['xl1'], elapsed_days)
         avg_xl2 = _avg_kg_per_day_int(totals['xl2'], elapsed_days)
@@ -316,8 +317,8 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
         weekly_rows.append(
             {
                 'week_no': week_no,
-                'label': f'Týden {week_no:02d}',
-                'date_range': f"{week_start.strftime('%d.%m.')} - {week_end.strftime('%d.%m.')}",
+                'label': f'{week_no:02d}',
+                'date_range': f"{in_year_start.strftime('%d.%m.')} - {in_year_end.strftime('%d.%m.')}",
                 'elapsed_days': elapsed_days,
                 'avg': {
                     'xl1': avg_xl1,
@@ -329,6 +330,8 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
                 },
             }
         )
+        week_no += 1
+        week_start += timedelta(days=7)
 
     month_detail = None
     if selected_month is not None:

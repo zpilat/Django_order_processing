@@ -957,6 +957,16 @@ class VyrobaDashboardContextTests(TestCase):
 		self.assertIn("05.01.2026", labels)
 		self.assertNotIn("20.01.2026", labels)
 
+	def test_vyroba_historie_weeks_start_on_monday_and_week_one_contains_jan_first(self):
+		ctx = _build_vyroba_historie_context(year_value=2026, today_value=date(2026, 1, 10))
+		weekly_rows = ctx["vyroba_historie"]["weekly_rows"]
+
+		self.assertGreaterEqual(len(weekly_rows), 2)
+		self.assertEqual(weekly_rows[0]["date_range"], "01.01. - 04.01.")
+		self.assertEqual(weekly_rows[1]["date_range"], "05.01. - 11.01.")
+		self.assertEqual(weekly_rows[0]["label"], "Týden 01")
+		self.assertEqual(weekly_rows[1]["label"], "Týden 02")
+
 class VyrobaHistorieViewTests(ViewsTestBase):
 	def test_historie_mesic_view_renders_detail_page(self):
 		resp = self.client.get(reverse("dashboard_vyroba_historie_mesic"), {"rok": timezone.localdate().year, "mesic": 1})
