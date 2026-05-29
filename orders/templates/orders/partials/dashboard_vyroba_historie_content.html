@@ -27,16 +27,18 @@
         <table class="table table-sm align-middle mb-0">
           <thead>
             <tr>
-              <th style="background-color: #214290; color: #ffde17;">TQF XL1</th>
-              <th style="background-color: #214290; color: #ffde17;">TQF XL2</th>
-              <th style="background-color: #214290; color: #ffde17;">CELKEM</th>
+              <th style="background-color: #214290; color: #ffde17;">TQF XL1<br>[kg/den]</th>
+              <th style="background-color: #214290; color: #ffde17;">TQF XL2<br>[kg/den]</th>
+              <th style="background-color: #214290; color: #ffde17;">CELKEM<br>[kg/den]</th>
+              <th style="background-color: #214290; color: #ffde17;">Vytížení roštu<br>[kg/rošt]</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td>{{ vyroba_historie.yearly.avg.xl1_display }} kg/den</td>
-              <td>{{ vyroba_historie.yearly.avg.xl2_display }} kg/den</td>
-              <td class="fw-bold">{{ vyroba_historie.yearly.avg.total_display }} kg/den</td>
+              <td>{{ vyroba_historie.yearly.avg.xl1_display }}</td>
+              <td>{{ vyroba_historie.yearly.avg.xl2_display }}</td>
+              <td class="fw-bold">{{ vyroba_historie.yearly.avg.total_display }}</td>
+              <td class="fw-bold">{{ vyroba_historie.yearly.vytizeni_rostu.display }}</td>
             </tr>
           </tbody>
         </table>
@@ -54,9 +56,10 @@
           <thead>
             <tr>
               <th style="background-color: #214290; color: #ffde17;">Měsíc</th>
-              <th style="background-color: #214290; color: #ffde17;">XL1</th>
-              <th style="background-color: #214290; color: #ffde17;">XL2</th>
-              <th style="background-color: #214290; color: #ffde17;">CELKEM</th>
+              <th style="background-color: #214290; color: #ffde17;">TQF XL1<br>[kg/den]</th>
+              <th style="background-color: #214290; color: #ffde17;">TQF XL2<br>[kg/den]</th>
+              <th style="background-color: #214290; color: #ffde17;">CELKEM<br>[kg/den]</th>
+              <th style="background-color: #214290; color: #ffde17;">Vytížení roštu<br>[kg/rošt]</th>
             </tr>
           </thead>
           <tbody class="table-striped">
@@ -70,6 +73,7 @@
                 <td>{{ row.avg.xl1_display }}</td>
                 <td>{{ row.avg.xl2_display }}</td>
                 <td class="fw-bold">{{ row.avg.total_display }}</td>
+                <td class="fw-bold">{{ row.vytizeni_rostu.display }}</td>
               </tr>
             {% endfor %}
           </tbody>
@@ -89,9 +93,10 @@
             <tr>
               <th style="background-color: #214290; color: #ffde17;">Týden</th>
               <th style="background-color: #214290; color: #ffde17;">Rozsah</th>
-              <th style="background-color: #214290; color: #ffde17;">XL1</th>
-              <th style="background-color: #214290; color: #ffde17;">XL2</th>
-              <th style="background-color: #214290; color: #ffde17;">CELKEM</th>
+              <th style="background-color: #214290; color: #ffde17;">TQF XL1<br>[kg/den]</th>
+              <th style="background-color: #214290; color: #ffde17;">TQF XL2<br>[kg/den]</th>
+              <th style="background-color: #214290; color: #ffde17;">CELKEM<br>[kg/den]</th>
+              <th style="background-color: #214290; color: #ffde17;">Vytížení roštu<br>[kg/rošt]</th>
             </tr>
           </thead>
           <tbody class="table-striped">
@@ -102,6 +107,7 @@
                 <td>{{ row.avg.xl1_display }}</td>
                 <td>{{ row.avg.xl2_display }}</td>
                 <td class="fw-bold">{{ row.avg.total_display }}</td>
+                <td class="fw-bold">{{ row.vytizeni_rostu.display }}</td>
               </tr>
             {% endfor %}
           </tbody>

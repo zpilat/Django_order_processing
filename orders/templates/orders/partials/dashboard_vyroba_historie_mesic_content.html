@@ -20,9 +20,10 @@
           <thead>
             <tr>
               <th style="background-color: #214290; color: #ffde17;">Den</th>
-              <th style="background-color: #214290; color: #ffde17;">TQF XL1 [kg]</th>
-              <th style="background-color: #214290; color: #ffde17;">TQF XL2 [kg]</th>
-              <th style="background-color: #214290; color: #ffde17;">CELKEM [kg]</th>
+              <th style="background-color: #214290; color: #ffde17;">TQF XL1<br>[kg]</th>
+              <th style="background-color: #214290; color: #ffde17;">TQF XL2<br>[kg]</th>
+              <th style="background-color: #214290; color: #ffde17;">CELKEM<br>[kg]</th>
+              <th style="background-color: #214290; color: #ffde17;">Vytížení roštu<br>[kg/rošt]</th>
             </tr>
           </thead>
           <tbody class="table-striped">
@@ -32,10 +33,11 @@
                 <td>{{ row.xl1_display }}</td>
                 <td>{{ row.xl2_display }}</td>
                 <td class="fw-bold">{{ row.total_display }}</td>
+                <td class="fw-bold">{{ row.vytizeni_rostu.display }}</td>
               </tr>
             {% empty %}
               <tr>
-                <td colspan="4" class="text-muted">Ve zvoleném měsíci zatím nejsou žádné uplynulé dny s daty.</td>
+                <td colspan="5" class="text-muted">Ve zvoleném měsíci zatím nejsou žádné uplynulé dny s daty.</td>
               </tr>
             {% endfor %}
           </tbody>

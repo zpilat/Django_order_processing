@@ -913,11 +913,16 @@ class VyrobaDashboardContextTests(TestCase):
 
 		ctx = _build_vyroba_historie_context(year_value=2026, today_value=today_value)
 		yearly = ctx["vyroba_historie"]["yearly"]
+		monthly_rows = ctx["vyroba_historie"]["monthly_rows"]
+		weekly_rows = ctx["vyroba_historie"]["weekly_rows"]
 
 		self.assertEqual(yearly["elapsed_days"], 10)
 		self.assertEqual(yearly["avg"]["xl1_display"], "100")
 		self.assertEqual(yearly["avg"]["xl2_display"], "50")
 		self.assertEqual(yearly["avg"]["total_display"], "150")
+		self.assertEqual(yearly["vytizeni_rostu"]["display"], "750")
+		self.assertEqual(monthly_rows[0]["vytizeni_rostu"]["display"], "750")
+		self.assertEqual(weekly_rows[0]["vytizeni_rostu"]["display"], "750")
 
 	def test_vyroba_historie_month_detail_shows_only_elapsed_days(self):
 		today_value = date(2026, 1, 10)
@@ -956,6 +961,8 @@ class VyrobaDashboardContextTests(TestCase):
 		labels = [row["label"] for row in month_detail["rows"]]
 		self.assertIn("05.01.2026", labels)
 		self.assertNotIn("20.01.2026", labels)
+		row_by_label = {row["label"]: row for row in month_detail["rows"]}
+		self.assertEqual(row_by_label["05.01.2026"]["vytizeni_rostu"]["display"], "600")
 
 	def test_vyroba_historie_weeks_start_on_monday_and_week_one_contains_jan_first(self):
 		ctx = _build_vyroba_historie_context(year_value=2026, today_value=date(2026, 1, 10))
@@ -964,8 +971,8 @@ class VyrobaDashboardContextTests(TestCase):
 		self.assertGreaterEqual(len(weekly_rows), 2)
 		self.assertEqual(weekly_rows[0]["date_range"], "01.01. - 04.01.")
 		self.assertEqual(weekly_rows[1]["date_range"], "05.01. - 11.01.")
-		self.assertEqual(weekly_rows[0]["label"], "Týden 01")
-		self.assertEqual(weekly_rows[1]["label"], "Týden 02")
+		self.assertEqual(weekly_rows[0]["label"], "01")
+		self.assertEqual(weekly_rows[1]["label"], "02")
 
 class VyrobaHistorieViewTests(ViewsTestBase):
 	def test_historie_mesic_view_renders_detail_page(self):

@@ -231,6 +231,18 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
             bucket['xl2'] += total_kg
         bucket['total'] += total_kg
 
+    krok_grouped = (
+        SarzeKrok.objects
+        .filter(
+            datum__gte=year_start,
+            datum__lte=year_end,
+            zarizeni__kod_zarizeni__in=device_codes,
+        )
+        .values('datum')
+        .annotate(step_count=Count('id'))
+    )
+    krok_data = {row['datum']: (row['step_count'] or 0) for row in krok_grouped}
+
     month_labels = [
         '01 Leden', '02 Únor', '03 Březen', '04 Duben', '05 Květen', '06 Červen',
         '07 Červenec', '08 Srpen', '09 Září', '10 Říjen', '11 Listopad', '12 Prosinec',
@@ -249,18 +261,39 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
                 day += timedelta(days=1)
         return out
 
+    def _sum_step_range(start_day, end_day):
+        total_steps = 0
+        if start_day and end_day and end_day >= start_day:
+            day = start_day
+            while day <= end_day:
+                total_steps += krok_data.get(day, 0)
+                day += timedelta(days=1)
+        return total_steps
+
+    def _kg_per_rost_int(total_kg, step_count):
+        if step_count <= 0:
+            return 0
+        try:
+            return _kg_to_int(Decimal(total_kg) / Decimal(step_count))
+        except Exception:
+            logger.warning("Nepodařilo se spočítat vytížení roštu.", exc_info=True)
+            return 0
+
     if elapsed_end is None:
         elapsed_days_year = 0
         year_totals = {'xl1': Decimal('0'), 'xl2': Decimal('0'), 'total': Decimal('0')}
+        year_step_count = 0
     else:
         elapsed_days_year = (elapsed_end - year_start).days + 1
         year_totals = _sum_day_range(year_start, elapsed_end)
+        year_step_count = _sum_step_range(year_start, elapsed_end)
 
     yearly_avg = {
         'xl1': _avg_kg_per_day_int(year_totals['xl1'], elapsed_days_year),
         'xl2': _avg_kg_per_day_int(year_totals['xl2'], elapsed_days_year),
         'total': _avg_kg_per_day_int(year_totals['total'], elapsed_days_year),
     }
+    yearly_rost_utilization = _kg_per_rost_int(year_totals['total'], year_step_count)
 
     monthly_rows = []
     for month_no in range(1, 13):
@@ -269,14 +302,17 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
         if elapsed_end is None or month_start > elapsed_end:
             elapsed_days = 0
             totals = {'xl1': Decimal('0'), 'xl2': Decimal('0'), 'total': Decimal('0')}
+            step_count = 0
         else:
             month_elapsed_end = min(month_end, elapsed_end)
             elapsed_days = (month_elapsed_end - month_start).days + 1
             totals = _sum_day_range(month_start, month_elapsed_end)
+            step_count = _sum_step_range(month_start, month_elapsed_end)
 
         avg_xl1 = _avg_kg_per_day_int(totals['xl1'], elapsed_days)
         avg_xl2 = _avg_kg_per_day_int(totals['xl2'], elapsed_days)
         avg_total = _avg_kg_per_day_int(totals['total'], elapsed_days)
+        rost_utilization = _kg_per_rost_int(totals['total'], step_count)
 
         monthly_rows.append(
             {
@@ -290,6 +326,10 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
                     'xl1_display': _format_kg(avg_xl1),
                     'xl2_display': _format_kg(avg_xl2),
                     'total_display': _format_kg(avg_total),
+                },
+                'vytizeni_rostu': {
+                    'value': rost_utilization,
+                    'display': _format_kg(rost_utilization),
                 },
             }
         )
@@ -305,14 +345,17 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
         if elapsed_end is None or in_year_start > elapsed_end:
             elapsed_days = 0
             totals = {'xl1': Decimal('0'), 'xl2': Decimal('0'), 'total': Decimal('0')}
+            step_count = 0
         else:
             week_elapsed_end = min(in_year_end, elapsed_end)
             elapsed_days = (week_elapsed_end - in_year_start).days + 1
             totals = _sum_day_range(in_year_start, week_elapsed_end)
+            step_count = _sum_step_range(in_year_start, week_elapsed_end)
 
         avg_xl1 = _avg_kg_per_day_int(totals['xl1'], elapsed_days)
         avg_xl2 = _avg_kg_per_day_int(totals['xl2'], elapsed_days)
         avg_total = _avg_kg_per_day_int(totals['total'], elapsed_days)
+        rost_utilization = _kg_per_rost_int(totals['total'], step_count)
 
         weekly_rows.append(
             {
@@ -327,6 +370,10 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
                     'xl1_display': _format_kg(avg_xl1),
                     'xl2_display': _format_kg(avg_xl2),
                     'total_display': _format_kg(avg_total),
+                },
+                'vytizeni_rostu': {
+                    'value': rost_utilization,
+                    'display': _format_kg(rost_utilization),
                 },
             }
         )
@@ -352,6 +399,8 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
                 xl1_int = _kg_to_int(totals['xl1'])
                 xl2_int = _kg_to_int(totals['xl2'])
                 total_int = _kg_to_int(totals['total'])
+                step_count = krok_data.get(d, 0)
+                rost_utilization = _kg_per_rost_int(totals['total'], step_count)
                 day_rows.append(
                     {
                         'date': d,
@@ -362,6 +411,10 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
                         'xl1_display': _format_kg(xl1_int),
                         'xl2_display': _format_kg(xl2_int),
                         'total_display': _format_kg(total_int),
+                        'vytizeni_rostu': {
+                            'value': rost_utilization,
+                            'display': _format_kg(rost_utilization),
+                        },
                     }
                 )
                 d += timedelta(days=1)
@@ -387,6 +440,10 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
                     'xl1_display': _format_kg(yearly_avg['xl1']),
                     'xl2_display': _format_kg(yearly_avg['xl2']),
                     'total_display': _format_kg(yearly_avg['total']),
+                },
+                'vytizeni_rostu': {
+                    'value': yearly_rost_utilization,
+                    'display': _format_kg(yearly_rost_utilization),
                 },
             },
             'monthly_rows': monthly_rows,
