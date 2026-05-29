@@ -237,9 +237,10 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
             datum__gte=year_start,
             datum__lte=year_end,
             zarizeni__kod_zarizeni__in=device_codes,
+            krok_bedny__bedna__isnull=False,
         )
         .values('datum')
-        .annotate(step_count=Count('id'))
+        .annotate(step_count=Count('id', distinct=True))
     )
     krok_data = {row['datum']: (row['step_count'] or 0) for row in krok_grouped}
 

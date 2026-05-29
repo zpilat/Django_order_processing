@@ -911,6 +911,18 @@ class VyrobaDashboardContextTests(TestCase):
 		)
 		SarzeKrokBedna.objects.create(krok=krok_2, bedna=bedna_2, patro=1)
 
+		# Krok bez bedny (typicky "železo") se nesmí započítat do vytížení roštu.
+		sarze_3 = Sarze.objects.create(cislo_sarze=303, datum_zalozeni=date(2026, 1, 2), aktivni=True)
+		SarzeKrok.objects.create(
+			sarze=sarze_3,
+			poradi=1,
+			datum=date(2026, 1, 2),
+			zarizeni=self.dev_xl2,
+			zacatek=time(10, 0),
+			operator="op",
+			program="p",
+		)
+
 		ctx = _build_vyroba_historie_context(year_value=2026, today_value=today_value)
 		yearly = ctx["vyroba_historie"]["yearly"]
 		monthly_rows = ctx["vyroba_historie"]["monthly_rows"]
