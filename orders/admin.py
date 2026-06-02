@@ -588,7 +588,8 @@ class SarzeKrokBednaAdmin(SimpleHistoryAdmin):
     def get_zakaznik(self, obj):
         if obj.bedna and obj.bedna.zakazka and obj.bedna.zakazka.kamion_prijem and obj.bedna.zakazka.kamion_prijem.zakaznik:
             zakaznik = obj.bedna.zakazka.kamion_prijem.zakaznik
-            return zakaznik.zkraceny_nazev if zakaznik.zkraceny_nazev else zakaznik.nazev
+            zakaznik_popis = truncate_with_title(zakaznik.zkratka or zakaznik.zkraceny_nazev or zakaznik.nazev)
+            return zakaznik_popis
         else:
             return truncate_with_title(obj.zakaznik_mimo_db)
 
