@@ -437,6 +437,9 @@ class SarzeKrokAdmin(SimpleHistoryAdmin):
         js = (
             'orders/js/admin_inline_prevent_enter_submit.js',
         )
+        css = {
+            'all': ('orders/css/admin_paused_rows.css',)
+        }
 
     history_list_display = [
         "sarze", "poradi", "datum", "zarizeni", "zacatek", "konec", "operator", "program", "alarm", "poznamka",
@@ -512,7 +515,7 @@ class SarzeKrokBednaAdmin(SimpleHistoryAdmin):
     autocomplete_fields = ('bedna',)
     list_select_related = ('krok', 'krok__sarze', 'krok__zarizeni', 'bedna')
     date_hierarchy = 'krok__datum'
-    ordering = ('-krok__datum', '-krok__zacatek', 'patro',)
+    ordering = ('-krok__datum', '-krok__zacatek', '-krok__sarze__id', 'patro',)
 
     history_list_display = ["krok", "bedna", "popis_mimo_db", "zakaznik_mimo_db", "patro", "procent_z_patra",]
     history_search_fields = ["krok__sarze__cislo_sarze", "bedna__cislo_bedny", "popis_mimo_db", "zakaznik_mimo_db"]

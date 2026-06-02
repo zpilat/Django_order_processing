@@ -28,3 +28,51 @@ tr.bedna-group-separator th {
   background-size: 100% 100%;
   background-position: top left;
 }
+
+/* Show sort indicators under header label without affecting column width. */
+body.app-orders.change-list.model-sarzekrokbedna #result_list thead th.sortable,
+body.app-orders.change-list.model-sarzekrok #result_list thead th.sortable {
+  position: relative;
+  white-space: normal;
+  padding-bottom: 1.1em;
+}
+
+body.app-orders.change-list.model-sarzekrokbedna #result_list thead th.sortable .text,
+body.app-orders.change-list.model-sarzekrokbedna #result_list thead th.sortable .text a,
+body.app-orders.change-list.model-sarzekrok #result_list thead th.sortable .text,
+body.app-orders.change-list.model-sarzekrok #result_list thead th.sortable .text a {
+  padding-right: 0 !important;
+  margin-right: 0 !important;
+}
+
+body.app-orders.change-list.model-sarzekrokbedna #result_list thead th.sortable .text,
+body.app-orders.change-list.model-sarzekrok #result_list thead th.sortable .text {
+  display: block;
+  line-height: 1.15;
+}
+
+body.app-orders.change-list.model-sarzekrokbedna #result_list thead th.sortable .sortoptions,
+body.app-orders.change-list.model-sarzekrok #result_list thead th.sortable .sortoptions {
+  position: absolute !important;
+  left: 0;
+  bottom: 0;
+  display: block;
+  float: none !important;
+  clear: none;
+  margin: 0;
+  transform: none;
+  white-space: nowrap;
+  text-align: left;
+}
+
+/* Keep Start/End time columns visually consistent regardless of sorting. */
+body.app-orders.change-list.model-sarzekrokbedna #result_list thead th.column-get_zacatek,
+body.app-orders.change-list.model-sarzekrokbedna #result_list thead th.column-get_konec,
+body.app-orders.change-list.model-sarzekrok #result_list thead th.column-get_zacatek,
+body.app-orders.change-list.model-sarzekrok #result_list thead th.column-get_konec,
+body.app-orders.change-list.model-sarzekrokbedna #result_list tbody td.field-get_zacatek,
+body.app-orders.change-list.model-sarzekrokbedna #result_list tbody td.field-get_konec,
+body.app-orders.change-list.model-sarzekrok #result_list tbody td.field-get_zacatek,
+body.app-orders.change-list.model-sarzekrok #result_list tbody td.field-get_konec {
+  white-space: nowrap;
+}
