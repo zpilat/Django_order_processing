@@ -159,14 +159,15 @@ def _create_sarzekrok_and_copy_rows(
         copied_count = 0
         skipped_conflict = 0
         for row in source_rows:
-            exists = SarzeKrokBedna.objects.filter(
-                krok=target_krok,
-                bedna=row.bedna,
-                patro=row.patro,
-            ).exists()
-            if exists:
-                skipped_conflict += 1
-                continue
+            if row.bedna_id is not None:
+                exists = SarzeKrokBedna.objects.filter(
+                    krok=target_krok,
+                    bedna=row.bedna,
+                    patro=row.patro,
+                ).exists()
+                if exists:
+                    skipped_conflict += 1
+                    continue
 
             SarzeKrokBedna.objects.create(
                 krok=target_krok,

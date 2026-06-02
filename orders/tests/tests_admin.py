@@ -2344,6 +2344,57 @@ class SarzeKrokBednaAdminActionTests(AdminBase):
             any('Původní krok šarže nemá vyplněný konec, nezapomeňte jej vyplnit.' in text for text in messages_text)
         )
 
+    def test_action_copies_multiple_mimo_db_rows_in_same_patro(self):
+        row_a = SarzeKrokBedna.objects.create(
+            krok=self.krok_1,
+            bedna=None,
+            patro=7,
+            procent_z_patra=40,
+            popis_mimo_db='ZELEZO-A',
+            zakaznik_mimo_db='TEST',
+            zakazka_mimo_db='Z-1',
+            cislo_bedny_mimo_db='M-001',
+        )
+        row_b = SarzeKrokBedna.objects.create(
+            krok=self.krok_1,
+            bedna=None,
+            patro=7,
+            procent_z_patra=30,
+            popis_mimo_db='ZELEZO-B',
+            zakaznik_mimo_db='TEST',
+            zakazka_mimo_db='Z-2',
+            cislo_bedny_mimo_db='M-002',
+        )
+
+        request = self.factory.post(
+            '/admin/orders/sarzekrokbedna/',
+            {
+                'apply': '1',
+                'action': 'vytvorit_dalsi_krok_sarze_action',
+                '_selected_action': [row_a.pk, row_b.pk],
+                'datum': date.today().strftime('%Y-%m-%d'),
+                'zarizeni': self.zarizeni_2.pk,
+                'operator': 'OP-MIMO-2',
+                'zacatek': '11:30',
+            },
+        )
+        request.user = self.user
+        request.session = DummySession()
+        request._messages = FallbackStorage(request)
+
+        response = vytvorit_dalsi_krok_sarze_action(
+            self.admin,
+            request,
+            SarzeKrokBedna.objects.filter(pk__in=[row_a.pk, row_b.pk]),
+        )
+
+        self.assertEqual(response.status_code, 302)
+        novy_krok = SarzeKrok.objects.exclude(pk__in=[self.krok_1.pk, self.krok_2.pk]).get()
+        copied_rows = SarzeKrokBedna.objects.filter(krok=novy_krok, bedna__isnull=True, patro=7)
+        self.assertEqual(copied_rows.count(), 2)
+        self.assertTrue(copied_rows.filter(popis_mimo_db='ZELEZO-A', cislo_bedny_mimo_db='M-001').exists())
+        self.assertTrue(copied_rows.filter(popis_mimo_db='ZELEZO-B', cislo_bedny_mimo_db='M-002').exists())
+
 
 class SarzeKrokAdminActionTests(AdminBase):
     def setUp(self):
@@ -2499,6 +2550,57 @@ class SarzeKrokAdminActionTests(AdminBase):
         self.assertTrue(
             any('Původní krok šarže nemá vyplněný konec, nezapomeňte jej vyplnit.' in text for text in messages_text)
         )
+
+    def test_action_copies_multiple_mimo_db_rows_in_same_patro(self):
+        SarzeKrokBedna.objects.create(
+            krok=self.krok,
+            bedna=None,
+            patro=3,
+            procent_z_patra=45,
+            popis_mimo_db='ZELEZO-A',
+            zakaznik_mimo_db='TEST',
+            zakazka_mimo_db='Z-3',
+            cislo_bedny_mimo_db='M-010',
+        )
+        SarzeKrokBedna.objects.create(
+            krok=self.krok,
+            bedna=None,
+            patro=3,
+            procent_z_patra=35,
+            popis_mimo_db='ZELEZO-B',
+            zakaznik_mimo_db='TEST',
+            zakazka_mimo_db='Z-4',
+            cislo_bedny_mimo_db='M-011',
+        )
+
+        request = self.factory.post(
+            '/admin/orders/sarzekrok/',
+            {
+                'apply': '1',
+                'action': 'vytvorit_novy_krok_z_kroku_sarze_action',
+                '_selected_action': [self.krok.pk],
+                'datum': date.today().strftime('%Y-%m-%d'),
+                'zarizeni': self.zarizeni.pk,
+                'operator': 'OPX-MIMO',
+                'zacatek': '16:10',
+            },
+        )
+        request.user = self.user
+        request.session = DummySession()
+        request._messages = FallbackStorage(request)
+
+        response = vytvorit_novy_krok_z_kroku_sarze_action(
+            self.admin,
+            request,
+            SarzeKrok.objects.filter(pk=self.krok.pk),
+        )
+
+        self.assertEqual(response.status_code, 302)
+        novy_krok = SarzeKrok.objects.exclude(pk=self.krok.pk).get()
+        copied_rows = SarzeKrokBedna.objects.filter(krok=novy_krok, bedna__isnull=True, patro=3)
+        self.assertEqual(copied_rows.count(), 2)
+        self.assertTrue(copied_rows.filter(popis_mimo_db='ZELEZO-A', cislo_bedny_mimo_db='M-010').exists())
+        self.assertTrue(copied_rows.filter(popis_mimo_db='ZELEZO-B', cislo_bedny_mimo_db='M-011').exists())
 
     def test_change_form_requires_zarizeni_operator_a_zacatek(self):
         novy_krok = SarzeKrok.objects.create(
