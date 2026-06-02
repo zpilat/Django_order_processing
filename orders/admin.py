@@ -71,7 +71,10 @@ from .choices import (
     StavBednyChoice, RovnaniChoice, TryskaniChoice, ZinkovaniChoice, PrioritaChoice, KamionChoice, PrijemVydejChoice, SklademZakazkyChoice,
     BARVA_SKUPINY_TZ, STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM, STAV_BEDNY_PRO_NAVEZENI, STAV_BEDNY_KONTROLA_ZMENY_PRIORITY,
 )
-from .utils import utilita_validate_excel_upload, build_postup_vyroby_cases, truncate_with_title, parse_sarze_search_term
+from .utils import (
+    utilita_validate_excel_upload, build_postup_vyroby_cases, truncate_with_title, parse_sarze_search_term,
+    format_decimal_csv
+)
 
 import logging
 logger = logging.getLogger('orders')
@@ -503,7 +506,7 @@ class SarzeKrokBednaAdmin(SimpleHistoryAdmin):
     actions = (vytvorit_dalsi_krok_sarze_action,)
     list_display = (
         'get_krok', 'get_kod_zarizeni', 'get_datum', 'get_zacatek', 'get_konec', 'get_operator',
-        'get_zkraceny_popis', 'get_cislo_bedny', 'get_zakaznik', 'get_predpis', 'patro',
+        'get_zkraceny_popis', 'get_rozmer', 'get_cislo_bedny', 'get_zakaznik', 'get_predpis', 'patro',
         'get_cislo_pripravku', 'get_program', 'get_zakazka_skupina', 'get_poznamka', 'get_alarm', 'get_prodleva',
         'get_takt', #'get_prvni_pouziti',
     )
@@ -578,7 +581,7 @@ class SarzeKrokBednaAdmin(SimpleHistoryAdmin):
     @admin.display(description='Zkrácený popis', ordering='bedna__zakazka__zkraceny_popis')
     def get_zkraceny_popis(self, obj):
         if obj.bedna and obj.bedna.zakazka:
-            return obj.bedna.zakazka.zkraceny_popis
+            return truncate_with_title(obj.bedna.zakazka.zkraceny_popis)
         return truncate_with_title(obj.popis_mimo_db)
 
     @admin.display(description='Zákazník')
@@ -627,7 +630,18 @@ class SarzeKrokBednaAdmin(SimpleHistoryAdmin):
         if obj.bedna and obj.bedna.zakazka and obj.bedna.zakazka.predpis:
             return obj.bedna.zakazka.predpis.nazev or obj.bedna.zakazka.predpis
         return "--------"
-    
+
+    @admin.display(description='Rozměr', ordering='bedna__zakazka__delka')
+    def get_rozmer(self, obj):
+        if obj.bedna and obj.bedna.zakazka:
+            try:
+                delka = int(obj.bedna.zakazka.delka)
+            except (ValueError, TypeError):
+                delka = obj.bedna.zakazka.delka
+            prumer = format_decimal_csv(obj.bedna.zakazka.prumer)
+            return f"{prumer}x{delka}"
+        return '-'
+
     @admin.display(boolean=True, description='První?')
     def get_prvni_pouziti(self, obj):
         return obj.prvni_pouziti

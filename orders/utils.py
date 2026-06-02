@@ -160,7 +160,7 @@ def utilita_tisk_dl_a_proforma_faktury(modeladmin, request, kamion, html_path, f
     return response    
 
 
-def _format_decimal_csv(value):
+def format_decimal_csv(value):
     if value is None:
         return ''
     text = format(value, 'f')
@@ -202,7 +202,7 @@ def utilita_export_beden_zinkovani_csv(bedny_qs, filename_prefix="bedny_zinkovan
             getattr(zakazka, 'popis', '') if zakazka else '',
             getattr(zakazka, 'artikl', '') if zakazka else '',
             rozmer,
-            _format_decimal_csv(getattr(bedna, 'hmotnost', None)),
+            format_decimal_csv(getattr(bedna, 'hmotnost', None)),
             getattr(bedna, 'mnozstvi', '') or '',
             getattr(zakazka, 'vrstva', '') if zakazka else '',
             getattr(zakazka, 'povrch', '') if zakazka else '',
