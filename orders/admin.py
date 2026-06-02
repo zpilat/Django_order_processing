@@ -588,10 +588,10 @@ class SarzeKrokBednaAdmin(SimpleHistoryAdmin):
     def get_zakaznik(self, obj):
         if obj.bedna and obj.bedna.zakazka and obj.bedna.zakazka.kamion_prijem and obj.bedna.zakazka.kamion_prijem.zakaznik:
             zakaznik = obj.bedna.zakazka.kamion_prijem.zakaznik
-            zakaznik_popis = truncate_with_title(zakaznik.zkratka or zakaznik.zkraceny_nazev or zakaznik.nazev, max_len=8)
+            zakaznik_popis = truncate_with_title(zakaznik.zkratka or zakaznik.zkraceny_nazev or zakaznik.nazev, max_len=10)
             return zakaznik_popis
         else:
-            return truncate_with_title(obj.zakaznik_mimo_db, max_len=8)
+            return truncate_with_title(obj.zakaznik_mimo_db, max_len=10)
 
     @admin.display(description='Přípr.', ordering='krok__sarze__cislo_pripravku')
     def get_cislo_pripravku(self, obj):
