@@ -314,6 +314,45 @@ class ActionsTests(ActionsBase):
         with self.assertRaises(IntegrityError):
             orphan_zakazka.save(update_fields=['kamion_prijem'])
 
+    @patch('orders.actions.render_to_string', return_value='<html></html>')
+    @patch('orders.actions.finders.find', return_value=None)
+    @patch('orders.actions.HTML')
+    def test_tisk_rozpracovanost_action_warns_on_missing_pricing(self, html_mock, find_mock, render_mock):
+        admin_obj = self._messaging_admin()
+
+        unknown = Predpis.objects.create(nazev='Neznámý předpis', skupina=1, zakaznik=self.zakaznik)
+        self.zakazka.predpis = unknown
+        self.zakazka.save(update_fields=['predpis'])
+
+        self.bedna.hmotnost = Decimal('2.0')
+        self.bedna.fakturovat = True
+        self.bedna.save(update_fields=['hmotnost', 'fakturovat'])
+
+        snapshot = Rozpracovanost.objects.create()
+        RozpracovanostBednaSnapshot.objects.create(
+            rozpracovanost=snapshot,
+            bedna=self.bedna,
+            stav_bedny=self.bedna.stav_bedny,
+            tryskat=self.bedna.tryskat,
+            rovnat=self.bedna.rovnat,
+            zinkovat=self.bedna.zinkovat,
+        )
+
+        request = self.get_request('post')
+        queryset = Rozpracovanost.objects.filter(pk=snapshot.pk)
+
+        html_instance = html_mock.return_value
+        html_instance.write_pdf.return_value = b'%PDF-1.4%'
+
+        response = actions.tisk_rozpracovanost_action(admin_obj, request, queryset)
+
+        self.assertEqual(response.status_code, 200)
+
+        context = render_mock.call_args[0][1]
+        self.assertIn('pricing_warnings', context)
+        self.assertTrue(context['pricing_warnings'])
+        self.assertIn('chybí předpis', ' '.join(context['pricing_warnings']))
+
     def test_tisk_protokolu_kamionu_vydej_action_success(self):
         self.kamion_vydej.cislo_dl = 'DL123'
         self.kamion_vydej.save()

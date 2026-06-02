@@ -68,6 +68,17 @@
     </style>
 </head>
 <body>   
+    {% if pricing_warnings %}
+        <div style="border: 1px solid #b26a00; background: #fff3cd; color: #7a4a00; padding: 4mm; margin-bottom: 6mm;">
+            <strong>Upozornění:</strong> Některé zakázky nemají kompletní předpis nebo ceník:
+            <ul style="margin: 2mm 0 0 4mm; padding: 0;">
+                {% for warning in pricing_warnings %}
+                    <li>{{ warning }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+
     {% for section in sections %}
         <div class="customer-section">
             <h2>Rozpracovanost - {{ section.zakaznik.nazev }}</h2>

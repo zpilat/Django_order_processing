@@ -3325,6 +3325,7 @@ def tisk_rozpracovanost_action(modeladmin, request, queryset):
 
     bedny_qs = snapshot.bedny.filter(fakturovat=True).select_related(
         'zakazka',
+        'zakazka__predpis',
         'zakazka__kamion_prijem',
         'zakazka__kamion_prijem__zakaznik',
         'zakazka__typ_hlavy',
@@ -3343,6 +3344,19 @@ def tisk_rozpracovanost_action(modeladmin, request, queryset):
     skipped = 0
     weight_quant = Decimal('0.1')
     money_quant = Decimal('0.01')
+    pricing_warnings = []
+    warned_zakazky = set()
+
+    def _to_decimal_or_none(value):
+        if value is None:
+            return None
+        if isinstance(value, Decimal):
+            return value
+        try:
+            return Decimal(value)
+        except Exception:
+            logger.warning("Nepodařilo se převést cenu zakázky na Decimal při tisku rozpracovanosti.", exc_info=True)
+            return None
 
     for bedna in bedny:
         zakazka = getattr(bedna, 'zakazka', None)
@@ -3352,6 +3366,32 @@ def tisk_rozpracovanost_action(modeladmin, request, queryset):
         if not zakazka or not zakaznik:
             skipped += 1
             continue
+
+        if zakazka.pk not in warned_zakazky:
+            warning_reasons = []
+            predpis = getattr(zakazka, 'predpis', None)
+            if not predpis or getattr(predpis, 'nazev', None) == 'Neznámý předpis':
+                warning_reasons.append('chybí předpis')
+
+            cena_za_kg = _to_decimal_or_none(getattr(zakazka, 'cena_za_kg', None))
+            if cena_za_kg is None or cena_za_kg <= 0:
+                warning_reasons.append('cena kalení <= 0')
+
+            if zakaznik.fakturovat_rovnani:
+                cena_rovnani = _to_decimal_or_none(getattr(zakazka, 'cena_rovnani_za_kg', None))
+                if cena_rovnani is None or cena_rovnani <= 0:
+                    warning_reasons.append('cena rovnání <= 0')
+
+            if zakaznik.fakturovat_tryskani:
+                cena_tryskani = _to_decimal_or_none(getattr(zakazka, 'cena_tryskani_za_kg', None))
+                if cena_tryskani is None or cena_tryskani <= 0:
+                    warning_reasons.append('cena tryskání <= 0')
+
+            if warning_reasons:
+                pricing_warnings.append(
+                    f"{zakaznik.zkraceny_nazev} / {zakazka.artikl or zakazka.pk}: {', '.join(warning_reasons)}"
+                )
+            warned_zakazky.add(zakazka.pk)
 
         customer_entry = customer_map.setdefault(
             zakaznik.pk,
@@ -3428,6 +3468,17 @@ def tisk_rozpracovanost_action(modeladmin, request, queryset):
             )
         return None
 
+    if pricing_warnings:
+        preview_items = pricing_warnings[:8]
+        remaining = len(pricing_warnings) - len(preview_items)
+        detail_text = '; '.join(preview_items)
+        if remaining > 0:
+            detail_text = f"{detail_text}; ... a dalších {remaining} zakázek"
+        logger.warning(
+            "Rozpracovanost PDF: nalezeny zakázky s nekompletním ceníkem/předpisem. "
+            f"Počet: {len(pricing_warnings)}. Detaily: {detail_text}"
+        )
+
     sections = []
     for customer_entry in sorted(customer_map.values(), key=lambda item: item['zakaznik'].nazev):
         zakazky_rows = []
@@ -3496,6 +3547,7 @@ def tisk_rozpracovanost_action(modeladmin, request, queryset):
     context = {
         'snapshot': snapshot,
         'sections': sections,
+        'pricing_warnings': pricing_warnings,
         'generated_at': timezone.now(),
         'prepared_by': _resolve_user_name(getattr(request, 'user', None)),
     }
