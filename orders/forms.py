@@ -432,19 +432,15 @@ class SarzeKrokActionInitForm(forms.Form):
     def __init__(self, *args, **kwargs):
         self.sarze = kwargs.pop('sarze', None)
         super().__init__(*args, **kwargs)
-        # Nastavení přeškrtnutého textu pro zarizeni, které už mají v této sarži krok s doprovodným textem:
-        # "Upozornění: Pro toto pracoviště již existuje krok v této šarži."
+        # Nastavení upozornění pro zarizeni, které už mají v této sarži krok.
         if 'zarizeni' in self.fields and self.sarze:
             # Získání všech zařízení, které už mají v této šarži krok
-            existing_zarizeni_ids = self.sarze.kroky.values_list('zarizeni_id', flat=True).distinct()
+            existing_zarizeni_ids = set(self.sarze.kroky.values_list('zarizeni_id', flat=True))
             self.fields["zarizeni"].label_from_instance = (
                 lambda obj: (
                         f"{obj.zkraceny_nazev_zarizeni} - Pro toto pracoviště již existuje krok v této šarži."
                 ) if obj.id in existing_zarizeni_ids else f"{obj.zkraceny_nazev_zarizeni}"
-            )
-                
-
-
+            )             
 
     def clean_operator(self):
         operator = (self.cleaned_data.get('operator') or '').strip()
