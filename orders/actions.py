@@ -11,10 +11,9 @@ from django.forms import formset_factory
 from django.template.response import TemplateResponse
 from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
-from django.contrib.admin.widgets import AdminDateWidget
 from django.conf import settings
 from django.contrib.staticfiles import finders
-from django.db.models import Count, Q
+from django.db.models import Count, Q, Max
 
 import csv
 import datetime
@@ -40,7 +39,7 @@ from .services.expedice_service import (
 )
 from .services.exceptions import ServiceValidationError
 from django.urls import reverse
-from .forms import VyberKamionVydejForm, OdberatelForm, KNavezeniForm, NavezenoForm
+from .forms import VyberKamionVydejForm, OdberatelForm, KNavezeniForm, NavezenoForm, SarzeKrokActionInitForm
 from .choices import (
     KamionChoice,
     StavBednyChoice,
@@ -54,33 +53,6 @@ from .choices import (
 
 import logging
 logger = logging.getLogger('orders')
-
-
-class SarzeKrokActionInitForm(forms.Form):
-    datum = forms.DateField(
-        required=True,
-        label='Datum',
-        input_formats=['%d.%m.%Y', '%Y-%m-%d'],
-        widget=AdminDateWidget(),
-    )
-    zarizeni = forms.ModelChoiceField(
-        queryset=Zarizeni.objects.order_by('kod_zarizeni', 'nazev_zarizeni'),
-        required=True,
-        label='Pracoviště',
-    )
-    zacatek = forms.TimeField(required=True, label='Začátek', input_formats=['%H:%M', '%H.%M'])
-    konec = forms.TimeField(required=False, label='Konec', input_formats=['%H:%M', '%H.%M'])
-    operator = forms.CharField(max_length=30, required=True, label='Operátor')
-    program = forms.CharField(max_length=20, required=False, label='Program')
-    alarm = forms.CharField(max_length=50, required=False, label='Alarm')
-    poznamka = forms.CharField(max_length=100, required=False, label='Poznámka')
-
-    def clean_operator(self):
-        operator = (self.cleaned_data.get('operator') or '').strip()
-        if not operator:
-            raise ValidationError('Pole Operátor je povinné.')
-        return operator
-
 
 def _get_changelist_url(modeladmin):
     opts = modeladmin.model._meta
@@ -111,7 +83,8 @@ def _build_sarzekrokbedna_preview_rows(source_rows):
 
 def _render_sarzekrok_action_init_form(modeladmin, request, queryset, form, action_name, source_krok, source_rows):
     source_row_preview = _build_sarzekrokbedna_preview_rows(source_rows)
-    predicted_poradi = (source_krok.poradi or 0) + 1 if source_krok else None
+    # Predikce pořadí dle nejvyšší hodnoty kroku šarže v dané šarži + 1
+    predicted_poradi = (SarzeKrok.objects.filter(sarze=source_krok.sarze).aggregate(max_poradi=Max('poradi'))['max_poradi'] or 0) + 1
     context = {
         **modeladmin.admin_site.each_context(request),
         'title': 'Založení nového kroku šarže',
@@ -365,6 +338,7 @@ def _abort_if_bedna_has_not_hmotnost_zakazka_predpis(modeladmin, request, querys
         return True
     return False
 
+# Akce pro deník:
 
 @admin.action(description='Přesunout šarži do dalšího kroku z vybraných beden')
 def vytvorit_dalsi_krok_sarze_action(modeladmin, request, queryset):
@@ -395,7 +369,7 @@ def vytvorit_dalsi_krok_sarze_action(modeladmin, request, queryset):
 
     if 'apply' not in request.POST:
         initial = {'datum': timezone.localdate()}
-        form = SarzeKrokActionInitForm(initial=initial)
+        form = SarzeKrokActionInitForm(initial=initial, sarze=source_krok.sarze)
         return _render_sarzekrok_action_init_form(
             modeladmin,
             request,
@@ -406,7 +380,7 @@ def vytvorit_dalsi_krok_sarze_action(modeladmin, request, queryset):
             source_rows,
         )
 
-    form = SarzeKrokActionInitForm(request.POST)
+    form = SarzeKrokActionInitForm(request.POST, sarze=source_krok.sarze)
     if not form.is_valid():
         return _render_sarzekrok_action_init_form(
             modeladmin,
@@ -444,6 +418,7 @@ def vytvorit_dalsi_krok_sarze_action(modeladmin, request, queryset):
         )
     return HttpResponseRedirect(_get_changelist_url(modeladmin))
 
+# Akce pro kroky šarže:
 
 @admin.action(description='Přesunout šarži do dalšího kroku')
 def vytvorit_novy_krok_z_kroku_sarze_action(modeladmin, request, queryset):
@@ -470,7 +445,7 @@ def vytvorit_novy_krok_z_kroku_sarze_action(modeladmin, request, queryset):
 
     if 'apply' not in request.POST:
         initial = {'datum': timezone.localdate()}
-        form = SarzeKrokActionInitForm(initial=initial)
+        form = SarzeKrokActionInitForm(initial=initial, sarze=source_krok.sarze)
         return _render_sarzekrok_action_init_form(
             modeladmin,
             request,
@@ -481,7 +456,7 @@ def vytvorit_novy_krok_z_kroku_sarze_action(modeladmin, request, queryset):
             source_rows,
         )
 
-    form = SarzeKrokActionInitForm(request.POST)
+    form = SarzeKrokActionInitForm(request.POST, sarze=source_krok.sarze)
     if not form.is_valid():
         return _render_sarzekrok_action_init_form(
             modeladmin,

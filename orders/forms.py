@@ -2,10 +2,12 @@ from django import forms
 from django.db.models import Exists, OuterRef, Q
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+from django.contrib.admin.widgets import AdminDateWidget
+from django.core.exceptions import ValidationError
 
 from decimal import Decimal, ROUND_HALF_UP
 
-from .models import Zakaznik, Kamion, Zakazka, Bedna, Predpis, Odberatel, Pozice
+from .models import SarzeKrok, Zakaznik, Kamion, Zakazka, Bedna, Predpis, Odberatel, Pozice, Zarizeni
 from .choices import StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice, ZinkovaniChoice
 
 import logging
@@ -407,3 +409,45 @@ class NavezenoForm(forms.Form):
         label="Pozice",
         required=False
     )
+
+class SarzeKrokActionInitForm(forms.Form):
+    datum = forms.DateField(
+        required=True,
+        label='Datum',
+        input_formats=['%d.%m.%Y', '%Y-%m-%d'],
+        widget=AdminDateWidget(),
+    )
+    zarizeni = forms.ModelChoiceField(
+        queryset=Zarizeni.objects.order_by('kod_zarizeni', 'nazev_zarizeni'),
+        required=True,
+        label='Pracoviště',
+    )
+    zacatek = forms.TimeField(required=True, label='Začátek', input_formats=['%H:%M', '%H.%M'])
+    konec = forms.TimeField(required=False, label='Konec', input_formats=['%H:%M', '%H.%M'])
+    operator = forms.CharField(max_length=30, required=True, label='Operátor')
+    program = forms.CharField(max_length=20, required=False, label='Program')
+    alarm = forms.CharField(max_length=50, required=False, label='Alarm')
+    poznamka = forms.CharField(max_length=100, required=False, label='Poznámka')
+
+    def __init__(self, *args, **kwargs):
+        self.sarze = kwargs.pop('sarze', None)
+        super().__init__(*args, **kwargs)
+        # Nastavení přeškrtnutého textu pro zarizeni, které už mají v této sarži krok s doprovodným textem:
+        # "Upozornění: Pro toto pracoviště již existuje krok v této šarži."
+        if 'zarizeni' in self.fields and self.sarze:
+            # Získání všech zařízení, které už mají v této šarži krok
+            existing_zarizeni_ids = self.sarze.kroky.values_list('zarizeni_id', flat=True).distinct()
+            self.fields["zarizeni"].label_from_instance = (
+                lambda obj: (
+                        f"{obj.zkraceny_nazev_zarizeni} - Pro toto pracoviště již existuje krok v této šarži."
+                ) if obj.id in existing_zarizeni_ids else f"{obj.zkraceny_nazev_zarizeni}"
+            )
+                
+
+
+
+    def clean_operator(self):
+        operator = (self.cleaned_data.get('operator') or '').strip()
+        if not operator:
+            raise ValidationError('Pole Operátor je povinné.')
+        return operator    
