@@ -2,14 +2,6 @@
 
 {% block object-tools-items %}
     <li>
-        <a href="{% url 'admin:orders_sarze_add' %}" class="addlink">1) Šarže: Přidat</a>
+        <a href="{% url 'admin:orders_sarze_add' %}" class="addlink">Šarže: Přidat</a>
     </li>
-    <li>
-        <a href="{% url 'admin:orders_sarzekrok_add' %}" class="addlink">2) Krok: Přidat</a>
-    </li>
-    {% if has_add_permission %}
-        <li>
-            <a href="{% url 'admin:orders_sarzekrokbedna_add' %}" class="addlink">3) Deník beden v krocích šarže: Přidat záznam</a>
-        </li>
-    {% endif %}
 {% endblock %}
