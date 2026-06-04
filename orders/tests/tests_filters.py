@@ -406,6 +406,18 @@ class SarzeBednaFiltersTests(FilterTestBase):
 			zkraceny_nazev_zarizeni='VU1',
 			typ_zarizeni=TypZarizeniChoice.VICEUCELOVKA,
 		)
+		self.zar_tr = Zarizeni.objects.create(
+			kod_zarizeni='TR1',
+			nazev_zarizeni='Tryskac 1',
+			zkraceny_nazev_zarizeni='TR1',
+			typ_zarizeni=TypZarizeniChoice.TRYSKAC,
+		)
+		self.zar_sz = Zarizeni.objects.create(
+			kod_zarizeni='SZ1',
+			nazev_zarizeni='Sarzovani 1',
+			zkraceny_nazev_zarizeni='SZ1',
+			typ_zarizeni=TypZarizeniChoice.SARZOVANI,
+		)
 
 		self.sar_pp = Sarze.objects.create(
 			cislo_sarze=9001,
@@ -437,6 +449,24 @@ class SarzeBednaFiltersTests(FilterTestBase):
 			operator='OP',
 			program='P2',
 		)
+		self.krok_tr = SarzeKrok.objects.create(
+			sarze=self.sar_vu,
+			poradi=2,
+			datum=today,
+			zarizeni=self.zar_tr,
+			zacatek='09:00',
+			operator='OP',
+			program='P3',
+		)
+		self.krok_sz = SarzeKrok.objects.create(
+			sarze=self.sar_vu,
+			poradi=3,
+			datum=today,
+			zarizeni=self.zar_sz,
+			zacatek='10:00',
+			operator='OP',
+			program='P4',
+		)
 
 		self.sb_pp = SarzeBedna.objects.create(
 			krok=self.krok_pp,
@@ -452,6 +482,20 @@ class SarzeBednaFiltersTests(FilterTestBase):
 			zakaznik_mimo_db='Zak B',
 			zakazka_mimo_db='Zak-2',
 		)
+		self.sb_tr = SarzeBedna.objects.create(
+			krok=self.krok_tr,
+			patro=1,
+			popis_mimo_db='test tr',
+			zakaznik_mimo_db='Zak C',
+			zakazka_mimo_db='Zak-3',
+		)
+		self.sb_sz = SarzeBedna.objects.create(
+			krok=self.krok_sz,
+			patro=1,
+			popis_mimo_db='test sz',
+			zakaznik_mimo_db='Zak D',
+			zakazka_mimo_db='Zak-4',
+		)
 
 	def test_typ_zarizeni_sarzebedna_filter(self):
 		f = self._make_filter(
@@ -461,6 +505,20 @@ class SarzeBednaFiltersTests(FilterTestBase):
 		)
 		qs = f.queryset(None, SarzeBedna.objects.all())
 		self.assertIn(self.sb_pp, qs)
+		self.assertNotIn(self.sb_vu, qs)
+		self.assertNotIn(self.sb_tr, qs)
+		self.assertNotIn(self.sb_sz, qs)
+
+	def test_typ_zarizeni_sarzebedna_filter_vs(self):
+		f = self._make_filter(
+			F.TypZarizeniSarzeBednaFilter,
+			SarzeBedna,
+			params={'typ_zarizeni': 'VS'},
+		)
+		qs = f.queryset(None, SarzeBedna.objects.all())
+		self.assertIn(self.sb_tr, qs)
+		self.assertIn(self.sb_sz, qs)
+		self.assertNotIn(self.sb_pp, qs)
 		self.assertNotIn(self.sb_vu, qs)
 
 	def test_konec_sarzekrok_filter_vyplneno(self):

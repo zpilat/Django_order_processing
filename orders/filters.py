@@ -1042,6 +1042,7 @@ class TypZarizeniSarzeBednaFilter(DynamicTitleFilter):
 
     def __init__(self, request, params, model, model_admin):
         self.label_dict = {**dict(TypZarizeniChoice.choices)}
+        self.label_dict['VS'] = 'Vstup & Výstup'
         super().__init__(request, params, model, model_admin)
 
     def lookups(self, request, model_admin):
@@ -1051,6 +1052,8 @@ class TypZarizeniSarzeBednaFilter(DynamicTitleFilter):
         value = self.value()
         if not value:
             return queryset
+        if value == 'VS':
+            return queryset.filter(krok__zarizeni__typ_zarizeni__in=(TypZarizeniChoice.TRYSKAC, TypZarizeniChoice.SARZOVANI))
         return queryset.filter(krok__zarizeni__typ_zarizeni=value)
 
 
