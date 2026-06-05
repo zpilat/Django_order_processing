@@ -80,6 +80,7 @@
     {% endfor %}
     <input type="hidden" name="action" value="{{ action_name }}">
     <input type="hidden" name="apply" value="1">
+    <input type="hidden" name="_sarzekrok_action_token" value="{{ action_token }}">
 
     <fieldset class="module aligned">
       <h2>Údaje nového kroku šarže</h2>
@@ -173,4 +174,20 @@
       <a href="{{ cancel_url }}" class="button">Zrušit</a>
     </div>
   </form>
+
+  <script>
+    (function () {
+      const form = document.querySelector('.sarzekrok-action-form');
+      if (!form) {
+        return;
+      }
+      form.addEventListener('submit', function () {
+        const submit = form.querySelector('input[type="submit"]');
+        if (submit) {
+          submit.disabled = true;
+          submit.value = 'Ukládám...';
+        }
+      });
+    })();
+  </script>
 {% endblock %}

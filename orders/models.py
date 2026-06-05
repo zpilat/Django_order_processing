@@ -1525,6 +1525,14 @@ class Sarze(models.Model):
 class SarzeKrok(models.Model):
     sarze = models.ForeignKey(Sarze, on_delete=models.CASCADE, related_name='kroky', verbose_name='Šarže')
     poradi = models.PositiveIntegerField(verbose_name='Pořadí')
+    action_token = models.CharField(
+        max_length=32,
+        blank=True,
+        null=True,
+        unique=True,
+        editable=False,
+        verbose_name='Token akce',
+    )
     datum = models.DateField(blank=True, null=True, verbose_name='Datum')
     zarizeni = models.ForeignKey(
         Zarizeni,
@@ -1578,6 +1586,8 @@ class SarzeKrok(models.Model):
                     self.poradi = last_number + 1
                     return super().save(*args, **kwargs)
             except IntegrityError as error:
+                if self.action_token and SarzeKrok.objects.filter(action_token=self.action_token).exists():
+                    raise
                 last_error = error
                 logger.warning(
                     f"Kolize pořadí kroku při ukládání (pokus {attempt + 1}/{max_attempts}), opakuji.",

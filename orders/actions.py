@@ -17,6 +17,7 @@ from django.db.models import Count, Q, Max
 
 import csv
 import datetime
+import uuid
 from decimal import Decimal, ROUND_HALF_UP
 from weasyprint import HTML
 from weasyprint import CSS
@@ -81,7 +82,16 @@ def _build_sarzekrokbedna_preview_rows(source_rows):
     return preview_rows
 
 
-def _render_sarzekrok_action_init_form(modeladmin, request, queryset, form, action_name, source_krok, source_rows):
+def _render_sarzekrok_action_init_form(
+    modeladmin,
+    request,
+    queryset,
+    form,
+    action_name,
+    source_krok,
+    source_rows,
+    action_token=None,
+):
     source_row_preview = _build_sarzekrokbedna_preview_rows(source_rows)
     # Predikce pořadí dle nejvyšší hodnoty kroku šarže v dané šarži + 1
     predicted_poradi = (SarzeKrok.objects.filter(sarze=source_krok.sarze).aggregate(max_poradi=Max('poradi'))['max_poradi'] or 0) + 1
@@ -96,6 +106,7 @@ def _render_sarzekrok_action_init_form(modeladmin, request, queryset, form, acti
         'source_row_preview': source_row_preview,
         'source_row_count': len(source_row_preview),
         'predicted_poradi': predicted_poradi,
+        'action_token': action_token or uuid.uuid4().hex,
         'action_name': action_name,
         'action_checkbox_name': admin.helpers.ACTION_CHECKBOX_NAME,
         'cancel_url': _get_changelist_url(modeladmin),
@@ -115,46 +126,55 @@ def _create_sarzekrok_and_copy_rows(
     program,
     alarm,
     poznamka,
+    action_token=None,
 ):
-    with transaction.atomic():
-        target_krok = SarzeKrok.objects.create(
-            sarze=source_krok.sarze,
-            datum=datum,
-            zarizeni=zarizeni,
-            zacatek=zacatek,
-            konec=konec,
-            operator=operator,
-            program=program,
-            alarm=alarm,
-            poznamka=poznamka,
-        )
+    try:
+        with transaction.atomic():
+            target_krok = SarzeKrok.objects.create(
+                sarze=source_krok.sarze,
+                action_token=action_token,
+                datum=datum,
+                zarizeni=zarizeni,
+                zacatek=zacatek,
+                konec=konec,
+                operator=operator,
+                program=program,
+                alarm=alarm,
+                poznamka=poznamka,
+            )
 
-        copied_count = 0
-        skipped_conflict = 0
-        for row in source_rows:
-            if row.bedna_id is not None:
-                exists = SarzeKrokBedna.objects.filter(
+            copied_count = 0
+            skipped_conflict = 0
+            for row in source_rows:
+                if row.bedna_id is not None:
+                    exists = SarzeKrokBedna.objects.filter(
+                        krok=target_krok,
+                        bedna=row.bedna,
+                        patro=row.patro,
+                    ).exists()
+                    if exists:
+                        skipped_conflict += 1
+                        continue
+
+                SarzeKrokBedna.objects.create(
                     krok=target_krok,
                     bedna=row.bedna,
                     patro=row.patro,
-                ).exists()
-                if exists:
-                    skipped_conflict += 1
-                    continue
+                    procent_z_patra=row.procent_z_patra,
+                    popis_mimo_db=row.popis_mimo_db,
+                    zakaznik_mimo_db=row.zakaznik_mimo_db,
+                    zakazka_mimo_db=row.zakazka_mimo_db,
+                    cislo_bedny_mimo_db=row.cislo_bedny_mimo_db,
+                )
+                copied_count += 1
+    except IntegrityError:
+        if action_token:
+            target_krok = SarzeKrok.objects.filter(action_token=action_token).first()
+            if target_krok:
+                return target_krok, target_krok.krok_bedny.count(), 0, False
+        raise
 
-            SarzeKrokBedna.objects.create(
-                krok=target_krok,
-                bedna=row.bedna,
-                patro=row.patro,
-                procent_z_patra=row.procent_z_patra,
-                popis_mimo_db=row.popis_mimo_db,
-                zakaznik_mimo_db=row.zakaznik_mimo_db,
-                zakazka_mimo_db=row.zakazka_mimo_db,
-                cislo_bedny_mimo_db=row.cislo_bedny_mimo_db,
-            )
-            copied_count += 1
-
-    return target_krok, copied_count, skipped_conflict
+    return target_krok, copied_count, skipped_conflict, True
 
 
 def _safe_filename(label: str, fallback: str = "soubor") -> str:
@@ -380,6 +400,7 @@ def vytvorit_dalsi_krok_sarze_action(modeladmin, request, queryset):
             source_rows,
         )
 
+    action_token = request.POST.get('_sarzekrok_action_token') or uuid.uuid4().hex
     form = SarzeKrokActionInitForm(request.POST, sarze=source_krok.sarze)
     if not form.is_valid():
         return _render_sarzekrok_action_init_form(
@@ -390,9 +411,10 @@ def vytvorit_dalsi_krok_sarze_action(modeladmin, request, queryset):
             'vytvorit_dalsi_krok_sarze_action',
             source_krok,
             source_rows,
+            action_token,
         )
 
-    target_krok, copied_count, skipped_conflict = _create_sarzekrok_and_copy_rows(
+    target_krok, copied_count, skipped_conflict, created = _create_sarzekrok_and_copy_rows(
         source_krok,
         source_rows,
         datum=form.cleaned_data['datum'],
@@ -403,13 +425,21 @@ def vytvorit_dalsi_krok_sarze_action(modeladmin, request, queryset):
         program=form.cleaned_data['program'],
         alarm=form.cleaned_data['alarm'],
         poznamka=form.cleaned_data['poznamka'],
+        action_token=action_token,
     )
 
-    modeladmin.message_user(
-        request,
-        f'Vytvořen nový krok šarže {target_krok} a zkopírováno {copied_count} řádků deníku.',
-        level=messages.SUCCESS,
-    )
+    if created:
+        modeladmin.message_user(
+            request,
+            f'Vytvořen nový krok šarže {target_krok} a zkopírováno {copied_count} řádků deníku.',
+            level=messages.SUCCESS,
+        )
+    else:
+        modeladmin.message_user(
+            request,
+            f'Opakované odeslání stejné akce bylo ignorováno. Používá se již vytvořený krok šarže {target_krok}.',
+            level=messages.WARNING,
+        )
     if skipped_conflict:
         modeladmin.message_user(
             request,
@@ -456,6 +486,7 @@ def vytvorit_novy_krok_z_kroku_sarze_action(modeladmin, request, queryset):
             source_rows,
         )
 
+    action_token = request.POST.get('_sarzekrok_action_token') or uuid.uuid4().hex
     form = SarzeKrokActionInitForm(request.POST, sarze=source_krok.sarze)
     if not form.is_valid():
         return _render_sarzekrok_action_init_form(
@@ -466,9 +497,10 @@ def vytvorit_novy_krok_z_kroku_sarze_action(modeladmin, request, queryset):
             'vytvorit_novy_krok_z_kroku_sarze_action',
             source_krok,
             source_rows,
+            action_token,
         )
 
-    target_krok, copied_count, skipped_conflict = _create_sarzekrok_and_copy_rows(
+    target_krok, copied_count, skipped_conflict, created = _create_sarzekrok_and_copy_rows(
         source_krok,
         source_rows,
         datum=form.cleaned_data['datum'],
@@ -479,13 +511,21 @@ def vytvorit_novy_krok_z_kroku_sarze_action(modeladmin, request, queryset):
         program=form.cleaned_data['program'],
         alarm=form.cleaned_data['alarm'],
         poznamka=form.cleaned_data['poznamka'],
+        action_token=action_token,
     )
 
-    modeladmin.message_user(
-        request,
-        f'Vytvořen nový krok šarže {target_krok} a zkopírováno {copied_count} řádků deníku.',
-        level=messages.SUCCESS,
-    )
+    if created:
+        modeladmin.message_user(
+            request,
+            f'Vytvořen nový krok šarže {target_krok} a zkopírováno {copied_count} řádků deníku.',
+            level=messages.SUCCESS,
+        )
+    else:
+        modeladmin.message_user(
+            request,
+            f'Opakované odeslání stejné akce bylo ignorováno. Používá se již vytvořený krok šarže {target_krok}.',
+            level=messages.WARNING,
+        )
     if skipped_conflict:
         modeladmin.message_user(
             request,

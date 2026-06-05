@@ -2219,6 +2219,55 @@ class SarzeKrokBednaAdminActionTests(AdminBase):
             ).exists()
         )
 
+    def test_action_ignores_repeated_submit_with_same_token(self):
+        source = SarzeKrokBedna.objects.create(
+            krok=self.krok_1,
+            bedna=self.bedna,
+            patro=4,
+            procent_z_patra=100,
+        )
+        post_data = {
+            'apply': '1',
+            'action': 'vytvorit_dalsi_krok_sarze_action',
+            '_selected_action': [source.pk],
+            '_sarzekrok_action_token': 'repeat-token-denik',
+            'datum': date.today().strftime('%Y-%m-%d'),
+            'zarizeni': self.zarizeni_2.pk,
+            'operator': 'OP-REPEAT',
+            'zacatek': '10:45',
+        }
+
+        first_request = self.factory.post('/admin/orders/sarzekrokbedna/', post_data)
+        first_request.user = self.user
+        first_request.session = DummySession()
+        first_request._messages = FallbackStorage(first_request)
+
+        second_request = self.factory.post('/admin/orders/sarzekrokbedna/', post_data)
+        second_request.user = self.user
+        second_request.session = DummySession()
+        second_request._messages = FallbackStorage(second_request)
+
+        first_response = vytvorit_dalsi_krok_sarze_action(
+            self.admin,
+            first_request,
+            SarzeKrokBedna.objects.filter(pk=source.pk),
+        )
+        second_response = vytvorit_dalsi_krok_sarze_action(
+            self.admin,
+            second_request,
+            SarzeKrokBedna.objects.filter(pk=source.pk),
+        )
+
+        self.assertEqual(first_response.status_code, 302)
+        self.assertEqual(second_response.status_code, 302)
+        self.assertEqual(SarzeKrok.objects.count(), 3)
+        novy_krok = SarzeKrok.objects.get(action_token='repeat-token-denik')
+        self.assertEqual(novy_krok.poradi, 3)
+        self.assertEqual(SarzeKrokBedna.objects.filter(krok=novy_krok).count(), 1)
+
+        messages_text = [message.message for message in second_request._messages]
+        self.assertTrue(any('Opakované odeslání stejné akce bylo ignorováno.' in text for text in messages_text))
+
     def test_action_first_step_renders_init_form(self):
         source = SarzeKrokBedna.objects.create(
             krok=self.krok_1,
@@ -2475,6 +2524,50 @@ class SarzeKrokAdminActionTests(AdminBase):
         self.assertEqual(novy_krok.operator, 'OPX-2')
         self.assertEqual(SarzeKrokBedna.objects.filter(krok=self.krok).count(), 2)
         self.assertEqual(SarzeKrokBedna.objects.filter(krok=novy_krok).count(), 2)
+
+    def test_action_ignores_repeated_submit_with_same_token(self):
+        SarzeKrokBedna.objects.create(krok=self.krok, bedna=self.bedna, patro=1, procent_z_patra=100)
+        post_data = {
+            'apply': '1',
+            'action': 'vytvorit_novy_krok_z_kroku_sarze_action',
+            '_selected_action': [self.krok.pk],
+            '_sarzekrok_action_token': 'repeat-token-krok',
+            'datum': date.today().strftime('%Y-%m-%d'),
+            'zarizeni': self.zarizeni.pk,
+            'operator': 'OPX-REPEAT',
+            'zacatek': '13:45',
+        }
+
+        first_request = self.factory.post('/admin/orders/sarzekrok/', post_data)
+        first_request.user = self.user
+        first_request.session = DummySession()
+        first_request._messages = FallbackStorage(first_request)
+
+        second_request = self.factory.post('/admin/orders/sarzekrok/', post_data)
+        second_request.user = self.user
+        second_request.session = DummySession()
+        second_request._messages = FallbackStorage(second_request)
+
+        first_response = vytvorit_novy_krok_z_kroku_sarze_action(
+            self.admin,
+            first_request,
+            SarzeKrok.objects.filter(pk=self.krok.pk),
+        )
+        second_response = vytvorit_novy_krok_z_kroku_sarze_action(
+            self.admin,
+            second_request,
+            SarzeKrok.objects.filter(pk=self.krok.pk),
+        )
+
+        self.assertEqual(first_response.status_code, 302)
+        self.assertEqual(second_response.status_code, 302)
+        self.assertEqual(SarzeKrok.objects.count(), 2)
+        novy_krok = SarzeKrok.objects.get(action_token='repeat-token-krok')
+        self.assertEqual(novy_krok.poradi, 2)
+        self.assertEqual(SarzeKrokBedna.objects.filter(krok=novy_krok).count(), 1)
+
+        messages_text = [message.message for message in second_request._messages]
+        self.assertTrue(any('Opakované odeslání stejné akce bylo ignorováno.' in text for text in messages_text))
 
     def test_action_first_step_renders_init_form(self):
         request = self.factory.post('/admin/orders/sarzekrok/')
