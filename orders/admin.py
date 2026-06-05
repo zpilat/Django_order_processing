@@ -416,6 +416,12 @@ class SarzeAdmin(SimpleHistoryAdmin):
 
         return super().response_add(request, obj, post_url_continue)
 
+    def get_readonly_fields(self, request, obj=None):
+        readonly_fields = list(super().get_readonly_fields(request, obj))
+        if not obj:
+            readonly_fields.append('aktivni')
+        return readonly_fields
+
 @admin.register(SarzeKrok)
 class SarzeKrokAdmin(SimpleHistoryAdmin):
     fields = ('sarze', 'poradi', 'datum', 'zarizeni', 'zacatek', 'konec', 'operator', 'program', 'alarm', 'poznamka',)
