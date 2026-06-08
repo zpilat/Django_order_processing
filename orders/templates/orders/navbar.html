@@ -40,7 +40,7 @@
                 </ul>
             </div>
             <!-- Button: Rychlé založení šarže -->
-            {% if perms.orders.add_sarze and perms.orders.add_sarzekrok %}
+            {% if perms.orders.add_sarze and perms.orders.add_sarzekrok and perms.orders.add_sarzekrokbedna %}
                 <div>
                     <a href="{% url 'rychle_zalozeni_sarze' %}"
                     class="btn btn-light btn-sm"

@@ -1,6 +1,7 @@
 from django import forms
 from django.db import transaction
 from django.db.models import Exists, OuterRef, Q
+from django.forms import BaseFormSet, formset_factory
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.contrib.admin.widgets import AdminDateWidget
@@ -9,7 +10,15 @@ from django.core.exceptions import ValidationError
 from decimal import Decimal, ROUND_HALF_UP
 
 from .models import Sarze, SarzeKrok, Zakaznik, Kamion, Zakazka, Bedna, Predpis, Odberatel, Pozice, Zarizeni
-from .choices import StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice, ZinkovaniChoice
+from .choices import (
+    StavBednyChoice,
+    RovnaniChoice,
+    TryskaniChoice,
+    PrioritaChoice,
+    KamionChoice,
+    ZinkovaniChoice,
+    STAV_BEDNY_SKLADEM,
+)
 
 import logging
 logger = logging.getLogger('orders')
@@ -558,3 +567,150 @@ class RychleZalozeniSarzeForm(forms.Form):
         if qs.count() == 1:
             return qs.first()
         return None
+
+
+class SarzeKrokPatroPolozkaForm(forms.Form):
+    bedna = forms.ModelChoiceField(
+        queryset=Bedna.objects.none(),
+        required=False,
+        label='Bedna',
+        widget=forms.Select(attrs={'class': 'form-select form-select-sm js-bedna'}),
+    )
+    popis_mimo_db = forms.CharField(
+        required=False,
+        max_length=50,
+        label='Popis mimo DB',
+        widget=forms.TextInput(attrs={'class': 'form-control form-control-sm js-iron-label'}),
+    )
+    zakaznik_mimo_db = forms.CharField(
+        required=False,
+        max_length=50,
+        label='Zákazník mimo DB',
+        widget=forms.TextInput(attrs={'class': 'form-control form-control-sm js-iron-label'}),
+    )
+    zakazka_mimo_db = forms.CharField(
+        required=False,
+        max_length=30,
+        label='Zakázka mimo DB',
+        widget=forms.TextInput(attrs={'class': 'form-control form-control-sm js-iron-label'}),
+    )
+    cislo_bedny_mimo_db = forms.CharField(
+        required=False,
+        max_length=30,
+        label='Číslo bedny mimo DB',
+        widget=forms.TextInput(attrs={'class': 'form-control form-control-sm js-iron-label'}),
+    )
+    procent_z_patra = forms.IntegerField(
+        required=False,
+        min_value=10,
+        max_value=100,
+        widget=forms.HiddenInput(attrs={'class': 'js-percentage'}),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        allowed_states = [
+            state.value if hasattr(state, 'value') else state
+            for state in STAV_BEDNY_SKLADEM
+        ]
+        self.fields['bedna'].queryset = (
+            Bedna.objects
+            .filter(stav_bedny__in=allowed_states)
+            .select_related('zakazka', 'zakazka__kamion_prijem', 'zakazka__kamion_prijem__zakaznik')
+            .order_by('-cislo_bedny')
+        )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if cleaned_data.get('DELETE'):
+            return cleaned_data
+
+        bedna = cleaned_data.get('bedna')
+        iron_fields = (
+            'popis_mimo_db',
+            'zakaznik_mimo_db',
+            'zakazka_mimo_db',
+            'cislo_bedny_mimo_db',
+        )
+        iron_values = {
+            field_name: (cleaned_data.get(field_name) or '').strip()
+            for field_name in iron_fields
+        }
+        for field_name, value in iron_values.items():
+            cleaned_data[field_name] = value
+
+        has_iron_value = any(iron_values.values())
+        if not bedna and not has_iron_value:
+            return cleaned_data
+
+        if bedna and has_iron_value:
+            raise ValidationError('Vyplňte buď bednu, nebo údaje železa mimo DB, ne obojí.')
+
+        if has_iron_value:
+            missing_labels = [
+                self.fields[field_name].label
+                for field_name, value in iron_values.items()
+                if not value
+            ]
+            if missing_labels:
+                raise ValidationError(
+                    f"Pro železo vyplňte všechna pole. Chybí: {', '.join(missing_labels)}."
+                )
+
+        return cleaned_data
+
+    def has_item(self):
+        if not hasattr(self, 'cleaned_data') or self.cleaned_data.get('DELETE'):
+            return False
+        return bool(
+            self.cleaned_data.get('bedna')
+            or self.cleaned_data.get('popis_mimo_db')
+            or self.cleaned_data.get('zakaznik_mimo_db')
+            or self.cleaned_data.get('zakazka_mimo_db')
+            or self.cleaned_data.get('cislo_bedny_mimo_db')
+        )
+
+
+class BaseSarzeKrokPatroFormSet(BaseFormSet):
+    def clean(self):
+        super().clean()
+        if any(self.errors):
+            return
+
+        active_forms = [form for form in self.forms if form.has_item()]
+        if not active_forms:
+            raise ValidationError('Vyplňte alespoň jednu bednu nebo jeden řádek železa.')
+        if len(active_forms) > 10:
+            raise ValidationError('Jedno patro může obsahovat nejvýše 10 položek.')
+
+        bedna_ids = [
+            form.cleaned_data['bedna'].pk
+            for form in active_forms
+            if form.cleaned_data.get('bedna')
+        ]
+        if len(bedna_ids) != len(set(bedna_ids)):
+            raise ValidationError('Stejnou bednu nelze v jednom patře zadat vícekrát.')
+
+        percentages = [
+            form.cleaned_data.get('procent_z_patra')
+            for form in active_forms
+        ]
+        if any(value is None for value in percentages):
+            raise ValidationError('Nastavte rozdělení roštu pro všechny položky.')
+        if any(value % 10 != 0 for value in percentages):
+            raise ValidationError('Procenta položek musí být nastavena po 10 %.')
+        if sum(percentages) != 100:
+            raise ValidationError('Součet procent všech položek v patře musí být 100 %.')
+
+    def active_forms(self):
+        return [form for form in self.forms if form.has_item()]
+
+
+SarzeKrokPatroFormSet = formset_factory(
+    SarzeKrokPatroPolozkaForm,
+    formset=BaseSarzeKrokPatroFormSet,
+    extra=5,
+    can_delete=True,
+    max_num=10,
+    validate_max=True,
+)

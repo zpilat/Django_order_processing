@@ -1,0 +1,414 @@
+{% extends "orders/base.html" %}
+
+{% block title %}{{ patro }}. patro šarže {{ krok.sarze }}{% endblock %}
+
+{% block content %}
+<style>
+    .rack-preview {
+        position: relative;
+        display: flex;
+        width: 100%;
+        min-height: 130px;
+        overflow: hidden;
+        border: 2px solid #214290;
+    }
+
+    .rack-segment {
+        display: flex;
+        position: relative;
+        z-index: 1;
+        min-width: 0;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem .5rem .5rem;
+        border-right: 2px solid #214290;
+        color: #111;
+        font-size: .8rem;
+        font-weight: 600;
+        text-align: center;
+        overflow-wrap: anywhere;
+    }
+
+    .rack-segment:last-child {
+        border-right: 0;
+    }
+
+    .rack-scale {
+        position: absolute;
+        z-index: 3;
+        inset: 0;
+        pointer-events: none;
+        background-image: repeating-linear-gradient(
+            to right,
+            transparent 0,
+            transparent calc(10% - 1px),
+            rgba(33, 66, 144, .7) calc(10% - 1px),
+            rgba(33, 66, 144, .7) 10%
+        );
+    }
+
+    .rack-mark {
+        position: absolute;
+        top: .3rem;
+        color: #214290;
+        background-color: rgba(255, 255, 255, .9);
+        padding: 0 .2rem;
+        font-size: .7rem;
+        font-weight: 700;
+        line-height: 1.2;
+        transform: translateX(-50%);
+    }
+
+    .rack-mark:last-child {
+        transform: translateX(-100%);
+    }
+
+    .boundary-control {
+        display: grid;
+        grid-template-columns: minmax(8rem, auto) 1fr 4rem;
+        gap: .75rem;
+        align-items: center;
+    }
+
+    .item-row.is-removed {
+        display: none;
+    }
+</style>
+
+<div class="container-fluid py-3">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+        <div>
+            <h1 class="h4 mb-1">{{ patro }}. patro</h1>
+            <div class="text-muted">
+                Šarže {{ krok.sarze }}, přípravek {{ krok.sarze.cislo_pripravku }},
+                {{ krok.zarizeni }}, {{ krok.datum|date:"d.m.Y" }}
+            </div>
+        </div>
+    </div>
+
+    <form method="post" class="patro-form" novalidate>
+        {% csrf_token %}
+        {{ formset.management_form }}
+        <input type="hidden" name="action" id="form-action" value="finish">
+
+        {% if formset.non_form_errors %}
+            <div class="alert alert-danger" role="alert">
+                {{ formset.non_form_errors }}
+            </div>
+        {% endif %}
+
+        <div class="table-responsive mb-3">
+            <table class="table table-sm table-bordered align-middle mb-0">
+                <thead style="background-color: #214290; color: #ffde17;">
+                    <tr>
+                        <th style="min-width: 15rem;">Bedna</th>
+                        <th style="min-width: 11rem;">Popis mimo DB</th>
+                        <th style="min-width: 11rem;">Zákazník mimo DB</th>
+                        <th style="min-width: 10rem;">Zakázka mimo DB</th>
+                        <th style="min-width: 10rem;">Číslo bedny mimo DB</th>
+                        <th class="text-center" style="width: 3rem;"></th>
+                    </tr>
+                </thead>
+                <tbody id="item-rows">
+                    {% for item_form in formset %}
+                        <tr class="item-row" data-form-index="{{ forloop.counter0 }}">
+                            <td>
+                                {{ item_form.bedna }}
+                                {{ item_form.procent_z_patra }}
+                                {{ item_form.DELETE.as_hidden }}
+                            </td>
+                            <td>{{ item_form.popis_mimo_db }}</td>
+                            <td>{{ item_form.zakaznik_mimo_db }}</td>
+                            <td>{{ item_form.zakazka_mimo_db }}</td>
+                            <td>{{ item_form.cislo_bedny_mimo_db }}</td>
+                            <td class="text-center">
+                                <button type="button" class="btn btn-sm btn-outline-danger remove-row" title="Odebrat řádek" aria-label="Odebrat řádek">&times;</button>
+                            </td>
+                            {% if item_form.errors %}
+                                <td class="d-none row-errors">
+                                    {% for field in item_form %}
+                                        {% for error in field.errors %}{{ field.label }}: {{ error }} {% endfor %}
+                                    {% endfor %}
+                                    {% for error in item_form.non_field_errors %}{{ error }} {% endfor %}
+                                </td>
+                            {% endif %}
+                        </tr>
+                        {% if item_form.errors %}
+                            <tr class="item-error-row">
+                                <td colspan="6" class="text-danger small">
+                                    {% for field in item_form %}
+                                        {% for error in field.errors %}
+                                            <span class="me-3"><strong>{{ field.label }}:</strong> {{ error }}</span>
+                                        {% endfor %}
+                                    {% endfor %}
+                                    {% for error in item_form.non_field_errors %}
+                                        <span class="me-3">{{ error }}</span>
+                                    {% endfor %}
+                                </td>
+                            </tr>
+                        {% endif %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <button type="button" id="add-row" class="btn btn-sm btn-outline-primary mb-4">Přidat řádek</button>
+
+        <section class="mb-4" aria-labelledby="rack-heading">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h2 id="rack-heading" class="h6 mb-0">Rozložení položek v roštu</h2>
+                <span id="rack-total" class="small fw-semibold">0 %</span>
+            </div>
+            <div id="rack-preview" class="rack-preview" aria-live="polite"></div>
+            <div id="boundary-controls" class="d-grid gap-2 mt-3"></div>
+            <div id="rack-warning" class="text-danger small mt-2 d-none"></div>
+        </section>
+
+        <div class="d-flex flex-wrap justify-content-end gap-2">
+            <button type="submit" data-action="finish" class="btn btn-outline-primary">
+                Ukončit
+            </button>
+            <button type="submit" data-action="next" class="btn btn-primary">
+                Další patro
+            </button>
+        </div>
+    </form>
+</div>
+
+<template id="empty-row-template">
+    <tr class="item-row" data-form-index="__prefix__">
+        <td>
+            {{ formset.empty_form.bedna }}
+            {{ formset.empty_form.procent_z_patra }}
+            {{ formset.empty_form.DELETE.as_hidden }}
+        </td>
+        <td>{{ formset.empty_form.popis_mimo_db }}</td>
+        <td>{{ formset.empty_form.zakaznik_mimo_db }}</td>
+        <td>{{ formset.empty_form.zakazka_mimo_db }}</td>
+        <td>{{ formset.empty_form.cislo_bedny_mimo_db }}</td>
+        <td class="text-center">
+            <button type="button" class="btn btn-sm btn-outline-danger remove-row" title="Odebrat řádek" aria-label="Odebrat řádek">&times;</button>
+        </td>
+    </tr>
+</template>
+
+<script>
+(function () {
+    const form = document.querySelector('.patro-form');
+    const rowsContainer = document.getElementById('item-rows');
+    const preview = document.getElementById('rack-preview');
+    const controls = document.getElementById('boundary-controls');
+    const warning = document.getElementById('rack-warning');
+    const totalLabel = document.getElementById('rack-total');
+    const totalForms = document.getElementById('id_polozky-TOTAL_FORMS');
+    const template = document.getElementById('empty-row-template');
+    const colors = ['#ffde17', '#8ecae6', '#90be6d', '#f9844a', '#cdb4db', '#f9c74f', '#43aa8b', '#adb5bd', '#f4978e', '#a9def9'];
+    let activeSignature = '';
+
+    function rows() {
+        return Array.from(rowsContainer.querySelectorAll('.item-row:not(.is-removed)'));
+    }
+
+    function rowHasItem(row) {
+        const bedna = row.querySelector('.js-bedna');
+        const ironInputs = row.querySelectorAll('.js-iron-label');
+        return Boolean(
+            (bedna && bedna.value)
+            || Array.from(ironInputs).some(input => input.value.trim())
+        );
+    }
+
+    function activeRows() {
+        return rows().filter(rowHasItem);
+    }
+
+    function rowLabel(row) {
+        const bedna = row.querySelector('.js-bedna');
+        if (bedna && bedna.value) {
+            const option = bedna.options[bedna.selectedIndex];
+            return option ? option.text.trim() : 'Bedna';
+        }
+
+        const ironValues = Array.from(row.querySelectorAll('.js-iron-label'))
+            .map(input => input.value.trim())
+            .filter(Boolean);
+        return ironValues.length ? ironValues.join(' / ') : 'Položka';
+    }
+
+    function percentageInput(row) {
+        return row.querySelector('.js-percentage');
+    }
+
+    function setEqualPercentages(active) {
+        if (!active.length || active.length > 10) {
+            return;
+        }
+        const units = Math.floor(10 / active.length);
+        let remainder = 10 - (units * active.length);
+        active.forEach(row => {
+            const value = (units + (remainder > 0 ? 1 : 0)) * 10;
+            percentageInput(row).value = value;
+            if (remainder > 0) {
+                remainder -= 1;
+            }
+        });
+    }
+
+    function currentPercentages(active) {
+        return active.map(row => Number.parseInt(percentageInput(row).value || '0', 10));
+    }
+
+    function percentagesAreValid(values) {
+        return values.length > 0
+            && values.every(value => value >= 10 && value <= 100 && value % 10 === 0)
+            && values.reduce((sum, value) => sum + value, 0) === 100;
+    }
+
+    function setPercentagesFromBoundaries(active, boundaries) {
+        const points = [0, ...boundaries, 100];
+        active.forEach((row, index) => {
+            percentageInput(row).value = points[index + 1] - points[index];
+        });
+    }
+
+    function renderPreview(active, values) {
+        const total = values.reduce((sum, value) => sum + value, 0);
+        totalLabel.textContent = `${total} %`;
+        totalLabel.classList.toggle('text-danger', total !== 100);
+
+        preview.innerHTML = '';
+        active.forEach((row, index) => {
+            const segment = document.createElement('div');
+            segment.className = 'rack-segment';
+            segment.style.width = `${values[index] || 0}%`;
+            segment.style.backgroundColor = colors[index % colors.length];
+            segment.textContent = `${rowLabel(row)} (${values[index] || 0} %)`;
+            preview.appendChild(segment);
+        });
+
+        const scale = document.createElement('div');
+        scale.className = 'rack-scale';
+        for (let percentage = 10; percentage <= 100; percentage += 10) {
+            const mark = document.createElement('span');
+            mark.className = 'rack-mark';
+            mark.style.left = `${percentage}%`;
+            mark.textContent = `${percentage} %`;
+            scale.appendChild(mark);
+        }
+        preview.appendChild(scale);
+    }
+
+    function render() {
+        const active = activeRows();
+        const signature = active.map(row => row.dataset.formIndex).join(',');
+
+        warning.classList.toggle('d-none', active.length <= 10);
+        warning.textContent = active.length > 10 ? 'Jedno patro může obsahovat nejvýše 10 položek.' : '';
+
+        if (signature !== activeSignature) {
+            const existingValues = currentPercentages(active);
+            if (!percentagesAreValid(existingValues)) {
+                setEqualPercentages(active);
+            }
+            activeSignature = signature;
+        }
+
+        const values = currentPercentages(active);
+        renderPreview(active, values);
+        controls.innerHTML = '';
+
+        if (active.length < 2 || active.length > 10 || !percentagesAreValid(values)) {
+            return;
+        }
+
+        let cumulative = 0;
+        const boundaries = values.slice(0, -1).map(value => {
+            cumulative += value;
+            return cumulative;
+        });
+
+        boundaries.forEach((boundary, index) => {
+            const wrapper = document.createElement('label');
+            wrapper.className = 'boundary-control';
+
+            const label = document.createElement('span');
+            label.className = 'small';
+            label.textContent = `Hranice ${index + 1}`;
+
+            const range = document.createElement('input');
+            range.type = 'range';
+            range.className = 'form-range';
+            range.min = index === 0 ? 10 : boundaries[index - 1] + 10;
+            range.max = index === boundaries.length - 1 ? 90 : boundaries[index + 1] - 10;
+            range.step = 10;
+            range.value = boundary;
+
+            const valueLabel = document.createElement('span');
+            valueLabel.className = 'small text-end';
+            valueLabel.textContent = `${boundary} %`;
+
+            range.addEventListener('input', function () {
+                boundaries[index] = Number.parseInt(range.value, 10);
+                setPercentagesFromBoundaries(active, boundaries);
+                valueLabel.textContent = `${boundaries[index]} %`;
+                renderPreview(active, currentPercentages(active));
+            });
+
+            range.addEventListener('change', function () {
+                render();
+            });
+
+            wrapper.append(label, range, valueLabel);
+            controls.appendChild(wrapper);
+        });
+    }
+
+    function bindRow(row) {
+        row.querySelectorAll('input, select').forEach(input => {
+            input.addEventListener('input', render);
+            input.addEventListener('change', render);
+        });
+
+        row.querySelector('.remove-row').addEventListener('click', function () {
+            const deleteInput = row.querySelector('input[name$="-DELETE"]');
+            if (deleteInput) {
+                deleteInput.value = 'on';
+            }
+            row.classList.add('is-removed');
+            render();
+        });
+    }
+
+    rowsContainer.querySelectorAll('.item-row').forEach(bindRow);
+
+    document.getElementById('add-row').addEventListener('click', function () {
+        const index = Number.parseInt(totalForms.value, 10);
+        if (index >= 10) {
+            warning.textContent = 'Jedno patro může obsahovat nejvýše 10 řádků.';
+            warning.classList.remove('d-none');
+            return;
+        }
+
+        const html = template.innerHTML.replaceAll('__prefix__', index);
+        rowsContainer.insertAdjacentHTML('beforeend', html);
+        totalForms.value = index + 1;
+        bindRow(rowsContainer.lastElementChild);
+        render();
+    });
+
+    form.querySelectorAll('button[type="submit"]').forEach(button => {
+        button.addEventListener('click', function () {
+            document.getElementById('form-action').value = button.dataset.action;
+        });
+    });
+
+    form.addEventListener('submit', function () {
+        form.querySelectorAll('button[type="submit"]').forEach(button => {
+            button.disabled = true;
+        });
+    });
+
+    render();
+})();
+</script>
+{% endblock %}

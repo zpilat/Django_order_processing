@@ -21,7 +21,7 @@ from decimal import Decimal, ROUND_HALF_UP
 
 from .utils import get_verbose_name_for_column, utilita_tisk_dl_a_proforma_faktury
 from .models import Bedna, Zakazka, Kamion, Zakaznik, TypHlavy, Predpis, Odberatel, Cena, Pozice, PoziceZakazkaOrder, Sarze, SarzeKrok, SarzeKrokBedna
-from .forms import RychleZalozeniSarzeForm
+from .forms import RychleZalozeniSarzeForm, SarzeKrokPatroFormSet
 from .choices import  StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice, ZinkovaniChoice, STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM
 from weasyprint import HTML, CSS
 
@@ -32,13 +32,14 @@ logger = logging.getLogger('orders')
 @login_required
 @permission_required('orders.add_sarze', raise_exception=True)
 @permission_required('orders.add_sarzekrok', raise_exception=True)
+@permission_required('orders.add_sarzekrokbedna', raise_exception=True)
 def rychle_zalozeni_sarze_view(request):
     if request.method == 'POST':
         form = RychleZalozeniSarzeForm(request.POST)
         if form.is_valid():
             sarze, krok = form.save()
             messages.success(request, f'Šarže {sarze} a první krok byly uloženy.')
-            return redirect(reverse('admin:orders_sarzekrok_change', args=[krok.pk]))
+            return redirect('rychle_zalozeni_sarze_patro', krok_id=krok.pk, patro=1)
     else:
         form = RychleZalozeniSarzeForm()
 
@@ -47,6 +48,104 @@ def rychle_zalozeni_sarze_view(request):
         'orders/rychle_zalozeni_sarze.html',
         {
             'form': form,
+            'db_table': 'rychle_zalozeni_sarze',
+        },
+    )
+
+
+@login_required
+@permission_required('orders.add_sarzekrokbedna', raise_exception=True)
+def rychle_zalozeni_sarze_patro_view(request, krok_id, patro):
+    krok = get_object_or_404(
+        SarzeKrok.objects.select_related('sarze', 'zarizeni'),
+        pk=krok_id,
+    )
+    if patro < 1:
+        return HttpResponseBadRequest('Číslo patra musí být větší než nula.')
+
+    existing_items = list(
+        krok.krok_bedny
+        .filter(patro=patro)
+        .select_related('bedna')
+        .order_by('pk')
+    )
+    initial = [
+        {
+            'bedna': item.bedna_id,
+            'popis_mimo_db': item.popis_mimo_db or '',
+            'zakaznik_mimo_db': item.zakaznik_mimo_db or '',
+            'zakazka_mimo_db': item.zakazka_mimo_db or '',
+            'cislo_bedny_mimo_db': item.cislo_bedny_mimo_db or '',
+            'procent_z_patra': item.procent_z_patra,
+        }
+        for item in existing_items
+    ]
+
+    if request.method == 'POST':
+        formset = SarzeKrokPatroFormSet(request.POST, prefix='polozky')
+        if formset.is_valid():
+            with transaction.atomic():
+                locked_krok = SarzeKrok.objects.select_for_update().get(pk=krok.pk)
+                locked_krok.krok_bedny.filter(patro=patro).delete()
+
+                for item_form in formset.active_forms():
+                    data = item_form.cleaned_data
+                    item = SarzeKrokBedna(
+                        krok=locked_krok,
+                        bedna=data.get('bedna'),
+                        popis_mimo_db=data.get('popis_mimo_db') or None,
+                        zakaznik_mimo_db=data.get('zakaznik_mimo_db') or None,
+                        zakazka_mimo_db=data.get('zakazka_mimo_db') or None,
+                        cislo_bedny_mimo_db=data.get('cislo_bedny_mimo_db') or None,
+                        patro=patro,
+                        procent_z_patra=data['procent_z_patra'],
+                    )
+                    item.full_clean()
+                    item.save()
+
+            if request.POST.get('action') == 'next':
+                messages.success(request, f'{patro}. patro bylo uloženo.')
+                return redirect(
+                    'rychle_zalozeni_sarze_patro',
+                    krok_id=krok.pk,
+                    patro=patro + 1,
+                )
+
+            messages.success(request, f'Šarže {krok.sarze} byla založena.')
+            return redirect('rychle_zalozeni_sarze_prehled', krok_id=krok.pk)
+    else:
+        formset = SarzeKrokPatroFormSet(initial=initial, prefix='polozky')
+
+    return render(
+        request,
+        'orders/rychle_zalozeni_sarze_patro.html',
+        {
+            'formset': formset,
+            'krok': krok,
+            'patro': patro,
+            'db_table': 'rychle_zalozeni_sarze',
+        },
+    )
+
+
+@login_required
+@permission_required('orders.add_sarzekrokbedna', raise_exception=True)
+def rychle_zalozeni_sarze_prehled_view(request, krok_id):
+    krok = get_object_or_404(
+        SarzeKrok.objects.select_related('sarze', 'zarizeni'),
+        pk=krok_id,
+    )
+    items = (
+        krok.krok_bedny
+        .select_related('bedna')
+        .order_by('patro', 'pk')
+    )
+    return render(
+        request,
+        'orders/rychle_zalozeni_sarze_prehled.html',
+        {
+            'krok': krok,
+            'items': items,
             'db_table': 'rychle_zalozeni_sarze',
         },
     )

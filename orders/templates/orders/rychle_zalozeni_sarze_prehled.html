@@ -1,0 +1,68 @@
+{% extends "orders/base.html" %}
+
+{% block title %}Přehled šarže {{ krok.sarze }}{% endblock %}
+
+{% block content %}
+<div class="container py-3">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+        <div>
+            <h1 class="h4 mb-2">Šarže {{ krok.sarze }} byla založena</h1>
+            <div class="text-muted">
+                Přípravek {{ krok.sarze.cislo_pripravku }},
+                {{ krok.zarizeni }},
+                {{ krok.datum|date:"d.m.Y" }},
+                {{ krok.zacatek|time:"H:i" }}–{{ krok.konec|time:"H:i" }}
+            </div>
+        </div>
+        <a href="{% url 'rychle_zalozeni_sarze' %}" class="btn btn-primary">
+            Založit další šarži
+        </a>
+    </div>
+
+    {% regroup items by patro as patra %}
+    {% for floor in patra %}
+        <section class="mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h2 class="h6 mb-0">{{ floor.grouper }}. patro</h2>
+                <a href="{% url 'rychle_zalozeni_sarze_patro' krok.pk floor.grouper %}"
+                   class="btn btn-sm btn-outline-primary">
+                    Upravit
+                </a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm table-bordered align-middle mb-0">
+                    <thead style="background-color: #214290; color: #ffde17;">
+                        <tr>
+                            <th>Položka</th>
+                            <th>Zákazník</th>
+                            <th>Zakázka</th>
+                            <th>Číslo bedny</th>
+                            <th class="text-end">Podíl</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in floor.list %}
+                            <tr>
+                                {% if item.bedna %}
+                                    <td>{{ item.bedna }}</td>
+                                    <td>{{ item.bedna.zakazka.kamion_prijem.zakaznik.zkratka }}</td>
+                                    <td>{{ item.bedna.zakazka }}</td>
+                                    <td>{{ item.bedna.cislo_bedny }}</td>
+                                {% else %}
+                                    <td>{{ item.popis_mimo_db }}</td>
+                                    <td>{{ item.zakaznik_mimo_db }}</td>
+                                    <td>{{ item.zakazka_mimo_db }}</td>
+                                    <td>{{ item.cislo_bedny_mimo_db }}</td>
+                                {% endif %}
+                                <td class="text-end">{{ item.procent_z_patra }} %</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    {% empty %}
+        <div class="alert alert-warning">Šarže zatím nemá uložené žádné položky.</div>
+    {% endfor %}
+</div>
+{% endblock %}

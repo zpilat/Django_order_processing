@@ -757,6 +757,10 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 				content_type__app_label="orders",
 				codename="add_sarzekrok",
 			),
+			Permission.objects.get(
+				content_type__app_label="orders",
+				codename="add_sarzekrokbedna",
+			),
 		)
 		self.nakladani = Zarizeni.objects.create(
 			kod_zarizeni="NAKL",
@@ -807,7 +811,125 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 		self.assertEqual(krok.zarizeni, self.nakladani)
 		self.assertEqual(krok.operator, "Novak")
 		self.assertEqual(krok.poznamka, "Poznámka k nakládání")
-		self.assertIn(reverse("admin:orders_sarzekrok_change", args=[krok.pk]), resp["Location"])
+		self.assertEqual(
+			resp["Location"],
+			reverse("rychle_zalozeni_sarze_patro", args=[krok.pk, 1]),
+		)
+
+	def test_patro_post_saves_bedna_and_iron_and_opens_next_floor(self):
+		sarze = Sarze.objects.create(
+			datum_zalozeni=date(2026, 6, 5),
+			cislo_pripravku=12,
+			aktivni=True,
+		)
+		krok = SarzeKrok.objects.create(
+			sarze=sarze,
+			poradi=1,
+			datum=date(2026, 6, 5),
+			zarizeni=self.nakladani,
+			zacatek=time(6, 0),
+			konec=time(7, 30),
+			operator="Novak",
+		)
+
+		resp = self.client.post(
+			reverse("rychle_zalozeni_sarze_patro", args=[krok.pk, 1]),
+			{
+				"polozky-TOTAL_FORMS": "2",
+				"polozky-INITIAL_FORMS": "0",
+				"polozky-MIN_NUM_FORMS": "0",
+				"polozky-MAX_NUM_FORMS": "10",
+				"polozky-0-bedna": str(self.b_eur_pr.pk),
+				"polozky-0-procent_z_patra": "50",
+				"polozky-1-popis_mimo_db": "Tyce",
+				"polozky-1-zakaznik_mimo_db": "Externi zakaznik",
+				"polozky-1-zakazka_mimo_db": "ZAK-1",
+				"polozky-1-cislo_bedny_mimo_db": "BED-1",
+				"polozky-1-procent_z_patra": "50",
+				"action": "next",
+			},
+		)
+
+		self.assertEqual(resp.status_code, 302)
+		self.assertEqual(
+			resp["Location"],
+			reverse("rychle_zalozeni_sarze_patro", args=[krok.pk, 2]),
+		)
+
+		items = list(SarzeKrokBedna.objects.filter(krok=krok, patro=1).order_by("pk"))
+		self.assertEqual(len(items), 2)
+		self.assertEqual(items[0].bedna, self.b_eur_pr)
+		self.assertEqual(items[0].procent_z_patra, 50)
+		self.assertIsNone(items[1].bedna)
+		self.assertEqual(items[1].popis_mimo_db, "Tyce")
+		self.assertEqual(items[1].zakaznik_mimo_db, "Externi zakaznik")
+		self.assertEqual(items[1].zakazka_mimo_db, "ZAK-1")
+		self.assertEqual(items[1].cislo_bedny_mimo_db, "BED-1")
+		self.assertEqual(items[1].procent_z_patra, 50)
+
+	def test_patro_get_renders_formset(self):
+		sarze = Sarze.objects.create(
+			datum_zalozeni=date(2026, 6, 5),
+			cislo_pripravku=12,
+			aktivni=True,
+		)
+		krok = SarzeKrok.objects.create(
+			sarze=sarze,
+			poradi=1,
+			datum=date(2026, 6, 5),
+			zarizeni=self.nakladani,
+			zacatek=time(6, 0),
+			konec=time(7, 30),
+			operator="Novak",
+		)
+
+		resp = self.client.get(
+			reverse("rychle_zalozeni_sarze_patro", args=[krok.pk, 1]),
+		)
+
+		self.assertEqual(resp.status_code, 200)
+		self.assertTemplateUsed(resp, "orders/rychle_zalozeni_sarze_patro.html")
+		self.assertEqual(resp.context["patro"], 1)
+
+	def test_patro_finish_redirects_to_batch_summary(self):
+		sarze = Sarze.objects.create(
+			datum_zalozeni=date(2026, 6, 5),
+			cislo_pripravku=12,
+			aktivni=True,
+		)
+		krok = SarzeKrok.objects.create(
+			sarze=sarze,
+			poradi=1,
+			datum=date(2026, 6, 5),
+			zarizeni=self.nakladani,
+			zacatek=time(6, 0),
+			konec=time(7, 30),
+			operator="Novak",
+		)
+
+		resp = self.client.post(
+			reverse("rychle_zalozeni_sarze_patro", args=[krok.pk, 1]),
+			{
+				"polozky-TOTAL_FORMS": "1",
+				"polozky-INITIAL_FORMS": "0",
+				"polozky-MIN_NUM_FORMS": "0",
+				"polozky-MAX_NUM_FORMS": "10",
+				"polozky-0-bedna": str(self.b_eur_pr.pk),
+				"polozky-0-procent_z_patra": "100",
+				"action": "finish",
+			},
+		)
+
+		self.assertEqual(resp.status_code, 302)
+		self.assertEqual(
+			resp["Location"],
+			reverse("rychle_zalozeni_sarze_prehled", args=[krok.pk]),
+		)
+
+		summary = self.client.get(resp["Location"])
+		self.assertEqual(summary.status_code, 200)
+		self.assertTemplateUsed(summary, "orders/rychle_zalozeni_sarze_prehled.html")
+		self.assertContains(summary, "100 %")
 
 
 class VyrobaDashboardContextTests(TestCase):
