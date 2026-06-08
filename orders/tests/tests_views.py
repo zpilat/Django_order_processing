@@ -1,6 +1,7 @@
 from django.test import TestCase
 from django.urls import reverse
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Permission
 from django.utils import timezone
 from django.template.loader import render_to_string
 from datetime import date, time, timedelta
@@ -747,6 +748,16 @@ class BednyListViewTests(ViewsTestBase):
 class RychleZalozeniSarzeViewTests(ViewsTestBase):
 	def setUp(self):
 		super().setUp()
+		self.user.user_permissions.add(
+			Permission.objects.get(
+				content_type__app_label="orders",
+				codename="add_sarze",
+			),
+			Permission.objects.get(
+				content_type__app_label="orders",
+				codename="add_sarzekrok",
+			),
+		)
 		self.nakladani = Zarizeni.objects.create(
 			kod_zarizeni="NAKL",
 			nazev_zarizeni="Nakládání",
@@ -758,6 +769,11 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 		resp = self.client.get(reverse("rychle_zalozeni_sarze"))
 		self.assertEqual(resp.status_code, 302)
 		self.assertIn("login", resp.url)
+
+	def test_requires_add_permissions(self):
+		self.user.user_permissions.clear()
+		resp = self.client.get(reverse("rychle_zalozeni_sarze"))
+		self.assertEqual(resp.status_code, 403)
 
 	def test_get_renders_form(self):
 		resp = self.client.get(reverse("rychle_zalozeni_sarze"))
