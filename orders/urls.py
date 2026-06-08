@@ -14,6 +14,7 @@ from .views import (
     protokol_kamion_vydej_pdf_view,
     dodaci_list_kamion_vydej_pdf_view,
     proforma_kamion_vydej_pdf_view,
+    rychle_zalozeni_sarze_view,
 )
 
 urlpatterns = [
@@ -23,6 +24,7 @@ urlpatterns = [
     path('dashboard/vyroba/historie/', dashboard_vyroba_historie_view, name='dashboard_vyroba_historie'),
     path('dashboard/vyroba/historie/mesic/', dashboard_vyroba_historie_mesic_view, name='dashboard_vyroba_historie_mesic'),
     path('bedny/', BednyListView.as_view(), name='bedny_list'),
+    path('sarze/rychle-zalozeni/', rychle_zalozeni_sarze_view, name='rychle_zalozeni_sarze'),
     path('bedny/k-navezeni/', dashboard_bedny_k_navezeni_view, name='dashboard_bedny_k_navezeni'),
     path('bedny/k-navezeni/poznamka/', dashboard_bedny_k_navezeni_poznamka_view, name='dashboard_bedny_k_navezeni_poznamka'),
     path('bedny/k-navezeni/pozice-poznamka/', dashboard_bedny_k_navezeni_poznamka_pozice_view, name='dashboard_bedny_k_navezeni_pozice_poznamka'),

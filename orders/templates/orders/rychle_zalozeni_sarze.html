@@ -1,0 +1,117 @@
+{% extends "orders/base.html" %}
+
+{% block title %}Rychlé založení šarže{% endblock %}
+
+{% block content %}
+<div class="container py-3">
+    <div class="row justify-content-center">
+        <div class="col-12 col-xl-8">
+            <h1 class="h4 mb-3">Rychlé založení šarže</h1>
+
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags|default:'info' }} mb-3" role="alert">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <form class="sarze-sarzekrok-form" method="post" novalidate>
+                {% csrf_token %}
+
+                {% if form.non_field_errors %}
+                    <div class="alert alert-danger" role="alert">
+                        {{ form.non_field_errors }}
+                    </div>
+                {% endif %}
+
+                <div class="border rounded-2 p-3 mb-3">
+                    <h2 class="h6 mb-3">Šarže</h2>
+                    <div class="row g-3">
+                        <div class="col-12 col-md-4">
+                            <label class="form-label" for="{{ form.cislo_pripravku.id_for_label }}">{{ form.cislo_pripravku.label }}</label>
+                            {{ form.cislo_pripravku }}
+                            {% for error in form.cislo_pripravku.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-8 col-md-8">
+                            <label class="form-label" for="{{ form.poznamka_sarze.id_for_label }}">{{ form.poznamka_sarze.label }}</label>
+                            {{ form.poznamka_sarze }}
+                            {% for error in form.poznamka_sarze.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="border rounded-2 p-3 mb-3">
+                    <h2 class="h6 mb-3">První krok šarže: Nakládání</h2>
+                    <div class="row g-3">
+                        <div class="col-12 col-md-4">
+                            <label class="form-label" for="{{ form.datum.id_for_label }}">{{ form.datum.label }}</label>
+                            {{ form.datum }}
+                            {% for error in form.datum.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-6 col-md-4">
+                            <label class="form-label" for="{{ form.zacatek.id_for_label }}">{{ form.zacatek.label }}</label>
+                            {{ form.zacatek }}
+                            {% for error in form.zacatek.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-6 col-md-4">
+                            <label class="form-label" for="{{ form.konec.id_for_label }}">{{ form.konec.label }}</label>
+                            {{ form.konec }}
+                            {% for error in form.konec.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="{{ form.operator.id_for_label }}">{{ form.operator.label }}</label>
+                            {{ form.operator }}
+                            {% for error in form.operator.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="{{ form.poznamka_kroku.id_for_label }}">{{ form.poznamka_kroku.label }}</label>
+                            {{ form.poznamka_kroku }}
+                            {% for error in form.poznamka_kroku.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-end">
+                    <button type="submit"
+                            class="btn"
+                            style="background-color: #ffde17; color: #214290; border-color: #ffde17;">
+                        Uložit a pokračovat
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+    <script>
+    (function () {
+        const form = document.querySelector('form.sarze-sarzekrok-form');
+        if (!form) {
+        return;
+        }
+        form.addEventListener('submit', function () {
+        const submit = form.querySelector('button[type="submit"]');
+        if (submit) {
+            submit.disabled = true;
+            submit.textContent = 'Ukládám...';
+        }
+        });
+    })();
+    </script>
+
+{% endblock %}

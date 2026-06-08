@@ -744,6 +744,56 @@ class BednyListViewTests(ViewsTestBase):
 		self.assertEqual(ids, sorted(ids, reverse=True))
 
 
+class RychleZalozeniSarzeViewTests(ViewsTestBase):
+	def setUp(self):
+		super().setUp()
+		self.nakladani = Zarizeni.objects.create(
+			kod_zarizeni="NAKL",
+			nazev_zarizeni="Nakládání",
+			zkraceny_nazev_zarizeni="Nakládání",
+		)
+
+	def test_requires_login(self):
+		self.client.logout()
+		resp = self.client.get(reverse("rychle_zalozeni_sarze"))
+		self.assertEqual(resp.status_code, 302)
+		self.assertIn("login", resp.url)
+
+	def test_get_renders_form(self):
+		resp = self.client.get(reverse("rychle_zalozeni_sarze"))
+		self.assertEqual(resp.status_code, 200)
+		self.assertTemplateUsed(resp, "orders/rychle_zalozeni_sarze.html")
+		self.assertEqual(resp.context["db_table"], "rychle_zalozeni_sarze")
+
+	def test_post_creates_sarze_and_first_step(self):
+		resp = self.client.post(
+			reverse("rychle_zalozeni_sarze"),
+			{
+				"cislo_pripravku": "12",
+				"poznamka_sarze": "Poznámka k šarži",
+				"datum": "2026-06-05",
+				"zacatek": "06:00",
+				"konec": "07:30",
+				"operator": "Novak",
+				"poznamka_kroku": "Poznámka k nakládání",
+			},
+		)
+		self.assertEqual(resp.status_code, 302)
+
+		sarze = Sarze.objects.get(cislo_pripravku=12)
+		self.assertIsNotNone(sarze.cislo_sarze)
+		self.assertEqual(sarze.cislo_pripravku, 12)
+		self.assertTrue(sarze.aktivni)
+		self.assertEqual(sarze.poznamka, "Poznámka k šarži")
+
+		krok = SarzeKrok.objects.get(sarze=sarze)
+		self.assertEqual(krok.poradi, 1)
+		self.assertEqual(krok.zarizeni, self.nakladani)
+		self.assertEqual(krok.operator, "Novak")
+		self.assertEqual(krok.poznamka, "Poznámka k nakládání")
+		self.assertIn(reverse("admin:orders_sarzekrok_change", args=[krok.pk]), resp["Location"])
+
+
 class VyrobaDashboardContextTests(TestCase):
 	def setUp(self):
 		self.z_eur = Zakaznik.objects.create(nazev="Eurotec", zkraceny_nazev="EUR", zkratka="EUR", ciselna_rada=100000)

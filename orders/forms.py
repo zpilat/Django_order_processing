@@ -1,4 +1,5 @@
 from django import forms
+from django.db import transaction
 from django.db.models import Exists, OuterRef, Q
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -7,7 +8,7 @@ from django.core.exceptions import ValidationError
 
 from decimal import Decimal, ROUND_HALF_UP
 
-from .models import SarzeKrok, Zakaznik, Kamion, Zakazka, Bedna, Predpis, Odberatel, Pozice, Zarizeni
+from .models import Sarze, SarzeKrok, Zakaznik, Kamion, Zakazka, Bedna, Predpis, Odberatel, Pozice, Zarizeni
 from .choices import StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice, ZinkovaniChoice
 
 import logging
@@ -447,3 +448,113 @@ class SarzeKrokActionInitForm(forms.Form):
         if not operator:
             raise ValidationError('Pole Operátor je povinné.')
         return operator    
+
+
+class RychleZalozeniSarzeForm(forms.Form):
+    cislo_pripravku = forms.IntegerField(
+        required=True,
+        min_value=0,
+        label='Číslo přípravku',
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
+    )
+    poznamka_sarze = forms.CharField(
+        required=False,
+        max_length=100,
+        label='Poznámka šarže',
+        widget=forms.TextInput(attrs={'class': 'form-control'}),
+    )
+    datum = forms.DateField(
+        required=True,
+        label='Datum kroku',
+        input_formats=['%Y-%m-%d', '%d.%m.%Y'],
+        initial=timezone.localdate,
+        widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}, format='%Y-%m-%d'),
+    )
+    zacatek = forms.TimeField(
+        required=True,
+        label='Začátek',
+        input_formats=['%H:%M', '%H.%M'],
+        widget=forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}, format='%H:%M'),
+    )
+    konec = forms.TimeField(
+        required=True,
+        label='Konec',
+        input_formats=['%H:%M', '%H.%M'],
+        widget=forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}, format='%H:%M'),
+    )
+    operator = forms.CharField(
+        required=True,
+        max_length=30,
+        label='Operátor',
+        widget=forms.TextInput(attrs={'class': 'form-control', 'autocomplete': 'on'}),
+    )
+    poznamka_kroku = forms.CharField(
+        required=False,
+        max_length=100,
+        label='Poznámka kroku nakládání',
+        widget=forms.TextInput(attrs={'class': 'form-control'}),
+    )
+
+    def clean_operator(self):
+        operator = (self.cleaned_data.get('operator') or '').strip()
+        if not operator:
+            raise ValidationError('Pole Operátor je povinné.')
+        return operator
+
+    def clean_poznamka_kroku(self):
+        return (self.cleaned_data.get('poznamka_kroku') or '').strip()
+    
+    def clean_poznamka_sarze(self):
+        return (self.cleaned_data.get('poznamka_sarze') or '').strip()
+
+    def clean(self):
+        cleaned_data = super().clean()
+        zarizeni = self._get_nakladani_zarizeni()
+        if zarizeni is None:
+            raise ValidationError(
+                'Pracoviště Nakládání nebylo nalezeno jednoznačně. Zkontrolujte číselník pracovišť.'
+            )
+        cleaned_data['zarizeni'] = zarizeni
+        return cleaned_data
+
+    def save(self):
+        if not self.is_valid():
+            raise ValueError('Formulář musí být před uložením validní.')
+
+        data = self.cleaned_data
+        with transaction.atomic():
+            sarze = Sarze.objects.create(
+                datum_zalozeni=timezone.localdate(),
+                cislo_pripravku=data['cislo_pripravku'],
+                aktivni=True,
+                poznamka=data['poznamka_sarze'] or None,
+            )
+            krok = SarzeKrok.objects.create(
+                sarze=sarze,
+                poradi=1,
+                datum=data['datum'],
+                zarizeni=data['zarizeni'],
+                zacatek=data['zacatek'],
+                konec=data['konec'],
+                operator=data['operator'],
+                poznamka=data['poznamka_kroku'] or None,
+            )
+        return sarze, krok
+
+    def _get_nakladani_zarizeni(self):
+        qs = Zarizeni.objects.filter(
+            Q(nazev_zarizeni__iexact='Nakládání')
+            | Q(zkraceny_nazev_zarizeni__iexact='Nakládání')
+            | Q(kod_zarizeni__iexact='Nakládání')
+        )
+        if qs.count() == 1:
+            return qs.first()
+
+        qs = Zarizeni.objects.filter(
+            Q(nazev_zarizeni__icontains='Naklád')
+            | Q(zkraceny_nazev_zarizeni__icontains='Naklád')
+            | Q(kod_zarizeni__icontains='Naklad')
+        )
+        if qs.count() == 1:
+            return qs.first()
+        return None

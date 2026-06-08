@@ -21,12 +21,33 @@ from decimal import Decimal, ROUND_HALF_UP
 
 from .utils import get_verbose_name_for_column, utilita_tisk_dl_a_proforma_faktury
 from .models import Bedna, Zakazka, Kamion, Zakaznik, TypHlavy, Predpis, Odberatel, Cena, Pozice, PoziceZakazkaOrder, Sarze, SarzeKrok, SarzeKrokBedna
+from .forms import RychleZalozeniSarzeForm
 from .choices import  StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice, ZinkovaniChoice, STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM
 from weasyprint import HTML, CSS
 
 import logging
 logger = logging.getLogger('orders')
 
+
+@login_required
+def rychle_zalozeni_sarze_view(request):
+    if request.method == 'POST':
+        form = RychleZalozeniSarzeForm(request.POST)
+        if form.is_valid():
+            sarze, krok = form.save()
+            messages.success(request, f'Šarže {sarze} a první krok byly uloženy.')
+            return redirect(reverse('admin:orders_sarzekrok_change', args=[krok.pk]))
+    else:
+        form = RychleZalozeniSarzeForm()
+
+    return render(
+        request,
+        'orders/rychle_zalozeni_sarze.html',
+        {
+            'form': form,
+            'db_table': 'rychle_zalozeni_sarze',
+        },
+    )
  
 def _format_hours(hours_value):
     return f"{hours_value:.1f}".replace('.', ',')

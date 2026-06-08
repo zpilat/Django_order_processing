@@ -1,9 +1,10 @@
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark py-2">
+<nav class="navbar navbar-expand-lg py-2" style="background-color: #214290; color: #ffde17;">
     <div class="container-fluid d-flex flex-wrap align-items-center justify-content-between">
         <div class="d-flex align-items-center gap-2">
             <!-- Dropdown: Výběr modulu -->
             <div class="btn-group btn-group-sm dropdown my-1 me-2">
-                <button class="btn btn-info dropdown-toggle"
+                <button class="btn dropdown-toggle"
+                        style="background-color: #ffde17; color: #214290; border-color: #ffde17;"
                         type="button"
                         id="dropdownMenuButton1"
                         data-bs-toggle="dropdown"
@@ -16,13 +17,16 @@
                 </button>
                 <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
                     {% if db_table != 'dashboard_bedny' %}
-                        <li><a class="dropdown-item small" href="{% url 'dashboard_bedny' %}">dashboard_bedny</a></li>       
+                        <li><a class="dropdown-item small" href="{% url 'dashboard_bedny' %}">Dashboard bedny</a></li>       
                     {% endif %}             
                     {% if db_table != 'bedny' %}
                         <li><a class="dropdown-item small" href="{% url 'bedny_list' %}">Přehled beden</a></li>
                     {% endif %}
                     {% if db_table != 'bedny_k_navezeni' %}
                         <li><a class="dropdown-item small" href="{% url 'dashboard_bedny_k_navezeni' %}">Přehled beden k navezení</a></li>
+                    {% endif %}
+                    {% if db_table != 'rychle_zalozeni_sarze' %}
+                        <li><a class="dropdown-item small" href="{% url 'rychle_zalozeni_sarze' %}">Rychlé založení šarže</a></li>
                     {% endif %}
                 </ul>
             </div>
@@ -54,18 +58,23 @@
         <div class="d-flex align-items-center gap-2">
             {% if user.is_authenticated %}
                 <div class="text-end me-2">
-                    <p class="h6 small text-white mb-0">Přihlášený uživatel:</p>
-                    <p class="h6 small text-center text-white mb-0">{{ user.first_name }} {{ user.last_name }}</p>
+                    <p class="h6 small mb-0" style="color: #ffde17;">Přihlášený uživatel:</p>
+                    <p class="h6 small text-center mb-0" style="color: #ffde17;">{{ user.first_name }} {{ user.last_name }}</p>
                 </div>
                 {% if db_table == 'home' %}
                     <a class="btn btn-light btn-sm me-2" href="{% url 'password_change' %}">Změnit heslo</a>
                 {% endif %}
                 <form id="logout-form" method="post" action="{% url 'logout' %}" class="d-inline">
                     {% csrf_token %}
-                    <button type="submit" class="btn btn-light btn-sm">Odhlásit se</button>
+                    <button type="submit" class="btn btn-sm"
+                            style="background-color: #ffde17; color: #214290; border-color: #ffde17;">
+                        Odhlásit se
+                    </button>
                 </form>
             {% else %}
-                <a class="btn btn-light btn-sm" href="{% url 'admin:login' %}">Přihlásit se</a>
+                <a class="btn btn-sm"
+                   style="background-color: #ffde17; color: #214290; border-color: #ffde17;"
+                   href="{% url 'admin:login' %}">Přihlásit se</a>
             {% endif %}
         </div>
     </div>
