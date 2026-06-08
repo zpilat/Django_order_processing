@@ -30,6 +30,8 @@ logger = logging.getLogger('orders')
 
 
 @login_required
+@permission_required('orders.add_sarze', raise_exception=True)
+@permission_required('orders.add_sarzekrok', raise_exception=True)
 def rychle_zalozeni_sarze_view(request):
     if request.method == 'POST':
         form = RychleZalozeniSarzeForm(request.POST)
