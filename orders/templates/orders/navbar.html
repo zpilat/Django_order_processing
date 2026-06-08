@@ -9,14 +9,7 @@
                         id="dropdownMenuButton1"
                         data-bs-toggle="dropdown"
                         aria-expanded="false">
-                    {% if db_table == 'dashboard_bedny' %}PŘEHLED BEDEN
-                    {% elif db_table == 'dashboard_kamiony' %}PŘEHLED KAMIONY
-                    {% elif db_table == 'bedny_k_navezeni' %}PŘEHLED BEDEN K NAVEZENÍ                    
-                    {% elif db_table == 'dashboard_vyroba' %}PŘEHLED VÝROBY
-                    {% elif db_table == 'dashboard_vyroba_historie' %}HISTORIE VÝROBY
-                    {% elif db_table == 'rychle_zalozeni_sarze' %}RYCHLÉ ZALOŽENÍ ŠARŽE
-                    {% else %}Výběr modulu
-                    {% endif %}
+                    PŘEHLEDY
                 </button>
                 <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
                     <li>
@@ -44,36 +37,17 @@
                            {% if db_table == 'dashboard_vyroba_historie' %}aria-current="page"{% endif %}
                            href="{% url 'dashboard_vyroba_historie' %}">Historie výroby</a>
                     </li>
-                    <li><hr class="dropdown-divider"></li>
-                    <li>
-                        <a class="dropdown-item small{% if db_table == 'rychle_zalozeni_sarze' %} active{% endif %}"
-                           {% if db_table == 'rychle_zalozeni_sarze' %}aria-current="page"{% endif %}
-                           href="{% url 'rychle_zalozeni_sarze' %}">Rychlé založení šarže</a>
-                    </li>
                 </ul>
             </div>
-            <!-- Dropdown: Export -->
-            {% if db_table == 'sklad' or db_table == 'audit_log' or db_table == 'dodavatele' %}
-            <div class="btn-group btn-group-sm dropdown my-1 me-2">
-                <button class="btn btn-light dropdown-toggle"
-                        type="button"
-                        id="dropdownMenuButton2"
-                        data-bs-toggle="dropdown"
-                        aria-expanded="false">
-                    Export
-                </button>
-                {% if object_list %}
-                <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton2">
-                    {% if db_table == 'audit_log' %}
-                        <li><a class="dropdown-item small" href="{% url 'audit_log_export_csv' %}?{{ request.GET.urlencode }}">Export do CSV</a></li>
-                    {% elif db_table == 'sklad' %}
-                        <li><a class="dropdown-item small" href="{% url 'sklad_export_csv' %}?{{ request.GET.urlencode }}">Export do CSV</a></li>
-                    {% elif db_table == 'dodavatele' %}
-                        <li><a class="dropdown-item small" href="{% url 'dodavatele_export_csv' %}?{{ request.GET.urlencode }}">Export do CSV</a></li>
-                    {% endif %}
-                </ul>
-                {% endif %}
-            </div>
+            <!-- Button: Rychlé založení šarže -->
+            {% if perms.orders.add_sarze and perms.orders.add_sarzekrok %}
+                <div>
+                    <a href="{% url 'rychle_zalozeni_sarze' %}"
+                    class="btn btn-light btn-sm"
+                    style="background-color: #ffde17; color: #214290; border-color: #ffde17;">
+                        RYCHLÉ ZALOŽENÍ ŠARŽE
+                    </a>
+                </div>
             {% endif %}
         </div>
         <!-- Uživatelská sekce -->
