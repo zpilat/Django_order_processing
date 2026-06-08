@@ -1,4 +1,4 @@
-<nav class="navbar navbar-expand-lg py-2" style="background-color: #214290; color: #ffde17;">
+<nav class="navbar navbar-expand-lg py-2 my-1 rounded" style="background-color: #214290; color: #ffde17;">
     <div class="container-fluid d-flex flex-wrap align-items-center justify-content-between">
         <div class="d-flex align-items-center gap-2">
             <!-- Dropdown: Výběr modulu -->
@@ -9,25 +9,46 @@
                         id="dropdownMenuButton1"
                         data-bs-toggle="dropdown"
                         aria-expanded="false">
-                    {% if db_table == 'dashboard_bedny' %}dashboard_bedny                        
-                    {% elif db_table == 'bedny' %}PŘEHLED BEDEN
-                    {% elif db_table == 'bedny_k_navezeni' %}PŘEHLED BEDEN K NAVEZENÍ
+                    {% if db_table == 'dashboard_bedny' %}PŘEHLED BEDEN
+                    {% elif db_table == 'dashboard_kamiony' %}PŘEHLED KAMIONY
+                    {% elif db_table == 'bedny_k_navezeni' %}PŘEHLED BEDEN K NAVEZENÍ                    
+                    {% elif db_table == 'dashboard_vyroba' %}PŘEHLED VÝROBY
+                    {% elif db_table == 'dashboard_vyroba_historie' %}HISTORIE VÝROBY
+                    {% elif db_table == 'rychle_zalozeni_sarze' %}RYCHLÉ ZALOŽENÍ ŠARŽE
                     {% else %}Výběr modulu
                     {% endif %}
                 </button>
                 <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
-                    {% if db_table != 'dashboard_bedny' %}
-                        <li><a class="dropdown-item small" href="{% url 'dashboard_bedny' %}">Dashboard bedny</a></li>       
-                    {% endif %}             
-                    {% if db_table != 'bedny' %}
-                        <li><a class="dropdown-item small" href="{% url 'bedny_list' %}">Přehled beden</a></li>
-                    {% endif %}
-                    {% if db_table != 'bedny_k_navezeni' %}
-                        <li><a class="dropdown-item small" href="{% url 'dashboard_bedny_k_navezeni' %}">Přehled beden k navezení</a></li>
-                    {% endif %}
-                    {% if db_table != 'rychle_zalozeni_sarze' %}
-                        <li><a class="dropdown-item small" href="{% url 'rychle_zalozeni_sarze' %}">Rychlé založení šarže</a></li>
-                    {% endif %}
+                    <li>
+                        <a class="dropdown-item small{% if db_table == 'dashboard_bedny' %} active{% endif %}"
+                           {% if db_table == 'dashboard_bedny' %}aria-current="page"{% endif %}
+                           href="{% url 'dashboard_bedny' %}">Přehled beden</a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item small{% if db_table == 'dashboard_kamiony' %} active{% endif %}"
+                           {% if db_table == 'dashboard_kamiony' %}aria-current="page"{% endif %}
+                           href="{% url 'dashboard_kamiony' %}">Přehled kamionů</a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item small{% if db_table == 'bedny_k_navezeni' %} active{% endif %}"
+                           {% if db_table == 'bedny_k_navezeni' %}aria-current="page"{% endif %}
+                           href="{% url 'dashboard_bedny_k_navezeni' %}">Přehled beden k navezení</a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item small{% if db_table == 'dashboard_vyroba' %} active{% endif %}"
+                           {% if db_table == 'dashboard_vyroba' %}aria-current="page"{% endif %}
+                           href="{% url 'dashboard_vyroba' %}">Přehled výroby</a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item small{% if db_table == 'dashboard_vyroba_historie' %} active{% endif %}"
+                           {% if db_table == 'dashboard_vyroba_historie' %}aria-current="page"{% endif %}
+                           href="{% url 'dashboard_vyroba_historie' %}">Historie výroby</a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item small{% if db_table == 'rychle_zalozeni_sarze' %} active{% endif %}"
+                           {% if db_table == 'rychle_zalozeni_sarze' %}aria-current="page"{% endif %}
+                           href="{% url 'rychle_zalozeni_sarze' %}">Rychlé založení šarže</a>
+                    </li>
                 </ul>
             </div>
             <!-- Dropdown: Export -->
