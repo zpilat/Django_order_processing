@@ -63,11 +63,51 @@
         transform: translateX(-100%);
     }
 
-    .boundary-control {
-        display: grid;
-        grid-template-columns: minmax(8rem, auto) 1fr 4rem;
-        gap: .75rem;
-        align-items: center;
+    .rack-boundary {
+        position: absolute;
+        z-index: 4;
+        top: 0;
+        bottom: 0;
+        width: 18px;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        cursor: col-resize;
+        touch-action: none;
+        transform: translateX(-50%);
+    }
+
+    .rack-boundary::before {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 8px;
+        width: 3px;
+        background-color: #214290;
+        content: "";
+    }
+
+    .rack-boundary::after {
+        position: absolute;
+        top: 50%;
+        left: 2px;
+        width: 14px;
+        height: 32px;
+        border: 2px solid #214290;
+        border-radius: 4px;
+        background-color: #ffde17;
+        content: "";
+        transform: translateY(-50%);
+    }
+
+    .rack-boundary:hover::after,
+    .rack-boundary:focus-visible::after {
+        background-color: #fff3a6;
+        box-shadow: 0 0 0 3px rgba(33, 66, 144, .25);
+    }
+
+    .rack-boundary:focus-visible {
+        outline: none;
     }
 
     .item-row.is-removed {
@@ -160,7 +200,6 @@
                 <span id="rack-total" class="small fw-semibold">0 %</span>
             </div>
             <div id="rack-preview" class="rack-preview" aria-live="polite"></div>
-            <div id="boundary-controls" class="d-grid gap-2 mt-3"></div>
             <div id="rack-warning" class="text-danger small mt-2 d-none"></div>
         </section>
 
@@ -197,7 +236,6 @@
     const form = document.querySelector('.patro-form');
     const rowsContainer = document.getElementById('item-rows');
     const preview = document.getElementById('rack-preview');
-    const controls = document.getElementById('boundary-controls');
     const warning = document.getElementById('rack-warning');
     const totalLabel = document.getElementById('rack-total');
     const totalForms = document.getElementById('id_polozky-TOTAL_FORMS');
@@ -264,13 +302,6 @@
             && values.reduce((sum, value) => sum + value, 0) === 100;
     }
 
-    function setPercentagesFromBoundaries(active, boundaries) {
-        const points = [0, ...boundaries, 100];
-        active.forEach((row, index) => {
-            percentageInput(row).value = points[index + 1] - points[index];
-        });
-    }
-
     function renderPreview(active, values) {
         const total = values.reduce((sum, value) => sum + value, 0);
         totalLabel.textContent = `${total} %`;
@@ -296,6 +327,69 @@
             scale.appendChild(mark);
         }
         preview.appendChild(scale);
+
+        let cumulative = 0;
+        values.slice(0, -1).forEach((value, index) => {
+            cumulative += value;
+            const boundaryPosition = cumulative;
+            const handle = document.createElement('button');
+            handle.type = 'button';
+            handle.className = 'rack-boundary';
+            handle.style.left = `${boundaryPosition}%`;
+            handle.title = `Posunout hranici ${index + 1}`;
+            handle.setAttribute('aria-label', `Hranice ${index + 1}`);
+            handle.setAttribute('role', 'slider');
+            handle.setAttribute('aria-valuemin', '10');
+            handle.setAttribute('aria-valuemax', '90');
+            handle.setAttribute('aria-valuenow', boundaryPosition);
+
+            function moveBoundary(globalPercentage) {
+                const currentValues = currentPercentages(active);
+                const before = currentValues
+                    .slice(0, index)
+                    .reduce((sum, percentage) => sum + percentage, 0);
+                const pairTotal = currentValues[index] + currentValues[index + 1];
+                const pairEnd = before + pairTotal;
+                const minimum = before + 10;
+                const maximum = pairEnd - 10;
+                const snapped = Math.max(
+                    minimum,
+                    Math.min(maximum, Math.round(globalPercentage / 10) * 10)
+                );
+
+                percentageInput(active[index]).value = snapped - before;
+                percentageInput(active[index + 1]).value = pairEnd - snapped;
+                renderPreview(active, currentPercentages(active));
+            }
+
+            handle.addEventListener('pointerdown', function (event) {
+                event.preventDefault();
+
+                function onPointerMove(moveEvent) {
+                    const rect = preview.getBoundingClientRect();
+                    const percentage = ((moveEvent.clientX - rect.left) / rect.width) * 100;
+                    moveBoundary(percentage);
+                }
+
+                function onPointerUp() {
+                    window.removeEventListener('pointermove', onPointerMove);
+                    window.removeEventListener('pointerup', onPointerUp);
+                }
+
+                window.addEventListener('pointermove', onPointerMove);
+                window.addEventListener('pointerup', onPointerUp);
+            });
+
+            handle.addEventListener('keydown', function (event) {
+                if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') {
+                    return;
+                }
+                event.preventDefault();
+                moveBoundary(boundaryPosition + (event.key === 'ArrowLeft' ? -10 : 10));
+            });
+
+            preview.appendChild(handle);
+        });
     }
 
     function render() {
@@ -315,52 +409,6 @@
 
         const values = currentPercentages(active);
         renderPreview(active, values);
-        controls.innerHTML = '';
-
-        if (active.length < 2 || active.length > 10 || !percentagesAreValid(values)) {
-            return;
-        }
-
-        let cumulative = 0;
-        const boundaries = values.slice(0, -1).map(value => {
-            cumulative += value;
-            return cumulative;
-        });
-
-        boundaries.forEach((boundary, index) => {
-            const wrapper = document.createElement('label');
-            wrapper.className = 'boundary-control';
-
-            const label = document.createElement('span');
-            label.className = 'small';
-            label.textContent = `Hranice ${index + 1}`;
-
-            const range = document.createElement('input');
-            range.type = 'range';
-            range.className = 'form-range';
-            range.min = index === 0 ? 10 : boundaries[index - 1] + 10;
-            range.max = index === boundaries.length - 1 ? 90 : boundaries[index + 1] - 10;
-            range.step = 10;
-            range.value = boundary;
-
-            const valueLabel = document.createElement('span');
-            valueLabel.className = 'small text-end';
-            valueLabel.textContent = `${boundary} %`;
-
-            range.addEventListener('input', function () {
-                boundaries[index] = Number.parseInt(range.value, 10);
-                setPercentagesFromBoundaries(active, boundaries);
-                valueLabel.textContent = `${boundaries[index]} %`;
-                renderPreview(active, currentPercentages(active));
-            });
-
-            range.addEventListener('change', function () {
-                render();
-            });
-
-            wrapper.append(label, range, valueLabel);
-            controls.appendChild(wrapper);
-        });
     }
 
     function bindRow(row) {
