@@ -21,7 +21,7 @@ from decimal import Decimal, ROUND_HALF_UP
 
 from .utils import get_verbose_name_for_column, utilita_tisk_dl_a_proforma_faktury
 from .models import Bedna, Zakazka, Kamion, Zakaznik, TypHlavy, Predpis, Odberatel, Cena, Pozice, PoziceZakazkaOrder, Sarze, SarzeKrok, SarzeKrokBedna
-from .forms import RychleZalozeniSarzeForm, SarzeKrokPatroFormSet
+from .forms import RychleZalozeniSarzeForm, get_sarze_krok_patro_formset
 from .choices import  StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice, ZinkovaniChoice, STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM
 from weasyprint import HTML, CSS
 
@@ -80,9 +80,10 @@ def rychle_zalozeni_sarze_patro_view(request, krok_id, patro):
         }
         for item in existing_items
     ]
+    PatroFormSet = get_sarze_krok_patro_formset(is_change=bool(existing_items))
 
     if request.method == 'POST':
-        formset = SarzeKrokPatroFormSet(request.POST, prefix='polozky')
+        formset = PatroFormSet(request.POST, prefix='polozky')
         if formset.is_valid():
             with transaction.atomic():
                 locked_krok = SarzeKrok.objects.select_for_update().get(pk=krok.pk)
@@ -114,7 +115,7 @@ def rychle_zalozeni_sarze_patro_view(request, krok_id, patro):
             messages.success(request, f'Šarže {krok.sarze} byla založena.')
             return redirect('rychle_zalozeni_sarze_prehled', krok_id=krok.pk)
     else:
-        formset = SarzeKrokPatroFormSet(initial=initial, prefix='polozky')
+        formset = PatroFormSet(initial=initial, prefix='polozky')
 
     return render(
         request,

@@ -706,11 +706,12 @@ class BaseSarzeKrokPatroFormSet(BaseFormSet):
         return [form for form in self.forms if form.has_item()]
 
 
-SarzeKrokPatroFormSet = formset_factory(
-    SarzeKrokPatroPolozkaForm,
-    formset=BaseSarzeKrokPatroFormSet,
-    extra=5,
-    can_delete=True,
-    max_num=10,
-    validate_max=True,
-)
+def get_sarze_krok_patro_formset(*, is_change):
+    return formset_factory(
+        SarzeKrokPatroPolozkaForm,
+        formset=BaseSarzeKrokPatroFormSet,
+        extra=1 if is_change else 3,
+        can_delete=True,
+        max_num=10,
+        validate_max=True,
+    )

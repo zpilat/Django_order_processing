@@ -890,6 +890,37 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 		self.assertEqual(resp.status_code, 200)
 		self.assertTemplateUsed(resp, "orders/rychle_zalozeni_sarze_patro.html")
 		self.assertEqual(resp.context["patro"], 1)
+		self.assertEqual(resp.context["formset"].total_form_count(), 5)
+
+	def test_existing_patro_get_does_not_add_extra_forms(self):
+		sarze = Sarze.objects.create(
+			datum_zalozeni=date(2026, 6, 5),
+			cislo_pripravku=12,
+			aktivni=True,
+		)
+		krok = SarzeKrok.objects.create(
+			sarze=sarze,
+			poradi=1,
+			datum=date(2026, 6, 5),
+			zarizeni=self.nakladani,
+			zacatek=time(6, 0),
+			konec=time(7, 30),
+			operator="Novak",
+		)
+		SarzeKrokBedna.objects.create(
+			krok=krok,
+			bedna=self.b_eur_pr,
+			patro=1,
+			procent_z_patra=100,
+		)
+
+		resp = self.client.get(
+			reverse("rychle_zalozeni_sarze_patro", args=[krok.pk, 1]),
+		)
+
+		self.assertEqual(resp.status_code, 200)
+		self.assertEqual(resp.context["formset"].initial_form_count(), 1)
+		self.assertEqual(resp.context["formset"].total_form_count(), 1)
 
 	def test_patro_finish_redirects_to_batch_summary(self):
 		sarze = Sarze.objects.create(
