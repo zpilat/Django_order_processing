@@ -632,6 +632,11 @@ class SarzeKrokPatroPolozkaForm(forms.Form):
             'zakazka_mimo_db',
             'cislo_bedny_mimo_db',
         )
+        iron_field_mandatory = (
+            'popis_mimo_db',
+            'zakaznik_mimo_db',
+            'zakazka_mimo_db',
+        )
         iron_values = {
             field_name: (cleaned_data.get(field_name) or '').strip()
             for field_name in iron_fields
@@ -646,15 +651,20 @@ class SarzeKrokPatroPolozkaForm(forms.Form):
         if bedna and has_iron_value:
             raise ValidationError('Vyplňte buď bednu, nebo údaje železa mimo DB, ne obojí.')
 
+        iron_values_for_mandatory = {
+            field_name: iron_values[field_name]
+            for field_name in iron_field_mandatory
+        }
+
         if has_iron_value:
             missing_labels = [
                 self.fields[field_name].label
-                for field_name, value in iron_values.items()
+                for field_name, value in iron_values_for_mandatory.items()
                 if not value
             ]
             if missing_labels:
                 raise ValidationError(
-                    f"Pro železo vyplňte všechna pole. Chybí: {', '.join(missing_labels)}."
+                    f"Pro železo vyplňte povinná pole. Chybí: {', '.join(missing_labels)}."
                 )
 
         return cleaned_data
