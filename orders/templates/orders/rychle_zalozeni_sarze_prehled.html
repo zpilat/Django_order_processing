@@ -4,20 +4,37 @@
 
 {% block content %}
 <div class="container py-3">
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags|default:'info' }} mb-3" role="alert">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
     <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
         <div>
-            <h1 class="h4 mb-2">Šarže {{ krok.sarze }} byla založena</h1>
+            <h1 class="h4 mb-2">Šarže {{ krok.sarze }}</h1>
             <div class="text-muted">
                 Přípravek {{ krok.sarze.cislo_pripravku }},
                 {{ krok.zarizeni }},
                 {{ krok.datum|date:"d.m.Y" }},
-                {{ krok.zacatek|time:"H:i" }}–{{ krok.konec|time:"H:i" }}
+                {{ krok.zacatek|time:"H:i" }} -
+                {% if krok.konec %}
+                    {{ krok.konec|time:"H:i" }}
+                {% else %}
+                    <a href="{% url 'rychle_zalozeni_sarze_upravit' krok.pk %}#id_konec"
+                       class="btn btn-sm btn-danger">
+                        Doplnit konec kroku
+                    </a>
+                {% endif %}
             </div>
         </div>
-        <a href="{% url 'rychle_zalozeni_sarze' %}" class="btn btn-primary">
-            Založit další šarži
+        <a href="{% url 'rychle_zalozeni_sarze_upravit' krok.pk %}" class="btn btn-primary">
+            Upravit šarži
         </a>
     </div>
+    <hr class="mb-4">
 
     {% regroup items by patro as patra %}
     {% for floor in patra %}
@@ -26,7 +43,7 @@
                 <h2 class="h6 mb-0">{{ floor.grouper }}. patro</h2>
                 <a href="{% url 'rychle_zalozeni_sarze_patro' krok.pk floor.grouper %}"
                    class="btn btn-sm btn-outline-primary">
-                    Upravit
+                    Upravit patro
                 </a>
             </div>
             <div class="table-responsive">
@@ -34,9 +51,10 @@
                     <thead style="background-color: #214290; color: #ffde17;">
                         <tr>
                             <th>Položka</th>
-                            <th>Zákazník</th>
-                            <th>Zakázka</th>
-                            <th>Číslo bedny</th>
+                            <th class="text-center">Zákazník</th>
+                            <th class="text-center">Zakázka</th>
+                            <th class="text-center">Číslo bedny</th>
+                            <th class="text-center">Skupina TZ</th>
                             <th class="text-end">Podíl</th>
                         </tr>
                     </thead>
@@ -45,14 +63,16 @@
                             <tr>
                                 {% if item.bedna %}
                                     <td>{{ item.bedna }}</td>
-                                    <td>{{ item.bedna.zakazka.kamion_prijem.zakaznik.zkratka }}</td>
-                                    <td>{{ item.bedna.zakazka }}</td>
-                                    <td>{{ item.bedna.cislo_bedny }}</td>
+                                    <td class="text-center">{{ item.bedna.zakazka.kamion_prijem.zakaznik.zkratka }}</td>
+                                    <td class="text-center">{{ item.bedna.zakazka }}</td>
+                                    <td class="text-center">{{ item.bedna.cislo_bedny }}</td>
+                                    <td class="text-center">{{ item.bedna.zakazka.predpis.skupina }}</td>
                                 {% else %}
                                     <td>{{ item.popis_mimo_db }}</td>
-                                    <td>{{ item.zakaznik_mimo_db }}</td>
-                                    <td>{{ item.zakazka_mimo_db }}</td>
-                                    <td>{{ item.cislo_bedny_mimo_db }}</td>
+                                    <td class="text-center">{{ item.zakaznik_mimo_db }}</td>
+                                    <td class="text-center">{{ item.zakazka_mimo_db }}</td>
+                                    <td class="text-center">{{ item.cislo_bedny_mimo_db }}</td>
+                                    <td class="text-center"></td>
                                 {% endif %}
                                 <td class="text-end">{{ item.procent_z_patra }} %</td>
                             </tr>
@@ -64,5 +84,10 @@
     {% empty %}
         <div class="alert alert-warning">Šarže zatím nemá uložené žádné položky.</div>
     {% endfor %}
+    <div class="d-flex justify-content-end">
+        <a href="{% url 'rychle_zalozeni_sarze_patro' krok.pk nove_patro %}" class="btn btn-sm btn-primary">
+            Přidat další patro
+        </a>
+    </div>
 </div>
 {% endblock %}

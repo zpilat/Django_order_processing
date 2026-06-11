@@ -1,12 +1,14 @@
 {% extends "orders/base.html" %}
 
-{% block title %}Rychlé založení šarže{% endblock %}
+{% block title %}{% if is_edit %}Úprava šarže{% else %}Rychlé založení šarže{% endif %}{% endblock %}
 
 {% block content %}
 <div class="container py-3">
     <div class="row justify-content-center">
         <div class="col-12 col-xl-8">
-            <h1 class="h4 mb-3">Rychlé založení šarže</h1>
+            <h1 class="h4 mb-3">
+                {% if is_edit %}Úprava šarže {{ krok.sarze }}{% else %}Rychlé založení šarže{% endif %}
+            </h1>
 
             {% if messages %}
                 {% for message in messages %}
@@ -86,11 +88,15 @@
                     </div>
                 </div>
 
-                <div class="d-flex justify-content-end">
+                <div class="d-flex justify-content-between gap-2">
+                    <a href="{% if krok %}{% url 'rychle_zalozeni_sarze_prehled' krok.pk %}{% else %}{% url 'dashboard_vyroba' %}{% endif %}"
+                       class="btn btn-danger">
+                        Zrušit
+                    </a>
                     <button type="submit"
                             class="btn"
                             style="background-color: #ffde17; color: #214290; border-color: #ffde17;">
-                        Uložit a pokračovat
+                        {% if is_edit %}Uložit změny{% else %}Uložit a pokračovat{% endif %}
                     </button>
                 </div>
             </form>
@@ -104,6 +110,14 @@
         if (!form) {
         return;
         }
+
+        if (window.location.hash === '#id_konec') {
+            const konec = document.getElementById('id_konec');
+            if (konec) {
+                konec.focus();
+            }
+        }
+
         form.addEventListener('submit', function () {
         const submit = form.querySelector('button[type="submit"]');
         if (submit) {

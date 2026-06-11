@@ -39,14 +39,33 @@
                     </li>
                 </ul>
             </div>
-            <!-- Button: Rychlé založení šarže -->
-            {% if perms.orders.add_sarze and perms.orders.add_sarzekrok and perms.orders.add_sarzekrokbedna %}
-                <div>
-                    <a href="{% url 'rychle_zalozeni_sarze' %}"
-                    class="btn btn-light btn-sm"
-                    style="background-color: #ffde17; color: #214290; border-color: #ffde17;">
+            <!-- Dropdown: Rychlé založení šarže -->
+            {% if perms.orders.add_sarze and perms.orders.add_sarzekrok and perms.orders.add_sarzekrokbedna or perms.orders.view_sarzekrok and perms.orders.view_sarzekrokbedna %}
+                <div class="btn-group btn-group-sm dropdown my-1">
+                    <button class="btn dropdown-toggle"
+                            style="background-color: #ffde17; color: #214290; border-color: #ffde17;"
+                            type="button"
+                            id="rychleZalozeniSarzeDropdown"
+                            data-bs-toggle="dropdown"
+                            aria-expanded="false">
                         RYCHLÉ ZALOŽENÍ ŠARŽE
-                    </a>
+                    </button>
+                    <ul class="dropdown-menu" aria-labelledby="rychleZalozeniSarzeDropdown">
+                        {% if perms.orders.add_sarze and perms.orders.add_sarzekrok and perms.orders.add_sarzekrokbedna %}
+                            <li>
+                                <a class="dropdown-item small" href="{% url 'rychle_zalozeni_sarze' %}">
+                                    Přidat novou šarži
+                                </a>
+                            </li>
+                        {% endif %}
+                        {% if perms.orders.view_sarzekrok and perms.orders.view_sarzekrokbedna %}
+                            <li>
+                                <a class="dropdown-item small" href="{% url 'rychle_zalozeni_sarze_posledni_prehled' %}">
+                                    Přehled poslední šarže
+                                </a>
+                            </li>
+                        {% endif %}
+                    </ul>
                 </div>
             {% endif %}
         </div>

@@ -15,8 +15,10 @@ from .views import (
     dodaci_list_kamion_vydej_pdf_view,
     proforma_kamion_vydej_pdf_view,
     rychle_zalozeni_sarze_view,
+    rychle_zalozeni_sarze_posledni_prehled_view,
     rychle_zalozeni_sarze_patro_view,
     rychle_zalozeni_sarze_prehled_view,
+    rychle_zalozeni_sarze_upravit_view,
 )
 
 urlpatterns = [
@@ -28,6 +30,11 @@ urlpatterns = [
     path('bedny/', BednyListView.as_view(), name='bedny_list'),
     path('sarze/rychle-zalozeni/', rychle_zalozeni_sarze_view, name='rychle_zalozeni_sarze'),
     path(
+        'sarze/rychle-zalozeni/posledni-prehled/',
+        rychle_zalozeni_sarze_posledni_prehled_view,
+        name='rychle_zalozeni_sarze_posledni_prehled',
+    ),
+    path(
         'sarze/rychle-zalozeni/krok/<int:krok_id>/patro/<int:patro>/',
         rychle_zalozeni_sarze_patro_view,
         name='rychle_zalozeni_sarze_patro',
@@ -36,6 +43,10 @@ urlpatterns = [
         'sarze/rychle-zalozeni/krok/<int:krok_id>/prehled/',
         rychle_zalozeni_sarze_prehled_view,
         name='rychle_zalozeni_sarze_prehled',
+    ),
+    path('sarze/rychle-zalozeni/krok/<int:krok_id>/upravit/',
+         rychle_zalozeni_sarze_upravit_view,
+         name='rychle_zalozeni_sarze_upravit',
     ),
     path('bedny/k-navezeni/', dashboard_bedny_k_navezeni_view, name='dashboard_bedny_k_navezeni'),
     path('bedny/k-navezeni/poznamka/', dashboard_bedny_k_navezeni_poznamka_view, name='dashboard_bedny_k_navezeni_poznamka'),

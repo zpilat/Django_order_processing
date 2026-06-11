@@ -6,7 +6,7 @@ from django.views.generic import ListView
 from django.views.generic.edit import CreateView, UpdateView, DeleteView
 from django.views.generic.detail import DetailView
 from django.urls import reverse, reverse_lazy
-from django.db.models import Q, Sum, Count, F, Exists, OuterRef
+from django.db.models import Q, Max, Sum, Count, F, Exists, OuterRef
 from django.utils.translation import gettext_lazy as _
 import django.utils.timezone as timezone
 from datetime import timedelta, time, date
@@ -34,6 +34,12 @@ logger = logging.getLogger('orders')
 @permission_required('orders.add_sarzekrok', raise_exception=True)
 @permission_required('orders.add_sarzekrokbedna', raise_exception=True)
 def rychle_zalozeni_sarze_view(request):
+    posledni_krok_nakladani = SarzeKrok.objects.filter(sarze__isnull=False, zarizeni__nazev_zarizeni__startswith='Nakládání').order_by('-pk').first()
+
+    if posledni_krok_nakladani and posledni_krok_nakladani.konec is None:
+        messages.warning(request, 'Nelze založit novou šarži, protože poslední krok nakládání ještě není ukončen.')
+        return redirect('rychle_zalozeni_sarze_prehled', krok_id=posledni_krok_nakladani.pk)
+
     if request.method == 'POST':
         form = RychleZalozeniSarzeForm(request.POST)
         if form.is_valid():
@@ -49,7 +55,31 @@ def rychle_zalozeni_sarze_view(request):
         {
             'form': form,
             'db_table': 'rychle_zalozeni_sarze',
+            'krok': posledni_krok_nakladani,
         },
+    )
+
+
+@login_required
+@permission_required('orders.view_sarzekrok', raise_exception=True)
+@permission_required('orders.view_sarzekrokbedna', raise_exception=True)
+def rychle_zalozeni_sarze_posledni_prehled_view(request):
+    posledni_krok_nakladani = (
+        SarzeKrok.objects
+        .filter(
+            sarze__isnull=False,
+            zarizeni__nazev_zarizeni__startswith='Nakládání',
+        )
+        .order_by('-pk')
+        .first()
+    )
+    if posledni_krok_nakladani is None:
+        messages.info(request, 'Zatím neexistuje žádná šarže s krokem nakládání.')
+        return redirect('rychle_zalozeni_sarze')
+
+    return redirect(
+        'rychle_zalozeni_sarze_prehled',
+        krok_id=posledni_krok_nakladani.pk,
     )
 
 
@@ -83,6 +113,9 @@ def rychle_zalozeni_sarze_patro_view(request, krok_id, patro):
     PatroFormSet = get_sarze_krok_patro_formset(is_change=bool(existing_items))
 
     if request.method == 'POST':
+        if request.POST.get('action') == 'finish':
+            return redirect('rychle_zalozeni_sarze_prehled', krok_id=krok.pk)
+
         formset = PatroFormSet(request.POST, prefix='polozky')
         if formset.is_valid():
             with transaction.atomic():
@@ -112,7 +145,7 @@ def rychle_zalozeni_sarze_patro_view(request, krok_id, patro):
                     patro=patro + 1,
                 )
 
-            messages.success(request, f'Šarže {krok.sarze} byla založena.')
+            messages.success(request, f'Byla vytvořena nebo upravena šarže {krok.sarze}.')
             return redirect('rychle_zalozeni_sarze_prehled', krok_id=krok.pk)
     else:
         formset = PatroFormSet(initial=initial, prefix='polozky')
@@ -130,7 +163,8 @@ def rychle_zalozeni_sarze_patro_view(request, krok_id, patro):
 
 
 @login_required
-@permission_required('orders.add_sarzekrokbedna', raise_exception=True)
+@permission_required('orders.view_sarzekrok', raise_exception=True)
+@permission_required('orders.view_sarzekrokbedna', raise_exception=True)
 def rychle_zalozeni_sarze_prehled_view(request, krok_id):
     krok = get_object_or_404(
         SarzeKrok.objects.select_related('sarze', 'zarizeni'),
@@ -141,15 +175,48 @@ def rychle_zalozeni_sarze_prehled_view(request, krok_id):
         .select_related('bedna')
         .order_by('patro', 'pk')
     )
+    nove_patro = (items.aggregate(max_patro=Max('patro'))['max_patro'] or 0) + 1
     return render(
         request,
         'orders/rychle_zalozeni_sarze_prehled.html',
         {
             'krok': krok,
             'items': items,
+            'nove_patro': nove_patro,
             'db_table': 'rychle_zalozeni_sarze',
         },
     )
+
+@login_required
+@permission_required('orders.change_sarze', raise_exception=True)
+@permission_required('orders.change_sarzekrok', raise_exception=True)
+def rychle_zalozeni_sarze_upravit_view(request, krok_id):
+    krok = get_object_or_404(
+        SarzeKrok.objects.select_related('sarze'),
+        pk=krok_id,
+        poradi=1,
+    )
+    sarze = krok.sarze
+    if request.method == 'POST':
+        form = RychleZalozeniSarzeForm(request.POST, sarze=sarze, krok=krok)
+        if form.is_valid():
+            sarze, krok = form.save()
+            messages.success(request, f'Byla upravena šarže {sarze}.')
+            return redirect('rychle_zalozeni_sarze_prehled', krok_id=krok.pk)
+    else:
+        form = RychleZalozeniSarzeForm(sarze=sarze, krok=krok)
+
+    return render(
+        request,
+        'orders/rychle_zalozeni_sarze.html',
+        {
+            'form': form,
+            'krok': krok,
+            'is_edit': True,
+            'db_table': 'rychle_zalozeni_sarze',
+        },
+    )
+
  
 def _format_hours(hours_value):
     return f"{hours_value:.1f}".replace('.', ',')

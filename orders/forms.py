@@ -486,7 +486,7 @@ class RychleZalozeniSarzeForm(forms.Form):
         widget=forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}, format='%H:%M'),
     )
     konec = forms.TimeField(
-        required=True,
+        required=False, # konec kroku není povinný, protože při rychlém založení šarže nemusí být hned zadán
         label='Konec',
         input_formats=['%H:%M', '%H.%M'],
         widget=forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}, format='%H:%M'),
@@ -503,6 +503,26 @@ class RychleZalozeniSarzeForm(forms.Form):
         label='Poznámka kroku nakládání',
         widget=forms.TextInput(attrs={'class': 'form-control'}),
     )
+
+    def __init__(self, *args, sarze=None, krok=None, **kwargs):
+        if (sarze is None) != (krok is None):
+            raise ValueError('Pro úpravu musí být předána šarže i krok.')
+        if krok is not None and krok.sarze_id != sarze.pk:
+            raise ValueError('Krok nepatří k předané šarži.')
+
+        self.sarze = sarze
+        self.krok = krok
+        if sarze is not None:
+            initial = kwargs.setdefault('initial', {})
+            initial.setdefault('cislo_pripravku', sarze.cislo_pripravku)
+            initial.setdefault('poznamka_sarze', sarze.poznamka)
+            initial.setdefault('datum', krok.datum)
+            initial.setdefault('zacatek', krok.zacatek)
+            initial.setdefault('konec', krok.konec)
+            initial.setdefault('operator', krok.operator)
+            initial.setdefault('poznamka_kroku', krok.poznamka)
+
+        super().__init__(*args, **kwargs)
 
     def clean_operator(self):
         operator = (self.cleaned_data.get('operator') or '').strip()
@@ -532,6 +552,34 @@ class RychleZalozeniSarzeForm(forms.Form):
 
         data = self.cleaned_data
         with transaction.atomic():
+            if self.sarze is not None:
+                sarze = Sarze.objects.select_for_update().get(pk=self.sarze.pk)
+                krok = SarzeKrok.objects.select_for_update().get(
+                    pk=self.krok.pk,
+                    sarze=sarze,
+                )
+                sarze.cislo_pripravku = data['cislo_pripravku']
+                sarze.poznamka = data['poznamka_sarze'] or None
+                sarze.save(update_fields=['cislo_pripravku', 'poznamka'])
+
+                krok.datum = data['datum']
+                krok.zarizeni = data['zarizeni']
+                krok.zacatek = data['zacatek']
+                krok.konec = data['konec']
+                krok.operator = data['operator']
+                krok.poznamka = data['poznamka_kroku'] or None
+                krok.save(
+                    update_fields=[
+                        'datum',
+                        'zarizeni',
+                        'zacatek',
+                        'konec',
+                        'operator',
+                        'poznamka',
+                    ]
+                )
+                return sarze, krok
+
             sarze = Sarze.objects.create(
                 datum_zalozeni=timezone.localdate(),
                 cislo_pripravku=data['cislo_pripravku'],

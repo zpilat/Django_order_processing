@@ -761,6 +761,22 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 				content_type__app_label="orders",
 				codename="add_sarzekrokbedna",
 			),
+			Permission.objects.get(
+				content_type__app_label="orders",
+				codename="change_sarze",
+			),
+			Permission.objects.get(
+				content_type__app_label="orders",
+				codename="change_sarzekrok",
+			),
+			Permission.objects.get(
+				content_type__app_label="orders",
+				codename="view_sarzekrok",
+			),
+			Permission.objects.get(
+				content_type__app_label="orders",
+				codename="view_sarzekrokbedna",
+			),
 		)
 		self.nakladani = Zarizeni.objects.create(
 			kod_zarizeni="NAKL",
@@ -784,6 +800,67 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 		self.assertEqual(resp.status_code, 200)
 		self.assertTemplateUsed(resp, "orders/rychle_zalozeni_sarze.html")
 		self.assertEqual(resp.context["db_table"], "rychle_zalozeni_sarze")
+		self.assertContains(resp, "RYCHLÉ ZALOŽENÍ ŠARŽE")
+		self.assertContains(resp, "Přidat novou šarži")
+		self.assertContains(resp, "Přehled poslední šarže")
+
+	def test_posledni_prehled_redirects_to_latest_nakladani_step(self):
+		sarze = Sarze.objects.create(
+			datum_zalozeni=date(2026, 6, 5),
+			cislo_pripravku=12,
+			aktivni=True,
+		)
+		starsi_krok = SarzeKrok.objects.create(
+			sarze=sarze,
+			poradi=1,
+			datum=date(2026, 6, 5),
+			zarizeni=self.nakladani,
+			zacatek=time(6, 0),
+			konec=time(7, 0),
+			operator="Novak",
+		)
+		jine_zarizeni = Zarizeni.objects.create(
+			kod_zarizeni="JINE",
+			nazev_zarizeni="Jiné zařízení",
+			zkraceny_nazev_zarizeni="Jiné",
+		)
+		SarzeKrok.objects.create(
+			sarze=sarze,
+			poradi=2,
+			datum=date(2026, 6, 5),
+			zarizeni=jine_zarizeni,
+			zacatek=time(7, 0),
+			konec=time(8, 0),
+			operator="Novak",
+		)
+		dalsi_nakladani = Zarizeni.objects.create(
+			kod_zarizeni="NAKL2",
+			nazev_zarizeni="Nakládání linka 2",
+			zkraceny_nazev_zarizeni="Nakládání 2",
+		)
+		nejnovejsi_krok = SarzeKrok.objects.create(
+			sarze=sarze,
+			poradi=3,
+			datum=date(2026, 6, 5),
+			zarizeni=dalsi_nakladani,
+			zacatek=time(8, 0),
+			operator="Svoboda",
+		)
+
+		resp = self.client.get(reverse("rychle_zalozeni_sarze_posledni_prehled"))
+
+		self.assertEqual(resp.status_code, 302)
+		self.assertNotEqual(starsi_krok.pk, nejnovejsi_krok.pk)
+		self.assertEqual(
+			resp["Location"],
+			reverse("rychle_zalozeni_sarze_prehled", args=[nejnovejsi_krok.pk]),
+		)
+
+	def test_posledni_prehled_without_nakladani_redirects_to_new_form(self):
+		resp = self.client.get(reverse("rychle_zalozeni_sarze_posledni_prehled"))
+
+		self.assertEqual(resp.status_code, 302)
+		self.assertEqual(resp["Location"], reverse("rychle_zalozeni_sarze"))
 
 	def test_post_creates_sarze_and_first_step(self):
 		resp = self.client.post(
@@ -815,6 +892,134 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			resp["Location"],
 			reverse("rychle_zalozeni_sarze_patro", args=[krok.pk, 1]),
 		)
+
+	def test_upravit_get_prefills_existing_sarze_and_first_step(self):
+		sarze = Sarze.objects.create(
+			datum_zalozeni=date(2026, 6, 5),
+			cislo_pripravku=12,
+			aktivni=True,
+			poznamka="Původní poznámka",
+		)
+		krok = SarzeKrok.objects.create(
+			sarze=sarze,
+			poradi=1,
+			datum=date(2026, 6, 5),
+			zarizeni=self.nakladani,
+			zacatek=time(6, 0),
+			konec=time(7, 30),
+			operator="Novak",
+			poznamka="Původní krok",
+		)
+
+		resp = self.client.get(
+			reverse("rychle_zalozeni_sarze_upravit", args=[krok.pk]),
+		)
+
+		self.assertEqual(resp.status_code, 200)
+		self.assertTemplateUsed(resp, "orders/rychle_zalozeni_sarze.html")
+		self.assertTrue(resp.context["is_edit"])
+		self.assertEqual(resp.context["form"].initial["cislo_pripravku"], 12)
+		self.assertEqual(resp.context["form"].initial["operator"], "Novak")
+
+	def test_upravit_post_updates_existing_objects(self):
+		sarze = Sarze.objects.create(
+			datum_zalozeni=date(2026, 6, 5),
+			cislo_pripravku=12,
+			aktivni=True,
+			poznamka="Původní poznámka",
+		)
+		krok = SarzeKrok.objects.create(
+			sarze=sarze,
+			poradi=1,
+			datum=date(2026, 6, 5),
+			zarizeni=self.nakladani,
+			zacatek=time(6, 0),
+			konec=time(7, 30),
+			operator="Novak",
+			poznamka="Původní krok",
+		)
+		sarze_count = Sarze.objects.count()
+		krok_count = SarzeKrok.objects.count()
+
+		resp = self.client.post(
+			reverse("rychle_zalozeni_sarze_upravit", args=[krok.pk]),
+			{
+				"cislo_pripravku": "24",
+				"poznamka_sarze": "Upravená poznámka",
+				"datum": "2026-06-06",
+				"zacatek": "08:00",
+				"konec": "",
+				"operator": "Svoboda",
+				"poznamka_kroku": "Upravený krok",
+			},
+		)
+
+		self.assertEqual(resp.status_code, 302)
+		self.assertEqual(
+			resp["Location"],
+			reverse("rychle_zalozeni_sarze_prehled", args=[krok.pk]),
+		)
+		self.assertEqual(Sarze.objects.count(), sarze_count)
+		self.assertEqual(SarzeKrok.objects.count(), krok_count)
+
+		sarze.refresh_from_db()
+		krok.refresh_from_db()
+		self.assertEqual(sarze.cislo_pripravku, 24)
+		self.assertEqual(sarze.poznamka, "Upravená poznámka")
+		self.assertEqual(krok.datum, date(2026, 6, 6))
+		self.assertEqual(krok.zacatek, time(8, 0))
+		self.assertIsNone(krok.konec)
+		self.assertEqual(krok.operator, "Svoboda")
+		self.assertEqual(krok.poznamka, "Upravený krok")
+		self.assertEqual(krok.poradi, 1)
+
+	def test_upravit_requires_change_permissions(self):
+		sarze = Sarze.objects.create(
+			datum_zalozeni=date(2026, 6, 5),
+			cislo_pripravku=12,
+			aktivni=True,
+		)
+		krok = SarzeKrok.objects.create(
+			sarze=sarze,
+			poradi=1,
+			datum=date(2026, 6, 5),
+			zarizeni=self.nakladani,
+			zacatek=time(6, 0),
+			operator="Novak",
+		)
+		self.user.user_permissions.remove(
+			Permission.objects.get(
+				content_type__app_label="orders",
+				codename="change_sarze",
+			),
+		)
+
+		resp = self.client.get(
+			reverse("rychle_zalozeni_sarze_upravit", args=[krok.pk]),
+		)
+
+		self.assertEqual(resp.status_code, 403)
+
+	def test_upravit_rejects_non_first_step(self):
+		sarze = Sarze.objects.create(
+			datum_zalozeni=date(2026, 6, 5),
+			cislo_pripravku=12,
+			aktivni=True,
+		)
+		krok = SarzeKrok.objects.create(
+			sarze=sarze,
+			poradi=2,
+			datum=date(2026, 6, 5),
+			zarizeni=self.nakladani,
+			zacatek=time(8, 0),
+			operator="Novak",
+		)
+
+		resp = self.client.get(
+			reverse("rychle_zalozeni_sarze_upravit", args=[krok.pk]),
+		)
+
+		self.assertEqual(resp.status_code, 404)
 
 	def test_patro_post_saves_bedna_and_iron_and_opens_next_floor(self):
 		sarze = Sarze.objects.create(
@@ -890,9 +1095,9 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 		self.assertEqual(resp.status_code, 200)
 		self.assertTemplateUsed(resp, "orders/rychle_zalozeni_sarze_patro.html")
 		self.assertEqual(resp.context["patro"], 1)
-		self.assertEqual(resp.context["formset"].total_form_count(), 5)
+		self.assertEqual(resp.context["formset"].total_form_count(), 3)
 
-	def test_existing_patro_get_does_not_add_extra_forms(self):
+	def test_existing_patro_get_adds_one_extra_form(self):
 		sarze = Sarze.objects.create(
 			datum_zalozeni=date(2026, 6, 5),
 			cislo_pripravku=12,
@@ -920,9 +1125,9 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 
 		self.assertEqual(resp.status_code, 200)
 		self.assertEqual(resp.context["formset"].initial_form_count(), 1)
-		self.assertEqual(resp.context["formset"].total_form_count(), 1)
+		self.assertEqual(resp.context["formset"].total_form_count(), 2)
 
-	def test_patro_finish_redirects_to_batch_summary(self):
+	def test_patro_save_redirects_to_batch_summary(self):
 		sarze = Sarze.objects.create(
 			datum_zalozeni=date(2026, 6, 5),
 			cislo_pripravku=12,
@@ -947,7 +1152,7 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 				"polozky-MAX_NUM_FORMS": "10",
 				"polozky-0-bedna": str(self.b_eur_pr.pk),
 				"polozky-0-procent_z_patra": "100",
-				"action": "finish",
+				"action": "save",
 			},
 		)
 
@@ -961,6 +1166,46 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 		self.assertEqual(summary.status_code, 200)
 		self.assertTemplateUsed(summary, "orders/rychle_zalozeni_sarze_prehled.html")
 		self.assertContains(summary, "100 %")
+
+	def test_patro_finish_redirects_without_saving_current_floor(self):
+		sarze = Sarze.objects.create(
+			datum_zalozeni=date(2026, 6, 5),
+			cislo_pripravku=12,
+			aktivni=True,
+		)
+		krok = SarzeKrok.objects.create(
+			sarze=sarze,
+			poradi=1,
+			datum=date(2026, 6, 5),
+			zarizeni=self.nakladani,
+			zacatek=time(6, 0),
+			konec=time(7, 30),
+			operator="Novak",
+		)
+		existing_item = SarzeKrokBedna.objects.create(
+			krok=krok,
+			bedna=self.b_eur_pr,
+			patro=1,
+			procent_z_patra=100,
+		)
+
+		resp = self.client.post(
+			reverse("rychle_zalozeni_sarze_patro", args=[krok.pk, 1]),
+			{
+				"action": "finish",
+				"polozky-TOTAL_FORMS": "invalid",
+			},
+		)
+
+		self.assertEqual(resp.status_code, 302)
+		self.assertEqual(
+			resp["Location"],
+			reverse("rychle_zalozeni_sarze_prehled", args=[krok.pk]),
+		)
+		self.assertEqual(
+			list(SarzeKrokBedna.objects.filter(krok=krok, patro=1)),
+			[existing_item],
+		)
 
 
 class VyrobaDashboardContextTests(TestCase):
