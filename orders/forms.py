@@ -16,6 +16,7 @@ from .choices import (
     TryskaniChoice,
     PrioritaChoice,
     KamionChoice,
+    TypZarizeniChoice,
     ZinkovaniChoice,
     STAV_BEDNY_SKLADEM,
 )
@@ -599,19 +600,7 @@ class RychleZalozeniSarzeForm(forms.Form):
         return sarze, krok
 
     def _get_nakladani_zarizeni(self):
-        qs = Zarizeni.objects.filter(
-            Q(nazev_zarizeni__iexact='Nakládání')
-            | Q(zkraceny_nazev_zarizeni__iexact='Nakládání')
-            | Q(kod_zarizeni__iexact='Nakládání')
-        )
-        if qs.count() == 1:
-            return qs.first()
-
-        qs = Zarizeni.objects.filter(
-            Q(nazev_zarizeni__icontains='Naklád')
-            | Q(zkraceny_nazev_zarizeni__icontains='Naklád')
-            | Q(kod_zarizeni__icontains='Naklad')
-        )
+        qs = Zarizeni.objects.filter(typ_zarizeni=TypZarizeniChoice.NAKLADANI)
         if qs.count() == 1:
             return qs.first()
         return None

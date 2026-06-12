@@ -782,6 +782,7 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			kod_zarizeni="NAKL",
 			nazev_zarizeni="Nakládání",
 			zkraceny_nazev_zarizeni="Nakládání",
+			typ_zarizeni=TypZarizeniChoice.NAKLADANI,
 		)
 
 	def test_requires_login(self):
@@ -837,6 +838,7 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			kod_zarizeni="NAKL2",
 			nazev_zarizeni="Nakládání linka 2",
 			zkraceny_nazev_zarizeni="Nakládání 2",
+			typ_zarizeni=TypZarizeniChoice.NAKLADANI,
 		)
 		nejnovejsi_krok = SarzeKrok.objects.create(
 			sarze=sarze,

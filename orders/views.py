@@ -20,9 +20,15 @@ from django.utils.text import slugify
 from decimal import Decimal, ROUND_HALF_UP
 
 from .utils import get_verbose_name_for_column, utilita_tisk_dl_a_proforma_faktury
-from .models import Bedna, Zakazka, Kamion, Zakaznik, TypHlavy, Predpis, Odberatel, Cena, Pozice, PoziceZakazkaOrder, Sarze, SarzeKrok, SarzeKrokBedna
+from .models import (
+    Bedna, Zakazka, Kamion, Zakaznik, TypHlavy, Predpis, Odberatel, Cena, Pozice, PoziceZakazkaOrder,
+    Sarze, SarzeKrok, SarzeKrokBedna
+)
 from .forms import RychleZalozeniSarzeForm, get_sarze_krok_patro_formset
-from .choices import  StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice, ZinkovaniChoice, STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM
+from .choices import (
+    StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice, TypZarizeniChoice,
+    ZinkovaniChoice, STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM
+)
 from weasyprint import HTML, CSS
 
 import logging
@@ -34,7 +40,9 @@ logger = logging.getLogger('orders')
 @permission_required('orders.add_sarzekrok', raise_exception=True)
 @permission_required('orders.add_sarzekrokbedna', raise_exception=True)
 def rychle_zalozeni_sarze_view(request):
-    posledni_krok_nakladani = SarzeKrok.objects.filter(sarze__isnull=False, zarizeni__nazev_zarizeni__startswith='Nakládání').order_by('-pk').first()
+    posledni_krok_nakladani = SarzeKrok.objects.filter(
+        sarze__isnull=False, zarizeni__typ_zarizeni=TypZarizeniChoice.NAKLADANI
+    ).order_by('-pk').first()
 
     if posledni_krok_nakladani and posledni_krok_nakladani.konec is None:
         messages.warning(request, 'Nelze založit novou šarži, protože poslední krok nakládání ještě není ukončen.')
@@ -68,7 +76,7 @@ def rychle_zalozeni_sarze_posledni_prehled_view(request):
         SarzeKrok.objects
         .filter(
             sarze__isnull=False,
-            zarizeni__nazev_zarizeni__startswith='Nakládání',
+            zarizeni__typ_zarizeni=TypZarizeniChoice.NAKLADANI,
         )
         .order_by('-pk')
         .first()

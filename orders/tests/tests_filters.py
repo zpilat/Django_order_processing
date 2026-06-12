@@ -412,11 +412,11 @@ class SarzeBednaFiltersTests(FilterTestBase):
 			zkraceny_nazev_zarizeni='TR1',
 			typ_zarizeni=TypZarizeniChoice.TRYSKAC,
 		)
-		self.zar_sz = Zarizeni.objects.create(
-			kod_zarizeni='SZ1',
-			nazev_zarizeni='Sarzovani 1',
-			zkraceny_nazev_zarizeni='SZ1',
-			typ_zarizeni=TypZarizeniChoice.SARZOVANI,
+		self.zar_vk = Zarizeni.objects.create(
+			kod_zarizeni='VK1',
+			nazev_zarizeni='Vykladani 1',
+			zkraceny_nazev_zarizeni='VK1',
+			typ_zarizeni=TypZarizeniChoice.VYKLADANI,
 		)
 
 		self.sar_pp = Sarze.objects.create(
@@ -458,11 +458,11 @@ class SarzeBednaFiltersTests(FilterTestBase):
 			operator='OP',
 			program='P3',
 		)
-		self.krok_sz = SarzeKrok.objects.create(
+		self.krok_vk = SarzeKrok.objects.create(
 			sarze=self.sar_vu,
 			poradi=3,
 			datum=today,
-			zarizeni=self.zar_sz,
+			zarizeni=self.zar_vk,
 			zacatek='10:00',
 			operator='OP',
 			program='P4',
@@ -489,10 +489,10 @@ class SarzeBednaFiltersTests(FilterTestBase):
 			zakaznik_mimo_db='Zak C',
 			zakazka_mimo_db='Zak-3',
 		)
-		self.sb_sz = SarzeBedna.objects.create(
-			krok=self.krok_sz,
+		self.sb_vk = SarzeBedna.objects.create(
+			krok=self.krok_vk,
 			patro=1,
-			popis_mimo_db='test sz',
+			popis_mimo_db='test vk',
 			zakaznik_mimo_db='Zak D',
 			zakazka_mimo_db='Zak-4',
 		)
@@ -507,7 +507,7 @@ class SarzeBednaFiltersTests(FilterTestBase):
 		self.assertIn(self.sb_pp, qs)
 		self.assertNotIn(self.sb_vu, qs)
 		self.assertNotIn(self.sb_tr, qs)
-		self.assertNotIn(self.sb_sz, qs)
+		self.assertNotIn(self.sb_vk, qs)
 
 	def test_typ_zarizeni_sarzebedna_filter_vs(self):
 		f = self._make_filter(
@@ -517,7 +517,7 @@ class SarzeBednaFiltersTests(FilterTestBase):
 		)
 		qs = f.queryset(None, SarzeBedna.objects.all())
 		self.assertIn(self.sb_tr, qs)
-		self.assertIn(self.sb_sz, qs)
+		self.assertIn(self.sb_vk, qs)
 		self.assertNotIn(self.sb_pp, qs)
 		self.assertNotIn(self.sb_vu, qs)
 
