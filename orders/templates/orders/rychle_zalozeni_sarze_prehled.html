@@ -3,6 +3,78 @@
 {% block title %}Přehled šarže {{ krok.sarze }}{% endblock %}
 
 {% block content %}
+<style>
+    .rack-preview {
+        position: relative;
+        display: flex;
+        width: 100%;
+        min-height: 130px;
+        overflow: hidden;
+        border: 2px solid #214290;
+    }
+
+    .rack-segment {
+        display: flex;
+        position: relative;
+        z-index: 1;
+        min-width: 0;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem .5rem .5rem;
+        border-right: 2px solid #214290;
+        color: #111;
+        font-size: .8rem;
+        font-weight: 600;
+        text-align: center;
+        overflow-wrap: anywhere;
+    }
+
+    .rack-segment-last {
+        border-right: 0;
+    }
+
+    .rack-segment:nth-child(10n + 1) { background-color: #ffde17; }
+    .rack-segment:nth-child(10n + 2) { background-color: #8ecae6; }
+    .rack-segment:nth-child(10n + 3) { background-color: #90be6d; }
+    .rack-segment:nth-child(10n + 4) { background-color: #f9844a; }
+    .rack-segment:nth-child(10n + 5) { background-color: #cdb4db; }
+    .rack-segment:nth-child(10n + 6) { background-color: #f9c74f; }
+    .rack-segment:nth-child(10n + 7) { background-color: #43aa8b; }
+    .rack-segment:nth-child(10n + 8) { background-color: #adb5bd; }
+    .rack-segment:nth-child(10n + 9) { background-color: #f4978e; }
+    .rack-segment:nth-child(10n + 10) { background-color: #a9def9; }
+
+    .rack-scale {
+        position: absolute;
+        z-index: 3;
+        inset: 0;
+        pointer-events: none;
+        background-image: repeating-linear-gradient(
+            to right,
+            transparent 0,
+            transparent calc(10% - 1px),
+            rgba(33, 66, 144, .7) calc(10% - 1px),
+            rgba(33, 66, 144, .7) 10%
+        );
+    }
+
+    .rack-mark {
+        position: absolute;
+        top: .3rem;
+        color: #214290;
+        background-color: rgba(255, 255, 255, .9);
+        padding: 0 .2rem;
+        font-size: .7rem;
+        font-weight: 700;
+        line-height: 1.2;
+        transform: translateX(-50%);
+    }
+
+    .rack-mark:last-child {
+        transform: translateX(-100%);
+    }
+</style>
+
 <div class="container py-3">
     {% if messages %}
         {% for message in messages %}
@@ -46,39 +118,24 @@
                     Upravit patro
                 </a>
             </div>
-            <div class="table-responsive">
-                <table class="table table-sm table-bordered align-middle mb-0">
-                    <thead style="background-color: #214290; color: #ffde17;">
-                        <tr>
-                            <th>Položka</th>
-                            <th class="text-center">Zákazník</th>
-                            <th class="text-center">Zakázka</th>
-                            <th class="text-center">Číslo bedny</th>
-                            <th class="text-center">Skupina TZ</th>
-                            <th class="text-end">Podíl</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for item in floor.list %}
-                            <tr>
-                                {% if item.bedna %}
-                                    <td>{{ item.bedna }}</td>
-                                    <td class="text-center">{{ item.bedna.zakazka.kamion_prijem.zakaznik.zkratka }}</td>
-                                    <td class="text-center">{{ item.bedna.zakazka }}</td>
-                                    <td class="text-center">{{ item.bedna.cislo_bedny }}</td>
-                                    <td class="text-center">{{ item.bedna.zakazka.predpis.skupina }}</td>
-                                {% else %}
-                                    <td>{{ item.popis_mimo_db }}</td>
-                                    <td class="text-center">{{ item.zakaznik_mimo_db }}</td>
-                                    <td class="text-center">{{ item.zakazka_mimo_db }}</td>
-                                    <td class="text-center">{{ item.cislo_bedny_mimo_db }}</td>
-                                    <td class="text-center"></td>
-                                {% endif %}
-                                <td class="text-end">{{ item.procent_z_patra }} %</td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+            <div class="rack-preview" aria-label="Rozložení položek v {{ floor.grouper }}. patře">
+                {% for item in floor.list %}
+                    <div class="rack-segment{% if forloop.last %} rack-segment-last{% endif %}"
+                         style="width: {{ item.procent_z_patra }}%;">
+                        {% if item.bedna %}
+                            {{ item.bedna }}
+                        {% else %}
+                            {{ item.popis_mimo_db }}
+                        {% endif %}
+                        ({{ item.procent_z_patra }} %)
+                    </div>
+                {% endfor %}
+                <div class="rack-scale" aria-hidden="true">
+                    {% for percentage in "123456789" %}
+                        <span class="rack-mark" style="left: {{ percentage }}0%;">{{ percentage }}0 %</span>
+                    {% endfor %}
+                    <span class="rack-mark" style="left: 100%;">100 %</span>
+                </div>
             </div>
         </section>
     {% empty %}
