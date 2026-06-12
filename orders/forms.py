@@ -755,8 +755,6 @@ class BaseSarzeKrokPatroFormSet(BaseFormSet):
         ]
         if any(value is None for value in percentages):
             raise ValidationError('Nastavte rozdělení roštu pro všechny položky.')
-        if any(value % 5 != 0 for value in percentages):
-            raise ValidationError('Procenta položek musí být nastavena po 5 %.')
         if sum(percentages) != 100:
             raise ValidationError('Součet procent všech položek v patře musí být 100 %.')
 

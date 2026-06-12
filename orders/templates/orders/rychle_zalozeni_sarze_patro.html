@@ -297,7 +297,7 @@
 
     function percentagesAreValid(values) {
         return values.length > 0
-            && values.every(value => value >= 5 && value <= 100 && value % 5 === 0)
+            && values.every(value => value >= 5 && value <= 100)
             && values.reduce((sum, value) => sum + value, 0) === 100;
     }
 
