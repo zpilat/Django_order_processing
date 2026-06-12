@@ -123,10 +123,11 @@
                     <div class="rack-segment{% if forloop.last %} rack-segment-last{% endif %}"
                          style="width: {{ item.procent_z_patra }}%;">
                         {% if item.bedna %}
-                            {{ item.bedna }}
+                            {{ item.bedna }}, SK{{ item.bedna.zakazka.predpis.skupina }}
                         {% else %}
                             {{ item.popis_mimo_db }}
                         {% endif %}
+                        <br>
                         ({{ item.procent_z_patra }} %)
                     </div>
                 {% endfor %}
