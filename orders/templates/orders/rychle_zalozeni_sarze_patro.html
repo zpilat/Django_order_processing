@@ -298,7 +298,7 @@
     function percentagesAreValid(values) {
         return values.length > 0
             && values.every(value => value >= 5 && value <= 100)
-            && values.reduce((sum, value) => sum + value, 0) === 100;
+            && values.reduce((sum, value) => sum + value, 0) <= 100;
     }
 
     function renderPreview(active, values) {
@@ -385,9 +385,69 @@
 
             preview.appendChild(handle);
         });
+
+        if (active.length) {
+            const total = values.reduce((sum, value) => sum + value, 0);
+            const beforeLast = values
+                .slice(0, -1)
+                .reduce((sum, value) => sum + value, 0);
+            const endHandle = document.createElement('button');
+            endHandle.type = 'button';
+            endHandle.className = 'rack-boundary';
+            endHandle.style.left = `${total}%`;
+            endHandle.title = 'Nastavit celkové využití patra';
+            endHandle.setAttribute('aria-label', 'Celkové využití patra');
+            endHandle.setAttribute('role', 'slider');
+            endHandle.setAttribute('aria-valuemin', beforeLast + 5);
+            endHandle.setAttribute('aria-valuemax', '100');
+            endHandle.setAttribute('aria-valuenow', total);
+
+            function moveEndBoundary(globalPercentage) {
+                const currentValues = currentPercentages(active);
+                const currentBeforeLast = currentValues
+                    .slice(0, -1)
+                    .reduce((sum, value) => sum + value, 0);
+                const minimum = currentBeforeLast + 5;
+                const snapped = Math.max(
+                    minimum,
+                    Math.min(100, Math.round(globalPercentage / 5) * 5)
+                );
+
+                percentageInput(active[active.length - 1]).value = snapped - currentBeforeLast;
+                renderPreview(active, currentPercentages(active));
+            }
+
+            endHandle.addEventListener('pointerdown', function (event) {
+                event.preventDefault();
+
+                function onPointerMove(moveEvent) {
+                    const rect = preview.getBoundingClientRect();
+                    const percentage = ((moveEvent.clientX - rect.left) / rect.width) * 100;
+                    moveEndBoundary(percentage);
+                }
+
+                function onPointerUp() {
+                    window.removeEventListener('pointermove', onPointerMove);
+                    window.removeEventListener('pointerup', onPointerUp);
+                }
+
+                window.addEventListener('pointermove', onPointerMove);
+                window.addEventListener('pointerup', onPointerUp);
+            });
+
+            endHandle.addEventListener('keydown', function (event) {
+                if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') {
+                    return;
+                }
+                event.preventDefault();
+                moveEndBoundary(total + (event.key === 'ArrowLeft' ? -5 : 5));
+            });
+
+            preview.appendChild(endHandle);
+        }
     }
 
-    function render() {
+    function render(redistribute = true) {
         const active = activeRows();
         const signature = active.map(row => row.dataset.formIndex).join(',');
 
@@ -396,7 +456,7 @@
 
         if (signature !== activeSignature) {
             const existingValues = currentPercentages(active);
-            if (!percentagesAreValid(existingValues)) {
+            if (redistribute && !percentagesAreValid(existingValues)) {
                 setEqualPercentages(active);
             }
             activeSignature = signature;
@@ -451,7 +511,7 @@
         });
     });
 
-    render();
+    render(false);
 })();
 </script>
 {% endblock %}

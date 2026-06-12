@@ -1072,7 +1072,7 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 		self.assertEqual(items[1].cislo_bedny_mimo_db, "BED-1")
 		self.assertEqual(items[1].procent_z_patra, 50)
 
-	def test_patro_post_accepts_percentages_outside_five_percent_steps(self):
+	def test_patro_post_accepts_incomplete_floor_outside_five_percent_steps(self):
 		sarze = Sarze.objects.create(
 			datum_zalozeni=date(2026, 6, 5),
 			cislo_pripravku=12,
@@ -1100,7 +1100,7 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 				"polozky-1-popis_mimo_db": "Tyce",
 				"polozky-1-zakaznik_mimo_db": "Externi zakaznik",
 				"polozky-1-zakazka_mimo_db": "ZAK-1",
-				"polozky-1-procent_z_patra": "63",
+				"polozky-1-procent_z_patra": "43",
 				"action": "save",
 			},
 		)
@@ -1113,7 +1113,7 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 				.order_by("pk")
 				.values_list("procent_z_patra", flat=True)
 			),
-			[37, 63],
+			[37, 43],
 		)
 
 	def test_patro_get_renders_formset(self):
