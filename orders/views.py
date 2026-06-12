@@ -64,6 +64,10 @@ def rychle_zalozeni_sarze_view(request):
 
     if posledni_krok_nakladani and posledni_krok_nakladani.konec is None:
         messages.warning(request, 'Nelze založit novou šarži, protože poslední krok nakládání ještě není ukončen.')
+        logger.warning(
+            f"Uživatel {request.user} se pokusil založit novou šarži, ale poslední krok nakládání "
+            f"{posledni_krok_nakladani.pk} šarže {posledni_krok_nakladani.sarze} není ukončen."
+        )
         return redirect('rychle_zalozeni_sarze_prehled', krok_id=posledni_krok_nakladani.pk)
 
     if request.method == 'POST':
@@ -71,6 +75,9 @@ def rychle_zalozeni_sarze_view(request):
         if form.is_valid():
             sarze, krok = form.save()
             messages.success(request, f'Šarže {sarze} a první krok byly uloženy.')
+            logger.info(
+                f"Uživatel {request.user} vytvořil šarži {sarze} a její první krok {krok.pk}."
+            )
             return redirect('rychle_zalozeni_sarze_patro', krok_id=krok.pk, patro=1)
     else:
         form = RychleZalozeniSarzeForm()
@@ -101,6 +108,9 @@ def rychle_zalozeni_sarze_posledni_prehled_view(request):
     )
     if posledni_krok_nakladani is None:
         messages.info(request, 'Zatím neexistuje žádná šarže s krokem nakládání.')
+        logger.info(
+            f"Uživatel {request.user} otevřel přehled poslední šarže, ale žádný krok nakládání neexistuje."
+        )
         return redirect('rychle_zalozeni_sarze')
 
     return redirect(
@@ -166,6 +176,10 @@ def rychle_zalozeni_sarze_patro_view(request, krok_id, patro):
 
             if request.POST.get('action') == 'next':
                 messages.success(request, f'{patro}. patro bylo uloženo.')
+                logger.info(
+                    f"Uživatel {request.user} uložil {patro}. patro kroku {krok.pk} šarže {krok.sarze} "
+                    f"a pokračuje na další patro."
+                )
                 return redirect(
                     'rychle_zalozeni_sarze_patro',
                     krok_id=krok.pk,
@@ -173,6 +187,10 @@ def rychle_zalozeni_sarze_patro_view(request, krok_id, patro):
                 )
 
             messages.success(request, f'Byla vytvořena nebo upravena šarže {krok.sarze}.')
+            logger.info(
+                f"Uživatel {request.user} uložil {patro}. patro kroku {krok.pk} šarže {krok.sarze} "
+                f"a dokončil úpravu patra."
+            )
             return redirect('rychle_zalozeni_sarze_prehled', krok_id=krok.pk)
     else:
         formset = PatroFormSet(initial=initial, prefix='polozky')
@@ -229,6 +247,9 @@ def rychle_zalozeni_sarze_upravit_view(request, krok_id):
         if form.is_valid():
             sarze, krok = form.save()
             messages.success(request, f'Byla upravena šarže {sarze}.')
+            logger.info(
+                f"Uživatel {request.user} upravil šarži {sarze} a její první krok {krok.pk}."
+            )
             return redirect('rychle_zalozeni_sarze_prehled', krok_id=krok.pk)
     else:
         form = RychleZalozeniSarzeForm(sarze=sarze, krok=krok)
@@ -1635,6 +1656,9 @@ def dashboard_bedny_k_navezeni_view(request):
                         pos += 1
 
             messages.success(request, "Pořadí bylo upraveno.")
+            logger.info(
+                f"Uživatel {request.user} upravil pořadí zakázek v přehledu beden k navezení."
+            )
             return redirect('dashboard_bedny_k_navezeni')
 
         # I při neplatném POSTu přesměruj zpět (PRG), ať se neodesílá formulář znovu po refreshi
