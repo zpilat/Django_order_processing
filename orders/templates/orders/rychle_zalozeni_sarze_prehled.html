@@ -70,9 +70,6 @@
         transform: translateX(-50%);
     }
 
-    .rack-mark:last-child {
-        transform: translateX(-100%);
-    }
 </style>
 
 <div class="container py-3">
@@ -135,7 +132,6 @@
                     {% for percentage in "123456789" %}
                         <span class="rack-mark" style="left: {{ percentage }}0%;">{{ percentage }}0 %</span>
                     {% endfor %}
-                    <span class="rack-mark" style="left: 100%;">100 %</span>
                 </div>
             </div>
         </section>

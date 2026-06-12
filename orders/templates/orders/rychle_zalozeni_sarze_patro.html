@@ -59,10 +59,6 @@
         transform: translateX(-50%);
     }
 
-    .rack-mark:last-child {
-        transform: translateX(-100%);
-    }
-
     .rack-boundary {
         position: absolute;
         z-index: 4;
@@ -195,9 +191,8 @@
         <button type="button" id="add-row" class="btn btn-sm btn-outline-primary mb-4">Přidat řádek</button>
 
         <section class="mb-4" aria-labelledby="rack-heading">
-            <div class="d-flex justify-content-between align-items-center mb-2">
+            <div class="mb-2">
                 <h2 id="rack-heading" class="h6 mb-0">Rozložení položek v roštu</h2>
-                <span id="rack-total" class="small fw-semibold">0 %</span>
             </div>
             <div id="rack-preview" class="rack-preview" aria-live="polite"></div>
             <div id="rack-warning" class="text-danger small mt-2 d-none"></div>
@@ -242,7 +237,6 @@
     const rowsContainer = document.getElementById('item-rows');
     const preview = document.getElementById('rack-preview');
     const warning = document.getElementById('rack-warning');
-    const totalLabel = document.getElementById('rack-total');
     const totalForms = document.getElementById('id_polozky-TOTAL_FORMS');
     const template = document.getElementById('empty-row-template');
     const colors = ['#ffde17', '#8ecae6', '#90be6d', '#f9844a', '#cdb4db', '#f9c74f', '#43aa8b', '#adb5bd', '#f4978e', '#a9def9'];
@@ -308,10 +302,6 @@
     }
 
     function renderPreview(active, values) {
-        const total = values.reduce((sum, value) => sum + value, 0);
-        totalLabel.textContent = `${total} %`;
-        totalLabel.classList.toggle('text-danger', total !== 100);
-
         preview.innerHTML = '';
         active.forEach((row, index) => {
             const segment = document.createElement('div');
@@ -324,7 +314,7 @@
 
         const scale = document.createElement('div');
         scale.className = 'rack-scale';
-        for (let percentage = 10; percentage <= 100; percentage += 10) {
+        for (let percentage = 10; percentage < 100; percentage += 10) {
             const mark = document.createElement('span');
             mark.className = 'rack-mark';
             mark.style.left = `${percentage}%`;
