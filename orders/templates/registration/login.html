@@ -4,4 +4,52 @@
 {% block title %}Přihlášení - Správa zakázek HPM HEAT SK{% endblock %}
 
 {% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-12 col-sm-8 col-md-6 col-lg-4">
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <h1 class="h4 mb-4">Přihlášení</h1>
+
+                    {% if form.errors %}
+                        <div class="alert alert-danger" role="alert">
+                            Neplatné uživatelské jméno nebo heslo.
+                        </div>
+                    {% endif %}
+
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="next" value="{{ next }}">
+
+                        <div class="mb-3">
+                            <label class="form-label" for="{{ form.username.id_for_label }}">
+                                Uživatelské jméno
+                            </label>
+                            <input type="text"
+                                   name="{{ form.username.html_name }}"
+                                   value="{{ form.username.value|default:'' }}"
+                                   class="form-control"
+                                   id="{{ form.username.id_for_label }}"
+                                   autocomplete="username"
+                                   autofocus
+                                   required>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label" for="{{ form.password.id_for_label }}">Heslo</label>
+                            <input type="password"
+                                   name="{{ form.password.html_name }}"
+                                   class="form-control"
+                                   id="{{ form.password.id_for_label }}"
+                                   autocomplete="current-password"
+                                   required>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100" style="background-color: #ffde17; color: #214290; border-color: #ffde17;">Přihlásit se</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

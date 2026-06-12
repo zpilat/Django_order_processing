@@ -40,7 +40,7 @@
                 </ul>
             </div>
             <!-- Dropdown: Rychlé založení šarže -->
-            {% if perms.orders.add_sarze and perms.orders.add_sarzekrok and perms.orders.add_sarzekrokbedna or perms.orders.view_sarzekrok and perms.orders.view_sarzekrokbedna %}
+            {% if perms.orders.add_sarze and perms.orders.change_sarze and perms.orders.add_sarzekrok and perms.orders.change_sarzekrok and perms.orders.view_sarzekrok and perms.orders.add_sarzekrokbedna and perms.orders.change_sarzekrokbedna and perms.orders.view_sarzekrokbedna or perms.orders.view_sarzekrok and perms.orders.view_sarzekrokbedna %}
                 <div class="btn-group btn-group-sm dropdown my-1">
                     <button class="btn dropdown-toggle"
                             style="background-color: #ffde17; color: #214290; border-color: #ffde17;"
@@ -51,7 +51,7 @@
                         RYCHLÉ ZALOŽENÍ ŠARŽE
                     </button>
                     <ul class="dropdown-menu" aria-labelledby="rychleZalozeniSarzeDropdown">
-                        {% if perms.orders.add_sarze and perms.orders.add_sarzekrok and perms.orders.add_sarzekrokbedna %}
+                        {% if perms.orders.add_sarze and perms.orders.change_sarze and perms.orders.add_sarzekrok and perms.orders.change_sarzekrok and perms.orders.view_sarzekrok and perms.orders.add_sarzekrokbedna and perms.orders.change_sarzekrokbedna and perms.orders.view_sarzekrokbedna %}
                             <li>
                                 <a class="dropdown-item small" href="{% url 'rychle_zalozeni_sarze' %}">
                                     Přidat novou šarži
@@ -76,11 +76,12 @@
                     <p class="h6 small mb-0" style="color: #ffde17;">Přihlášený uživatel:</p>
                     <p class="h6 small text-center mb-0" style="color: #ffde17;">{{ user.first_name }} {{ user.last_name }}</p>
                 </div>
-                {% if db_table == 'home' %}
-                    <a class="btn btn-light btn-sm me-2" href="{% url 'password_change' %}">Změnit heslo</a>
-                {% endif %}
+                <a class="btn btn-light btn-sm me-2" style="background-color: #ffde17; color: #214290; border-color: #ffde17;" href="{% url 'password_change' %}">Změnit heslo</a>
                 <form id="logout-form" method="post" action="{% url 'logout' %}" class="d-inline">
                     {% csrf_token %}
+                    <input type="hidden"
+                           name="next"
+                           value="{% if user.is_staff %}{% url 'admin:login' %}{% else %}{% url 'login' %}{% endif %}">
                     <button type="submit" class="btn btn-sm"
                             style="background-color: #ffde17; color: #214290; border-color: #ffde17;">
                         Odhlásit se
@@ -89,7 +90,7 @@
             {% else %}
                 <a class="btn btn-sm"
                    style="background-color: #ffde17; color: #214290; border-color: #ffde17;"
-                   href="{% url 'admin:login' %}">Přihlásit se</a>
+                   href="{% url 'login' %}">Přihlásit se</a>
             {% endif %}
         </div>
     </div>

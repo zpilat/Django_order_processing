@@ -36,6 +36,24 @@ logger = logging.getLogger('orders')
 
 
 @login_required
+def home_view(request):
+    if request.user.is_staff:
+        return redirect('admin:index')
+    if request.user.has_perms((
+        'orders.add_sarze',
+        'orders.change_sarze',
+        'orders.add_sarzekrok',
+        'orders.change_sarzekrok',
+        'orders.view_sarzekrok',
+        'orders.add_sarzekrokbedna',
+        'orders.change_sarzekrokbedna',
+        'orders.view_sarzekrokbedna',
+    )):
+        return redirect('rychle_zalozeni_sarze_posledni_prehled')
+    return redirect('dashboard_bedny')
+
+
+@login_required
 @permission_required('orders.add_sarze', raise_exception=True)
 @permission_required('orders.add_sarzekrok', raise_exception=True)
 @permission_required('orders.add_sarzekrokbedna', raise_exception=True)
@@ -93,6 +111,7 @@ def rychle_zalozeni_sarze_posledni_prehled_view(request):
 
 @login_required
 @permission_required('orders.add_sarzekrokbedna', raise_exception=True)
+@permission_required('orders.change_sarzekrokbedna', raise_exception=True)
 def rychle_zalozeni_sarze_patro_view(request, krok_id, patro):
     krok = get_object_or_404(
         SarzeKrok.objects.select_related('sarze', 'zarizeni'),

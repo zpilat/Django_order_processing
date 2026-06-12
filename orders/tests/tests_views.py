@@ -107,6 +107,109 @@ class ViewsTestBase(TestCase):
 		)
 
 
+class AuthenticationRoutingTests(TestCase):
+	def setUp(self):
+		self.User = get_user_model()
+
+	def test_home_redirects_anonymous_user_to_regular_login(self):
+		response = self.client.get(reverse("home"))
+
+		self.assertEqual(response.status_code, 302)
+		self.assertEqual(response.url, f"{reverse('login')}?next={reverse('home')}")
+
+	def test_home_redirects_staff_to_admin(self):
+		user = self.User.objects.create_user(
+			username="staff",
+			password="pass1234",
+			is_staff=True,
+		)
+		self.client.force_login(user)
+
+		response = self.client.get(reverse("home"))
+
+		self.assertRedirects(response, reverse("admin:index"), fetch_redirect_response=False)
+
+	def test_home_redirects_quick_batch_user_to_quick_create(self):
+		user = self.User.objects.create_user(username="quick", password="pass1234")
+		user.user_permissions.add(*Permission.objects.filter(
+			content_type__app_label="orders",
+			codename__in=(
+				"add_sarze",
+				"change_sarze",
+				"add_sarzekrok",
+				"change_sarzekrok",
+				"view_sarzekrok",
+				"add_sarzekrokbedna",
+				"change_sarzekrokbedna",
+				"view_sarzekrokbedna",
+			),
+		))
+		self.client.force_login(user)
+
+		response = self.client.get(reverse("home"))
+
+		self.assertRedirects(
+			response,
+			reverse("rychle_zalozeni_sarze_posledni_prehled"),
+			fetch_redirect_response=False,
+		)
+
+	def test_home_redirects_other_user_to_dashboard_bedny(self):
+		user = self.User.objects.create_user(username="regular", password="pass1234")
+		self.client.force_login(user)
+
+		response = self.client.get(reverse("home"))
+
+		self.assertRedirects(
+			response,
+			reverse("dashboard_bedny"),
+			fetch_redirect_response=False,
+		)
+
+	def test_login_respects_next_parameter(self):
+		user = self.User.objects.create_user(username="regular", password="pass1234")
+		target = reverse("dashboard_bedny")
+
+		response = self.client.post(
+			f"{reverse('login')}?next={target}",
+			{
+				"username": user.username,
+				"password": "pass1234",
+				"next": target,
+			},
+		)
+
+		self.assertRedirects(response, target, fetch_redirect_response=False)
+
+	def test_password_change_link_is_visible_outside_home(self):
+		user = self.User.objects.create_user(username="regular", password="pass1234")
+		self.client.force_login(user)
+
+		response = self.client.get(reverse("dashboard_bedny"))
+
+		self.assertContains(response, reverse("password_change"))
+
+	def test_logout_redirects_regular_user_to_regular_login(self):
+		user = self.User.objects.create_user(username="regular", password="pass1234")
+		self.client.force_login(user)
+
+		response = self.client.post(reverse("logout"), {"next": reverse("login")})
+
+		self.assertRedirects(response, reverse("login"), fetch_redirect_response=False)
+
+	def test_logout_redirects_staff_to_admin_login(self):
+		user = self.User.objects.create_user(
+			username="staff",
+			password="pass1234",
+			is_staff=True,
+		)
+		self.client.force_login(user)
+
+		response = self.client.post(reverse("logout"), {"next": reverse("admin:login")})
+
+		self.assertRedirects(response, reverse("admin:login"), fetch_redirect_response=False)
+
+
 class DashboardBednyViewTests(ViewsTestBase):
 	def test_requires_login(self):
 		self.client.logout()
@@ -760,6 +863,10 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			Permission.objects.get(
 				content_type__app_label="orders",
 				codename="add_sarzekrokbedna",
+			),
+			Permission.objects.get(
+				content_type__app_label="orders",
+				codename="change_sarzekrokbedna",
 			),
 			Permission.objects.get(
 				content_type__app_label="orders",

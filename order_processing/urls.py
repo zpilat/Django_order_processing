@@ -16,11 +16,11 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
-from django.views.generic import RedirectView
+from orders.views import home_view
 
 urlpatterns = [
     path('admin/', admin.site.urls), # Admin site for managing the application
-    path('', RedirectView.as_view(url='/admin/', permanent=True)),  # Redirect root URL to admin
+    path('', home_view, name='home'),
     path('accounts/', include('django.contrib.auth.urls')),  # Include Django's built-in auth URLs
     path('', include('orders.urls')),  # Include the orders app URLs
 ]
