@@ -561,6 +561,50 @@ class SarzeBednaFiltersTests(FilterTestBase):
 		self.assertNotIn(self.sb_pp, qs)
 		self.assertIn(self.sb_vu, qs)
 
+	def test_aktivni_sarze_krok_filter(self):
+		self.sar_vu.aktivni = False
+		self.sar_vu.save(update_fields=["aktivni"])
+
+		f = self._make_filter(
+			F.AktivniSarzeKrokFilter,
+			SarzeKrok,
+			params={"aktivni_sarze": "ano"},
+		)
+		qs = f.queryset(None, SarzeKrok.objects.all())
+		self.assertIn(self.krok_pp, qs)
+		self.assertNotIn(self.krok_vu, qs)
+
+		f = self._make_filter(
+			F.AktivniSarzeKrokFilter,
+			SarzeKrok,
+			params={"aktivni_sarze": "ne"},
+		)
+		qs = f.queryset(None, SarzeKrok.objects.all())
+		self.assertNotIn(self.krok_pp, qs)
+		self.assertIn(self.krok_vu, qs)
+
+	def test_aktivni_sarze_bedna_filter(self):
+		self.sar_vu.aktivni = False
+		self.sar_vu.save(update_fields=["aktivni"])
+
+		f = self._make_filter(
+			F.AktivniSarzeBednaFilter,
+			SarzeBedna,
+			params={"aktivni_sarze": "ano"},
+		)
+		qs = f.queryset(None, SarzeBedna.objects.all())
+		self.assertIn(self.sb_pp, qs)
+		self.assertNotIn(self.sb_vu, qs)
+
+		f = self._make_filter(
+			F.AktivniSarzeBednaFilter,
+			SarzeBedna,
+			params={"aktivni_sarze": "ne"},
+		)
+		qs = f.queryset(None, SarzeBedna.objects.all())
+		self.assertNotIn(self.sb_pp, qs)
+		self.assertIn(self.sb_vu, qs)
+
 
 class CustomTemplateFiltersTests(TestCase):
 	def test_splitlines_splits_text(self):

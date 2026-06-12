@@ -405,6 +405,86 @@ class TestSarzeModels(ModelsBase):
         )
         self.assertEqual(krok.takt, 2.0)
 
+    def test_finished_terminal_step_deactivates_sarze(self):
+        for index, typ_zarizeni in enumerate(
+            (TypZarizeniChoice.VYKLADANI, TypZarizeniChoice.TRYSKAC),
+            start=1,
+        ):
+            with self.subTest(typ_zarizeni=typ_zarizeni):
+                zarizeni = Zarizeni.objects.create(
+                    kod_zarizeni=f"TERM{index}",
+                    nazev_zarizeni=f"Koncové zařízení {index}",
+                    typ_zarizeni=typ_zarizeni,
+                )
+                sarze = Sarze.objects.create(
+                    cislo_sarze=200 + index,
+                    datum_zalozeni=date(2026, 2, 16),
+                    aktivni=True,
+                )
+
+                SarzeKrok.objects.create(
+                    sarze=sarze,
+                    poradi=1,
+                    datum=date(2026, 2, 16),
+                    zarizeni=zarizeni,
+                    zacatek=time(8, 0),
+                    konec=time(9, 0),
+                    operator="Op",
+                )
+
+                sarze.refresh_from_db()
+                self.assertFalse(sarze.aktivni)
+
+    def test_filling_terminal_step_end_deactivates_sarze(self):
+        zarizeni = Zarizeni.objects.create(
+            kod_zarizeni="TERM3",
+            nazev_zarizeni="Vykládání",
+            typ_zarizeni=TypZarizeniChoice.VYKLADANI,
+        )
+        sarze = Sarze.objects.create(
+            cislo_sarze=203,
+            datum_zalozeni=date(2026, 2, 16),
+            aktivni=True,
+        )
+
+        krok = SarzeKrok.objects.create(
+            sarze=sarze,
+            poradi=1,
+            datum=date(2026, 2, 16),
+            zarizeni=zarizeni,
+            zacatek=time(8, 0),
+            operator="Op",
+        )
+
+        sarze.refresh_from_db()
+        self.assertTrue(sarze.aktivni)
+
+        krok.konec = time(9, 0)
+        krok.save(update_fields=["konec"])
+
+        sarze.refresh_from_db()
+        self.assertFalse(sarze.aktivni)
+
+    def test_finished_non_terminal_step_keeps_sarze_active(self):
+        sarze = Sarze.objects.create(
+            cislo_sarze=204,
+            datum_zalozeni=date(2026, 2, 16),
+            aktivni=True,
+        )
+
+        SarzeKrok.objects.create(
+            sarze=sarze,
+            poradi=1,
+            datum=date(2026, 2, 16),
+            zarizeni=self.zarizeni_base,
+            zacatek=time(8, 0),
+            konec=time(9, 0),
+            operator="Op",
+        )
+
+        sarze.refresh_from_db()
+        self.assertTrue(sarze.aktivni)
+
     def test_sarzebedna_procent_z_patra_validators(self):
         base_kwargs = {
             'krok': self.krok_base,

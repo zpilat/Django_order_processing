@@ -1004,6 +1004,30 @@ class KonecSarzeKrokFilter(DynamicTitleFilter):
         if value == 'nevyplneno':
             return queryset.filter(konec__isnull=True)
         return queryset
+
+
+class AktivniSarzeKrokFilter(DynamicTitleFilter):
+    title = "Aktivní šarže"
+    parameter_name = "aktivni_sarze"
+    vse = "Vše"
+
+    def __init__(self, request, params, model, model_admin):
+        self.label_dict = {
+            'ano': 'Ano',
+            'ne': 'Ne',
+        }
+        super().__init__(request, params, model, model_admin)
+
+    def lookups(self, request, model_admin):
+        return self.label_dict.items()
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if value == 'ano':
+            return queryset.filter(sarze__aktivni=True)
+        if value == 'ne':
+            return queryset.filter(sarze__aktivni=False)
+        return queryset
         
 # filtry pro ŠaržeBedna
 
@@ -1081,4 +1105,28 @@ class KonecSarzeBednaFilter(DynamicTitleFilter):
             return queryset.filter(krok__konec__isnull=False)
         if value == 'nevyplneno':
             return queryset.filter(krok__konec__isnull=True)
+        return queryset
+
+
+class AktivniSarzeBednaFilter(DynamicTitleFilter):
+    title = "Aktivní šarže"
+    parameter_name = "aktivni_sarze"
+    vse = "Vše"
+
+    def __init__(self, request, params, model, model_admin):
+        self.label_dict = {
+            'ano': 'Ano',
+            'ne': 'Ne',
+        }
+        super().__init__(request, params, model, model_admin)
+
+    def lookups(self, request, model_admin):
+        return self.label_dict.items()
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if value == 'ano':
+            return queryset.filter(krok__sarze__aktivni=True)
+        if value == 'ne':
+            return queryset.filter(krok__sarze__aktivni=False)
         return queryset

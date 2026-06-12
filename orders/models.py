@@ -1568,7 +1568,9 @@ class SarzeKrok(models.Model):
             self.datum = timezone.localdate()
 
         if self.pk or self.poradi:
-            return super().save(*args, **kwargs)
+            result = super().save(*args, **kwargs)
+            self._deactivate_sarze_if_terminal_step_finished()
+            return result
 
         max_attempts = 5
         last_error = None
@@ -1584,7 +1586,9 @@ class SarzeKrok(models.Model):
                         .get('max_poradi')
                     ) or 0
                     self.poradi = last_number + 1
-                    return super().save(*args, **kwargs)
+                    result = super().save(*args, **kwargs)
+                    self._deactivate_sarze_if_terminal_step_finished()
+                    return result
             except IntegrityError as error:
                 if self.action_token and SarzeKrok.objects.filter(action_token=self.action_token).exists():
                     raise
@@ -1596,6 +1600,23 @@ class SarzeKrok(models.Model):
                 self.poradi = None
 
         raise last_error
+
+    def _deactivate_sarze_if_terminal_step_finished(self):
+        if not self.konec or not self.sarze_id or not self.zarizeni_id:
+            return
+        if not Zarizeni.objects.filter(
+            pk=self.zarizeni_id,
+            typ_zarizeni__in=(
+                TypZarizeniChoice.VYKLADANI,
+                TypZarizeniChoice.TRYSKAC,
+            ),
+        ).exists():
+            return
+
+        sarze = Sarze.objects.filter(pk=self.sarze_id, aktivni=True).first()
+        if sarze:
+            sarze.aktivni = False
+            sarze.save(update_fields=['aktivni'])
 
     @property
     def prodleva(self):
