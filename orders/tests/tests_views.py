@@ -1072,6 +1072,50 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 		self.assertEqual(items[1].cislo_bedny_mimo_db, "BED-1")
 		self.assertEqual(items[1].procent_z_patra, 50)
 
+	def test_patro_post_accepts_percentages_in_five_percent_steps(self):
+		sarze = Sarze.objects.create(
+			datum_zalozeni=date(2026, 6, 5),
+			cislo_pripravku=12,
+			aktivni=True,
+		)
+		krok = SarzeKrok.objects.create(
+			sarze=sarze,
+			poradi=1,
+			datum=date(2026, 6, 5),
+			zarizeni=self.nakladani,
+			zacatek=time(6, 0),
+			konec=time(7, 30),
+			operator="Novak",
+		)
+
+		resp = self.client.post(
+			reverse("rychle_zalozeni_sarze_patro", args=[krok.pk, 1]),
+			{
+				"polozky-TOTAL_FORMS": "2",
+				"polozky-INITIAL_FORMS": "0",
+				"polozky-MIN_NUM_FORMS": "0",
+				"polozky-MAX_NUM_FORMS": "10",
+				"polozky-0-bedna": str(self.b_eur_pr.pk),
+				"polozky-0-procent_z_patra": "5",
+				"polozky-1-popis_mimo_db": "Tyce",
+				"polozky-1-zakaznik_mimo_db": "Externi zakaznik",
+				"polozky-1-zakazka_mimo_db": "ZAK-1",
+				"polozky-1-procent_z_patra": "95",
+				"action": "save",
+			},
+		)
+
+		self.assertEqual(resp.status_code, 302)
+		self.assertEqual(
+			list(
+				SarzeKrokBedna.objects
+				.filter(krok=krok, patro=1)
+				.order_by("pk")
+				.values_list("procent_z_patra", flat=True)
+			),
+			[5, 95],
+		)
+
 	def test_patro_get_renders_formset(self):
 		sarze = Sarze.objects.create(
 			datum_zalozeni=date(2026, 6, 5),

@@ -280,10 +280,10 @@
         if (!active.length || active.length > 10) {
             return;
         }
-        const units = Math.floor(10 / active.length);
-        let remainder = 10 - (units * active.length);
+        const units = Math.floor(20 / active.length);
+        let remainder = 20 - (units * active.length);
         active.forEach(row => {
-            const value = (units + (remainder > 0 ? 1 : 0)) * 10;
+            const value = (units + (remainder > 0 ? 1 : 0)) * 5;
             percentageInput(row).value = value;
             if (remainder > 0) {
                 remainder -= 1;
@@ -297,7 +297,7 @@
 
     function percentagesAreValid(values) {
         return values.length > 0
-            && values.every(value => value >= 10 && value <= 100 && value % 10 === 0)
+            && values.every(value => value >= 5 && value <= 100 && value % 5 === 0)
             && values.reduce((sum, value) => sum + value, 0) === 100;
     }
 
@@ -334,8 +334,8 @@
             handle.title = `Posunout hranici ${index + 1}`;
             handle.setAttribute('aria-label', `Hranice ${index + 1}`);
             handle.setAttribute('role', 'slider');
-            handle.setAttribute('aria-valuemin', '10');
-            handle.setAttribute('aria-valuemax', '90');
+            handle.setAttribute('aria-valuemin', '5');
+            handle.setAttribute('aria-valuemax', '95');
             handle.setAttribute('aria-valuenow', boundaryPosition);
 
             function moveBoundary(globalPercentage) {
@@ -345,11 +345,11 @@
                     .reduce((sum, percentage) => sum + percentage, 0);
                 const pairTotal = currentValues[index] + currentValues[index + 1];
                 const pairEnd = before + pairTotal;
-                const minimum = before + 10;
-                const maximum = pairEnd - 10;
+                const minimum = before + 5;
+                const maximum = pairEnd - 5;
                 const snapped = Math.max(
                     minimum,
-                    Math.min(maximum, Math.round(globalPercentage / 10) * 10)
+                    Math.min(maximum, Math.round(globalPercentage / 5) * 5)
                 );
 
                 percentageInput(active[index]).value = snapped - before;
@@ -380,7 +380,7 @@
                     return;
                 }
                 event.preventDefault();
-                moveBoundary(boundaryPosition + (event.key === 'ArrowLeft' ? -10 : 10));
+                moveBoundary(boundaryPosition + (event.key === 'ArrowLeft' ? -5 : 5));
             });
 
             preview.appendChild(handle);

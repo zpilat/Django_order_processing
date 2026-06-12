@@ -650,7 +650,7 @@ class SarzeKrokPatroPolozkaForm(forms.Form):
     )
     procent_z_patra = forms.IntegerField(
         required=False,
-        min_value=10,
+        min_value=5,
         max_value=100,
         widget=forms.HiddenInput(attrs={'class': 'js-percentage'}),
     )
@@ -755,8 +755,8 @@ class BaseSarzeKrokPatroFormSet(BaseFormSet):
         ]
         if any(value is None for value in percentages):
             raise ValidationError('Nastavte rozdělení roštu pro všechny položky.')
-        if any(value % 10 != 0 for value in percentages):
-            raise ValidationError('Procenta položek musí být nastavena po 10 %.')
+        if any(value % 5 != 0 for value in percentages):
+            raise ValidationError('Procenta položek musí být nastavena po 5 %.')
         if sum(percentages) != 100:
             raise ValidationError('Součet procent všech položek v patře musí být 100 %.')
 
