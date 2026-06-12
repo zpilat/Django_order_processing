@@ -14,10 +14,10 @@
 
     <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
         <div>
-            <h1 class="h4 mb-2">Šarže {{ krok.sarze }}</h1>
+            <h1 class="h4 mb-2">Šarže {{ krok.sarze }}, přípravek {{ krok.sarze.cislo_pripravku }}</h1>
             <div class="text-muted">
-                Přípravek {{ krok.sarze.cislo_pripravku }},
                 {{ krok.zarizeni }},
+                {{ krok.operator }},
                 {{ krok.datum|date:"d.m.Y" }},
                 {{ krok.zacatek|time:"H:i" }} -
                 {% if krok.konec %}
