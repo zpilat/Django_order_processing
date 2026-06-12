@@ -124,7 +124,6 @@ class TypZarizeniChoice(models.TextChoices):
     PRACKA = 'PR', 'Pračka'
     TRYSKAC = 'TR', 'Tryskač'
     PREDEHREV = 'PD', 'Předehřev'
-    SARZOVANI = 'SZ', 'Šaržování'
     NAKLADANI = 'NK', 'Nakládání'
     VYKLADANI = 'VK', 'Vykládání'
 
