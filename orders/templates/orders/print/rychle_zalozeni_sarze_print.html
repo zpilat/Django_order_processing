@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="utf-8">
+    <title>Šarže {{ krok.sarze }} - tisk průvodky</title>
+    <style>
+        @page {
+            size: A4 portrait;
+            margin: 12mm;
+        }
+
+        body {
+            margin: 0;
+            color: #111;
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+        }
+
+        h1 {
+            margin: 0 0 8mm;
+            font-size: 20px;
+        }
+
+        .meta {
+            margin-bottom: 8mm;
+        }
+
+        .guide-header {
+            width: 100%;
+            margin-bottom: 0;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        .guide-header td {
+            height: 5mm;
+            padding: 1mm;
+            border: 1px solid #111;
+            font-size: 11px;
+            font-weight: bold;
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        .guide-title {
+            width: 35%;
+            font-size: 14px;
+        }
+
+        .checkbox {
+            display: inline-block;
+            width: 3.5mm;
+            height: 3.5mm;
+            margin-left: 1mm;
+            border: 1px solid #111;
+            vertical-align: middle;
+        }
+
+        .guide-details {
+            width: 100%;
+            margin: 0 0 3mm;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        .guide-details td {
+            height: 6mm;
+            padding: .7mm;
+            border: 1px solid #111;
+            font-size: 9px;
+            font-weight: normal;
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        .floor {
+            margin-bottom: 7mm;
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+
+        .floor h2 {
+            margin: 0 0 2mm;
+            font-size: 14px;
+        }
+
+        .rack-preview {
+            display: flex;
+            width: 100%;
+            min-height: 32mm;
+            overflow: hidden;
+            border: 1px solid #111;
+        }
+
+        .rack-segment {
+            display: flex;
+            min-width: 0;
+            align-items: center;
+            justify-content: center;
+            padding: 3mm 2mm;
+            border-right: 1px solid #111;
+            text-align: center;
+            overflow-wrap: anywhere;
+        }
+
+        .rack-segment-last {
+            border-right: 0;
+        }
+    </style>
+</head>
+<body>
+    <table class="guide-header">
+        <tr>
+            <td>KW2 <span class="checkbox"></span></td>
+            <td>KW1 <span class="checkbox"></span></td>
+            <td>Předohřev <span class="checkbox"></span></td>
+            <td class="guide-title">PRŮVODKA ŠARŽE</td>
+            <td>Otryskané <span class="checkbox"></span></td>
+        </tr>
+    </table>
+
+    <table class="guide-details">
+        <tr>
+            <td>naložil</td>
+            <td>vyp. + vyf.</td>
+            <td>odfo. + vyf.</td>
+            <td>skupina</td>
+            <td>č. přípravku</td>
+            <td>č. šarže</td>
+            <td>vypral + vyf.</td>
+            <td>popouštění</td>
+            <td>změřil</td>
+        </tr>
+        <tr>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>{{ krok.sarze.cislo_pripravku }}</td>
+            <td>{{ krok.sarze }}</td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+    </table>
+
+    {% regroup items by patro as patra %}
+    {% for floor in patra %}
+        <section class="floor">
+            <h2>{{ floor.grouper }}. patro</h2>
+            <div class="rack-preview">
+                {% for item in floor.list %}
+                    <div class="rack-segment{% if forloop.last %} rack-segment-last{% endif %}"
+                         style="width: {{ item.procent_z_patra }}%;">
+                        <div>
+                            {% if item.bedna %}
+                                <span style="font-weight: bold;">{{ item.bedna.cislo_bedny }} {{ item.bedna.zakazka.kamion_prijem.zakaznik.zkratka }}</span>
+                                ⌀{{item.bedna.zakazka.prumer}}x{{item.bedna.zakazka.delka|floatformat:0 }}
+                                SK{{ item.bedna.fake_skupina_TZ }}
+                            {% else %}
+                                {{ item.popis_mimo_db }}
+                                {{ item.zakaznik_mimo_db }}-{{item.zakazka_mimo_db}}
+                            {% endif %}
+                            <br>
+                            ({{ item.procent_z_patra }} %)
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </section>
+    {% empty %}
+        <p>Pro tento krok zatím nejsou uložené žádné položky.</p>
+    {% endfor %}
+</body>
+</html>

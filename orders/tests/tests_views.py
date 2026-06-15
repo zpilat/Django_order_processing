@@ -6,6 +6,7 @@ from django.utils import timezone
 from django.template.loader import render_to_string
 from datetime import date, time, timedelta
 from decimal import Decimal
+from unittest.mock import patch
 
 from orders.models import (
 	Zakaznik, Odberatel, Kamion, Zakazka, Bedna, Predpis, TypHlavy, Pozice, PoziceZakazkaOrder, Zarizeni, Sarze, SarzeKrok, SarzeKrokBedna
@@ -1319,6 +1320,127 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 		self.assertEqual(summary.status_code, 200)
 		self.assertTemplateUsed(summary, "orders/rychle_zalozeni_sarze_prehled.html")
 		self.assertContains(summary, "100 %")
+		self.assertContains(
+			summary,
+			reverse("rychle_zalozeni_sarze_tisk", args=[krok.pk]),
+		)
+		self.assertContains(summary, "Náhled tisku")
+
+	def test_tisk_returns_inline_pdf_with_step_context(self):
+		sarze = Sarze.objects.create(
+			datum_zalozeni=date(2026, 6, 5),
+			cislo_pripravku=12,
+			aktivni=True,
+		)
+		krok = SarzeKrok.objects.create(
+			sarze=sarze,
+			poradi=1,
+			datum=date(2026, 6, 5),
+			zarizeni=self.nakladani,
+			zacatek=time(6, 0),
+			konec=time(7, 30),
+			operator="Novak",
+		)
+		item = SarzeKrokBedna.objects.create(
+			krok=krok,
+			bedna=self.b_eur_pr,
+			patro=1,
+			procent_z_patra=100,
+		)
+
+		with patch("orders.views.HTML.write_pdf", return_value=b"%PDF-test"):
+			response = self.client.get(
+				reverse("rychle_zalozeni_sarze_tisk", args=[krok.pk]),
+			)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(response["Content-Type"], "application/pdf")
+		self.assertEqual(
+			response["Content-Disposition"],
+			f'inline; filename="sarze_{sarze.pk}_krok_{krok.pk}.pdf"',
+		)
+		self.assertEqual(response.content, b"%PDF-test")
+
+		html = render_to_string(
+			"orders/print/rychle_zalozeni_sarze_print.html",
+			{
+				"krok": krok,
+				"items": SarzeKrokBedna.objects.filter(pk=item.pk),
+				"generated_at": timezone.now(),
+			},
+		)
+		self.assertIn("1. patro", html)
+		self.assertIn(str(self.b_eur_pr.cislo_bedny), html)
+
+	def test_prehled_and_tisk_show_floors_in_descending_order(self):
+		sarze = Sarze.objects.create(
+			datum_zalozeni=date(2026, 6, 5),
+			cislo_pripravku=12,
+			aktivni=True,
+		)
+		krok = SarzeKrok.objects.create(
+			sarze=sarze,
+			poradi=1,
+			datum=date(2026, 6, 5),
+			zarizeni=self.nakladani,
+			zacatek=time(6, 0),
+			operator="Novak",
+		)
+		SarzeKrokBedna.objects.create(
+			krok=krok,
+			bedna=self.b_eur_pr,
+			patro=1,
+			procent_z_patra=100,
+		)
+		SarzeKrokBedna.objects.create(
+			krok=krok,
+			bedna=self.b_eur_pr,
+			patro=2,
+			procent_z_patra=100,
+		)
+
+		prehled = self.client.get(
+			reverse("rychle_zalozeni_sarze_prehled", args=[krok.pk]),
+		)
+		prehled_html = prehled.content.decode()
+
+		self.assertLess(prehled_html.index("2. patro"), prehled_html.index("1. patro"))
+
+		with patch("orders.views.HTML") as html_mock:
+			html_mock.return_value.write_pdf.return_value = b"%PDF-test"
+			self.client.get(
+				reverse("rychle_zalozeni_sarze_tisk", args=[krok.pk]),
+			)
+
+		tisk_html = html_mock.call_args.kwargs["string"]
+		self.assertLess(tisk_html.index("2. patro"), tisk_html.index("1. patro"))
+
+	def test_tisk_requires_view_permissions(self):
+		sarze = Sarze.objects.create(
+			datum_zalozeni=date(2026, 6, 5),
+			cislo_pripravku=12,
+			aktivni=True,
+		)
+		krok = SarzeKrok.objects.create(
+			sarze=sarze,
+			poradi=1,
+			datum=date(2026, 6, 5),
+			zarizeni=self.nakladani,
+			zacatek=time(6, 0),
+			operator="Novak",
+		)
+		self.user.user_permissions.remove(
+			Permission.objects.get(
+				content_type__app_label="orders",
+				codename="view_sarzekrokbedna",
+			),
+		)
+
+		response = self.client.get(
+			reverse("rychle_zalozeni_sarze_tisk", args=[krok.pk]),
+		)
+
+		self.assertEqual(response.status_code, 403)
 
 	def test_patro_finish_redirects_without_saving_current_floor(self):
 		sarze = Sarze.objects.create(
@@ -1691,4 +1813,3 @@ class VyrobaHistorieViewTests(ViewsTestBase):
 		resp = self.client.get(reverse("dashboard_vyroba_historie_mesic"), {"rok": timezone.localdate().year})
 		self.assertEqual(resp.status_code, 302)
 		self.assertIn(reverse("dashboard_vyroba_historie"), resp["Location"])
-

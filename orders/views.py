@@ -218,7 +218,7 @@ def rychle_zalozeni_sarze_prehled_view(request, krok_id):
     items = (
         krok.krok_bedny
         .select_related('bedna')
-        .order_by('patro', 'pk')
+        .order_by('-patro', 'pk')
     )
     nove_patro = (items.aggregate(max_patro=Max('patro'))['max_patro'] or 0) + 1
     return render(
@@ -231,6 +231,39 @@ def rychle_zalozeni_sarze_prehled_view(request, krok_id):
             'db_table': 'rychle_zalozeni_sarze',
         },
     )
+
+
+@login_required
+@permission_required('orders.view_sarzekrok', raise_exception=True)
+@permission_required('orders.view_sarzekrokbedna', raise_exception=True)
+def rychle_zalozeni_sarze_tisk_view(request, krok_id):
+    krok = get_object_or_404(
+        SarzeKrok.objects.select_related('sarze', 'zarizeni'),
+        pk=krok_id,
+    )
+    items = (
+        krok.krok_bedny
+        .select_related('bedna', 'bedna__zakazka', 'bedna__zakazka__predpis')
+        .order_by('-patro', 'pk')
+    )
+    context = {
+        'krok': krok,
+        'items': items,
+        'generated_at': timezone.now(),
+    }
+    html_string = render_to_string(
+        'orders/print/rychle_zalozeni_sarze_print.html',
+        context,
+    )
+    base_url = getattr(settings, 'WEASYPRINT_BASEURL', None) or request.build_absolute_uri('/')
+    pdf_bytes = HTML(string=html_string, base_url=base_url).write_pdf()
+
+    filename = f"sarze_{krok.sarze_id}_krok_{krok.pk}.pdf"
+    response = HttpResponse(pdf_bytes, content_type='application/pdf')
+    response['Content-Disposition'] = f'inline; filename="{filename}"'
+    response['Content-Length'] = str(len(pdf_bytes))
+    return response
+
 
 @login_required
 @permission_required('orders.change_sarze', raise_exception=True)

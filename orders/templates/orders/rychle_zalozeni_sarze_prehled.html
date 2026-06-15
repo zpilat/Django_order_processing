@@ -120,7 +120,7 @@
                     <div class="rack-segment{% if forloop.last %} rack-segment-last{% endif %}"
                          style="width: {{ item.procent_z_patra }}%;">
                         {% if item.bedna %}
-                            {{ item.bedna }}, SK{{ item.bedna.zakazka.predpis.skupina }}
+                            {{ item.bedna }}, SK{{ item.bedna.fake_skupina_TZ }}
                         {% else %}
                             {{ item.popis_mimo_db }}
                         {% endif %}
@@ -138,7 +138,14 @@
     {% empty %}
         <div class="alert alert-warning">Šarže zatím nemá uložené žádné položky.</div>
     {% endfor %}
-    <div class="d-flex justify-content-end">
+    <div class="d-flex justify-content-between gap-2">
+        <a href="{% url 'rychle_zalozeni_sarze_tisk' krok.pk %}"
+           class="btn btn-sm"
+           style="background-color: #ffde17; color: #214290;"
+           target="_blank"
+           rel="noopener">
+            Náhled tisku
+        </a>
         <a href="{% url 'rychle_zalozeni_sarze_patro' krok.pk nove_patro %}" class="btn btn-sm btn-primary">
             Přidat další patro
         </a>

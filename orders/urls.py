@@ -18,6 +18,7 @@ from .views import (
     rychle_zalozeni_sarze_posledni_prehled_view,
     rychle_zalozeni_sarze_patro_view,
     rychle_zalozeni_sarze_prehled_view,
+    rychle_zalozeni_sarze_tisk_view,
     rychle_zalozeni_sarze_upravit_view,
 )
 
@@ -43,6 +44,11 @@ urlpatterns = [
         'sarze/rychle-zalozeni/krok/<int:krok_id>/prehled/',
         rychle_zalozeni_sarze_prehled_view,
         name='rychle_zalozeni_sarze_prehled',
+    ),
+    path(
+        'sarze/rychle-zalozeni/krok/<int:krok_id>/tisk/',
+        rychle_zalozeni_sarze_tisk_view,
+        name='rychle_zalozeni_sarze_tisk',
     ),
     path('sarze/rychle-zalozeni/krok/<int:krok_id>/upravit/',
          rychle_zalozeni_sarze_upravit_view,
