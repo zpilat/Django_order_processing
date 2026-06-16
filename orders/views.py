@@ -221,6 +221,12 @@ def rychle_zalozeni_sarze_prehled_view(request, krok_id):
         .order_by('-patro', 'pk')
     )
     nove_patro = (items.aggregate(max_patro=Max('patro'))['max_patro'] or 0) + 1
+    sarze_s_bednami = bool(
+        krok.krok_bedny
+        .filter(bedna__isnull=False)
+        .exists()
+    )
+
     return render(
         request,
         'orders/rychle_zalozeni_sarze_prehled.html',
@@ -228,6 +234,7 @@ def rychle_zalozeni_sarze_prehled_view(request, krok_id):
             'krok': krok,
             'items': items,
             'nove_patro': nove_patro,
+            'sarze_s_bednami': sarze_s_bednami,
             'db_table': 'rychle_zalozeni_sarze',
         },
     )

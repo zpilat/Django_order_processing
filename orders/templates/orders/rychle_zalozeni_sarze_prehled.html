@@ -139,13 +139,24 @@
         <div class="alert alert-warning">Šarže zatím nemá uložené žádné položky.</div>
     {% endfor %}
     <div class="d-flex justify-content-between gap-2">
-        <a href="{% url 'rychle_zalozeni_sarze_tisk' krok.pk %}"
-           class="btn btn-sm"
-           style="background-color: #ffde17; color: #214290;"
-           target="_blank"
-           rel="noopener">
-            Náhled tisku
-        </a>
+        {% if sarze_s_bednami %}
+            <a href="{% url 'rychle_zalozeni_sarze_tisk' krok.pk %}"
+            class="btn btn-sm"
+            style="background-color: #ffde17; color: #214290;"
+            target="_blank"
+            rel="noopener">
+                Náhled tisku
+            </a>
+        {% else %}
+            <span title="Tisk průvodky je umožněn zatím pouze pro šarže s vruty.">
+                <button type="button"
+                        class="btn btn-sm"
+                        style="background-color: #ffde17; color: #214290;"
+                        disabled>
+                    Náhled tisku průvodky
+                </button>
+            </span>
+        {% endif %}
         <a href="{% url 'rychle_zalozeni_sarze_patro' krok.pk nove_patro %}" class="btn btn-sm btn-primary">
             Přidat další patro
         </a>
