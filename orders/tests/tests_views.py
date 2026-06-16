@@ -1153,7 +1153,7 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 				"polozky-TOTAL_FORMS": "2",
 				"polozky-INITIAL_FORMS": "0",
 				"polozky-MIN_NUM_FORMS": "0",
-				"polozky-MAX_NUM_FORMS": "10",
+				"polozky-MAX_NUM_FORMS": "5",
 				"polozky-0-bedna": str(self.b_eur_pr.pk),
 				"polozky-0-procent_z_patra": "50",
 				"polozky-1-popis_mimo_db": "Tyce",
@@ -1204,7 +1204,7 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 				"polozky-TOTAL_FORMS": "2",
 				"polozky-INITIAL_FORMS": "0",
 				"polozky-MIN_NUM_FORMS": "0",
-				"polozky-MAX_NUM_FORMS": "10",
+				"polozky-MAX_NUM_FORMS": "5",
 				"polozky-0-bedna": str(self.b_eur_pr.pk),
 				"polozky-0-procent_z_patra": "37",
 				"polozky-1-popis_mimo_db": "Tyce",
@@ -1225,6 +1225,44 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			),
 			[37, 43],
 		)
+
+	def test_patro_post_rejects_more_than_five_items(self):
+		sarze = Sarze.objects.create(
+			datum_zalozeni=date(2026, 6, 5),
+			cislo_pripravku=12,
+			aktivni=True,
+		)
+		krok = SarzeKrok.objects.create(
+			sarze=sarze,
+			poradi=1,
+			datum=date(2026, 6, 5),
+			zarizeni=self.nakladani,
+			zacatek=time(6, 0),
+			konec=time(7, 30),
+			operator="Novak",
+		)
+
+		data = {
+			"polozky-TOTAL_FORMS": "6",
+			"polozky-INITIAL_FORMS": "0",
+			"polozky-MIN_NUM_FORMS": "0",
+			"polozky-MAX_NUM_FORMS": "5",
+			"action": "save",
+		}
+		for index in range(6):
+			data[f"polozky-{index}-popis_mimo_db"] = f"Tyce {index}"
+			data[f"polozky-{index}-zakaznik_mimo_db"] = "Externi zakaznik"
+			data[f"polozky-{index}-zakazka_mimo_db"] = f"ZAK-{index}"
+			data[f"polozky-{index}-procent_z_patra"] = "5"
+
+		resp = self.client.post(
+			reverse("rychle_zalozeni_sarze_patro", args=[krok.pk, 1]),
+			data,
+		)
+
+		self.assertEqual(resp.status_code, 200)
+		self.assertContains(resp, "Odešlete prosím nejvíce 5 formulářů.")
+		self.assertFalse(SarzeKrokBedna.objects.filter(krok=krok, patro=1).exists())
 
 	def test_patro_get_renders_formset(self):
 		sarze = Sarze.objects.create(
@@ -1303,7 +1341,7 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 				"polozky-TOTAL_FORMS": "1",
 				"polozky-INITIAL_FORMS": "0",
 				"polozky-MIN_NUM_FORMS": "0",
-				"polozky-MAX_NUM_FORMS": "10",
+				"polozky-MAX_NUM_FORMS": "5",
 				"polozky-0-bedna": str(self.b_eur_pr.pk),
 				"polozky-0-procent_z_patra": "100",
 				"action": "save",

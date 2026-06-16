@@ -87,20 +87,40 @@
         .rack-preview {
             display: flex;
             width: 100%;
-            min-height: 32mm;
             overflow: hidden;
             border: 1px solid #111;
         }
 
         .rack-segment {
             display: flex;
-            min-width: 0;
-            align-items: center;
+            min-width: 18%;
+            align-items: flex-start;
             justify-content: center;
             padding: 3mm 2mm;
             border-right: 1px solid #111;
             text-align: center;
             overflow-wrap: anywhere;
+        }
+
+        .rack-item-details {
+            width: 100%;
+            margin-bottom: 0;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        .rack-item-details td {
+            height: 4mm;
+            padding: .3mm;
+            border: 1px solid #111;
+            font-size: 9px;
+            font-weight: normal;
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        .rack-segment:has(.rack-item-details) {
+            padding: 0;
         }
 
         .rack-segment-last {
@@ -114,7 +134,7 @@
             <td>KW2 <span class="checkbox"></span></td>
             <td>KW1 <span class="checkbox"></span></td>
             <td>Předohřev <span class="checkbox"></span></td>
-            <td class="guide-title">PRŮVODKA ŠARŽE</td>
+            <td class="guide-title">PRŮVODKA VRUTY</td>
             <td>Otryskané <span class="checkbox"></span></td>
         </tr>
     </table>
@@ -135,7 +155,7 @@
             <td></td>
             <td></td>
             <td></td>
-            <td></td>
+            <td>{{ spolecna_skupina_TZ }}</td>
             <td>{{ krok.sarze.cislo_pripravku }}</td>
             <td>{{ krok.sarze }}</td>
             <td></td>
@@ -152,18 +172,39 @@
                 {% for item in floor.list %}
                     <div class="rack-segment{% if forloop.last %} rack-segment-last{% endif %}"
                          style="width: {{ item.procent_z_patra }}%;">
-                        <div>
-                            {% if item.bedna %}
-                                <span style="font-weight: bold;">{{ item.bedna.cislo_bedny }} {{ item.bedna.zakazka.kamion_prijem.zakaznik.zkratka }}</span>
-                                ⌀{{item.bedna.zakazka.prumer}}x{{item.bedna.zakazka.delka|floatformat:0 }}
-                                SK{{ item.bedna.fake_skupina_TZ }}
-                            {% else %}
-                                {{ item.popis_mimo_db }}
-                                {{ item.zakaznik_mimo_db }}-{{item.zakazka_mimo_db}}
-                            {% endif %}
-                            <br>
-                            ({{ item.procent_z_patra }} %)
-                        </div>
+                        {% if item.bedna %}
+                            <table class="rack-item-details">
+                                <tr>
+                                    <td>{{ item.procent_z_patra }}%</td>
+                                </tr>
+                                <tr>
+                                    <td><span style="font-weight: bold;">{{ item.bedna.zakazka.kamion_prijem.zakaznik.zkratka }} {{ item.bedna.cislo_bedny }}</span>
+                                        <br>⌀{{item.bedna.zakazka.prumer}}x{{item.bedna.zakazka.delka|floatformat:0 }}</td>
+                                </tr>
+                                <tr>
+                                    <td>SK{{ item.bedna.fake_skupina_TZ }}</td>
+                                </tr>
+                                <tr>
+                                    <td style="text-align: left;">Ohyb (2ks):</td>
+                                </tr>
+                                <tr>
+                                    <td style="text-align: left;">Krut (2ks):</td>
+                                </tr>
+                                <tr>
+                                    <td style="text-align: left;">Popouštění (šarže):</td>
+                                </tr>
+                                <tr>
+                                    <td>OK / NOK</td>
+                                </tr>
+                                <tr>
+                                    <td style="text-align: left;">Poznámka:</td>
+                                </tr>
+                            </table>
+                        {% else %}
+                            <div>
+                                Průvodka se tiskne pouze pro vruty, tato položka je mimo databázi!
+                            </div>
+                        {% endif %}
                     </div>
                 {% endfor %}
             </div>

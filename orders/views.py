@@ -253,9 +253,20 @@ def rychle_zalozeni_sarze_tisk_view(request, krok_id):
         .select_related('bedna', 'bedna__zakazka', 'bedna__zakazka__predpis')
         .order_by('-patro', 'pk')
     )
+
+    fake_skupiny = set()
+    for item in items:
+        if item.bedna:
+            fake_skupina = item.bedna.fake_skupina_TZ
+            fake_skupiny.add(fake_skupina)
+        else:
+            fake_skupiny.add(None)
+    spolecna_skupina_TZ = next(iter(fake_skupiny)) if len(fake_skupiny) == 1 else None
+
     context = {
         'krok': krok,
         'items': items,
+        'spolecna_skupina_TZ': spolecna_skupina_TZ,
         'generated_at': timezone.now(),
     }
     html_string = render_to_string(

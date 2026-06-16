@@ -240,6 +240,7 @@
     const totalForms = document.getElementById('id_polozky-TOTAL_FORMS');
     const template = document.getElementById('empty-row-template');
     const colors = ['#ffde17', '#8ecae6', '#90be6d', '#f9844a', '#cdb4db', '#f9c74f', '#43aa8b', '#adb5bd', '#f4978e', '#a9def9'];
+    const maxItems = 5;
     let activeSignature = '';
 
     function rows() {
@@ -277,7 +278,7 @@
     }
 
     function setEqualPercentages(active) {
-        if (!active.length || active.length > 10) {
+        if (!active.length || active.length > maxItems) {
             return;
         }
         const units = Math.floor(20 / active.length);
@@ -451,8 +452,8 @@
         const active = activeRows();
         const signature = active.map(row => row.dataset.formIndex).join(',');
 
-        warning.classList.toggle('d-none', active.length <= 10);
-        warning.textContent = active.length > 10 ? 'Jedno patro může obsahovat nejvýše 10 položek.' : '';
+        warning.classList.toggle('d-none', active.length <= maxItems);
+        warning.textContent = active.length > maxItems ? `Jedno patro může obsahovat nejvýše ${maxItems} položek.` : '';
 
         if (signature !== activeSignature) {
             const existingValues = currentPercentages(active);
@@ -486,8 +487,8 @@
 
     document.getElementById('add-row').addEventListener('click', function () {
         const index = Number.parseInt(totalForms.value, 10);
-        if (index >= 10) {
-            warning.textContent = 'Jedno patro může obsahovat nejvýše 10 řádků.';
+        if (activeRows().length >= maxItems) {
+            warning.textContent = `Jedno patro může obsahovat nejvýše ${maxItems} řádků.`;
             warning.classList.remove('d-none');
             return;
         }

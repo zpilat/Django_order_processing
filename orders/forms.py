@@ -727,8 +727,8 @@ class BaseSarzeKrokPatroFormSet(BaseFormSet):
         active_forms = [form for form in self.forms if form.has_item()]
         if not active_forms:
             raise ValidationError('Vyplňte alespoň jednu bednu nebo jeden řádek železa.')
-        if len(active_forms) > 10:
-            raise ValidationError('Jedno patro může obsahovat nejvýše 10 položek.')
+        if len(active_forms) > 5:
+            raise ValidationError('Jedno patro může obsahovat nejvýše 5 položek.')
 
         bedna_ids = [
             form.cleaned_data['bedna'].pk
@@ -757,6 +757,6 @@ def get_sarze_krok_patro_formset(*, is_change):
         formset=BaseSarzeKrokPatroFormSet,
         extra=1 if is_change else 3,
         can_delete=True,
-        max_num=10,
+        max_num=5,
         validate_max=True,
     )
