@@ -29,13 +29,13 @@ def resolve_customer_templates(*, zakaznik_zkratka, mode):
         raise ServiceValidationError("Chybí zkratka zákazníka pro výběr šablon.")
 
     if mode == "bedna":
-        return [f"orders/karta_bedny_{zkratka}.html"], f"karty_beden_{zkratka}.pdf"
+        return [f"orders/karta_bedny/karta_bedny_{zkratka}.html"], f"karty_beden_{zkratka}.pdf"
     if mode == "kkk":
-        return [f"orders/karta_kontroly_kvality_{zkratka}.html"], f"karty_kontroly_kvality_{zkratka}.pdf"
+        return [f"orders/karta_kontroly_kvality/karta_kontroly_kvality_{zkratka}.html"], f"karty_kontroly_kvality_{zkratka}.pdf"
     if mode == "kombi":
         return [
-            f"orders/karta_bedny_{zkratka}.html",
-            f"orders/karta_kontroly_kvality_{zkratka}.html",
+            f"orders/karta_bedny/karta_bedny_{zkratka}.html",
+            f"orders/karta_kontroly_kvality/karta_kontroly_kvality_{zkratka}.html",
         ], f"karty_bedny_a_kontroly_{zkratka}.pdf"
 
     raise ServiceValidationError(f"Neznámý mód tisku: {mode}")

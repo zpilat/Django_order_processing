@@ -415,7 +415,7 @@ class ActionsTests(ActionsBase):
         qs = Bedna.objects.all()
         resp = actions.tisk_karet_beden_action(self.admin, req, qs)
         mock_util.assert_called_once_with(self.admin, req, qs,
-                                          'orders/karta_bedny_eur.html', 'karty_beden_eur.pdf')
+                                          'orders/karta_bedny/karta_bedny_eur.html', 'karty_beden_eur.pdf')
         self.assertIsInstance(resp, HttpResponse)
 
     def test_tisk_karet_beden_action_empty(self):
@@ -441,8 +441,8 @@ class ActionsTests(ActionsBase):
             req,
             qs,
             [
-                'orders/karta_bedny_eur.html',
-                'orders/karta_kontroly_kvality_eur.html',
+                'orders/karta_bedny/karta_bedny_eur.html',
+                'orders/karta_kontroly_kvality/karta_kontroly_kvality_eur.html',
             ],
             'karty_bedny_a_kontroly_eur.pdf',
         )

@@ -1910,7 +1910,7 @@ def dodaci_list_kamion_vydej_pdf_view(request, pk: int):
     if not zakaznik_zkratka:
         return HttpResponse("Kamion nemá zkratku zákazníka", status=400)
 
-    html_path = f"orders/dodaci_list_{zakaznik_zkratka.lower()}.html"
+    html_path = f"orders/dodaci_list/dodaci_list_{zakaznik_zkratka.lower()}.html"
     cislo_dl_raw = kamion.cislo_dl or f"kamion_{kamion}"
     cislo_dl = slugify(cislo_dl_raw, allow_unicode=False) or "kamion"
     filename = f"dodaci_list_{cislo_dl}.pdf"
