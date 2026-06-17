@@ -6,7 +6,8 @@ from django.views.generic import ListView
 from django.views.generic.edit import CreateView, UpdateView, DeleteView
 from django.views.generic.detail import DetailView
 from django.urls import reverse, reverse_lazy
-from django.db.models import Q, Max, Sum, Count, F, Exists, OuterRef
+from django.db.models import Q, Max, Sum, Count, F, Exists, OuterRef, Subquery, DecimalField, ExpressionWrapper, Value
+from django.db.models.functions import Coalesce
 from django.utils.translation import gettext_lazy as _
 import django.utils.timezone as timezone
 from datetime import timedelta, time, date
@@ -341,6 +342,14 @@ def _format_kg(value):
     return f"{_kg_to_int(value):,}".replace(',', ' ')
 
 
+def _format_price(value):
+    try:
+        return f"{Decimal(value or 0).quantize(Decimal('1'), rounding=ROUND_HALF_UP):,}".replace(',', ' ')
+    except Exception:
+        logger.warning("Nepodařilo se naformátovat cenu.", exc_info=True)
+        return '0'
+
+
 def _calc_prostoj_minutes(kroky_list):
     total_minutes = 0
     for krok in kroky_list:
@@ -495,17 +504,42 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
         elapsed_end = None
 
     first_use_year_qs = _first_use_sarzekrokbedna_range_qs(year_start, year_end, device_codes)
+
+    cena_za_kg_sq = Cena.objects.filter(
+        zakaznik=OuterRef('bedna__zakazka__kamion_prijem__zakaznik'),
+        delka_min__lte=OuterRef('bedna__zakazka__delka'),
+        delka_max__gt=OuterRef('bedna__zakazka__delka'),
+        predpis=OuterRef('bedna__zakazka__predpis'),
+    ).values('cena_za_kg')[:1]
+
+    first_use_year_qs = first_use_year_qs.annotate(
+        cena_za_kg_ann=Coalesce(
+            Subquery(cena_za_kg_sq, output_field=DecimalField(max_digits=10, decimal_places=2)),
+            Value(Decimal('0.00')), output_field=DecimalField(max_digits=10, decimal_places=2),
+        ),
+    ).annotate(
+        cena_bedny_ann=ExpressionWrapper(
+            F('bedna__hmotnost') * F('cena_za_kg_ann'),
+            output_field=DecimalField(max_digits=14, decimal_places=2),
+        ),
+    )
+
     grouped = (
         first_use_year_qs
         .values('krok__datum', 'krok__zarizeni__kod_zarizeni')
-        .annotate(total_kg=Sum('bedna__hmotnost'))
+        .annotate(
+            total_kg=Sum('bedna__hmotnost'),
+            total_price=Sum('cena_bedny_ann'),
+        )
     )
 
     day_data = {}
+    price_day_data = {}
     for row in grouped:
         row_date = row['krok__datum']
         code = row['krok__zarizeni__kod_zarizeni']
         total_kg = row['total_kg'] or Decimal('0')
+        total_price = row['total_price'] or Decimal('0')
         bucket = day_data.setdefault(
             row_date,
             {
@@ -519,6 +553,20 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
         elif code == 'TQF_XL2':
             bucket['xl2'] += total_kg
         bucket['total'] += total_kg
+
+        price_bucket = price_day_data.setdefault(
+            row_date,
+            {
+                'xl1': Decimal('0'),
+                'xl2': Decimal('0'),
+                'total': Decimal('0'),
+            },
+        )
+        if code == 'TQF_XL1':
+            price_bucket['xl1'] += total_price
+        elif code == 'TQF_XL2':
+            price_bucket['xl2'] += total_price
+        price_bucket['total'] += total_price
 
     krok_grouped = (
         SarzeKrok.objects
@@ -596,6 +644,19 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
                 day += timedelta(days=1)
         return out
 
+    def _sum_price_day_range(start_day, end_day):
+        out = {'xl1': Decimal('0'), 'xl2': Decimal('0'), 'total': Decimal('0')}
+        if start_day and end_day and end_day >= start_day:
+            day = start_day
+            while day <= end_day:
+                row = price_day_data.get(day)
+                if row:
+                    out['xl1'] += row['xl1']
+                    out['xl2'] += row['xl2']
+                    out['total'] += row['total']
+                day += timedelta(days=1)
+        return out
+
     def _sum_step_range(start_day, end_day):
         total_steps = 0
         if start_day and end_day and end_day >= start_day:
@@ -657,15 +718,26 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
             logger.warning("Nepodařilo se spočítat vytížení roštu.", exc_info=True)
             return 0
 
+    def _price_per_rost(total_price, step_count):
+        if step_count <= 0:
+            return Decimal('0.00')
+        try:
+            return (Decimal(total_price) / Decimal(step_count)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        except Exception:
+            logger.warning("Nepodařilo se spočítat cenu za rošt.", exc_info=True)
+            return Decimal('0.00')
+
     if elapsed_end is None:
         elapsed_days_year = 0
         year_totals = {'xl1': Decimal('0'), 'xl2': Decimal('0'), 'total': Decimal('0')}
+        year_prices = {'xl1': Decimal('0'), 'xl2': Decimal('0'), 'total': Decimal('0')}
         year_step_count = 0
         year_prostoj_minutes = {'xl1': 0, 'xl2': 0, 'total': 0}
         year_work_days = {'xl1': 0, 'xl2': 0, 'total': 0}
     else:
         elapsed_days_year = (elapsed_end - year_start).days + 1
         year_totals = _sum_day_range(year_start, elapsed_end)
+        year_prices = _sum_price_day_range(year_start, elapsed_end)
         year_step_count = _sum_step_range(year_start, elapsed_end)
         year_prostoj_minutes = _sum_prostoj_minutes_range(year_start, elapsed_end)
         year_work_days = _sum_work_days_range(year_start, elapsed_end)
@@ -676,6 +748,7 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
         'total': _avg_kg_per_day_int(year_totals['total'], elapsed_days_year),
     }
     yearly_rost_utilization = _kg_per_rost_int(year_totals['total'], year_step_count)
+    yearly_price_per_rost = _price_per_rost(year_prices['total'], year_step_count)
     yearly_xl1_prostoj = _avg_prostoj_hours_display(year_prostoj_minutes['xl1'], year_work_days['xl1'])
     yearly_xl2_prostoj = _avg_prostoj_hours_display(year_prostoj_minutes['xl2'], year_work_days['xl2'])
     yearly_prostoj_avg = {
@@ -691,6 +764,7 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
         if elapsed_end is None or month_start > elapsed_end:
             elapsed_days = 0
             totals = {'xl1': Decimal('0'), 'xl2': Decimal('0'), 'total': Decimal('0')}
+            prices = {'xl1': Decimal('0'), 'xl2': Decimal('0'), 'total': Decimal('0')}
             step_count = 0
             prostoj_minutes = {'xl1': 0, 'xl2': 0, 'total': 0}
             work_days = {'xl1': 0, 'xl2': 0, 'total': 0}
@@ -698,6 +772,7 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
             month_elapsed_end = min(month_end, elapsed_end)
             elapsed_days = (month_elapsed_end - month_start).days + 1
             totals = _sum_day_range(month_start, month_elapsed_end)
+            prices = _sum_price_day_range(month_start, month_elapsed_end)
             step_count = _sum_step_range(month_start, month_elapsed_end)
             prostoj_minutes = _sum_prostoj_minutes_range(month_start, month_elapsed_end)
             work_days = _sum_work_days_range(month_start, month_elapsed_end)
@@ -706,6 +781,7 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
         avg_xl2 = _avg_kg_per_day_int(totals['xl2'], elapsed_days)
         avg_total = _avg_kg_per_day_int(totals['total'], elapsed_days)
         rost_utilization = _kg_per_rost_int(totals['total'], step_count)
+        price_per_rost = _price_per_rost(prices['total'], step_count)
 
         month_xl1_prostoj = _avg_prostoj_hours_display(prostoj_minutes['xl1'], work_days['xl1'])
         month_xl2_prostoj = _avg_prostoj_hours_display(prostoj_minutes['xl2'], work_days['xl2'])
@@ -727,6 +803,10 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
                     'value': rost_utilization,
                     'display': _format_kg(rost_utilization),
                 },
+                'cena_za_rost': {
+                    'value': price_per_rost,
+                    'display': _format_price(price_per_rost),
+                },
                 'prostoj_avg': {
                     'xl1_display': month_xl1_prostoj,
                     'xl2_display': month_xl2_prostoj,
@@ -746,6 +826,7 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
         if elapsed_end is None or in_year_start > elapsed_end:
             elapsed_days = 0
             totals = {'xl1': Decimal('0'), 'xl2': Decimal('0'), 'total': Decimal('0')}
+            prices = {'xl1': Decimal('0'), 'xl2': Decimal('0'), 'total': Decimal('0')}
             step_count = 0
             prostoj_minutes = {'xl1': 0, 'xl2': 0, 'total': 0}
             work_days = {'xl1': 0, 'xl2': 0, 'total': 0}
@@ -753,6 +834,7 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
             week_elapsed_end = min(in_year_end, elapsed_end)
             elapsed_days = (week_elapsed_end - in_year_start).days + 1
             totals = _sum_day_range(in_year_start, week_elapsed_end)
+            prices = _sum_price_day_range(in_year_start, week_elapsed_end)
             step_count = _sum_step_range(in_year_start, week_elapsed_end)
             prostoj_minutes = _sum_prostoj_minutes_range(in_year_start, week_elapsed_end)
             work_days = _sum_work_days_range(in_year_start, week_elapsed_end)
@@ -761,6 +843,7 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
         avg_xl2 = _avg_kg_per_day_int(totals['xl2'], elapsed_days)
         avg_total = _avg_kg_per_day_int(totals['total'], elapsed_days)
         rost_utilization = _kg_per_rost_int(totals['total'], step_count)
+        price_per_rost = _price_per_rost(prices['total'], step_count)
 
         week_xl1_prostoj = _avg_prostoj_hours_display(prostoj_minutes['xl1'], work_days['xl1'])
         week_xl2_prostoj = _avg_prostoj_hours_display(prostoj_minutes['xl2'], work_days['xl2'])
@@ -782,6 +865,10 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
                 'vytizeni_rostu': {
                     'value': rost_utilization,
                     'display': _format_kg(rost_utilization),
+                },
+                'cena_za_rost': {
+                    'value': price_per_rost,
+                    'display': _format_price(price_per_rost),
                 },
                 'prostoj_avg': {
                     'xl1_display': week_xl1_prostoj,
@@ -809,11 +896,16 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
                     d,
                     {'xl1': Decimal('0'), 'xl2': Decimal('0'), 'total': Decimal('0')},
                 )
+                prices = price_day_data.get(
+                    d,
+                    {'xl1': Decimal('0'), 'xl2': Decimal('0'), 'total': Decimal('0')},
+                )
                 xl1_int = _kg_to_int(totals['xl1'])
                 xl2_int = _kg_to_int(totals['xl2'])
                 total_int = _kg_to_int(totals['total'])
                 step_count = krok_data.get(d, 0)
                 rost_utilization = _kg_per_rost_int(totals['total'], step_count)
+                price_per_rost = _price_per_rost(prices['total'], step_count)
                 day_prostoj = prostoj_day_data.get(d, {'xl1': 0, 'xl2': 0, 'total': 0})
                 day_rows.append(
                     {
@@ -828,6 +920,10 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
                         'vytizeni_rostu': {
                             'value': rost_utilization,
                             'display': _format_kg(rost_utilization),
+                        },
+                        'cena_za_rost': {
+                            'value': price_per_rost,
+                            'display': _format_price(price_per_rost),
                         },
                         'prostoj_avg': {
                             'xl1_display': _avg_prostoj_hours_display(day_prostoj['xl1'], 1),
@@ -866,6 +962,10 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
                 'vytizeni_rostu': {
                     'value': yearly_rost_utilization,
                     'display': _format_kg(yearly_rost_utilization),
+                },
+                'cena_za_rost': {
+                    'value': yearly_price_per_rost,
+                    'display': _format_price(yearly_price_per_rost),
                 },
                 'prostoj_avg': yearly_prostoj_avg,
             },

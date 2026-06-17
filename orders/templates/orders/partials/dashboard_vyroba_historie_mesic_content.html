@@ -24,6 +24,7 @@
               <th style="background-color: #214290; color: #ffde17;">TQF XL2<br>[kg]</th>
               <th style="background-color: #214290; color: #ffde17;">CELKEM<br>[kg]</th>
               <th style="background-color: #214290; color: #ffde17;">Vytížení roštu<br>[kg/rošt]</th>
+              <th style="background-color: #214290; color: #ffde17;">Cena<br>[EUR/rošt]</th>
               <th style="background-color: #214290; color: #ffde17;">Prostoj XL1<br>[hod./den]</th>
               <th style="background-color: #214290; color: #ffde17;">Prostoj XL2<br>[hod./den]</th>
               <th style="background-color: #214290; color: #ffde17;">Prostoj CELKEM<br>[hod./den]</th>
@@ -37,13 +38,14 @@
                 <td>{{ row.xl2_display }}</td>
                 <td class="fw-bold">{{ row.total_display }}</td>
                 <td class="fw-bold">{{ row.vytizeni_rostu.display }}</td>
+                <td class="fw-bold">{{ row.cena_za_rost.display }}</td>
                 <td>{{ row.prostoj_avg.xl1_display }}</td>
                 <td>{{ row.prostoj_avg.xl2_display }}</td>
                 <td class="fw-bold">{{ row.prostoj_avg.total_display }}</td>
               </tr>
             {% empty %}
               <tr>
-                <td colspan="8" class="text-muted">Ve zvoleném měsíci zatím nejsou žádné uplynulé dny s daty.</td>
+                <td colspan="9" class="text-muted">Ve zvoleném měsíci zatím nejsou žádné uplynulé dny s daty.</td>
               </tr>
             {% endfor %}
           </tbody>

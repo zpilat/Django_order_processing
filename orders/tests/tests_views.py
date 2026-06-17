@@ -9,7 +9,7 @@ from decimal import Decimal
 from unittest.mock import patch
 
 from orders.models import (
-	Zakaznik, Odberatel, Kamion, Zakazka, Bedna, Predpis, TypHlavy, Pozice, PoziceZakazkaOrder, Zarizeni, Sarze, SarzeKrok, SarzeKrokBedna
+	Zakaznik, Odberatel, Kamion, Zakazka, Bedna, Predpis, TypHlavy, Pozice, PoziceZakazkaOrder, Zarizeni, Sarze, SarzeKrok, SarzeKrokBedna, Cena
 )
 from orders.choices import StavBednyChoice, KamionChoice, TryskaniChoice, RovnaniChoice, PrioritaChoice, TypZarizeniChoice
 from orders.views import (
@@ -1548,6 +1548,14 @@ class VyrobaDashboardContextTests(TestCase):
 		self.typ = TypHlavy.objects.create(nazev="SK")
 		self.predpis_eur = Predpis.objects.create(nazev="P-EUR", zakaznik=self.z_eur)
 		self.predpis_spx = Predpis.objects.create(nazev="P-SPX", zakaznik=self.z_spx)
+		self.cena_eur = Cena.objects.create(
+			zakaznik=self.z_eur,
+			popis="EUR",
+			delka_min=0,
+			delka_max=200,
+			cena_za_kg=Decimal("2.00"),
+		)
+		self.cena_eur.predpis.add(self.predpis_eur)
 
 		self.dev_xl1 = Zarizeni.objects.create(
 			kod_zarizeni="TQF_XL1", nazev_zarizeni="XL1", zkraceny_nazev_zarizeni="XL1", typ_zarizeni=TypZarizeniChoice.VICEUCELOVKA
@@ -1755,11 +1763,14 @@ class VyrobaDashboardContextTests(TestCase):
 		self.assertEqual(yearly["avg"]["xl2_display"], "50")
 		self.assertEqual(yearly["avg"]["total_display"], "150")
 		self.assertEqual(yearly["vytizeni_rostu"]["display"], "750")
+		self.assertEqual(yearly["cena_za_rost"]["display"], "1 000")
 		self.assertEqual(yearly["prostoj_avg"]["xl1_display"], "0,8")
 		self.assertEqual(yearly["prostoj_avg"]["xl2_display"], "1,8")
 		self.assertEqual(yearly["prostoj_avg"]["total_display"], "2,6")
 		self.assertEqual(monthly_rows[0]["vytizeni_rostu"]["display"], "750")
+		self.assertEqual(monthly_rows[0]["cena_za_rost"]["display"], "1 000")
 		self.assertEqual(weekly_rows[0]["vytizeni_rostu"]["display"], "750")
+		self.assertEqual(weekly_rows[0]["cena_za_rost"]["display"], "1 000")
 		self.assertEqual(monthly_rows[0]["prostoj_avg"]["total_display"], "2,6")
 		self.assertEqual(weekly_rows[0]["prostoj_avg"]["total_display"], "2,6")
 
@@ -1813,6 +1824,7 @@ class VyrobaDashboardContextTests(TestCase):
 		self.assertNotIn("20.01.2026", labels)
 		row_by_label = {row["label"]: row for row in month_detail["rows"]}
 		self.assertEqual(row_by_label["05.01.2026"]["vytizeni_rostu"]["display"], "600")
+		self.assertEqual(row_by_label["05.01.2026"]["cena_za_rost"]["display"], "1 200")
 		self.assertEqual(row_by_label["05.01.2026"]["prostoj_avg"]["xl1_display"], "0,8")
 		self.assertEqual(row_by_label["05.01.2026"]["prostoj_avg"]["total_display"], "0,8")
 
