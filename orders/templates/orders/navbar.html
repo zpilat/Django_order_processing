@@ -1,10 +1,18 @@
-<nav class="navbar navbar-expand-lg py-2 my-1 rounded" style="background-color: #214290; color: #ffde17;">
+<nav class="navbar navbar-expand-lg py-2 my-1 rounded"
+     style="
+         --navbar-bg: {% if is_debug %}#7a001f{% else %}#214290{% endif %};
+         --navbar-fg: {% if is_debug %}#ffd166{% else %}#ffde17{% endif %};
+         --navbar-button-bg: {% if is_debug %}#ffd166{% else %}#ffde17{% endif %};
+         --navbar-button-fg: {% if is_debug %}#2b2d42{% else %}#214290{% endif %};
+         background-color: var(--navbar-bg);
+         color: var(--navbar-fg);
+     ">
     <div class="container-fluid d-flex flex-wrap align-items-center justify-content-between">
         <div class="d-flex align-items-center gap-2">
             <!-- Dropdown: Výběr modulu -->
             <div class="btn-group btn-group-sm dropdown my-1 me-2">
                 <button class="btn dropdown-toggle"
-                        style="background-color: #ffde17; color: #214290; border-color: #ffde17;"
+                        style="background-color: var(--navbar-button-bg); color: var(--navbar-button-fg); border-color: var(--navbar-button-bg);"
                         type="button"
                         id="dropdownMenuButton1"
                         data-bs-toggle="dropdown"
@@ -43,7 +51,7 @@
             {% if perms.orders.add_sarze and perms.orders.change_sarze and perms.orders.add_sarzekrok and perms.orders.change_sarzekrok and perms.orders.view_sarzekrok and perms.orders.add_sarzekrokbedna and perms.orders.change_sarzekrokbedna and perms.orders.view_sarzekrokbedna or perms.orders.view_sarzekrok and perms.orders.view_sarzekrokbedna %}
                 <div class="btn-group btn-group-sm dropdown my-1">
                     <button class="btn dropdown-toggle"
-                            style="background-color: #ffde17; color: #214290; border-color: #ffde17;"
+                            style="background-color: var(--navbar-button-bg); color: var(--navbar-button-fg); border-color: var(--navbar-button-bg);"
                             type="button"
                             id="rychleZalozeniSarzeDropdown"
                             data-bs-toggle="dropdown"
@@ -68,28 +76,34 @@
                     </ul>
                 </div>
             {% endif %}
+            {% if is_debug %}
+                <span class="badge rounded-pill"
+                      style="background-color: var(--navbar-button-bg); color: var(--navbar-button-fg); letter-spacing: 0.04em;">
+                    DEV DEBUG
+                </span>
+            {% endif %}
         </div>
         <!-- Uživatelská sekce -->
         <div class="d-flex align-items-center gap-2">
             {% if user.is_authenticated %}
                 <div class="text-end me-2">
-                    <p class="h6 small mb-0" style="color: #ffde17;">Přihlášený uživatel:</p>
-                    <p class="h6 small text-center mb-0" style="color: #ffde17;">{{ user.first_name }} {{ user.last_name }}</p>
+                    <p class="h6 small mb-0" style="color: var(--navbar-fg);">Přihlášený uživatel:</p>
+                    <p class="h6 small text-center mb-0" style="color: var(--navbar-fg);">{{ user.first_name }} {{ user.last_name }}</p>
                 </div>
-                <a class="btn btn-light btn-sm me-2" style="background-color: #ffde17; color: #214290; border-color: #ffde17;" href="{% url 'password_change' %}">Změnit heslo</a>
+                <a class="btn btn-light btn-sm me-2" style="background-color: var(--navbar-button-bg); color: var(--navbar-button-fg); border-color: var(--navbar-button-bg);" href="{% url 'password_change' %}">Změnit heslo</a>
                 <form id="logout-form" method="post" action="{% url 'logout' %}" class="d-inline">
                     {% csrf_token %}
                     <input type="hidden"
                            name="next"
                            value="{% if user.is_staff %}{% url 'admin:login' %}{% else %}{% url 'login' %}{% endif %}">
                     <button type="submit" class="btn btn-sm"
-                            style="background-color: #ffde17; color: #214290; border-color: #ffde17;">
+                            style="background-color: var(--navbar-button-bg); color: var(--navbar-button-fg); border-color: var(--navbar-button-bg);">
                         Odhlásit se
                     </button>
                 </form>
             {% else %}
                 <a class="btn btn-sm"
-                   style="background-color: #ffde17; color: #214290; border-color: #ffde17;"
+                   style="background-color: var(--navbar-button-bg); color: var(--navbar-button-fg); border-color: var(--navbar-button-bg);"
                    href="{% url 'login' %}">Přihlásit se</a>
             {% endif %}
         </div>

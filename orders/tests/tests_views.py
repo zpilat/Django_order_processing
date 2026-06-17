@@ -1,4 +1,4 @@
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
@@ -189,6 +189,26 @@ class AuthenticationRoutingTests(TestCase):
 		response = self.client.get(reverse("dashboard_bedny"))
 
 		self.assertContains(response, reverse("password_change"))
+
+	@override_settings(DEBUG=True)
+	def test_navbar_marks_debug_environment(self):
+		user = self.User.objects.create_user(username="regular", password="pass1234")
+		self.client.force_login(user)
+
+		response = self.client.get(reverse("dashboard_bedny"))
+
+		self.assertContains(response, "DEV DEBUG")
+		self.assertContains(response, "#7a001f")
+
+	@override_settings(DEBUG=False, ALLOWED_HOSTS=["testserver"])
+	def test_navbar_uses_production_colors_without_debug_badge(self):
+		user = self.User.objects.create_user(username="regular", password="pass1234")
+		self.client.force_login(user)
+
+		response = self.client.get(reverse("dashboard_bedny"))
+
+		self.assertNotContains(response, "DEV DEBUG")
+		self.assertContains(response, "#214290")
 
 	def test_logout_redirects_regular_user_to_regular_login(self):
 		user = self.User.objects.create_user(username="regular", password="pass1234")
