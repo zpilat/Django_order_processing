@@ -660,7 +660,7 @@ class SarzeKrokBednaAdmin(SimpleHistoryAdmin):
             return f"{prumer}x{delka}"
         return '-'
 
-    @admin.display(boolean=True, description='První?')
+    @admin.display(boolean=True, description='1.?')
     def get_prvni_pouziti(self, obj):
         return obj.prvni_pouziti
 
