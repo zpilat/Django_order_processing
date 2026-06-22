@@ -462,10 +462,8 @@ def _avg_kg_per_day_int(total_kg, day_count):
         return 0
 
 
-def _build_vyroba_historie_context(year_value=None, month_value=None, today_value=None):
+def _get_vyroba_available_years(device_codes, today_value=None):
     today = today_value or timezone.localdate()
-    device_codes = ["TQF_XL1", "TQF_XL2"]
-
     years_with_data = sorted(
         {
             y.year
@@ -480,6 +478,23 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
     if today.year not in years_with_data:
         years_with_data.append(today.year)
         years_with_data = sorted(set(years_with_data), reverse=True)
+    return years_with_data
+
+def _kg_per_rost_int(total_kg, step_count):
+    if step_count <= 0:
+        return 0
+    try:
+        return _kg_to_int(Decimal(total_kg) / Decimal(step_count))
+    except Exception:
+        logger.warning("Nepodařilo se spočítat vytížení roštu.", exc_info=True)
+        return 0
+
+
+def _build_vyroba_historie_context(year_value=None, month_value=None, today_value=None):
+    today = today_value or timezone.localdate()
+    device_codes = ["TQF_XL1", "TQF_XL2"]
+
+    years_with_data = _get_vyroba_available_years(device_codes, today_value=today)
 
     try:
         selected_year = int(year_value) if year_value is not None else years_with_data[0]
@@ -632,7 +647,11 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
     ]
 
     def _sum_day_range(start_day, end_day):
-        out = {'xl1': Decimal('0'), 'xl2': Decimal('0'), 'total': Decimal('0')}        
+        out = {
+            'xl1': Decimal('0'),
+            'xl2': Decimal('0'),
+            'total': Decimal('0'),
+        }
         if start_day and end_day and end_day >= start_day:
             day = start_day
             while day <= end_day:
@@ -645,7 +664,11 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
         return out
 
     def _sum_price_day_range(start_day, end_day):
-        out = {'xl1': Decimal('0'), 'xl2': Decimal('0'), 'total': Decimal('0')}
+        out = {
+            'xl1': Decimal('0'),
+            'xl2': Decimal('0'),
+            'total': Decimal('0'),
+        }
         if start_day and end_day and end_day >= start_day:
             day = start_day
             while day <= end_day:
@@ -708,15 +731,6 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
         except Exception:
             logger.warning("Nepodařilo se sečíst hodnoty prostoje XL1 a XL2.", exc_info=True)
             return '0,0'
-
-    def _kg_per_rost_int(total_kg, step_count):
-        if step_count <= 0:
-            return 0
-        try:
-            return _kg_to_int(Decimal(total_kg) / Decimal(step_count))
-        except Exception:
-            logger.warning("Nepodařilo se spočítat vytížení roštu.", exc_info=True)
-            return 0
 
     def _price_per_rost(total_price, step_count):
         if step_count <= 0:
@@ -974,6 +988,207 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
             'month_detail': month_detail,
         },
         'db_table': 'dashboard_vyroba',
+        'current_time': timezone.now(),
+    }
+
+
+def _build_vyroba_zakaznici_vyuziti_context(year_value=None, today_value=None):
+    device_codes = ["TQF_XL1", "TQF_XL2"]
+    today = today_value or timezone.localdate()
+    years_with_data = _get_vyroba_available_years(device_codes, today_value=today)
+
+    try:
+        selected_year = int(year_value) if year_value is not None else years_with_data[0]
+    except (TypeError, ValueError):
+        selected_year = years_with_data[0]
+    if selected_year not in years_with_data:
+        selected_year = years_with_data[0]
+
+    year_start = date(selected_year, 1, 1)
+    year_end = date(selected_year, 12, 31)
+    elapsed_end = min(today, year_end) if selected_year == today.year else year_end
+    if elapsed_end < year_start:
+        elapsed_end = None
+
+    grouped = (
+        _first_use_sarzekrokbedna_range_qs(year_start, year_end, device_codes)
+        .values(
+            'krok__datum',
+            'bedna__zakazka__kamion_prijem__zakaznik__zkraceny_nazev',
+        )
+        .annotate(total_kg=Sum('bedna__hmotnost'))
+    )
+
+    customer_day_data = {}
+    for row in grouped:
+        row_date = row['krok__datum']
+        customer = row['bedna__zakazka__kamion_prijem__zakaznik__zkraceny_nazev'] or '-'
+        total_kg = row['total_kg'] or Decimal('0')
+        bucket = customer_day_data.setdefault(row_date, {})
+        bucket[customer] = bucket.get(customer, Decimal('0')) + total_kg
+
+    krok_data = {
+        row['datum']: (row['step_count'] or 0)
+        for row in (
+            SarzeKrok.objects
+            .filter(
+                datum__gte=year_start,
+                datum__lte=year_end,
+                zarizeni__kod_zarizeni__in=device_codes,
+                krok_bedny__bedna__isnull=False,
+            )
+            .values('datum')
+            .annotate(step_count=Count('id', distinct=True))
+        )
+    }
+
+    def _sum_customer_kg_range(customer, start_day, end_day):
+        total = Decimal('0')
+        if start_day and end_day and end_day >= start_day:
+            day = start_day
+            while day <= end_day:
+                total += customer_day_data.get(day, {}).get(customer, Decimal('0'))
+                day += timedelta(days=1)
+        return total
+
+    def _sum_all_customer_kg_range(start_day, end_day):
+        total = Decimal('0')
+        if start_day and end_day and end_day >= start_day:
+            day = start_day
+            while day <= end_day:
+                total += sum(customer_day_data.get(day, {}).values(), Decimal('0'))
+                day += timedelta(days=1)
+        return total
+
+    def _sum_step_range(start_day, end_day):
+        total_steps = 0
+        if start_day and end_day and end_day >= start_day:
+            day = start_day
+            while day <= end_day:
+                total_steps += krok_data.get(day, 0)
+                day += timedelta(days=1)
+        return total_steps
+
+    def _kg_per_rost(total_kg, step_count):
+        if step_count <= 0:
+            return 0
+        try:
+            return _kg_to_int(Decimal(total_kg) / Decimal(step_count))
+        except Exception:
+            logger.warning("Nepodařilo se spočítat využití roštu podle zákazníků.", exc_info=True)
+            return 0
+
+    def _format_usage(value):
+        return _format_kg(value) if value else '-'
+
+    customers = sorted(
+        {
+            customer
+            for day_data in customer_day_data.values()
+            for customer in day_data.keys()
+        }
+    )
+
+    if elapsed_end is None:
+        year_step_count = 0
+        year_total_kg = Decimal('0')
+    else:
+        year_step_count = _sum_step_range(year_start, elapsed_end)
+        year_total_kg = _sum_all_customer_kg_range(year_start, elapsed_end)
+
+    weeks = []
+    customer_week_values = {customer: [] for customer in customers}
+    total_week_values = []
+    week_start = year_start - timedelta(days=year_start.weekday())
+    week_no = 1
+    while week_start <= year_end:
+        week_end = week_start + timedelta(days=6)
+        in_year_start = max(week_start, year_start)
+        in_year_end = min(week_end, year_end)
+
+        if elapsed_end is None or in_year_start > elapsed_end:
+            elapsed_days = 0
+            step_count = 0
+            week_elapsed_end = None
+        else:
+            week_elapsed_end = min(in_year_end, elapsed_end)
+            elapsed_days = (week_elapsed_end - in_year_start).days + 1
+            step_count = _sum_step_range(in_year_start, week_elapsed_end)
+
+        weeks.append({
+            'week_no': week_no,
+            'label': f'{week_no:02d}',
+            'date_range': f"{in_year_start.strftime('%d.%m.')} - {in_year_end.strftime('%d.%m.')}",
+            'elapsed_days': elapsed_days,
+            'step_count': step_count,
+        })
+
+        week_total_kg = Decimal('0')
+        for customer in customers:
+            customer_kg = Decimal('0') if week_elapsed_end is None else _sum_customer_kg_range(
+                customer,
+                in_year_start,
+                week_elapsed_end,
+            )
+            week_total_kg += customer_kg
+            usage = _kg_per_rost(customer_kg, step_count)
+            customer_week_values[customer].append({
+                'value': usage,
+                'display': _format_usage(usage),
+            })
+
+        total_usage = _kg_per_rost(week_total_kg, step_count)
+        total_week_values.append({
+            'value': total_usage,
+            'display': _format_usage(total_usage),
+        })
+
+        week_no += 1
+        week_start += timedelta(days=7)
+
+    customer_rows = []
+    for customer in customers:
+        customer_year_kg = Decimal('0') if elapsed_end is None else _sum_customer_kg_range(
+            customer,
+            year_start,
+            elapsed_end,
+        )
+        total_usage = _kg_per_rost(customer_year_kg, year_step_count)
+        customer_rows.append({
+            'customer': customer,
+            'weeks': customer_week_values[customer],
+            'total': {
+                'value': total_usage,
+                'display': _format_usage(total_usage),
+            },
+        })
+
+    yearly_usage = _kg_per_rost(year_total_kg, year_step_count)
+
+    return {
+        'vyroba_zakaznici_vyuziti': {
+            'title': 'Přehled využití roštů podle zákazníků',
+            'selected_year': selected_year,
+            'available_years': years_with_data,
+            'yearly': {
+                'step_count': year_step_count,
+                'vytizeni_rostu': {
+                    'value': yearly_usage,
+                    'display': _format_usage(yearly_usage),
+                },
+            },
+            'weeks': weeks,
+            'customer_rows': customer_rows,
+            'total_row': {
+                'label': 'CELKEM',
+                'weeks': total_week_values,
+                'total': {
+                    'value': yearly_usage,
+                    'display': _format_usage(yearly_usage),
+                },
+            },
+        },
+        'db_table': 'dashboard_vyroba_zakaznici_vyuziti',
         'current_time': timezone.now(),
     }
 
@@ -1404,6 +1619,18 @@ def dashboard_vyroba_historie_view(request):
     if request.htmx:
         return render(request, "orders/partials/dashboard_vyroba_historie_content.html", context)
     return render(request, 'orders/dashboard_vyroba_historie.html', context)
+
+
+@login_required
+def dashboard_vyroba_zakaznici_vyuziti_view(request):
+    """
+    Roční přehled průměrného využití roštů v jednotlivých týdnech pro jednotlivé zákazníky.
+    """
+    year_value = request.GET.get('rok')
+    context = _build_vyroba_zakaznici_vyuziti_context(year_value=year_value)
+    if request.htmx:
+        return render(request, "orders/partials/dashboard_vyroba_zakaznici_vyuziti_content.html", context)
+    return render(request, 'orders/dashboard_vyroba_zakaznici_vyuziti.html', context)
 
 
 @login_required

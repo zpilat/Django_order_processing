@@ -1,0 +1,10 @@
+{% extends "orders/base.html" %}
+
+{% block content %}
+  <div id="dashboard-content"
+       hx-get="{% url 'dashboard_vyroba_zakaznici_vyuziti' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}"
+       hx-trigger="every 60m"
+       hx-swap="innerHTML">
+    {% include "orders/partials/dashboard_vyroba_zakaznici_vyuziti_content.html" %}
+  </div>
+{% endblock %}

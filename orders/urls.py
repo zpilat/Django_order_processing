@@ -6,6 +6,7 @@ from .views import (
     dashboard_vyroba_view,
     dashboard_vyroba_historie_view,
     dashboard_vyroba_historie_mesic_view,
+    dashboard_vyroba_zakaznici_vyuziti_view,
     dashboard_bedny_k_navezeni_view,
     dashboard_bedny_k_navezeni_pdf_view,
     dashboard_bedny_k_navezeni_poznamka_view,
@@ -28,6 +29,7 @@ urlpatterns = [
     path('dashboard/vyroba/', dashboard_vyroba_view, name='dashboard_vyroba'),
     path('dashboard/vyroba/historie/', dashboard_vyroba_historie_view, name='dashboard_vyroba_historie'),
     path('dashboard/vyroba/historie/mesic/', dashboard_vyroba_historie_mesic_view, name='dashboard_vyroba_historie_mesic'),
+    path('dashboard/vyroba/zakaznici-vyuziti/', dashboard_vyroba_zakaznici_vyuziti_view, name='dashboard_vyroba_zakaznici_vyuziti'),
     path('bedny/', BednyListView.as_view(), name='bedny_list'),
     path('sarze/rychle-zalozeni/', rychle_zalozeni_sarze_view, name='rychle_zalozeni_sarze'),
     path(

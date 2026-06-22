@@ -17,6 +17,7 @@ from orders.views import (
 	_split_bedny_k_navezeni_groups_by_nasledne,
 	_build_vyroba_dashboard_context,
 	_build_vyroba_historie_context,
+	_build_vyroba_zakaznici_vyuziti_context,
 )
 
 
@@ -1873,7 +1874,52 @@ class VyrobaDashboardContextTests(TestCase):
 		self.assertEqual(row_by_label["10.01.2026"]["prostoj_avg"]["xl1_display"], "0,0")
 		self.assertEqual(row_by_label["10.01.2026"]["prostoj_avg"]["total_display"], "0,0")
 
+	def test_vyroba_zakaznici_vyuziti_splits_weekly_usage_by_customer(self):
+		today_value = date(2026, 1, 10)
+		bedna_eur = self._create_bedna(self.z_eur, 1000)
+		bedna_spx = self._create_bedna(self.z_spx, 500)
+
+		sarze_1 = Sarze.objects.create(cislo_sarze=601, datum_zalozeni=date(2026, 1, 1), aktivni=True)
+		krok_1 = SarzeKrok.objects.create(
+			sarze=sarze_1,
+			poradi=1,
+			datum=date(2026, 1, 1),
+			zarizeni=self.dev_xl1,
+			zacatek=time(8, 0),
+			operator="op",
+			program="p",
+		)
+		SarzeKrokBedna.objects.create(krok=krok_1, bedna=bedna_eur, patro=1)
+
+		sarze_2 = Sarze.objects.create(cislo_sarze=602, datum_zalozeni=date(2026, 1, 2), aktivni=True)
+		krok_2 = SarzeKrok.objects.create(
+			sarze=sarze_2,
+			poradi=1,
+			datum=date(2026, 1, 2),
+			zarizeni=self.dev_xl2,
+			zacatek=time(9, 0),
+			operator="op",
+			program="p",
+		)
+		SarzeKrokBedna.objects.create(krok=krok_2, bedna=bedna_spx, patro=1)
+
+		ctx = _build_vyroba_zakaznici_vyuziti_context(year_value=2026, today_value=today_value)
+		data = ctx["vyroba_zakaznici_vyuziti"]
+		rows = {row["customer"]: row for row in data["customer_rows"]}
+
+		self.assertEqual(data["weeks"][0]["date_range"], "01.01. - 04.01.")
+		self.assertEqual(data["weeks"][0]["step_count"], 2)
+		self.assertEqual(rows["EUR"]["weeks"][0]["display"], "500")
+		self.assertEqual(rows["SPX"]["weeks"][0]["display"], "250")
+		self.assertEqual(data["total_row"]["weeks"][0]["display"], "750")
+		self.assertEqual(data["total_row"]["total"]["display"], "750")
+
 class VyrobaHistorieViewTests(ViewsTestBase):
+	def test_zakaznici_vyuziti_view_renders_page(self):
+		resp = self.client.get(reverse("dashboard_vyroba_zakaznici_vyuziti"), {"rok": timezone.localdate().year})
+		self.assertEqual(resp.status_code, 200)
+		self.assertTemplateUsed(resp, "orders/dashboard_vyroba_zakaznici_vyuziti.html")
+
 	def test_historie_mesic_view_renders_detail_page(self):
 		resp = self.client.get(reverse("dashboard_vyroba_historie_mesic"), {"rok": timezone.localdate().year, "mesic": 1})
 		self.assertEqual(resp.status_code, 200)

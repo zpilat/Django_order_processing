@@ -1,0 +1,69 @@
+<div class="alert" role="alert" style="background-color: #214290; color: #ffde17; font-family: 'Liberation Sans', Arial;">
+  <div class="d-flex align-items-center justify-content-between mb-2">
+    <h3 class="mb-0">{{ vyroba_zakaznici_vyuziti.title }}</h3>
+    <a class="btn btn-secondary" style="color: #ffde17;" href="{% url 'admin:orders_sarzekrokbedna_changelist' %}">Návrat</a>
+  </div>
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <h6 class="mb-0">Naposledy aktualizováno {{ current_time|date:"d.m.Y H:i" }}</h6>
+    <form method="get" class="d-flex align-items-center gap-2">
+      <label for="rok" class="mb-0">Rok:</label>
+      <select id="rok" name="rok" class="form-select form-select-sm" style="width: auto;">
+        {% for year in vyroba_zakaznici_vyuziti.available_years %}
+          <option value="{{ year }}" {% if year == vyroba_zakaznici_vyuziti.selected_year %}selected{% endif %}>{{ year }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="btn btn-sm btn-light">Zobrazit</button>
+    </form>
+  </div>
+</div>
+
+<div class="row" style="font-family: 'Liberation Sans', Arial;">
+  <div class="col-12 mb-3">
+    <div class="card shadow-sm">
+      <div class="card-header fw-bold" style="background-color: #ffde17; color: #214290;">
+        Využití roštů po týdnech v roce {{ vyroba_zakaznici_vyuziti.selected_year }} [kg/rošt]
+      </div>
+      <div class="card-body p-2">
+        <div class="table-responsive">
+          <table class="table table-sm table-bordered align-middle mb-0">
+            <thead>
+              <tr>
+                <th style="background-color: #214290; color: #ffde17; position: sticky; left: 0; z-index: 2;">Zákazník</th>
+                {% for week in vyroba_zakaznici_vyuziti.weeks %}
+                  <th class="text-center" style="background-color: #214290; color: #ffde17;" title="{{ week.date_range }}">
+                    {{ week.label }}
+                  </th>
+                {% endfor %}
+                <th class="text-center" style="background-color: #214290; color: #ffde17;">Rok</th>
+              </tr>
+            </thead>
+            <tbody class="table-striped">
+              {% for row in vyroba_zakaznici_vyuziti.customer_rows %}
+                <tr>
+                  <th style="position: sticky; left: 0; background-color: #fff;">{{ row.customer }}</th>
+                  {% for item in row.weeks %}
+                    <td class="text-end">{{ item.display }}</td>
+                  {% endfor %}
+                  <td class="text-end fw-bold">{{ row.total.display }}</td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="{{ vyroba_zakaznici_vyuziti.weeks|length|add:2 }}" class="text-muted">
+                    Pro zvolený rok nejsou dostupná data podle zákazníků.
+                  </td>
+                </tr>
+              {% endfor %}
+              <tr>
+                <th style="position: sticky; left: 0; background-color: #ffde17; color: #214290;">{{ vyroba_zakaznici_vyuziti.total_row.label }}</th>
+                {% for item in vyroba_zakaznici_vyuziti.total_row.weeks %}
+                  <td class="text-end fw-bold" style="background-color: #fff6bf;">{{ item.display }}</td>
+                {% endfor %}
+                <td class="text-end fw-bold" style="background-color: #fff6bf;">{{ vyroba_zakaznici_vyuziti.total_row.total.display }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
