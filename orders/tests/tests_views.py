@@ -1890,8 +1890,8 @@ class VyrobaDashboardContextTests(TestCase):
 			operator="op",
 			program="p",
 		)
-		SarzeKrokBedna.objects.create(krok=krok_1, bedna=bedna_eur_shared, patro=1, procent_z_patra=50)
-		SarzeKrokBedna.objects.create(krok=krok_1, bedna=bedna_spx_shared, patro=1, procent_z_patra=50)
+		SarzeKrokBedna.objects.create(krok=krok_1, bedna=bedna_eur_shared, patro=1, procent_z_patra=25)
+		SarzeKrokBedna.objects.create(krok=krok_1, bedna=bedna_spx_shared, patro=1, procent_z_patra=25)
 
 		sarze_2 = Sarze.objects.create(cislo_sarze=602, datum_zalozeni=date(2026, 1, 2), aktivni=True)
 		krok_2 = SarzeKrok.objects.create(
@@ -1903,7 +1903,7 @@ class VyrobaDashboardContextTests(TestCase):
 			operator="op",
 			program="p",
 		)
-		SarzeKrokBedna.objects.create(krok=krok_2, bedna=bedna_eur_full, patro=1, procent_z_patra=100)
+		SarzeKrokBedna.objects.create(krok=krok_2, bedna=bedna_eur_full, patro=1, procent_z_patra=80)
 
 		ctx = _build_vyroba_zakaznici_vyuziti_context(year_value=2026, today_value=today_value)
 		data = ctx["vyroba_zakaznici_vyuziti"]

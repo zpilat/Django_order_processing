@@ -1040,12 +1040,12 @@ def _build_vyroba_zakaznici_vyuziti_context(year_value=None, today_value=None):
         krok__zarizeni__kod_zarizeni__in=device_codes,
         bedna__isnull=False,
     )
-    step_floor_counts = {
-        row['krok_id']: row['floor_count'] or 0
+    step_total_percents = {
+        row['krok_id']: row['total_percent'] or Decimal('0')
         for row in (
             step_share_qs
             .values('krok_id')
-            .annotate(floor_count=Count('patro', distinct=True))
+            .annotate(total_percent=Sum('procent_z_patra'))
         )
     }
     step_share_rows = (
@@ -1058,13 +1058,13 @@ def _build_vyroba_zakaznici_vyuziti_context(year_value=None, today_value=None):
         .annotate(percent_sum=Sum('procent_z_patra'))
     )
     for row in step_share_rows:
-        floor_count = step_floor_counts.get(row['krok_id'], 0)
+        step_total_percent = step_total_percents.get(row['krok_id'], Decimal('0'))
         percent_sum = row['percent_sum'] or Decimal('0')
-        if floor_count <= 0 or percent_sum <= 0:
+        if step_total_percent <= 0 or percent_sum <= 0:
             continue
         row_date = row['krok__datum']
         customer = row['bedna__zakazka__kamion_prijem__zakaznik__zkraceny_nazev'] or '-'
-        step_share = Decimal(percent_sum) / (Decimal(floor_count) * Decimal('100'))
+        step_share = Decimal(percent_sum) / Decimal(step_total_percent)
         bucket = customer_day_data.setdefault(row_date, {})
         customer_bucket = bucket.setdefault(
             customer,
