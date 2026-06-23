@@ -1876,8 +1876,9 @@ class VyrobaDashboardContextTests(TestCase):
 
 	def test_vyroba_zakaznici_vyuziti_splits_weekly_usage_by_customer(self):
 		today_value = date(2026, 1, 10)
-		bedna_eur = self._create_bedna(self.z_eur, 1000)
-		bedna_spx = self._create_bedna(self.z_spx, 500)
+		bedna_eur_shared = self._create_bedna(self.z_eur, 600)
+		bedna_spx_shared = self._create_bedna(self.z_spx, 400)
+		bedna_eur_full = self._create_bedna(self.z_eur, 1000)
 
 		sarze_1 = Sarze.objects.create(cislo_sarze=601, datum_zalozeni=date(2026, 1, 1), aktivni=True)
 		krok_1 = SarzeKrok.objects.create(
@@ -1889,7 +1890,8 @@ class VyrobaDashboardContextTests(TestCase):
 			operator="op",
 			program="p",
 		)
-		SarzeKrokBedna.objects.create(krok=krok_1, bedna=bedna_eur, patro=1)
+		SarzeKrokBedna.objects.create(krok=krok_1, bedna=bedna_eur_shared, patro=1, procent_z_patra=50)
+		SarzeKrokBedna.objects.create(krok=krok_1, bedna=bedna_spx_shared, patro=1, procent_z_patra=50)
 
 		sarze_2 = Sarze.objects.create(cislo_sarze=602, datum_zalozeni=date(2026, 1, 2), aktivni=True)
 		krok_2 = SarzeKrok.objects.create(
@@ -1901,7 +1903,7 @@ class VyrobaDashboardContextTests(TestCase):
 			operator="op",
 			program="p",
 		)
-		SarzeKrokBedna.objects.create(krok=krok_2, bedna=bedna_spx, patro=1)
+		SarzeKrokBedna.objects.create(krok=krok_2, bedna=bedna_eur_full, patro=1, procent_z_patra=100)
 
 		ctx = _build_vyroba_zakaznici_vyuziti_context(year_value=2026, today_value=today_value)
 		data = ctx["vyroba_zakaznici_vyuziti"]
@@ -1909,10 +1911,10 @@ class VyrobaDashboardContextTests(TestCase):
 
 		self.assertEqual(data["weeks"][0]["date_range"], "01.01. - 04.01.")
 		self.assertEqual(data["weeks"][0]["step_count"], 2)
-		self.assertEqual(rows["EUR"]["weeks"][0]["display"], "500")
-		self.assertEqual(rows["SPX"]["weeks"][0]["display"], "250")
-		self.assertEqual(data["total_row"]["weeks"][0]["display"], "750")
-		self.assertEqual(data["total_row"]["total"]["display"], "750")
+		self.assertEqual(rows["EUR"]["weeks"][0]["display"], "1 067")
+		self.assertEqual(rows["SPX"]["weeks"][0]["display"], "800")
+		self.assertEqual(data["total_row"]["weeks"][0]["display"], "1 000")
+		self.assertEqual(data["total_row"]["total"]["display"], "1 000")
 
 class VyrobaHistorieViewTests(ViewsTestBase):
 	def test_zakaznici_vyuziti_view_renders_page(self):

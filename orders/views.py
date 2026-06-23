@@ -1010,7 +1010,7 @@ def _build_vyroba_zakaznici_vyuziti_context(year_value=None, today_value=None):
     if elapsed_end < year_start:
         elapsed_end = None
 
-    grouped = (
+    first_use_rows = list(
         _first_use_sarzekrokbedna_range_qs(year_start, year_end, device_codes)
         .values(
             'krok__datum',
@@ -1020,12 +1020,60 @@ def _build_vyroba_zakaznici_vyuziti_context(year_value=None, today_value=None):
     )
 
     customer_day_data = {}
-    for row in grouped:
+    for row in first_use_rows:
         row_date = row['krok__datum']
         customer = row['bedna__zakazka__kamion_prijem__zakaznik__zkraceny_nazev'] or '-'
         total_kg = row['total_kg'] or Decimal('0')
         bucket = customer_day_data.setdefault(row_date, {})
-        bucket[customer] = bucket.get(customer, Decimal('0')) + total_kg
+        customer_bucket = bucket.setdefault(
+            customer,
+            {
+                'kg': Decimal('0'),
+                'step_share': Decimal('0'),
+            },
+        )
+        customer_bucket['kg'] += total_kg
+
+    step_share_qs = SarzeKrokBedna.objects.filter(
+        krok__datum__gte=year_start,
+        krok__datum__lte=year_end,
+        krok__zarizeni__kod_zarizeni__in=device_codes,
+        bedna__isnull=False,
+    )
+    step_floor_counts = {
+        row['krok_id']: row['floor_count'] or 0
+        for row in (
+            step_share_qs
+            .values('krok_id')
+            .annotate(floor_count=Count('patro', distinct=True))
+        )
+    }
+    step_share_rows = (
+        step_share_qs
+        .values(
+            'krok_id',
+            'krok__datum',
+            'bedna__zakazka__kamion_prijem__zakaznik__zkraceny_nazev',
+        )
+        .annotate(percent_sum=Sum('procent_z_patra'))
+    )
+    for row in step_share_rows:
+        floor_count = step_floor_counts.get(row['krok_id'], 0)
+        percent_sum = row['percent_sum'] or Decimal('0')
+        if floor_count <= 0 or percent_sum <= 0:
+            continue
+        row_date = row['krok__datum']
+        customer = row['bedna__zakazka__kamion_prijem__zakaznik__zkraceny_nazev'] or '-'
+        step_share = Decimal(percent_sum) / (Decimal(floor_count) * Decimal('100'))
+        bucket = customer_day_data.setdefault(row_date, {})
+        customer_bucket = bucket.setdefault(
+            customer,
+            {
+                'kg': Decimal('0'),
+                'step_share': Decimal('0'),
+            },
+        )
+        customer_bucket['step_share'] += step_share
 
     krok_data = {
         row['datum']: (row['step_count'] or 0)
@@ -1042,21 +1090,31 @@ def _build_vyroba_zakaznici_vyuziti_context(year_value=None, today_value=None):
         )
     }
 
-    def _sum_customer_kg_range(customer, start_day, end_day):
-        total = Decimal('0')
+    def _sum_customer_range(customer, start_day, end_day):
+        total_kg = Decimal('0')
+        total_step_share = Decimal('0')
         if start_day and end_day and end_day >= start_day:
             day = start_day
             while day <= end_day:
-                total += customer_day_data.get(day, {}).get(customer, Decimal('0'))
+                row = customer_day_data.get(day, {}).get(customer)
+                if row:
+                    total_kg += row['kg']
+                    total_step_share += row['step_share']
                 day += timedelta(days=1)
-        return total
+        return {
+            'kg': total_kg,
+            'step_share': total_step_share,
+        }
 
     def _sum_all_customer_kg_range(start_day, end_day):
         total = Decimal('0')
         if start_day and end_day and end_day >= start_day:
             day = start_day
             while day <= end_day:
-                total += sum(customer_day_data.get(day, {}).values(), Decimal('0'))
+                total += sum(
+                    (row['kg'] for row in customer_day_data.get(day, {}).values()),
+                    Decimal('0'),
+                )
                 day += timedelta(days=1)
         return total
 
@@ -1069,13 +1127,22 @@ def _build_vyroba_zakaznici_vyuziti_context(year_value=None, today_value=None):
                 day += timedelta(days=1)
         return total_steps
 
+    def _kg_per_customer_rost(total_kg, step_share):
+        if step_share <= 0:
+            return 0
+        try:
+            return _kg_to_int(Decimal(total_kg) / Decimal(step_share))
+        except Exception:
+            logger.warning("Nepodařilo se spočítat využití roštu podle zákazníků.", exc_info=True)
+            return 0
+
     def _kg_per_rost(total_kg, step_count):
         if step_count <= 0:
             return 0
         try:
             return _kg_to_int(Decimal(total_kg) / Decimal(step_count))
         except Exception:
-            logger.warning("Nepodařilo se spočítat využití roštu podle zákazníků.", exc_info=True)
+            logger.warning("Nepodařilo se spočítat celkové využití roštu.", exc_info=True)
             return 0
 
     def _format_usage(value):
@@ -1125,13 +1192,13 @@ def _build_vyroba_zakaznici_vyuziti_context(year_value=None, today_value=None):
 
         week_total_kg = Decimal('0')
         for customer in customers:
-            customer_kg = Decimal('0') if week_elapsed_end is None else _sum_customer_kg_range(
+            customer_data = {'kg': Decimal('0'), 'step_share': Decimal('0')} if week_elapsed_end is None else _sum_customer_range(
                 customer,
                 in_year_start,
                 week_elapsed_end,
             )
-            week_total_kg += customer_kg
-            usage = _kg_per_rost(customer_kg, step_count)
+            week_total_kg += customer_data['kg']
+            usage = _kg_per_customer_rost(customer_data['kg'], customer_data['step_share'])
             customer_week_values[customer].append({
                 'value': usage,
                 'display': _format_usage(usage),
@@ -1148,12 +1215,12 @@ def _build_vyroba_zakaznici_vyuziti_context(year_value=None, today_value=None):
 
     customer_rows = []
     for customer in customers:
-        customer_year_kg = Decimal('0') if elapsed_end is None else _sum_customer_kg_range(
+        customer_year_data = {'kg': Decimal('0'), 'step_share': Decimal('0')} if elapsed_end is None else _sum_customer_range(
             customer,
             year_start,
             elapsed_end,
         )
-        total_usage = _kg_per_rost(customer_year_kg, year_step_count)
+        total_usage = _kg_per_customer_rost(customer_year_data['kg'], customer_year_data['step_share'])
         customer_rows.append({
             'customer': customer,
             'weeks': customer_week_values[customer],
