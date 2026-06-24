@@ -41,11 +41,12 @@ def resolve_customer_templates(*, zakaznik_zkratka, mode):
     raise ServiceValidationError(f"Neznámý mód tisku: {mode}")
 
 
-def build_context_for_bedna(bedna, generated_at, user_display_name):
+def build_context_for_bedna(bedna, generated_at, user_display_name, barcode_base_url=None):
     return {
         "bedna": bedna,
         "generated_at": generated_at,
         "user_last_name": user_display_name,
+        "barcode_base_url": barcode_base_url,
     }
 
 
@@ -78,10 +79,17 @@ def build_cards_pdf(*, bedny_qs, template_paths, filename, request=None, generat
             or request.user.get_username()
         )
 
+    barcode_base_url = request.build_absolute_uri("/") if request else None
+
     html_string = render_pages(
         bedny_qs=bedny_qs,
         template_paths=template_paths,
-        context_builder=lambda bedna: build_context_for_bedna(bedna, generated_at, user_display_name),
+        context_builder=lambda bedna: build_context_for_bedna(
+            bedna,
+            generated_at,
+            user_display_name,
+            barcode_base_url,
+        ),
     )
 
     base_url = request.build_absolute_uri("/") if request else None

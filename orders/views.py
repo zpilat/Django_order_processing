@@ -55,6 +55,12 @@ def home_view(request):
 
 
 @login_required
+def bedna_scan_view(request, cislo_bedny: int):
+    bedna = get_object_or_404(Bedna, cislo_bedny=cislo_bedny)
+    return redirect(bedna.get_admin_url())
+
+
+@login_required
 @permission_required('orders.add_sarze', raise_exception=True)
 @permission_required('orders.add_sarzekrok', raise_exception=True)
 @permission_required('orders.add_sarzekrokbedna', raise_exception=True)
