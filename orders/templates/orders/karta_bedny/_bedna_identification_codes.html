@@ -1,0 +1,16 @@
+{% load barcode_tags %}
+<style>
+    .bedna-code-box svg {
+        width: 100%;
+        height: 100%;
+        display: block;
+    }
+</style>
+<div style="display: flex; align-items: center; justify-content: center; gap: 3mm;">
+    <div class="bedna-code-box" style="width: 22mm; height: 22mm; line-height: 0;">
+        {% bedna_qr_svg bedna %}
+    </div>
+    <div class="bedna-code-box" style="width: 48mm; height: 15mm; line-height: 0;">
+        {% bedna_code128_svg bedna %}
+    </div>
+</div>
