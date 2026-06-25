@@ -118,16 +118,20 @@
     <section class="scan-hero">
         <div class="d-flex flex-column flex-sm-row justify-content-between gap-3">
             <div>
+                <div class="text-muted fw-semibold">Bedna</div>
                 <div class="scan-number">{{ bedna.cislo_bedny }}</div>
             </div>
             <div class="scan-hero-summary">
                 <div>
+                    <div class="text-muted fw-semibold text-center">Stav bedny</div>                    
                     <span class="scan-status">{{ bedna.get_stav_bedny_display }}</span>
                 </div>
                 <div>
+                    <div class="text-muted fw-semibold text-center">Rovnání</div>
                     <span class="scan-status">{{ bedna.get_rovnat_display }}</span>
                 </div>
                 <div>
+                    <div class="text-muted fw-semibold text-center">Tryskání</div>
                     <span class="scan-status">{{ bedna.get_tryskat_display }}</span>
                 </div>
             </div>                        
