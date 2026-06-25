@@ -64,9 +64,9 @@ def _code128_svg(value):
     )
     svg_bytes = image.render(
         writer_options={
-            "module_width": 0.28,
-            "module_height": 8.0,
-            "quiet_zone": 1.5,
+            "module_width": 0.7,
+            "module_height": 12.0,
+            "quiet_zone": 2.5,
             "font_size": 0,
             "text_distance": 0,
             "write_text": False,
