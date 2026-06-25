@@ -274,6 +274,29 @@ class BednaScanViewTests(ViewsTestBase):
 		self.b_eur_pr.refresh_from_db()
 		self.assertEqual(self.b_eur_pr.stav_bedny, StavBednyChoice.NAVEZENO)
 
+	def test_scan_mark_navezeno_redirects_mobile_to_scanner(self):
+		self.b_eur_pr.stav_bedny = StavBednyChoice.K_NAVEZENI
+		self.b_eur_pr.save(update_fields=["stav_bedny"])
+		permission = Permission.objects.get(codename="mark_bedna_navezeno")
+		self.user.user_permissions.add(permission)
+
+		response = self.client.post(
+			reverse("bedna_scan", args=[self.b_eur_pr.cislo_bedny]),
+			{"action": "mark_navezeno"},
+			HTTP_USER_AGENT=(
+				"Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) "
+				"AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
+			),
+		)
+
+		self.assertRedirects(
+			response,
+			reverse("bedna_skener"),
+			fetch_redirect_response=False,
+		)
+		self.b_eur_pr.refresh_from_db()
+		self.assertEqual(self.b_eur_pr.stav_bedny, StavBednyChoice.NAVEZENO)
+
 	def test_scan_mark_navezeno_requires_permission(self):
 		self.b_eur_pr.stav_bedny = StavBednyChoice.K_NAVEZENI
 		self.b_eur_pr.save(update_fields=["stav_bedny"])
@@ -286,6 +309,22 @@ class BednaScanViewTests(ViewsTestBase):
 		self.assertEqual(response.status_code, 403)
 		self.b_eur_pr.refresh_from_db()
 		self.assertEqual(self.b_eur_pr.stav_bedny, StavBednyChoice.K_NAVEZENI)
+
+	def test_bedna_skener_requires_login(self):
+		self.client.logout()
+
+		response = self.client.get(reverse("bedna_skener"))
+
+		self.assertEqual(response.status_code, 302)
+		self.assertIn("login", response.url)
+
+	def test_bedna_skener_renders_scanner_page(self):
+		response = self.client.get(reverse("bedna_skener"))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertTemplateUsed(response, "orders/bedna_skener.html")
+		self.assertContains(response, "Skener beden")
+		self.assertContains(response, "html5-qrcode")
 
 
 class DashboardBednyViewTests(ViewsTestBase):

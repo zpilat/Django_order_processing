@@ -1,0 +1,242 @@
+{% extends "orders/base.html" %}
+{% load static %}
+
+{% block title %}Skener beden{% endblock %}
+
+{% block content %}
+<style>
+    .scanner-page {
+        max-width: 760px;
+        margin: 0 auto;
+        padding: 0.75rem;
+    }
+    .scanner-panel {
+        border: 1px solid #d8dee4;
+        border-radius: 8px;
+        background: #fff;
+        padding: 1rem;
+    }
+    .scanner-title {
+        font-size: clamp(1.6rem, 7vw, 2.6rem);
+        font-weight: 800;
+        letter-spacing: 0;
+        margin: 0;
+    }
+    .scanner-reader {
+        width: 100%;
+        min-height: 280px;
+        border: 1px solid #d8dee4;
+        border-radius: 8px;
+        overflow: hidden;
+        background: #111827;
+    }
+    .scanner-reader video {
+        border-radius: 8px;
+    }
+    .scanner-status {
+        min-height: 2.5rem;
+    }
+    .scanner-action-button {
+        min-height: 3.1rem;
+        font-size: 1.05rem;
+        font-weight: 750;
+        border-radius: 8px;
+    }
+    @media (max-width: 575.98px) {
+        .scanner-page {
+            padding: 0.5rem 0;
+        }
+        .scanner-panel {
+            border-left: 0;
+            border-right: 0;
+            border-radius: 0;
+        }
+        .scanner-reader {
+            min-height: 240px;
+        }
+    }
+</style>
+
+<div class="scanner-page">
+    {% if messages %}
+        <div class="mb-3">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags|default:'info' }} mb-2" role="alert">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <section class="scanner-panel">
+        <div class="d-flex flex-column flex-sm-row justify-content-between gap-2 mb-3">
+            <div>
+                <p class="scanner-title">Skener beden</p>
+                <div class="text-muted">Načtěte QR kód z karty bedny.</div>
+            </div>
+        </div>
+
+        <div id="scanner-status" class="scanner-status alert alert-info mb-3">
+            Připravuji kameru...
+        </div>
+
+        <div id="reader" class="scanner-reader mb-3"></div>
+
+        <div class="d-grid gap-2 mb-3">
+            <button id="scanner-start" type="button" class="btn btn-primary scanner-action-button">
+                Spustit skener
+            </button>
+            <button id="scanner-stop" type="button" class="btn btn-outline-secondary scanner-action-button" disabled>
+                Zastavit skener
+            </button>
+        </div>
+
+        <form id="manual-scan-form" class="mt-3">
+            <label for="manual-scan-input" class="form-label fw-semibold">Ruční zadání / čárová čtečka</label>
+            <div class="input-group input-group-lg">
+                <input id="manual-scan-input"
+                       type="text"
+                       inputmode="numeric"
+                       autocomplete="off"
+                       class="form-control"
+                       placeholder="Číslo bedny nebo URL">
+                <button class="btn btn-success" type="submit">Otevřít</button>
+            </div>
+        </form>
+    </section>
+</div>
+{% endblock %}
+
+{% block script %}
+{{ block.super }}
+<script src="{% static 'orders/js/html5-qrcode.min.js' %}"></script>
+<script>
+    (function () {
+        const scanUrlTemplate = "{% url 'bedna_scan' 0 %}";
+        const readerId = "reader";
+        const statusEl = document.getElementById("scanner-status");
+        const startButton = document.getElementById("scanner-start");
+        const stopButton = document.getElementById("scanner-stop");
+        const manualForm = document.getElementById("manual-scan-form");
+        const manualInput = document.getElementById("manual-scan-input");
+        let html5QrCode = null;
+        let isRunning = false;
+        let lastValue = "";
+        let lastValueAt = 0;
+
+        function setStatus(message, type) {
+            statusEl.className = "scanner-status alert alert-" + (type || "info") + " mb-3";
+            statusEl.textContent = message;
+        }
+
+        function scanUrlForNumber(numberText) {
+            return scanUrlTemplate.replace("/0/", "/" + encodeURIComponent(numberText) + "/");
+        }
+
+        function resolveScanTarget(rawValue) {
+            const value = String(rawValue || "").trim();
+            if (!value) {
+                return null;
+            }
+
+            const plainNumber = value.match(/^\d+$/);
+            if (plainNumber) {
+                return scanUrlForNumber(value);
+            }
+
+            try {
+                const url = new URL(value, window.location.origin);
+                const match = url.pathname.match(/\/bedny\/scan\/(\d+)\/?$/);
+                if (match) {
+                    return scanUrlForNumber(match[1]);
+                }
+            } catch (error) {
+                return null;
+            }
+
+            return null;
+        }
+
+        function openScanTarget(rawValue) {
+            const now = Date.now();
+            if (rawValue === lastValue && now - lastValueAt < 2000) {
+                return;
+            }
+            lastValue = rawValue;
+            lastValueAt = now;
+
+            const target = resolveScanTarget(rawValue);
+            if (!target) {
+                setStatus("Načtený kód není číslo bedny ani platná URL bedny.", "warning");
+                return;
+            }
+
+            setStatus("Kód načten, otevírám bednu...", "success");
+            window.location.assign(target);
+        }
+
+        async function stopScanner() {
+            if (!html5QrCode || !isRunning) {
+                return;
+            }
+            await html5QrCode.stop();
+            isRunning = false;
+            startButton.disabled = false;
+            stopButton.disabled = true;
+            setStatus("Skener je zastavený.", "secondary");
+        }
+
+        async function startScanner() {
+            if (!window.Html5Qrcode) {
+                setStatus("Knihovna pro skenování se nenačetla. Zkontrolujte připojení nebo použijte ruční zadání.", "danger");
+                return;
+            }
+            if (isRunning) {
+                return;
+            }
+
+            html5QrCode = html5QrCode || new Html5Qrcode(readerId);
+            setStatus("Spouštím kameru...", "info");
+
+            try {
+                await html5QrCode.start(
+                    { facingMode: "environment" },
+                    {
+                        fps: 10,
+                        qrbox: function (viewfinderWidth, viewfinderHeight) {
+                            const size = Math.floor(Math.min(viewfinderWidth, viewfinderHeight) * 0.72);
+                            return { width: size, height: size };
+                        },
+                    },
+                    function (decodedText) {
+                        openScanTarget(decodedText);
+                    }
+                );
+                isRunning = true;
+                startButton.disabled = true;
+                stopButton.disabled = false;
+                setStatus("Skener je aktivní.", "success");
+            } catch (error) {
+                setStatus("Kameru se nepodařilo spustit. Povolte kameru v prohlížeči nebo použijte ruční zadání.", "danger");
+            }
+        }
+
+        startButton.addEventListener("click", startScanner);
+        stopButton.addEventListener("click", function () {
+            stopScanner().catch(function () {
+                setStatus("Skener se nepodařilo zastavit.", "warning");
+            });
+        });
+        manualForm.addEventListener("submit", function (event) {
+            event.preventDefault();
+            openScanTarget(manualInput.value);
+        });
+
+        if (window.isSecureContext || window.location.hostname === "localhost") {
+            startScanner();
+        } else {
+            setStatus("Pro skenování kamerou je potřeba HTTPS. Použijte ruční zadání nebo otevřete aplikaci přes HTTPS.", "warning");
+        }
+    })();
+</script>
+{% endblock %}

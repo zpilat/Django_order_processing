@@ -10,48 +10,50 @@
     <div class="container-fluid d-flex flex-wrap align-items-center justify-content-between">
         <div class="d-flex align-items-center gap-2">
             <!-- Dropdown: Výběr modulu -->
-            <div class="btn-group btn-group-sm dropdown my-1 me-2">
-                <button class="btn dropdown-toggle"
-                        style="background-color: var(--navbar-button-bg); color: var(--navbar-button-fg); border-color: var(--navbar-button-bg);"
-                        type="button"
-                        id="dropdownMenuButton1"
-                        data-bs-toggle="dropdown"
-                        aria-expanded="false">
-                    PŘEHLEDY
-                </button>
-                <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
-                    <li>
-                        <a class="dropdown-item small{% if db_table == 'dashboard_bedny' %} active{% endif %}"
-                           {% if db_table == 'dashboard_bedny' %}aria-current="page"{% endif %}
-                           href="{% url 'dashboard_bedny' %}">Přehled beden</a>
-                    </li>
-                    <li>
-                        <a class="dropdown-item small{% if db_table == 'dashboard_kamiony' %} active{% endif %}"
-                           {% if db_table == 'dashboard_kamiony' %}aria-current="page"{% endif %}
-                           href="{% url 'dashboard_kamiony' %}">Přehled kamionů</a>
-                    </li>
-                    <li>
-                        <a class="dropdown-item small{% if db_table == 'bedny_k_navezeni' %} active{% endif %}"
-                           {% if db_table == 'bedny_k_navezeni' %}aria-current="page"{% endif %}
-                           href="{% url 'dashboard_bedny_k_navezeni' %}">Přehled beden k navezení</a>
-                    </li>
-                    <li>
-                        <a class="dropdown-item small{% if db_table == 'dashboard_vyroba' %} active{% endif %}"
-                           {% if db_table == 'dashboard_vyroba' %}aria-current="page"{% endif %}
-                           href="{% url 'dashboard_vyroba' %}">Přehled výroby</a>
-                    </li>
-                    <li>
-                        <a class="dropdown-item small{% if db_table == 'dashboard_vyroba_historie' %} active{% endif %}"
-                           {% if db_table == 'dashboard_vyroba_historie' %}aria-current="page"{% endif %}
-                           href="{% url 'dashboard_vyroba_historie' %}">Historie výroby</a>
-                    </li>
-                    <li>
-                        <a class="dropdown-item small{% if db_table == 'dashboard_vyroba_zakaznici_vyuziti' %} active{% endif %}"
-                           {% if db_table == 'dashboard_vyroba_zakaznici_vyuziti' %}aria-current="page"{% endif %}
-                           href="{% url 'dashboard_vyroba_zakaznici_vyuziti' %}">Využití roštů</a>
-                    </li>
-                </ul>
-            </div>
+            {% if user.is_authenticated %}            
+                <div class="btn-group btn-group-sm dropdown my-1 me-2">
+                    <button class="btn dropdown-toggle"
+                            style="background-color: var(--navbar-button-bg); color: var(--navbar-button-fg); border-color: var(--navbar-button-bg);"
+                            type="button"
+                            id="dropdownMenuButton1"
+                            data-bs-toggle="dropdown"
+                            aria-expanded="false">
+                        PŘEHLEDY
+                    </button>
+                    <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
+                        <li>
+                            <a class="dropdown-item small{% if db_table == 'dashboard_bedny' %} active{% endif %}"
+                            {% if db_table == 'dashboard_bedny' %}aria-current="page"{% endif %}
+                            href="{% url 'dashboard_bedny' %}">Přehled beden</a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item small{% if db_table == 'dashboard_kamiony' %} active{% endif %}"
+                            {% if db_table == 'dashboard_kamiony' %}aria-current="page"{% endif %}
+                            href="{% url 'dashboard_kamiony' %}">Přehled kamionů</a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item small{% if db_table == 'bedny_k_navezeni' %} active{% endif %}"
+                            {% if db_table == 'bedny_k_navezeni' %}aria-current="page"{% endif %}
+                            href="{% url 'dashboard_bedny_k_navezeni' %}">Přehled beden k navezení</a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item small{% if db_table == 'dashboard_vyroba' %} active{% endif %}"
+                            {% if db_table == 'dashboard_vyroba' %}aria-current="page"{% endif %}
+                            href="{% url 'dashboard_vyroba' %}">Přehled výroby</a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item small{% if db_table == 'dashboard_vyroba_historie' %} active{% endif %}"
+                            {% if db_table == 'dashboard_vyroba_historie' %}aria-current="page"{% endif %}
+                            href="{% url 'dashboard_vyroba_historie' %}">Historie výroby</a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item small{% if db_table == 'dashboard_vyroba_zakaznici_vyuziti' %} active{% endif %}"
+                            {% if db_table == 'dashboard_vyroba_zakaznici_vyuziti' %}aria-current="page"{% endif %}
+                            href="{% url 'dashboard_vyroba_zakaznici_vyuziti' %}">Využití roštů</a>
+                        </li>
+                    </ul>
+                </div>
+            {% endif %}
             <!-- Dropdown: Rychlé založení šarže -->
             {% if perms.orders.add_sarze and perms.orders.change_sarze and perms.orders.add_sarzekrok and perms.orders.change_sarzekrok and perms.orders.view_sarzekrok and perms.orders.add_sarzekrokbedna and perms.orders.change_sarzekrokbedna and perms.orders.view_sarzekrokbedna or perms.orders.view_sarzekrok and perms.orders.view_sarzekrokbedna %}
                 <div class="btn-group btn-group-sm dropdown my-1">
@@ -80,6 +82,11 @@
                         {% endif %}
                     </ul>
                 </div>
+            {% endif %}
+            {% if user.is_authenticated %}
+                <a class="btn btn-sm mx-2"
+                   style="background-color: var(--navbar-button-bg); color: var(--navbar-button-fg); border-color: var(--navbar-button-bg);"
+                   href="{% url 'bedna_skener' %}">SKENOVÁNÍ BEDEN</a>
             {% endif %}
             {% if is_debug %}
                 <span class="badge rounded-pill"

@@ -20,6 +20,7 @@ from django.http import HttpResponseBadRequest, HttpResponse
 from django.conf import settings
 from django.utils.text import slugify
 from decimal import Decimal, ROUND_HALF_UP
+from django_user_agents.utils import get_user_agent
 
 from .utils import get_verbose_name_for_column, utilita_tisk_dl_a_proforma_faktury
 from .models import (
@@ -211,6 +212,9 @@ def bedna_scan_view(request, cislo_bedny: int):
         logger.info(
             f"Uživatel {request.user} označil přes QR scan bednu {cislo_bedny} jako NAVEZENO."
         )
+        user_agent = get_user_agent(request)
+        if user_agent.is_mobile or user_agent.is_tablet:
+            return redirect('bedna_skener')
         return redirect('bedna_scan', cislo_bedny=cislo_bedny)
 
     bedna = get_object_or_404(bedna_qs, cislo_bedny=cislo_bedny)
@@ -225,6 +229,17 @@ def bedna_scan_view(request, cislo_bedny: int):
         'db_table': 'bedna_scan',
     }
     return render(request, 'orders/bedna_scan_detail.html', context)
+
+
+@login_required
+def bedna_skener_view(request):
+    return render(
+        request,
+        'orders/bedna_skener.html',
+        {
+            'db_table': 'bedna_skener',
+        },
+    )
 
 
 @login_required
