@@ -1,0 +1,189 @@
+{% extends "orders/base.html" %}
+
+{% block title %}Bedna {{ bedna.cislo_bedny }}{% endblock %}
+
+{% block content %}
+<style>
+    .scan-page {
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 0.75rem;
+    }
+    .scan-hero {
+        border: 1px solid #d8dee4;
+        border-radius: 8px;
+        padding: 1rem;
+        background: #fff;
+    }
+    .scan-number {
+        font-size: clamp(2.4rem, 13vw, 5rem);
+        line-height: 1;
+        font-weight: 800;
+        letter-spacing: 0;
+    }
+    .scan-status {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 2.25rem;
+        padding: 0.35rem 0.75rem;
+        border-radius: 6px;
+        background: #214290;
+        color: #fff;
+        font-weight: 700;
+        font-size: 1rem;
+    }
+    .scan-hero-summary {
+        display: grid;
+        grid-template-columns: repeat(3, max-content);
+        gap: 0.75rem;
+        justify-content: end;
+        text-align: right;
+    }
+    .scan-section {
+        border: 1px solid #d8dee4;
+        border-radius: 8px;
+        background: #fff;
+        margin-top: 0.75rem;
+        overflow: hidden;
+    }
+    .scan-section h2 {
+        font-size: 1rem;
+        margin: 0;
+        padding: 0.75rem 1rem;
+        background: #f3f5f7;
+        border-bottom: 1px solid #d8dee4;
+    }
+    .scan-row {
+        display: grid;
+        grid-template-columns: minmax(7.5rem, 38%) 1fr;
+        gap: 0.75rem;
+        padding: 0.65rem 1rem;
+        border-bottom: 1px solid #edf0f2;
+    }
+    .scan-row:last-child {
+        border-bottom: 0;
+    }
+    .scan-label {
+        color: #57606a;
+        font-size: 0.92rem;
+    }
+    .scan-value {
+        font-weight: 650;
+        overflow-wrap: anywhere;
+    }
+    .scan-actions {
+        display: grid;
+        gap: 0.75rem;
+        margin-top: 0.75rem;
+    }
+    .alert-error {
+        --bs-alert-color: var(--bs-danger-text-emphasis);
+        --bs-alert-bg: var(--bs-danger-bg-subtle);
+        --bs-alert-border-color: var(--bs-danger-border-subtle);
+    }
+    .scan-action-button {
+        min-height: 3.25rem;
+        font-size: 1.1rem;
+        font-weight: 750;
+        border-radius: 8px;
+    }
+    @media (max-width: 575.98px) {
+        .scan-page {
+            padding: 0.5rem 0;
+        }
+        .scan-row {
+            grid-template-columns: 1fr;
+            gap: 0.15rem;
+        }
+        .scan-hero-summary {
+            grid-template-columns: 1fr;
+            justify-content: stretch;
+            text-align: left;
+        }
+    }
+</style>
+
+<div class="scan-page">
+    {% if messages %}
+        <div class="mb-3">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags|default:'info' }} mb-2" role="alert">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <section class="scan-hero">
+        <div class="d-flex flex-column flex-sm-row justify-content-between gap-3">
+            <div>
+                <div class="scan-number">{{ bedna.cislo_bedny }}</div>
+            </div>
+            <div class="scan-hero-summary">
+                <div>
+                    <span class="scan-status">{{ bedna.get_stav_bedny_display }}</span>
+                </div>
+                <div>
+                    <span class="scan-status">{{ bedna.get_rovnat_display }}</span>
+                </div>
+                <div>
+                    <span class="scan-status">{{ bedna.get_tryskat_display }}</span>
+                </div>
+            </div>                        
+        </div>
+
+        <div class="row g-2 mt-3">
+            <div class="col-12 col-sm-6">
+                <div class="text-muted small">Zákazník</div>
+                <div class="fw-bold">{{ bedna.zakazka.kamion_prijem.zakaznik|default:"-" }}</div>
+            </div>
+            <div class="col-12 col-sm-6 text-sm-end">
+                <div class="text-muted small">Zakázka / rozměr</div>
+                <div class="fw-bold">{{ bedna.zakazka.artikl }} / {{ bedna.zakazka.prumer }} x {{ bedna.zakazka.delka }}</div>
+            </div>
+        </div>
+    </section>
+
+    <div class="scan-actions">
+        {% if can_mark_navezeno %}
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="mark_navezeno">
+                <button type="submit" class="btn btn-success w-100 scan-action-button">
+                    Označit navezeno
+                </button>
+            </form>
+        {% elif has_mark_navezeno_permission %}
+            <div class="alert alert-secondary mb-0">
+                Akce „Označit navezeno“ není pro aktuální stav bedny dostupná.
+            </div>
+        {% endif %}
+
+        {% if request.user.is_staff %}
+            <a class="btn btn-outline-secondary w-100 scan-action-button d-flex align-items-center justify-content-center"
+               href="{{ bedna.get_admin_url }}">
+                Otevřít v administraci
+            </a>
+        {% endif %}
+    </div>
+
+    {% if bedna.pozastaveno %}
+        <div class="alert alert-warning mt-3 mb-0">
+            Bedna je pozastavená.
+        </div>
+    {% endif %}
+
+    {% for title, rows in sections %}
+        <section class="scan-section">
+            <h2>{{ title }}</h2>
+            {% for label, value in rows %}
+                <div class="scan-row">
+                    <div class="scan-label">{{ label }}</div>
+                    <div class="scan-value">{{ value }}</div>
+                </div>
+            {% endfor %}
+        </section>
+    {% endfor %}
+</div>
+{% endblock %}

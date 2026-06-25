@@ -232,6 +232,62 @@ class AuthenticationRoutingTests(TestCase):
 		self.assertRedirects(response, reverse("admin:login"), fetch_redirect_response=False)
 
 
+class BednaScanViewTests(ViewsTestBase):
+	def test_scan_detail_shows_bedna_information_without_action_permission(self):
+		self.b_eur_pr.stav_bedny = StavBednyChoice.K_NAVEZENI
+		self.b_eur_pr.save(update_fields=["stav_bedny"])
+
+		response = self.client.get(reverse("bedna_scan", args=[self.b_eur_pr.cislo_bedny]))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "Bedna")
+		self.assertContains(response, str(self.b_eur_pr.cislo_bedny))
+		self.assertNotContains(response, "Označit navezeno")
+
+	def test_scan_detail_shows_mark_navezeno_action_with_permission(self):
+		self.b_eur_pr.stav_bedny = StavBednyChoice.K_NAVEZENI
+		self.b_eur_pr.save(update_fields=["stav_bedny"])
+		permission = Permission.objects.get(codename="mark_bedna_navezeno")
+		self.user.user_permissions.add(permission)
+
+		response = self.client.get(reverse("bedna_scan", args=[self.b_eur_pr.cislo_bedny]))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "Označit navezeno")
+
+	def test_scan_mark_navezeno_updates_state_with_permission(self):
+		self.b_eur_pr.stav_bedny = StavBednyChoice.K_NAVEZENI
+		self.b_eur_pr.save(update_fields=["stav_bedny"])
+		permission = Permission.objects.get(codename="mark_bedna_navezeno")
+		self.user.user_permissions.add(permission)
+
+		response = self.client.post(
+			reverse("bedna_scan", args=[self.b_eur_pr.cislo_bedny]),
+			{"action": "mark_navezeno"},
+		)
+
+		self.assertRedirects(
+			response,
+			reverse("bedna_scan", args=[self.b_eur_pr.cislo_bedny]),
+			fetch_redirect_response=False,
+		)
+		self.b_eur_pr.refresh_from_db()
+		self.assertEqual(self.b_eur_pr.stav_bedny, StavBednyChoice.NAVEZENO)
+
+	def test_scan_mark_navezeno_requires_permission(self):
+		self.b_eur_pr.stav_bedny = StavBednyChoice.K_NAVEZENI
+		self.b_eur_pr.save(update_fields=["stav_bedny"])
+
+		response = self.client.post(
+			reverse("bedna_scan", args=[self.b_eur_pr.cislo_bedny]),
+			{"action": "mark_navezeno"},
+		)
+
+		self.assertEqual(response.status_code, 403)
+		self.b_eur_pr.refresh_from_db()
+		self.assertEqual(self.b_eur_pr.stav_bedny, StavBednyChoice.K_NAVEZENI)
+
+
 class DashboardBednyViewTests(ViewsTestBase):
 	def test_requires_login(self):
 		self.client.logout()
