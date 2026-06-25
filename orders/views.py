@@ -74,7 +74,7 @@ def _bedna_scan_can_mark_navezeno(user, bedna):
     return (
         has_permission
         and not bedna.pozastaveno
-        and bedna.stav_bedny in [StavBednyChoice.PRIJATO, StavBednyChoice.K_NAVEZENI]
+        and bedna.stav_bedny in [StavBednyChoice.K_NAVEZENI]
     )
 
 
@@ -201,8 +201,8 @@ def bedna_scan_view(request, cislo_bedny: int):
             if bedna.pozastaveno:
                 messages.error(request, f'Bedna {bedna.cislo_bedny} je pozastavená a nelze ji označit jako navezenou.')
                 return redirect('bedna_scan', cislo_bedny=bedna.cislo_bedny)
-            if bedna.stav_bedny not in [StavBednyChoice.PRIJATO, StavBednyChoice.K_NAVEZENI]:
-                messages.error(request, f'Bedna {bedna.cislo_bedny} není ve stavu Přijato nebo K navezení.')
+            if bedna.stav_bedny not in [StavBednyChoice.K_NAVEZENI]:
+                messages.error(request, f'Bedna {bedna.cislo_bedny} není ve stavu K navezení.')
                 return redirect('bedna_scan', cislo_bedny=bedna.cislo_bedny)
 
             bedna.stav_bedny = StavBednyChoice.NAVEZENO
