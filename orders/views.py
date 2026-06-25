@@ -8,6 +8,7 @@ from django.views.generic.detail import DetailView
 from django.urls import reverse, reverse_lazy
 from django.db.models import Q, Max, Sum, Count, F, Exists, OuterRef, Subquery, DecimalField, ExpressionWrapper, Value
 from django.db.models.functions import Coalesce
+from django.core.exceptions import PermissionDenied
 from django.utils.translation import gettext_lazy as _
 import django.utils.timezone as timezone
 from datetime import timedelta, time, date
@@ -54,10 +55,176 @@ def home_view(request):
     return redirect('dashboard_bedny')
 
 
+def _yes_no(value):
+    return 'Ano' if value else 'Ne'
+
+
+def _display_value(value):
+    if value is None or value == '':
+        return '-'
+    return value
+
+
+def _bedna_scan_can_mark_navezeno(user, bedna):
+    has_permission = (
+        user.has_perm('orders.mark_bedna_navezeno')
+        or user.has_perm('orders.change_bedna')
+    )
+    return (
+        has_permission
+        and not bedna.pozastaveno
+        and bedna.stav_bedny in [StavBednyChoice.PRIJATO, StavBednyChoice.K_NAVEZENI]
+    )
+
+
+def _bedna_scan_sections(bedna):
+    zakazka = bedna.zakazka
+    kamion_prijem = zakazka.kamion_prijem if zakazka else None
+    zakaznik = kamion_prijem.zakaznik if kamion_prijem else None
+
+    sections = [
+        (
+            'Základní údaje',
+            [
+                ('Číslo bedny', bedna.cislo_bedny),
+                ('Č. b. zákazníka', bedna.behalter_nr),
+                ('Zákazník', zakaznik),
+                ('Zakázka', zakazka),
+                ('Artikl', zakazka.artikl if zakazka else None),
+                ('Rozměr', f'{zakazka.prumer} x {zakazka.delka}' if zakazka else None),
+                ('Zkrácený popis', zakazka.zkraceny_popis if zakazka else None),
+                ('Materiál', bedna.material),
+                ('Šarže mat. / Charge', bedna.sarze),
+                ('Poznámka', bedna.poznamka),
+            ],
+        ),
+        (
+            'Hmotnost a množství',
+            [
+                ('Netto kg', bedna.hmotnost),
+                ('Tára kg', bedna.tara),
+                ('Brutto kg', bedna.hmotnost_brutto),
+                ('Množství ks', bedna.mnozstvi),
+            ],
+        ),
+        (
+            'Stavy bedny',
+            [
+                ('Stav bedny', bedna.get_stav_bedny_display()),
+                ('Tryskání', bedna.get_tryskat_display()),
+                ('Rovnání', bedna.get_rovnat_display()),
+                ('Zinkování', bedna.get_zinkovat_display()),
+                ('Pozastaveno', _yes_no(bedna.pozastaveno)),
+                ('Fakturovat', _yes_no(bedna.fakturovat)),
+                ('Odfosfatovat', _yes_no(bedna.odfosfatovat)),
+                ('Postup výroby', f'{bedna.postup_vyroby} %'),
+            ],
+        ),
+        (
+            'K navezení',
+            [
+                ('Pozice', bedna.pozice),
+            ],
+        ),
+        (
+            'Zakázka a předpis',
+            [
+                ('Kamion příjem', kamion_prijem),
+                ('Datum příjmu', kamion_prijem.datum if kamion_prijem else None),
+                ('Předpis', zakazka.predpis if zakazka else None),
+                ('Typ hlavy', zakazka.typ_hlavy if zakazka else None),
+                ('Celozávit', _yes_no(zakazka.celozavit) if zakazka else None),
+                ('Priorita', zakazka.get_priorita_display() if zakazka else None),
+                ('Skupina TZ', bedna.fake_skupina_TZ),
+                ('Popis', zakazka.popis if zakazka else None),
+            ],
+        ),
+        (
+            'Speciální informace',
+            [
+                ('Sonder / Zusatzinfo', bedna.dodatecne_info),
+                ('Lief.', bedna.dodavatel_materialu),
+                ('FA / Bestell-Nr.', bedna.vyrobni_zakazka),
+            ],
+        ),
+    ]
+
+    if bedna.stav_bedny in STAV_BEDNY_SKLADEM:
+        sections.append(
+            (
+                'Prodejní cena',
+                [
+                    ('Cena kalení EUR/kg', bedna.cena_za_kg),
+                    ('Cena kalení EUR/bedna', bedna.cena_za_bednu),
+                    ('Cena rovnání EUR/kg', bedna.cena_rovnani_za_kg),
+                    ('Cena rovnání EUR/bedna', bedna.cena_rovnani_za_bednu),
+                    ('Cena tryskání EUR/kg', bedna.cena_tryskani_za_kg),
+                    ('Cena tryskání EUR/bedna', bedna.cena_tryskani_za_bednu),
+                ],
+            )
+        )
+
+    return [
+        (
+            title,
+            [(label, _display_value(value)) for label, value in rows],
+        )
+        for title, rows in sections
+    ]
+
+
 @login_required
 def bedna_scan_view(request, cislo_bedny: int):
-    bedna = get_object_or_404(Bedna, cislo_bedny=cislo_bedny)
-    return redirect(bedna.get_admin_url())
+    bedna_qs = Bedna.objects.select_related(
+        'zakazka',
+        'zakazka__kamion_prijem',
+        'zakazka__kamion_prijem__zakaznik',
+        'zakazka__predpis',
+        'zakazka__typ_hlavy',
+        'pozice',
+    )
+
+    if request.method == 'POST':
+        if request.POST.get('action') != 'mark_navezeno':
+            return HttpResponseBadRequest('Neplatná akce.')
+        with transaction.atomic():
+            bedna = get_object_or_404(
+                bedna_qs.select_for_update(),
+                cislo_bedny=cislo_bedny,
+            )
+            if not (
+                request.user.has_perm('orders.mark_bedna_navezeno')
+                or request.user.has_perm('orders.change_bedna')
+            ):
+                raise PermissionDenied
+            if bedna.pozastaveno:
+                messages.error(request, f'Bedna {bedna.cislo_bedny} je pozastavená a nelze ji označit jako navezenou.')
+                return redirect('bedna_scan', cislo_bedny=bedna.cislo_bedny)
+            if bedna.stav_bedny not in [StavBednyChoice.PRIJATO, StavBednyChoice.K_NAVEZENI]:
+                messages.error(request, f'Bedna {bedna.cislo_bedny} není ve stavu Přijato nebo K navezení.')
+                return redirect('bedna_scan', cislo_bedny=bedna.cislo_bedny)
+
+            bedna.stav_bedny = StavBednyChoice.NAVEZENO
+            bedna.save(update_fields=['stav_bedny'])
+
+        messages.success(request, f'Bedna {cislo_bedny} byla označena jako navezená.')
+        logger.info(
+            f"Uživatel {request.user} označil přes QR scan bednu {cislo_bedny} jako NAVEZENO."
+        )
+        return redirect('bedna_scan', cislo_bedny=cislo_bedny)
+
+    bedna = get_object_or_404(bedna_qs, cislo_bedny=cislo_bedny)
+    context = {
+        'bedna': bedna,
+        'sections': _bedna_scan_sections(bedna),
+        'can_mark_navezeno': _bedna_scan_can_mark_navezeno(request.user, bedna),
+        'has_mark_navezeno_permission': (
+            request.user.has_perm('orders.mark_bedna_navezeno')
+            or request.user.has_perm('orders.change_bedna')
+        ),
+        'db_table': 'bedna_scan',
+    }
+    return render(request, 'orders/bedna_scan_detail.html', context)
 
 
 @login_required
