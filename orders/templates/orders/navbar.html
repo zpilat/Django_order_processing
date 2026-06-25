@@ -1,3 +1,59 @@
+<style>
+    .app-navbar-inner,
+    .app-navbar-group,
+    .app-navbar-user {
+        min-width: 0;
+    }
+    .app-navbar-group,
+    .app-navbar-user {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .app-navbar-button {
+        white-space: normal;
+        overflow-wrap: anywhere;
+        max-width: 100%;
+    }
+    .app-navbar-group .btn-group > .app-navbar-button {
+        width: 100%;
+    }
+    .app-navbar-user form {
+        margin: 0;
+    }
+    .app-navbar-user-name {
+        min-width: 0;
+        max-width: 18rem;
+    }
+    @media (max-width: 767.98px) {
+        .app-navbar-inner {
+            justify-content: flex-start !important;
+            gap: 0.75rem;
+        }
+        .app-navbar-group,
+        .app-navbar-user {
+            width: 100%;
+        }
+        .app-navbar-group > *,
+        .app-navbar-user > * {
+            flex: 1 1 auto;
+        }
+        .app-navbar-user-name {
+            flex-basis: 100%;
+            max-width: none;
+            text-align: left !important;
+        }
+        .app-navbar-user-name p {
+            text-align: left !important;
+        }
+        .app-navbar-user form,
+        .app-navbar-user form .app-navbar-button {
+            width: 100%;
+        }
+    }
+</style>
+
 <nav class="navbar navbar-expand-lg py-2 my-1 rounded"
      style="
          --navbar-bg: {% if is_debug %}#7a001f{% else %}#214290{% endif %};
@@ -7,12 +63,12 @@
          background-color: var(--navbar-bg);
          color: var(--navbar-fg);
      ">
-    <div class="container-fluid d-flex flex-wrap align-items-center justify-content-between">
-        <div class="d-flex align-items-center gap-2">
+    <div class="container-fluid d-flex flex-wrap align-items-center justify-content-between app-navbar-inner">
+        <div class="app-navbar-group">
             <!-- Dropdown: Výběr modulu -->
             {% if user.is_authenticated %}            
-                <div class="btn-group btn-group-sm dropdown my-1 me-2">
-                    <button class="btn dropdown-toggle"
+                <div class="btn-group btn-group-sm dropdown my-1">
+                    <button class="btn dropdown-toggle app-navbar-button"
                             style="background-color: var(--navbar-button-bg); color: var(--navbar-button-fg); border-color: var(--navbar-button-bg);"
                             type="button"
                             id="dropdownMenuButton1"
@@ -57,7 +113,7 @@
             <!-- Dropdown: Rychlé založení šarže -->
             {% if perms.orders.add_sarze and perms.orders.change_sarze and perms.orders.add_sarzekrok and perms.orders.change_sarzekrok and perms.orders.view_sarzekrok and perms.orders.add_sarzekrokbedna and perms.orders.change_sarzekrokbedna and perms.orders.view_sarzekrokbedna or perms.orders.view_sarzekrok and perms.orders.view_sarzekrokbedna %}
                 <div class="btn-group btn-group-sm dropdown my-1">
-                    <button class="btn dropdown-toggle"
+                    <button class="btn dropdown-toggle app-navbar-button"
                             style="background-color: var(--navbar-button-bg); color: var(--navbar-button-fg); border-color: var(--navbar-button-bg);"
                             type="button"
                             id="rychleZalozeniSarzeDropdown"
@@ -84,7 +140,7 @@
                 </div>
             {% endif %}
             {% if user.is_authenticated %}
-                <a class="btn btn-sm mx-2"
+                <a class="btn btn-sm app-navbar-button"
                    style="background-color: var(--navbar-button-bg); color: var(--navbar-button-fg); border-color: var(--navbar-button-bg);"
                    href="{% url 'bedna_skener' %}">SKENOVÁNÍ BEDEN</a>
             {% endif %}
@@ -96,25 +152,25 @@
             {% endif %}
         </div>
         <!-- Uživatelská sekce -->
-        <div class="d-flex align-items-center gap-2">
+        <div class="app-navbar-user">
             {% if user.is_authenticated %}
-                <div class="text-end me-2">
+                <div class="text-end app-navbar-user-name">
                     <p class="h6 small mb-0" style="color: var(--navbar-fg);">Přihlášený uživatel:</p>
                     <p class="h6 small text-center mb-0" style="color: var(--navbar-fg);">{{ user.first_name }} {{ user.last_name }}</p>
                 </div>
-                <a class="btn btn-light btn-sm me-2" style="background-color: var(--navbar-button-bg); color: var(--navbar-button-fg); border-color: var(--navbar-button-bg);" href="{% url 'password_change' %}">Změnit heslo</a>
+                <a class="btn btn-light btn-sm app-navbar-button" style="background-color: var(--navbar-button-bg); color: var(--navbar-button-fg); border-color: var(--navbar-button-bg);" href="{% url 'password_change' %}">Změnit heslo</a>
                 <form id="logout-form" method="post" action="{% url 'logout' %}" class="d-inline">
                     {% csrf_token %}
                     <input type="hidden"
                            name="next"
                            value="{% if user.is_staff %}{% url 'admin:login' %}{% else %}{% url 'login' %}{% endif %}">
-                    <button type="submit" class="btn btn-sm"
+                    <button type="submit" class="btn btn-sm app-navbar-button"
                             style="background-color: var(--navbar-button-bg); color: var(--navbar-button-fg); border-color: var(--navbar-button-bg);">
                         Odhlásit se
                     </button>
                 </form>
             {% else %}
-                <a class="btn btn-sm"
+                <a class="btn btn-sm app-navbar-button"
                    style="background-color: var(--navbar-button-bg); color: var(--navbar-button-fg); border-color: var(--navbar-button-bg);"
                    href="{% url 'login' %}">Přihlásit se</a>
             {% endif %}
