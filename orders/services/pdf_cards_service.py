@@ -41,7 +41,12 @@ def resolve_customer_templates(*, zakaznik_zkratka, mode):
     raise ServiceValidationError(f"Neznámý mód tisku: {mode}")
 
 
-def build_context_for_bedna(bedna, generated_at, user_display_name):
+def build_context_for_bedna(
+    bedna,
+    generated_at,
+    user_display_name,
+    # barcode_base_url=None,
+):
     return {
         "bedna": bedna,
         "generated_at": generated_at,
