@@ -47,6 +47,10 @@
         .app-navbar-user-name p {
             text-align: left !important;
         }
+        .app-navbar-user-label,
+        .app-navbar-password-change {
+            display: none !important;
+        }
         .app-navbar-user form,
         .app-navbar-user form .app-navbar-button {
             width: 100%;
@@ -119,7 +123,7 @@
                             id="rychleZalozeniSarzeDropdown"
                             data-bs-toggle="dropdown"
                             aria-expanded="false">
-                        RYCHLÉ ZALOŽENÍ ŠARŽE
+                        ZALOŽENÍ ŠARŽE
                     </button>
                     <ul class="dropdown-menu" aria-labelledby="rychleZalozeniSarzeDropdown">
                         {% if perms.orders.add_sarze and perms.orders.change_sarze and perms.orders.add_sarzekrok and perms.orders.change_sarzekrok and perms.orders.view_sarzekrok and perms.orders.add_sarzekrokbedna and perms.orders.change_sarzekrokbedna and perms.orders.view_sarzekrokbedna %}
@@ -155,10 +159,10 @@
         <div class="app-navbar-user">
             {% if user.is_authenticated %}
                 <div class="text-end app-navbar-user-name">
-                    <p class="h6 small mb-0" style="color: var(--navbar-fg);">Přihlášený uživatel:</p>
+                    <p class="h6 small mb-0 app-navbar-user-label" style="color: var(--navbar-fg);">Přihlášený uživatel:</p>
                     <p class="h6 small text-center mb-0" style="color: var(--navbar-fg);">{{ user.first_name }} {{ user.last_name }}</p>
                 </div>
-                <a class="btn btn-light btn-sm app-navbar-button" style="background-color: var(--navbar-button-bg); color: var(--navbar-button-fg); border-color: var(--navbar-button-bg);" href="{% url 'password_change' %}">Změnit heslo</a>
+                <a class="btn btn-light btn-sm app-navbar-button app-navbar-password-change" style="background-color: var(--navbar-button-bg); color: var(--navbar-button-fg); border-color: var(--navbar-button-bg);" href="{% url 'password_change' %}">Změnit heslo</a>
                 <form id="logout-form" method="post" action="{% url 'logout' %}" class="d-inline">
                     {% csrf_token %}
                     <input type="hidden"
