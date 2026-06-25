@@ -41,12 +41,14 @@ def resolve_customer_templates(*, zakaznik_zkratka, mode):
     raise ServiceValidationError(f"Neznámý mód tisku: {mode}")
 
 
-def build_context_for_bedna(bedna, generated_at, user_display_name, barcode_base_url=None):
+def build_context_for_bedna(bedna, generated_at, user_display_name):
     return {
         "bedna": bedna,
         "generated_at": generated_at,
         "user_last_name": user_display_name,
-        "barcode_base_url": barcode_base_url,
+        # Dočasně vypnuto společně s QR kódem v šabloně
+        # orders/karta_bedny/_bedna_identification_codes.html.
+        # "barcode_base_url": barcode_base_url,
     }
 
 
@@ -79,7 +81,9 @@ def build_cards_pdf(*, bedny_qs, template_paths, filename, request=None, generat
             or request.user.get_username()
         )
 
-    barcode_base_url = request.build_absolute_uri("/") if request else None
+    # Dočasně vypnuto společně s QR kódem v šabloně
+    # orders/karta_bedny/_bedna_identification_codes.html.
+    # barcode_base_url = request.build_absolute_uri("/") if request else None
 
     html_string = render_pages(
         bedny_qs=bedny_qs,
@@ -88,7 +92,7 @@ def build_cards_pdf(*, bedny_qs, template_paths, filename, request=None, generat
             bedna,
             generated_at,
             user_display_name,
-            barcode_base_url,
+            # barcode_base_url,
         ),
     )
 
