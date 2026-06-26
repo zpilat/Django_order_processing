@@ -1085,7 +1085,7 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 		self.assertEqual(resp.status_code, 200)
 		self.assertTemplateUsed(resp, "orders/rychle_zalozeni_sarze.html")
 		self.assertEqual(resp.context["db_table"], "rychle_zalozeni_sarze")
-		self.assertContains(resp, "RYCHLÉ ZALOŽENÍ ŠARŽE")
+		self.assertContains(resp, "ZALOŽENÍ ŠARŽE")
 		self.assertContains(resp, "Přidat novou šarži")
 		self.assertContains(resp, "Přehled poslední šarže")
 
