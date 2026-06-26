@@ -270,6 +270,66 @@ def bedna_scan_navezeni_view(request, cislo_bedny: int):
 
 
 @login_required
+def bedna_scan_pohyb_view(request, cislo_bedny: int):
+    bedna = get_object_or_404(
+        Bedna.objects.select_related(
+            'zakazka',
+            'zakazka__kamion_prijem',
+            'zakazka__kamion_prijem__zakaznik',
+        ),
+        cislo_bedny=cislo_bedny,
+    )
+    krok_ids = list(
+        SarzeKrokBedna.objects
+        .filter(bedna=bedna)
+        .values_list('krok_id', flat=True)
+        .distinct()
+    )
+    pohyb = []
+    pohyb_by_krok = {}
+    polozky = (
+        SarzeKrokBedna.objects
+        .filter(krok_id__in=krok_ids)
+        .select_related('krok', 'krok__sarze', 'krok__zarizeni', 'bedna', 'bedna__zakazka')
+        .order_by('krok__datum', 'krok__zacatek', 'krok__sarze__cislo_sarze', 'krok__poradi', 'patro', 'bedna__cislo_bedny', 'pk')
+    )
+    for polozka in polozky:
+        krok_group = pohyb_by_krok.get(polozka.krok_id)
+        if krok_group is None:
+            krok_group = {
+                'krok': polozka.krok,
+                'patra': [],
+                'patra_by_number': {},
+            }
+            pohyb_by_krok[polozka.krok_id] = krok_group
+            pohyb.append(krok_group)
+
+        patro_group = krok_group['patra_by_number'].get(polozka.patro)
+        if patro_group is None:
+            patro_group = {
+                'patro': polozka.patro,
+                'polozky': [],
+            }
+            krok_group['patra_by_number'][polozka.patro] = patro_group
+            krok_group['patra'].append(patro_group)
+
+        patro_group['polozky'].append(polozka)
+
+    for krok_group in pohyb:
+        krok_group.pop('patra_by_number', None)
+
+    return render(
+        request,
+        'orders/bedna_scan_pohyb.html',
+        {
+            'bedna': bedna,
+            'pohyb': pohyb,
+            'db_table': 'bedna_scan_pohyb',
+        },
+    )
+
+
+@login_required
 def bedna_skener_view(request):
     return render(
         request,

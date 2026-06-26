@@ -242,6 +242,8 @@ class BednaScanViewTests(ViewsTestBase):
 		self.assertEqual(response.status_code, 200)
 		self.assertContains(response, "Bedna")
 		self.assertContains(response, str(self.b_eur_pr.cislo_bedny))
+		self.assertContains(response, "Pohyb bedny")
+		self.assertContains(response, reverse("bedna_scan_pohyb", args=[self.b_eur_pr.cislo_bedny]))
 		self.assertNotContains(response, "Označit navezeno")
 
 	def test_scan_detail_shows_mark_navezeno_action_with_permission(self):
@@ -370,6 +372,86 @@ class BednaScanViewTests(ViewsTestBase):
 		self.assertEqual(response.status_code, 403)
 		self.b_eur_pr.refresh_from_db()
 		self.assertEqual(self.b_eur_pr.stav_bedny, StavBednyChoice.K_NAVEZENI)
+
+	def test_scan_pohyb_renders_bedna_processing_history(self):
+		sarze = Sarze.objects.create(datum_zalozeni=timezone.localdate(), cislo_pripravku=1)
+		zarizeni = Zarizeni.objects.create(
+			kod_zarizeni="Z1",
+			nazev_zarizeni="Zařízení 1",
+			zkraceny_nazev_zarizeni="Z1",
+		)
+		krok = SarzeKrok.objects.create(
+			sarze=sarze,
+			zarizeni=zarizeni,
+			zacatek=time(6, 0),
+			konec=time(7, 0),
+			operator="Novak",
+			program="P1",
+		)
+		SarzeKrokBedna.objects.create(
+			krok=krok,
+			bedna=self.b_eur_pr,
+			patro=1,
+			procent_z_patra=40,
+		)
+		SarzeKrokBedna.objects.create(
+			krok=krok,
+			bedna=self.b_abc_ex,
+			patro=1,
+			procent_z_patra=60,
+		)
+		SarzeKrokBedna.objects.create(
+			krok=krok,
+			bedna=self.b_eur_pr,
+			patro=2,
+			procent_z_patra=30,
+		)
+		other_bedna = Bedna.objects.create(
+			zakazka=self.zak_abc,
+			stav_bedny=StavBednyChoice.EXPEDOVANO,
+			hmotnost=3,
+			tara=1,
+			mnozstvi=1,
+			tryskat=TryskaniChoice.CISTA,
+			rovnat=RovnaniChoice.ROVNA,
+		)
+		SarzeKrokBedna.objects.create(
+			krok=krok,
+			bedna=other_bedna,
+			patro=2,
+			procent_z_patra=70,
+		)
+
+		response = self.client.get(reverse("bedna_scan_pohyb", args=[self.b_eur_pr.cislo_bedny]))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertTemplateUsed(response, "orders/bedna_scan_pohyb.html")
+		self.assertContains(response, "Pohyb bedny")
+		self.assertContains(response, 'class="movement-header"', html=False)
+		self.assertContains(response, 'data-bs-toggle="collapse"', html=False)
+		self.assertContains(response, 'data-bs-target="#movement-body-1"', html=False)
+		self.assertContains(response, 'aria-expanded="false"', html=False)
+		self.assertContains(response, 'class="collapse"', html=False)
+		self.assertContains(response, str(self.b_eur_pr.cislo_bedny))
+		self.assertContains(response, str(self.b_abc_ex.cislo_bedny))
+		self.assertContains(response, str(other_bedna.cislo_bedny))
+		self.assertContains(response, "Patro 1")
+		self.assertContains(response, "Patro 2")
+		self.assertContains(response, "40 %")
+		self.assertContains(response, "60 %")
+		self.assertContains(response, "30 %")
+		self.assertContains(response, "70 %")
+		self.assertContains(response, "Z1")
+		self.assertContains(response, "Novak")
+
+	def test_scan_pohyb_requires_login(self):
+		self.client.logout()
+
+		response = self.client.get(reverse("bedna_scan_pohyb", args=[self.b_eur_pr.cislo_bedny]))
+
+		self.assertEqual(response.status_code, 302)
+		self.assertIn("login", response.url)
+
 	def test_bedna_skener_requires_login(self):
 		self.client.logout()
 

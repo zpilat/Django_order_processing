@@ -161,6 +161,11 @@
             </div>
         {% endif %}
 
+        <a class="btn btn-outline-primary w-100 scan-action-button d-flex align-items-center justify-content-center"
+           href="{% url 'bedna_scan_pohyb' bedna.cislo_bedny %}">
+            Pohyb bedny
+        </a>
+
         {% if request.user.is_staff %}
             <a class="btn btn-outline-secondary w-100 scan-action-button d-flex align-items-center justify-content-center"
                href="{{ bedna.get_admin_url }}">

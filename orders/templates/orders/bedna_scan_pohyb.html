@@ -1,0 +1,222 @@
+{% extends "orders/base.html" %}
+
+{% block title %}Pohyb bedny {{ bedna.cislo_bedny }}{% endblock %}
+
+{% block content %}
+<style>
+    .scan-page {
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 0.75rem;
+    }
+    .scan-hero,
+    .movement-card {
+        border: 1px solid #d8dee4;
+        border-radius: 8px;
+        background: #fff;
+    }
+    .scan-hero {
+        padding: 1rem;
+    }
+    .scan-number {
+        font-size: clamp(2.4rem, 13vw, 5rem);
+        line-height: 1;
+        font-weight: 800;
+        letter-spacing: 0;
+    }
+    .scan-action-button {
+        min-height: 3rem;
+        font-size: 1.05rem;
+        font-weight: 700;
+        border-radius: 8px;
+    }
+    .movement-card {
+        margin-top: 0.75rem;
+        overflow: hidden;
+    }
+    .movement-header {
+        width: 100%;
+        padding: 0.85rem 1rem;
+        background: #f3f5f7;
+        border: 0;
+        color: inherit;
+        text-align: left;
+        cursor: pointer;
+    }
+    .movement-header[aria-expanded="true"] {
+        border-bottom: 1px solid #d8dee4;
+    }
+    .movement-header:focus-visible {
+        outline: 3px solid rgba(33, 66, 144, 0.35);
+        outline-offset: -3px;
+    }
+    .movement-toggle-icon {
+        font-size: 1.35rem;
+        line-height: 1;
+        font-weight: 800;
+    }
+    .movement-header[aria-expanded="true"] .movement-toggle-icon {
+        transform: rotate(180deg);
+    }
+    .movement-body {
+        padding: 1rem;
+    }
+    .movement-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.75rem;
+    }
+    .movement-label {
+        color: #57606a;
+        font-size: 0.9rem;
+    }
+    .movement-value {
+        font-weight: 700;
+        overflow-wrap: anywhere;
+    }
+    .bedna-list {
+        display: grid;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+    }
+    .bedna-item {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.55rem 0.7rem;
+        border: 1px solid #edf0f2;
+        border-radius: 6px;
+        background: #fbfcfd;
+    }
+    .bedna-item-current {
+        border-color: #214290;
+        background: #eef3ff;
+    }
+    @media (max-width: 575.98px) {
+        .scan-page {
+            padding: 0.5rem 0;
+        }
+        .movement-grid {
+            grid-template-columns: 1fr;
+            gap: 0.55rem;
+        }
+        .bedna-item {
+            display: block;
+        }
+    }
+</style>
+
+<main class="scan-page">
+    <section class="scan-hero">
+        <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3">
+            <div class="text-center text-sm-start">
+                <div class="text-muted fw-semibold">Bedna</div>
+                <div class="scan-number">{{ bedna.cislo_bedny }}</div>
+            </div>
+            <div class="text-center text-sm-end">
+                <div class="text-muted fw-semibold">Zakázka / rozměr</div>
+                <div class="fw-bold">{{ bedna.zakazka.artikl }} / {{ bedna.zakazka.prumer }} x {{ bedna.zakazka.delka }}</div>
+            </div>
+        </div>
+    </section>
+
+    <div class="d-grid mt-3">
+        <a class="btn btn-outline-secondary scan-action-button d-flex align-items-center justify-content-center"
+           href="{% url 'bedna_scan' bedna.cislo_bedny %}">
+            Zpět na detail bedny
+        </a>
+    </div>
+
+    {% if pohyb %}
+        {% for item in pohyb %}
+            {% with krok=item.krok %}
+                <section class="movement-card">
+                    <button class="movement-header"
+                            type="button"
+                            data-bs-toggle="collapse"
+                            data-bs-target="#movement-body-{{ forloop.counter }}"
+                            aria-expanded="false"
+                            aria-controls="movement-body-{{ forloop.counter }}">
+                        <div class="d-flex flex-column flex-sm-row justify-content-between gap-2">
+                            <div>
+                                <div class="fw-bold">{{ krok.sarze }} / krok {{ krok.poradi }}</div>
+                                <div class="text-muted small">{{ krok.zarizeni|default:"-" }}</div>
+                            </div>
+                            <div class="d-flex align-items-center justify-content-between justify-content-sm-end gap-3 text-sm-end">
+                                <div>
+                                    <div class="fw-bold">{{ krok.datum|date:"j. n. Y" }}</div>
+                                    <div class="text-muted small">{{ krok.zacatek|time:"H:i" }}{% if krok.konec %} - {{ krok.konec|time:"H:i" }}{% endif %}</div>
+                                </div>
+                                <span class="movement-toggle-icon" aria-hidden="true">⌄</span>
+                            </div>
+                        </div>
+                    </button>
+                    <div class="collapse" id="movement-body-{{ forloop.counter }}">
+                        <div class="movement-body">
+                        <div class="movement-grid">
+                            <div>
+                                <div class="movement-label">Operátor</div>
+                                <div class="movement-value">{{ krok.operator|default:"-" }}</div>
+                            </div>
+                            <div>
+                                <div class="movement-label">Program</div>
+                                <div class="movement-value">{{ krok.program|default:"-" }}</div>
+                            </div>
+                            {% if krok.alarm %}
+                                <div>
+                                    <div class="movement-label">Alarm</div>
+                                    <div class="movement-value">{{ krok.alarm }}</div>
+                                </div>
+                            {% endif %}
+                            {% if krok.poznamka %}
+                                <div>
+                                    <div class="movement-label">Poznámka kroku</div>
+                                    <div class="movement-value">{{ krok.poznamka }}</div>
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        {% for patro in item.patra %}
+                            <div class="mt-3">
+                                <div class="movement-label">Patro {{ patro.patro }}</div>
+                                <div class="bedna-list">
+                                    {% for polozka in patro.polozky %}
+                                        <div class="bedna-item{% if polozka.bedna_id == bedna.id %} bedna-item-current{% endif %}">
+                                            <div>
+                                                <div class="fw-bold">
+                                                    {% if polozka.bedna %}
+                                                        {{ polozka.bedna.cislo_bedny }}
+                                                    {% else %}
+                                                        {{ polozka.popis_mimo_db|default:"-" }}
+                                                    {% endif %}
+                                                </div>
+                                                <div class="text-muted small">
+                                                    {% if polozka.bedna and polozka.bedna.zakazka %}
+                                                        {{ polozka.bedna.zakazka.artikl }}
+                                                    {% elif polozka.zakazka_mimo_db %}
+                                                        {{ polozka.zakazka_mimo_db }}
+                                                    {% else %}
+                                                        -
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                            <div class="fw-bold">
+                                                {{ polozka.procent_z_patra|default:"-" }}{% if polozka.procent_z_patra is not None %} %{% endif %}
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        {% endfor %}
+                        </div>
+                    </div>
+                </section>
+            {% endwith %}
+        {% endfor %}
+    {% else %}
+        <div class="alert alert-secondary mt-3 mb-0">
+            Pro tuto bednu zatím nejsou uložené žádné záznamy zpracování v šaržích.
+        </div>
+    {% endif %}
+</main>
+{% endblock %}

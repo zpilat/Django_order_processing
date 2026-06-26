@@ -17,6 +17,7 @@ from .views import (
     proforma_kamion_vydej_pdf_view,
     bedna_scan_view,
     bedna_scan_navezeni_view,
+    bedna_scan_pohyb_view,
     bedna_skener_view,
     rychle_zalozeni_sarze_view,
     rychle_zalozeni_sarze_posledni_prehled_view,
@@ -36,6 +37,7 @@ urlpatterns = [
     path('bedny/', BednyListView.as_view(), name='bedny_list'),
     path('bedny/scan/<int:cislo_bedny>/', bedna_scan_view, name='bedna_scan'),
     path('bedny/scan/<int:cislo_bedny>/navezeni/', bedna_scan_navezeni_view, name='bedna_scan_navezeni'),
+    path('bedny/scan/<int:cislo_bedny>/pohyb/', bedna_scan_pohyb_view, name='bedna_scan_pohyb'),
     path('bedny/skener/', bedna_skener_view, name='bedna_skener'),
     path('sarze/rychle-zalozeni/', rychle_zalozeni_sarze_view, name='rychle_zalozeni_sarze'),
     path(
