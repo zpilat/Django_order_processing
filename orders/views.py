@@ -286,6 +286,7 @@ def bedna_scan_pohyb_view(request, cislo_bedny: int):
         .distinct()
     )
     pohyb = []
+    pohyb_by_sarze = {}
     pohyb_by_krok = {}
     polozky = (
         SarzeKrokBedna.objects
@@ -296,13 +297,22 @@ def bedna_scan_pohyb_view(request, cislo_bedny: int):
     for polozka in polozky:
         krok_group = pohyb_by_krok.get(polozka.krok_id)
         if krok_group is None:
+            sarze_group = pohyb_by_sarze.get(polozka.krok.sarze_id)
+            if sarze_group is None:
+                sarze_group = {
+                    'sarze': polozka.krok.sarze,
+                    'kroky': [],
+                }
+                pohyb_by_sarze[polozka.krok.sarze_id] = sarze_group
+                pohyb.append(sarze_group)
+
             krok_group = {
                 'krok': polozka.krok,
                 'patra': [],
                 'patra_by_number': {},
             }
             pohyb_by_krok[polozka.krok_id] = krok_group
-            pohyb.append(krok_group)
+            sarze_group['kroky'].append(krok_group)
 
         patro_group = krok_group['patra_by_number'].get(polozka.patro)
         if patro_group is None:
@@ -315,8 +325,9 @@ def bedna_scan_pohyb_view(request, cislo_bedny: int):
 
         patro_group['polozky'].append(polozka)
 
-    for krok_group in pohyb:
-        krok_group.pop('patra_by_number', None)
+    for sarze_group in pohyb:
+        for krok_group in sarze_group['kroky']:
+            krok_group.pop('patra_by_number', None)
 
     return render(
         request,

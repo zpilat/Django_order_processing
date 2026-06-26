@@ -388,6 +388,14 @@ class BednaScanViewTests(ViewsTestBase):
 			operator="Novak",
 			program="P1",
 		)
+		krok_2 = SarzeKrok.objects.create(
+			sarze=sarze,
+			zarizeni=zarizeni,
+			zacatek=time(8, 0),
+			konec=time(9, 0),
+			operator="Svoboda",
+			program="P2",
+		)
 		SarzeKrokBedna.objects.create(
 			krok=krok,
 			bedna=self.b_eur_pr,
@@ -421,6 +429,12 @@ class BednaScanViewTests(ViewsTestBase):
 			patro=2,
 			procent_z_patra=70,
 		)
+		SarzeKrokBedna.objects.create(
+			krok=krok_2,
+			bedna=self.b_eur_pr,
+			patro=1,
+			procent_z_patra=100,
+		)
 
 		response = self.client.get(reverse("bedna_scan_pohyb", args=[self.b_eur_pr.cislo_bedny]))
 
@@ -432,6 +446,10 @@ class BednaScanViewTests(ViewsTestBase):
 		self.assertContains(response, 'data-bs-target="#movement-body-1"', html=False)
 		self.assertContains(response, 'aria-expanded="false"', html=False)
 		self.assertContains(response, 'class="collapse"', html=False)
+		self.assertContains(response, str(sarze))
+		self.assertContains(response, "2 kroků")
+		self.assertContains(response, "Krok 1")
+		self.assertContains(response, "Krok 2")
 		self.assertContains(response, str(self.b_eur_pr.cislo_bedny))
 		self.assertContains(response, str(self.b_abc_ex.cislo_bedny))
 		self.assertContains(response, str(other_bedna.cislo_bedny))
@@ -441,8 +459,10 @@ class BednaScanViewTests(ViewsTestBase):
 		self.assertContains(response, "60 %")
 		self.assertContains(response, "30 %")
 		self.assertContains(response, "70 %")
+		self.assertContains(response, "100 %")
 		self.assertContains(response, "Z1")
 		self.assertContains(response, "Novak")
+		self.assertContains(response, "Svoboda")
 
 	def test_scan_pohyb_requires_login(self):
 		self.client.logout()
