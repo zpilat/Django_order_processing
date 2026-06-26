@@ -253,17 +253,34 @@ class BednaScanViewTests(ViewsTestBase):
 		response = self.client.get(reverse("bedna_scan", args=[self.b_eur_pr.cislo_bedny]))
 
 		self.assertEqual(response.status_code, 200)
-		self.assertContains(response, "Označit navezeno")
+		self.assertContains(response, "Navézt")
+		self.assertContains(response, reverse("bedna_scan_navezeni", args=[self.b_eur_pr.cislo_bedny]))
 
-	def test_scan_mark_navezeno_updates_state_with_permission(self):
+	def test_scan_navezeni_get_renders_position_selection(self):
 		self.b_eur_pr.stav_bedny = StavBednyChoice.K_NAVEZENI
-		self.b_eur_pr.save(update_fields=["stav_bedny"])
+		pozice = Pozice.objects.create(kod="A", kapacita=10)
+		self.b_eur_pr.pozice = pozice
+		self.b_eur_pr.save(update_fields=["stav_bedny", "pozice"])
+		permission = Permission.objects.get(codename="mark_bedna_navezeno")
+		self.user.user_permissions.add(permission)
+
+		response = self.client.get(
+			reverse("bedna_scan_navezeni", args=[self.b_eur_pr.cislo_bedny])
+		)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertTemplateUsed(response, "orders/bedna_scan_navezeni.html")
+		self.assertContains(response, "Potvrdit navezení")
+		self.assertContains(response, pozice.kod)
+
+	def test_scan_navezeni_updates_prijato_bedna_state_and_position(self):
+		pozice = Pozice.objects.create(kod="A", kapacita=10)
 		permission = Permission.objects.get(codename="mark_bedna_navezeno")
 		self.user.user_permissions.add(permission)
 
 		response = self.client.post(
-			reverse("bedna_scan", args=[self.b_eur_pr.cislo_bedny]),
-			{"action": "mark_navezeno"},
+			reverse("bedna_scan_navezeni", args=[self.b_eur_pr.cislo_bedny]),
+			{"action": "mark_navezeno", "pozice_id": pozice.pk},
 		)
 
 		self.assertRedirects(
@@ -273,16 +290,42 @@ class BednaScanViewTests(ViewsTestBase):
 		)
 		self.b_eur_pr.refresh_from_db()
 		self.assertEqual(self.b_eur_pr.stav_bedny, StavBednyChoice.NAVEZENO)
+		self.assertEqual(self.b_eur_pr.pozice, pozice)
 
-	def test_scan_mark_navezeno_redirects_mobile_to_scanner(self):
+	def test_scan_navezeni_can_change_position_for_k_navezeni_bedna(self):
+		pozice_a = Pozice.objects.create(kod="A", kapacita=10)
+		pozice_b = Pozice.objects.create(kod="B", kapacita=10)
 		self.b_eur_pr.stav_bedny = StavBednyChoice.K_NAVEZENI
-		self.b_eur_pr.save(update_fields=["stav_bedny"])
+		self.b_eur_pr.pozice = pozice_a
+		self.b_eur_pr.save(update_fields=["stav_bedny", "pozice"])
 		permission = Permission.objects.get(codename="mark_bedna_navezeno")
 		self.user.user_permissions.add(permission)
 
 		response = self.client.post(
+			reverse("bedna_scan_navezeni", args=[self.b_eur_pr.cislo_bedny]),
+			{"action": "mark_navezeno", "pozice_id": pozice_b.pk},
+		)
+
+		self.assertRedirects(
+			response,
 			reverse("bedna_scan", args=[self.b_eur_pr.cislo_bedny]),
-			{"action": "mark_navezeno"},
+			fetch_redirect_response=False,
+		)
+		self.b_eur_pr.refresh_from_db()
+		self.assertEqual(self.b_eur_pr.stav_bedny, StavBednyChoice.NAVEZENO)
+		self.assertEqual(self.b_eur_pr.pozice, pozice_b)
+
+	def test_scan_navezeni_redirects_mobile_to_scanner(self):
+		pozice = Pozice.objects.create(kod="A", kapacita=10)
+		self.b_eur_pr.stav_bedny = StavBednyChoice.K_NAVEZENI
+		self.b_eur_pr.pozice = pozice
+		self.b_eur_pr.save(update_fields=["stav_bedny", "pozice"])
+		permission = Permission.objects.get(codename="mark_bedna_navezeno")
+		self.user.user_permissions.add(permission)
+
+		response = self.client.post(
+			reverse("bedna_scan_navezeni", args=[self.b_eur_pr.cislo_bedny]),
+			{"action": "mark_navezeno", "pozice_id": pozice.pk},
 			HTTP_USER_AGENT=(
 				"Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) "
 				"AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
@@ -297,19 +340,36 @@ class BednaScanViewTests(ViewsTestBase):
 		self.b_eur_pr.refresh_from_db()
 		self.assertEqual(self.b_eur_pr.stav_bedny, StavBednyChoice.NAVEZENO)
 
-	def test_scan_mark_navezeno_requires_permission(self):
+	def test_scan_navezeni_requires_position(self):
+		permission = Permission.objects.get(codename="mark_bedna_navezeno")
+		self.user.user_permissions.add(permission)
+
+		response = self.client.post(
+			reverse("bedna_scan_navezeni", args=[self.b_eur_pr.cislo_bedny]),
+			{"action": "mark_navezeno"},
+		)
+
+		self.assertRedirects(
+			response,
+			reverse("bedna_scan_navezeni", args=[self.b_eur_pr.cislo_bedny]),
+			fetch_redirect_response=False,
+		)
+		self.b_eur_pr.refresh_from_db()
+		self.assertEqual(self.b_eur_pr.stav_bedny, StavBednyChoice.PRIJATO)
+		self.assertIsNone(self.b_eur_pr.pozice)
+
+	def test_scan_navezeni_requires_permission(self):
 		self.b_eur_pr.stav_bedny = StavBednyChoice.K_NAVEZENI
 		self.b_eur_pr.save(update_fields=["stav_bedny"])
 
 		response = self.client.post(
-			reverse("bedna_scan", args=[self.b_eur_pr.cislo_bedny]),
-			{"action": "mark_navezeno"},
+			reverse("bedna_scan_navezeni", args=[self.b_eur_pr.cislo_bedny]),
+			{"action": "mark_navezeno", "pozice_id": 1},
 		)
 
 		self.assertEqual(response.status_code, 403)
 		self.b_eur_pr.refresh_from_db()
 		self.assertEqual(self.b_eur_pr.stav_bedny, StavBednyChoice.K_NAVEZENI)
-
 	def test_bedna_skener_requires_login(self):
 		self.client.logout()
 

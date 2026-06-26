@@ -151,13 +151,10 @@
 
     <div class="scan-actions">
         {% if can_mark_navezeno %}
-            <form method="post">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="mark_navezeno">
-                <button type="submit" class="btn btn-success w-100 scan-action-button">
-                    Označit navezeno
-                </button>
-            </form>
+            <a class="btn btn-success w-100 scan-action-button d-flex align-items-center justify-content-center"
+               href="{% url 'bedna_scan_navezeni' bedna.cislo_bedny %}">
+                Navézt
+            </a>
         {% elif has_mark_navezeno_permission %}
             <div class="alert alert-secondary mb-0">
                 Akce „Označit navezeno“ není pro aktuální stav bedny dostupná.

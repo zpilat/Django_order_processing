@@ -74,7 +74,7 @@ def _bedna_scan_can_mark_navezeno(user, bedna):
     return (
         has_permission
         and not bedna.pozastaveno
-        and bedna.stav_bedny in [StavBednyChoice.K_NAVEZENI]
+        and bedna.stav_bedny in [StavBednyChoice.PRIJATO, StavBednyChoice.K_NAVEZENI]
     )
 
 
@@ -185,38 +185,6 @@ def bedna_scan_view(request, cislo_bedny: int):
         'pozice',
     )
 
-    if request.method == 'POST':
-        if request.POST.get('action') != 'mark_navezeno':
-            return HttpResponseBadRequest('Neplatná akce.')
-        with transaction.atomic():
-            bedna = get_object_or_404(
-                bedna_qs.select_for_update(),
-                cislo_bedny=cislo_bedny,
-            )
-            if not (
-                request.user.has_perm('orders.mark_bedna_navezeno')
-                or request.user.has_perm('orders.change_bedna')
-            ):
-                raise PermissionDenied
-            if bedna.pozastaveno:
-                messages.error(request, f'Bedna {bedna.cislo_bedny} je pozastavená a nelze ji označit jako navezenou.')
-                return redirect('bedna_scan', cislo_bedny=bedna.cislo_bedny)
-            if bedna.stav_bedny not in [StavBednyChoice.K_NAVEZENI]:
-                messages.error(request, f'Bedna {bedna.cislo_bedny} není ve stavu K navezení.')
-                return redirect('bedna_scan', cislo_bedny=bedna.cislo_bedny)
-
-            bedna.stav_bedny = StavBednyChoice.NAVEZENO
-            bedna.save(update_fields=['stav_bedny'])
-
-        messages.success(request, f'Bedna {cislo_bedny} byla označena jako navezená.')
-        logger.info(
-            f"Uživatel {request.user} označil přes QR scan bednu {cislo_bedny} jako NAVEZENO."
-        )
-        user_agent = get_user_agent(request)
-        if user_agent.is_mobile or user_agent.is_tablet:
-            return redirect('bedna_skener')
-        return redirect('bedna_scan', cislo_bedny=cislo_bedny)
-
     bedna = get_object_or_404(bedna_qs, cislo_bedny=cislo_bedny)
     context = {
         'bedna': bedna,
@@ -229,6 +197,76 @@ def bedna_scan_view(request, cislo_bedny: int):
         'db_table': 'bedna_scan',
     }
     return render(request, 'orders/bedna_scan_detail.html', context)
+
+
+@login_required
+def bedna_scan_navezeni_view(request, cislo_bedny: int):
+    bedna_qs = Bedna.objects.select_related(
+        'zakazka',
+        'zakazka__kamion_prijem',
+        'zakazka__kamion_prijem__zakaznik',
+        'pozice',
+    )
+    bedna = get_object_or_404(bedna_qs, cislo_bedny=cislo_bedny)
+    pozice_list = Pozice.objects.order_by('kod')
+    aktualni_pozice = bedna.pozice if bedna.pozice else None
+
+    if not (
+        request.user.has_perm('orders.mark_bedna_navezeno')
+        or request.user.has_perm('orders.change_bedna')
+    ):
+        raise PermissionDenied
+    if bedna.pozastaveno:
+        messages.error(request, f'Bedna {bedna.cislo_bedny} je pozastavená a nelze ji označit jako navezenou.')
+        return redirect('bedna_scan', cislo_bedny=bedna.cislo_bedny)
+    if bedna.stav_bedny not in [StavBednyChoice.PRIJATO, StavBednyChoice.K_NAVEZENI]:
+        messages.error(request, f'Bedna {bedna.cislo_bedny} není ve stavu Přijato nebo K navezení.')
+        return redirect('bedna_scan', cislo_bedny=bedna.cislo_bedny)
+
+
+    if request.method == 'POST':
+        if request.POST.get('action') != 'mark_navezeno':
+            return HttpResponseBadRequest('Neplatná akce.')
+        pozice_id = request.POST.get('pozice_id')
+        if not pozice_id:
+            messages.error(request, 'Vyberte pozici pro navezení.')
+            return redirect('bedna_scan_navezeni', cislo_bedny=cislo_bedny)
+        with transaction.atomic():
+            bedna = get_object_or_404(
+                bedna_qs.select_for_update(),
+                cislo_bedny=cislo_bedny,
+            )
+            pozice = get_object_or_404(Pozice, pk=pozice_id)
+
+            if bedna.stav_bedny not in [StavBednyChoice.PRIJATO, StavBednyChoice.K_NAVEZENI]:
+                messages.error(request, f'Bedna {bedna.cislo_bedny} není ve stavu Přijato nebo K navezení.')
+                return redirect('bedna_scan', cislo_bedny=bedna.cislo_bedny)
+
+            bedna.stav_bedny = StavBednyChoice.NAVEZENO
+            bedna.pozice = pozice
+            bedna.save(update_fields=['stav_bedny', 'pozice'])
+
+        messages.success(request, f'Bedna {cislo_bedny} byla navezena na pozici {pozice.kod}.')
+        logger.info(
+            f"Uživatel {request.user} označil přes QR scan bednu {cislo_bedny} jako NAVEZENO."
+        )
+        user_agent = get_user_agent(request)
+        if user_agent.is_mobile or user_agent.is_tablet:
+            return redirect('bedna_skener')
+        return redirect('bedna_scan', cislo_bedny=cislo_bedny)
+
+    context = {
+        'bedna': bedna,
+        'pozice_list': pozice_list,
+        'aktualni_pozice': aktualni_pozice,
+        'db_table': 'bedna_scan_navezeni',
+    }
+
+    return render(
+        request,
+        'orders/bedna_scan_navezeni.html',
+        context
+    )
 
 
 @login_required
