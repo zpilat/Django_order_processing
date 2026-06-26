@@ -233,7 +233,7 @@ def bedna_scan_navezeni_view(request, cislo_bedny: int):
             return redirect('bedna_scan_navezeni', cislo_bedny=cislo_bedny)
         with transaction.atomic():
             bedna = get_object_or_404(
-                bedna_qs.select_for_update(),
+                Bedna.objects.select_for_update(),
                 cislo_bedny=cislo_bedny,
             )
             pozice = get_object_or_404(Pozice, pk=pozice_id)
