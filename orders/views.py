@@ -43,6 +43,10 @@ logger = logging.getLogger('orders')
 
 @login_required
 def home_view(request):
+    """
+    Přesune uživatele na vhodnou stránku podle jeho oprávnění.
+    Pokud je uživatel staff, přesměruje ho na admin rozhraní.
+    """
     if request.user.is_staff:
         return redirect('admin:index')
     if request.user.has_perms((
@@ -70,6 +74,9 @@ def _display_value(value):
 
 
 def _bedna_scan_can_mark_navezeno(user, bedna):
+    """
+    Kontroluje, zda má uživatel oprávnění označit bednu jako navezenou.
+    """
     has_permission = (
         user.has_perm('orders.mark_bedna_navezeno')
         or user.has_perm('orders.change_bedna')
@@ -82,6 +89,9 @@ def _bedna_scan_can_mark_navezeno(user, bedna):
 
 
 def _bedna_scan_sections(bedna):
+    """
+    Vytvoří seznam sekcí a řádků pro zobrazení detailu bedny.
+    """
     zakazka = bedna.zakazka
     kamion_prijem = zakazka.kamion_prijem if zakazka else None
     zakaznik = kamion_prijem.zakaznik if kamion_prijem else None
@@ -179,6 +189,9 @@ def _bedna_scan_sections(bedna):
 
 @login_required
 def bedna_scan_view(request, cislo_bedny: int):
+    """
+    Zobrazuje detail bedny pro skenování.
+    """
     bedna_qs = Bedna.objects.select_related(
         'zakazka',
         'zakazka__kamion_prijem',
@@ -204,6 +217,9 @@ def bedna_scan_view(request, cislo_bedny: int):
 
 @login_required
 def bedna_scan_navezeni_view(request, cislo_bedny: int):
+    """
+    Zobrazuje stránku pro označení bedny jako navezené.
+    """
     bedna_qs = Bedna.objects.select_related(
         'zakazka',
         'zakazka__kamion_prijem',
@@ -274,6 +290,9 @@ def bedna_scan_navezeni_view(request, cislo_bedny: int):
 
 @login_required
 def bedna_scan_pohyb_view(request, cislo_bedny: int):
+    """
+    Zobrazuje detail bedny pro skenování pohybu.
+    """
     bedna = get_object_or_404(
         Bedna.objects.select_related(
             'zakazka',
@@ -344,13 +363,28 @@ def bedna_scan_pohyb_view(request, cislo_bedny: int):
 
 
 def _can_move_sarze_scan(user):
+    """
+    Kontroluje, zda má uživatel oprávnění přesunout šarži.
+    """
     return user.has_perms((
         'orders.add_sarzekrok',
         'orders.add_sarzekrokbedna',
     ))
 
+def _can_change_sarze_scan(user):
+    """
+    Kontroluje, zda má uživatel oprávnění změnit šarži.
+    """
+    return user.has_perms((
+        'orders.change_sarzekrok',
+        'orders.change_sarzekrokbedna',
+    ))
+
 
 def _style_sarze_scan_move_form(form):
+    """
+    Aplikuje stylování na formulář pro přesun šarže.
+    """
     form.fields['datum'].widget = django_forms.DateInput(
         attrs={'class': 'form-control', 'type': 'date'},
         format='%Y-%m-%d',
@@ -369,6 +403,9 @@ def _style_sarze_scan_move_form(form):
 
 
 def _build_sarze_scan_move_preview_rows(source_rows, selected_row_ids):
+    """
+    Vytvoří náhledové řádky pro přesun šarže.
+    """
     preview_rows = _build_sarzekrokbedna_preview_rows(source_rows)
     for preview_row, source_row in zip(preview_rows, source_rows):
         preview_row['id'] = source_row.pk
@@ -378,6 +415,9 @@ def _build_sarze_scan_move_preview_rows(source_rows, selected_row_ids):
 
 @login_required
 def sarze_scan_view(request, cislo_sarze: int):
+    """
+    Zobrazuje detail šarže při naskenování čárového kódu.
+    """
     sarze = get_object_or_404(Sarze, cislo_sarze=cislo_sarze)
     kroky = list(
         SarzeKrok.objects
@@ -438,6 +478,9 @@ def sarze_scan_view(request, cislo_sarze: int):
 @permission_required('orders.add_sarzekrok', raise_exception=True)
 @permission_required('orders.add_sarzekrokbedna', raise_exception=True)
 def sarze_scan_presunout_view(request, cislo_sarze: int, krok_id: int):
+    """
+    Zobrazuje stránku pro přesun šarže do dalšího kroku.
+    """
     source_krok = get_object_or_404(
         SarzeKrok.objects.select_related('sarze', 'zarizeni'),
         pk=krok_id,
@@ -532,6 +575,9 @@ def sarze_scan_presunout_view(request, cislo_sarze: int, krok_id: int):
 
 @login_required
 def bedna_skener_view(request):
+    """
+    Zobrazuje stránku pro skenování bedny.
+    """
     return render(
         request,
         'orders/bedna_skener.html',
@@ -546,6 +592,9 @@ def bedna_skener_view(request):
 @permission_required('orders.add_sarzekrok', raise_exception=True)
 @permission_required('orders.add_sarzekrokbedna', raise_exception=True)
 def rychle_zalozeni_sarze_view(request):
+    """
+    Zobrazuje stránku pro rychlé založení šarže a jejího prvního kroku.
+    """
     posledni_krok_nakladani = SarzeKrok.objects.filter(
         sarze__isnull=False, zarizeni__typ_zarizeni=TypZarizeniChoice.NAKLADANI
     ).order_by('-pk').first()
@@ -585,6 +634,11 @@ def rychle_zalozeni_sarze_view(request):
 @permission_required('orders.view_sarzekrok', raise_exception=True)
 @permission_required('orders.view_sarzekrokbedna', raise_exception=True)
 def rychle_zalozeni_sarze_posledni_prehled_view(request):
+    """
+    Přesměruje uživatele na přehled poslední šarže s krokem nakládání.
+    Pokud žádná taková šarže neexistuje, zobrazí informační zprávu a přesměruje na stránku
+    pro založení nové šarže.
+    """
     posledni_krok_nakladani = (
         SarzeKrok.objects
         .filter(
@@ -611,6 +665,9 @@ def rychle_zalozeni_sarze_posledni_prehled_view(request):
 @permission_required('orders.add_sarzekrokbedna', raise_exception=True)
 @permission_required('orders.change_sarzekrokbedna', raise_exception=True)
 def rychle_zalozeni_sarze_patro_view(request, krok_id, patro):
+    """
+    Zobrazuje stránku pro rychlé založení nebo úpravu patra šarže.
+    """
     krok = get_object_or_404(
         SarzeKrok.objects.select_related('sarze', 'zarizeni'),
         pk=krok_id,
@@ -699,6 +756,9 @@ def rychle_zalozeni_sarze_patro_view(request, krok_id, patro):
 @permission_required('orders.view_sarzekrok', raise_exception=True)
 @permission_required('orders.view_sarzekrokbedna', raise_exception=True)
 def rychle_zalozeni_sarze_prehled_view(request, krok_id):
+    """
+    Zobrazuje přehled šarže a jejích pater.
+    """
     krok = get_object_or_404(
         SarzeKrok.objects.select_related('sarze', 'zarizeni'),
         pk=krok_id,
@@ -732,6 +792,9 @@ def rychle_zalozeni_sarze_prehled_view(request, krok_id):
 @permission_required('orders.view_sarzekrok', raise_exception=True)
 @permission_required('orders.view_sarzekrokbedna', raise_exception=True)
 def rychle_zalozeni_sarze_tisk_view(request, krok_id):
+    """
+    Zobrazuje stránku pro tisk šarže a jejích pater.
+    """
     krok = get_object_or_404(
         SarzeKrok.objects.select_related('sarze', 'zarizeni'),
         pk=krok_id,
@@ -775,6 +838,9 @@ def rychle_zalozeni_sarze_tisk_view(request, krok_id):
 @permission_required('orders.change_sarze', raise_exception=True)
 @permission_required('orders.change_sarzekrok', raise_exception=True)
 def rychle_zalozeni_sarze_upravit_view(request, krok_id):
+    """
+    Zobrazuje stránku pro rychlé založení nebo úpravu patra šarže.
+    """
     krok = get_object_or_404(
         SarzeKrok.objects.select_related('sarze'),
         pk=krok_id,
@@ -838,6 +904,10 @@ def _format_price(value):
 
 
 def _calc_prostoj_minutes(kroky_list):
+    """
+    Vypočítá celkový prostoj v minutách pro seznam kroků.
+    Pro každou prodlevu se odečte 10 minut, pokud je prodleva větší než 10 minut.
+    """
     total_minutes = 0
     for krok in kroky_list:
         prodleva = krok.prodleva
@@ -847,6 +917,9 @@ def _calc_prostoj_minutes(kroky_list):
 
 
 def _first_use_sarzekrokbedna_qs(target_date, device_codes):
+    """
+    Vrací queryset pro první použití bedny v daném dni a na daných zařízeních.
+    """
     sarze_krok_bedny = (
         SarzeKrokBedna.objects
         .filter(
@@ -893,6 +966,9 @@ def _first_use_sarzekrokbedna_qs(target_date, device_codes):
 
 
 def _first_use_sarzekrokbedna_range_qs(start_date, end_date, device_codes):
+    """
+    Vrací queryset pro první použití bedny v daném rozsahu dat a na daných zařízeních.
+    """
     sarze_krok_bedny = (
         SarzeKrokBedna.objects
         .filter(
@@ -950,6 +1026,9 @@ def _avg_kg_per_day_int(total_kg, day_count):
 
 
 def _get_vyroba_available_years(device_codes, today_value=None):
+    """
+    Vrací seznam let, ve kterých jsou dostupná data pro výrobu na daných zařízeních.
+    """
     today = today_value or timezone.localdate()
     years_with_data = sorted(
         {
@@ -968,6 +1047,9 @@ def _get_vyroba_available_years(device_codes, today_value=None):
     return years_with_data
 
 def _kg_per_rost_int(total_kg, step_count):
+    """
+    Vrací průměrné kg na rošt.
+    """
     if step_count <= 0:
         return 0
     try:
@@ -978,6 +1060,9 @@ def _kg_per_rost_int(total_kg, step_count):
 
 
 def _build_vyroba_historie_context(year_value=None, month_value=None, today_value=None):
+    """
+    Vytváří kontext pro historii výroby na základě zadaného roku, měsíce a dnešního data.
+    """
     today = today_value or timezone.localdate()
     device_codes = ["TQF_XL1", "TQF_XL2"]
 
@@ -1134,6 +1219,9 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
     ]
 
     def _sum_day_range(start_day, end_day):
+        """
+        Sčítá hodnoty pro zadaný rozsah dní.
+        """
         out = {
             'xl1': Decimal('0'),
             'xl2': Decimal('0'),
@@ -1151,6 +1239,9 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
         return out
 
     def _sum_price_day_range(start_day, end_day):
+        """
+        Sčítá hodnoty cen pro zadaný rozsah dní.
+        """
         out = {
             'xl1': Decimal('0'),
             'xl2': Decimal('0'),
@@ -1168,6 +1259,9 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
         return out
 
     def _sum_step_range(start_day, end_day):
+        """
+        Sčítá počet kroků pro zadaný rozsah dní.
+        """
         total_steps = 0
         if start_day and end_day and end_day >= start_day:
             day = start_day
@@ -1177,6 +1271,9 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
         return total_steps
 
     def _sum_prostoj_minutes_range(start_day, end_day):
+        """
+        Sčítá hodnoty prostoje pro zadaný rozsah dní.
+        """
         out = {'xl1': 0, 'xl2': 0, 'total': 0}
         if start_day and end_day and end_day >= start_day:
             day = start_day
@@ -1190,6 +1287,9 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
         return out
 
     def _sum_work_days_range(start_day, end_day):
+        """
+        Sčítá počet pracovních dní pro zadaný rozsah dní.
+        """
         out = {'xl1': 0, 'xl2': 0, 'total': 0}
         if start_day and end_day and end_day >= start_day:
             day = start_day
@@ -1206,11 +1306,17 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
         return out
 
     def _avg_prostoj_hours_display(total_minutes, work_day_count):
+        """
+        Vrací průměrný počet hodin prostoje na pracovní den.
+        """
         if work_day_count <= 0:
             return '0,0'
         return _format_hours((total_minutes / 60) / work_day_count)
 
     def _sum_hours_display(left_display, right_display):
+        """
+        Sčítá hodnoty hodin pro zadané zobrazení.
+        """
         try:
             left = float((left_display or '0').replace(',', '.'))
             right = float((right_display or '0').replace(',', '.'))
@@ -1220,6 +1326,9 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
             return '0,0'
 
     def _price_per_rost(total_price, step_count):
+        """
+        Vypočítá cenu za rošt na základě celkové ceny a počtu kroků.
+        """
         if step_count <= 0:
             return Decimal('0.00')
         try:
@@ -1480,6 +1589,9 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
 
 
 def _build_vyroba_zakaznici_vyuziti_context(year_value=None, today_value=None):
+    """
+    Vytváří kontext pro využití zákazníků výroby na základě zadaného roku a dnešního data.
+    """
     device_codes = ["TQF_XL1", "TQF_XL2"]
     today = today_value or timezone.localdate()
     years_with_data = _get_vyroba_available_years(device_codes, today_value=today)
@@ -1578,6 +1690,9 @@ def _build_vyroba_zakaznici_vyuziti_context(year_value=None, today_value=None):
     }
 
     def _sum_customer_range(customer, start_day, end_day):
+        """
+        Sčítá hodnoty pro zadaný rozsah dní pro konkrétního zákazníka.
+        """
         total_kg = Decimal('0')
         total_step_share = Decimal('0')
         if start_day and end_day and end_day >= start_day:
@@ -1606,6 +1721,9 @@ def _build_vyroba_zakaznici_vyuziti_context(year_value=None, today_value=None):
         return total
 
     def _sum_step_range(start_day, end_day):
+        """
+        Sčítá počet kroků pro zadaný rozsah dní.
+        """
         total_steps = 0
         if start_day and end_day and end_day >= start_day:
             day = start_day
@@ -1615,6 +1733,9 @@ def _build_vyroba_zakaznici_vyuziti_context(year_value=None, today_value=None):
         return total_steps
 
     def _kg_per_customer_rost(total_kg, step_share):
+        """
+        Vypočítá využití roštu podle zákazníků na základě celkové hmotnosti a podílu kroků.
+        """
         if step_share <= 0:
             return 0
         try:
@@ -1624,6 +1745,9 @@ def _build_vyroba_zakaznici_vyuziti_context(year_value=None, today_value=None):
             return 0
 
     def _kg_per_rost(total_kg, step_count):
+        """
+        Vypočítá celkové využití roštu na základě celkové hmotnosti a počtu kroků.
+        """
         if step_count <= 0:
             return 0
         try:
@@ -1748,6 +1872,9 @@ def _build_vyroba_zakaznici_vyuziti_context(year_value=None, today_value=None):
 
 
 def _build_vyroba_dashboard_context(date_value=None):
+    """
+    Vytváří kontext pro dashboard výroby na základě zadaného data.
+    """
     date_value = date_value or (timezone.localdate() - timedelta(days=1))
     today = date_value + timedelta(days=1)
     device_codes = ["TQF_XL1", "TQF_XL2"]
@@ -1802,6 +1929,9 @@ def _build_vyroba_dashboard_context(date_value=None):
     summary = _device_stats(device_codes)
 
     def _shift_stats(shift_qs):
+        """
+        Vypočítá statistiky pro zadaný queryset směny.
+        """
         xl1_qs = shift_qs.filter(zarizeni__kod_zarizeni=device_codes[0])
         xl2_qs = shift_qs.filter(zarizeni__kod_zarizeni=device_codes[1])
 
@@ -2347,6 +2477,11 @@ def _get_bedny_k_navezeni_groups():
 
 
 def _split_bedny_k_navezeni_groups_by_nasledne(groups):
+    """
+    Rozdělí skupiny beden k navezení na dvě části:
+    - false_groups: zakázky, které nemají následné zakázky (nasledne=False)
+    - true_groups: zakázky, které mají následné zakázky (nasledne=True)
+    """
     false_groups = []
     true_groups = []
 
