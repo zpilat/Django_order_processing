@@ -25,6 +25,9 @@
         font-weight: 800;
         letter-spacing: 0;
     }
+    .scan-note {
+        overflow-wrap: anywhere;
+    }
     .scan-action-button {
         min-height: 3rem;
         font-size: 1.05rem;
@@ -99,6 +102,9 @@
                 <div class="text-muted fw-semibold">Krok</div>
                 <div class="fw-bold">{{ krok.zarizeni|default:"-" }} (krok {{ krok.poradi }})</div>
                 <div class="text-muted small">{{ krok.datum|date:"j. n. Y" }}</div>
+                {% if sarze.poznamka %}
+                    <div class="text-muted small scan-note">{{ sarze.poznamka }}</div>
+                {% endif %}
             </div>
         </div>
     </section>

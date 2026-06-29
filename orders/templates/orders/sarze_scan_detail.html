@@ -32,6 +32,9 @@
         font-weight: 800;
         letter-spacing: 0;
     }
+    .scan-note {
+        overflow-wrap: anywhere;
+    }
     .scan-action-button {
         min-height: 3rem;
         font-size: 1.05rem;
@@ -114,6 +117,9 @@
                 <div class="text-muted fw-semibold">Přípravek</div>
                 <div class="fw-bold">{{ sarze.cislo_pripravku|default:"-" }}</div>
                 <div class="text-muted small">{{ sarze.datum_zalozeni|date:"j. n. Y" }}</div>
+                {% if sarze.poznamka %}
+                    <div class="text-muted small scan-note">{{ sarze.poznamka }}</div>
+                {% endif %}
             </div>
         </div>
     </section>
