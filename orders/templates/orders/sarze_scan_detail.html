@@ -17,7 +17,14 @@
     }
     .scan-hero,
     .movement-body {
-        padding: 1rem;
+        padding: 0.75rem 1rem 1rem;
+    }
+    .movement-step-meta + .movement-floor,
+    .movement-floor + .movement-floor {
+        margin-top: 0.75rem;
+    }
+    .movement-step-meta:empty {
+        display: none;
     }
     .scan-number {
         font-size: clamp(2.4rem, 13vw, 5rem);
@@ -110,41 +117,40 @@
                     <div class="movement-header">
                         <div class="d-flex flex-column flex-sm-row justify-content-between gap-2">
                             <div>
-                                <div class="fw-bold">Krok {{ krok.poradi }}</div>
-                                <div class="text-muted small">{{ krok.zarizeni|default:"-" }}</div>
+                                <div class="fw-bold">{{ krok.zarizeni|default:"-" }}
+                                    <span class="text-muted small">(krok {{ krok.poradi }})</span>
+                                </div>
+                                <div class="fw-bold">Operátor:
+                                    <span class="text-muted small">{{ krok.operator|default:"-" }}</span>
+                                </div>
                             </div>
                             <div class="text-sm-end">
-                                <div class="fw-bold">{{ krok.datum|date:"j. n. Y" }}</div>
-                                <div class="text-muted small">{{ krok.zacatek|time:"H:i" }}{% if krok.konec %} - {{ krok.konec|time:"H:i" }}{% endif %}</div>
+                                <div class="fw-bold">{{ krok.datum|date:"j. n. Y" }}
+                                    <span class="text-muted small">({{ krok.zacatek|time:"H:i" }} - {% if krok.konec %}{{ krok.konec|time:"H:i" }}{% else %}???{% endif %})</span>
+                                </div>
+                                <div class="fw-bold">Program {{ krok.program|default:"-" }}</div>
                             </div>
                         </div>
                     </div>
                     <div class="movement-body">
-                        <div class="movement-grid">
-                            <div>
-                                <div class="movement-label">Operátor</div>
-                                <div class="movement-value">{{ krok.operator|default:"-" }}</div>
+                        {% if krok.alarm or krok.poznamka %}
+                            <div class="movement-grid movement-step-meta">
+                                {% if krok.alarm %}
+                                    <div>
+                                        <div class="movement-label">Alarm</div>
+                                        <div class="movement-value">{{ krok.alarm }}</div>
+                                    </div>
+                                {% endif %}
+                                {% if krok.poznamka %}
+                                    <div>
+                                        <div class="movement-label">Poznámka kroku</div>
+                                        <div class="movement-value">{{ krok.poznamka }}</div>
+                                    </div>
+                                {% endif %}
                             </div>
-                            <div>
-                                <div class="movement-label">Program</div>
-                                <div class="movement-value">{{ krok.program|default:"-" }}</div>
-                            </div>
-                            {% if krok.alarm %}
-                                <div>
-                                    <div class="movement-label">Alarm</div>
-                                    <div class="movement-value">{{ krok.alarm }}</div>
-                                </div>
-                            {% endif %}
-                            {% if krok.poznamka %}
-                                <div>
-                                    <div class="movement-label">Poznámka kroku</div>
-                                    <div class="movement-value">{{ krok.poznamka }}</div>
-                                </div>
-                            {% endif %}
-                        </div>
-
+                        {% endif %}
                         {% for patro in krok_item.patra %}
-                            <div class="mt-3">
+                            <div class="movement-floor">
                                 <div class="movement-label">Patro {{ patro.patro }}</div>
                                 <div class="bedna-list">
                                     {% for polozka in patro.polozky %}
