@@ -96,10 +96,10 @@
             <div class="input-group input-group-lg">
                 <input id="manual-scan-input"
                        type="text"
-                       inputmode="numeric"
+                       inputmode="text"
                        autocomplete="off"
                        class="form-control"
-                       placeholder="Číslo bedny nebo URL">
+                       placeholder="Číslo bedny, URL nebo kód">
                 <button class="btn btn-success" type="submit">Otevřít</button>
             </div>
         </form>
@@ -110,6 +110,7 @@
 {% block script %}
 {{ block.super }}
 <script src="{% static 'orders/js/html5-qrcode.min.js' %}"></script>
+<script src="{% static 'orders/js/scan_parser.js' %}"></script>
 <script>
     (function () {
         const scanUrlTemplate = "{% url 'bedna_scan' 0 %}";
@@ -133,30 +134,6 @@
             return scanUrlTemplate.replace("/0/", "/" + encodeURIComponent(numberText) + "/");
         }
 
-        function resolveScanTarget(rawValue) {
-            const value = String(rawValue || "").trim();
-            if (!value) {
-                return null;
-            }
-
-            const plainNumber = value.match(/^\d+$/);
-            if (plainNumber) {
-                return scanUrlForNumber(value);
-            }
-
-            try {
-                const url = new URL(value, window.location.origin);
-                const match = url.pathname.match(/\/bedny\/scan\/(\d+)\/?$/);
-                if (match) {
-                    return scanUrlForNumber(match[1]);
-                }
-            } catch (error) {
-                return null;
-            }
-
-            return null;
-        }
-
         function openScanTarget(rawValue) {
             const now = Date.now();
             if (rawValue === lastValue && now - lastValueAt < 2000) {
@@ -165,14 +142,24 @@
             lastValue = rawValue;
             lastValueAt = now;
 
-            const target = resolveScanTarget(rawValue);
-            if (!target) {
-                setStatus("Načtený kód není číslo bedny ani platná URL bedny.", "warning");
+            if (!window.OrderScanParser) {
+                setStatus("Parser načtených kódů se nenačetl. Obnovte stránku nebo použijte ruční zadání později.", "danger");
                 return;
             }
 
-            setStatus("Kód načten, otevírám bednu...", "success");
-            window.location.assign(target);
+            const parsed = window.OrderScanParser.parse(rawValue);
+            if (parsed.type === "bedna") {
+                setStatus("Kód načten, otevírám bednu...", "success");
+                window.location.assign(scanUrlForNumber(parsed.value));
+                return;
+            }
+
+            if (parsed.type === "sarze") {
+                setStatus("Načtený kód patří šarži. Skenování šarží zatím není v této obrazovce zapojené.", "warning");
+                return;
+            }
+
+            setStatus("Načtený kód není číslo bedny ani platná URL bedny.", "warning");
         }
 
         async function stopScanner() {

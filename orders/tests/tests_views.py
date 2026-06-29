@@ -487,6 +487,7 @@ class BednaScanViewTests(ViewsTestBase):
 		self.assertTemplateUsed(response, "orders/bedna_skener.html")
 		self.assertContains(response, "Skener beden")
 		self.assertContains(response, "html5-qrcode")
+		self.assertContains(response, "scan_parser.js")
 
 
 class DashboardBednyViewTests(ViewsTestBase):
