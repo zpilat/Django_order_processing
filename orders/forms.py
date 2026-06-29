@@ -460,6 +460,31 @@ class SarzeKrokActionInitForm(forms.Form):
         return operator    
 
 
+class SarzeScanKrokChangeForm(forms.ModelForm):
+    class Meta:
+        model = SarzeKrok
+        fields = ('datum', 'zarizeni', 'zacatek', 'konec', 'operator', 'program', 'alarm', 'poznamka')
+        widgets = {
+            'datum': forms.DateInput(
+                attrs={'class': 'form-control', 'type': 'date'},
+                format='%Y-%m-%d',
+            ),
+            'zarizeni': forms.Select(attrs={'class': 'form-select'}),
+            'zacatek': forms.TimeInput(
+                attrs={'class': 'form-control', 'type': 'time'},
+                format='%H:%M',
+            ),
+            'konec': forms.TimeInput(
+                attrs={'class': 'form-control', 'type': 'time'},
+                format='%H:%M',
+            ),
+            'operator': forms.TextInput(attrs={'class': 'form-control'}),
+            'program': forms.TextInput(attrs={'class': 'form-control'}),
+            'alarm': forms.TextInput(attrs={'class': 'form-control'}),
+            'poznamka': forms.TextInput(attrs={'class': 'form-control'}),
+        }
+
+
 class RychleZalozeniSarzeForm(forms.Form):
     cislo_pripravku = forms.IntegerField(
         required=True,

@@ -146,6 +146,12 @@
                                 <div class="fw-bold">Operátor:
                                     <span class="text-muted small">{{ krok.operator|default:"-" }}</span>
                                 </div>
+                                {% if can_change_sarze %}
+                                    <a class="btn btn-sm btn-primary mt-2"
+                                       href="{% url 'sarze_scan_change_krok' sarze.cislo_sarze krok.pk %}">
+                                        Upravit
+                                    </a>
+                                {% endif %}                                
                             </div>
                             <div class="text-sm-end">
                                 <div class="fw-bold">{{ krok.datum|date:"j. n. Y" }}

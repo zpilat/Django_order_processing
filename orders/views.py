@@ -29,7 +29,12 @@ from .models import (
     Bedna, Zakazka, Kamion, Zakaznik, TypHlavy, Predpis, Odberatel, Cena, Pozice, PoziceZakazkaOrder,
     Sarze, SarzeKrok, SarzeKrokBedna
 )
-from .forms import RychleZalozeniSarzeForm, SarzeKrokActionInitForm, get_sarze_krok_patro_formset
+from .forms import (
+    RychleZalozeniSarzeForm,
+    SarzeKrokActionInitForm,
+    SarzeScanKrokChangeForm,
+    get_sarze_krok_patro_formset,
+)
 from .actions import _build_sarzekrokbedna_preview_rows, _create_sarzekrok_and_copy_rows
 from .choices import (
     StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice, TypZarizeniChoice,
@@ -469,6 +474,7 @@ def sarze_scan_view(request, cislo_sarze: int):
             'kroky': krok_groups,
             'last_krok': kroky[-1] if kroky else None,
             'can_move_sarze': _can_move_sarze_scan(request.user),
+            'can_change_sarze': _can_change_sarze_scan(request.user),
             'db_table': 'sarze_scan',
         },
     )
@@ -533,17 +539,34 @@ def sarze_scan_presunout_view(request, cislo_sarze: int, krok_id: int):
                     request,
                     f'Vytvořen krok {target_krok.poradi} šarže {target_krok.sarze} a zkopírováno {copied_count} řádků.',
                 )
+                logger.info(
+                    f"Uživatel {request.user} vytvořil přes scan nový krok šarže {target_krok.sarze} "
+                    f"(zdrojový krok ID {source_krok.pk}, nový krok ID {target_krok.pk}, "
+                    f"zkopírováno {copied_count} z {len(selected_source_rows)} vybraných řádků)."
+                )
             else:
                 messages.warning(
                     request,
                     f'Opakované odeslání bylo ignorováno. Používá se již vytvořený krok {target_krok.poradi}.',
+                )
+                logger.warning(
+                    f"Uživatel {request.user} opakovaně odeslal scan přesun šarže {target_krok.sarze}; "
+                    f"použit existující krok ID {target_krok.pk} pro token {action_token}."
                 )
             if skipped_conflict:
                 messages.warning(
                     request,
                     f'Přeskočeno {skipped_conflict} řádků kvůli duplicitě bedna + patro.',
                 )
+                logger.warning(
+                    f"Při scan přesunu šarže {target_krok.sarze} bylo přeskočeno {skipped_conflict} "
+                    f"řádků kvůli duplicitě bedna + patro."
+                )
             return redirect('sarze_scan', cislo_sarze=source_krok.sarze.cislo_sarze)
+        logger.warning(
+            f"Uživatel {request.user} odeslal neplatný formulář pro scan přesun šarže "
+            f"{source_krok.sarze} ze zdrojového kroku ID {source_krok.pk}. Chyby: {form.errors.as_json()}"
+        )
     else:
         form = SarzeKrokActionInitForm(
             initial={'datum': timezone.localdate()},
@@ -571,6 +594,73 @@ def sarze_scan_presunout_view(request, cislo_sarze: int, krok_id: int):
             'db_table': 'sarze_scan_presunout',
         },
     )
+
+
+@login_required
+@permission_required('orders.change_sarzekrok', raise_exception=True)
+@permission_required('orders.change_sarzekrokbedna', raise_exception=True)
+def sarze_scan_change_krok_view(request, cislo_sarze: int, krok_id: int):
+    """
+    Zobrazuje stránku pro změnu kroku šarže.
+    """
+    krok = get_object_or_404(
+        SarzeKrok.objects.select_related('sarze', 'zarizeni'),
+        pk=krok_id,
+        sarze__cislo_sarze=cislo_sarze,
+    )
+    polozky = list(
+        SarzeKrokBedna.objects
+        .filter(krok=krok)
+        .select_related('bedna', 'bedna__zakazka', 'bedna__zakazka__kamion_prijem__zakaznik')
+        .order_by('patro', 'bedna__cislo_bedny', 'pk')
+    )
+
+    if request.method == 'POST':
+        form = SarzeScanKrokChangeForm(request.POST, instance=krok)
+        delete_row_ids = {
+            int(row_id)
+            for row_id in request.POST.getlist('delete_row_ids')
+            if row_id.isdigit()
+        }
+        if form.is_valid():
+            with transaction.atomic():
+                form.save()
+                deleted_count = 0
+                if delete_row_ids:
+                    deleted_count, _ = (
+                        SarzeKrokBedna.objects
+                        .filter(krok=krok, pk__in=delete_row_ids)
+                        .delete()
+                    )
+            message = f'Krok {krok.poradi} šarže {krok.sarze} byl uložen.'
+            if delete_row_ids:
+                message = f'{message} Smazáno položek: {deleted_count}.'
+            messages.success(request, message)
+            logger.info(
+                f"Uživatel {request.user} upravil přes scan krok ID {krok.pk} šarže {krok.sarze} "
+                f"(smazáno položek {deleted_count}, požadováno ke smazání {len(delete_row_ids)})."
+            )
+            return redirect('sarze_scan', cislo_sarze=krok.sarze.cislo_sarze)
+        logger.warning(
+            f"Uživatel {request.user} odeslal neplatný formulář pro scan úpravu kroku ID {krok.pk} "
+            f"šarže {krok.sarze}. Chyby: {form.errors.as_json()}"
+        )
+    else:
+        form = SarzeScanKrokChangeForm(instance=krok)
+
+    return render(
+        request,
+        'orders/sarze_scan_change_krok.html',
+        {
+            'sarze': krok.sarze,
+            'krok': krok,
+            'form': form,
+            'polozky': polozky,
+            'db_table': 'sarze_scan_change_krok',
+        },
+    )
+    
+
 
 
 @login_required

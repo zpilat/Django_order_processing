@@ -671,6 +671,79 @@ class BednaScanViewTests(ViewsTestBase):
 		self.assertEqual(copied_rows[0].bedna, self.b_eur_pr)
 		self.assertEqual(copied_rows[0].procent_z_patra, 40)
 
+	def test_sarze_scan_change_krok_view_get_renders_form_and_bedny(self):
+		self.user.user_permissions.add(*Permission.objects.filter(
+			codename__in=["change_sarzekrok", "change_sarzekrokbedna"],
+		))
+		sarze = Sarze.objects.create(datum_zalozeni=timezone.localdate(), cislo_pripravku=1)
+		zarizeni = Zarizeni.objects.create(
+			kod_zarizeni="Z1",
+			nazev_zarizeni="Zařízení 1",
+			zkraceny_nazev_zarizeni="Z1",
+		)
+		krok = SarzeKrok.objects.create(
+			sarze=sarze,
+			zarizeni=zarizeni,
+			zacatek=time(6, 0),
+			konec=time(7, 0),
+			operator="Novak",
+			program="P1",
+		)
+		SarzeKrokBedna.objects.create(krok=krok, bedna=self.b_eur_pr, patro=1, procent_z_patra=100)
+
+		response = self.client.get(reverse("sarze_scan_change_krok", args=[sarze.cislo_sarze, krok.pk]))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertTemplateUsed(response, "orders/sarze_scan_change_krok.html")
+		self.assertContains(response, "Údaje kroku")
+		self.assertContains(response, "Bedny v kroku")
+		self.assertContains(response, str(self.b_eur_pr.cislo_bedny))
+		self.assertContains(response, 'name="delete_row_ids"', html=False)
+
+	def test_sarze_scan_change_krok_view_post_updates_krok_and_deletes_selected_rows(self):
+		self.user.user_permissions.add(*Permission.objects.filter(
+			codename__in=["change_sarzekrok", "change_sarzekrokbedna"],
+		))
+		sarze = Sarze.objects.create(datum_zalozeni=timezone.localdate(), cislo_pripravku=1)
+		zarizeni = Zarizeni.objects.create(
+			kod_zarizeni="Z1",
+			nazev_zarizeni="Zařízení 1",
+			zkraceny_nazev_zarizeni="Z1",
+		)
+		krok = SarzeKrok.objects.create(
+			sarze=sarze,
+			zarizeni=zarizeni,
+			zacatek=time(6, 0),
+			konec=time(7, 0),
+			operator="Novak",
+			program="P1",
+		)
+		deleted_row = SarzeKrokBedna.objects.create(krok=krok, bedna=self.b_eur_pr, patro=1, procent_z_patra=40)
+		kept_row = SarzeKrokBedna.objects.create(krok=krok, bedna=self.b_abc_ex, patro=1, procent_z_patra=60)
+
+		response = self.client.post(
+			reverse("sarze_scan_change_krok", args=[sarze.cislo_sarze, krok.pk]),
+			{
+				"datum": "2026-06-30",
+				"zarizeni": zarizeni.pk,
+				"zacatek": "08:00",
+				"konec": "09:00",
+				"operator": "Svoboda",
+				"program": "P2",
+				"alarm": "A1",
+				"poznamka": "upraveno",
+				"delete_row_ids": [str(deleted_row.pk)],
+			},
+		)
+
+		self.assertRedirects(response, reverse("sarze_scan", args=[sarze.cislo_sarze]))
+		krok.refresh_from_db()
+		self.assertEqual(krok.operator, "Svoboda")
+		self.assertEqual(krok.program, "P2")
+		self.assertEqual(krok.alarm, "A1")
+		self.assertFalse(SarzeKrokBedna.objects.filter(pk=deleted_row.pk).exists())
+		self.assertTrue(SarzeKrokBedna.objects.filter(pk=kept_row.pk).exists())
+
 	def test_sarze_scan_requires_login(self):
 		sarze = Sarze.objects.create(datum_zalozeni=timezone.localdate(), cislo_pripravku=1)
 		self.client.logout()
