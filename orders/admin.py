@@ -1,7 +1,7 @@
 from django.contrib import admin, messages
 from django.contrib.auth.models import Permission
 from django.db import models, transaction
-from django.db.models import Case, When, Value, IntegerField, Prefetch, Exists, OuterRef, Q, F
+from django.db.models import Case, When, Value, IntegerField, Prefetch, Exists, OuterRef, Q, F, Subquery
 from django.forms import TextInput, RadioSelect, modelformset_factory
 from django.forms.models import BaseInlineFormSet
 from django.utils.safestring import mark_safe
@@ -2676,7 +2676,7 @@ class BednaAdmin(SimpleHistoryAdmin):
 
     # Parametry pro zobrazení detailu v administraci (použijeme get_fieldsets)
     readonly_fields = ('cislo_bedny', 'cena_za_kg', 'cena_za_bednu', 'cena_rovnani_za_kg', 'cena_rovnani_za_bednu',
-                       'cena_tryskani_za_kg', 'cena_tryskani_za_bednu', 'get_notifikace')
+                       'cena_tryskani_za_kg', 'cena_tryskani_za_bednu', 'get_notifikace', 'get_pohyb_v_sarzich')
     autocomplete_fields = ('zakazka',)
 
     # Parametry pro zobrazení seznamu v administraci
@@ -2843,6 +2843,109 @@ class BednaAdmin(SimpleHistoryAdmin):
             ),
         ]
         return custom_urls + urls
+
+    @admin.display(description='Pohyb v šaržích')
+    def get_pohyb_v_sarzich(self, obj):
+        if not obj or not obj.pk:
+            return '-'
+
+        krok_ids = SarzeKrokBedna.objects.filter(bedna=obj).values('krok_id')
+        polozky = list(
+            SarzeKrokBedna.objects
+            .filter(krok_id__in=Subquery(krok_ids))
+            .select_related('krok', 'krok__sarze', 'krok__zarizeni', 'bedna', 'bedna__zakazka')
+            .order_by(
+                'krok__sarze__cislo_sarze',
+                'krok__poradi',
+                'patro',
+                'bedna__cislo_bedny',
+                'pk',
+            )
+        )
+        if not polozky:
+            return 'Bez záznamů v šaržích.'
+
+        pohyb = []
+        pohyb_by_sarze = {}
+        pohyb_by_krok = {}
+        for polozka in polozky:
+            sarze_id = polozka.krok.sarze_id
+            sarze_group = pohyb_by_sarze.get(sarze_id)
+            if sarze_group is None:
+                sarze_group = {
+                    'sarze': polozka.krok.sarze,
+                    'kroky': [],
+                }
+                pohyb_by_sarze[sarze_id] = sarze_group
+                pohyb.append(sarze_group)
+
+            krok_group = pohyb_by_krok.get(polozka.krok_id)
+            if krok_group is None:
+                krok_group = {
+                    'krok': polozka.krok,
+                    'patra': [],
+                    'patra_by_number': {},
+                }
+                pohyb_by_krok[polozka.krok_id] = krok_group
+                sarze_group['kroky'].append(krok_group)
+
+            patro_group = krok_group['patra_by_number'].get(polozka.patro)
+            if patro_group is None:
+                patro_group = {
+                    'patro': polozka.patro,
+                    'polozky': [],
+                }
+                krok_group['patra_by_number'][polozka.patro] = patro_group
+                krok_group['patra'].append(patro_group)
+
+            patro_group['polozky'].append(polozka)
+
+        html = ['<div class="bedna-admin-pohyb">']
+        for sarze_group in pohyb:
+            sarze = sarze_group['sarze']
+            html.append(format_html(
+                '<details style="margin-bottom: .75rem;">'
+                '<summary><strong>{}</strong> <span style="color: #666;">({} kroků, přípravek {})</span></summary>',
+                sarze,
+                len(sarze_group['kroky']),
+                sarze.cislo_pripravku or '-',
+            ))
+            for krok_group in sarze_group['kroky']:
+                krok = krok_group['krok']
+                html.append(format_html(
+                    '<div style="margin: .6rem 0 .4rem 1rem; padding-bottom: .35rem; border-bottom: 1px solid #ddd;">'
+                    '<strong>Krok {}</strong> - {} - {} {}{}</div>',
+                    krok.poradi,
+                    krok.zarizeni or '-',
+                    krok.datum.strftime('%d.%m.%Y') if krok.datum else '-',
+                    krok.zacatek.strftime('%H:%M') if krok.zacatek else '-',
+                    format_html(' - {}', krok.konec.strftime('%H:%M')) if krok.konec else '',
+                ))
+                for patro_group in krok_group['patra']:
+                    html.append(format_html(
+                        '<div style="margin-left: 1.5rem;"><strong>Patro {}</strong></div>',
+                        patro_group['patro'],
+                    ))
+                    html.append('<ul style="margin: .25rem 0 .6rem 2.5rem;">')
+                    for polozka in patro_group['polozky']:
+                        if polozka.bedna:
+                            cislo_bedny = polozka.bedna.cislo_bedny
+                            zakazka = polozka.bedna.zakazka.artikl if polozka.bedna.zakazka else '-'
+                        else:
+                            cislo_bedny = polozka.popis_mimo_db or '-'
+                            zakazka = polozka.zakazka_mimo_db or '-'
+
+                        html.append(format_html(
+                            '<li{}>{} <span style="color: #666;">({})</span> - {} %</li>',
+                            mark_safe(' style="font-weight: 700;"') if polozka.bedna_id == obj.pk else '',
+                            cislo_bedny,
+                            zakazka,
+                            polozka.procent_z_patra if polozka.procent_z_patra is not None else '-',
+                        ))
+                    html.append('</ul>')
+            html.append('</details>')
+        html.append('</div>')
+        return mark_safe(''.join(str(part) for part in html))
 
     def _get_latest_change_marker(self):
         history_model = Bedna.history.model
@@ -3306,6 +3409,8 @@ class BednaAdmin(SimpleHistoryAdmin):
                 'get_notifikace',
             )),
         ]
+        if obj:
+            groups.append(('Pohyb v šaržích', ('get_pohyb_v_sarzich',)))
 
         # Logika vyloučení polí z původního get_fields
         exclude_fields = []

@@ -1185,6 +1185,54 @@ class BednaAdminTests(AdminBase):
         perm = self.admin.has_change_permission(self.get_request(), self.bedna)
         self.assertTrue(perm)
 
+    def test_change_form_shows_bedna_sarze_movement_summary(self):
+        zarizeni = Zarizeni.objects.create(
+            kod_zarizeni='Z1',
+            nazev_zarizeni='Zařízení 1',
+            zkraceny_nazev_zarizeni='Z1',
+        )
+        sarze = Sarze.objects.create(datum_zalozeni=timezone.localdate(), cislo_pripravku=1)
+        krok_1 = SarzeKrok.objects.create(
+            sarze=sarze,
+            zarizeni=zarizeni,
+            zacatek=time(6, 0),
+            konec=time(7, 0),
+            operator='Novak',
+        )
+        krok_2 = SarzeKrok.objects.create(
+            sarze=sarze,
+            zarizeni=zarizeni,
+            zacatek=time(8, 0),
+            konec=time(9, 0),
+            operator='Svoboda',
+        )
+        other_bedna = Bedna.objects.create(
+            zakazka=self.zakazka,
+            hmotnost=Decimal(3),
+            tara=Decimal(1),
+            mnozstvi=1,
+        )
+        SarzeKrokBedna.objects.create(krok=krok_1, bedna=self.bedna, patro=1, procent_z_patra=40)
+        SarzeKrokBedna.objects.create(krok=krok_1, bedna=other_bedna, patro=1, procent_z_patra=60)
+        SarzeKrokBedna.objects.create(krok=krok_2, bedna=self.bedna, patro=2, procent_z_patra=100)
+
+        fieldsets = self.admin.get_fieldsets(self.get_request(), self.bedna)
+        html = str(self.admin.get_pohyb_v_sarzich(self.bedna))
+
+        self.assertEqual(fieldsets[-1][0], 'Pohyb v šaržích')
+        self.assertIn('get_pohyb_v_sarzich', fieldsets[-1][1]['fields'])
+        self.assertIn(str(sarze), html)
+        self.assertIn('2 kroků', html)
+        self.assertIn('Krok 1', html)
+        self.assertIn('Krok 2', html)
+        self.assertIn('Patro 1', html)
+        self.assertIn('Patro 2', html)
+        self.assertIn(str(self.bedna.cislo_bedny), html)
+        self.assertIn(str(other_bedna.cislo_bedny), html)
+        self.assertIn('40 %', html)
+        self.assertIn('60 %', html)
+        self.assertIn('100 %', html)
+
     def test_has_change_permission_regular_user(self):
         """Oprávnění pro expedovanou a pozastavenou bednu."""
         User = get_user_model()
