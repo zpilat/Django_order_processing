@@ -1,7 +1,7 @@
 {% extends "orders/base.html" %}
 {% load static %}
 
-{% block title %}Skener beden{% endblock %}
+{% block title %}Skener{% endblock %}
 
 {% block content %}
 <style>
@@ -71,8 +71,8 @@
     <section class="scanner-panel">
         <div class="d-flex flex-column flex-sm-row justify-content-between gap-2 mb-3">
             <div>
-                <p class="scanner-title">Skener beden</p>
-                <div class="text-muted">Načtěte QR kód z karty bedny.</div>
+                <p class="scanner-title">Skener kódů</p>
+                <div class="text-muted">Načtěte QR nebo čárový kód bedny či šarže.</div>
             </div>
         </div>
 
@@ -114,6 +114,7 @@
 <script>
     (function () {
         const scanUrlTemplate = "{% url 'bedna_scan' 0 %}";
+        const sarzeScanUrlTemplate = "{% url 'sarze_scan' 0 %}";
         const readerId = "reader";
         const statusEl = document.getElementById("scanner-status");
         const startButton = document.getElementById("scanner-start");
@@ -132,6 +133,10 @@
 
         function scanUrlForNumber(numberText) {
             return scanUrlTemplate.replace("/0/", "/" + encodeURIComponent(numberText) + "/");
+        }
+
+        function sarzeScanUrlForNumber(numberText) {
+            return sarzeScanUrlTemplate.replace("/0/", "/" + encodeURIComponent(numberText) + "/");
         }
 
         function openScanTarget(rawValue) {
@@ -155,7 +160,8 @@
             }
 
             if (parsed.type === "sarze") {
-                setStatus("Načtený kód patří šarži. Skenování šarží zatím není v této obrazovce zapojené.", "warning");
+                setStatus("Kód načten, otevírám šarži...", "success");
+                window.location.assign(sarzeScanUrlForNumber(parsed.value));
                 return;
             }
 

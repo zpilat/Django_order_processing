@@ -143,11 +143,11 @@
                     </ul>
                 </div>
             {% endif %}
-            <!-- Odkaz: Skenování beden-->
+            <!-- Odkaz: Skenování -->
             {% if user.is_authenticated %}
                 <a class="btn btn-sm app-navbar-button"
                    style="background-color: var(--navbar-button-bg); color: var(--navbar-button-fg); border-color: var(--navbar-button-bg);"
-                   href="{% url 'bedna_skener' %}">SKENOVÁNÍ BEDEN</a>
+                   href="{% url 'bedna_skener' %}">SKENOVÁNÍ KÓDU</a>
             {% endif %}
             <!-- Odkaz: Admin-->
             {% if user.is_staff %}

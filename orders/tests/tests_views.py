@@ -472,6 +472,59 @@ class BednaScanViewTests(ViewsTestBase):
 		self.assertEqual(response.status_code, 302)
 		self.assertIn("login", response.url)
 
+	def test_sarze_scan_renders_steps_floors_and_bedny(self):
+		sarze = Sarze.objects.create(datum_zalozeni=timezone.localdate(), cislo_pripravku=1)
+		zarizeni = Zarizeni.objects.create(
+			kod_zarizeni="Z1",
+			nazev_zarizeni="Zařízení 1",
+			zkraceny_nazev_zarizeni="Z1",
+		)
+		krok = SarzeKrok.objects.create(
+			sarze=sarze,
+			zarizeni=zarizeni,
+			zacatek=time(6, 0),
+			konec=time(7, 0),
+			operator="Novak",
+			program="P1",
+		)
+		krok_2 = SarzeKrok.objects.create(
+			sarze=sarze,
+			zarizeni=zarizeni,
+			zacatek=time(8, 0),
+			konec=time(9, 0),
+			operator="Svoboda",
+			program="P2",
+		)
+		SarzeKrokBedna.objects.create(krok=krok, bedna=self.b_eur_pr, patro=1, procent_z_patra=40)
+		SarzeKrokBedna.objects.create(krok=krok, bedna=self.b_abc_ex, patro=1, procent_z_patra=60)
+		SarzeKrokBedna.objects.create(krok=krok_2, bedna=self.b_eur_pr, patro=2, procent_z_patra=100)
+
+		response = self.client.get(reverse("sarze_scan", args=[sarze.cislo_sarze]))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertTemplateUsed(response, "orders/sarze_scan_detail.html")
+		self.assertContains(response, str(sarze))
+		self.assertContains(response, "Krok 1")
+		self.assertContains(response, "Krok 2")
+		self.assertContains(response, "Patro 1")
+		self.assertContains(response, "Patro 2")
+		self.assertContains(response, str(self.b_eur_pr.cislo_bedny))
+		self.assertContains(response, str(self.b_abc_ex.cislo_bedny))
+		self.assertContains(response, "40 %")
+		self.assertContains(response, "60 %")
+		self.assertContains(response, "100 %")
+		self.assertContains(response, "Novak")
+		self.assertContains(response, "Svoboda")
+
+	def test_sarze_scan_requires_login(self):
+		sarze = Sarze.objects.create(datum_zalozeni=timezone.localdate(), cislo_pripravku=1)
+		self.client.logout()
+
+		response = self.client.get(reverse("sarze_scan", args=[sarze.cislo_sarze]))
+
+		self.assertEqual(response.status_code, 302)
+		self.assertIn("login", response.url)
+
 	def test_bedna_skener_requires_login(self):
 		self.client.logout()
 
@@ -485,9 +538,10 @@ class BednaScanViewTests(ViewsTestBase):
 
 		self.assertEqual(response.status_code, 200)
 		self.assertTemplateUsed(response, "orders/bedna_skener.html")
-		self.assertContains(response, "Skener beden")
+		self.assertContains(response, "Skener")
 		self.assertContains(response, "html5-qrcode")
 		self.assertContains(response, "scan_parser.js")
+		self.assertContains(response, reverse("sarze_scan", args=[0]))
 
 
 class DashboardBednyViewTests(ViewsTestBase):

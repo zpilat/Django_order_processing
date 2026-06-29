@@ -341,6 +341,62 @@ def bedna_scan_pohyb_view(request, cislo_bedny: int):
 
 
 @login_required
+def sarze_scan_view(request, cislo_sarze: int):
+    sarze = get_object_or_404(Sarze, cislo_sarze=cislo_sarze)
+    kroky = list(
+        SarzeKrok.objects
+        .filter(sarze=sarze)
+        .select_related('sarze', 'zarizeni')
+        .order_by('poradi', 'datum', 'zacatek', 'pk')
+    )
+    krok_groups = []
+    krok_groups_by_id = {}
+    for krok in kroky:
+        krok_group = {
+            'krok': krok,
+            'patra': [],
+            'patra_by_number': {},
+        }
+        krok_groups_by_id[krok.pk] = krok_group
+        krok_groups.append(krok_group)
+
+    polozky = (
+        SarzeKrokBedna.objects
+        .filter(krok__sarze=sarze)
+        .select_related('krok', 'krok__zarizeni', 'bedna', 'bedna__zakazka')
+        .order_by('krok__poradi', 'patro', 'bedna__cislo_bedny', 'pk')
+    )
+    for polozka in polozky:
+        krok_group = krok_groups_by_id.get(polozka.krok_id)
+        if krok_group is None:
+            continue
+
+        patro_group = krok_group['patra_by_number'].get(polozka.patro)
+        if patro_group is None:
+            patro_group = {
+                'patro': polozka.patro,
+                'polozky': [],
+            }
+            krok_group['patra_by_number'][polozka.patro] = patro_group
+            krok_group['patra'].append(patro_group)
+
+        patro_group['polozky'].append(polozka)
+
+    for krok_group in krok_groups:
+        krok_group.pop('patra_by_number', None)
+
+    return render(
+        request,
+        'orders/sarze_scan_detail.html',
+        {
+            'sarze': sarze,
+            'kroky': krok_groups,
+            'db_table': 'sarze_scan',
+        },
+    )
+
+
+@login_required
 def bedna_skener_view(request):
     return render(
         request,
