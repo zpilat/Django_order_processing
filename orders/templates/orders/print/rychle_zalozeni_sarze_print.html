@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+{% load barcode_tags %}
 <html lang="cs">
 <head>
     <meta charset="utf-8">
@@ -45,6 +46,22 @@
         .guide-title {
             width: 35%;
             font-size: 14px;
+        }
+
+        .guide-title-text {
+            margin-bottom: 1mm;
+        }
+
+        .sarze-barcode {
+            width: 45mm;
+            height: 8mm;
+            margin: 0 auto;
+        }
+
+        .sarze-barcode svg {
+            display: block;
+            width: 100%;
+            height: 100%;
         }
 
         .checkbox {
@@ -134,7 +151,10 @@
             <td>KW2 <span class="checkbox"></span></td>
             <td>KW1 <span class="checkbox"></span></td>
             <td>Předohřev <span class="checkbox"></span></td>
-            <td class="guide-title">PRŮVODKA VRUTY</td>
+            <td class="guide-title">
+                <div class="guide-title-text">PRŮVODKA VRUTY</div>
+                <div class="sarze-barcode">{% sarze_code128_svg krok.sarze %}</div>
+            </td>
             <td>Otryskané <span class="checkbox"></span></td>
         </tr>
     </table>

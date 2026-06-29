@@ -1688,6 +1688,9 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 		)
 		self.assertIn("1. patro", html)
 		self.assertIn(str(self.b_eur_pr.cislo_bedny), html)
+		self.assertIn("PRŮVODKA VRUTY", html)
+		self.assertIn("sarze-barcode", html)
+		self.assertIn("<svg", html)
 
 	def test_prehled_and_tisk_show_floors_in_descending_order(self):
 		sarze = Sarze.objects.create(

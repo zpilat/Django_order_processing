@@ -94,6 +94,14 @@ def bedna_code128_svg(bedna):
     return mark_safe(_code128_svg(str(bedna.cislo_bedny)))
 
 
+@register.simple_tag
+def sarze_code128_svg(sarze):
+    if not sarze or not getattr(sarze, "cislo_sarze", None):
+        return ""
+
+    return mark_safe(_code128_svg(str(sarze)))
+
+
 @register.simple_tag(takes_context=True)
 def bedna_scan_url(context, bedna):
     if not bedna or not getattr(bedna, "cislo_bedny", None):
