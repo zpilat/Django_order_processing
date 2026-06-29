@@ -19,6 +19,7 @@ from .views import (
     bedna_scan_navezeni_view,
     bedna_scan_pohyb_view,
     sarze_scan_view,
+    sarze_scan_presunout_view,
     bedna_skener_view,
     rychle_zalozeni_sarze_view,
     rychle_zalozeni_sarze_posledni_prehled_view,
@@ -40,6 +41,11 @@ urlpatterns = [
     path('bedny/scan/<int:cislo_bedny>/navezeni/', bedna_scan_navezeni_view, name='bedna_scan_navezeni'),
     path('bedny/scan/<int:cislo_bedny>/pohyb/', bedna_scan_pohyb_view, name='bedna_scan_pohyb'),
     path('sarze/scan/<int:cislo_sarze>/', sarze_scan_view, name='sarze_scan'),
+    path(
+        'sarze/scan/<int:cislo_sarze>/krok/<int:krok_id>/presunout/',
+        sarze_scan_presunout_view,
+        name='sarze_scan_presunout',
+    ),
     path('bedny/skener/', bedna_skener_view, name='bedna_skener'),
     path('sarze/rychle-zalozeni/', rychle_zalozeni_sarze_view, name='rychle_zalozeni_sarze'),
     path(

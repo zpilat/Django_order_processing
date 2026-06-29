@@ -516,6 +516,161 @@ class BednaScanViewTests(ViewsTestBase):
 		self.assertContains(response, "Novak")
 		self.assertContains(response, "Svoboda")
 
+	def test_sarze_scan_shows_move_buttons_for_user_with_permissions(self):
+		self.user.user_permissions.add(*Permission.objects.filter(
+			codename__in=["add_sarzekrok", "add_sarzekrokbedna"],
+		))
+		sarze = Sarze.objects.create(datum_zalozeni=timezone.localdate(), cislo_pripravku=1)
+		zarizeni = Zarizeni.objects.create(
+			kod_zarizeni="Z1",
+			nazev_zarizeni="Zařízení 1",
+			zkraceny_nazev_zarizeni="Z1",
+		)
+		krok = SarzeKrok.objects.create(
+			sarze=sarze,
+			zarizeni=zarizeni,
+			zacatek=time(6, 0),
+			konec=time(7, 0),
+			operator="Novak",
+		)
+
+		response = self.client.get(reverse("sarze_scan", args=[sarze.cislo_sarze]))
+
+		self.assertEqual(response.status_code, 200)
+		move_url = reverse("sarze_scan_presunout", args=[sarze.cislo_sarze, krok.pk])
+		self.assertContains(response, move_url)
+		self.assertContains(response, "Přesunout do dalšího kroku")
+		self.assertContains(response, "Přesunout")
+
+	def test_sarze_scan_move_view_get_renders_form(self):
+		self.user.user_permissions.add(*Permission.objects.filter(
+			codename__in=["add_sarzekrok", "add_sarzekrokbedna"],
+		))
+		sarze = Sarze.objects.create(datum_zalozeni=timezone.localdate(), cislo_pripravku=1)
+		zarizeni = Zarizeni.objects.create(
+			kod_zarizeni="Z1",
+			nazev_zarizeni="Zařízení 1",
+			zkraceny_nazev_zarizeni="Z1",
+		)
+		krok = SarzeKrok.objects.create(
+			sarze=sarze,
+			zarizeni=zarizeni,
+			zacatek=time(6, 0),
+			konec=time(7, 0),
+			operator="Novak",
+		)
+		SarzeKrokBedna.objects.create(krok=krok, bedna=self.b_eur_pr, patro=1, procent_z_patra=100)
+
+		response = self.client.get(reverse("sarze_scan_presunout", args=[sarze.cislo_sarze, krok.pk]))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertTemplateUsed(response, "orders/sarze_scan_presunout.html")
+		self.assertContains(response, "Nový krok šarže")
+		self.assertContains(response, "Vytvořit další krok")
+		self.assertContains(response, 'name="source_row_ids"', html=False)
+		self.assertContains(response, str(self.b_eur_pr.cislo_bedny))
+
+	def test_sarze_scan_move_view_post_creates_next_step_from_selected_step(self):
+		self.user.user_permissions.add(*Permission.objects.filter(
+			codename__in=["add_sarzekrok", "add_sarzekrokbedna"],
+		))
+		sarze = Sarze.objects.create(datum_zalozeni=timezone.localdate(), cislo_pripravku=1)
+		source_zarizeni = Zarizeni.objects.create(
+			kod_zarizeni="Z1",
+			nazev_zarizeni="Zařízení 1",
+			zkraceny_nazev_zarizeni="Z1",
+		)
+		target_zarizeni = Zarizeni.objects.create(
+			kod_zarizeni="Z2",
+			nazev_zarizeni="Zařízení 2",
+			zkraceny_nazev_zarizeni="Z2",
+		)
+		source_krok = SarzeKrok.objects.create(
+			sarze=sarze,
+			zarizeni=source_zarizeni,
+			zacatek=time(6, 0),
+			konec=time(7, 0),
+			operator="Novak",
+		)
+		row_1 = SarzeKrokBedna.objects.create(krok=source_krok, bedna=self.b_eur_pr, patro=1, procent_z_patra=40)
+		row_2 = SarzeKrokBedna.objects.create(krok=source_krok, bedna=self.b_abc_ex, patro=1, procent_z_patra=60)
+
+		response = self.client.post(
+			reverse("sarze_scan_presunout", args=[sarze.cislo_sarze, source_krok.pk]),
+			{
+				"_sarzekrok_action_token": "scanmove000000000000000000000001",
+				"datum": "2026-06-30",
+				"zarizeni": target_zarizeni.pk,
+				"zacatek": "08:00",
+				"konec": "09:00",
+				"operator": "Svoboda",
+				"program": "P2",
+				"alarm": "",
+				"poznamka": "scan",
+				"source_row_ids": [str(row_1.pk), str(row_2.pk)],
+			},
+		)
+
+		self.assertRedirects(response, reverse("sarze_scan", args=[sarze.cislo_sarze]))
+		target_krok = SarzeKrok.objects.get(sarze=sarze, poradi=2)
+		self.assertEqual(target_krok.zarizeni, target_zarizeni)
+		self.assertEqual(target_krok.operator, "Svoboda")
+		copied_rows = list(target_krok.krok_bedny.order_by("bedna__cislo_bedny"))
+		self.assertEqual(len(copied_rows), 2)
+		self.assertEqual(copied_rows[0].bedna, self.b_eur_pr)
+		self.assertEqual(copied_rows[0].patro, 1)
+		self.assertEqual(copied_rows[0].procent_z_patra, 40)
+		self.assertEqual(copied_rows[1].bedna, self.b_abc_ex)
+		self.assertEqual(copied_rows[1].procent_z_patra, 60)
+
+	def test_sarze_scan_move_view_post_copies_only_selected_rows(self):
+		self.user.user_permissions.add(*Permission.objects.filter(
+			codename__in=["add_sarzekrok", "add_sarzekrokbedna"],
+		))
+		sarze = Sarze.objects.create(datum_zalozeni=timezone.localdate(), cislo_pripravku=1)
+		source_zarizeni = Zarizeni.objects.create(
+			kod_zarizeni="Z1",
+			nazev_zarizeni="ZaĹ™Ă­zenĂ­ 1",
+			zkraceny_nazev_zarizeni="Z1",
+		)
+		target_zarizeni = Zarizeni.objects.create(
+			kod_zarizeni="Z2",
+			nazev_zarizeni="ZaĹ™Ă­zenĂ­ 2",
+			zkraceny_nazev_zarizeni="Z2",
+		)
+		source_krok = SarzeKrok.objects.create(
+			sarze=sarze,
+			zarizeni=source_zarizeni,
+			zacatek=time(6, 0),
+			konec=time(7, 0),
+			operator="Novak",
+		)
+		selected_row = SarzeKrokBedna.objects.create(krok=source_krok, bedna=self.b_eur_pr, patro=1, procent_z_patra=40)
+		SarzeKrokBedna.objects.create(krok=source_krok, bedna=self.b_abc_ex, patro=1, procent_z_patra=60)
+
+		response = self.client.post(
+			reverse("sarze_scan_presunout", args=[sarze.cislo_sarze, source_krok.pk]),
+			{
+				"_sarzekrok_action_token": "scanmove000000000000000000000002",
+				"datum": "2026-06-30",
+				"zarizeni": target_zarizeni.pk,
+				"zacatek": "08:00",
+				"konec": "09:00",
+				"operator": "Svoboda",
+				"program": "P2",
+				"alarm": "",
+				"poznamka": "scan",
+				"source_row_ids": [str(selected_row.pk)],
+			},
+		)
+
+		self.assertRedirects(response, reverse("sarze_scan", args=[sarze.cislo_sarze]))
+		target_krok = SarzeKrok.objects.get(sarze=sarze, poradi=2)
+		copied_rows = list(target_krok.krok_bedny.order_by("pk"))
+		self.assertEqual(len(copied_rows), 1)
+		self.assertEqual(copied_rows[0].bedna, self.b_eur_pr)
+		self.assertEqual(copied_rows[0].procent_z_patra, 40)
+
 	def test_sarze_scan_requires_login(self):
 		sarze = Sarze.objects.create(datum_zalozeni=timezone.localdate(), cislo_pripravku=1)
 		self.client.logout()

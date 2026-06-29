@@ -1,5 +1,6 @@
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.contrib.auth.decorators import login_required, permission_required
+from django import forms as django_forms
 from django.shortcuts import render, redirect, get_object_or_404
 from django.template.loader import render_to_string
 from django.views.generic import ListView
@@ -13,6 +14,7 @@ from django.utils.translation import gettext_lazy as _
 import django.utils.timezone as timezone
 from datetime import timedelta, time, date
 import calendar
+import uuid
 from django.db import transaction
 from django.contrib import messages
 from django.contrib.staticfiles import finders
@@ -27,7 +29,8 @@ from .models import (
     Bedna, Zakazka, Kamion, Zakaznik, TypHlavy, Predpis, Odberatel, Cena, Pozice, PoziceZakazkaOrder,
     Sarze, SarzeKrok, SarzeKrokBedna
 )
-from .forms import RychleZalozeniSarzeForm, get_sarze_krok_patro_formset
+from .forms import RychleZalozeniSarzeForm, SarzeKrokActionInitForm, get_sarze_krok_patro_formset
+from .actions import _build_sarzekrokbedna_preview_rows, _create_sarzekrok_and_copy_rows
 from .choices import (
     StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice, TypZarizeniChoice,
     ZinkovaniChoice, STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM
@@ -340,6 +343,39 @@ def bedna_scan_pohyb_view(request, cislo_bedny: int):
     )
 
 
+def _can_move_sarze_scan(user):
+    return user.has_perms((
+        'orders.add_sarzekrok',
+        'orders.add_sarzekrokbedna',
+    ))
+
+
+def _style_sarze_scan_move_form(form):
+    form.fields['datum'].widget = django_forms.DateInput(
+        attrs={'class': 'form-control', 'type': 'date'},
+        format='%Y-%m-%d',
+    )
+    form.fields['zacatek'].widget = django_forms.TimeInput(
+        attrs={'class': 'form-control', 'type': 'time'},
+        format='%H:%M',
+    )
+    form.fields['konec'].widget = django_forms.TimeInput(
+        attrs={'class': 'form-control', 'type': 'time'},
+        format='%H:%M',
+    )
+    form.fields['zarizeni'].widget.attrs.update({'class': 'form-select'})
+    for field_name in ('operator', 'program', 'alarm', 'poznamka'):
+        form.fields[field_name].widget.attrs.update({'class': 'form-control'})
+
+
+def _build_sarze_scan_move_preview_rows(source_rows, selected_row_ids):
+    preview_rows = _build_sarzekrokbedna_preview_rows(source_rows)
+    for preview_row, source_row in zip(preview_rows, source_rows):
+        preview_row['id'] = source_row.pk
+        preview_row['selected'] = source_row.pk in selected_row_ids
+    return preview_rows
+
+
 @login_required
 def sarze_scan_view(request, cislo_sarze: int):
     sarze = get_object_or_404(Sarze, cislo_sarze=cislo_sarze)
@@ -391,7 +427,105 @@ def sarze_scan_view(request, cislo_sarze: int):
         {
             'sarze': sarze,
             'kroky': krok_groups,
+            'last_krok': kroky[-1] if kroky else None,
+            'can_move_sarze': _can_move_sarze_scan(request.user),
             'db_table': 'sarze_scan',
+        },
+    )
+
+
+@login_required
+@permission_required('orders.add_sarzekrok', raise_exception=True)
+@permission_required('orders.add_sarzekrokbedna', raise_exception=True)
+def sarze_scan_presunout_view(request, cislo_sarze: int, krok_id: int):
+    source_krok = get_object_or_404(
+        SarzeKrok.objects.select_related('sarze', 'zarizeni'),
+        pk=krok_id,
+        sarze__cislo_sarze=cislo_sarze,
+    )
+    source_rows = list(
+        SarzeKrokBedna.objects
+        .filter(krok=source_krok)
+        .select_related('bedna', 'bedna__zakazka')
+        .order_by('pk')
+    )
+    action_token = request.POST.get('_sarzekrok_action_token') or uuid.uuid4().hex
+    selected_source_row_ids = {row.pk for row in source_rows}
+
+    if not source_krok.konec:
+        messages.warning(
+            request,
+            'Původní krok šarže nemá vyplněný konec, nezapomeňte jej vyplnit.',
+        )
+
+    if request.method == 'POST':
+        form = SarzeKrokActionInitForm(request.POST, sarze=source_krok.sarze)
+        _style_sarze_scan_move_form(form)
+        selected_source_row_ids = {
+            int(row_id)
+            for row_id in request.POST.getlist('source_row_ids')
+            if row_id.isdigit()
+        }
+        selected_source_rows = [
+            row for row in source_rows if row.pk in selected_source_row_ids
+        ]
+        if source_rows and not selected_source_rows:
+            form.add_error(None, 'Vyberte alespoň jednu položku ke kopírování.')
+        if form.is_valid():
+            target_krok, copied_count, skipped_conflict, created = _create_sarzekrok_and_copy_rows(
+                source_krok,
+                selected_source_rows,
+                datum=form.cleaned_data['datum'],
+                zarizeni=form.cleaned_data['zarizeni'],
+                zacatek=form.cleaned_data['zacatek'],
+                konec=form.cleaned_data['konec'],
+                operator=form.cleaned_data['operator'],
+                program=form.cleaned_data['program'],
+                alarm=form.cleaned_data['alarm'],
+                poznamka=form.cleaned_data['poznamka'],
+                action_token=action_token,
+            )
+            if created:
+                messages.success(
+                    request,
+                    f'Vytvořen krok {target_krok.poradi} šarže {target_krok.sarze} a zkopírováno {copied_count} řádků.',
+                )
+            else:
+                messages.warning(
+                    request,
+                    f'Opakované odeslání bylo ignorováno. Používá se již vytvořený krok {target_krok.poradi}.',
+                )
+            if skipped_conflict:
+                messages.warning(
+                    request,
+                    f'Přeskočeno {skipped_conflict} řádků kvůli duplicitě bedna + patro.',
+                )
+            return redirect('sarze_scan', cislo_sarze=source_krok.sarze.cislo_sarze)
+    else:
+        form = SarzeKrokActionInitForm(
+            initial={'datum': timezone.localdate()},
+            sarze=source_krok.sarze,
+        )
+        _style_sarze_scan_move_form(form)
+
+    predicted_poradi = (
+        SarzeKrok.objects
+        .filter(sarze=source_krok.sarze)
+        .aggregate(max_poradi=Max('poradi'))['max_poradi'] or 0
+    ) + 1
+
+    return render(
+        request,
+        'orders/sarze_scan_presunout.html',
+        {
+            'sarze': source_krok.sarze,
+            'source_krok': source_krok,
+            'form': form,
+            'source_row_preview': _build_sarze_scan_move_preview_rows(source_rows, selected_source_row_ids),
+            'source_row_count': len(source_rows),
+            'predicted_poradi': predicted_poradi,
+            'action_token': action_token,
+            'db_table': 'sarze_scan_presunout',
         },
     )
 

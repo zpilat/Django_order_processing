@@ -74,6 +74,11 @@
         border-radius: 6px;
         background: #fbfcfd;
     }
+    .alert-error {
+        --bs-alert-color: var(--bs-danger-text-emphasis);
+        --bs-alert-bg: var(--bs-danger-bg-subtle);
+        --bs-alert-border-color: var(--bs-danger-border-subtle);
+    }
     @media (max-width: 575.98px) {
         .scan-page {
             padding: 0.5rem 0;
@@ -89,6 +94,16 @@
 </style>
 
 <main class="scan-page">
+    {% if messages %}
+        <div class="mb-3">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags|default:'info' }} mb-2" role="alert">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
     <section class="scan-hero">
         <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3">
             <div class="text-center text-sm-start">
@@ -109,6 +124,14 @@
             Zpět na skener
         </a>
     </div>
+    {% if can_move_sarze and last_krok %}
+        <div class="d-grid mt-2">
+            <a class="btn btn-primary scan-action-button d-flex align-items-center justify-content-center"
+               href="{% url 'sarze_scan_presunout' sarze.cislo_sarze last_krok.pk %}">
+                Přesunout do dalšího kroku
+            </a>
+        </div>
+    {% endif %}
 
     {% if kroky %}
         {% for krok_item in kroky %}
@@ -129,6 +152,12 @@
                                     <span class="text-muted small">({{ krok.zacatek|time:"H:i" }} - {% if krok.konec %}{{ krok.konec|time:"H:i" }}{% else %}???{% endif %})</span>
                                 </div>
                                 <div class="fw-bold">Program {{ krok.program|default:"-" }}</div>
+                                {% if can_move_sarze %}
+                                    <a class="btn btn-sm btn-primary mt-2"
+                                       href="{% url 'sarze_scan_presunout' sarze.cislo_sarze krok.pk %}">
+                                        Přesunout
+                                    </a>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
