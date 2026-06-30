@@ -755,14 +755,6 @@ class BaseSarzeKrokPatroFormSet(BaseFormSet):
         if len(active_forms) > 5:
             raise ValidationError('Jedno patro může obsahovat nejvýše 5 položek.')
 
-        bedna_ids = [
-            form.cleaned_data['bedna'].pk
-            for form in active_forms
-            if form.cleaned_data.get('bedna')
-        ]
-        if len(bedna_ids) != len(set(bedna_ids)):
-            raise ValidationError('Stejnou bednu nelze v jednom patře zadat vícekrát.')
-
         percentages = [
             form.cleaned_data.get('procent_z_patra')
             for form in active_forms

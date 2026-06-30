@@ -1743,6 +1743,63 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 		self.assertEqual(items[1].cislo_bedny_mimo_db, "BED-1")
 		self.assertEqual(items[1].procent_z_patra, 50)
 
+	def test_patro_post_allows_same_bedna_more_than_once(self):
+		sarze = Sarze.objects.create(
+			datum_zalozeni=date(2026, 6, 5),
+			cislo_pripravku=12,
+			aktivni=True,
+		)
+		krok = SarzeKrok.objects.create(
+			sarze=sarze,
+			poradi=1,
+			datum=date(2026, 6, 5),
+			zarizeni=self.nakladani,
+			zacatek=time(6, 0),
+			konec=time(7, 30),
+			operator="Novak",
+		)
+		other_bedna = Bedna.objects.create(
+			zakazka=self.zak_abc,
+			stav_bedny=StavBednyChoice.PRIJATO,
+			hmotnost=3,
+			tara=1,
+			mnozstvi=1,
+			tryskat=TryskaniChoice.NEZADANO,
+			rovnat=RovnaniChoice.NEZADANO,
+		)
+
+		resp = self.client.post(
+			reverse("rychle_zalozeni_sarze_patro", args=[krok.pk, 1]),
+			{
+				"polozky-TOTAL_FORMS": "3",
+				"polozky-INITIAL_FORMS": "0",
+				"polozky-MIN_NUM_FORMS": "0",
+				"polozky-MAX_NUM_FORMS": "5",
+				"polozky-0-bedna": str(self.b_eur_pr.pk),
+				"polozky-0-procent_z_patra": "25",
+				"polozky-1-bedna": str(other_bedna.pk),
+				"polozky-1-procent_z_patra": "50",
+				"polozky-2-bedna": str(self.b_eur_pr.pk),
+				"polozky-2-procent_z_patra": "25",
+				"action": "save",
+			},
+		)
+
+		self.assertEqual(resp.status_code, 302)
+		self.assertEqual(
+			list(
+				SarzeKrokBedna.objects
+				.filter(krok=krok, patro=1)
+				.order_by("pk")
+				.values_list("bedna_id", "procent_z_patra")
+			),
+			[
+				(self.b_eur_pr.pk, 25),
+				(other_bedna.pk, 50),
+				(self.b_eur_pr.pk, 25),
+			],
+		)
+
 	def test_patro_post_accepts_incomplete_floor_outside_five_percent_steps(self):
 		sarze = Sarze.objects.create(
 			datum_zalozeni=date(2026, 6, 5),

@@ -521,7 +521,7 @@ def sarze_scan_presunout_view(request, cislo_sarze: int, krok_id: int):
         if source_rows and not selected_source_rows:
             form.add_error(None, 'Vyberte alespoň jednu položku ke kopírování.')
         if form.is_valid():
-            target_krok, copied_count, skipped_conflict, created = _create_sarzekrok_and_copy_rows(
+            target_krok, copied_count, created = _create_sarzekrok_and_copy_rows(
                 source_krok,
                 selected_source_rows,
                 datum=form.cleaned_data['datum'],
@@ -552,15 +552,6 @@ def sarze_scan_presunout_view(request, cislo_sarze: int, krok_id: int):
                 logger.warning(
                     f"Uživatel {request.user} opakovaně odeslal scan přesun šarže {target_krok.sarze}; "
                     f"použit existující krok ID {target_krok.pk} pro token {action_token}."
-                )
-            if skipped_conflict:
-                messages.warning(
-                    request,
-                    f'Přeskočeno {skipped_conflict} řádků kvůli duplicitě bedna + patro.',
-                )
-                logger.warning(
-                    f"Při scan přesunu šarže {target_krok.sarze} bylo přeskočeno {skipped_conflict} "
-                    f"řádků kvůli duplicitě bedna + patro."
                 )
             return redirect('sarze_scan', cislo_sarze=source_krok.sarze.cislo_sarze)
         logger.warning(

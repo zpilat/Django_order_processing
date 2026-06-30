@@ -527,19 +527,34 @@ class TestSarzeModels(ModelsBase):
         with self.assertRaises(ValidationError):
             sb.full_clean()
 
-    def test_sarzebedna_unique_constraint(self):
-        SarzeBedna.objects.create(
+    def test_sarzebedna_allows_same_bedna_more_than_once_in_same_patro(self):
+        first = SarzeBedna.objects.create(
             krok=self.krok_base,
             bedna=self.bedna1,
             patro=1,
         )
-        with self.assertRaises(IntegrityError):
-            with transaction.atomic():
-                SarzeBedna.objects.create(
-                    krok=self.krok_base,
-                    bedna=self.bedna1,
-                    patro=1,
-                )
+        other_bedna = Bedna.objects.create(
+            zakazka=self.zakazka,
+            hmotnost=Decimal('20.5'),
+            tara=Decimal('2.0'),
+            mnozstvi=1,
+            stav_bedny=StavBednyChoice.PRIJATO,
+        )
+        second = SarzeBedna.objects.create(
+            krok=self.krok_base,
+            bedna=other_bedna,
+            patro=1,
+        )
+        third = SarzeBedna.objects.create(
+            krok=self.krok_base,
+            bedna=self.bedna1,
+            patro=1,
+        )
+
+        self.assertEqual(
+            list(SarzeBedna.objects.filter(krok=self.krok_base, patro=1)),
+            [first, second, third],
+        )
 
     def test_sarzebedna_prvni_pouziti(self):
         zar = Zarizeni.objects.create(

@@ -144,18 +144,7 @@ def _create_sarzekrok_and_copy_rows(
             )
 
             copied_count = 0
-            skipped_conflict = 0
             for row in source_rows:
-                if row.bedna_id is not None:
-                    exists = SarzeKrokBedna.objects.filter(
-                        krok=target_krok,
-                        bedna=row.bedna,
-                        patro=row.patro,
-                    ).exists()
-                    if exists:
-                        skipped_conflict += 1
-                        continue
-
                 SarzeKrokBedna.objects.create(
                     krok=target_krok,
                     bedna=row.bedna,
@@ -171,10 +160,10 @@ def _create_sarzekrok_and_copy_rows(
         if action_token:
             target_krok = SarzeKrok.objects.filter(action_token=action_token).first()
             if target_krok:
-                return target_krok, target_krok.krok_bedny.count(), 0, False
+                return target_krok, target_krok.krok_bedny.count(), False
         raise
 
-    return target_krok, copied_count, skipped_conflict, True
+    return target_krok, copied_count, True
 
 
 def _safe_filename(label: str, fallback: str = "soubor") -> str:
@@ -414,7 +403,7 @@ def vytvorit_dalsi_krok_sarze_action(modeladmin, request, queryset):
             action_token,
         )
 
-    target_krok, copied_count, skipped_conflict, created = _create_sarzekrok_and_copy_rows(
+    target_krok, copied_count, created = _create_sarzekrok_and_copy_rows(
         source_krok,
         source_rows,
         datum=form.cleaned_data['datum'],
@@ -438,12 +427,6 @@ def vytvorit_dalsi_krok_sarze_action(modeladmin, request, queryset):
         modeladmin.message_user(
             request,
             f'Opakované odeslání stejné akce bylo ignorováno. Používá se již vytvořený krok šarže {target_krok}.',
-            level=messages.WARNING,
-        )
-    if skipped_conflict:
-        modeladmin.message_user(
-            request,
-            f'Přeskočeno {skipped_conflict} řádků kvůli duplicitě (bedna + patro).',
             level=messages.WARNING,
         )
     return HttpResponseRedirect(_get_changelist_url(modeladmin))
@@ -500,7 +483,7 @@ def vytvorit_novy_krok_z_kroku_sarze_action(modeladmin, request, queryset):
             action_token,
         )
 
-    target_krok, copied_count, skipped_conflict, created = _create_sarzekrok_and_copy_rows(
+    target_krok, copied_count, created = _create_sarzekrok_and_copy_rows(
         source_krok,
         source_rows,
         datum=form.cleaned_data['datum'],
@@ -524,12 +507,6 @@ def vytvorit_novy_krok_z_kroku_sarze_action(modeladmin, request, queryset):
         modeladmin.message_user(
             request,
             f'Opakované odeslání stejné akce bylo ignorováno. Používá se již vytvořený krok šarže {target_krok}.',
-            level=messages.WARNING,
-        )
-    if skipped_conflict:
-        modeladmin.message_user(
-            request,
-            f'Přeskočeno {skipped_conflict} řádků kvůli duplicitě (bedna + patro).',
             level=messages.WARNING,
         )
     return HttpResponseRedirect(_get_changelist_url(modeladmin))

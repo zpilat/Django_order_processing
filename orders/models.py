@@ -1730,9 +1730,8 @@ class SarzeKrokBedna(models.Model):
     class Meta:
         verbose_name = 'Bedna v kroku šarže'
         verbose_name_plural = 'deník'
-        ordering = ['krok_id', 'patro', 'bedna_id']
+        ordering = ['krok_id', 'patro', 'pk']
         constraints = [
-            models.UniqueConstraint(fields=['krok', 'bedna', 'patro'], name='uniq_sarzekrokbedna_krok_bedna_patro'),
             models.CheckConstraint(
                 check=Q(procent_z_patra__isnull=True) | Q(procent_z_patra__gte=0, procent_z_patra__lte=100),
                 name='ck_sarzekrokbedna_procent_0_100',

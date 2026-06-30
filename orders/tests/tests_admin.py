@@ -2565,7 +2565,8 @@ class SarzeKrokAdminActionTests(AdminBase):
         )
 
     def test_action_creates_new_step_with_all_rows(self):
-        SarzeKrokBedna.objects.create(krok=self.krok, bedna=self.bedna, patro=1, procent_z_patra=100)
+        SarzeKrokBedna.objects.create(krok=self.krok, bedna=self.bedna, patro=1, procent_z_patra=40)
+        SarzeKrokBedna.objects.create(krok=self.krok, bedna=self.bedna, patro=1, procent_z_patra=20)
         SarzeKrokBedna.objects.create(
             krok=self.krok,
             bedna=None,
@@ -2601,8 +2602,16 @@ class SarzeKrokAdminActionTests(AdminBase):
         self.assertEqual(novy_krok.zarizeni_id, self.zarizeni.pk)
         self.assertEqual(novy_krok.zacatek, time(13, 30))
         self.assertEqual(novy_krok.operator, 'OPX-2')
-        self.assertEqual(SarzeKrokBedna.objects.filter(krok=self.krok).count(), 2)
-        self.assertEqual(SarzeKrokBedna.objects.filter(krok=novy_krok).count(), 2)
+        self.assertEqual(SarzeKrokBedna.objects.filter(krok=self.krok).count(), 3)
+        self.assertEqual(SarzeKrokBedna.objects.filter(krok=novy_krok).count(), 3)
+        self.assertEqual(
+            list(
+                SarzeKrokBedna.objects
+                .filter(krok=novy_krok, bedna=self.bedna, patro=1)
+                .values_list('procent_z_patra', flat=True)
+            ),
+            [40, 20],
+        )
 
     def test_action_ignores_repeated_submit_with_same_token(self):
         SarzeKrokBedna.objects.create(krok=self.krok, bedna=self.bedna, patro=1, procent_z_patra=100)
