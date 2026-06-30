@@ -1,4 +1,5 @@
 {% extends "orders/base.html" %}
+{% load static %}
 
 {% block title %}{{ patro }}. patro šarže {{ krok.sarze }}{% endblock %}
 
@@ -109,6 +110,50 @@
     .item-row.is-removed {
         display: none;
     }
+
+    .bedna-picker {
+        position: relative;
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    .bedna-search-results {
+        position: absolute;
+        z-index: 1060;
+        right: 0;
+        left: 0;
+        max-height: 18rem;
+        margin-top: .15rem;
+        overflow-y: auto;
+        border: 1px solid #86b7fe;
+        border-radius: .375rem;
+        background: #fff;
+        box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .15);
+    }
+
+    .bedna-search-option {
+        display: block;
+        width: 100%;
+        padding: .45rem .6rem;
+        border: 0;
+        border-bottom: 1px solid #edf0f2;
+        background: #fff;
+        text-align: left;
+        line-height: 1.25;
+    }
+
+    .bedna-search-option:hover,
+    .bedna-search-option:focus,
+    .bedna-search-option.is-active {
+        background: #eaf2ff;
+        outline: none;
+    }
+
+    .bedna-search-empty {
+        padding: .45rem .6rem;
+        color: #6c757d;
+        font-size: .875rem;
+    }
 </style>
 
 <div class="container-fluid py-3">
@@ -149,7 +194,17 @@
                     {% for item_form in formset %}
                         <tr class="item-row" data-form-index="{{ forloop.counter0 }}">
                             <td>
-                                {{ item_form.bedna }}
+                                <div class="input-group input-group-sm">
+                                    <div class="bedna-picker">
+                                        {{ item_form.bedna }}
+                                    </div>
+                                    <button type="button"
+                                            class="btn btn-outline-primary scan-bedna-button"
+                                            title="Skenovat kód bedny"
+                                            aria-label="Skenovat kód bedny">
+                                        Sken
+                                    </button>
+                                </div>
                                 {{ item_form.procent_z_patra }}
                                 {{ item_form.DELETE.as_hidden }}
                             </td>
@@ -217,7 +272,17 @@
 <template id="empty-row-template">
     <tr class="item-row" data-form-index="__prefix__">
         <td>
-            {{ formset.empty_form.bedna }}
+            <div class="input-group input-group-sm">
+                <div class="bedna-picker">
+                    {{ formset.empty_form.bedna }}
+                </div>
+                <button type="button"
+                        class="btn btn-outline-primary scan-bedna-button"
+                        title="Skenovat kód bedny"
+                        aria-label="Skenovat kód bedny">
+                    Sken
+                </button>
+            </div>
             {{ formset.empty_form.procent_z_patra }}
             {{ formset.empty_form.DELETE.as_hidden }}
         </td>
@@ -231,6 +296,48 @@
     </tr>
 </template>
 
+<div class="modal fade" id="bedna-scanner-modal" tabindex="-1" aria-labelledby="bedna-scanner-title" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title h5" id="bedna-scanner-title">Sken bedny</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Zavřít"></button>
+            </div>
+            <div class="modal-body">
+                <div id="bedna-scanner-status" class="alert alert-info mb-3" role="status">
+                    Připravuji kameru...
+                </div>
+                <div id="bedna-scanner-reader"
+                     class="mb-3"
+                     style="min-height: 260px; overflow: hidden; border: 1px solid #d8dee4; border-radius: 8px; background: #111827;"></div>
+                <form id="bedna-scanner-manual-form">
+                    <label for="bedna-scanner-manual-input" class="form-label fw-semibold">Ruční zadání / čtečka</label>
+                    <div class="input-group">
+                        <input id="bedna-scanner-manual-input"
+                               type="text"
+                               inputmode="text"
+                               autocomplete="off"
+                               class="form-control"
+                               placeholder="Číslo bedny, URL nebo kód">
+                        <button class="btn btn-success" type="submit">Přidat</button>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button id="bedna-scanner-stop" type="button" class="btn btn-outline-secondary">Zastavit kameru</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Zavřít</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block script %}
+{{ block.super }}
+<script src="{% static 'orders/js/html5-qrcode.min.js' %}"></script>
+<script src="{% static 'orders/js/scan_parser.js' %}"></script>
+
 <script>
 (function () {
     const form = document.querySelector('.patro-form');
@@ -239,9 +346,20 @@
     const warning = document.getElementById('rack-warning');
     const totalForms = document.getElementById('id_polozky-TOTAL_FORMS');
     const template = document.getElementById('empty-row-template');
+    const scannerModalEl = document.getElementById('bedna-scanner-modal');
+    const scannerStatus = document.getElementById('bedna-scanner-status');
+    const scannerStopButton = document.getElementById('bedna-scanner-stop');
+    const scannerManualForm = document.getElementById('bedna-scanner-manual-form');
+    const scannerManualInput = document.getElementById('bedna-scanner-manual-input');
     const colors = ['#ffde17', '#8ecae6', '#90be6d', '#f9844a', '#cdb4db', '#f9c74f', '#43aa8b', '#adb5bd', '#f4978e', '#a9def9'];
     const maxItems = 5;
     let activeSignature = '';
+    let activeBednaSelect = null;
+    let scannerModal = null;
+    let html5QrCode = null;
+    let scannerRunning = false;
+    let lastScannedValue = '';
+    let lastScannedAt = 0;
 
     function rows() {
         return Array.from(rowsContainer.querySelectorAll('.item-row:not(.is-removed)'));
@@ -467,11 +585,197 @@
         renderPreview(active, values);
     }
 
+    function normalizeSearchText(text) {
+        return String(text || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase();
+    }
+
+    function usableBednaOptions(select) {
+        return Array.from(select.options).filter(option => option.value);
+    }
+
+    function closeBednaResults(picker) {
+        const results = picker.querySelector('.bedna-search-results');
+        if (results) {
+            results.remove();
+        }
+    }
+
+    function selectedBednaLabel(select) {
+        if (!select.value) {
+            return '';
+        }
+        const option = select.options[select.selectedIndex];
+        return option ? option.textContent.trim() : '';
+    }
+
+    function syncBednaSearchInput(select) {
+        const picker = select.closest('.bedna-picker');
+        const input = picker ? picker.querySelector('.bedna-search-input') : null;
+        if (input) {
+            input.value = selectedBednaLabel(select);
+        }
+    }
+
+    function chooseBednaOption(select, option) {
+        select.value = option ? option.value : '';
+        syncBednaSearchInput(select);
+        closeBednaResults(select.closest('.bedna-picker'));
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
+    function renderBednaResults(select, query) {
+        const picker = select.closest('.bedna-picker');
+        const normalizedQuery = normalizeSearchText(query);
+        closeBednaResults(picker);
+
+        if (!normalizedQuery) {
+            return;
+        }
+
+        const results = document.createElement('div');
+        results.className = 'bedna-search-results';
+        results.setAttribute('role', 'listbox');
+
+        const matches = usableBednaOptions(select)
+            .filter(option => normalizeSearchText(option.textContent).includes(normalizedQuery))
+            .slice(0, 25);
+
+        if (!matches.length) {
+            const empty = document.createElement('div');
+            empty.className = 'bedna-search-empty';
+            empty.textContent = 'Nenalezena žádná bedna v nabídce.';
+            results.appendChild(empty);
+        } else {
+            matches.forEach((option, index) => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'bedna-search-option';
+                button.textContent = option.textContent.trim();
+                button.setAttribute('role', 'option');
+                button.dataset.optionValue = option.value;
+                if (index === 0) {
+                    button.classList.add('is-active');
+                }
+                button.addEventListener('mousedown', function (event) {
+                    event.preventDefault();
+                    chooseBednaOption(select, option);
+                });
+                results.appendChild(button);
+            });
+        }
+
+        picker.appendChild(results);
+    }
+
+    function enhanceBednaSearch(select) {
+        const picker = select.closest('.bedna-picker');
+        if (!picker || picker.querySelector('.bedna-search-input')) {
+            return;
+        }
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'form-control form-control-sm bedna-search-input';
+        input.autocomplete = 'off';
+        input.placeholder = 'Hledat bednu...';
+        input.value = selectedBednaLabel(select);
+        picker.insertBefore(input, select);
+        select.classList.add('d-none');
+
+        input.addEventListener('input', function () {
+            select.value = '';
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+            renderBednaResults(select, input.value);
+        });
+
+        input.addEventListener('focus', function () {
+            if (window.matchMedia('(pointer: coarse)').matches && !select.value) {
+                openScannerForSelect(select);
+                return;
+            }
+            renderBednaResults(select, input.value);
+        });
+
+        input.addEventListener('keydown', function (event) {
+            const pickerResults = picker.querySelector('.bedna-search-results');
+            if (!pickerResults) {
+                return;
+            }
+
+            const active = pickerResults.querySelector('.bedna-search-option.is-active');
+            if (event.key === 'Enter') {
+                if (!active) {
+                    return;
+                }
+                event.preventDefault();
+                const option = usableBednaOptions(select).find(item => item.value === active.dataset.optionValue);
+                chooseBednaOption(select, option);
+                return;
+            }
+
+            if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') {
+                return;
+            }
+
+            event.preventDefault();
+            const options = Array.from(pickerResults.querySelectorAll('.bedna-search-option'));
+            if (!options.length) {
+                return;
+            }
+            const currentIndex = Math.max(0, options.indexOf(active));
+            const nextIndex = event.key === 'ArrowDown'
+                ? Math.min(options.length - 1, currentIndex + 1)
+                : Math.max(0, currentIndex - 1);
+            options.forEach(option => option.classList.remove('is-active'));
+            options[nextIndex].classList.add('is-active');
+            options[nextIndex].scrollIntoView({ block: 'nearest' });
+        });
+
+        input.addEventListener('blur', function () {
+            window.setTimeout(function () {
+                closeBednaResults(picker);
+                if (!select.value) {
+                    input.value = '';
+                }
+            }, 150);
+        });
+
+        select.addEventListener('change', function () {
+            if (document.activeElement === input && !select.value) {
+                return;
+            }
+            syncBednaSearchInput(select);
+        });
+    }
+
     function bindRow(row) {
         row.querySelectorAll('input, select').forEach(input => {
             input.addEventListener('input', render);
             input.addEventListener('change', render);
         });
+
+        const bednaSelect = row.querySelector('.js-bedna');
+        const scanButton = row.querySelector('.scan-bedna-button');
+        if (bednaSelect) {
+            enhanceBednaSearch(bednaSelect);
+        }
+        if (scanButton && bednaSelect) {
+            scanButton.addEventListener('click', function () {
+                openScannerForSelect(bednaSelect);
+            });
+        }
+        if (bednaSelect && window.matchMedia('(pointer: coarse)').matches) {
+            bednaSelect.addEventListener('touchstart', function (event) {
+                if (bednaSelect.value) {
+                    return;
+                }
+                event.preventDefault();
+                openScannerForSelect(bednaSelect);
+            }, { passive: false });
+        }
 
         row.querySelector('.remove-row').addEventListener('click', function () {
             const deleteInput = row.querySelector('input[name$="-DELETE"]');
@@ -481,6 +785,130 @@
             row.classList.add('is-removed');
             render();
         });
+    }
+
+    function setScannerStatus(message, type) {
+        scannerStatus.className = 'alert alert-' + (type || 'info') + ' mb-3';
+        scannerStatus.textContent = message;
+    }
+
+    function bednaNumberFromOption(option) {
+        const text = option.textContent.trim();
+        const match = text.match(/^(\d+)(?:\s|\(|$)/);
+        return match ? match[1] : '';
+    }
+
+    function selectBednaByNumber(numberText) {
+        if (!activeBednaSelect) {
+            return false;
+        }
+
+        const normalizedNumber = String(numberText || '').trim();
+        const option = Array.from(activeBednaSelect.options).find(item => bednaNumberFromOption(item) === normalizedNumber);
+        if (!option) {
+            setScannerStatus('Bedna ' + normalizedNumber + ' není v nabídce. Zkontrolujte, že je ve stavu skladem.', 'warning');
+            return false;
+        }
+
+        activeBednaSelect.value = option.value;
+        syncBednaSearchInput(activeBednaSelect);
+        activeBednaSelect.dispatchEvent(new Event('change', { bubbles: true }));
+        setScannerStatus('Bedna ' + normalizedNumber + ' byla přidána.', 'success');
+        window.setTimeout(function () {
+            closeScanner();
+        }, 350);
+        return true;
+    }
+
+    function handleScannedValue(rawValue) {
+        const now = Date.now();
+        if (rawValue === lastScannedValue && now - lastScannedAt < 2000) {
+            return;
+        }
+        lastScannedValue = rawValue;
+        lastScannedAt = now;
+
+        if (!window.OrderScanParser) {
+            setScannerStatus('Parser načtených kódů se nenačetl. Použijte ruční zadání.', 'danger');
+            return;
+        }
+
+        const parsed = window.OrderScanParser.parse(rawValue);
+        if (parsed.type !== 'bedna') {
+            setScannerStatus('Načtený kód není kód bedny.', 'warning');
+            return;
+        }
+
+        selectBednaByNumber(parsed.value);
+    }
+
+    async function stopScanner() {
+        if (!html5QrCode || !scannerRunning) {
+            return;
+        }
+        await html5QrCode.stop();
+        scannerRunning = false;
+        scannerStopButton.disabled = true;
+    }
+
+    function closeScanner() {
+        stopScanner().catch(function () {
+            setScannerStatus('Kameru se nepodařilo zastavit.', 'warning');
+        });
+        if (scannerModal) {
+            scannerModal.hide();
+        }
+    }
+
+    async function startScanner() {
+        if (!window.Html5Qrcode) {
+            setScannerStatus('Knihovna pro skenování se nenačetla. Použijte ruční zadání.', 'danger');
+            return;
+        }
+        if (!(window.isSecureContext || window.location.hostname === 'localhost')) {
+            setScannerStatus('Pro skenování kamerou je potřeba HTTPS. Použijte ruční zadání nebo čtečku.', 'warning');
+            return;
+        }
+        if (scannerRunning) {
+            return;
+        }
+
+        html5QrCode = html5QrCode || new Html5Qrcode('bedna-scanner-reader');
+        setScannerStatus('Spouštím kameru...', 'info');
+
+        try {
+            await html5QrCode.start(
+                { facingMode: 'environment' },
+                {
+                    fps: 10,
+                    qrbox: function (viewfinderWidth, viewfinderHeight) {
+                        const size = Math.floor(Math.min(viewfinderWidth, viewfinderHeight) * 0.72);
+                        return { width: size, height: size };
+                    },
+                },
+                handleScannedValue
+            );
+            scannerRunning = true;
+            scannerStopButton.disabled = false;
+            setScannerStatus('Skener je aktivní.', 'success');
+        } catch (error) {
+            setScannerStatus('Kameru se nepodařilo spustit. Povolte kameru v prohlížeči nebo použijte ruční zadání.', 'danger');
+        }
+    }
+
+    function openScannerForSelect(select) {
+        activeBednaSelect = select;
+        scannerManualInput.value = '';
+        lastScannedValue = '';
+        lastScannedAt = 0;
+
+        if (window.bootstrap && window.bootstrap.Modal) {
+            scannerModal = scannerModal || new window.bootstrap.Modal(scannerModalEl);
+            scannerModalEl.addEventListener('shown.bs.modal', startScanner, { once: true });
+            scannerModal.show();
+            return;
+        }
+        startScanner();
     }
 
     rowsContainer.querySelectorAll('.item-row').forEach(bindRow);
@@ -509,6 +937,27 @@
     form.addEventListener('submit', function () {
         form.querySelectorAll('button[type="submit"]').forEach(button => {
             button.disabled = true;
+        });
+    });
+
+    scannerStopButton.addEventListener('click', function () {
+        stopScanner()
+            .then(function () {
+                setScannerStatus('Skener je zastavený.', 'secondary');
+            })
+            .catch(function () {
+                setScannerStatus('Skener se nepodařilo zastavit.', 'warning');
+            });
+    });
+
+    scannerManualForm.addEventListener('submit', function (event) {
+        event.preventDefault();
+        handleScannedValue(scannerManualInput.value);
+    });
+
+    scannerModalEl.addEventListener('hidden.bs.modal', function () {
+        stopScanner().catch(function () {
+            setScannerStatus('Kameru se nepodařilo zastavit.', 'warning');
         });
     });
 
