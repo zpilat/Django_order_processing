@@ -1198,6 +1198,12 @@ class BednaAdminTests(AdminBase):
     def setUp(self):
         self.admin = BednaAdmin(Bedna, self.site)
 
+    def test_media_includes_weight_summary_scripts(self):
+        media_js = list(self.admin.media._js)
+
+        self.assertIn('orders/js/bedny_hmotnost_sum.js', media_js)
+        self.assertIn('orders/js/bedny_netto_hmotnost_sum.js', media_js)
+
     def get_request(self, params=None):
         req = self.factory.get('/', params or {})
         req.user = self.user

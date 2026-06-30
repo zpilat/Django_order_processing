@@ -61,10 +61,12 @@ document.addEventListener('DOMContentLoaded', function() {
     /**
      * Přepočítá a zobrazí souhrn pro aktuálně zaškrtnuté bedny:
      * - počet vybraných řádků,
+     * - celkovou netto hmotnost (hmotnost) v kg,
      * - celkovou brutto hmotnost (hmotnost + tara) v kg.
      */
     function updateSummary() {
-        let weightSum = 0;
+        let weightBruttoSum = 0;
+        let weightNettoSum = 0;
         let boxCount = 0;
 
         // Projde všechny zaškrtnuté checkboxy v akčním sloupci tabulky.
@@ -73,10 +75,16 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!row) return;
 
             // Brutto hmotnost bedny (hmotnost + tara)
-            const weightCell = row.querySelector('td.field-get_hmotnost_brutto');
-            if (weightCell) {
-                const val = parseFloat(weightCell.textContent.replace(',', '.'));
-                if (!isNaN(val)) weightSum += val;
+            const weightBruttoCell = row.querySelector('td.field-get_hmotnost_brutto');
+            if (weightBruttoCell) {
+                const val = parseFloat(weightBruttoCell.textContent.replace(',', '.'));
+                if (!isNaN(val)) weightBruttoSum += val;
+            }
+
+            const weightNettoCell = row.querySelector('td.field-hmotnost');
+            if (weightNettoCell) {
+                const val = parseFloat(weightNettoCell.textContent.replace(',', '.'));
+                if (!isNaN(val)) weightNettoSum += val;
             }
 
             boxCount += 1;
@@ -98,10 +106,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
         box.innerHTML = `
             <i class="fas fa-box" style="margin-right:0.5em;"></i>
-            Počet beden vybraných k expedici: <strong>${boxCount}</strong>
+            Bedny vybrané k expedici: <strong>${boxCount}</strong>
             &nbsp;|&nbsp;
             <i class="fas fa-balance-scale" style="margin-right:0.5em;"></i>
-            Celková brutto hmotnost beden vybraných k expedici: <strong>${weightSum.toFixed(1)} kg</strong>
+            Celková hmotnost:
+            <i style="margin-right:0.5em;"></i>
+            netto: <strong>${weightNettoSum.toFixed(1)} kg</strong>
+            &nbsp;|&nbsp;
+            brutto: <strong>${weightBruttoSum.toFixed(1)} kg</strong>
         `;
         applyTheme(box);
     }
