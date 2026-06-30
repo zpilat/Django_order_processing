@@ -883,6 +883,31 @@ class KamionAdminTests(AdminBase):
         self.assertIn('tisk_karet_kontroly_kvality_kamionu_action', actions_filtered)
         self.assertNotIn('import_kamionu_action', actions_filtered)
 
+    def test_get_actions_karta_kontroly_prohybu_visibility_by_kamion_filter(self):
+        action_name = 'tisk_karty_kontroly_prohybu_kamionu_action'
+
+        visible_filters = [
+            None,
+            PrijemVydejChoice.PRIJEM_KOMPLET_PRIJATY,
+            PrijemVydejChoice.PRIJEM_VYEXPEDOVANY,
+        ]
+        hidden_filters = [
+            PrijemVydejChoice.PRIJEM_BEZ_ZAKAZEK,
+            PrijemVydejChoice.PRIJEM_NEPRIJATY,
+            PrijemVydejChoice.VYDEJ,
+        ]
+
+        for filter_value in visible_filters:
+            data = {} if filter_value is None else {'prijem_vydej': filter_value}
+            with self.subTest(filter_value=filter_value):
+                request = self.get_request('get', '/', data)
+                self.assertIn(action_name, self.admin.get_actions(request))
+
+        for filter_value in hidden_filters:
+            with self.subTest(filter_value=filter_value):
+                request = self.get_request('get', '/', {'prijem_vydej': filter_value})
+                self.assertNotIn(action_name, self.admin.get_actions(request))
+
     def test_zadani_mereni_view_requires_permission(self):
         kamion_vydej, _ = self._create_vydej_kamion_with_order()
         User = get_user_model()

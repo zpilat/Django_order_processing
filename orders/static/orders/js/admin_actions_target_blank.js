@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', function () {
         'oznacit_rovna_se_action',
         'tisk_rozpracovanost_action',
         'tisk_prehledu_zakazek_kamionu_action',
+        'tisk_karty_kontroly_prohybu_kamionu_action',
         'odeslat_na_zinkovani_action',
     ];
 

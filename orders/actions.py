@@ -3283,7 +3283,7 @@ def tisk_karet_kontroly_kvality_kamionu_action(modeladmin, request, queryset):
         modeladmin.message_user(request, "Kamion nemá přiřazeného zákazníka nebo zákazník nemá zkratku.", level=messages.ERROR)
         return None
 
-@admin.action(description="Tisk přehledu zakázek z vybraného kamionu příjem se zakázkami")
+@admin.action(description="Tisk přehledu zakázek z vybraného kamionu příjem")
 def tisk_prehledu_zakazek_kamionu_action(modeladmin, request, queryset):
     """
     Vytvoří PDF s přehledem zakázek z vybraného kamionu pro potřeby kontroly kvality.
@@ -3326,6 +3326,51 @@ def tisk_prehledu_zakazek_kamionu_action(modeladmin, request, queryset):
     logger.info(f"Uživatel {request.user} tiskne přehled zakázek pro kamion {kamion.cislo_dl} obsahující {kamion.zakazky_prijem.count()} zakázek.")
     return response
     
+
+@admin.action(description="Tisk karty kontroly prohybu z vybraného kamionu příjem")
+def tisk_karty_kontroly_prohybu_kamionu_action(modeladmin, request, queryset):
+    """
+    Vytvoří PDF s kartou kontroly prohybu z vybraného kamionu pro potřeby kontroly kvality.
+    Musí být vybrán pouze jeden kamion, jinak se zobrazí chybová zpráva.
+    Musí se jednat o kamion s příznakem příjem, jinak se zobrazí chybová zpráva.     
+    Tiskne se vždy přehled všech zakázek v kamionu, i těch, které jsou již expedovány.
+    Pokud jsou v kamionu bedny nepřijaté, zobrazí se chybová zpráva a tisk se přeruší.
+    """
+    if queryset.count() != 1:
+        logger.info(f"Uživatel {request.user} se pokusil tisknout kartu kontroly prohybu, ale vybral více než jeden kamion.")
+        modeladmin.message_user(request, "Vyberte pouze jeden kamion.", level=messages.ERROR)
+        return None
+    
+    kamion = queryset.first()
+    if kamion.prijem_vydej != KamionChoice.PRIJEM:
+        logger.info(f"Uživatel {request.user} se pokusil tisknout kartu kontroly prohybu kamionu {kamion.cislo_dl}, ale není to kamion s příznakem příjem.")
+        modeladmin.message_user(request, "Tisk karty kontroly prohybu je možný pouze pro kamiony příjem.", level=messages.ERROR)
+        return None
+
+    zakaznik_zkratka = kamion.zakaznik.zkratka
+    if not zakaznik_zkratka:
+        logger.error(f"Kamion {kamion} nemá přiřazeného zákazníka nebo zákazník nemá zkratku.")
+        modeladmin.message_user(request, f"Kamion {kamion} nemá přiřazeného zákazníka nebo zákazník nemá zkratku.", level=messages.ERROR)
+        return None
+
+    bedny = Bedna.objects.filter(zakazka__kamion_prijem=kamion)
+    if not bedny.exists():
+        logger.info(f"Uživatel {request.user} se pokusil tisknout kartu kontroly prohybu, ale v označeném kamionu nejsou žádné bedny.")
+        modeladmin.message_user(request, "V označeném kamionu nejsou žádné bedny.", level=messages.ERROR)
+        return None
+    
+    if bedny.filter(stav_bedny=StavBednyChoice.NEPRIJATO).exists():
+        logger.info(f"Uživatel {request.user} se pokusil tisknout kartu kontroly prohybu kamionu {kamion}, ale některé bedny nejsou přijaty.")
+        modeladmin.message_user(request, "Některé bedny v označeném kamionu nejsou přijaty, lze tisknout pouze komplet přijatý kamion.", level=messages.ERROR)
+        return None    
+
+    filename = f"karta_kontroly_prohybu_{kamion.cislo_dl}_{zakaznik_zkratka}.pdf"
+    html_path = "orders/karta_kontroly_prohybu.html"
+    response = utilita_tisk_dl_a_proforma_faktury(modeladmin, request, kamion, html_path, filename)
+    logger.info(f"Uživatel {request.user} tiskne kartu kontroly prohybu pro kamion {kamion.cislo_dl} obsahující {kamion.zakazky_prijem.count()} zakázek.")
+    return response
+
+
 # Akce pro rozpracovanost
 
 @admin.action(description="Vytisknout rozpracovanost (PDF)")

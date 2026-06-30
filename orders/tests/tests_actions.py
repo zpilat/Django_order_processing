@@ -1075,6 +1075,85 @@ class ActionsTests(ActionsBase):
         msgs = self._messages_texts(req)
         self.assertTrue(any('V označeném kamionu nejsou žádné bedny' in m for m in msgs))
 
+    @patch('orders.actions.utilita_tisk_dl_a_proforma_faktury')
+    def test_tisk_karty_kontroly_prohybu_kamionu_action(self, mock_util):
+        mock_util.return_value = HttpResponse('ok')
+        req = self.get_request()
+        resp = actions.tisk_karty_kontroly_prohybu_kamionu_action(
+            self.admin,
+            req,
+            Kamion.objects.filter(id=self.kamion_prijem.id),
+        )
+
+        self.assertIsInstance(resp, HttpResponse)
+        mock_util.assert_called_once()
+        args, _ = mock_util.call_args
+        self.assertEqual(args[0], self.admin)
+        self.assertEqual(args[1], req)
+        self.assertEqual(args[2], self.kamion_prijem)
+        self.assertEqual(args[3], 'orders/karta_kontroly_prohybu.html')
+        self.assertTrue(args[4].startswith('karta_kontroly_prohybu_'))
+
+    def test_tisk_karty_kontroly_prohybu_kamionu_action_multiple_selection_error(self):
+        admin_obj = self._messaging_admin()
+        req = self.get_request('get')
+        resp = actions.tisk_karty_kontroly_prohybu_kamionu_action(
+            admin_obj,
+            req,
+            Kamion.objects.filter(id__in=[self.kamion_prijem.id, self.kamion_vydej.id]),
+        )
+
+        self.assertIsNone(resp)
+        msgs = self._messages_texts(req)
+        self.assertTrue(any('Vyberte pouze jeden kamion' in m for m in msgs))
+
+    def test_tisk_karty_kontroly_prohybu_kamionu_action_wrong_direction_error(self):
+        admin_obj = self._messaging_admin()
+        req = self.get_request('get')
+        resp = actions.tisk_karty_kontroly_prohybu_kamionu_action(
+            admin_obj,
+            req,
+            Kamion.objects.filter(id=self.kamion_vydej.id),
+        )
+
+        self.assertIsNone(resp)
+        msgs = self._messages_texts(req)
+        self.assertTrue(any('prohybu' in m and 'kamiony' in m for m in msgs))
+
+    def test_tisk_karty_kontroly_prohybu_kamionu_action_no_bedny_error(self):
+        admin_obj = self._messaging_admin()
+        empty_kamion = Kamion.objects.create(
+            zakaznik=self.zakaznik,
+            datum=date.today(),
+            prijem_vydej=KamionChoice.PRIJEM,
+        )
+        req = self.get_request('get')
+        resp = actions.tisk_karty_kontroly_prohybu_kamionu_action(
+            admin_obj,
+            req,
+            Kamion.objects.filter(id=empty_kamion.id),
+        )
+
+        self.assertIsNone(resp)
+        msgs = self._messages_texts(req)
+        self.assertTrue(any('nejsou' in m and 'bedny' in m for m in msgs))
+
+    def test_tisk_karty_kontroly_prohybu_kamionu_action_neprijato_error(self):
+        admin_obj = self._messaging_admin()
+        req = self.get_request('get')
+        self.bedna.stav_bedny = StavBednyChoice.NEPRIJATO
+        self.bedna.save(update_fields=['stav_bedny'])
+
+        resp = actions.tisk_karty_kontroly_prohybu_kamionu_action(
+            admin_obj,
+            req,
+            Kamion.objects.filter(id=self.kamion_prijem.id),
+        )
+
+        self.assertIsNone(resp)
+        msgs = self._messages_texts(req)
+        self.assertTrue(any('nejsou' in m and 'ijaty' in m for m in msgs))
+
     @patch('orders.actions.utilita_tisk_dokumentace')
     def test_tisk_karet_beden_kamionu_action(self, mock_util):
         mock_util.return_value = HttpResponse('ok')

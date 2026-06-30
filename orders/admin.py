@@ -49,7 +49,7 @@ from .actions import (
     oznacit_uvolneno_action, prijmout_kamion_action, prijmout_zakazku_action, prijmout_bedny_action,
     export_bedny_to_csv_action, export_bedny_to_csv_customer_action, export_bedny_dl_action, tisk_rozpracovanost_action, tisk_prehledu_zakazek_kamionu_action, expedice_beden_action,
     expedice_beden_kamion_action, uvolnit_pozastavene_bedny_action, oznacit_nefakturovat_action,
-    vytvorit_dalsi_krok_sarze_action, vytvorit_novy_krok_z_kroku_sarze_action,
+    vytvorit_dalsi_krok_sarze_action, vytvorit_novy_krok_z_kroku_sarze_action, tisk_karty_kontroly_prohybu_kamionu_action,
 )
 from .filters import (
     SklademZakazkaFilter, StavBednyFilter, KompletZakazkaFilter, AktivniPredpisFilter, SkupinaFilter, ZakaznikBednyFilter,
@@ -992,6 +992,7 @@ class KamionAdmin(SimpleHistoryAdmin):
         'zadat_mereni_action',
         prijmout_kamion_action,
         tisk_prehledu_zakazek_kamionu_action,
+        tisk_karty_kontroly_prohybu_kamionu_action,
     ]
     # Parametry pro zobrazení detailu v administraci
     fields = ('zakaznik', 'datum', 'poradove_cislo', 'cislo_dl', 'prijem_vydej', 'odberatel',
@@ -1378,6 +1379,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                 'tisk_dodaciho_listu_kamionu_action',
                 'tisk_proforma_faktury_kamionu_action',
                 'tisk_prehledu_zakazek_kamionu_action',
+                'tisk_karty_kontroly_prohybu_kamionu_action',
                 'zadat_mereni_action',
                 'tisk_protokolu_kamionu_vydej_action',                
                 'prijmout_kamion_action'
@@ -1389,6 +1391,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                 'tisk_proforma_faktury_kamionu_action',
                 'zadat_mereni_action',
                 'tisk_prehledu_zakazek_kamionu_action',
+                'tisk_karty_kontroly_prohybu_kamionu_action',
                 'tisk_protokolu_kamionu_vydej_action',                
             ]
         elif (request.GET.get('prijem_vydej') == PrijemVydejChoice.PRIJEM_KOMPLET_PRIJATY):
@@ -1420,6 +1423,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                 'tisk_karet_kontroly_kvality_kamionu_action',
                 'prijmout_kamion_action',
                 'tisk_prehledu_zakazek_kamionu_action',
+                'tisk_karty_kontroly_prohybu_kamionu_action',
                 'delete_selected'
             ]            
         else:
@@ -1472,7 +1476,8 @@ class KamionAdmin(SimpleHistoryAdmin):
             'tisk_dodaciho_listu_kamionu_action': 'Tisk dokladů',
             'tisk_proforma_faktury_kamionu_action': 'Tisk dokladů',
             'tisk_protokolu_kamionu_vydej_action': 'Tisk dokladů',
-            'tisk_prehledu_zakazek_kamionu_action': 'Měření',        
+            'tisk_prehledu_zakazek_kamionu_action': 'Měření',
+            'tisk_karty_kontroly_prohybu_kamionu_action': 'Měření',  
             'zadat_mereni_action': 'Měření',          
         }
         order = ['Import / Příjem', 'Tisk karet', 'Tisk dokladů', 'Měření']
