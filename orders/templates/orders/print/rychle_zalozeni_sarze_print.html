@@ -136,6 +136,10 @@
             vertical-align: middle;
         }
 
+        .rack-item-details .inspection-row td {
+            height: 7mm;
+        }
+
         .rack-segment:has(.rack-item-details) {
             padding: 0;
         }
@@ -195,28 +199,26 @@
                         {% if item.bedna %}
                             <table class="rack-item-details">
                                 <tr>
-                                    <td>{{ item.procent_z_patra }}%</td>
+                                    <td style="font-weight: bold; font-size: 12px;">{{ item.procent_z_patra }}%</td>
                                 </tr>
                                 <tr>
-                                    <td><span style="font-weight: bold;">{{ item.bedna.zakazka.kamion_prijem.zakaznik.zkratka }} {{ item.bedna.cislo_bedny }}</span>
-                                        <br>⌀{{item.bedna.zakazka.prumer}}x{{item.bedna.zakazka.delka|floatformat:0 }}</td>
+                                    <td><span style="font-weight: bold; font-size: 12px;">{{ item.bedna.zakazka.kamion_prijem.zakaznik.zkratka }} {{ item.bedna.cislo_bedny }}</span>
+                                        <br ><span style="font-size: 11px;">⌀{{item.bedna.zakazka.prumer}}x{{item.bedna.zakazka.delka|floatformat:0 }}</span>
+                                        <br><span style="font-size: 11px;">SK{{ item.bedna.fake_skupina_TZ }}</span></td>
                                 </tr>
-                                <tr>
-                                    <td>SK{{ item.bedna.fake_skupina_TZ }}</td>
-                                </tr>
-                                <tr>
+                                <tr class="inspection-row">
                                     <td style="text-align: left;">Ohyb (2ks):</td>
                                 </tr>
-                                <tr>
+                                <tr class="inspection-row">
                                     <td style="text-align: left;">Krut (2ks):</td>
                                 </tr>
-                                <tr>
+                                <tr class="inspection-row">
                                     <td style="text-align: left;">Popouštění (šarže):</td>
                                 </tr>
-                                <tr>
-                                    <td>OK / NOK</td>
+                                <tr class="inspection-row">
+                                    <td style="font-size: 12px;">OK / NOK</td>
                                 </tr>
-                                <tr>
+                                <tr class="inspection-row">
                                     <td style="text-align: left;">Poznámka:</td>
                                 </tr>
                             </table>
