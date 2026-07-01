@@ -73,14 +73,6 @@
 </style>
 
 <div class="container py-3">
-    {% if messages %}
-        {% for message in messages %}
-            <div class="alert alert-{{ message.tags|default:'info' }} mb-3" role="alert">
-                {{ message }}
-            </div>
-        {% endfor %}
-    {% endif %}
-
     <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
         <div>
             <h1 class="h4 mb-2">Šarže {{ krok.sarze }}, přípravek {{ krok.sarze.cislo_pripravku }}</h1>

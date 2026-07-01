@@ -77,11 +77,6 @@
         border-radius: 6px;
         background: #fbfcfd;
     }
-    .alert-error {
-        --bs-alert-color: var(--bs-danger-text-emphasis);
-        --bs-alert-bg: var(--bs-danger-bg-subtle);
-        --bs-alert-border-color: var(--bs-danger-border-subtle);
-    }
     @media (max-width: 575.98px) {
         .scan-page {
             padding: 0.5rem 0;
@@ -97,16 +92,6 @@
 </style>
 
 <main class="scan-page">
-    {% if messages %}
-        <div class="mb-3">
-            {% for message in messages %}
-                <div class="alert alert-{{ message.tags|default:'info' }} mb-2" role="alert">
-                    {{ message }}
-                </div>
-            {% endfor %}
-        </div>
-    {% endif %}
-
     <section class="scan-hero">
         <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3">
             <div class="text-center text-sm-start">

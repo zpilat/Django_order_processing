@@ -58,16 +58,6 @@
 </style>
 
 <div class="scanner-page">
-    {% if messages %}
-        <div class="mb-3">
-            {% for message in messages %}
-                <div class="alert alert-{{ message.tags|default:'info' }} mb-2" role="alert">
-                    {{ message }}
-                </div>
-            {% endfor %}
-        </div>
-    {% endif %}
-
     <section class="scanner-panel">
         <div class="d-flex flex-column flex-sm-row justify-content-between gap-2 mb-3">
             <div>

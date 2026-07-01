@@ -10,14 +10,6 @@
                 {% if is_edit %}Úprava šarže {{ krok.sarze }}{% else %}Rychlé založení šarže{% endif %}
             </h1>
 
-            {% if messages %}
-                {% for message in messages %}
-                    <div class="alert alert-{{ message.tags|default:'info' }} mb-3" role="alert">
-                        {{ message }}
-                    </div>
-                {% endfor %}
-            {% endif %}
-
             <form class="sarze-sarzekrok-form" method="post" novalidate>
                 {% csrf_token %}
 
