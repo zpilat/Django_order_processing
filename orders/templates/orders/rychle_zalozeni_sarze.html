@@ -1,6 +1,9 @@
 {% extends "orders/base.html" %}
+{% load static %}
 
 {% block title %}{% if is_edit %}Úprava šarže{% else %}Rychlé založení šarže{% endif %}{% endblock %}
+
+{% block extra_head %}{{ block.super }}<link rel="stylesheet" href="{% static 'orders/css/scan_workflows.css' %}">{% endblock %}
 
 {% block content %}
 <div class="container py-3">
@@ -86,8 +89,7 @@
                         Zrušit
                     </a>
                     <button type="submit"
-                            class="btn"
-                            style="background-color: #ffde17; color: #214290; border-color: #ffde17;">
+                            class="btn btn-hpm-yellow">
                         {% if is_edit %}Uložit změny{% else %}Uložit a pokračovat{% endif %}
                     </button>
                 </div>

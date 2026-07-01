@@ -3,61 +3,10 @@
 
 {% block title %}Skener{% endblock %}
 
-{% block content %}
-<style>
-    .scanner-page {
-        max-width: 760px;
-        margin: 0 auto;
-        padding: 0.75rem;
-    }
-    .scanner-panel {
-        border: 1px solid #d8dee4;
-        border-radius: 8px;
-        background: #fff;
-        padding: 1rem;
-    }
-    .scanner-title {
-        font-size: clamp(1.6rem, 7vw, 2.6rem);
-        font-weight: 800;
-        letter-spacing: 0;
-        margin: 0;
-    }
-    .scanner-reader {
-        width: 100%;
-        min-height: 280px;
-        border: 1px solid #d8dee4;
-        border-radius: 8px;
-        overflow: hidden;
-        background: #111827;
-    }
-    .scanner-reader video {
-        border-radius: 8px;
-    }
-    .scanner-status {
-        min-height: 2.5rem;
-    }
-    .scanner-action-button {
-        min-height: 3.1rem;
-        font-size: 1.05rem;
-        font-weight: 750;
-        border-radius: 8px;
-    }
-    @media (max-width: 575.98px) {
-        .scanner-page {
-            padding: 0.5rem 0;
-        }
-        .scanner-panel {
-            border-left: 0;
-            border-right: 0;
-            border-radius: 0;
-        }
-        .scanner-reader {
-            min-height: 240px;
-        }
-    }
-</style>
+{% block extra_head %}{{ block.super }}<link rel="stylesheet" href="{% static 'orders/css/scan_workflows.css' %}">{% endblock %}
 
-<div class="scanner-page">
+{% block content %}
+<div class="scanner-page px-0 px-sm-2 py-2">
     <section class="scanner-panel">
         <div class="d-flex flex-column flex-sm-row justify-content-between gap-2 mb-3">
             <div>

@@ -1,82 +1,12 @@
 {% extends "orders/base.html" %}
+{% load static %}
 
 {% block title %}Přesun šarže {{ sarze }}{% endblock %}
 
-{% block content %}
-<style>
-    .scan-page {
-        max-width: 780px;
-        margin: 0 auto;
-        padding: 0.75rem;
-    }
-    .scan-hero,
-    .scan-card {
-        border: 1px solid #d8dee4;
-        border-radius: 8px;
-        background: #fff;
-    }
-    .scan-hero,
-    .scan-card-body {
-        padding: 0.85rem 1rem;
-    }
-    .scan-number {
-        font-size: clamp(2.2rem, 12vw, 4.5rem);
-        line-height: 1;
-        font-weight: 800;
-        letter-spacing: 0;
-    }
-    .scan-note {
-        overflow-wrap: anywhere;
-    }
-    .scan-action-button {
-        min-height: 3rem;
-        font-size: 1.05rem;
-        font-weight: 700;
-        border-radius: 8px;
-    }
-    .scan-card {
-        margin-top: 0.75rem;
-        overflow: hidden;
-    }
-    .scan-card-header {
-        padding: 0.8rem 1rem;
-        background: #f3f5f7;
-        border-bottom: 1px solid #d8dee4;
-        font-weight: 700;
-    }
-    .form-grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 0.85rem;
-    }
-    .preview-list {
-        display: grid;
-        gap: 0.5rem;
-    }
-    .preview-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 0.75rem;
-        padding: 0.55rem 0.7rem;
-        border: 1px solid #edf0f2;
-        border-radius: 6px;
-        background: #fbfcfd;
-    }
-    @media (max-width: 575.98px) {
-        .scan-page {
-            padding: 0.5rem 0;
-        }
-        .form-grid {
-            grid-template-columns: 1fr;
-        }
-        .preview-item {
-            display: block;
-        }
-    }
-</style>
+{% block extra_head %}{{ block.super }}<link rel="stylesheet" href="{% static 'orders/css/scan_workflows.css' %}">{% endblock %}
 
-<main class="scan-page">
+{% block content %}
+<main class="scan-page scan-page-form px-0 px-sm-2 py-2">
     <section class="scan-hero">
         <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3">
             <div class="text-center text-sm-start">

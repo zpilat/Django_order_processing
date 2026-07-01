@@ -3,159 +3,9 @@
 
 {% block title %}{{ patro }}. patro šarže {{ krok.sarze }}{% endblock %}
 
+{% block extra_head %}{{ block.super }}<link rel="stylesheet" href="{% static 'orders/css/scan_workflows.css' %}">{% endblock %}
+
 {% block content %}
-<style>
-    .rack-preview {
-        position: relative;
-        display: flex;
-        width: 100%;
-        min-height: 130px;
-        overflow: hidden;
-        border: 2px solid #214290;
-    }
-
-    .rack-segment {
-        display: flex;
-        position: relative;
-        z-index: 1;
-        min-width: 0;
-        align-items: center;
-        justify-content: center;
-        padding: 2rem .5rem .5rem;
-        border-right: 2px solid #214290;
-        color: #111;
-        font-size: .8rem;
-        font-weight: 600;
-        text-align: center;
-        overflow-wrap: anywhere;
-    }
-
-    .rack-segment:last-child {
-        border-right: 0;
-    }
-
-    .rack-scale {
-        position: absolute;
-        z-index: 3;
-        inset: 0;
-        pointer-events: none;
-        background-image: repeating-linear-gradient(
-            to right,
-            transparent 0,
-            transparent calc(10% - 1px),
-            rgba(33, 66, 144, .7) calc(10% - 1px),
-            rgba(33, 66, 144, .7) 10%
-        );
-    }
-
-    .rack-mark {
-        position: absolute;
-        top: .3rem;
-        color: #214290;
-        background-color: rgba(255, 255, 255, .9);
-        padding: 0 .2rem;
-        font-size: .7rem;
-        font-weight: 700;
-        line-height: 1.2;
-        transform: translateX(-50%);
-    }
-
-    .rack-boundary {
-        position: absolute;
-        z-index: 4;
-        top: 0;
-        bottom: 0;
-        width: 18px;
-        padding: 0;
-        border: 0;
-        background: transparent;
-        cursor: col-resize;
-        touch-action: none;
-        transform: translateX(-50%);
-    }
-
-    .rack-boundary::before {
-        position: absolute;
-        top: 0;
-        bottom: 0;
-        left: 8px;
-        width: 3px;
-        background-color: #214290;
-        content: "";
-    }
-
-    .rack-boundary::after {
-        position: absolute;
-        top: 50%;
-        left: 2px;
-        width: 14px;
-        height: 32px;
-        border: 2px solid #214290;
-        border-radius: 4px;
-        background-color: #ffde17;
-        content: "";
-        transform: translateY(-50%);
-    }
-
-    .rack-boundary:hover::after,
-    .rack-boundary:focus-visible::after {
-        background-color: #fff3a6;
-        box-shadow: 0 0 0 3px rgba(33, 66, 144, .25);
-    }
-
-    .rack-boundary:focus-visible {
-        outline: none;
-    }
-
-    .item-row.is-removed {
-        display: none;
-    }
-
-    .bedna-picker {
-        position: relative;
-        flex: 1 1 auto;
-        min-width: 0;
-    }
-
-    .bedna-search-results {
-        position: absolute;
-        z-index: 1060;
-        right: 0;
-        left: 0;
-        max-height: 18rem;
-        margin-top: .15rem;
-        overflow-y: auto;
-        border: 1px solid #86b7fe;
-        border-radius: .375rem;
-        background: #fff;
-        box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .15);
-    }
-
-    .bedna-search-option {
-        display: block;
-        width: 100%;
-        padding: .45rem .6rem;
-        border: 0;
-        border-bottom: 1px solid #edf0f2;
-        background: #fff;
-        text-align: left;
-        line-height: 1.25;
-    }
-
-    .bedna-search-option:hover,
-    .bedna-search-option:focus,
-    .bedna-search-option.is-active {
-        background: #eaf2ff;
-        outline: none;
-    }
-
-    .bedna-search-empty {
-        padding: .45rem .6rem;
-        color: #6c757d;
-        font-size: .875rem;
-    }
-</style>
-
 <div class="container-fluid py-3">
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
         <div>
@@ -180,14 +30,14 @@
 
         <div class="table-responsive mb-3">
             <table class="table table-sm table-bordered align-middle mb-0">
-                <thead style="background-color: #214290; color: #ffde17;">
+                <thead class="hpm-table-head">
                     <tr>
-                        <th style="min-width: 15rem;">Bedna</th>
-                        <th style="min-width: 11rem;">Popis mimo DB</th>
-                        <th style="min-width: 11rem;">Zákazník mimo DB</th>
-                        <th style="min-width: 10rem;">Zakázka mimo DB</th>
-                        <th style="min-width: 10rem;">Číslo bedny mimo DB</th>
-                        <th class="text-center" style="width: 3rem;"></th>
+                        <th class="col-bedna">Bedna</th>
+                        <th class="col-text-md">Popis mimo DB</th>
+                        <th class="col-text-md">Zákazník mimo DB</th>
+                        <th class="col-text-sm">Zakázka mimo DB</th>
+                        <th class="col-text-sm">Číslo bedny mimo DB</th>
+                        <th class="text-center col-action"></th>
                     </tr>
                 </thead>
                 <tbody id="item-rows">
@@ -255,10 +105,10 @@
 
         <div class="d-flex flex-wrap justify-content-between gap-2">
             <div class="d-flex flex-wrap gap-2">
-                <button type="submit" data-action="save" class="btn" style="background-color: #ffde17; color: #214290;">
+                <button type="submit" data-action="save" class="btn btn-hpm-yellow">
                     Uložit a do přehledu šarže
                 </button>
-                <button type="submit" data-action="next" class="btn" style="background-color: #214290; color: #ffde17;">
+                <button type="submit" data-action="next" class="btn btn-hpm-blue">
                     Uložit a zadat další patro
                 </button>
             </div>
@@ -307,9 +157,7 @@
                 <div id="bedna-scanner-status" class="alert alert-info mb-3" role="status">
                     Připravuji kameru...
                 </div>
-                <div id="bedna-scanner-reader"
-                     class="mb-3"
-                     style="min-height: 260px; overflow: hidden; border: 1px solid #d8dee4; border-radius: 8px; background: #111827;"></div>
+                <div id="bedna-scanner-reader" class="scanner-reader-compact mb-3"></div>
                 <form id="bedna-scanner-manual-form">
                     <label for="bedna-scanner-manual-input" class="form-label fw-semibold">Ruční zadání / čtečka</label>
                     <div class="input-group">

@@ -1,73 +1,14 @@
 {% extends "orders/base.html" %}
+{% load static %}
 
 {% block title %}Navezení bedny {{ bedna.cislo_bedny }}{% endblock %}
 
-{% block content %}
-<style>
-    .scan-page {
-        max-width: 720px;
-        margin: 0 auto;
-        padding: 0.75rem;
-    }
-    .scan-hero,
-    .scan-section {
-        border: 1px solid #d8dee4;
-        border-radius: 8px;
-        background: #fff;
-    }
-    .scan-hero {
-        padding: 1rem;
-    }
-    .scan-section {
-        padding: 1rem;
-        margin-top: 1rem;
-    }
-    .scan-number {
-        font-size: clamp(2.4rem, 13vw, 5rem);
-        line-height: 1;
-        font-weight: 800;
-        letter-spacing: 0;
-    }
-    .scan-status {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 2.25rem;
-        padding: 0.35rem 0.75rem;
-        border-radius: 6px;
-        background: #214290;
-        color: #fff;
-        font-weight: 700;
-        font-size: 1rem;
-    }
-    .scan-action-button {
-        min-height: 3rem;
-        font-size: 1.1rem;
-        font-weight: 700;
-    }
-    .scan-position-select {
-        min-height: 3rem;
-        font-size: 1.1rem;
-    }
-    .scan-row {
-        display: flex;
-        justify-content: space-between;
-        gap: 1rem;
-        padding: 0.35rem 0;
-        border-bottom: 1px solid #edf0f2;
-    }
-    .scan-row:last-child {
-        border-bottom: 0;
-    }
-    @media (max-width: 575.98px) {
-        .scan-row {
-            display: block;
-        }
-    }
-</style>
+{% block extra_head %}{{ block.super }}<link rel="stylesheet" href="{% static 'orders/css/scan_workflows.css' %}">{% endblock %}
 
-<main class="scan-page">
-    <section class="scan-hero">
+{% block content %}
+<main class="scan-page scan-page-narrow px-0 px-sm-2 py-2">
+    <section class="card rounded-2">
+        <div class="card-body">
         <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3">
             <div class="text-center text-sm-start">
                 <div class="text-muted fw-semibold">Bedna</div>
@@ -75,27 +16,31 @@
             </div>
             <div class="text-center text-sm-end">
                 <div class="text-muted fw-semibold mb-2">Stav bedny</div>
-                <span class="scan-status">{{ bedna.get_stav_bedny_display }}</span>
+                <span class="scan-status badge rounded-2 text-bg-primary">{{ bedna.get_stav_bedny_display }}</span>
             </div>
         </div>
+        </div>
     </section>
 
-    <section class="scan-section">
-        <div class="scan-row">
+    <section class="card rounded-2 mt-3">
+        <div class="list-group list-group-flush">
+        <div class="list-group-item d-sm-flex justify-content-between gap-3">
             <div class="text-muted">Aktuální pozice</div>
-            <div class="fw-bold">{{ aktualni_pozice|default:"-" }}</div>
+            <div class="fw-bold text-break">{{ aktualni_pozice|default:"-" }}</div>
         </div>
-        <div class="scan-row">
+        <div class="list-group-item d-sm-flex justify-content-between gap-3">
             <div class="text-muted">Zákazník</div>
-            <div class="fw-bold">{{ bedna.zakazka.kamion_prijem.zakaznik|default:"-" }}</div>
+            <div class="fw-bold text-break">{{ bedna.zakazka.kamion_prijem.zakaznik|default:"-" }}</div>
         </div>
-        <div class="scan-row">
+        <div class="list-group-item d-sm-flex justify-content-between gap-3">
             <div class="text-muted">Zakázka / rozměr</div>
-            <div class="fw-bold">{{ bedna.zakazka.artikl }} / {{ bedna.zakazka.prumer }} x {{ bedna.zakazka.delka }}</div>
+            <div class="fw-bold text-break">{{ bedna.zakazka.artikl }} / {{ bedna.zakazka.prumer }} x {{ bedna.zakazka.delka }}</div>
+        </div>
         </div>
     </section>
 
-    <section class="scan-section">
+    <section class="card rounded-2 mt-3">
+        <div class="card-body">
         <form method="post">
             {% csrf_token %}
             <input type="hidden" name="action" value="mark_navezeno">
@@ -122,6 +67,7 @@
                 </a>
             </div>
         </form>
+        </div>
     </section>
 </main>
 {% endblock %}
