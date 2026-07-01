@@ -179,7 +179,7 @@
             <td></td>
             <td></td>
             <td></td>
-            <td style="font-weight: bold; font-size: 14px;">{{ spolecna_skupina_TZ }}</td>
+            <td style="font-weight: bold; font-size: 14px;">{% if spolecna_skupina_TZ %}SK {{ spolecna_skupina_TZ }}{% endif %}</td>
             <td style="font-weight: bold; font-size: 14px;">{{ krok.sarze.cislo_pripravku }}</td>
             <td style="font-weight: bold; font-size: 14px;">{{ krok.sarze }}</td>
             <td></td>
@@ -199,7 +199,7 @@
                         {% if item.bedna %}
                             <table class="rack-item-details">
                                 <tr>
-                                    <td style="font-weight: bold; font-size: 12px;">{{ item.procent_z_patra }}%</td>
+                                    <td style="font-weight: bold; font-size: 14px;">{{ item.procent_z_patra }}%</td>
                                 </tr>
                                 <tr>
                                     <td><span style="font-weight: bold; font-size: 12px;">{{ item.bedna.zakazka.kamion_prijem.zakaznik.zkratka }} {{ item.bedna.cislo_bedny }}</span>
@@ -218,11 +218,11 @@
                                 </tr>
                                 <tr class="inspection-row">
                                     <td>Popouštění (šarže):<br>
-                                        <span style="font-weight: bold; font-size: 14px;">{{ item.krok.sarze }} - </span>
+                                        <span style="font-weight: bold; font-size: 14px;">{{ item.krok.sarze }} -&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
                                     </td>
                                 </tr>
                                 <tr class="inspection-row">
-                                    <td style="font-size: 14px;">OK / NOK</td>
+                                    <td style="font-size: 14px;">OK&nbsp;&nbsp;/&nbsp;&nbsp;NOK</td>
                                 </tr>
                                 <tr class="inspection-row">
                                     <td style="text-align: left; vertical-align: top;">Poznámka:</td>
