@@ -37,7 +37,7 @@
             height: 5mm;
             padding: 1mm;
             border: 1px solid #111;
-            font-size: 11px;
+            font-size: 12px;
             font-weight: bold;
             text-align: center;
             vertical-align: middle;
@@ -84,7 +84,7 @@
             height: 6mm;
             padding: .7mm;
             border: 1px solid #111;
-            font-size: 9px;
+            font-size: 10px;
             font-weight: normal;
             text-align: center;
             vertical-align: middle;
@@ -130,14 +130,14 @@
             height: 4mm;
             padding: .3mm;
             border: 1px solid #111;
-            font-size: 9px;
+            font-size: 10px;
             font-weight: normal;
             text-align: center;
             vertical-align: middle;
         }
 
         .rack-item-details .inspection-row td {
-            height: 7mm;
+            height: 8mm;
         }
 
         .rack-segment:has(.rack-item-details) {
@@ -203,23 +203,29 @@
                                 </tr>
                                 <tr>
                                     <td><span style="font-weight: bold; font-size: 12px;">{{ item.bedna.zakazka.kamion_prijem.zakaznik.zkratka }} {{ item.bedna.cislo_bedny }}</span>
-                                        <br ><span style="font-size: 11px;">⌀{{item.bedna.zakazka.prumer}}x{{item.bedna.zakazka.delka|floatformat:0 }}</span>
-                                        <br><span style="font-size: 11px;">SK{{ item.bedna.fake_skupina_TZ }}</span></td>
+                                        <br ><span style="font-size: 12px;">⌀{{item.bedna.zakazka.prumer}}x{{item.bedna.zakazka.delka|floatformat:0 }}</span>
+                                        <br><span style="font-size: 12px;">SK{{ item.bedna.fake_skupina_TZ }}</span></td>
                                 </tr>
                                 <tr class="inspection-row">
-                                    <td style="text-align: left;">Ohyb (2ks):</td>
+                                    <td>Ohyb (2ks):<br>
+                                        <span style="font-weight: bold; font-size: 14px;">{{ item.bedna.zakazka.predpis.ohyb }}</span>
+                                </td>
                                 </tr>
                                 <tr class="inspection-row">
-                                    <td style="text-align: left;">Krut (2ks):</td>
+                                    <td>Krut (2ks):<br>
+                                        <span style="font-weight: bold; font-size: 14px;">{{ item.bedna.zakazka.predpis.krut }}</span>
+                                    </td>
                                 </tr>
                                 <tr class="inspection-row">
-                                    <td style="text-align: left;">Popouštění (šarže):</td>
+                                    <td>Popouštění (šarže):<br>
+                                        <span style="font-weight: bold; font-size: 14px;">{{ item.krok.sarze }} - </span>
+                                    </td>
                                 </tr>
                                 <tr class="inspection-row">
-                                    <td style="font-size: 12px;">OK / NOK</td>
+                                    <td style="font-size: 14px;">OK / NOK</td>
                                 </tr>
                                 <tr class="inspection-row">
-                                    <td style="text-align: left;">Poznámka:</td>
+                                    <td style="text-align: left; vertical-align: top;">Poznámka:</td>
                                 </tr>
                             </table>
                         {% else %}
