@@ -104,16 +104,41 @@ def _bedna_scan_can_mark_zkontrolovano(user, bedna):
     )
 
 
+def _include_current_choice(choices, current_value, all_choices):
+    choice_values = {choice for choice, _label in choices}
+    choice_values.add(current_value)
+    choice_labels = dict(all_choices)
+    choice_labels.update(dict(choices))
+
+    return [
+        (choice, choice_labels[choice])
+        for choice, _label in all_choices
+        if choice in choice_values
+    ]
+
+
 class BednaScanZkontrolovanoForm(django_forms.Form):
     rovnat = django_forms.ChoiceField(label='Rovnání')
     tryskat = django_forms.ChoiceField(label='Tryskání')
 
     def __init__(self, *args, bedna, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['rovnat'].choices = bedna.get_allowed_rovnat_choices()
+        # Kontrolor má pro označení jako zkontrolované vybrat jen finální hodnotu,
+        # ale aktuální hodnotu zobrazíme, aby bylo vidět, z čeho se mění.
+        allowed_rovnat_choices = [
+            (choice, label)
+            for choice, label in RovnaniChoice.choices
+            if choice in [RovnaniChoice.ROVNA, RovnaniChoice.KRIVA]
+        ]
+        allowed_rovnat_choices = _include_current_choice(allowed_rovnat_choices, bedna.rovnat, RovnaniChoice.choices)
+        self.fields['rovnat'].choices = allowed_rovnat_choices
         self.fields['rovnat'].initial = bedna.rovnat
         self.fields['rovnat'].widget.attrs.update({'class': 'form-select scan-position-select'})
-        self.fields['tryskat'].choices = bedna.get_allowed_tryskat_choices()
+        allowed_tryskat_choices = bedna.get_allowed_tryskat_choices()
+        # Pro kontrolora nechceme, aby mohl nastavit hodnotu NEZADANO, musí určitě, zda je bedna čistá, špinavá nebo otryskaná.
+        allowed_tryskat_choices = [(choice, label) for choice, label in allowed_tryskat_choices if choice != TryskaniChoice.NEZADANO]
+        allowed_tryskat_choices = _include_current_choice(allowed_tryskat_choices, bedna.tryskat, TryskaniChoice.choices)
+        self.fields['tryskat'].choices = allowed_tryskat_choices
         self.fields['tryskat'].initial = bedna.tryskat
         self.fields['tryskat'].widget.attrs.update({'class': 'form-select scan-position-select'})
 
@@ -335,9 +360,17 @@ def bedna_scan_zkontrolovano_view(request, cislo_bedny: int):
     if not request.user.has_perm('orders.change_bedna'):
         raise PermissionDenied
     if bedna.pozastaveno:
+        logger.warning(
+            f"Uživatel {request.user} se pokusil označit přes scan bednu {bedna.cislo_bedny} jako zkontrolovanou, "
+            f"ale bedna je pozastavená."
+        )
         messages.error(request, f'Bedna {bedna.cislo_bedny} je pozastavená a nelze ji označit jako zkontrolovanou.')
         return redirect('bedna_scan', cislo_bedny=bedna.cislo_bedny)
     if bedna.stav_bedny not in STAV_BEDNY_ROZPRACOVANOST:
+        logger.warning(
+            f"Uživatel {request.user} se pokusil označit přes scan bednu {bedna.cislo_bedny} jako zkontrolovanou, "
+            f"ale bedna není ve stavu rozpracovanosti."
+        )
         messages.error(request, f'Bedna {bedna.cislo_bedny} není ve stavu rozpracovanosti.')
         return redirect('bedna_scan', cislo_bedny=bedna.cislo_bedny)
 
@@ -355,9 +388,17 @@ def bedna_scan_zkontrolovano_view(request, cislo_bedny: int):
                 cislo_bedny=cislo_bedny,
             )
             if bedna.pozastaveno:
+                logger.warning(
+                    f"Uživatel {request.user} se pokusil označit přes scan bednu {bedna.cislo_bedny} jako zkontrolovanou, "
+                    f"ale bedna je pozastavená."
+                )
                 messages.error(request, f'Bedna {bedna.cislo_bedny} je pozastavená a nelze ji označit jako zkontrolovanou.')
                 return redirect('bedna_scan', cislo_bedny=bedna.cislo_bedny)
             if bedna.stav_bedny not in STAV_BEDNY_ROZPRACOVANOST:
+                logger.warning(
+                    f"Uživatel {request.user} se pokusil označit přes scan bednu {bedna.cislo_bedny} jako zkontrolovanou, "
+                    f"ale bedna není ve stavu rozpracovanosti."
+                )
                 messages.error(request, f'Bedna {bedna.cislo_bedny} není ve stavu rozpracovanosti.')
                 return redirect('bedna_scan', cislo_bedny=bedna.cislo_bedny)
 
@@ -370,8 +411,16 @@ def bedna_scan_zkontrolovano_view(request, cislo_bedny: int):
                 tryskat_bool = bedna.tryskat in [TryskaniChoice.SPINAVA, TryskaniChoice.CISTA, TryskaniChoice.OTRYSKANA]
                 if not rovnat_bool or not tryskat_bool:
                     if not rovnat_bool:
+                        logger.warning(
+                            f"Uživatel {request.user} se pokusil označit přes scan bednu {bedna.cislo_bedny} jako zkontrolovanou, "
+                            f"ale bedna má nastaveno rovnání na hodnotu '{bedna.rovnat}', což není povolená hodnota."
+                        )
                         messages.error(request, f'Bedna {bedna.cislo_bedny} má nastaveno rovnání na hodnotu "{bedna.rovnat}", což není povolená hodnota pro označení bedny jako zkontrolované.')
                     if not tryskat_bool:
+                        logger.warning(
+                            f"Uživatel {request.user} se pokusil označit přes scan bednu {bedna.cislo_bedny} jako zkontrolovanou, "
+                            f"ale bedna má nastaveno tryskání na hodnotu '{bedna.tryskat}', což není povolená hodnota."
+                        )
                         messages.error(request, f'Bedna {bedna.cislo_bedny} má nastaveno tryskání na hodnotu "{bedna.tryskat}", což není povolená hodnota pro označení bedny jako zkontrolované.')
                     return render(
                         request,
@@ -396,7 +445,7 @@ def bedna_scan_zkontrolovano_view(request, cislo_bedny: int):
 
         messages.success(request, f'Bedna {cislo_bedny} byla označena jako zkontrolovaná.')
         logger.info(
-            f"Uživatel {request.user} označil přes QR scan bednu {cislo_bedny} jako ZKONTROLOVANO."
+            f"Uživatel {request.user} označil přes scan bednu {cislo_bedny} jako ZKONTROLOVANO."
         )
         user_agent = get_user_agent(request)
         if user_agent.is_mobile or user_agent.is_tablet:

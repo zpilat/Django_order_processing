@@ -255,7 +255,7 @@ class BednaScanViewTests(ViewsTestBase):
 		response = self.client.get(reverse("bedna_scan", args=[self.b_eur_pr.cislo_bedny]))
 
 		self.assertEqual(response.status_code, 200)
-		self.assertContains(response, "Navézt")
+		self.assertContains(response, "Označit navezeno")
 		self.assertContains(response, reverse("bedna_scan_navezeni", args=[self.b_eur_pr.cislo_bedny]))
 
 	def test_scan_navezeni_get_renders_position_selection(self):
@@ -792,6 +792,22 @@ class BednaScanViewTests(ViewsTestBase):
 		self.assertContains(response, str(self.b_eur_pr.cislo_bedny))
 		self.assertIn("form", response.context)
 		self.assertIn("bedna", response.context)
+
+	def test_scan_zkontrolovano_get_includes_current_disallowed_choices(self):
+		self._set_bedna_zkontrolovano_ready()
+
+		response = self.client.get(
+			reverse("bedna_scan_zkontrolovano", args=[self.b_eur_pr.cislo_bedny])
+		)
+
+		form = response.context["form"]
+		rovnat_values = [choice for choice, _label in form.fields["rovnat"].choices]
+		tryskat_values = [choice for choice, _label in form.fields["tryskat"].choices]
+		self.assertEqual(
+			rovnat_values,
+			[RovnaniChoice.NEZADANO, RovnaniChoice.ROVNA, RovnaniChoice.KRIVA],
+		)
+		self.assertIn(TryskaniChoice.NEZADANO, tryskat_values)
 
 	def test_scan_zkontrolovano_get_requires_permission(self):
 		self.b_eur_pr.stav_bedny = StavBednyChoice.ZAKALENO
