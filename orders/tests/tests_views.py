@@ -868,10 +868,16 @@ class DashboardKamionyViewTests(ViewsTestBase):
 		eur_key = self.z_eur.zkratka
 		self.assertIn(month, data)
 		# pro EUR zákazníka v daném měsíci existuje příjem i výdej
-		expected_prijem = Decimal("5329")
-		expected_vydej = Decimal("2524")
+		same_month_as_average_data = (
+			self.k_prijem_eur.datum.year == yesterday.year
+			and self.k_prijem_eur.datum.month == yesterday.month
+		)
+		expected_prijem = Decimal("2529") + (Decimal("2800") if same_month_as_average_data else Decimal("0"))
+		expected_vydej = Decimal("4") + (Decimal("2520") if same_month_as_average_data else Decimal("0"))
+		expected_rocni_vydej = Decimal("4") + (Decimal("2520") if self.k_prijem_eur.datum.year == yesterday.year else Decimal("0"))
 		expected_hmotnost_krivych = Decimal("4")
 		expected_procento_krivych = (expected_hmotnost_krivych / expected_vydej) * Decimal("100")
+		expected_rocni_procento_krivych = (expected_hmotnost_krivych / expected_rocni_vydej) * Decimal("100")
 		self.assertEqual(data[month][eur_key]["prijem"], expected_prijem)
 		self.assertEqual(data[month][eur_key]["vydej"], expected_vydej)
 		self.assertEqual(data[month][eur_key]["hmotnost_krivych"], expected_hmotnost_krivych)
@@ -881,9 +887,9 @@ class DashboardKamionyViewTests(ViewsTestBase):
 		self.assertEqual(data[month]["CELKEM"]["hmotnost_krivych"], expected_hmotnost_krivych)
 		self.assertAlmostEqual(float(data[month]["CELKEM"]["procento_krivych"]), float(expected_procento_krivych), places=4)
 		self.assertEqual(data["CELKEM"][eur_key]["hmotnost_krivych"], expected_hmotnost_krivych)
-		self.assertAlmostEqual(float(data["CELKEM"][eur_key]["procento_krivych"]), float(expected_procento_krivych), places=4)
+		self.assertAlmostEqual(float(data["CELKEM"][eur_key]["procento_krivych"]), float(expected_rocni_procento_krivych), places=4)
 		self.assertEqual(data["CELKEM"]["CELKEM"]["hmotnost_krivych"], expected_hmotnost_krivych)
-		self.assertAlmostEqual(float(data["CELKEM"]["CELKEM"]["procento_krivych"]), float(expected_procento_krivych), places=4)
+		self.assertAlmostEqual(float(data["CELKEM"]["CELKEM"]["procento_krivych"]), float(expected_rocni_procento_krivych), places=4)
 		self.assertAlmostEqual(float(prumery["import_t"]), 0.2, places=2)
 		self.assertAlmostEqual(float(prumery["import_kamiony"]), 2.8 / 18.0, places=3)
 		self.assertAlmostEqual(float(prumery["export_t"]), 0.18, places=2)
