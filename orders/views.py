@@ -93,6 +93,31 @@ def _bedna_scan_can_mark_navezeno(user, bedna):
     )
 
 
+def _bedna_scan_can_mark_zkontrolovano(user, bedna):
+    """
+    Kontroluje, zda má uživatel oprávnění označit bednu jako zkontrolovanou.
+    """
+    return (
+        user.has_perm('orders.change_bedna')
+        and not bedna.pozastaveno
+        and bedna.stav_bedny in STAV_BEDNY_ROZPRACOVANOST
+    )
+
+
+class BednaScanZkontrolovanoForm(django_forms.Form):
+    rovnat = django_forms.ChoiceField(label='Rovnání')
+    tryskat = django_forms.ChoiceField(label='Tryskání')
+
+    def __init__(self, *args, bedna, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['rovnat'].choices = bedna.get_allowed_rovnat_choices()
+        self.fields['rovnat'].initial = bedna.rovnat
+        self.fields['rovnat'].widget.attrs.update({'class': 'form-select scan-position-select'})
+        self.fields['tryskat'].choices = bedna.get_allowed_tryskat_choices()
+        self.fields['tryskat'].initial = bedna.tryskat
+        self.fields['tryskat'].widget.attrs.update({'class': 'form-select scan-position-select'})
+
+
 def _bedna_scan_sections(bedna):
     """
     Vytvoří seznam sekcí a řádků pro zobrazení detailu bedny.
@@ -215,6 +240,8 @@ def bedna_scan_view(request, cislo_bedny: int):
             request.user.has_perm('orders.mark_bedna_navezeno')
             or request.user.has_perm('orders.change_bedna')
         ),
+        'can_mark_zkontrolovano': _bedna_scan_can_mark_zkontrolovano(request.user, bedna),
+        'has_mark_zkontrolovano_permission': request.user.has_perm('orders.change_bedna'),
         'db_table': 'bedna_scan',
     }
     return render(request, 'orders/bedna_scan_detail.html', context)
@@ -291,6 +318,98 @@ def bedna_scan_navezeni_view(request, cislo_bedny: int):
         'orders/bedna_scan_navezeni.html',
         context
     )
+
+
+@login_required
+def bedna_scan_zkontrolovano_view(request, cislo_bedny: int):
+    """
+    Zobrazuje stránku pro označení bedny jako zkontrolované a úpravu rovnání/tryskání.
+    """
+    bedna_qs = Bedna.objects.select_related(
+        'zakazka',
+        'zakazka__kamion_prijem',
+        'zakazka__kamion_prijem__zakaznik',
+    )
+    bedna = get_object_or_404(bedna_qs, cislo_bedny=cislo_bedny)
+
+    if not request.user.has_perm('orders.change_bedna'):
+        raise PermissionDenied
+    if bedna.pozastaveno:
+        messages.error(request, f'Bedna {bedna.cislo_bedny} je pozastavená a nelze ji označit jako zkontrolovanou.')
+        return redirect('bedna_scan', cislo_bedny=bedna.cislo_bedny)
+    if bedna.stav_bedny not in STAV_BEDNY_ROZPRACOVANOST:
+        messages.error(request, f'Bedna {bedna.cislo_bedny} není ve stavu rozpracovanosti.')
+        return redirect('bedna_scan', cislo_bedny=bedna.cislo_bedny)
+
+    if request.method == 'POST':
+        if request.POST.get('action') != 'mark_zkontrolovano':
+            return HttpResponseBadRequest('Neplatná akce.')
+
+        with transaction.atomic():
+            bedna = get_object_or_404(
+                Bedna.objects.select_for_update().select_related(
+                    'zakazka',
+                    'zakazka__kamion_prijem',
+                    'zakazka__kamion_prijem__zakaznik',
+                ),
+                cislo_bedny=cislo_bedny,
+            )
+            if bedna.pozastaveno:
+                messages.error(request, f'Bedna {bedna.cislo_bedny} je pozastavená a nelze ji označit jako zkontrolovanou.')
+                return redirect('bedna_scan', cislo_bedny=bedna.cislo_bedny)
+            if bedna.stav_bedny not in STAV_BEDNY_ROZPRACOVANOST:
+                messages.error(request, f'Bedna {bedna.cislo_bedny} není ve stavu rozpracovanosti.')
+                return redirect('bedna_scan', cislo_bedny=bedna.cislo_bedny)
+
+            form = BednaScanZkontrolovanoForm(request.POST, bedna=bedna)
+            if form.is_valid():
+                bedna.stav_bedny = StavBednyChoice.ZKONTROLOVANO
+                bedna.rovnat = form.cleaned_data['rovnat']
+                bedna.tryskat = form.cleaned_data['tryskat']
+                rovnat_bool = bedna.rovnat in [RovnaniChoice.KRIVA, RovnaniChoice.ROVNA]
+                tryskat_bool = bedna.tryskat in [TryskaniChoice.SPINAVA, TryskaniChoice.CISTA, TryskaniChoice.OTRYSKANA]
+                if not rovnat_bool or not tryskat_bool:
+                    if not rovnat_bool:
+                        messages.error(request, f'Bedna {bedna.cislo_bedny} má nastaveno rovnání na hodnotu "{bedna.rovnat}", což není povolená hodnota pro označení bedny jako zkontrolované.')
+                    if not tryskat_bool:
+                        messages.error(request, f'Bedna {bedna.cislo_bedny} má nastaveno tryskání na hodnotu "{bedna.tryskat}", což není povolená hodnota pro označení bedny jako zkontrolované.')
+                    return render(
+                        request,
+                        'orders/bedna_scan_zkontrolovano.html',
+                        {
+                            'bedna': bedna,
+                            'form': form,
+                            'db_table': 'bedna_scan_zkontrolovano',
+                        }
+                    )
+                bedna.save(update_fields=['stav_bedny', 'rovnat', 'tryskat'])
+            else:
+                return render(
+                    request,
+                    'orders/bedna_scan_zkontrolovano.html',
+                    {
+                        'bedna': bedna,
+                        'form': form,
+                        'db_table': 'bedna_scan_zkontrolovano',
+                    }
+                )
+
+        messages.success(request, f'Bedna {cislo_bedny} byla označena jako zkontrolovaná.')
+        logger.info(
+            f"Uživatel {request.user} označil přes QR scan bednu {cislo_bedny} jako ZKONTROLOVANO."
+        )
+        user_agent = get_user_agent(request)
+        if user_agent.is_mobile or user_agent.is_tablet:
+            return redirect('bedna_skener')
+        return redirect('bedna_scan', cislo_bedny=cislo_bedny)
+
+    form = BednaScanZkontrolovanoForm(bedna=bedna)
+    context = {
+        'bedna': bedna,
+        'form': form,
+        'db_table': 'bedna_scan_zkontrolovano',
+    }
+    return render(request, 'orders/bedna_scan_zkontrolovano.html', context)
 
 
 @login_required

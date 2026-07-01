@@ -771,6 +771,177 @@ class BednaScanViewTests(ViewsTestBase):
 		self.assertContains(response, "scan_parser.js")
 		self.assertContains(response, reverse("sarze_scan", args=[0]))
 
+	def _set_bedna_zkontrolovano_ready(self):
+		"""Nastaví b_eur_pr do stavu ZAKALENO (in STAV_BEDNY_ROZPRACOVANOST) a přidá oprávnění change_bedna."""
+		self.b_eur_pr.stav_bedny = StavBednyChoice.ZAKALENO
+		self.b_eur_pr.rovnat = RovnaniChoice.NEZADANO
+		self.b_eur_pr.tryskat = TryskaniChoice.NEZADANO
+		self.b_eur_pr.save(update_fields=["stav_bedny", "rovnat", "tryskat"])
+		permission = Permission.objects.get(codename="change_bedna")
+		self.user.user_permissions.add(permission)
+
+	def test_scan_zkontrolovano_get_renders_form(self):
+		self._set_bedna_zkontrolovano_ready()
+
+		response = self.client.get(
+			reverse("bedna_scan_zkontrolovano", args=[self.b_eur_pr.cislo_bedny])
+		)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertTemplateUsed(response, "orders/bedna_scan_zkontrolovano.html")
+		self.assertContains(response, str(self.b_eur_pr.cislo_bedny))
+		self.assertIn("form", response.context)
+		self.assertIn("bedna", response.context)
+
+	def test_scan_zkontrolovano_get_requires_permission(self):
+		self.b_eur_pr.stav_bedny = StavBednyChoice.ZAKALENO
+		self.b_eur_pr.save(update_fields=["stav_bedny"])
+
+		response = self.client.get(
+			reverse("bedna_scan_zkontrolovano", args=[self.b_eur_pr.cislo_bedny])
+		)
+
+		self.assertEqual(response.status_code, 403)
+
+	def test_scan_zkontrolovano_requires_login(self):
+		self.client.logout()
+
+		response = self.client.get(
+			reverse("bedna_scan_zkontrolovano", args=[self.b_eur_pr.cislo_bedny])
+		)
+
+		self.assertEqual(response.status_code, 302)
+		self.assertIn("login", response.url)
+
+	def test_scan_zkontrolovano_get_redirects_if_pozastaveno(self):
+		self.b_eur_pr.stav_bedny = StavBednyChoice.ZAKALENO
+		self.b_eur_pr.pozastaveno = True
+		self.b_eur_pr.save(update_fields=["stav_bedny", "pozastaveno"])
+		permission = Permission.objects.get(codename="change_bedna")
+		self.user.user_permissions.add(permission)
+
+		response = self.client.get(
+			reverse("bedna_scan_zkontrolovano", args=[self.b_eur_pr.cislo_bedny])
+		)
+
+		self.assertRedirects(
+			response,
+			reverse("bedna_scan", args=[self.b_eur_pr.cislo_bedny]),
+			fetch_redirect_response=False,
+		)
+		messages_list = list(response.wsgi_request._messages)
+		self.assertTrue(any("pozastavená" in str(m) for m in messages_list))
+
+	def test_scan_zkontrolovano_get_redirects_if_not_in_rozpracovanost(self):
+		# b_eur_pr je ve stavu PRIJATO, který není v STAV_BEDNY_ROZPRACOVANOST
+		permission = Permission.objects.get(codename="change_bedna")
+		self.user.user_permissions.add(permission)
+
+		response = self.client.get(
+			reverse("bedna_scan_zkontrolovano", args=[self.b_eur_pr.cislo_bedny])
+		)
+
+		self.assertRedirects(
+			response,
+			reverse("bedna_scan", args=[self.b_eur_pr.cislo_bedny]),
+			fetch_redirect_response=False,
+		)
+		messages_list = list(response.wsgi_request._messages)
+		self.assertTrue(any("rozpracovanosti" in str(m) for m in messages_list))
+
+	def test_scan_zkontrolovano_post_marks_bedna_zkontrolovano(self):
+		self._set_bedna_zkontrolovano_ready()
+
+		response = self.client.post(
+			reverse("bedna_scan_zkontrolovano", args=[self.b_eur_pr.cislo_bedny]),
+			{"action": "mark_zkontrolovano", "rovnat": RovnaniChoice.ROVNA, "tryskat": TryskaniChoice.CISTA},
+		)
+
+		self.assertRedirects(
+			response,
+			reverse("bedna_scan", args=[self.b_eur_pr.cislo_bedny]),
+			fetch_redirect_response=False,
+		)
+		self.b_eur_pr.refresh_from_db()
+		self.assertEqual(self.b_eur_pr.stav_bedny, StavBednyChoice.ZKONTROLOVANO)
+		self.assertEqual(self.b_eur_pr.rovnat, RovnaniChoice.ROVNA)
+		self.assertEqual(self.b_eur_pr.tryskat, TryskaniChoice.CISTA)
+
+	def test_scan_zkontrolovano_post_redirects_mobile_to_skener(self):
+		self._set_bedna_zkontrolovano_ready()
+
+		response = self.client.post(
+			reverse("bedna_scan_zkontrolovano", args=[self.b_eur_pr.cislo_bedny]),
+			{"action": "mark_zkontrolovano", "rovnat": RovnaniChoice.ROVNA, "tryskat": TryskaniChoice.CISTA},
+			HTTP_USER_AGENT=(
+				"Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) "
+				"AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
+			),
+		)
+
+		self.assertRedirects(
+			response,
+			reverse("bedna_skener"),
+			fetch_redirect_response=False,
+		)
+		self.b_eur_pr.refresh_from_db()
+		self.assertEqual(self.b_eur_pr.stav_bedny, StavBednyChoice.ZKONTROLOVANO)
+
+	def test_scan_zkontrolovano_post_invalid_action_returns_bad_request(self):
+		self._set_bedna_zkontrolovano_ready()
+
+		response = self.client.post(
+			reverse("bedna_scan_zkontrolovano", args=[self.b_eur_pr.cislo_bedny]),
+			{"action": "neplatna_akce", "rovnat": RovnaniChoice.ROVNA, "tryskat": TryskaniChoice.CISTA},
+		)
+
+		self.assertEqual(response.status_code, 400)
+		self.b_eur_pr.refresh_from_db()
+		self.assertEqual(self.b_eur_pr.stav_bedny, StavBednyChoice.ZAKALENO)
+
+	def test_scan_zkontrolovano_post_rerenders_on_invalid_rovnat_bool(self):
+		"""Rovnat=NEZADANO projde validací formuláře, ale selže při vlastní kontrole v pohledu."""
+		self._set_bedna_zkontrolovano_ready()
+
+		response = self.client.post(
+			reverse("bedna_scan_zkontrolovano", args=[self.b_eur_pr.cislo_bedny]),
+			{"action": "mark_zkontrolovano", "rovnat": RovnaniChoice.NEZADANO, "tryskat": TryskaniChoice.CISTA},
+		)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertTemplateUsed(response, "orders/bedna_scan_zkontrolovano.html")
+		self.b_eur_pr.refresh_from_db()
+		self.assertEqual(self.b_eur_pr.stav_bedny, StavBednyChoice.ZAKALENO)
+
+	def test_scan_zkontrolovano_post_rerenders_on_invalid_tryskat_bool(self):
+		"""Tryskat=NEZADANO projde validací formuláře, ale selže při vlastní kontrole v pohledu."""
+		self._set_bedna_zkontrolovano_ready()
+
+		response = self.client.post(
+			reverse("bedna_scan_zkontrolovano", args=[self.b_eur_pr.cislo_bedny]),
+			{"action": "mark_zkontrolovano", "rovnat": RovnaniChoice.ROVNA, "tryskat": TryskaniChoice.NEZADANO},
+		)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertTemplateUsed(response, "orders/bedna_scan_zkontrolovano.html")
+		self.b_eur_pr.refresh_from_db()
+		self.assertEqual(self.b_eur_pr.stav_bedny, StavBednyChoice.ZAKALENO)
+
+	def test_scan_zkontrolovano_post_rerenders_on_invalid_form(self):
+		"""Odeslání neplatné hodnoty rovnat způsobí chybu formuláře a překreslení šablony."""
+		self._set_bedna_zkontrolovano_ready()
+
+		response = self.client.post(
+			reverse("bedna_scan_zkontrolovano", args=[self.b_eur_pr.cislo_bedny]),
+			{"action": "mark_zkontrolovano", "rovnat": "NEPLATNA_HODNOTA", "tryskat": TryskaniChoice.CISTA},
+		)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertTemplateUsed(response, "orders/bedna_scan_zkontrolovano.html")
+		self.assertFalse(response.context["form"].is_valid())
+		self.b_eur_pr.refresh_from_db()
+		self.assertEqual(self.b_eur_pr.stav_bedny, StavBednyChoice.ZAKALENO)
+
 
 class DashboardBednyViewTests(ViewsTestBase):
 	def test_requires_login(self):

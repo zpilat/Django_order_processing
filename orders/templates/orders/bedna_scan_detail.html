@@ -55,6 +55,17 @@
             </div>
         {% endif %}
 
+        {% if can_mark_zkontrolovano %}
+            <a class="btn btn-warning w-100 scan-action-button d-flex align-items-center justify-content-center"
+               href="{% url 'bedna_scan_zkontrolovano' bedna.cislo_bedny %}">
+                Označit zkontrolováno
+            </a>
+        {% elif has_mark_zkontrolovano_permission %}
+            <div class="alert alert-secondary mb-0">
+                Akce „Označit zkontrolováno“ není pro aktuální stav bedny dostupná.
+            </div>
+        {% endif %}
+
         <a class="btn btn-outline-primary w-100 scan-action-button d-flex align-items-center justify-content-center"
            href="{% url 'bedna_scan_pohyb' bedna.cislo_bedny %}">
             Pohyb bedny

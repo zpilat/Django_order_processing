@@ -1,0 +1,79 @@
+{% extends "orders/base.html" %}
+{% load static %}
+
+{% block title %}Kontrola bedny {{ bedna.cislo_bedny }}{% endblock %}
+
+{% block extra_head %}{{ block.super }}<link rel="stylesheet" href="{% static 'orders/css/scan_workflows.css' %}">{% endblock %}
+
+{% block content %}
+<main class="scan-page scan-page-narrow px-0 px-sm-2 py-2">
+    <section class="card rounded-2">
+        <div class="card-body">
+            <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3">
+                <div class="text-center text-sm-start">
+                    <div class="text-muted fw-semibold">Bedna</div>
+                    <div class="scan-number">{{ bedna.cislo_bedny }}</div>
+                </div>
+                <div class="text-center text-sm-end">
+                    <div class="text-muted fw-semibold mb-2">Stav bedny</div>
+                    <span class="scan-status badge rounded-2 text-bg-primary">{{ bedna.get_stav_bedny_display }}</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="card rounded-2 mt-3">
+        <div class="list-group list-group-flush">
+            <div class="list-group-item d-sm-flex justify-content-between gap-3">
+                <div class="text-muted">Zákazník</div>
+                <div class="fw-bold text-break">{{ bedna.zakazka.kamion_prijem.zakaznik|default:"-" }}</div>
+            </div>
+            <div class="list-group-item d-sm-flex justify-content-between gap-3">
+                <div class="text-muted">Zakázka / rozměr</div>
+                <div class="fw-bold text-break">{{ bedna.zakazka.artikl }} / {{ bedna.zakazka.prumer }} x {{ bedna.zakazka.delka }}</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="card rounded-2 mt-3">
+        <div class="card-body">
+            <form method="post" novalidate>
+                {% csrf_token %}
+                <input type="hidden" name="action" value="mark_zkontrolovano">
+
+                {% if form.non_field_errors %}
+                    <div class="alert alert-danger" role="alert">
+                        {{ form.non_field_errors }}
+                    </div>
+                {% endif %}
+
+                <div class="mb-3">
+                    <label for="{{ form.rovnat.id_for_label }}" class="form-label fw-semibold">{{ form.rovnat.label }}</label>
+                    {{ form.rovnat }}
+                    {% for error in form.rovnat.errors %}
+                        <div class="text-danger small mt-1">{{ error }}</div>
+                    {% endfor %}
+                </div>
+
+                <div class="mb-3">
+                    <label for="{{ form.tryskat.id_for_label }}" class="form-label fw-semibold">{{ form.tryskat.label }}</label>
+                    {{ form.tryskat }}
+                    {% for error in form.tryskat.errors %}
+                        <div class="text-danger small mt-1">{{ error }}</div>
+                    {% endfor %}
+                </div>
+
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-warning scan-action-button">
+                        Označit bednu jako zkontrolovanou
+                    </button>
+                    <a class="btn btn-outline-secondary scan-action-button d-flex align-items-center justify-content-center"
+                       href="{% url 'bedna_scan' bedna.cislo_bedny %}">
+                        Zpět na detail bedny
+                    </a>
+                </div>
+            </form>
+        </div>
+    </section>
+</main>
+{% endblock %}
