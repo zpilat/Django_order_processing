@@ -82,6 +82,9 @@
     min-height: 2.25rem;
     padding: .35rem .75rem;
     font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    text-transform: uppercase;
 }
 
 .scan-note,
