@@ -1757,6 +1757,49 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			reverse("rychle_zalozeni_sarze_patro", args=[krok.pk, 1]),
 		)
 
+	def test_post_creates_sarze_when_latest_nakladani_step_has_no_end(self):
+		puvodni_sarze = Sarze.objects.create(
+			datum_zalozeni=date(2026, 6, 4),
+			cislo_pripravku=10,
+			aktivni=True,
+		)
+		puvodni_krok = SarzeKrok.objects.create(
+			sarze=puvodni_sarze,
+			poradi=1,
+			datum=date(2026, 6, 4),
+			zarizeni=self.nakladani,
+			zacatek=time(6, 0),
+			konec=None,
+			operator="Novak",
+		)
+
+		resp = self.client.post(
+			reverse("rychle_zalozeni_sarze"),
+			{
+				"cislo_pripravku": "12",
+				"poznamka_sarze": "",
+				"datum": "2026-06-05",
+				"zacatek": "06:00",
+				"konec": "",
+				"operator": "Svoboda",
+				"poznamka_kroku": "",
+			},
+		)
+
+		self.assertEqual(resp.status_code, 302)
+		self.assertNotEqual(
+			resp["Location"],
+			reverse("rychle_zalozeni_sarze_prehled", args=[puvodni_krok.pk]),
+		)
+		nova_sarze = Sarze.objects.exclude(pk=puvodni_sarze.pk).get()
+		novy_krok = SarzeKrok.objects.get(sarze=nova_sarze)
+		self.assertEqual(nova_sarze.cislo_pripravku, 12)
+		self.assertEqual(novy_krok.operator, "Svoboda")
+		self.assertEqual(
+			resp["Location"],
+			reverse("rychle_zalozeni_sarze_patro", args=[novy_krok.pk, 1]),
+		)
+
 	def test_upravit_get_prefills_existing_sarze_and_first_step(self):
 		sarze = Sarze.objects.create(
 			datum_zalozeni=date(2026, 6, 5),

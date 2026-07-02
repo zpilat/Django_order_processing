@@ -848,14 +848,6 @@ def rychle_zalozeni_sarze_view(request):
         sarze__isnull=False, zarizeni__typ_zarizeni=TypZarizeniChoice.NAKLADANI
     ).order_by('-pk').first()
 
-    if posledni_krok_nakladani and posledni_krok_nakladani.konec is None:
-        messages.warning(request, 'Nelze založit novou šarži, protože poslední krok nakládání ještě není ukončen.')
-        logger.warning(
-            f"Uživatel {request.user} se pokusil založit novou šarži, ale poslední krok nakládání "
-            f"{posledni_krok_nakladani.pk} šarže {posledni_krok_nakladani.sarze} není ukončen."
-        )
-        return redirect('rychle_zalozeni_sarze_prehled', krok_id=posledni_krok_nakladani.pk)
-
     if request.method == 'POST':
         form = RychleZalozeniSarzeForm(request.POST)
         if form.is_valid():
