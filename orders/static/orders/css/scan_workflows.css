@@ -367,10 +367,23 @@
     display: none;
 }
 
+.bedna-scan-group {
+    flex-wrap: nowrap;
+}
+
 .bedna-picker {
     position: relative;
-    flex: 1 1 auto;
+    flex: 1 1 0;
     min-width: 0;
+}
+
+.bedna-picker .bedna-search-input {
+    min-width: 0;
+}
+
+.scan-bedna-button {
+    flex: 0 0 auto;
+    white-space: nowrap;
 }
 
 .bedna-search-results {
@@ -436,5 +449,10 @@
         border-right: 0;
         border-left: 0;
         border-radius: 0;
+    }
+
+    .scan-bedna-button {
+        padding-right: .45rem;
+        padding-left: .45rem;
     }
 }

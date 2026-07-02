@@ -40,7 +40,7 @@
                     {% for item_form in formset %}
                         <tr class="item-row" data-form-index="{{ forloop.counter0 }}">
                             <td>
-                                <div class="input-group input-group-sm">
+                                <div class="input-group input-group-sm bedna-scan-group">
                                     <div class="bedna-picker">
                                         {{ item_form.bedna }}
                                     </div>
@@ -114,7 +114,7 @@
 <template id="empty-row-template">
     <tr class="item-row" data-form-index="__prefix__">
         <td>
-            <div class="input-group input-group-sm">
+            <div class="input-group input-group-sm bedna-scan-group">
                 <div class="bedna-picker">
                     {{ formset.empty_form.bedna }}
                 </div>
