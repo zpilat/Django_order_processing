@@ -670,6 +670,7 @@ class SarzeKrokPatroPolozkaForm(forms.Form):
     )
 
     def __init__(self, *args, **kwargs):
+        self.bedna_only = kwargs.pop('bedna_only', False)
         super().__init__(*args, **kwargs)
         allowed_states = [
             state.value if hasattr(state, 'value') else state
@@ -681,6 +682,14 @@ class SarzeKrokPatroPolozkaForm(forms.Form):
             .select_related('zakazka', 'zakazka__kamion_prijem', 'zakazka__kamion_prijem__zakaznik')
             .order_by('-cislo_bedny')
         )
+        if self.bedna_only:
+            for field_name in (
+                'popis_mimo_db',
+                'zakaznik_mimo_db',
+                'zakazka_mimo_db',
+                'cislo_bedny_mimo_db',
+            ):
+                self.fields.pop(field_name, None)
 
     def clean(self):
         cleaned_data = super().clean()
@@ -688,6 +697,9 @@ class SarzeKrokPatroPolozkaForm(forms.Form):
             return cleaned_data
 
         bedna = cleaned_data.get('bedna')
+        if self.bedna_only:
+            return cleaned_data
+
         iron_fields = (
             'popis_mimo_db',
             'zakaznik_mimo_db',
@@ -734,6 +746,8 @@ class SarzeKrokPatroPolozkaForm(forms.Form):
     def has_item(self):
         if not hasattr(self, 'cleaned_data') or self.cleaned_data.get('DELETE'):
             return False
+        if self.bedna_only:
+            return bool(self.cleaned_data.get('bedna'))
         return bool(
             self.cleaned_data.get('bedna')
             or self.cleaned_data.get('popis_mimo_db')
@@ -751,6 +765,8 @@ class BaseSarzeKrokPatroFormSet(BaseFormSet):
 
         active_forms = [form for form in self.forms if form.has_item()]
         if not active_forms:
+            if all(getattr(form, 'bedna_only', False) for form in self.forms):
+                raise ValidationError('Vyplňte alespoň jednu bednu.')
             raise ValidationError('Vyplňte alespoň jednu bednu nebo jeden řádek železa.')
         if len(active_forms) > 5:
             raise ValidationError('Jedno patro může obsahovat nejvýše 5 položek.')

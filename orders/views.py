@@ -933,10 +933,6 @@ def rychle_zalozeni_sarze_patro_view(request, krok_id, patro):
     initial = [
         {
             'bedna': item.bedna_id,
-            'popis_mimo_db': item.popis_mimo_db or '',
-            'zakaznik_mimo_db': item.zakaznik_mimo_db or '',
-            'zakazka_mimo_db': item.zakazka_mimo_db or '',
-            'cislo_bedny_mimo_db': item.cislo_bedny_mimo_db or '',
             'procent_z_patra': item.procent_z_patra,
         }
         for item in existing_items
@@ -947,7 +943,7 @@ def rychle_zalozeni_sarze_patro_view(request, krok_id, patro):
         if request.POST.get('action') == 'finish':
             return redirect('rychle_zalozeni_sarze_prehled', krok_id=krok.pk)
 
-        formset = PatroFormSet(request.POST, prefix='polozky')
+        formset = PatroFormSet(request.POST, prefix='polozky', form_kwargs={'bedna_only': True})
         if formset.is_valid():
             with transaction.atomic():
                 locked_krok = SarzeKrok.objects.select_for_update().get(pk=krok.pk)
@@ -958,10 +954,6 @@ def rychle_zalozeni_sarze_patro_view(request, krok_id, patro):
                     item = SarzeKrokBedna(
                         krok=locked_krok,
                         bedna=data.get('bedna'),
-                        popis_mimo_db=data.get('popis_mimo_db') or None,
-                        zakaznik_mimo_db=data.get('zakaznik_mimo_db') or None,
-                        zakazka_mimo_db=data.get('zakazka_mimo_db') or None,
-                        cislo_bedny_mimo_db=data.get('cislo_bedny_mimo_db') or None,
                         patro=patro,
                         procent_z_patra=data['procent_z_patra'],
                     )
@@ -987,7 +979,7 @@ def rychle_zalozeni_sarze_patro_view(request, krok_id, patro):
             )
             return redirect('rychle_zalozeni_sarze_prehled', krok_id=krok.pk)
     else:
-        formset = PatroFormSet(initial=initial, prefix='polozky')
+        formset = PatroFormSet(initial=initial, prefix='polozky', form_kwargs={'bedna_only': True})
 
     return render(
         request,

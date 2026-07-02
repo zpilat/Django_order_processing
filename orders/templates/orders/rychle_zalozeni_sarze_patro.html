@@ -33,10 +33,6 @@
                 <thead class="hpm-table-head">
                     <tr>
                         <th class="col-bedna">Bedna</th>
-                        <th class="col-text-md">Popis mimo DB</th>
-                        <th class="col-text-md">Zákazník mimo DB</th>
-                        <th class="col-text-sm">Zakázka mimo DB</th>
-                        <th class="col-text-sm">Číslo bedny mimo DB</th>
                         <th class="text-center col-action"></th>
                     </tr>
                 </thead>
@@ -58,10 +54,6 @@
                                 {{ item_form.procent_z_patra }}
                                 {{ item_form.DELETE.as_hidden }}
                             </td>
-                            <td>{{ item_form.popis_mimo_db }}</td>
-                            <td>{{ item_form.zakaznik_mimo_db }}</td>
-                            <td>{{ item_form.zakazka_mimo_db }}</td>
-                            <td>{{ item_form.cislo_bedny_mimo_db }}</td>
                             <td class="text-center">
                                 <button type="button" class="btn btn-sm btn-outline-danger remove-row" title="Odebrat řádek" aria-label="Odebrat řádek">&times;</button>
                             </td>
@@ -76,7 +68,7 @@
                         </tr>
                         {% if item_form.errors %}
                             <tr class="item-error-row">
-                                <td colspan="6" class="text-danger small">
+                                <td colspan="2" class="text-danger small">
                                     {% for field in item_form %}
                                         {% for error in field.errors %}
                                             <span class="me-3"><strong>{{ field.label }}:</strong> {{ error }}</span>
@@ -136,10 +128,6 @@
             {{ formset.empty_form.procent_z_patra }}
             {{ formset.empty_form.DELETE.as_hidden }}
         </td>
-        <td>{{ formset.empty_form.popis_mimo_db }}</td>
-        <td>{{ formset.empty_form.zakaznik_mimo_db }}</td>
-        <td>{{ formset.empty_form.zakazka_mimo_db }}</td>
-        <td>{{ formset.empty_form.cislo_bedny_mimo_db }}</td>
         <td class="text-center">
             <button type="button" class="btn btn-sm btn-outline-danger remove-row" title="Odebrat řádek" aria-label="Odebrat řádek">&times;</button>
         </td>
@@ -215,11 +203,7 @@
 
     function rowHasItem(row) {
         const bedna = row.querySelector('.js-bedna');
-        const ironInputs = row.querySelectorAll('.js-iron-label');
-        return Boolean(
-            (bedna && bedna.value)
-            || Array.from(ironInputs).some(input => input.value.trim())
-        );
+        return Boolean(bedna && bedna.value);
     }
 
     function activeRows() {
@@ -233,10 +217,7 @@
             return option ? option.text.trim() : 'Bedna';
         }
 
-        const ironValues = Array.from(row.querySelectorAll('.js-iron-label'))
-            .map(input => input.value.trim())
-            .filter(Boolean);
-        return ironValues.length ? ironValues.join(' / ') : 'Položka';
+        return 'Bedna';
     }
 
     function percentageInput(row) {

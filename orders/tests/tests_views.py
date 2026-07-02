@@ -1885,7 +1885,60 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 
 		self.assertEqual(resp.status_code, 404)
 
-	def test_patro_post_saves_bedna_and_iron_and_opens_next_floor(self):
+	def test_patro_post_saves_bedny_and_opens_next_floor(self):
+		sarze = Sarze.objects.create(
+			datum_zalozeni=date(2026, 6, 5),
+			cislo_pripravku=12,
+			aktivni=True,
+		)
+		krok = SarzeKrok.objects.create(
+			sarze=sarze,
+			poradi=1,
+			datum=date(2026, 6, 5),
+			zarizeni=self.nakladani,
+			zacatek=time(6, 0),
+			konec=time(7, 30),
+			operator="Novak",
+		)
+		other_bedna = Bedna.objects.create(
+			zakazka=self.zak_abc,
+			stav_bedny=StavBednyChoice.PRIJATO,
+			hmotnost=3,
+			tara=1,
+			mnozstvi=1,
+			tryskat=TryskaniChoice.NEZADANO,
+			rovnat=RovnaniChoice.NEZADANO,
+		)
+
+		resp = self.client.post(
+			reverse("rychle_zalozeni_sarze_patro", args=[krok.pk, 1]),
+			{
+				"polozky-TOTAL_FORMS": "2",
+				"polozky-INITIAL_FORMS": "0",
+				"polozky-MIN_NUM_FORMS": "0",
+				"polozky-MAX_NUM_FORMS": "5",
+				"polozky-0-bedna": str(self.b_eur_pr.pk),
+				"polozky-0-procent_z_patra": "50",
+				"polozky-1-bedna": str(other_bedna.pk),
+				"polozky-1-procent_z_patra": "50",
+				"action": "next",
+			},
+		)
+
+		self.assertEqual(resp.status_code, 302)
+		self.assertEqual(
+			resp["Location"],
+			reverse("rychle_zalozeni_sarze_patro", args=[krok.pk, 2]),
+		)
+
+		items = list(SarzeKrokBedna.objects.filter(krok=krok, patro=1).order_by("pk"))
+		self.assertEqual(len(items), 2)
+		self.assertEqual(items[0].bedna, self.b_eur_pr)
+		self.assertEqual(items[0].procent_z_patra, 50)
+		self.assertEqual(items[1].bedna, other_bedna)
+		self.assertEqual(items[1].procent_z_patra, 50)
+
+	def test_patro_post_rejects_mimo_db_without_bedna(self):
 		sarze = Sarze.objects.create(
 			datum_zalozeni=date(2026, 6, 5),
 			cislo_pripravku=12,
@@ -1904,37 +1957,22 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 		resp = self.client.post(
 			reverse("rychle_zalozeni_sarze_patro", args=[krok.pk, 1]),
 			{
-				"polozky-TOTAL_FORMS": "2",
+				"polozky-TOTAL_FORMS": "1",
 				"polozky-INITIAL_FORMS": "0",
 				"polozky-MIN_NUM_FORMS": "0",
 				"polozky-MAX_NUM_FORMS": "5",
-				"polozky-0-bedna": str(self.b_eur_pr.pk),
-				"polozky-0-procent_z_patra": "50",
-				"polozky-1-popis_mimo_db": "Tyce",
-				"polozky-1-zakaznik_mimo_db": "Externi zakaznik",
-				"polozky-1-zakazka_mimo_db": "ZAK-1",
-				"polozky-1-cislo_bedny_mimo_db": "BED-1",
-				"polozky-1-procent_z_patra": "50",
-				"action": "next",
+				"polozky-0-popis_mimo_db": "Tyce",
+				"polozky-0-zakaznik_mimo_db": "Externi zakaznik",
+				"polozky-0-zakazka_mimo_db": "ZAK-1",
+				"polozky-0-cislo_bedny_mimo_db": "BED-1",
+				"polozky-0-procent_z_patra": "100",
+				"action": "save",
 			},
 		)
 
-		self.assertEqual(resp.status_code, 302)
-		self.assertEqual(
-			resp["Location"],
-			reverse("rychle_zalozeni_sarze_patro", args=[krok.pk, 2]),
-		)
-
-		items = list(SarzeKrokBedna.objects.filter(krok=krok, patro=1).order_by("pk"))
-		self.assertEqual(len(items), 2)
-		self.assertEqual(items[0].bedna, self.b_eur_pr)
-		self.assertEqual(items[0].procent_z_patra, 50)
-		self.assertIsNone(items[1].bedna)
-		self.assertEqual(items[1].popis_mimo_db, "Tyce")
-		self.assertEqual(items[1].zakaznik_mimo_db, "Externi zakaznik")
-		self.assertEqual(items[1].zakazka_mimo_db, "ZAK-1")
-		self.assertEqual(items[1].cislo_bedny_mimo_db, "BED-1")
-		self.assertEqual(items[1].procent_z_patra, 50)
+		self.assertEqual(resp.status_code, 200)
+		self.assertContains(resp, "Vyplňte alespoň jednu bednu.")
+		self.assertFalse(SarzeKrokBedna.objects.filter(krok=krok, patro=1).exists())
 
 	def test_patro_post_allows_same_bedna_more_than_once(self):
 		sarze = Sarze.objects.create(
@@ -2008,6 +2046,15 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			konec=time(7, 30),
 			operator="Novak",
 		)
+		other_bedna = Bedna.objects.create(
+			zakazka=self.zak_abc,
+			stav_bedny=StavBednyChoice.PRIJATO,
+			hmotnost=3,
+			tara=1,
+			mnozstvi=1,
+			tryskat=TryskaniChoice.NEZADANO,
+			rovnat=RovnaniChoice.NEZADANO,
+		)
 
 		resp = self.client.post(
 			reverse("rychle_zalozeni_sarze_patro", args=[krok.pk, 1]),
@@ -2018,9 +2065,7 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 				"polozky-MAX_NUM_FORMS": "5",
 				"polozky-0-bedna": str(self.b_eur_pr.pk),
 				"polozky-0-procent_z_patra": "37",
-				"polozky-1-popis_mimo_db": "Tyce",
-				"polozky-1-zakaznik_mimo_db": "Externi zakaznik",
-				"polozky-1-zakazka_mimo_db": "ZAK-1",
+				"polozky-1-bedna": str(other_bedna.pk),
 				"polozky-1-procent_z_patra": "43",
 				"action": "save",
 			},
@@ -2061,9 +2106,7 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			"action": "save",
 		}
 		for index in range(6):
-			data[f"polozky-{index}-popis_mimo_db"] = f"Tyce {index}"
-			data[f"polozky-{index}-zakaznik_mimo_db"] = "Externi zakaznik"
-			data[f"polozky-{index}-zakazka_mimo_db"] = f"ZAK-{index}"
+			data[f"polozky-{index}-bedna"] = str(self.b_eur_pr.pk)
 			data[f"polozky-{index}-procent_z_patra"] = "5"
 
 		resp = self.client.post(
