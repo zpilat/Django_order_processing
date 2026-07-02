@@ -42,6 +42,18 @@
             table-layout: fixed;
             width: 100%;
         }
+
+        .box-number {
+            display: block;
+            line-height: 0.9;
+        }
+
+        .box-count {
+            display: block;
+            margin-top: 3px;
+            font-size: 0.7em;
+            line-height: 0.9;
+        }
     </style>
 </head>
 <body>
@@ -76,7 +88,10 @@
                     <th class="py-1 small" colspan="5">KONTROLA PROHYBU<br><span class="fw-normal">Abweichung Geradheit</span></th>
                 </tr>            
                 <tr class="text-center measurement-row">
-                    <td rowspan="3">{{ zakazka.prvni_bedna_v_zakazce.cislo_bedny|default:"-" }}</td>
+                    <td rowspan="3" class="py-1">
+                        <span class="box-number">{{ zakazka.prvni_bedna_v_zakazce.cislo_bedny|default:"-" }}</span>
+                        <span class="box-count">(1. z {{ zakazka.pocet_beden }})</span>
+                    </td>
                     <td rowspan="3">Ø{{ zakazka.prumer }}x{{ zakazka.delka|floatformat:0 }}</td>
                     <td rowspan="3">{{ zakazka.artikl }}</td>
                     <td rowspan="3"></td>
