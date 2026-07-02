@@ -115,7 +115,7 @@
                 </div>
             {% endif %}
             <!-- Dropdown: Rychlé založení šarže -->
-            {% if perms.orders.add_sarze and perms.orders.change_sarze and perms.orders.add_sarzekrok and perms.orders.change_sarzekrok and perms.orders.view_sarzekrok and perms.orders.add_sarzekrokbedna and perms.orders.change_sarzekrokbedna and perms.orders.view_sarzekrokbedna or perms.orders.view_sarzekrok and perms.orders.view_sarzekrokbedna %}
+            {% if perms.orders.add_sarze and perms.orders.change_sarze and perms.orders.add_sarzekrok and perms.orders.change_sarzekrok and perms.orders.view_sarzekrok and perms.orders.add_sarzekrokbedna and perms.orders.change_sarzekrokbedna and perms.orders.view_sarzekrokbedna or perms.orders.view_sarzekrok and perms.orders.view_sarzekrokbedna and otevrene_kroky_nakladani %}
                 <div class="btn-group btn-group-sm dropdown my-1">
                     <button class="btn dropdown-toggle app-navbar-button"
                             style="background-color: var(--navbar-button-bg); color: var(--navbar-button-fg); border-color: var(--navbar-button-bg);"
@@ -133,12 +133,16 @@
                                 </a>
                             </li>
                         {% endif %}
-                        {% if perms.orders.view_sarzekrok and perms.orders.view_sarzekrokbedna %}
-                            <li>
-                                <a class="dropdown-item small" href="{% url 'rychle_zalozeni_sarze_posledni_prehled' %}">
-                                    Přehled poslední šarže
-                                </a>
-                            </li>
+                        {% if perms.orders.view_sarzekrok and perms.orders.view_sarzekrokbedna and otevrene_kroky_nakladani %}
+                            {% for otevreny_krok in otevrene_kroky_nakladani %}
+                                <li>
+                                    <a class="dropdown-item small{% if krok.pk == otevreny_krok.pk %} active{% endif %}"
+                                       {% if krok.pk == otevreny_krok.pk %}aria-current="page"{% endif %}
+                                       href="{% url 'rychle_zalozeni_sarze_pracoviste_prehled' otevreny_krok.sarze.cislo_pracoviste %}">
+                                        Pracoviště č.{{ otevreny_krok.sarze.cislo_pracoviste }}
+                                    </a>
+                                </li>
+                            {% endfor %}
                         {% endif %}
                     </ul>
                 </div>

@@ -24,7 +24,7 @@ from .views import (
     sarze_scan_change_krok_view,
     bedna_skener_view,
     rychle_zalozeni_sarze_view,
-    rychle_zalozeni_sarze_posledni_prehled_view,
+    rychle_zalozeni_sarze_pracoviste_prehled_view,
     rychle_zalozeni_sarze_patro_view,
     rychle_zalozeni_sarze_prehled_view,
     rychle_zalozeni_sarze_tisk_view,
@@ -57,9 +57,9 @@ urlpatterns = [
     path('bedny/skener/', bedna_skener_view, name='bedna_skener'),
     path('sarze/rychle-zalozeni/', rychle_zalozeni_sarze_view, name='rychle_zalozeni_sarze'),
     path(
-        'sarze/rychle-zalozeni/posledni-prehled/',
-        rychle_zalozeni_sarze_posledni_prehled_view,
-        name='rychle_zalozeni_sarze_posledni_prehled',
+        'sarze/rychle-zalozeni/pracoviste/<int:cislo_pracoviste>/',
+        rychle_zalozeni_sarze_pracoviste_prehled_view,
+        name='rychle_zalozeni_sarze_pracoviste_prehled',
     ),
     path(
         'sarze/rychle-zalozeni/krok/<int:krok_id>/patro/<int:patro>/',

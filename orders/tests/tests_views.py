@@ -152,7 +152,7 @@ class AuthenticationRoutingTests(TestCase):
 
 		self.assertRedirects(
 			response,
-			reverse("rychle_zalozeni_sarze_posledni_prehled"),
+			reverse("rychle_zalozeni_sarze"),
 			fetch_redirect_response=False,
 		)
 
@@ -1666,66 +1666,130 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 		self.assertContains(resp, "ŠARŽE")
 		self.assertContains(resp, "Číslo pracoviště")
 		self.assertContains(resp, "Přidat novou šarži")
-		self.assertContains(resp, "Přehled poslední šarže")
+		self.assertNotContains(resp, "Přehled poslední šarže")
 
-	def test_posledni_prehled_redirects_to_latest_nakladani_step(self):
+	def test_get_uses_previous_page_as_cancel_url(self):
+		cancel_url = reverse("dashboard_bedny")
+
+		resp = self.client.get(
+			reverse("rychle_zalozeni_sarze"),
+			HTTP_REFERER=cancel_url,
+		)
+
+		self.assertEqual(resp.status_code, 200)
+		self.assertEqual(resp.context["cancel_url"], cancel_url)
+		self.assertContains(resp, f'href="{cancel_url}"')
+		self.assertContains(resp, f'name="next" value="{cancel_url}"')
+
+	def test_get_ignores_external_previous_page_for_cancel_url(self):
+		resp = self.client.get(
+			reverse("rychle_zalozeni_sarze"),
+			HTTP_REFERER="https://example.invalid/evil/",
+		)
+
+		self.assertEqual(resp.status_code, 200)
+		self.assertEqual(resp.context["cancel_url"], reverse("dashboard_vyroba"))
+
+	def test_invalid_post_preserves_cancel_url_from_next(self):
+		cancel_url = reverse("dashboard_bedny")
+
+		resp = self.client.post(
+			reverse("rychle_zalozeni_sarze"),
+			{
+				"next": cancel_url,
+				"cislo_pripravku": "12",
+				"cislo_pracoviste": "7",
+				"poznamka_sarze": "",
+				"datum": "2026-06-05",
+				"zacatek": "06:00",
+				"konec": "",
+				"operator": "Novak",
+				"poznamka_kroku": "",
+			},
+		)
+
+		self.assertEqual(resp.status_code, 200)
+		self.assertEqual(resp.context["cancel_url"], cancel_url)
+		self.assertContains(resp, f'href="{cancel_url}"')
+		self.assertContains(resp, f'name="next" value="{cancel_url}"')
+
+	def test_navbar_shows_open_nakladani_steps_by_pracoviste(self):
+		sarze_1 = Sarze.objects.create(
+			datum_zalozeni=date(2026, 6, 5),
+			cislo_pripravku=12,
+			cislo_pracoviste=1,
+			aktivni=True,
+		)
+		krok_1 = SarzeKrok.objects.create(
+			sarze=sarze_1,
+			poradi=1,
+			datum=date(2026, 6, 5),
+			zarizeni=self.nakladani,
+			zacatek=time(6, 0),
+			operator="Novak",
+		)
+		sarze_2 = Sarze.objects.create(
+			datum_zalozeni=date(2026, 6, 5),
+			cislo_pripravku=13,
+			cislo_pracoviste=2,
+			aktivni=True,
+		)
+		krok_2 = SarzeKrok.objects.create(
+			sarze=sarze_2,
+			poradi=1,
+			datum=date(2026, 6, 5),
+			zarizeni=self.nakladani,
+			zacatek=time(7, 0),
+			operator="Novak",
+		)
+		uzavrena_sarze = Sarze.objects.create(
+			datum_zalozeni=date(2026, 6, 5),
+			cislo_pripravku=14,
+			cislo_pracoviste=3,
+			aktivni=True,
+		)
+		SarzeKrok.objects.create(
+			sarze=uzavrena_sarze,
+			poradi=1,
+			datum=date(2026, 6, 5),
+			zarizeni=self.nakladani,
+			zacatek=time(8, 0),
+			konec=time(9, 0),
+			operator="Novak",
+		)
+
+		resp = self.client.get(reverse("rychle_zalozeni_sarze"))
+
+		self.assertContains(resp, "Pracoviště č.1")
+		self.assertContains(resp, "Pracoviště č.2")
+		self.assertContains(resp, reverse("rychle_zalozeni_sarze_pracoviste_prehled", args=[1]))
+		self.assertContains(resp, reverse("rychle_zalozeni_sarze_pracoviste_prehled", args=[2]))
+		self.assertNotContains(resp, "Pracoviště č.3")
+		self.assertNotContains(resp, "Přehled poslední šarže")
+
+	def test_pracoviste_prehled_redirects_to_open_nakladani_step(self):
 		sarze = Sarze.objects.create(
 			datum_zalozeni=date(2026, 6, 5),
 			cislo_pripravku=12,
+			cislo_pracoviste=2,
 			aktivni=True,
 		)
-		starsi_krok = SarzeKrok.objects.create(
+		krok = SarzeKrok.objects.create(
 			sarze=sarze,
 			poradi=1,
 			datum=date(2026, 6, 5),
 			zarizeni=self.nakladani,
 			zacatek=time(6, 0),
-			konec=time(7, 0),
 			operator="Novak",
-		)
-		jine_zarizeni = Zarizeni.objects.create(
-			kod_zarizeni="JINE",
-			nazev_zarizeni="Jiné zařízení",
-			zkraceny_nazev_zarizeni="Jiné",
-		)
-		SarzeKrok.objects.create(
-			sarze=sarze,
-			poradi=2,
-			datum=date(2026, 6, 5),
-			zarizeni=jine_zarizeni,
-			zacatek=time(7, 0),
-			konec=time(8, 0),
-			operator="Novak",
-		)
-		dalsi_nakladani = Zarizeni.objects.create(
-			kod_zarizeni="NAKL2",
-			nazev_zarizeni="Nakládání linka 2",
-			zkraceny_nazev_zarizeni="Nakládání 2",
-			typ_zarizeni=TypZarizeniChoice.NAKLADANI,
-		)
-		nejnovejsi_krok = SarzeKrok.objects.create(
-			sarze=sarze,
-			poradi=3,
-			datum=date(2026, 6, 5),
-			zarizeni=dalsi_nakladani,
-			zacatek=time(8, 0),
-			operator="Svoboda",
 		)
 
-		resp = self.client.get(reverse("rychle_zalozeni_sarze_posledni_prehled"))
+		resp = self.client.get(reverse("rychle_zalozeni_sarze_pracoviste_prehled", args=[2]))
 
 		self.assertEqual(resp.status_code, 302)
-		self.assertNotEqual(starsi_krok.pk, nejnovejsi_krok.pk)
 		self.assertEqual(
 			resp["Location"],
-			reverse("rychle_zalozeni_sarze_prehled", args=[nejnovejsi_krok.pk]),
+			reverse("rychle_zalozeni_sarze_prehled", args=[krok.pk]),
 		)
-
-	def test_posledni_prehled_without_nakladani_redirects_to_new_form(self):
-		resp = self.client.get(reverse("rychle_zalozeni_sarze_posledni_prehled"))
-
-		self.assertEqual(resp.status_code, 302)
-		self.assertEqual(resp["Location"], reverse("rychle_zalozeni_sarze"))
 
 	def test_post_creates_sarze_and_first_step(self):
 		resp = self.client.post(
@@ -1826,6 +1890,77 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 				self.assertFalse(Sarze.objects.exists())
 				self.assertFalse(SarzeKrok.objects.exists())
 
+	def test_post_rejects_open_nakladani_for_same_pracoviste(self):
+		puvodni_sarze = Sarze.objects.create(
+			datum_zalozeni=date(2026, 6, 4),
+			cislo_pripravku=10,
+			cislo_pracoviste=3,
+			aktivni=True,
+		)
+		SarzeKrok.objects.create(
+			sarze=puvodni_sarze,
+			poradi=1,
+			datum=date(2026, 6, 4),
+			zarizeni=self.nakladani,
+			zacatek=time(6, 0),
+			konec=None,
+			operator="Novak",
+		)
+
+		resp = self.client.post(
+			reverse("rychle_zalozeni_sarze"),
+			{
+				"cislo_pripravku": "12",
+				"cislo_pracoviste": "3",
+				"poznamka_sarze": "",
+				"datum": "2026-06-05",
+				"zacatek": "06:00",
+				"konec": "",
+				"operator": "Svoboda",
+				"poznamka_kroku": "",
+			},
+		)
+
+		self.assertEqual(resp.status_code, 200)
+		self.assertIn("cislo_pracoviste", resp.context["form"].errors)
+		self.assertEqual(Sarze.objects.count(), 1)
+		self.assertEqual(SarzeKrok.objects.count(), 1)
+
+	def test_post_allows_same_pracoviste_when_existing_nakladani_is_closed(self):
+		puvodni_sarze = Sarze.objects.create(
+			datum_zalozeni=date(2026, 6, 4),
+			cislo_pripravku=10,
+			cislo_pracoviste=3,
+			aktivni=True,
+		)
+		SarzeKrok.objects.create(
+			sarze=puvodni_sarze,
+			poradi=1,
+			datum=date(2026, 6, 4),
+			zarizeni=self.nakladani,
+			zacatek=time(6, 0),
+			konec=time(7, 0),
+			operator="Novak",
+		)
+
+		resp = self.client.post(
+			reverse("rychle_zalozeni_sarze"),
+			{
+				"cislo_pripravku": "12",
+				"cislo_pracoviste": "3",
+				"poznamka_sarze": "",
+				"datum": "2026-06-05",
+				"zacatek": "06:00",
+				"konec": "",
+				"operator": "Svoboda",
+				"poznamka_kroku": "",
+			},
+		)
+
+		self.assertEqual(resp.status_code, 302)
+		self.assertEqual(Sarze.objects.count(), 2)
+		self.assertEqual(SarzeKrok.objects.count(), 2)
+
 	def test_upravit_get_prefills_existing_sarze_and_first_step(self):
 		sarze = Sarze.objects.create(
 			datum_zalozeni=date(2026, 6, 5),
@@ -1855,6 +1990,10 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 		self.assertEqual(resp.context["form"].initial["cislo_pripravku"], 12)
 		self.assertEqual(resp.context["form"].initial["cislo_pracoviste"], 2)
 		self.assertEqual(resp.context["form"].initial["operator"], "Novak")
+		self.assertEqual(
+			resp.context["cancel_url"],
+			reverse("rychle_zalozeni_sarze_prehled", args=[krok.pk]),
+		)
 
 	def test_upravit_post_updates_existing_objects(self):
 		sarze = Sarze.objects.create(

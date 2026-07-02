@@ -579,6 +579,21 @@ class RychleZalozeniSarzeForm(forms.Form):
                 'Pracoviště Nakládání nebylo nalezeno jednoznačně. Zkontrolujte číselník pracovišť.'
             )
         cleaned_data['zarizeni'] = zarizeni
+        cislo_pracoviste = cleaned_data.get('cislo_pracoviste')
+        uklada_se_otevreny_krok = cleaned_data.get('konec') is None
+        if cislo_pracoviste and uklada_se_otevreny_krok:
+            otevrene_kroky = SarzeKrok.objects.filter(
+                sarze__cislo_pracoviste=cislo_pracoviste,
+                zarizeni__typ_zarizeni=TypZarizeniChoice.NAKLADANI,
+                konec__isnull=True,
+            )
+            if self.krok is not None:
+                otevrene_kroky = otevrene_kroky.exclude(pk=self.krok.pk)
+            if otevrene_kroky.exists():
+                self.add_error(
+                    'cislo_pracoviste',
+                    f'Pro pracoviště č.{cislo_pracoviste} už existuje otevřený krok nakládání.',
+                )
         return cleaned_data
 
     def save(self):

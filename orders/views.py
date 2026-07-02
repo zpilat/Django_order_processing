@@ -21,6 +21,7 @@ from django.contrib.staticfiles import finders
 from django.http import HttpResponseBadRequest, HttpResponse
 from django.conf import settings
 from django.utils.text import slugify
+from django.utils.http import url_has_allowed_host_and_scheme
 from decimal import Decimal, ROUND_HALF_UP
 from django_user_agents.utils import get_user_agent
 
@@ -46,6 +47,17 @@ import logging
 logger = logging.getLogger('orders')
 
 
+def _safe_return_url(request, fallback_url):
+    next_url = request.POST.get('next') or request.GET.get('next') or request.META.get('HTTP_REFERER')
+    if next_url and url_has_allowed_host_and_scheme(
+        next_url,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return next_url
+    return fallback_url
+
+
 @login_required
 def home_view(request):
     """
@@ -64,7 +76,7 @@ def home_view(request):
         'orders.change_sarzekrokbedna',
         'orders.view_sarzekrokbedna',
     )):
-        return redirect('rychle_zalozeni_sarze_posledni_prehled')
+        return redirect('rychle_zalozeni_sarze')
     return redirect('dashboard_bedny')
 
 
@@ -844,9 +856,7 @@ def rychle_zalozeni_sarze_view(request):
     """
     Zobrazuje stránku pro rychlé založení šarže a jejího prvního kroku.
     """
-    posledni_krok_nakladani = SarzeKrok.objects.filter(
-        sarze__isnull=False, zarizeni__typ_zarizeni=TypZarizeniChoice.NAKLADANI
-    ).order_by('-pk').first()
+    cancel_url = _safe_return_url(request, reverse('dashboard_vyroba'))
 
     if request.method == 'POST':
         form = RychleZalozeniSarzeForm(request.POST)
@@ -868,7 +878,7 @@ def rychle_zalozeni_sarze_view(request):
         {
             'form': form,
             'db_table': 'rychle_zalozeni_sarze',
-            'krok': posledni_krok_nakladani,
+            'cancel_url': cancel_url,
         },
     )
 
@@ -876,31 +886,35 @@ def rychle_zalozeni_sarze_view(request):
 @login_required
 @permission_required('orders.view_sarzekrok', raise_exception=True)
 @permission_required('orders.view_sarzekrokbedna', raise_exception=True)
-def rychle_zalozeni_sarze_posledni_prehled_view(request):
+def rychle_zalozeni_sarze_pracoviste_prehled_view(request, cislo_pracoviste):
     """
-    Přesměruje uživatele na přehled poslední šarže s krokem nakládání.
-    Pokud žádná taková šarže neexistuje, zobrazí informační zprávu a přesměruje na stránku
-    pro založení nové šarže.
+    Přesměruje uživatele na otevřený krok nakládání pro zadané číslo pracoviště.
     """
-    posledni_krok_nakladani = (
+    if cislo_pracoviste < 1 or cislo_pracoviste > 6:
+        return HttpResponseBadRequest('Číslo pracoviště musí být v rozsahu 1 až 6.')
+
+    otevreny_krok = (
         SarzeKrok.objects
         .filter(
             sarze__isnull=False,
+            sarze__cislo_pracoviste=cislo_pracoviste,
             zarizeni__typ_zarizeni=TypZarizeniChoice.NAKLADANI,
+            konec__isnull=True,
         )
         .order_by('-pk')
         .first()
     )
-    if posledni_krok_nakladani is None:
-        messages.info(request, 'Zatím neexistuje žádná šarže s krokem nakládání.')
+    if otevreny_krok is None:
+        messages.info(request, f'Pro pracoviště č.{cislo_pracoviste} není otevřený krok nakládání.')
         logger.info(
-            f"Uživatel {request.user} otevřel přehled poslední šarže, ale žádný krok nakládání neexistuje."
+            f"Uživatel {request.user} otevřel přehled pracoviště č.{cislo_pracoviste}, "
+            f"ale žádný otevřený krok nakládání neexistuje."
         )
         return redirect('rychle_zalozeni_sarze')
 
     return redirect(
         'rychle_zalozeni_sarze_prehled',
-        krok_id=posledni_krok_nakladani.pk,
+        krok_id=otevreny_krok.pk,
     )
 
 
@@ -1082,6 +1096,8 @@ def rychle_zalozeni_sarze_upravit_view(request, krok_id):
         poradi=1,
     )
     sarze = krok.sarze
+    fallback_cancel_url = reverse('rychle_zalozeni_sarze_prehled', args=[krok.pk])
+    cancel_url = _safe_return_url(request, fallback_cancel_url)
     if request.method == 'POST':
         form = RychleZalozeniSarzeForm(request.POST, sarze=sarze, krok=krok)
         if form.is_valid():
@@ -1102,6 +1118,7 @@ def rychle_zalozeni_sarze_upravit_view(request, krok_id):
             'krok': krok,
             'is_edit': True,
             'db_table': 'rychle_zalozeni_sarze',
+            'cancel_url': cancel_url,
         },
     )
 
