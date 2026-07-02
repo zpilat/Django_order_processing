@@ -3337,7 +3337,7 @@ def tisk_karty_kontroly_prohybu_kamionu_action(modeladmin, request, queryset):
         return None
     
     if bedny.filter(stav_bedny=StavBednyChoice.NEPRIJATO).exists():
-        modeladmin.message_user(request, "Některé bedny v označeném kamionu nejsou přijaty.", level=messages.WARNING)  
+        modeladmin.message_user(request, "Některé bedny pro tisk karet kontroly prohybu jsou ve stavu neprijato.", level=messages.WARNING)
 
     filename = f"karta_kontroly_prohybu_{kamion.cislo_dl}_{zakaznik_zkratka}.pdf"
     html_path = "orders/karta_kontroly_prohybu.html"
