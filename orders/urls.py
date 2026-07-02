@@ -2,6 +2,7 @@ from django.urls import path
 from .views import (
     BednyListView,
     dashboard_bedny_view,
+    provozni_prehledy_view,
     dashboard_kamiony_view,
     dashboard_vyroba_view,
     dashboard_vyroba_historie_view,
@@ -32,6 +33,7 @@ from .views import (
 )
 
 urlpatterns = [
+    path('provozni-prehledy/', provozni_prehledy_view, name='provozni_prehledy'),
     path('dashboard/bedny/', dashboard_bedny_view, name='dashboard_bedny'),
     path('dashboard/kamiony/', dashboard_kamiony_view, name='dashboard_kamiony'),    
     path('dashboard/vyroba/', dashboard_vyroba_view, name='dashboard_vyroba'),

@@ -131,7 +131,7 @@ class AuthenticationRoutingTests(TestCase):
 
 		self.assertRedirects(response, reverse("admin:index"), fetch_redirect_response=False)
 
-	def test_home_redirects_quick_batch_user_to_quick_create(self):
+	def test_home_renders_operational_overview_for_quick_batch_user(self):
 		user = self.User.objects.create_user(username="quick", password="pass1234")
 		user.user_permissions.add(*Permission.objects.filter(
 			content_type__app_label="orders",
@@ -150,23 +150,51 @@ class AuthenticationRoutingTests(TestCase):
 
 		response = self.client.get(reverse("home"))
 
-		self.assertRedirects(
-			response,
-			reverse("rychle_zalozeni_sarze"),
-			fetch_redirect_response=False,
-		)
+		self.assertEqual(response.status_code, 200)
+		self.assertTemplateUsed(response, "orders/home.html")
+		self.assertContains(response, "Provozní přehledy")
+		self.assertContains(response, "Přehledy")
+		self.assertContains(response, "Akce")
+		self.assertContains(response, reverse("rychle_zalozeni_sarze"))
+		self.assertIn("overview_links", response.context)
+		self.assertIn("action_links", response.context)
 
-	def test_home_redirects_other_user_to_dashboard_bedny(self):
+	def test_home_renders_operational_overview_for_regular_user(self):
 		user = self.User.objects.create_user(username="regular", password="pass1234")
 		self.client.force_login(user)
 
 		response = self.client.get(reverse("home"))
 
-		self.assertRedirects(
-			response,
-			reverse("dashboard_bedny"),
-			fetch_redirect_response=False,
-		)
+		self.assertEqual(response.status_code, 200)
+		self.assertTemplateUsed(response, "orders/home.html")
+		self.assertContains(response, "Provozní přehledy")
+		self.assertContains(response, "Přehledy")
+		self.assertContains(response, "Akce")
+		self.assertContains(response, reverse("dashboard_bedny"))
+		self.assertContains(response, reverse("bedna_skener"))
+		self.assertNotContains(response, reverse("rychle_zalozeni_sarze"))
+		self.assertIn("overview_links", response.context)
+		self.assertIn("action_links", response.context)
+
+	def test_provozni_prehledy_renders_for_staff_user(self):
+		user = self.User.objects.create_superuser(username="admin", password="pass1234")
+		self.client.force_login(user)
+
+		response = self.client.get(reverse("provozni_prehledy"))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertTemplateUsed(response, "orders/home.html")
+		self.assertContains(response, "Provozní přehledy")
+
+	def test_admin_index_links_to_provozni_prehledy(self):
+		user = self.User.objects.create_superuser(username="admin", password="pass1234")
+		self.client.force_login(user)
+
+		response = self.client.get(reverse("admin:index"))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "Provozní přehledy")
+		self.assertContains(response, reverse("provozni_prehledy"))
 
 	def test_login_respects_next_parameter(self):
 		user = self.User.objects.create_user(username="regular", password="pass1234")
@@ -1688,7 +1716,7 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 		)
 
 		self.assertEqual(resp.status_code, 200)
-		self.assertEqual(resp.context["cancel_url"], reverse("dashboard_vyroba"))
+		self.assertEqual(resp.context["cancel_url"], reverse("provozni_prehledy"))
 
 	def test_invalid_post_preserves_cancel_url_from_next(self):
 		cancel_url = reverse("dashboard_bedny")

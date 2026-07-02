@@ -1,6 +1,50 @@
 {% extends "orders/base.html" %}
+{% load static %}
+
+{% block title %}Provozní přehledy{% endblock %}
+
+{% block extra_head %}{{ block.super }}<link rel="stylesheet" href="{% static 'orders/css/scan_workflows.css' %}">{% endblock %}
 
 {% block content %}
-<h2 class="text-center mt-2">Vítejte v aplikaci pro správu zakázek firmy HPM HEAT SK.</h2>
-<p class="text-center">Software vytvořil Zdeněk Pilát v jazyce Python pomocí frameworku Django.</p>
+<div class="container py-3">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+        <div>
+            <h1 class="h4 mb-1">Provozní přehledy</h1>
+            <div class="text-muted">Rychlý přístup k provozním částem aplikace.</div>
+        </div>
+    </div>
+
+    {% if open_sarze_links %}
+        <section class="mb-4" aria-labelledby="open-sarze-heading">
+            <h2 id="open-sarze-heading" class="h6 mb-2">Otevřená nakládání</h2>
+            <div class="d-flex flex-wrap gap-2">
+                {% for link in open_sarze_links %}
+                    <a class="btn btn-hpm-blue" href="{{ link.url }}">{{ link.label }}</a>
+                {% endfor %}
+            </div>
+        </section>
+    {% endif %}
+
+    <section class="mb-4" aria-labelledby="overview-heading">
+        <h2 id="overview-heading" class="h6 mb-2">Přehledy</h2>
+        <div class="row g-2">
+            {% for link in overview_links %}
+                <div class="col-12 col-sm-6 col-lg-4">
+                    <a class="btn btn-hpm-yellow w-100 text-start" href="{{ link.url }}">{{ link.label }}</a>
+                </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section aria-labelledby="actions-heading">
+        <h2 id="actions-heading" class="h6 mb-2">Akce</h2>
+        <div class="row g-2">
+            {% for link in action_links %}
+                <div class="col-12 col-sm-6 col-lg-4">
+                    <a class="btn btn-hpm-yellow w-100 text-start" href="{{ link.url }}">{{ link.label }}</a>
+                </div>
+            {% endfor %}
+        </div>
+    </section>
+</div>
 {% endblock %}

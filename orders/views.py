@@ -58,15 +58,8 @@ def _safe_return_url(request, fallback_url):
     return fallback_url
 
 
-@login_required
-def home_view(request):
-    """
-    Přesune uživatele na vhodnou stránku podle jeho oprávnění.
-    Pokud je uživatel staff, přesměruje ho na admin rozhraní.
-    """
-    if request.user.is_staff:
-        return redirect('admin:index')
-    if request.user.has_perms((
+def _build_provozni_prehledy_context(user):
+    can_quick_sarze = user.has_perms((
         'orders.add_sarze',
         'orders.change_sarze',
         'orders.add_sarzekrok',
@@ -75,9 +68,108 @@ def home_view(request):
         'orders.add_sarzekrokbedna',
         'orders.change_sarzekrokbedna',
         'orders.view_sarzekrokbedna',
-    )):
-        return redirect('rychle_zalozeni_sarze')
-    return redirect('dashboard_bedny')
+    ))
+    can_view_sarze = user.has_perms((
+        'orders.view_sarzekrok',
+        'orders.view_sarzekrokbedna',
+    ))
+
+    overview_links = [
+        {
+            'label': 'Přehled beden',
+            'url': reverse('dashboard_bedny'),
+            'enabled': True,
+        },
+        {
+            'label': 'Přehled kamionů',
+            'url': reverse('dashboard_kamiony'),
+            'enabled': True,
+        },
+        {
+            'label': 'Přehled beden k navezení',
+            'url': reverse('dashboard_bedny_k_navezeni'),
+            'enabled': True,
+        },
+        {
+            'label': 'Přehled výroby',
+            'url': reverse('dashboard_vyroba'),
+            'enabled': True,
+        },
+        {
+            'label': 'Historie výroby',
+            'url': reverse('dashboard_vyroba_historie'),
+            'enabled': True,
+        },
+        {
+            'label': 'Využití roštů',
+            'url': reverse('dashboard_vyroba_zakaznici_vyuziti'),
+            'enabled': True,
+        },
+    ]
+    action_links = [
+        {
+            'label': 'Skenování',
+            'url': reverse('bedna_skener'),
+            'enabled': True,
+        },
+        {
+            'label': 'Přidat novou šarži',
+            'url': reverse('rychle_zalozeni_sarze'),
+            'enabled': can_quick_sarze,
+        },
+    ]
+    open_sarze_links = []
+    if can_view_sarze:
+        open_sarze_links = [
+            {
+                'label': f'Pracoviště č.{krok.sarze.cislo_pracoviste}',
+                'url': reverse(
+                    'rychle_zalozeni_sarze_pracoviste_prehled',
+                    args=[krok.sarze.cislo_pracoviste],
+                ),
+            }
+            for krok in SarzeKrok.objects.filter(
+                sarze__isnull=False,
+                sarze__cislo_pracoviste__isnull=False,
+                zarizeni__typ_zarizeni=TypZarizeniChoice.NAKLADANI,
+                konec__isnull=True,
+            ).select_related('sarze', 'zarizeni').order_by('sarze__cislo_pracoviste', '-pk')
+        ]
+
+    return {
+        'db_table': 'home',
+        'overview_links': [link for link in overview_links if link['enabled']],
+        'action_links': [link for link in action_links if link['enabled']],
+        'open_sarze_links': open_sarze_links,
+    }
+
+
+@login_required
+def home_view(request):
+    """
+    Zobrazí provozní rozcestník pro neadmin uživatele.
+    Pokud je uživatel staff, přesměruje ho na admin rozhraní.
+    """
+    if request.user.is_staff:
+        return redirect('admin:index')
+
+    return render(
+        request,
+        'orders/home.html',
+        _build_provozni_prehledy_context(request.user),
+    )
+
+
+@login_required
+def provozni_prehledy_view(request):
+    """
+    Zobrazí provozní rozcestník i uživatelům, kteří se běžně po vstupu na home přesměrují do adminu.
+    """
+    return render(
+        request,
+        'orders/home.html',
+        _build_provozni_prehledy_context(request.user),
+    )
 
 
 def _yes_no(value):
@@ -856,7 +948,7 @@ def rychle_zalozeni_sarze_view(request):
     """
     Zobrazuje stránku pro rychlé založení šarže a jejího prvního kroku.
     """
-    cancel_url = _safe_return_url(request, reverse('dashboard_vyroba'))
+    cancel_url = _safe_return_url(request, reverse('provozni_prehledy'))
 
     if request.method == 'POST':
         form = RychleZalozeniSarzeForm(request.POST)
