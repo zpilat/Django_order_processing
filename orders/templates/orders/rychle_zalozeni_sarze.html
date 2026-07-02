@@ -25,21 +25,21 @@
                 <div class="border rounded-2 p-3 mb-3">
                     <h2 class="h6 mb-3">Šarže</h2>
                     <div class="row g-3">
-                        <div class="col-12 col-md-3">
+                        <div class="col-12 col-md-2">
                             <label class="form-label" for="{{ form.cislo_pripravku.id_for_label }}">{{ form.cislo_pripravku.label }}</label>
                             {{ form.cislo_pripravku }}
                             {% for error in form.cislo_pripravku.errors %}
                                 <div class="invalid-feedback d-block">{{ error }}</div>
                             {% endfor %}
                         </div>
-                        <div class="col-12 col-md-3">
+                        <div class="col-12 col-md-2">
                             <label class="form-label" for="{{ form.cislo_pracoviste.id_for_label }}">{{ form.cislo_pracoviste.label }}</label>
                             {{ form.cislo_pracoviste }}
                             {% for error in form.cislo_pracoviste.errors %}
                                 <div class="invalid-feedback d-block">{{ error }}</div>
                             {% endfor %}
                         </div>
-                        <div class="col-12 col-md-6">
+                        <div class="col-12 col-md-8">
                             <label class="form-label" for="{{ form.poznamka_sarze.id_for_label }}">{{ form.poznamka_sarze.label }}</label>
                             {{ form.poznamka_sarze }}
                             {% for error in form.poznamka_sarze.errors %}
