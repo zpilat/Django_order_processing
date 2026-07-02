@@ -888,12 +888,12 @@ class KamionAdminTests(AdminBase):
 
         visible_filters = [
             None,
+            PrijemVydejChoice.PRIJEM_NEPRIJATY,
             PrijemVydejChoice.PRIJEM_KOMPLET_PRIJATY,
             PrijemVydejChoice.PRIJEM_VYEXPEDOVANY,
         ]
         hidden_filters = [
             PrijemVydejChoice.PRIJEM_BEZ_ZAKAZEK,
-            PrijemVydejChoice.PRIJEM_NEPRIJATY,
             PrijemVydejChoice.VYDEJ,
         ]
 

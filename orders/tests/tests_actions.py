@@ -1150,9 +1150,9 @@ class ActionsTests(ActionsBase):
             Kamion.objects.filter(id=self.kamion_prijem.id),
         )
 
-        self.assertIsNone(resp)
+        self.assertIsInstance(resp, HttpResponse)
         msgs = self._messages_texts(req)
-        self.assertTrue(any('nejsou' in m and 'ijaty' in m for m in msgs))
+        self.assertTrue(any('neprijato' in m.lower() for m in msgs))
 
     @patch('orders.actions.utilita_tisk_dokumentace')
     def test_tisk_karet_beden_kamionu_action(self, mock_util):
