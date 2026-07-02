@@ -540,10 +540,6 @@
         });
 
         input.addEventListener('focus', function () {
-            if (window.matchMedia('(pointer: coarse)').matches && !select.value) {
-                openScannerForSelect(select);
-                return;
-            }
             renderBednaResults(select, input.value);
         });
 
@@ -555,10 +551,16 @@
 
             const active = pickerResults.querySelector('.bedna-search-option.is-active');
             if (event.key === 'Enter') {
+                event.preventDefault();
                 if (!active) {
+                    const matchingOption = usableBednaOptions(select).find(
+                        item => bednaNumberFromOption(item) === input.value.trim()
+                    );
+                    if (matchingOption) {
+                        chooseBednaOption(select, matchingOption);
+                    }
                     return;
                 }
-                event.preventDefault();
                 const option = usableBednaOptions(select).find(item => item.value === active.dataset.optionValue);
                 chooseBednaOption(select, option);
                 return;
@@ -614,15 +616,6 @@
             scanButton.addEventListener('click', function () {
                 openScannerForSelect(bednaSelect);
             });
-        }
-        if (bednaSelect && window.matchMedia('(pointer: coarse)').matches) {
-            bednaSelect.addEventListener('touchstart', function (event) {
-                if (bednaSelect.value) {
-                    return;
-                }
-                event.preventDefault();
-                openScannerForSelect(bednaSelect);
-            }, { passive: false });
         }
 
         row.querySelector('.remove-row').addEventListener('click', function () {
