@@ -3311,7 +3311,7 @@ def tisk_karty_kontroly_prohybu_kamionu_action(modeladmin, request, queryset):
     Musí být vybrán pouze jeden kamion, jinak se zobrazí chybová zpráva.
     Musí se jednat o kamion s příznakem příjem, jinak se zobrazí chybová zpráva.     
     Tiskne se vždy přehled všech zakázek v kamionu, i těch, které jsou již expedovány.
-    Pokud jsou v kamionu bedny nepřijaté, zobrazí se chybová zpráva a tisk se přeruší.
+    Pokud jsou v kamionu bedny nepřijaté, zobrazí se varovná zpráva, ale tisk se nepřeruší.
     """
     if queryset.count() != 1:
         logger.info(f"Uživatel {request.user} se pokusil tisknout kartu kontroly prohybu, ale vybral více než jeden kamion.")
@@ -3337,9 +3337,7 @@ def tisk_karty_kontroly_prohybu_kamionu_action(modeladmin, request, queryset):
         return None
     
     if bedny.filter(stav_bedny=StavBednyChoice.NEPRIJATO).exists():
-        logger.info(f"Uživatel {request.user} se pokusil tisknout kartu kontroly prohybu kamionu {kamion}, ale některé bedny nejsou přijaty.")
-        modeladmin.message_user(request, "Některé bedny v označeném kamionu nejsou přijaty, lze tisknout pouze komplet přijatý kamion.", level=messages.ERROR)
-        return None    
+        modeladmin.message_user(request, "Některé bedny v označeném kamionu nejsou přijaty.", level=messages.WARNING)  
 
     filename = f"karta_kontroly_prohybu_{kamion.cislo_dl}_{zakaznik_zkratka}.pdf"
     html_path = "orders/karta_kontroly_prohybu.html"

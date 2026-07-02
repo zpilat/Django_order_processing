@@ -1391,7 +1391,6 @@ class KamionAdmin(SimpleHistoryAdmin):
                 'tisk_proforma_faktury_kamionu_action',
                 'zadat_mereni_action',
                 'tisk_prehledu_zakazek_kamionu_action',
-                'tisk_karty_kontroly_prohybu_kamionu_action',
                 'tisk_protokolu_kamionu_vydej_action',                
             ]
         elif (request.GET.get('prijem_vydej') == PrijemVydejChoice.PRIJEM_KOMPLET_PRIJATY):
