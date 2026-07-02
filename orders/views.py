@@ -866,7 +866,9 @@ def rychle_zalozeni_sarze_view(request):
             )
             return redirect('rychle_zalozeni_sarze_patro', krok_id=krok.pk, patro=1)
     else:
-        form = RychleZalozeniSarzeForm()
+        form = RychleZalozeniSarzeForm(
+            initial={'operator': request.user.get_full_name() or request.user.username}
+        )
 
     return render(
         request,

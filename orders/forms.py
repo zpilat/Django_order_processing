@@ -509,6 +509,7 @@ class RychleZalozeniSarzeForm(forms.Form):
         required=True,
         label='Začátek',
         input_formats=['%H:%M', '%H.%M'],
+        initial=timezone.localtime().strftime('%H:%M'),
         widget=forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}, format='%H:%M'),
     )
     konec = forms.TimeField(
