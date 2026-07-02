@@ -354,7 +354,7 @@ class ZarizeniAdmin(SimpleHistoryAdmin):
 
 @admin.register(Sarze)
 class SarzeAdmin(SimpleHistoryAdmin):
-    fields = ('cislo_sarze', 'datum_zalozeni', 'cislo_pripravku', 'aktivni', 'poznamka',)
+    fields = ('cislo_sarze', 'datum_zalozeni', 'cislo_pripravku', 'cislo_pracoviste', 'aktivni', 'poznamka',)
     list_display = ('get_cislo_sarze', 'datum_zalozeni', 'cislo_pripravku', 'aktivni', 'get_poznamka', 'get_pocet_kroku',)
     list_filter = ('aktivni',)
     search_fields = ('cislo_sarze',)
@@ -364,7 +364,7 @@ class SarzeAdmin(SimpleHistoryAdmin):
     inlines = [SarzeKrokInline]
 
     history_list_display = [
-        "cislo_sarze", "datum_zalozeni", "cislo_pripravku", "aktivni", "poznamka",
+        "cislo_sarze", "datum_zalozeni", "cislo_pripravku", "cislo_pracoviste", "aktivni", "poznamka",
     ]
     history_search_fields = ["cislo_sarze", "poznamka"]
     history_list_filter = ["aktivni", "datum_zalozeni"]

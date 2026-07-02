@@ -1664,6 +1664,7 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 		self.assertTemplateUsed(resp, "orders/rychle_zalozeni_sarze.html")
 		self.assertEqual(resp.context["db_table"], "rychle_zalozeni_sarze")
 		self.assertContains(resp, "ŠARŽE")
+		self.assertContains(resp, "Číslo pracoviště")
 		self.assertContains(resp, "Přidat novou šarži")
 		self.assertContains(resp, "Přehled poslední šarže")
 
@@ -1731,6 +1732,7 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			reverse("rychle_zalozeni_sarze"),
 			{
 				"cislo_pripravku": "12",
+				"cislo_pracoviste": "3",
 				"poznamka_sarze": "Poznámka k šarži",
 				"datum": "2026-06-05",
 				"zacatek": "06:00",
@@ -1744,6 +1746,7 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 		sarze = Sarze.objects.get(cislo_pripravku=12)
 		self.assertIsNotNone(sarze.cislo_sarze)
 		self.assertEqual(sarze.cislo_pripravku, 12)
+		self.assertEqual(sarze.cislo_pracoviste, 3)
 		self.assertTrue(sarze.aktivni)
 		self.assertEqual(sarze.poznamka, "Poznámka k šarži")
 
@@ -1777,6 +1780,7 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			reverse("rychle_zalozeni_sarze"),
 			{
 				"cislo_pripravku": "12",
+				"cislo_pracoviste": "4",
 				"poznamka_sarze": "",
 				"datum": "2026-06-05",
 				"zacatek": "06:00",
@@ -1794,16 +1798,39 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 		nova_sarze = Sarze.objects.exclude(pk=puvodni_sarze.pk).get()
 		novy_krok = SarzeKrok.objects.get(sarze=nova_sarze)
 		self.assertEqual(nova_sarze.cislo_pripravku, 12)
+		self.assertEqual(nova_sarze.cislo_pracoviste, 4)
 		self.assertEqual(novy_krok.operator, "Svoboda")
 		self.assertEqual(
 			resp["Location"],
 			reverse("rychle_zalozeni_sarze_patro", args=[novy_krok.pk, 1]),
 		)
 
+	def test_post_requires_cislo_pracoviste_between_one_and_six(self):
+		base_data = {
+			"cislo_pripravku": "12",
+			"poznamka_sarze": "",
+			"datum": "2026-06-05",
+			"zacatek": "06:00",
+			"konec": "",
+			"operator": "Novak",
+			"poznamka_kroku": "",
+		}
+
+		for value in ("", "0", "7"):
+			data = {**base_data, "cislo_pracoviste": value}
+			with self.subTest(cislo_pracoviste=value):
+				resp = self.client.post(reverse("rychle_zalozeni_sarze"), data)
+
+				self.assertEqual(resp.status_code, 200)
+				self.assertIn("cislo_pracoviste", resp.context["form"].errors)
+				self.assertFalse(Sarze.objects.exists())
+				self.assertFalse(SarzeKrok.objects.exists())
+
 	def test_upravit_get_prefills_existing_sarze_and_first_step(self):
 		sarze = Sarze.objects.create(
 			datum_zalozeni=date(2026, 6, 5),
 			cislo_pripravku=12,
+			cislo_pracoviste=2,
 			aktivni=True,
 			poznamka="Původní poznámka",
 		)
@@ -1826,12 +1853,14 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 		self.assertTemplateUsed(resp, "orders/rychle_zalozeni_sarze.html")
 		self.assertTrue(resp.context["is_edit"])
 		self.assertEqual(resp.context["form"].initial["cislo_pripravku"], 12)
+		self.assertEqual(resp.context["form"].initial["cislo_pracoviste"], 2)
 		self.assertEqual(resp.context["form"].initial["operator"], "Novak")
 
 	def test_upravit_post_updates_existing_objects(self):
 		sarze = Sarze.objects.create(
 			datum_zalozeni=date(2026, 6, 5),
 			cislo_pripravku=12,
+			cislo_pracoviste=2,
 			aktivni=True,
 			poznamka="Původní poznámka",
 		)
@@ -1852,6 +1881,7 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			reverse("rychle_zalozeni_sarze_upravit", args=[krok.pk]),
 			{
 				"cislo_pripravku": "24",
+				"cislo_pracoviste": "6",
 				"poznamka_sarze": "Upravená poznámka",
 				"datum": "2026-06-06",
 				"zacatek": "08:00",
@@ -1872,6 +1902,7 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 		sarze.refresh_from_db()
 		krok.refresh_from_db()
 		self.assertEqual(sarze.cislo_pripravku, 24)
+		self.assertEqual(sarze.cislo_pracoviste, 6)
 		self.assertEqual(sarze.poznamka, "Upravená poznámka")
 		self.assertEqual(krok.datum, date(2026, 6, 6))
 		self.assertEqual(krok.zacatek, time(8, 0))

@@ -169,6 +169,7 @@
             <td>vyp. + vyf.</td>
             <td>odfo. + vyf.</td>
             <td>skupina</td>
+            <td>č. prac.</td>
             <td>č. přípravku</td>
             <td>č. šarže</td>
             <td>vypral + vyf.</td>
@@ -180,6 +181,7 @@
             <td></td>
             <td></td>
             <td style="font-weight: bold; font-size: 14px;">{% if spolecna_skupina_TZ %}SK {{ spolecna_skupina_TZ }}{% endif %}</td>
+            <td style="font-weight: bold; font-size: 14px;">{{ krok.sarze.cislo_pracoviste|default:"" }}</td>
             <td style="font-weight: bold; font-size: 14px;">{{ krok.sarze.cislo_pripravku }}</td>
             <td style="font-weight: bold; font-size: 14px;">{{ krok.sarze }}</td>
             <td></td>

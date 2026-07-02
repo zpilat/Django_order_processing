@@ -492,6 +492,13 @@ class RychleZalozeniSarzeForm(forms.Form):
         label='Číslo přípravku',
         widget=forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
     )
+    cislo_pracoviste = forms.IntegerField(
+        required=True,
+        min_value=1,
+        max_value=6,
+        label='Číslo pracoviště',
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'min': '1', 'max': '6'}),
+    )
     poznamka_sarze = forms.CharField(
         required=False,
         max_length=100,
@@ -542,6 +549,7 @@ class RychleZalozeniSarzeForm(forms.Form):
         if sarze is not None:
             initial = kwargs.setdefault('initial', {})
             initial.setdefault('cislo_pripravku', sarze.cislo_pripravku)
+            initial.setdefault('cislo_pracoviste', sarze.cislo_pracoviste)
             initial.setdefault('poznamka_sarze', sarze.poznamka)
             initial.setdefault('datum', krok.datum)
             initial.setdefault('zacatek', krok.zacatek)
@@ -586,8 +594,9 @@ class RychleZalozeniSarzeForm(forms.Form):
                     sarze=sarze,
                 )
                 sarze.cislo_pripravku = data['cislo_pripravku']
+                sarze.cislo_pracoviste = data['cislo_pracoviste']
                 sarze.poznamka = data['poznamka_sarze'] or None
-                sarze.save(update_fields=['cislo_pripravku', 'poznamka'])
+                sarze.save(update_fields=['cislo_pripravku', 'cislo_pracoviste', 'poznamka'])
 
                 krok.datum = data['datum']
                 krok.zarizeni = data['zarizeni']
@@ -610,6 +619,7 @@ class RychleZalozeniSarzeForm(forms.Form):
             sarze = Sarze.objects.create(
                 datum_zalozeni=timezone.localdate(),
                 cislo_pripravku=data['cislo_pripravku'],
+                cislo_pracoviste=data['cislo_pracoviste'],
                 aktivni=True,
                 poznamka=data['poznamka_sarze'] or None,
             )

@@ -1481,6 +1481,11 @@ class Zarizeni(models.Model):
 
 class Sarze(models.Model):
     cislo_sarze = models.PositiveIntegerField(blank=True, verbose_name='Číslo šarže')
+    cislo_pracoviste = models.PositiveSmallIntegerField(
+        blank=True,
+        null=True,
+        validators=[MinValueValidator(1), MaxValueValidator(6)],
+        verbose_name='Číslo pracoviště')
     datum_zalozeni = models.DateField(verbose_name='Datum založení')
     cislo_pripravku = models.PositiveSmallIntegerField(blank=True, null=True, verbose_name='Číslo přípravku')
     aktivni = models.BooleanField(default=True, verbose_name='Aktivní')

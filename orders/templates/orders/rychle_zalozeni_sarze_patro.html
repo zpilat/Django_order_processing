@@ -11,7 +11,9 @@
         <div>
             <h1 class="h4 mb-1">{{ patro }}. patro</h1>
             <div class="text-muted">
-                Šarže {{ krok.sarze }}, přípravek {{ krok.sarze.cislo_pripravku }},
+                Šarže {{ krok.sarze }},
+                pracoviště {{ krok.sarze.cislo_pracoviste|default:"-" }},
+                přípravek {{ krok.sarze.cislo_pripravku }},
                 {{ krok.zarizeni }}, {{ krok.datum|date:"d.m.Y" }}
             </div>
         </div>
