@@ -69,11 +69,6 @@ def _build_provozni_prehledy_context(user):
         'orders.change_sarzekrokbedna',
         'orders.view_sarzekrokbedna',
     ))
-    can_view_sarze = user.has_perms((
-        'orders.view_sarzekrok',
-        'orders.view_sarzekrokbedna',
-    ))
-
     overview_links = [
         {
             'label': 'Přehled beden',
@@ -118,29 +113,10 @@ def _build_provozni_prehledy_context(user):
             'enabled': can_quick_sarze,
         },
     ]
-    open_sarze_links = []
-    if can_view_sarze:
-        open_sarze_links = [
-            {
-                'label': f'Pracoviště č.{krok.sarze.cislo_pracoviste}',
-                'url': reverse(
-                    'rychle_zalozeni_sarze_pracoviste_prehled',
-                    args=[krok.sarze.cislo_pracoviste],
-                ),
-            }
-            for krok in SarzeKrok.objects.filter(
-                sarze__isnull=False,
-                sarze__cislo_pracoviste__isnull=False,
-                zarizeni__typ_zarizeni=TypZarizeniChoice.NAKLADANI,
-                konec__isnull=True,
-            ).select_related('sarze', 'zarizeni').order_by('sarze__cislo_pracoviste', '-pk')
-        ]
-
     return {
         'db_table': 'home',
         'overview_links': [link for link in overview_links if link['enabled']],
         'action_links': [link for link in action_links if link['enabled']],
-        'open_sarze_links': open_sarze_links,
     }
 
 

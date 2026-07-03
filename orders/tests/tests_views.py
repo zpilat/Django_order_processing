@@ -156,6 +156,9 @@ class AuthenticationRoutingTests(TestCase):
 		self.assertContains(response, "Přehledy")
 		self.assertContains(response, "Akce")
 		self.assertContains(response, reverse("rychle_zalozeni_sarze"))
+		self.assertContains(response, "Pracoviště nakládání")
+		self.assertContains(response, "Pracoviště č.1")
+		self.assertContains(response, "Pracoviště č.6")
 		self.assertIn("overview_links", response.context)
 		self.assertIn("action_links", response.context)
 
@@ -1798,9 +1801,14 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 
 		self.assertContains(resp, "Pracoviště č.1")
 		self.assertContains(resp, "Pracoviště č.2")
+		self.assertContains(resp, "Pracoviště č.3")
+		self.assertContains(resp, "Pracoviště č.4")
+		self.assertContains(resp, "Pracoviště č.5")
+		self.assertContains(resp, "Pracoviště č.6")
 		self.assertContains(resp, reverse("rychle_zalozeni_sarze_pracoviste_prehled", args=[1]))
 		self.assertContains(resp, reverse("rychle_zalozeni_sarze_pracoviste_prehled", args=[2]))
-		self.assertNotContains(resp, "Pracoviště č.3")
+		self.assertContains(resp, reverse("rychle_zalozeni_sarze_pracoviste_prehled", args=[3]))
+		self.assertContains(resp, reverse("rychle_zalozeni_sarze_pracoviste_prehled", args=[6]))
 		self.assertNotContains(resp, "Přehled poslední šarže")
 
 	def test_pracoviste_prehled_redirects_to_open_nakladani_step(self):

@@ -14,12 +14,15 @@
         </div>
     </div>
 
-    {% if open_sarze_links %}
+    {% if pracoviste_nakladani_links %}
         <section class="mb-4" aria-labelledby="open-sarze-heading">
-            <h2 id="open-sarze-heading" class="h6 mb-2">Otevřená nakládání</h2>
+            <h2 id="open-sarze-heading" class="h6 mb-2">Pracoviště nakládání</h2>
             <div class="d-flex flex-wrap gap-2">
-                {% for link in open_sarze_links %}
-                    <a class="btn btn-hpm-blue" href="{{ link.url }}">{{ link.label }}</a>
+                {% for pracoviste in pracoviste_nakladani_links %}
+                    <a class="btn {% if pracoviste.is_open %}btn-hpm-blue{% else %}btn-outline-secondary{% endif %}"
+                       href="{% url 'rychle_zalozeni_sarze_pracoviste_prehled' pracoviste.cislo_pracoviste %}">
+                        Pracoviště č.{{ pracoviste.cislo_pracoviste }}
+                    </a>
                 {% endfor %}
             </div>
         </section>
