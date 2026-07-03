@@ -11,7 +11,7 @@
         <div class="d-flex flex-column flex-sm-row justify-content-between gap-2 mb-3">
             <div>
                 <p class="scanner-title">Skener kódů</p>
-                <div class="text-muted">Načtěte QR nebo čárový kód bedny či šarže.</div>
+                <div class="text-muted">Načtěte QR nebo čárový kód bedny, šarže nebo pracoviště.</div>
             </div>
         </div>
 
@@ -54,6 +54,7 @@
     (function () {
         const scanUrlTemplate = "{% url 'bedna_scan' 0 %}";
         const sarzeScanUrlTemplate = "{% url 'sarze_scan' 0 %}";
+        const pracovisteScanUrlTemplate = "{% url 'rychle_zalozeni_sarze_pracoviste_prehled' 0 %}";
         const readerId = "reader";
         const statusEl = document.getElementById("scanner-status");
         const startButton = document.getElementById("scanner-start");
@@ -76,6 +77,10 @@
 
         function sarzeScanUrlForNumber(numberText) {
             return sarzeScanUrlTemplate.replace("/0/", "/" + encodeURIComponent(numberText) + "/");
+        }
+
+        function pracovisteScanUrlForNumber(numberText) {
+            return pracovisteScanUrlTemplate.replace("/0/", "/" + encodeURIComponent(numberText) + "/");
         }
 
         function openScanTarget(rawValue) {
@@ -104,7 +109,13 @@
                 return;
             }
 
-            setStatus("Načtený kód není číslo bedny ani platná URL bedny.", "warning");
+            if (parsed.type === "pracoviste") {
+                setStatus("Kód načten, otevírám pracoviště...", "success");
+                window.location.assign(pracovisteScanUrlForNumber(parsed.value));
+                return;
+            }
+
+            setStatus("Načtený kód není číslo bedny, šarže ani pracoviště P1-P6.", "warning");
         }
 
         async function stopScanner() {

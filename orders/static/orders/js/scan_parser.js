@@ -34,6 +34,11 @@
             return { type: "sarze", raw: rawValue, code: value, value: sarzeCode[1], source: "code" };
         }
 
+        const pracovisteCode = value.match(/^P([1-6])$/);
+        if (pracovisteCode) {
+            return { type: "pracoviste", raw: rawValue, code: value, value: pracovisteCode[1], source: "code" };
+        }
+
         if (/^\d+$/.test(value)) {
             return { type: "bedna", raw: rawValue, code: value, value: value, source: "number" };
         }

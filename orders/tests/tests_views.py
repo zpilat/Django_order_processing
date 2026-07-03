@@ -798,6 +798,7 @@ class BednaScanViewTests(ViewsTestBase):
 		self.assertContains(response, "html5-qrcode")
 		self.assertContains(response, "scan_parser.js")
 		self.assertContains(response, reverse("sarze_scan", args=[0]))
+		self.assertContains(response, reverse("rychle_zalozeni_sarze_pracoviste_prehled", args=[0]))
 
 	def _set_bedna_zkontrolovano_ready(self):
 		"""Nastaví b_eur_pr do stavu ZAKALENO (in STAV_BEDNY_ROZPRACOVANOST) a přidá oprávnění change_bedna."""
@@ -1696,6 +1697,13 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 		self.assertContains(resp, "Přidat novou šarži")
 		self.assertNotContains(resp, "Přehled poslední šarže")
 
+	def test_get_prefills_pracoviste_from_query_parameter(self):
+		resp = self.client.get(reverse("rychle_zalozeni_sarze"), {"cislo_pracoviste": "4"})
+
+		self.assertEqual(resp.status_code, 200)
+		self.assertEqual(resp.context["form"].initial["cislo_pracoviste"], 4)
+		self.assertContains(resp, 'name="cislo_pracoviste" value="4"', html=False)
+
 	def test_get_uses_previous_page_as_cancel_url(self):
 		cancel_url = reverse("dashboard_bedny")
 
@@ -1817,6 +1825,15 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 		self.assertEqual(
 			resp["Location"],
 			reverse("rychle_zalozeni_sarze_prehled", args=[krok.pk]),
+		)
+
+	def test_pracoviste_prehled_redirects_to_prefilled_create_when_no_open_step(self):
+		resp = self.client.get(reverse("rychle_zalozeni_sarze_pracoviste_prehled", args=[5]))
+
+		self.assertEqual(resp.status_code, 302)
+		self.assertEqual(
+			resp["Location"],
+			f"{reverse('rychle_zalozeni_sarze')}?cislo_pracoviste=5",
 		)
 
 	def test_post_creates_sarze_and_first_step(self):

@@ -922,8 +922,6 @@ def sarze_scan_change_krok_view(request, cislo_sarze: int, krok_id: int):
             'db_table': 'sarze_scan_change_krok',
         },
     )
-    
-
 
 
 @login_required
@@ -960,8 +958,14 @@ def rychle_zalozeni_sarze_view(request):
             )
             return redirect('rychle_zalozeni_sarze_patro', krok_id=krok.pk, patro=1)
     else:
+        initial = {
+            'operator': request.user.get_full_name() or request.user.username,
+        }
+        cislo_pracoviste = request.GET.get('cislo_pracoviste')
+        if cislo_pracoviste in {'1', '2', '3', '4', '5', '6'}:
+            initial['cislo_pracoviste'] = int(cislo_pracoviste)
         form = RychleZalozeniSarzeForm(
-            initial={'operator': request.user.get_full_name() or request.user.username}
+            initial=initial,
         )
 
     return render(
@@ -980,7 +984,10 @@ def rychle_zalozeni_sarze_view(request):
 @permission_required('orders.view_sarzekrokbedna', raise_exception=True)
 def rychle_zalozeni_sarze_pracoviste_prehled_view(request, cislo_pracoviste):
     """
-    Přesměruje uživatele na otevřený krok nakládání pro zadané číslo pracoviště.
+    Pokud existuje otevřený krok nakládání pro zadané číslo pracoviště,
+    přesměruje na přehled šarže, jinak přesměruje na stránku pro rychlé založení šarže.
+    Vhodné pro použití při skenování čárového kódu pracoviště, kdy se uživatel dostane přímo na stránku pro založení šarže,
+    pokud ještě žádná šarže na daném pracovišti není otevřená nebo do přehledu aktuálně nakládané šarže.
     """
     if cislo_pracoviste < 1 or cislo_pracoviste > 6:
         return HttpResponseBadRequest('Číslo pracoviště musí být v rozsahu 1 až 6.')
@@ -996,13 +1003,9 @@ def rychle_zalozeni_sarze_pracoviste_prehled_view(request, cislo_pracoviste):
         .order_by('-pk')
         .first()
     )
+    
     if otevreny_krok is None:
-        messages.info(request, f'Pro pracoviště č.{cislo_pracoviste} není otevřený krok nakládání.')
-        logger.info(
-            f"Uživatel {request.user} otevřel přehled pracoviště č.{cislo_pracoviste}, "
-            f"ale žádný otevřený krok nakládání neexistuje."
-        )
-        return redirect('rychle_zalozeni_sarze')
+        return redirect(f"{reverse('rychle_zalozeni_sarze')}?cislo_pracoviste={cislo_pracoviste}")
 
     return redirect(
         'rychle_zalozeni_sarze_prehled',
