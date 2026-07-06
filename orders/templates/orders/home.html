@@ -3,7 +3,7 @@
 
 {% block title %}Přehled nakládání{% endblock %}
 
-{% block extra_head %}{{ block.super }}<link rel="stylesheet" href="{% static 'orders/css/scan_workflows.css' %}">{% endblock %}
+{% block extra_head %}{{ block.super }}<meta http-equiv="refresh" content="60"><link rel="stylesheet" href="{% static 'orders/css/scan_workflows.css' %}">{% endblock %}
 
 {% block content %}
 <div class="container py-3">
@@ -35,7 +35,7 @@
                                             <div class="small">Přípravek č. {{ pracoviste.krok.sarze.cislo_pripravku }}</div>
                                             <div class="small">Začátek: {{ pracoviste.krok.zacatek }}</div>
                                         {% else %}
-                                            <div class="small">Kliknutím založit novou šarži</div>
+                                            <br><div class="small">Kliknutím založit novou šarži</div><br>
                                         {% endif %}
                                     </div>
                                 </a>

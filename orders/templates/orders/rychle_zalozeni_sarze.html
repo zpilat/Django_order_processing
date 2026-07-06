@@ -115,6 +115,12 @@
         if (window.location.hash === '#id_konec') {
             const konec = document.getElementById('id_konec');
             if (konec) {
+                if (!konec.value) {
+                    const now = new Date();
+                    const hours = String(now.getHours()).padStart(2, '0');
+                    const minutes = String(now.getMinutes()).padStart(2, '0');
+                    konec.value = `${hours}:${minutes}`;
+                }
                 konec.focus();
             }
         }
