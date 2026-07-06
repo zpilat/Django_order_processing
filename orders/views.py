@@ -103,14 +103,9 @@ def _build_provozni_prehledy_context(user):
     ]
     action_links = [
         {
-            'label': 'Skenování',
+            'label': 'Skenování kódů',
             'url': reverse('bedna_skener'),
             'enabled': True,
-        },
-        {
-            'label': 'Přidat novou šarži',
-            'url': reverse('rychle_zalozeni_sarze'),
-            'enabled': can_quick_sarze,
         },
     ]
     return {

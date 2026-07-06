@@ -1697,7 +1697,6 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 		self.assertEqual(resp.context["db_table"], "rychle_zalozeni_sarze")
 		self.assertContains(resp, "ŠARŽE")
 		self.assertContains(resp, "Číslo pracoviště")
-		self.assertContains(resp, "Přidat novou šarži")
 		self.assertNotContains(resp, "Přehled poslední šarže")
 
 	def test_get_prefills_pracoviste_from_query_parameter(self):
@@ -1799,12 +1798,12 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 
 		resp = self.client.get(reverse("rychle_zalozeni_sarze"))
 
-		self.assertContains(resp, "Pracoviště č.1")
-		self.assertContains(resp, "Pracoviště č.2")
-		self.assertContains(resp, "Pracoviště č.3")
-		self.assertContains(resp, "Pracoviště č.4")
-		self.assertContains(resp, "Pracoviště č.5")
-		self.assertContains(resp, "Pracoviště č.6")
+		self.assertContains(resp, "Pracoviště 1")
+		self.assertContains(resp, "Pracoviště 2")
+		self.assertContains(resp, "Pracoviště 3")
+		self.assertContains(resp, "Pracoviště 4")
+		self.assertContains(resp, "Pracoviště 5")
+		self.assertContains(resp, "Pracoviště 6")
 		self.assertContains(resp, reverse("rychle_zalozeni_sarze_pracoviste_prehled", args=[1]))
 		self.assertContains(resp, reverse("rychle_zalozeni_sarze_pracoviste_prehled", args=[2]))
 		self.assertContains(resp, reverse("rychle_zalozeni_sarze_pracoviste_prehled", args=[3]))

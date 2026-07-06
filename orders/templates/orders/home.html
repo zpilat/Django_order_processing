@@ -7,47 +7,66 @@
 
 {% block content %}
 <div class="container py-3">
-    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
-        <div>
-            <h1 class="h4 mb-1">Provozní přehledy</h1>
-            <div class="text-muted">Rychlý přístup k provozním částem aplikace.</div>
+    <div class="row justify-content-center ">
+        <div class="col-12 col-xl-8">
+            <div class="alert d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3"
+                 role="alert"
+                 style="background-color: #214290; color: #ffde17; font-family: 'Liberation Sans', Arial;">
+                <div>
+                    <h1 class="h4 mb-1">Provozní přehledy</h1>
+                    <div>Rychlý přístup k provozním částem aplikace.</div>
+                </div>
+            </div>
+
+            {% if pracoviste_nakladani_links %}
+                <section class="border rounded-2 p-3 mb-4" aria-labelledby="open-sarze-heading">
+                    <h2 id="open-sarze-heading" class="h6 mb-2">Pracoviště nakládání</h2>
+                    <div class="row g-2">
+                        {% for pracoviste in pracoviste_nakladani_links %}
+                            <div class="col-12 col-sm-6 col-lg-4">
+                                <a class="text-decoration-none"
+                                   href="{% url 'rychle_zalozeni_sarze_pracoviste_prehled' pracoviste.cislo_pracoviste %}">
+                                    <div class="border rounded-2 p-3 h-100 {% if pracoviste.is_open %}border-primary{% else %}bg-light text-muted{% endif %}"
+                                         {% if pracoviste.is_open %}style="background-color: #214290; color: #ffde17;"{% endif %}>
+                                        <div class="fw-bold mb-2">Pracoviště č.{{ pracoviste.cislo_pracoviste }}</div>
+
+                                        {% if pracoviste.is_open %}
+                                            <div class="fw-semibold">Šarže {{ pracoviste.krok.sarze }}</div>
+                                            <div class="small">Přípravek č. {{ pracoviste.krok.sarze.cislo_pripravku }}</div>
+                                            <div class="small">Začátek: {{ pracoviste.krok.zacatek }}</div>
+                                        {% else %}
+                                            <div class="small">Kliknutím založit novou šarži</div>
+                                        {% endif %}
+                                    </div>
+                                </a>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </section>
+            {% endif %}
+
+            <section class="border rounded-2 p-3 mb-4" aria-labelledby="overview-heading">
+                <h2 id="overview-heading" class="h6 mb-2">Přehledy</h2>
+                <div class="row g-2">
+                    {% for link in overview_links %}
+                        <div class="col-12 col-sm-6 col-lg-4">
+                            <a class="btn btn-hpm-yellow w-100 text-start" href="{{ link.url }}">{{ link.label }}</a>
+                        </div>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="border rounded-2 p-3" aria-labelledby="actions-heading">
+                <h2 id="actions-heading" class="h6 mb-2">Akce</h2>
+                <div class="row g-2">
+                    {% for link in action_links %}
+                        <div class="col-12 col-sm-6 col-lg-4">
+                            <a class="btn btn-hpm-yellow w-100 text-start" href="{{ link.url }}">{{ link.label }}</a>
+                        </div>
+                    {% endfor %}
+                </div>
+            </section>
         </div>
     </div>
-
-    {% if pracoviste_nakladani_links %}
-        <section class="mb-4" aria-labelledby="open-sarze-heading">
-            <h2 id="open-sarze-heading" class="h6 mb-2">Pracoviště nakládání</h2>
-            <div class="d-flex flex-wrap gap-2">
-                {% for pracoviste in pracoviste_nakladani_links %}
-                    <a class="btn {% if pracoviste.is_open %}btn-hpm-blue{% else %}btn-outline-secondary{% endif %}"
-                       href="{% url 'rychle_zalozeni_sarze_pracoviste_prehled' pracoviste.cislo_pracoviste %}">
-                        Pracoviště č.{{ pracoviste.cislo_pracoviste }}
-                    </a>
-                {% endfor %}
-            </div>
-        </section>
-    {% endif %}
-
-    <section class="mb-4" aria-labelledby="overview-heading">
-        <h2 id="overview-heading" class="h6 mb-2">Přehledy</h2>
-        <div class="row g-2">
-            {% for link in overview_links %}
-                <div class="col-12 col-sm-6 col-lg-4">
-                    <a class="btn btn-hpm-yellow w-100 text-start" href="{{ link.url }}">{{ link.label }}</a>
-                </div>
-            {% endfor %}
-        </div>
-    </section>
-
-    <section aria-labelledby="actions-heading">
-        <h2 id="actions-heading" class="h6 mb-2">Akce</h2>
-        <div class="row g-2">
-            {% for link in action_links %}
-                <div class="col-12 col-sm-6 col-lg-4">
-                    <a class="btn btn-hpm-yellow w-100 text-start" href="{{ link.url }}">{{ link.label }}</a>
-                </div>
-            {% endfor %}
-        </div>
-    </section>
 </div>
 {% endblock %}

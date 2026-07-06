@@ -37,13 +37,33 @@ urlpatterns = [
     path('dashboard/bedny/', dashboard_bedny_view, name='dashboard_bedny'),
     path('dashboard/kamiony/', dashboard_kamiony_view, name='dashboard_kamiony'),    
     path('dashboard/vyroba/', dashboard_vyroba_view, name='dashboard_vyroba'),
-    path('dashboard/vyroba/historie/', dashboard_vyroba_historie_view, name='dashboard_vyroba_historie'),
-    path('dashboard/vyroba/historie/mesic/', dashboard_vyroba_historie_mesic_view, name='dashboard_vyroba_historie_mesic'),
-    path('dashboard/vyroba/zakaznici-vyuziti/', dashboard_vyroba_zakaznici_vyuziti_view, name='dashboard_vyroba_zakaznici_vyuziti'),
+    path(
+        'dashboard/vyroba/historie/',
+        dashboard_vyroba_historie_view,
+        name='dashboard_vyroba_historie'
+    ),
+    path(
+        'dashboard/vyroba/historie/mesic/',
+        dashboard_vyroba_historie_mesic_view,
+        name='dashboard_vyroba_historie_mesic'
+    ),
+    path(
+        'dashboard/vyroba/zakaznici-vyuziti/',
+        dashboard_vyroba_zakaznici_vyuziti_view,
+        name='dashboard_vyroba_zakaznici_vyuziti'
+    ),
     path('bedny/', BednyListView.as_view(), name='bedny_list'),
     path('bedny/scan/<int:cislo_bedny>/', bedna_scan_view, name='bedna_scan'),
-    path('bedny/scan/<int:cislo_bedny>/navezeni/', bedna_scan_navezeni_view, name='bedna_scan_navezeni'),
-    path('bedny/scan/<int:cislo_bedny>/zkontrolovano/', bedna_scan_zkontrolovano_view, name='bedna_scan_zkontrolovano'),
+    path(
+        'bedny/scan/<int:cislo_bedny>/navezeni/',
+        bedna_scan_navezeni_view,
+        name='bedna_scan_navezeni'
+    ),
+    path(
+        'bedny/scan/<int:cislo_bedny>/zkontrolovano/',
+        bedna_scan_zkontrolovano_view,
+        name='bedna_scan_zkontrolovano'
+    ),
     path('bedny/scan/<int:cislo_bedny>/pohyb/', bedna_scan_pohyb_view, name='bedna_scan_pohyb'),
     path('sarze/scan/<int:cislo_sarze>/', sarze_scan_view, name='sarze_scan'),
     path(
@@ -78,16 +98,45 @@ urlpatterns = [
         rychle_zalozeni_sarze_tisk_view,
         name='rychle_zalozeni_sarze_tisk',
     ),
-    path('sarze/rychle-zalozeni/krok/<int:krok_id>/upravit/',
+    path(
+        'sarze/rychle-zalozeni/krok/<int:krok_id>/upravit/',
          rychle_zalozeni_sarze_upravit_view,
          name='rychle_zalozeni_sarze_upravit',
     ),
     path('bedny/k-navezeni/', dashboard_bedny_k_navezeni_view, name='dashboard_bedny_k_navezeni'),
-    path('bedny/k-navezeni/poznamka/', dashboard_bedny_k_navezeni_poznamka_view, name='dashboard_bedny_k_navezeni_poznamka'),
-    path('bedny/k-navezeni/pozice-poznamka/', dashboard_bedny_k_navezeni_poznamka_pozice_view, name='dashboard_bedny_k_navezeni_pozice_poznamka'),
-    path('bedny/k-navezeni/nasledne/', dashboard_bedny_k_navezeni_nasledne_view, name='dashboard_bedny_k_navezeni_nasledne'),
-    path('bedny/k-navezeni/pdf/', dashboard_bedny_k_navezeni_pdf_view, name='dashboard_bedny_k_navezeni_pdf'),
-    path('protokol/kamion-vydej/<int:pk>/', protokol_kamion_vydej_pdf_view, name='protokol_kamion_vydej_pdf'),
-    path('dodaci-list/kamion-vydej/<int:pk>/', dodaci_list_kamion_vydej_pdf_view, name='dodaci_list_kamion_vydej_pdf'),
-    path('proforma/kamion-vydej/<int:pk>/', proforma_kamion_vydej_pdf_view, name='proforma_kamion_vydej_pdf'),
+    path(
+        'bedny/k-navezeni/poznamka/',
+        dashboard_bedny_k_navezeni_poznamka_view,
+        name='dashboard_bedny_k_navezeni_poznamka'
+    ),
+    path(
+        'bedny/k-navezeni/pozice-poznamka/',
+        dashboard_bedny_k_navezeni_poznamka_pozice_view,
+        name='dashboard_bedny_k_navezeni_pozice_poznamka'
+    ),
+    path(
+        'bedny/k-navezeni/nasledne/',
+        dashboard_bedny_k_navezeni_nasledne_view,
+        name='dashboard_bedny_k_navezeni_nasledne'
+    ),
+    path(
+        'bedny/k-navezeni/pdf/',
+        dashboard_bedny_k_navezeni_pdf_view,
+        name='dashboard_bedny_k_navezeni_pdf'
+    ),
+    path(
+        'protokol/kamion-vydej/<int:pk>/',
+        protokol_kamion_vydej_pdf_view,
+        name='protokol_kamion_vydej_pdf'
+    ),
+    path(
+        'dodaci-list/kamion-vydej/<int:pk>/',
+        dodaci_list_kamion_vydej_pdf_view,
+        name='dodaci_list_kamion_vydej_pdf'
+    ),
+    path(
+        'proforma/kamion-vydej/<int:pk>/',
+        proforma_kamion_vydej_pdf_view,
+        name='proforma_kamion_vydej_pdf'
+    ),
 ]

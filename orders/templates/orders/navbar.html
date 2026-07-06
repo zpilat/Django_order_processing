@@ -16,6 +16,32 @@
         overflow-wrap: anywhere;
         max-width: 100%;
     }
+    .app-navbar-workplace {
+        margin: 0.125rem 0.5rem;
+        width: calc(100% - 1rem);
+        box-sizing: border-box;
+        border-radius: var(--bs-border-radius-sm);
+    }
+    .app-navbar-workplace-open {
+        background-color: #214290;
+        color: #ffde17;
+        border: 1px solid #214290;
+    }
+    .app-navbar-workplace-open:hover,
+    .app-navbar-workplace-open:focus {
+        background-color: #1b3676;
+        color: #ffde17;
+    }
+    .app-navbar-workplace-closed {
+        background-color: #f8f9fa;
+        color: #6c757d;
+        border: 1px solid #6c757d;
+    }
+    .app-navbar-workplace-closed:hover,
+    .app-navbar-workplace-closed:focus {
+        background-color: #e9ecef;
+        color: #495057;
+    }
     .app-navbar-group .btn-group > .app-navbar-button {
         width: 100%;
     }
@@ -82,6 +108,12 @@
                     </button>
                     <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
                         <li>
+                            <a class="dropdown-item small{% if db_table == 'home' %} active{% endif %}"
+                            {% if db_table == 'home' %}aria-current="page"{% endif %}
+                            href="{% url 'provozni_prehledy' %}">Provozní přehledy</a>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
                             <a class="dropdown-item small{% if db_table == 'dashboard_bedny' %} active{% endif %}"
                             {% if db_table == 'dashboard_bedny' %}aria-current="page"{% endif %}
                             href="{% url 'dashboard_bedny' %}">Přehled beden</a>
@@ -114,7 +146,7 @@
                     </ul>
                 </div>
             {% endif %}
-            <!-- Dropdown: Rychlé založení šarže -->
+            <!-- Dropdown: Rychlé založení nebo úprava šarže na pracovištích -->
             {% if perms.orders.add_sarze and perms.orders.change_sarze and perms.orders.add_sarzekrok and perms.orders.change_sarzekrok and perms.orders.view_sarzekrok and perms.orders.add_sarzekrokbedna and perms.orders.change_sarzekrokbedna and perms.orders.view_sarzekrokbedna or perms.orders.view_sarzekrok and perms.orders.view_sarzekrokbedna and pracoviste_nakladani_links %}
                 <div class="btn-group btn-group-sm dropdown my-1">
                     <button class="btn dropdown-toggle app-navbar-button"
@@ -126,20 +158,12 @@
                         ŠARŽE
                     </button>
                     <ul class="dropdown-menu" aria-labelledby="rychleZalozeniSarzeDropdown">
-                        {% if perms.orders.add_sarze and perms.orders.change_sarze and perms.orders.add_sarzekrok and perms.orders.change_sarzekrok and perms.orders.view_sarzekrok and perms.orders.add_sarzekrokbedna and perms.orders.change_sarzekrokbedna and perms.orders.view_sarzekrokbedna %}
-                            <li>
-                                <a class="dropdown-item small" href="{% url 'rychle_zalozeni_sarze' %}">
-                                    Přidat novou šarži
-                                </a>
-                            </li>
-                        {% endif %}
                         {% if perms.orders.view_sarzekrok and perms.orders.view_sarzekrokbedna and pracoviste_nakladani_links %}
                             {% for pracoviste in pracoviste_nakladani_links %}
                                 <li>
-                                    <a class="dropdown-item small{% if pracoviste.krok and krok.pk == pracoviste.krok.pk %} active{% elif not pracoviste.is_open %} text-muted bg-light{% endif %}"
-                                       {% if pracoviste.krok and krok.pk == pracoviste.krok.pk %}aria-current="page"{% endif %}
+                                    <a class="dropdown-item small app-navbar-workplace {% if pracoviste.is_open %}app-navbar-workplace-open{% else %}app-navbar-workplace-closed{% endif %}"
                                        href="{% url 'rychle_zalozeni_sarze_pracoviste_prehled' pracoviste.cislo_pracoviste %}">
-                                        Pracoviště č.{{ pracoviste.cislo_pracoviste }}
+                                        Pracoviště {{ pracoviste.cislo_pracoviste }} {% if pracoviste.is_open %}({{ pracoviste.krok.sarze }}){% endif %}
                                     </a>
                                 </li>
                             {% endfor %}
