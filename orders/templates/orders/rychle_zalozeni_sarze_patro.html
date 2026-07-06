@@ -241,6 +241,35 @@
         });
     }
 
+    function fillEmptyPercentagesFromRemainingSpace(active, values) {
+        const emptyRows = active.filter((row, index) => values[index] <= 0);
+        if (!emptyRows.length) {
+            return false;
+        }
+
+        const filledValues = values.filter(value => value > 0);
+        if (!filledValues.every(value => value >= 5 && value <= 100)) {
+            return false;
+        }
+
+        const used = filledValues.reduce((sum, value) => sum + value, 0);
+        const remaining = 100 - used;
+        if (remaining < emptyRows.length * 5) {
+            return false;
+        }
+
+        const base = Math.floor(remaining / emptyRows.length);
+        let remainder = remaining - (base * emptyRows.length);
+        emptyRows.forEach(row => {
+            const value = base + (remainder > 0 ? 1 : 0);
+            percentageInput(row).value = value;
+            if (remainder > 0) {
+                remainder -= 1;
+            }
+        });
+        return true;
+    }
+
     function currentPercentages(active) {
         return active.map(row => Number.parseInt(percentageInput(row).value || '0', 10));
     }
@@ -407,7 +436,9 @@
         if (signature !== activeSignature) {
             const existingValues = currentPercentages(active);
             if (redistribute && !percentagesAreValid(existingValues)) {
-                setEqualPercentages(active);
+                if (!fillEmptyPercentagesFromRemainingSpace(active, existingValues)) {
+                    setEqualPercentages(active);
+                }
             }
             activeSignature = signature;
         }
