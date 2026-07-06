@@ -59,59 +59,8 @@ def _safe_return_url(request, fallback_url):
 
 
 def _build_provozni_prehledy_context(user):
-    can_quick_sarze = user.has_perms((
-        'orders.add_sarze',
-        'orders.change_sarze',
-        'orders.add_sarzekrok',
-        'orders.change_sarzekrok',
-        'orders.view_sarzekrok',
-        'orders.add_sarzekrokbedna',
-        'orders.change_sarzekrokbedna',
-        'orders.view_sarzekrokbedna',
-    ))
-    overview_links = [
-        {
-            'label': 'Přehled beden',
-            'url': reverse('dashboard_bedny'),
-            'enabled': True,
-        },
-        {
-            'label': 'Přehled kamionů',
-            'url': reverse('dashboard_kamiony'),
-            'enabled': True,
-        },
-        {
-            'label': 'Přehled beden k navezení',
-            'url': reverse('dashboard_bedny_k_navezeni'),
-            'enabled': True,
-        },
-        {
-            'label': 'Přehled výroby',
-            'url': reverse('dashboard_vyroba'),
-            'enabled': True,
-        },
-        {
-            'label': 'Historie výroby',
-            'url': reverse('dashboard_vyroba_historie'),
-            'enabled': True,
-        },
-        {
-            'label': 'Využití roštů',
-            'url': reverse('dashboard_vyroba_zakaznici_vyuziti'),
-            'enabled': True,
-        },
-    ]
-    action_links = [
-        {
-            'label': 'Skenování kódů',
-            'url': reverse('bedna_skener'),
-            'enabled': True,
-        },
-    ]
     return {
         'db_table': 'home',
-        'overview_links': [link for link in overview_links if link['enabled']],
-        'action_links': [link for link in action_links if link['enabled']],
     }
 
 

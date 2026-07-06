@@ -152,15 +152,12 @@ class AuthenticationRoutingTests(TestCase):
 
 		self.assertEqual(response.status_code, 200)
 		self.assertTemplateUsed(response, "orders/home.html")
-		self.assertContains(response, "Provozní přehledy")
-		self.assertContains(response, "Přehledy")
-		self.assertContains(response, "Akce")
-		self.assertContains(response, reverse("rychle_zalozeni_sarze"))
+		self.assertContains(response, "Přehled nakládání")
+		self.assertNotContains(response, "Provozní přehledy")
+		self.assertNotContains(response, "Akce")
 		self.assertContains(response, "Pracoviště nakládání")
-		self.assertContains(response, "Pracoviště č.1")
-		self.assertContains(response, "Pracoviště č.6")
-		self.assertIn("overview_links", response.context)
-		self.assertIn("action_links", response.context)
+		self.assertContains(response, "PRACOVIŠTĚ 1")
+		self.assertContains(response, "PRACOVIŠTĚ 6")
 
 	def test_home_renders_operational_overview_for_regular_user(self):
 		user = self.User.objects.create_user(username="regular", password="pass1234")
@@ -170,14 +167,10 @@ class AuthenticationRoutingTests(TestCase):
 
 		self.assertEqual(response.status_code, 200)
 		self.assertTemplateUsed(response, "orders/home.html")
-		self.assertContains(response, "Provozní přehledy")
-		self.assertContains(response, "Přehledy")
-		self.assertContains(response, "Akce")
-		self.assertContains(response, reverse("dashboard_bedny"))
-		self.assertContains(response, reverse("bedna_skener"))
+		self.assertContains(response, "Přehled nakládání")
+		self.assertNotContains(response, "Provozní přehledy")
+		self.assertNotContains(response, "Akce")
 		self.assertNotContains(response, reverse("rychle_zalozeni_sarze"))
-		self.assertIn("overview_links", response.context)
-		self.assertIn("action_links", response.context)
 
 	def test_provozni_prehledy_renders_for_staff_user(self):
 		user = self.User.objects.create_superuser(username="admin", password="pass1234")
@@ -187,7 +180,7 @@ class AuthenticationRoutingTests(TestCase):
 
 		self.assertEqual(response.status_code, 200)
 		self.assertTemplateUsed(response, "orders/home.html")
-		self.assertContains(response, "Provozní přehledy")
+		self.assertContains(response, "Přehled nakládání")
 
 	def test_admin_index_links_to_provozni_prehledy(self):
 		user = self.User.objects.create_superuser(username="admin", password="pass1234")
@@ -196,7 +189,7 @@ class AuthenticationRoutingTests(TestCase):
 		response = self.client.get(reverse("admin:index"))
 
 		self.assertEqual(response.status_code, 200)
-		self.assertContains(response, "Provozní přehledy")
+		self.assertContains(response, "Přehled pracovišť nakládání")
 		self.assertContains(response, reverse("provozni_prehledy"))
 
 	def test_login_respects_next_parameter(self):

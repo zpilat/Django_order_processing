@@ -1,7 +1,7 @@
 {% extends "orders/base.html" %}
 {% load static %}
 
-{% block title %}Provozní přehledy{% endblock %}
+{% block title %}Přehled nakládání{% endblock %}
 
 {% block extra_head %}{{ block.super }}<link rel="stylesheet" href="{% static 'orders/css/scan_workflows.css' %}">{% endblock %}
 
@@ -13,8 +13,8 @@
                  role="alert"
                  style="background-color: #214290; color: #ffde17; font-family: 'Liberation Sans', Arial;">
                 <div>
-                    <h1 class="h4 mb-1">Provozní přehledy</h1>
-                    <div>Rychlý přístup k provozním částem aplikace.</div>
+                    <h1 class="h4 mb-1">Přehled nakládání</h1>
+                    <div>Aktuální stav pracovišť nakládání.</div>
                 </div>
             </div>
 
@@ -28,8 +28,8 @@
                                    href="{% url 'rychle_zalozeni_sarze_pracoviste_prehled' pracoviste.cislo_pracoviste %}">
                                     <div class="border rounded-2 p-3 h-100 {% if pracoviste.is_open %}border-primary{% else %}bg-light text-muted{% endif %}"
                                          {% if pracoviste.is_open %}style="background-color: #214290; color: #ffde17;"{% endif %}>
-                                        <div class="fw-bold mb-2">Pracoviště č.{{ pracoviste.cislo_pracoviste }}</div>
-
+                                        <div class="fw-bold mb-2">PRACOVIŠTĚ {{ pracoviste.cislo_pracoviste }}</div>
+                                        <hr>
                                         {% if pracoviste.is_open %}
                                             <div class="fw-semibold">Šarže {{ pracoviste.krok.sarze }}</div>
                                             <div class="small">Přípravek č. {{ pracoviste.krok.sarze.cislo_pripravku }}</div>
@@ -45,27 +45,6 @@
                 </section>
             {% endif %}
 
-            <section class="border rounded-2 p-3 mb-4" aria-labelledby="overview-heading">
-                <h2 id="overview-heading" class="h6 mb-2">Přehledy</h2>
-                <div class="row g-2">
-                    {% for link in overview_links %}
-                        <div class="col-12 col-sm-6 col-lg-4">
-                            <a class="btn btn-hpm-yellow w-100 text-start" href="{{ link.url }}">{{ link.label }}</a>
-                        </div>
-                    {% endfor %}
-                </div>
-            </section>
-
-            <section class="border rounded-2 p-3" aria-labelledby="actions-heading">
-                <h2 id="actions-heading" class="h6 mb-2">Akce</h2>
-                <div class="row g-2">
-                    {% for link in action_links %}
-                        <div class="col-12 col-sm-6 col-lg-4">
-                            <a class="btn btn-hpm-yellow w-100 text-start" href="{{ link.url }}">{{ link.label }}</a>
-                        </div>
-                    {% endfor %}
-                </div>
-            </section>
         </div>
     </div>
 </div>
