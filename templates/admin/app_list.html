@@ -133,6 +133,17 @@
         <td></td>
         <td></td>
       </tr>
+      {% if perms.orders.view_bedna %}
+        <tr class="model-dashboard">
+          <th scope="row">
+            <a href="{% url 'bedny_list' %}" target='blank'>
+              Seznam beden
+            </a>
+          </th>
+          <td></td>
+          <td></td>
+        </tr>
+      {% endif %}
       <tr class="model-dashboard">
         <th scope="row">
           <a href="{% url 'dashboard_kamiony' %}" target='blank'>

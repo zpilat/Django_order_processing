@@ -74,7 +74,7 @@ from .choices import (
 )
 from .utils import (
     utilita_validate_excel_upload, build_postup_vyroby_cases, truncate_with_title, parse_sarze_search_term,
-    format_decimal_csv
+    format_decimal_csv, format_cislo_bedny, format_skupina_TZ
 )
 
 import logging
@@ -3005,29 +3005,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         Zobrazí číslo bedny a umožní třídění podle hlavičky pole.
         Číslo bedny se generuje automaticky a je readonly.
         """
-        zakazka = self._safe_get_zakazka(obj)
-        zkratka = None
-        if zakazka and zakazka.kamion_prijem and zakazka.kamion_prijem.zakaznik:
-            zkratka = zakazka.kamion_prijem.zakaznik.zkratka
-        color = {
-            'EUR': '#dc3545',
-            'HPM': '#0059adff',
-            'SPX': '#f16f3cff',
-            'FIS': '#51096dff',
-            'ROT': '#2a2f7f',
-            'SWG': '#009900',
-            'SSH': '#000000',
-        }.get(zkratka)
-
-        if color:
-            text_color = '#ffffff'
-            return format_html(
-                '<span style="background-color: {}; color: {}; padding: 0 0.25rem; border-radius: 0.2rem;">{}</span>',
-                color,
-                text_color,
-                obj.cislo_bedny,
-            )
-        return obj.cislo_bedny
+        return format_cislo_bedny(obj)
 
     @admin.display(description='Pořadí', empty_value='-')
     def get_poradi_bedny_v_zakazce(self, obj):
@@ -3261,12 +3239,7 @@ class BednaAdmin(SimpleHistoryAdmin):
                 f"Nepodařilo se získat hodnotu fake_skupina_TZ pro bednu ID {obj_id} (history_id={history_id})."
             )
             return '-'
-        barva = BARVA_SKUPINY_TZ.get(fake_skupina_TZ, {'text': 'black', 'pozadi': '#e0e0e0'})
-        return mark_safe(
-            f'<span style="color: {barva["text"]}; background-color: {barva["pozadi"]}; padding: 0.1rem 0.35rem; border-radius: 0.25rem; display: inline-block;">'
-            f"{fake_skupina_TZ}"
-            "</span>"
-        )      
+        return format_skupina_TZ(fake_skupina_TZ)
 
     @admin.display(description='Postup', ordering='postup_vyroby_value', empty_value='-')
     def get_postup(self, obj):

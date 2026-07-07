@@ -191,6 +191,32 @@ class AuthenticationRoutingTests(TestCase):
 		self.assertEqual(response.status_code, 200)
 		self.assertContains(response, "Přehled pracovišť nakládání")
 		self.assertContains(response, reverse("provozni_prehledy"))
+		self.assertContains(response, "Seznam beden")
+		self.assertContains(response, reverse("bedny_list"))
+
+	def test_navbar_links_to_bedny_list_for_view_bedna_user(self):
+		user = self.User.objects.create_user(username="bedny-user", password="pass1234")
+		user.user_permissions.add(
+			Permission.objects.get(
+				content_type__app_label="orders",
+				codename="view_bedna",
+			)
+		)
+		self.client.force_login(user)
+
+		response = self.client.get(reverse("dashboard_bedny"))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "Seznam beden")
+		self.assertContains(response, reverse("bedny_list"))
+
+	def test_bedny_list_requires_view_bedna_permission(self):
+		user = self.User.objects.create_user(username="no-bedny", password="pass1234")
+		self.client.force_login(user)
+
+		response = self.client.get(reverse("bedny_list"))
+
+		self.assertEqual(response.status_code, 403)
 
 	def test_login_respects_next_parameter(self):
 		user = self.User.objects.create_user(username="regular", password="pass1234")
@@ -1587,18 +1613,47 @@ class BednyKNavezeniViewTests(ViewsTestBase):
 
 
 class BednyListViewTests(ViewsTestBase):
+	def setUp(self):
+		super().setUp()
+		self.user.user_permissions.add(
+			Permission.objects.get(
+				content_type__app_label="orders",
+				codename="view_bedna",
+			)
+		)
+
 	def test_default_excludes_expedovano_and_htmx_partial(self):
 		# default stav_filter=SKLAD => vyřadí EXPEDOVANO
 		resp = self.client.get(reverse("bedny_list"))
 		self.assertEqual(resp.status_code, 200)
 		self.assertTemplateUsed(resp, "orders/bedny_list.html")
+		self.assertEqual(resp.context["sort"], "")
+		self.assertEqual(resp.context["order"], "")
 		objects = list(resp.context["object_list"])
 		self.assertIn(self.b_eur_pr, objects)
 		self.assertNotIn(self.b_abc_ex, objects)
+		delka_choice_labels = [label for value, label in resp.context["delka_choices"]]
+		self.assertIn(str(int(self.zak_eur.delka)), delka_choice_labels)
+		self.assertIn(str(int(self.zak_vydej_eur.delka)), delka_choice_labels)
+		self.assertNotIn(str(int(self.zak_abc.delka)), delka_choice_labels)
+		table_rows = resp.context["table_rows"]
+		self.assertFalse(table_rows[0]["starts_new_zakazka_group"])
+		self.assertTrue(table_rows[1]["starts_new_zakazka_group"])
+		self.assertContains(resp, 'class="bedna-group-separator"')
 		# HTMX partial vrací tabulku
 		resp_hx = self.client.get(reverse("bedny_list"), HTTP_HX_REQUEST="true")
 		self.assertEqual(resp_hx.status_code, 200)
-		self.assertTemplateUsed(resp_hx, "orders/partials/listview_table.html")
+		self.assertTemplateUsed(resp_hx, "orders/partials/bedny_list_table.html")
+
+	def test_list_colors_cislo_bedny_by_customer(self):
+		self.predpis_eur.skupina = 1
+		self.predpis_eur.save(update_fields=["skupina"])
+		resp = self.client.get(reverse("bedny_list"))
+
+		self.assertEqual(resp.status_code, 200)
+		self.assertContains(resp, 'background-color: #dc3545')
+		self.assertContains(resp, str(self.b_eur_pr.cislo_bedny))
+		self.assertContains(resp, 'background-color: #f0f0f0')
 
 	def test_stav_and_zakaznik_filters_and_sort(self):
 		# stav_filter na EXPEDOVANO
@@ -1614,6 +1669,13 @@ class BednyListViewTests(ViewsTestBase):
 		objs_z = list(resp_z.context["object_list"])
 		self.assertIn(self.b_eur_pr, objs_z)
 
+		resp_delka = self.client.get(reverse("bedny_list"), {"delka_filter": str(self.zak_vydej_eur.delka)})
+		self.assertEqual(resp_delka.status_code, 200)
+		objs_delka = list(resp_delka.context["object_list"])
+		self.assertIn(self.b_vydej, objs_delka)
+		self.assertNotIn(self.b_eur_pr, objs_delka)
+		self.assertEqual(resp_delka.context["delka_filter"], str(self.zak_vydej_eur.delka))
+
 		# seřazení DESC podle id
 		# vytvoříme další bednu pro EUR, aby bylo co řadit
 		b2 = Bedna.objects.create(
@@ -1626,6 +1688,12 @@ class BednyListViewTests(ViewsTestBase):
 		resp_sort = self.client.get(reverse("bedny_list"), {"sort": "id", "order": "down"})
 		ids = [b.id for b in resp_sort.context["object_list"]]
 		self.assertEqual(ids, sorted(ids, reverse=True))
+
+	def test_sort_header_cycles_to_default_sort(self):
+		resp = self.client.get(reverse("bedny_list"), {"sort": "cislo_bedny", "order": "down"})
+
+		self.assertEqual(resp.status_code, 200)
+		self.assertContains(resp, 'href="?sort=&order=&"')
 
 
 class RychleZalozeniSarzeViewTests(ViewsTestBase):

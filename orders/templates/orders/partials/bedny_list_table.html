@@ -1,0 +1,52 @@
+{% load custom_filters %}
+
+<style>
+    .bedny-list-table tr.bedna-group-separator td,
+    .bedny-list-table tr.bedna-group-separator th {
+        border-top: 0 !important;
+        background-image: linear-gradient(to bottom, #4b5563 0, #4b5563 2px, transparent 2px);
+        background-repeat: no-repeat;
+        background-size: 100% 100%;
+        background-position: top left;
+    }
+</style>
+
+<div class="container-fluid px-0">
+    <div class="rounded-2 overflow-hidden mx-auto" style="max-width: 760px;">
+    <table class="table table-sm table-hover table-striped table-bordered text-center bedny-list-table">
+        <thead class="hpm-table-head">
+            <tr>
+                {% with request.GET.urlencode as querystring %}
+                    {% for column in table_columns %}
+                        <th class="text-center">
+                            {% if sort == column.field and order == 'down' %}
+                                <a href="?sort=&order=&{{ querystring|url_remove_param:'sort,order' }}">
+                            {% elif sort == column.field and order == 'up' %}
+                                <a href="?sort={{ column.field }}&order=down&{{ querystring|url_remove_param:'sort,order' }}">
+                            {% else %}
+                                <a href="?sort={{ column.field }}&order=up&{{ querystring|url_remove_param:'sort,order' }}">
+                            {% endif %}
+                                {{ column.label }}
+                                {% if sort == column.field %}
+                                    <i class="fas fa-sort-{{ order }}"></i>
+                                {% endif %}
+                            </a>
+                        </th>
+                    {% endfor %}
+                {% endwith %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in table_rows %}
+                <tr{% if row.starts_new_zakazka_group %} class="bedna-group-separator"{% endif %}>
+                    {% for column in table_columns %}
+                        <td class="text-center">
+                            {{ row|dict_get:column.field }}
+                        </td>        
+                    {% endfor %}       
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>  

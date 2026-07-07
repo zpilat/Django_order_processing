@@ -1,6 +1,8 @@
 from django import template
 from decimal import Decimal, ROUND_HALF_UP
 
+from orders.utils import format_cislo_bedny
+
 register = template.Library()
 
 @register.filter(name='url_remove_param')
@@ -32,6 +34,11 @@ def attr_chain(obj, attr_chain):
         if isinstance(obj, bool):
             return "✔️" if obj else "❌"        
     return obj
+
+
+@register.filter(name='colored_cislo_bedny')
+def colored_cislo_bedny(bedna):
+    return format_cislo_bedny(bedna)
 
 @register.filter(name='get_bedna_by_stav')
 def get_bedna_by_stav(bedny_stavy, stav_value):

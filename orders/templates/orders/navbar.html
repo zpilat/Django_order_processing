@@ -118,6 +118,13 @@
                             {% if db_table == 'dashboard_bedny' %}aria-current="page"{% endif %}
                             href="{% url 'dashboard_bedny' %}">Přehled beden</a>
                         </li>
+                        {% if perms.orders.view_bedna %}
+                            <li>
+                                <a class="dropdown-item small{% if db_table == 'bedny' %} active{% endif %}"
+                                {% if db_table == 'bedny' %}aria-current="page"{% endif %}
+                                href="{% url 'bedny_list' %}">Seznam beden</a>
+                            </li>
+                        {% endif %}
                         <li>
                             <a class="dropdown-item small{% if db_table == 'dashboard_kamiony' %} active{% endif %}"
                             {% if db_table == 'dashboard_kamiony' %}aria-current="page"{% endif %}

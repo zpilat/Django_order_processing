@@ -10,7 +10,7 @@ from django.utils.html import format_html
 import csv
 import re
 
-from .choices import StavBednyChoice, RovnaniChoice, TryskaniChoice, ZinkovaniChoice
+from .choices import StavBednyChoice, RovnaniChoice, TryskaniChoice, ZinkovaniChoice, BARVA_SKUPINY_TZ
 from django.db.models import When, Value, Q
 from .models import Zakazka, Bedna
 
@@ -40,6 +40,54 @@ def truncate_with_title(text, max_len=15):
         return text
     short = f"{text[:max_len]}..."
     return format_html('<span title="{}">{}</span>', text, short)
+
+
+def format_cislo_bedny(bedna):
+    """
+    Vrátí číslo bedny s barevným zvýrazněním podle zákazníka přijmového kamionu.
+    Používá se v adminu i v běžných šablonách, aby bylo barvení čísla bedny jednotné.
+    """
+    if bedna is None:
+        return ''
+
+    zakazka = getattr(bedna, 'zakazka', None)
+    kamion_prijem = getattr(zakazka, 'kamion_prijem', None) if zakazka else None
+    zakaznik = getattr(kamion_prijem, 'zakaznik', None) if kamion_prijem else None
+    zkratka = getattr(zakaznik, 'zkratka', None)
+    color = {
+        'EUR': '#dc3545',
+        'HPM': '#0059adff',
+        'SPX': '#f16f3cff',
+        'FIS': '#51096dff',
+        'ROT': '#2a2f7f',
+        'SWG': '#009900',
+        'SSH': '#000000',
+    }.get(zkratka)
+
+    if color:
+        return format_html(
+            '<span style="background-color: {}; color: #ffffff; padding: 0 0.25rem; border-radius: 0.2rem;">{}</span>',
+            color,
+            bedna.cislo_bedny,
+        )
+    return bedna.cislo_bedny
+
+
+def format_skupina_TZ(skupina_TZ):
+    """
+    Vrátí skupinu tepelného zpracování jako barevný štítek podle BARVA_SKUPINY_TZ.
+    Používá se v adminu i v běžných šablonách.
+    """
+    if skupina_TZ is None:
+        return '-'
+
+    barva = BARVA_SKUPINY_TZ.get(skupina_TZ, {'text': 'black', 'pozadi': '#e0e0e0'})
+    return format_html(
+        '<span style="color: {}; background-color: {}; padding: 0.1rem 0.35rem; border-radius: 0.25rem; display: inline-block;">{}</span>',
+        barva["text"],
+        barva["pozadi"],
+        skupina_TZ,
+    )
 
 
 def parse_sarze_search_term(search_term):

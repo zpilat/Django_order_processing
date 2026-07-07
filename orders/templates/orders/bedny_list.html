@@ -2,76 +2,65 @@
 {% load static %}
 {% load custom_filters %}
 
+{% block extra_head %}{{ block.super }}<link rel="stylesheet" href="{% static 'orders/css/scan_workflows.css' %}">{% endblock %}
+
 {% block content %}
-<form 
-    method="GET"
-    hx-get="."
-    hx-target="#listview-table"
-    hx-push-url="true"
-    hx-trigger="change, keyup delay:400ms from:input, submit"
-    class="row justify-content-center align-items-start small my-1 g-2"
->
-    {# Select zakaznik filtr: #}
-    <div class="col-auto my-0">
-        <label for="zakaznik_filter" class="me-2 my-0 form-label small">Zakazník:</label>
-        <select name="zakaznik_filter" class="form-select form-select-sm me-2" id="zakaznik_filter">
-            {% for value, label in zakaznik_choices %}
-            <option value="{{ value }}" {% if zakaznik_filter == value %}selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-        </select>
+<div class="container-fluid px-0 py-2">
+    <div class="mx-auto" style="max-width: 760px;">
+        <section class="border rounded-2 overflow-hidden mb-3">
+            <div class="px-3 py-2 fw-bold"
+                 style="background-color: #214290; color: #ffde17; font-family: 'Liberation Sans', Arial;">
+                Filtr beden
+            </div>
+            <form
+                method="GET"
+                hx-get="."
+                hx-target="#listview-table"
+                hx-push-url="true"
+                hx-trigger="change, keyup delay:400ms from:input, submit"
+                class="row align-items-end small g-2 p-3 bg-light"
+            >
+                <div class="col-12 col-sm-3">
+                    <label for="zakaznik_filter" class="form-label small fw-semibold mb-1">Zákazník</label>
+                    <select name="zakaznik_filter" class="form-select form-select-sm" id="zakaznik_filter">
+                        {% for value, label in zakaznik_choices %}
+                            <option value="{{ value }}" {% if zakaznik_filter == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-12 col-sm-3">
+                    <label for="stav_filter" class="form-label small fw-semibold mb-1">Stav bedny</label>
+                    <select name="stav_filter" class="form-select form-select-sm" id="stav_filter">
+                        {% for value, label in stav_choices %}
+                            <option value="{{ value }}" {% if stav_filter == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-12 col-sm-3">
+                    <label for="delka_filter" class="form-label small fw-semibold mb-1">Délka</label>
+                    <select name="delka_filter" class="form-select form-select-sm" id="delka_filter">
+                        {% for value, label in delka_choices %}
+                            <option value="{{ value }}" {% if delka_filter == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-12 col-sm-3">
+                    <label for="query" class="form-label small fw-semibold mb-1">Vyhledat</label>
+                    <input id="query"
+                           class="form-control form-control-sm"
+                           type="text"
+                           name="query"
+                           placeholder="Číslo bedny"
+                           value="{{ query }}">
+                </div>
+                <input type="hidden" name="sort" value="{{ sort }}">
+                <input type="hidden" name="order" value="{{ order }}">
+            </form>
+        </section>
     </div>
-    {# Select stav filtr: #}
-    <div class="col-auto my-0">
-        <label for="stav_filter" class="me-2 my-0 form-label small">Stav:</label>
-        <select name="stav_filter" class="form-select form-select-sm me-2" id="stav_filter">
-            {% for value, label in stav_choices %}
-            <option value="{{ value }}" {% if stav_filter == value %}selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-        </select>
-    </div>
-    {# select priorita filtr: #}
-    <div class="col-auto my-0">
-        <label for="priorita_filter" class="me-2 my-0 form-label small">Priorita:</label>
-        <select name="priorita_filter" class="form-select form-select-sm me-2" id="priorita_filter">
-            {% for value, label in priorita_choices %}
-            <option value="{{ value }}" {% if priorita_filter == value %}selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-        </select>
-    </div>
-    {# Select typ_hlavy filtr: #}
-    <div class="col-auto my-0">
-        <label for="typ_hlavy_filter" class="me-2 my-0 form-label small">Typ hlavy:</label>
-        <select name="typ_hlavy_filter" class="form-select form-select-sm me-2" id="typ_hlavy_filter">
-            {% for value, label in typ_hlavy_choices %}
-            <option value="{{ value }}" {% if typ_hlavy_filter == value %}selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-        </select>
-    </div>
-    {# Search filtr: #}
-    <div class="col-auto my-0">
-        <label for="query" class="me-2 my-0 form-label small">Vyhledat:</label>
-        <input class="form-control form-control-sm me-2" type="text" name="query" placeholder="Vyhledat č.bedny / datum" value="{{ query }}">
-    </div>
-    {# Checkbox tryskat filtr: #}
-    <div class="col-auto d-flex flex-column align-items-center my-0">
-        <label for="tryskat" class="form-check-label small">Tryskat?</label>
-        <input type="checkbox" id="tryskat" name="tryskat" value="on"
-            class="form-check-input"
-            {% if tryskat == 'on' %}checked{% endif %}>
-    </div>
-    {# Checkbox rovnat filtr: #}
-    <div class="col-auto d-flex flex-column align-items-center my-0">
-        <label for="rovnat" class="form-check-label small">Rovnat?</label>
-        <input type="checkbox" id="rovnat" name="rovnat" value="on"
-            class="form-check-input"
-            {% if rovnat == 'on' %}checked{% endif %}>
-    </div>
-    {# Sort: #}
-    <input type="hidden" name="sort" value="{{ sort }}">
-    <input type="hidden" name="order" value="{{ order }}">
-</form>
+</div>
 
 <div id="listview-table">
-    {% include "orders/partials/listview_table.html" %}
+    {% include "orders/partials/bedny_list_table.html" %}
 </div>
 {% endblock %}

@@ -11,6 +11,8 @@ import io
 
 from orders.utils import (
     get_verbose_name_for_column,
+    format_cislo_bedny,
+    format_skupina_TZ,
     utilita_tisk_dokumentace,
     utilita_tisk_dokumentace_sablony,
     utilita_tisk_dl_a_proforma_faktury,
@@ -59,6 +61,27 @@ class GetVerboseNameTests(UtilsBase):
             get_verbose_name_for_column(Bedna, 'zakazka__kamion_prijem__datum'),
             'Datum'
         )
+
+
+class FormatCisloBednyTests(UtilsBase):
+    def test_formats_colored_bedna_number_for_known_customer(self):
+        html = str(format_cislo_bedny(self.bedna1))
+
+        self.assertIn('background-color: #dc3545', html)
+        self.assertIn('color: #ffffff', html)
+        self.assertIn(str(self.bedna1.cislo_bedny), html)
+
+
+class FormatSkupinaTZTests(UtilsBase):
+    def test_formats_colored_skupina_tz_for_known_group(self):
+        html = str(format_skupina_TZ(1))
+
+        self.assertIn('background-color: #f0f0f0', html)
+        self.assertIn('color: #000000', html)
+        self.assertIn('>1</span>', html)
+
+    def test_returns_dash_for_missing_group(self):
+        self.assertEqual(format_skupina_TZ(None), '-')
 
 
 class UtilitaTiskDokumentaceTests(UtilsBase):

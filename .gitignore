@@ -20,6 +20,7 @@ db.sqlite3
 # IDE a systémové soubory
 .idea/
 .vscode/
+AGENTS.md
 *.log
 *.bak
 .DS_Store
