@@ -8,6 +8,8 @@
 <style>
     #bedna-change-container {
         display: block;
+        margin-bottom: 0.25rem;
+        max-width: 760px;
     }
     #bedna-change-container:empty {
         display: none;
@@ -20,13 +22,15 @@
         display: none !important;
     }
     #bedna-change-container #bedna-change-banner-inline button {
-        background-color: #214290;
-        border: 1px solid #214290;
+        width: 100%;
+        background-color: #ffde17;
+        border: 1px solid #ffde17;
         border-radius: 0.25rem;
-        color: #ffde17;
+        color: #214290;
         font-size: 0.875rem;
-        font-weight: 700;
+        font-weight: 700 !important;
         line-height: 1.5;
+        margin-left: 0 !important;
         padding: 0.375rem 0.75rem;
     }
     #bedna-change-container #bedna-change-banner-inline button::before {
@@ -34,9 +38,9 @@
     }
     #bedna-change-container #bedna-change-banner-inline button:hover,
     #bedna-change-container #bedna-change-banner-inline button:focus {
-        background-color: #1b3676;
-        border-color: #1b3676;
-        color: #ffde17;
+        background-color: #ffe766;
+        border-color: #ffe766;
+        color: #214290;
     }
 </style>
 <script>
@@ -106,9 +110,7 @@ window.bednaPollConfig = {
     </div>
 </div>
 
-<div class="container-fluid px-0 mb-2">
-    <div id="bedna-change-container" class="mx-auto" style="max-width: 760px;"></div>
-</div>
+<div id="bedna-change-container" class="container-fluid px-0 mx-auto mb-1"></div>
 
 <div id="listview-table">
     {% include "orders/partials/bedny_list_table.html" %}
