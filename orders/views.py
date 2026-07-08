@@ -3317,18 +3317,26 @@ class BednyListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
         previous_zakazka_id = None
         for row_index, bedna in enumerate(context['object_list']):
             current_zakazka_id = bedna.zakazka_id
+            priorita_color = 'red' if bedna.zakazka and bedna.zakazka.priorita == 'P1' else 'orange' if bedna.zakazka and bedna.zakazka.priorita == 'P2' else 'black'
             table_rows.append({
                 "cislo_bedny": format_cislo_bedny(bedna),
                 "stav_bedny": bedna.get_stav_bedny_display(),
                 "zakazka__prumer": bedna.zakazka.prumer if bedna.zakazka else "",
                 "zakazka__delka": int(bedna.zakazka.delka) if bedna.zakazka and bedna.zakazka.delka else "",
                 "fake_skupina_TZ_ann": format_skupina_TZ(getattr(bedna, 'fake_skupina_TZ_ann', bedna.fake_skupina_TZ)),
+                "priorita_color": priorita_color,
                 "starts_new_zakazka_group": row_index > 0 and current_zakazka_id != previous_zakazka_id,
             })
             previous_zakazka_id = current_zakazka_id
 
         stav_choices = [("SK", "SKLADEM")] + list(StavBednyChoice.choices) + [("RO", "Rozpracováno"), ("PE", "Po exspiraci")]
         zakaznik_choices = [("", "VŠE")] + [(zakaznik.zkratka, zakaznik.zkraceny_nazev) for zakaznik in Zakaznik.objects.all()]
+        zakazka_priorita_choices = [("", "VŠE"), ("P1_P2", "P1 & P2")] + list(PrioritaChoice.choices)
+        fake_skupina_TZ_choices = [("", "VŠE")] + [
+            (str(skupina), str(skupina))
+            for skupina in self._get_available_fake_skupiny_TZ()
+        ]
+        pozastaveno_choices = [("False", "Ne"), ("True", "Ano")]
         delka_choices = [("", "VŠE")] + [
             (str(delka), self._format_delka_choice_label(delka))
             for delka in self._get_available_delky()
@@ -3346,6 +3354,12 @@ class BednyListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
             'stav_choices': stav_choices,
             'zakaznik_filter': self.request.GET.get('zakaznik_filter', ''),
             'zakaznik_choices': zakaznik_choices,
+            'zakazka_priorita_filter': self.request.GET.get('zakazka_priorita_filter', ''),
+            'zakazka_priorita_choices': zakazka_priorita_choices,
+            'fake_skupina_TZ_filter': self.request.GET.get('fake_skupina_TZ_filter', ''),
+            'fake_skupina_TZ_choices': fake_skupina_TZ_choices,
+            'pozastaveno_filter': self.request.GET.get('pozastaveno_filter', 'False'),
+            'pozastaveno_choices': pozastaveno_choices,
             'delka_filter': self.request.GET.get('delka_filter', ''),
             'delka_choices': delka_choices,
             'table_columns': table_columns,
@@ -3366,10 +3380,13 @@ class BednyListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
             'zakazka__typ_hlavy',
         ).annotate(fake_skupina_TZ_ann=build_fake_skupina_TZ_annotation())
 
-    def _apply_filters(self, queryset, include_delka_filter=True):
+    def _apply_filters(self, queryset, include_delka_filter=True, include_fake_skupina_TZ_filter=True):
         query = self.request.GET.get('query', '')
         stav_filter = self.request.GET.get('stav_filter','SK')      
         zakaznik_filter = self.request.GET.get('zakaznik_filter', '')
+        zakazka_priorita_filter = self.request.GET.get('zakazka_priorita_filter', '')
+        fake_skupina_TZ_filter = self.request.GET.get('fake_skupina_TZ_filter', '')
+        pozastaveno_filter = self.request.GET.get('pozastaveno_filter', 'False')
         delka_filter = self.request.GET.get('delka_filter', '')
 
         if stav_filter == 'SK' or not stav_filter:
@@ -3385,6 +3402,24 @@ class BednyListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
         if zakaznik_filter:
             queryset = queryset.filter(zakazka__kamion_prijem__zakaznik__zkratka=zakaznik_filter)
 
+        if zakazka_priorita_filter == "P1_P2":
+            queryset = queryset.filter(zakazka__priorita__in=[PrioritaChoice.VYSOKA, PrioritaChoice.STREDNI])
+        elif zakazka_priorita_filter:
+            queryset = queryset.filter(zakazka__priorita=zakazka_priorita_filter)
+
+        if include_fake_skupina_TZ_filter and fake_skupina_TZ_filter:
+            try:
+                fake_skupina_TZ_filter = int(fake_skupina_TZ_filter)
+            except (TypeError, ValueError):
+                fake_skupina_TZ_filter = None
+            if fake_skupina_TZ_filter is not None:
+                queryset = queryset.filter(fake_skupina_TZ_ann=fake_skupina_TZ_filter)
+
+        if pozastaveno_filter == 'True':
+            queryset = queryset.filter(pozastaveno=True)
+        else:
+            queryset = queryset.filter(pozastaveno=False)
+
         if query:
             queryset = queryset.filter(cislo_bedny__icontains=query)
 
@@ -3399,6 +3434,17 @@ class BednyListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
             .exclude(zakazka__delka__isnull=True)
             .order_by('zakazka__delka')
             .values_list('zakazka__delka', flat=True)
+            .distinct()
+        )
+
+    def _get_available_fake_skupiny_TZ(self):
+        return (
+            self._get_base_queryset()
+            .exclude(stav_bedny=StavBednyChoice.EXPEDOVANO)
+            .filter(pozastaveno=False)
+            .exclude(fake_skupina_TZ_ann__isnull=True)
+            .order_by('fake_skupina_TZ_ann')
+            .values_list('fake_skupina_TZ_ann', flat=True)
             .distinct()
         )
 
@@ -3427,6 +3473,6 @@ class BednyListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     
     def render_to_response(self, context, **response_kwargs):
         if self.request.headers.get('Hx-Request') == 'true':
-            return render(self.request, "orders/partials/bedny_list_table.html", context)
+            return render(self.request, "orders/partials/bedny_list_content.html", context)
         else:
             return super().render_to_response(context, **response_kwargs)

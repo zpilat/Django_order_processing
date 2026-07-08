@@ -40,9 +40,9 @@
             {% for row in table_rows %}
                 <tr{% if row.starts_new_zakazka_group %} class="bedna-group-separator"{% endif %}>
                     {% for column in table_columns %}
-                        <td class="text-center">
+                        <td class="text-center" {% if column.field == 'stav_bedny' %}style="color: {{ row.priorita_color }};"{% endif %}>
                             {{ row|dict_get:column.field }}
-                        </td>        
+                        </td>
                     {% endfor %}       
                 </tr>
             {% endfor %}

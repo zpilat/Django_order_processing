@@ -1633,6 +1633,7 @@ class BednyListViewTests(ViewsTestBase):
 		objects = list(resp.context["object_list"])
 		self.assertIn(self.b_eur_pr, objects)
 		self.assertNotIn(self.b_abc_ex, objects)
+		self.assertEqual(resp.context["pozastaveno_filter"], "False")
 		delka_choice_labels = [label for value, label in resp.context["delka_choices"]]
 		self.assertIn(str(int(self.zak_eur.delka)), delka_choice_labels)
 		self.assertIn(str(int(self.zak_vydej_eur.delka)), delka_choice_labels)
@@ -1647,7 +1648,9 @@ class BednyListViewTests(ViewsTestBase):
 		# HTMX partial vrací tabulku
 		resp_hx = self.client.get(reverse("bedny_list"), HTTP_HX_REQUEST="true")
 		self.assertEqual(resp_hx.status_code, 200)
-		self.assertTemplateUsed(resp_hx, "orders/partials/bedny_list_table.html")
+		self.assertTemplateUsed(resp_hx, "orders/partials/bedny_list_content.html")
+		self.assertContains(resp_hx, 'id="delka_filter"')
+		self.assertContains(resp_hx, 'id="listview-table"')
 
 	def test_list_colors_cislo_bedny_by_customer(self):
 		self.predpis_eur.skupina = 1
@@ -1692,6 +1695,96 @@ class BednyListViewTests(ViewsTestBase):
 		resp_sort = self.client.get(reverse("bedny_list"), {"sort": "id", "order": "down"})
 		ids = [b.id for b in resp_sort.context["object_list"]]
 		self.assertEqual(ids, sorted(ids, reverse=True))
+
+	def test_priority_fake_skupina_tz_and_pozastaveno_filters(self):
+		self.predpis_eur.skupina = 1
+		self.predpis_eur.save(update_fields=["skupina"])
+		self.zak_vydej_eur.priorita = PrioritaChoice.VYSOKA
+		self.zak_vydej_eur.save(update_fields=["priorita"])
+		self.zak_eur.priorita = PrioritaChoice.STREDNI
+		self.zak_eur.save(update_fields=["priorita"])
+		self.zak_vydej_eur.refresh_from_db()
+		self.zak_eur.refresh_from_db()
+		self.b_vydej.pozastaveno = True
+		self.b_vydej.save(update_fields=["pozastaveno"])
+
+		resp_default = self.client.get(reverse("bedny_list"))
+		default_objects = list(resp_default.context["object_list"])
+		self.assertIn(self.b_eur_pr, default_objects)
+		self.assertNotIn(self.b_vydej, default_objects)
+
+		resp_paused = self.client.get(reverse("bedny_list"), {"pozastaveno_filter": "True"})
+		paused_objects = list(resp_paused.context["object_list"])
+		self.assertIn(self.b_vydej, paused_objects)
+		self.assertNotIn(self.b_eur_pr, paused_objects)
+
+		resp_priority = self.client.get(
+			reverse("bedny_list"),
+			{"zakazka_priorita_filter": PrioritaChoice.VYSOKA, "pozastaveno_filter": "True"},
+		)
+		priority_objects = list(resp_priority.context["object_list"])
+		self.assertIn(self.b_vydej, priority_objects)
+		self.assertNotIn(self.b_eur_pr, priority_objects)
+		delka_choice_values = [value for value, label in resp_priority.context["delka_choices"]]
+		self.assertIn(str(self.zak_vydej_eur.delka), delka_choice_values)
+		self.assertNotIn(str(self.zak_eur.delka), delka_choice_values)
+
+		predpis_group_5 = Predpis.objects.create(nazev="P5", skupina=5, zakaznik=self.z_eur)
+		zakazka_group_5 = Zakazka.objects.create(
+			kamion_prijem=self.k_prijem_eur,
+			artikl="A5",
+			prumer=1,
+			delka=150,
+			predpis=predpis_group_5,
+			typ_hlavy=self.typ,
+			celozavit=False,
+			popis="group 5",
+			priorita=PrioritaChoice.NIZKA,
+		)
+		Bedna.objects.create(
+			zakazka=zakazka_group_5,
+			stav_bedny=StavBednyChoice.PRIJATO,
+			hmotnost=1,
+			tara=1,
+			mnozstvi=1,
+		)
+		resp_priority_p2 = self.client.get(reverse("bedny_list"), {"zakazka_priorita_filter": PrioritaChoice.STREDNI})
+		tz_choice_values = [value for value, label in resp_priority_p2.context["fake_skupina_TZ_choices"]]
+		self.assertIn("1", tz_choice_values)
+		self.assertIn("5", tz_choice_values)
+
+		resp_tz = self.client.get(reverse("bedny_list"), {"fake_skupina_TZ_filter": "1"})
+		tz_objects = list(resp_tz.context["object_list"])
+		self.assertIn(self.b_eur_pr, tz_objects)
+		self.assertNotIn(self.b_vydej, tz_objects)
+
+		zakazka_p1 = Zakazka.objects.create(
+			kamion_prijem=self.k_prijem_eur,
+			artikl="A4",
+			prumer=1,
+			delka=140,
+			predpis=self.predpis_eur,
+			typ_hlavy=self.typ,
+			celozavit=False,
+			popis="p1",
+			priorita=PrioritaChoice.VYSOKA,
+		)
+		bedna_p1 = Bedna.objects.create(
+			zakazka=zakazka_p1,
+			stav_bedny=StavBednyChoice.PRIJATO,
+			hmotnost=1,
+			tara=1,
+			mnozstvi=1,
+		)
+		resp_priority_p1_p2 = self.client.get(
+			reverse("bedny_list"),
+			{"zakazka_priorita_filter": "P1_P2"},
+		)
+		priority_p1_p2_objects = list(resp_priority_p1_p2.context["object_list"])
+		self.assertIn(self.b_eur_pr, priority_p1_p2_objects)
+		self.assertIn(bedna_p1, priority_p1_p2_objects)
+		self.assertNotIn(self.b_vydej, priority_p1_p2_objects)
+		self.assertNotIn(self.b_abc_ex, priority_p1_p2_objects)
 
 	def test_sort_header_cycles_to_default_sort(self):
 		resp = self.client.get(reverse("bedny_list"), {"sort": "cislo_bedny", "order": "down"})
