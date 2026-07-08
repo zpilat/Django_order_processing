@@ -7,6 +7,7 @@ from django.template.loader import render_to_string
 from datetime import date, time, timedelta
 from decimal import Decimal
 from unittest.mock import patch
+import json
 
 from orders.models import (
 	Zakaznik, Odberatel, Kamion, Zakazka, Bedna, Predpis, TypHlavy, Pozice, PoziceZakazkaOrder, Zarizeni, Sarze, SarzeKrok, SarzeKrokBedna, Cena
@@ -1640,6 +1641,9 @@ class BednyListViewTests(ViewsTestBase):
 		self.assertFalse(table_rows[0]["starts_new_zakazka_group"])
 		self.assertTrue(table_rows[1]["starts_new_zakazka_group"])
 		self.assertContains(resp, 'class="bedna-group-separator"')
+		self.assertContains(resp, "window.bednaPollConfig")
+		self.assertContains(resp, reverse("bedny_changes_poll"))
+		self.assertContains(resp, "orders/js/admin_bedna_change_poll.js")
 		# HTMX partial vrací tabulku
 		resp_hx = self.client.get(reverse("bedny_list"), HTTP_HX_REQUEST="true")
 		self.assertEqual(resp_hx.status_code, 200)
@@ -1694,6 +1698,59 @@ class BednyListViewTests(ViewsTestBase):
 
 		self.assertEqual(resp.status_code, 200)
 		self.assertContains(resp, 'href="?sort=&order=&"')
+
+	def test_changes_poll_detects_bedna_update(self):
+		initial_response = self.client.get(reverse("bedny_changes_poll"))
+		self.assertEqual(initial_response.status_code, 200)
+		initial_payload = json.loads(initial_response.content.decode("utf-8"))
+		self.assertIn("timestamp", initial_payload)
+		self.assertIn("history_id", initial_payload)
+		self.assertFalse(initial_payload["changed"])
+
+		self.b_eur_pr.poznamka = "Změna pro seznam beden"
+		self.b_eur_pr.save(update_fields=["poznamka"])
+
+		response = self.client.get(
+			reverse("bedny_changes_poll"),
+			{"since_id": initial_payload["history_id"]},
+		)
+		self.assertEqual(response.status_code, 200)
+		payload = json.loads(response.content.decode("utf-8"))
+		self.assertTrue(payload["changed"])
+		self.assertGreater(payload["history_id"], initial_payload["history_id"])
+
+	def test_sorts_tz_by_fake_skupina_tz_annotation(self):
+		self.predpis_eur.skupina = 1
+		self.predpis_eur.save(update_fields=["skupina"])
+		self.b_eur_pr.material = "10B21"
+		self.b_eur_pr.save(update_fields=["material"])
+		predpis_group_5 = Predpis.objects.create(nazev="P5", skupina=5, zakaznik=self.z_eur)
+		zakazka_group_5 = Zakazka.objects.create(
+			kamion_prijem=self.k_prijem_eur,
+			artikl="A5",
+			prumer=1,
+			delka=150,
+			predpis=predpis_group_5,
+			typ_hlavy=self.typ,
+			celozavit=False,
+			popis="group 5",
+			priorita=PrioritaChoice.NIZKA,
+		)
+		bedna_group_5 = Bedna.objects.create(
+			zakazka=zakazka_group_5,
+			stav_bedny=StavBednyChoice.PRIJATO,
+			hmotnost=1,
+			tara=1,
+			mnozstvi=1,
+		)
+
+		resp = self.client.get(reverse("bedny_list"), {"sort": "fake_skupina_TZ_ann", "order": "up"})
+
+		self.assertEqual(resp.status_code, 200)
+		objects = list(resp.context["object_list"])
+		self.assertLess(objects.index(bedna_group_5), objects.index(self.b_eur_pr))
+		annotated_bedna = next(bedna for bedna in objects if bedna.pk == self.b_eur_pr.pk)
+		self.assertEqual(annotated_bedna.fake_skupina_TZ_ann, 10)
 
 
 class RychleZalozeniSarzeViewTests(ViewsTestBase):

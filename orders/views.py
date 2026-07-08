@@ -12,20 +12,20 @@ from django.db.models.functions import Coalesce
 from django.core.exceptions import PermissionDenied
 from django.utils.translation import gettext_lazy as _
 import django.utils.timezone as timezone
-from datetime import timedelta, time, date
+from datetime import datetime, timedelta, time, date
 import calendar
 import uuid
 from django.db import transaction
 from django.contrib import messages
 from django.contrib.staticfiles import finders
-from django.http import HttpResponseBadRequest, HttpResponse
+from django.http import HttpResponseBadRequest, HttpResponse, JsonResponse
 from django.conf import settings
 from django.utils.text import slugify
 from django.utils.http import url_has_allowed_host_and_scheme
 from decimal import Decimal, ROUND_HALF_UP
 from django_user_agents.utils import get_user_agent
 
-from .utils import get_verbose_name_for_column, utilita_tisk_dl_a_proforma_faktury, format_cislo_bedny, format_skupina_TZ
+from .utils import get_verbose_name_for_column, utilita_tisk_dl_a_proforma_faktury, format_cislo_bedny, format_skupina_TZ, build_fake_skupina_TZ_annotation
 from .models import (
     Bedna, Zakazka, Kamion, Zakaznik, TypHlavy, Predpis, Odberatel, Cena, Pozice, PoziceZakazkaOrder,
     Sarze, SarzeKrok, SarzeKrokBedna
@@ -3234,6 +3234,54 @@ def proforma_kamion_vydej_pdf_view(request, pk: int):
     return response
 
 
+def _get_latest_bedna_change_marker():
+    history_model = Bedna.history.model
+    return history_model.objects.order_by('-history_date', '-history_id').first()
+
+
+def _build_bedna_change_poll_payload(request):
+    latest = _get_latest_bedna_change_marker()
+    last_change = latest.history_date if latest else None
+    last_history_id = latest.history_id if latest else None
+    since_raw = request.GET.get('since')
+    since_id_raw = request.GET.get('since_id')
+    since_value = None
+    since_id = None
+
+    if since_raw:
+        try:
+            normalized = since_raw.replace(' ', '+')
+            since_value = datetime.fromisoformat(normalized)
+            if timezone.is_naive(since_value):
+                since_value = timezone.make_aware(since_value, timezone.get_current_timezone())
+        except ValueError:
+            since_value = None
+
+    if since_id_raw:
+        try:
+            since_id = int(since_id_raw)
+        except (TypeError, ValueError):
+            since_id = None
+
+    changed = False
+    if last_change:
+        if since_id is not None and last_history_id is not None:
+            changed = last_history_id > since_id
+        elif since_value:
+            changed = last_change > since_value
+
+    return {
+        'changed': changed,
+        'timestamp': last_change.isoformat() if last_change else None,
+        'history_id': last_history_id,
+    }
+
+
+@permission_required('orders.view_bedna', raise_exception=True)
+def bedna_changes_poll_view(request):
+    return JsonResponse(_build_bedna_change_poll_payload(request))
+
+
 class BednyListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     """
     Zobrazuje seznam beden.
@@ -3263,7 +3311,7 @@ class BednyListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
             {"field": "stav_bedny", "label": "Stav"},
             {"field": "zakazka__prumer", "label": "Ø"},
             {"field": "zakazka__delka", "label": "Délka"},
-            {"field": "zakazka__predpis__skupina", "label": "TZ"},
+            {"field": "fake_skupina_TZ_ann", "label": "TZ"},
         ]
         table_rows = []
         previous_zakazka_id = None
@@ -3274,7 +3322,7 @@ class BednyListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
                 "stav_bedny": bedna.get_stav_bedny_display(),
                 "zakazka__prumer": bedna.zakazka.prumer if bedna.zakazka else "",
                 "zakazka__delka": int(bedna.zakazka.delka) if bedna.zakazka and bedna.zakazka.delka else "",
-                "zakazka__predpis__skupina": format_skupina_TZ(bedna.fake_skupina_TZ),
+                "fake_skupina_TZ_ann": format_skupina_TZ(getattr(bedna, 'fake_skupina_TZ_ann', bedna.fake_skupina_TZ)),
                 "starts_new_zakazka_group": row_index > 0 and current_zakazka_id != previous_zakazka_id,
             })
             previous_zakazka_id = current_zakazka_id
@@ -3285,6 +3333,9 @@ class BednyListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
             (str(delka), self._format_delka_choice_label(delka))
             for delka in self._get_available_delky()
         ]
+        latest_bedna_change = _get_latest_bedna_change_marker()
+        bedna_last_change = latest_bedna_change.history_date if latest_bedna_change else None
+        bedna_last_change_id = latest_bedna_change.history_id if latest_bedna_change else None
 
         context.update({
             'db_table': 'bedny',
@@ -3299,6 +3350,10 @@ class BednyListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
             'delka_choices': delka_choices,
             'table_columns': table_columns,
             'table_rows': table_rows,
+            'bedna_poll_url': reverse('bedny_changes_poll'),
+            'bedna_last_change': bedna_last_change.isoformat() if bedna_last_change else '',
+            'bedna_last_change_id': bedna_last_change_id if bedna_last_change_id else '',
+            'bedna_poll_interval': 30000,
         })
         return context
     
@@ -3309,7 +3364,7 @@ class BednyListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
             'zakazka__kamion_prijem__zakaznik',
             'zakazka__predpis',
             'zakazka__typ_hlavy',
-        )
+        ).annotate(fake_skupina_TZ_ann=build_fake_skupina_TZ_annotation())
 
     def _apply_filters(self, queryset, include_delka_filter=True):
         query = self.request.GET.get('query', '')

@@ -11,7 +11,7 @@ import csv
 import re
 
 from .choices import StavBednyChoice, RovnaniChoice, TryskaniChoice, ZinkovaniChoice, BARVA_SKUPINY_TZ
-from django.db.models import When, Value, Q
+from django.db.models import Case, F, IntegerField, When, Value, Q
 from .models import Zakazka, Bedna
 
 import pandas as pd
@@ -87,6 +87,22 @@ def format_skupina_TZ(skupina_TZ):
         barva["text"],
         barva["pozadi"],
         skupina_TZ,
+    )
+
+
+def build_fake_skupina_TZ_annotation():
+    """
+    Vrátí SQL výraz odpovídající property Bedna.fake_skupina_TZ.
+    Používá se pro jednotné řazení a zobrazení v adminu i běžných views.
+    """
+    return Case(
+        When(
+            Q(zakazka__predpis__skupina=1)
+            & (Q(material__iexact='10B21') | Q(material__iexact='17B2')),
+            then=Value(10),
+        ),
+        default=F('zakazka__predpis__skupina'),
+        output_field=IntegerField(),
     )
 
 

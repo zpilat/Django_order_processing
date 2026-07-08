@@ -17,6 +17,7 @@ from .views import (
     dodaci_list_kamion_vydej_pdf_view,
     proforma_kamion_vydej_pdf_view,
     bedna_scan_view,
+    bedna_changes_poll_view,
     bedna_scan_navezeni_view,
     bedna_scan_zkontrolovano_view,
     bedna_scan_pohyb_view,
@@ -53,6 +54,7 @@ urlpatterns = [
         name='dashboard_vyroba_zakaznici_vyuziti'
     ),
     path('bedny/', BednyListView.as_view(), name='bedny_list'),
+    path('bedny/changes/poll/', bedna_changes_poll_view, name='bedny_changes_poll'),
     path('bedny/scan/<int:cislo_bedny>/', bedna_scan_view, name='bedna_scan'),
     path(
         'bedny/scan/<int:cislo_bedny>/navezeni/',

@@ -74,7 +74,7 @@ from .choices import (
 )
 from .utils import (
     utilita_validate_excel_upload, build_postup_vyroby_cases, truncate_with_title, parse_sarze_search_term,
-    format_decimal_csv, format_cislo_bedny, format_skupina_TZ
+    format_decimal_csv, format_cislo_bedny, format_skupina_TZ, build_fake_skupina_TZ_annotation
 )
 
 import logging
@@ -3340,11 +3340,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         # pouze v případě, že je skupina == 1 a materiál je 10B21 nebo 17B2, se nastaví fake_skupina_TZ na 10.
         qs = qs.annotate(
             # Používá se odlišné jméno anotace, aby nedocházelo ke kolizi s property `fake_skupina_TZ`.
-            fake_skupina_TZ_ann=Case(
-                When(Q(zakazka__predpis__skupina=1) & (Q(material__iexact='10B21') | Q(material__iexact='17B2')), then=Value(10)),
-                default=F('zakazka__predpis__skupina'),
-                output_field=IntegerField(),
-            )
+            fake_skupina_TZ_ann=build_fake_skupina_TZ_annotation()
         )
 
         return qs

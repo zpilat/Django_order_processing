@@ -3,6 +3,7 @@ from django.utils import timezone
 from decimal import Decimal
 
 from orders.models import Zakaznik, Kamion, Predpis, TypHlavy, Zakazka, Bedna
+from orders.utils import build_fake_skupina_TZ_annotation
 
 
 class FakeSkupinaTZTests(TestCase):
@@ -30,3 +31,25 @@ class FakeSkupinaTZTests(TestCase):
         zak2 = Zakazka.objects.create(kamion_prijem=self.kamion, artikl='A3', prumer=Decimal('8.0'), delka=Decimal('80.0'), predpis=predpis2, typ_hlavy=self.typ_hlavy, popis='z')
         bedna2 = Bedna.objects.create(zakazka=zak2, material='10B21')
         self.assertEqual(bedna2.fake_skupina_TZ, 5)
+
+    def test_property_matches_sql_annotation(self):
+        predpis_1 = Predpis.objects.create(nazev='P4', skupina=1, zakaznik=self.zakaznik)
+        predpis_5 = Predpis.objects.create(nazev='P5', skupina=5, zakaznik=self.zakaznik)
+        zak_1 = Zakazka.objects.create(kamion_prijem=self.kamion, artikl='A4', prumer=Decimal('10.0'), delka=Decimal('100.0'), predpis=predpis_1, typ_hlavy=self.typ_hlavy, popis='a')
+        zak_5 = Zakazka.objects.create(kamion_prijem=self.kamion, artikl='A5', prumer=Decimal('12.0'), delka=Decimal('120.0'), predpis=predpis_5, typ_hlavy=self.typ_hlavy, popis='b')
+        bedny = [
+            Bedna.objects.create(zakazka=zak_1, material='10B21'),
+            Bedna.objects.create(zakazka=zak_1, material='S235'),
+            Bedna.objects.create(zakazka=zak_5, material='17B2'),
+        ]
+
+        annotated = {
+            bedna.pk: bedna.fake_skupina_TZ_ann
+            for bedna in Bedna.objects.filter(pk__in=[b.pk for b in bedny]).annotate(
+                fake_skupina_TZ_ann=build_fake_skupina_TZ_annotation()
+            )
+        }
+
+        for bedna in bedny:
+            with self.subTest(bedna=bedna.pk):
+                self.assertEqual(bedna.fake_skupina_TZ, annotated[bedna.pk])

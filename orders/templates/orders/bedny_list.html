@@ -2,7 +2,53 @@
 {% load static %}
 {% load custom_filters %}
 
-{% block extra_head %}{{ block.super }}<link rel="stylesheet" href="{% static 'orders/css/scan_workflows.css' %}">{% endblock %}
+{% block extra_head %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'orders/css/scan_workflows.css' %}">
+<style>
+    #bedna-change-container {
+        display: block;
+    }
+    #bedna-change-container:empty {
+        display: none;
+    }
+    #bedna-change-container #bedna-change-banner-inline {
+        display: flex;
+        justify-content: center;
+    }
+    #bedna-change-container #bedna-change-banner-inline > span {
+        display: none !important;
+    }
+    #bedna-change-container #bedna-change-banner-inline button {
+        background-color: #214290;
+        border: 1px solid #214290;
+        border-radius: 0.25rem;
+        color: #ffde17;
+        font-size: 0.875rem;
+        font-weight: 700;
+        line-height: 1.5;
+        padding: 0.375rem 0.75rem;
+    }
+    #bedna-change-container #bedna-change-banner-inline button::before {
+        content: "Data se změnila - ";
+    }
+    #bedna-change-container #bedna-change-banner-inline button:hover,
+    #bedna-change-container #bedna-change-banner-inline button:focus {
+        background-color: #1b3676;
+        border-color: #1b3676;
+        color: #ffde17;
+    }
+</style>
+<script>
+window.bednaPollConfig = {
+    pollUrl: "{{ bedna_poll_url|escapejs }}",
+    lastChange: {% if bedna_last_change %}"{{ bedna_last_change|escapejs }}"{% else %}null{% endif %},
+    lastChangeId: {% if bedna_last_change_id %}{{ bedna_last_change_id }}{% else %}null{% endif %},
+    intervalMs: {{ bedna_poll_interval|default:30000 }},
+};
+</script>
+<script src="{% static 'orders/js/admin_bedna_change_poll.js' %}" defer></script>
+{% endblock %}
 
 {% block content %}
 <div class="container-fluid px-0 py-2">
@@ -58,6 +104,10 @@
             </form>
         </section>
     </div>
+</div>
+
+<div class="container-fluid px-0 mb-2">
+    <div id="bedna-change-container" class="mx-auto" style="max-width: 760px;"></div>
 </div>
 
 <div id="listview-table">

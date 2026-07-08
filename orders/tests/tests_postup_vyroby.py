@@ -4,7 +4,7 @@ from django.db.models import Case, Value, IntegerField
 
 from orders.models import Zakaznik, Kamion, Predpis, TypHlavy, Zakazka, Bedna
 from datetime import date
-from orders.choices import StavBednyChoice, RovnaniChoice, TryskaniChoice, KamionChoice
+from orders.choices import StavBednyChoice, RovnaniChoice, TryskaniChoice, KamionChoice, ZinkovaniChoice
 from orders.utils import build_postup_vyroby_cases
 
 class TestPostupVyrobyAnnotation(TestCase):
@@ -29,7 +29,13 @@ class TestPostupVyrobyAnnotation(TestCase):
             popis="TEST",
         )
 
-    def _make_bedna(self, stav, rovnat=RovnaniChoice.NEZADANO, tryskat=TryskaniChoice.NEZADANO):
+    def _make_bedna(
+        self,
+        stav,
+        rovnat=RovnaniChoice.NEZADANO,
+        tryskat=TryskaniChoice.NEZADANO,
+        zinkovat=ZinkovaniChoice.NEZADANO,
+    ):
         return Bedna.objects.create(
             zakazka=self.zakazka,
             hmotnost=Decimal("1"),
@@ -38,27 +44,33 @@ class TestPostupVyrobyAnnotation(TestCase):
             stav_bedny=stav,
             rovnat=rovnat,
             tryskat=tryskat,
+            zinkovat=zinkovat,
         )
 
     def test_annotation_matches_property_all_key_states(self):
         combos = [
-            (StavBednyChoice.NEPRIJATO, RovnaniChoice.NEZADANO, TryskaniChoice.NEZADANO),  # 0
-            (StavBednyChoice.PRIJATO, RovnaniChoice.NEZADANO, TryskaniChoice.NEZADANO),    # 0
-            (StavBednyChoice.K_NAVEZENI, RovnaniChoice.NEZADANO, TryskaniChoice.NEZADANO), # 10
-            (StavBednyChoice.NAVEZENO, RovnaniChoice.NEZADANO, TryskaniChoice.NEZADANO),   # 20
-            (StavBednyChoice.DO_ZPRACOVANI, RovnaniChoice.NEZADANO, TryskaniChoice.NEZADANO), # 30
-            (StavBednyChoice.ZAKALENO, RovnaniChoice.NEZADANO, TryskaniChoice.NEZADANO),   # 50
+            (StavBednyChoice.NEPRIJATO, RovnaniChoice.NEZADANO, TryskaniChoice.NEZADANO, ZinkovaniChoice.NEZADANO),  # 0
+            (StavBednyChoice.PRIJATO, RovnaniChoice.NEZADANO, TryskaniChoice.NEZADANO, ZinkovaniChoice.NEZADANO),    # 10
+            (StavBednyChoice.K_NAVEZENI, RovnaniChoice.NEZADANO, TryskaniChoice.NEZADANO, ZinkovaniChoice.NEZADANO), # 20
+            (StavBednyChoice.NAVEZENO, RovnaniChoice.NEZADANO, TryskaniChoice.NEZADANO, ZinkovaniChoice.NEZADANO),   # 30
+            (StavBednyChoice.DO_ZPRACOVANI, RovnaniChoice.NEZADANO, TryskaniChoice.NEZADANO, ZinkovaniChoice.NEZADANO), # 40
+            (StavBednyChoice.ZAKALENO, RovnaniChoice.NEZADANO, TryskaniChoice.NEZADANO, ZinkovaniChoice.NEZADANO),   # 50
             # ZKONTROLOVANO varianty
-            (StavBednyChoice.ZKONTROLOVANO, RovnaniChoice.NEZADANO, TryskaniChoice.NEZADANO), # 60
-            (StavBednyChoice.ZKONTROLOVANO, RovnaniChoice.ROVNA, TryskaniChoice.NEZADANO),     # 75
-            (StavBednyChoice.ZKONTROLOVANO, RovnaniChoice.NEZADANO, TryskaniChoice.CISTA),     # 75
-            (StavBednyChoice.ZKONTROLOVANO, RovnaniChoice.ROVNA, TryskaniChoice.CISTA),        # 90
-            (StavBednyChoice.K_EXPEDICI, RovnaniChoice.ROVNA, TryskaniChoice.CISTA),           # 100
-            (StavBednyChoice.EXPEDOVANO, RovnaniChoice.VYROVNANA, TryskaniChoice.OTRYSKANA),   # 100
+            (StavBednyChoice.ZKONTROLOVANO, RovnaniChoice.NEZADANO, TryskaniChoice.NEZADANO, ZinkovaniChoice.NEZADANO), # 60
+            (StavBednyChoice.ZKONTROLOVANO, RovnaniChoice.ROVNA, TryskaniChoice.NEZADANO, ZinkovaniChoice.NEZADANO),     # 75
+            (StavBednyChoice.ZKONTROLOVANO, RovnaniChoice.NEZADANO, TryskaniChoice.CISTA, ZinkovaniChoice.NEZADANO),     # 75
+            (StavBednyChoice.ZKONTROLOVANO, RovnaniChoice.NEZADANO, TryskaniChoice.NEZADANO, ZinkovaniChoice.NEZINKOVAT), # 75
+            (StavBednyChoice.ZKONTROLOVANO, RovnaniChoice.ROVNA, TryskaniChoice.CISTA, ZinkovaniChoice.NEZADANO),        # 85
+            (StavBednyChoice.ZKONTROLOVANO, RovnaniChoice.ROVNA, TryskaniChoice.NEZADANO, ZinkovaniChoice.NEZINKOVAT),   # 85
+            (StavBednyChoice.ZKONTROLOVANO, RovnaniChoice.NEZADANO, TryskaniChoice.CISTA, ZinkovaniChoice.UVOLNENO),     # 85
+            (StavBednyChoice.ZKONTROLOVANO, RovnaniChoice.ROVNA, TryskaniChoice.CISTA, ZinkovaniChoice.NEZINKOVAT),      # 95
+            (StavBednyChoice.ZKONTROLOVANO, RovnaniChoice.VYROVNANA, TryskaniChoice.OTRYSKANA, ZinkovaniChoice.UVOLNENO), # 95
+            (StavBednyChoice.K_EXPEDICI, RovnaniChoice.ROVNA, TryskaniChoice.CISTA, ZinkovaniChoice.NEZINKOVAT),         # 100
+            (StavBednyChoice.EXPEDOVANO, RovnaniChoice.VYROVNANA, TryskaniChoice.OTRYSKANA, ZinkovaniChoice.UVOLNENO),   # 100
         ]
         created_ids = []
-        for stav, rov, tr in combos:
-            b = self._make_bedna(stav, rov, tr)
+        for stav, rov, tr, zink in combos:
+            b = self._make_bedna(stav, rov, tr, zink)
             created_ids.append(b.id)
 
         # Anotace
@@ -69,7 +81,7 @@ class TestPostupVyrobyAnnotation(TestCase):
         mismatch = []
         for bedna in annotated:
             if bedna.postup_vyroby != bedna.postup_vyroby_value:
-                mismatch.append((bedna.id, bedna.stav_bedny, bedna.rovnat, bedna.tryskat, bedna.postup_vyroby, bedna.postup_vyroby_value))
+                mismatch.append((bedna.id, bedna.stav_bedny, bedna.rovnat, bedna.tryskat, bedna.zinkovat, bedna.postup_vyroby, bedna.postup_vyroby_value))
         self.assertFalse(mismatch, f"Neshoda mezi property a anotací: {mismatch}")
 
     def test_performance_one_query_for_annotation(self):
