@@ -1681,7 +1681,7 @@ class BednyListViewTests(ViewsTestBase):
 		objs_delka = list(resp_delka.context["object_list"])
 		self.assertIn(self.b_vydej, objs_delka)
 		self.assertNotIn(self.b_eur_pr, objs_delka)
-		self.assertEqual(resp_delka.context["delka_filter"], str(self.zak_vydej_eur.delka))
+		self.assertEqual(Decimal(resp_delka.context["delka_filter"]), Decimal(str(self.zak_vydej_eur.delka)))
 
 		# seřazení DESC podle id
 		# vytvoříme další bednu pro EUR, aby bylo co řadit
@@ -1728,6 +1728,18 @@ class BednyListViewTests(ViewsTestBase):
 		delka_choice_values = [value for value, label in resp_priority.context["delka_choices"]]
 		self.assertIn(str(self.zak_vydej_eur.delka), delka_choice_values)
 		self.assertNotIn(str(self.zak_eur.delka), delka_choice_values)
+
+		resp_stale_delka = self.client.get(
+			reverse("bedny_list"),
+			{
+				"zakazka_priorita_filter": PrioritaChoice.VYSOKA,
+				"pozastaveno_filter": "True",
+				"delka_filter": str(self.zak_eur.delka),
+			},
+		)
+		stale_delka_objects = list(resp_stale_delka.context["object_list"])
+		self.assertIn(self.b_vydej, stale_delka_objects)
+		self.assertEqual(resp_stale_delka.context["delka_filter"], "")
 
 		predpis_group_5 = Predpis.objects.create(nazev="P5", skupina=5, zakaznik=self.z_eur)
 		zakazka_group_5 = Zakazka.objects.create(

@@ -22,7 +22,7 @@ from django.http import HttpResponseBadRequest, HttpResponse, JsonResponse
 from django.conf import settings
 from django.utils.text import slugify
 from django.utils.http import url_has_allowed_host_and_scheme
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from django_user_agents.utils import get_user_agent
 
 from .utils import get_verbose_name_for_column, utilita_tisk_dl_a_proforma_faktury, format_cislo_bedny, format_skupina_TZ, build_fake_skupina_TZ_annotation
@@ -3337,10 +3337,12 @@ class BednyListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
             for skupina in self._get_available_fake_skupiny_TZ()
         ]
         pozastaveno_choices = [("False", "Ne"), ("True", "Ano")]
+        available_delky = self._get_available_delky()
         delka_choices = [("", "VŠE")] + [
             (str(delka), self._format_delka_choice_label(delka))
-            for delka in self._get_available_delky()
+            for delka in available_delky
         ]
+        delka_filter = self._get_effective_delka_filter()
         latest_bedna_change = _get_latest_bedna_change_marker()
         bedna_last_change = latest_bedna_change.history_date if latest_bedna_change else None
         bedna_last_change_id = latest_bedna_change.history_id if latest_bedna_change else None
@@ -3360,7 +3362,7 @@ class BednyListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
             'fake_skupina_TZ_choices': fake_skupina_TZ_choices,
             'pozastaveno_filter': self.request.GET.get('pozastaveno_filter', 'False'),
             'pozastaveno_choices': pozastaveno_choices,
-            'delka_filter': self.request.GET.get('delka_filter', ''),
+            'delka_filter': delka_filter,
             'delka_choices': delka_choices,
             'table_columns': table_columns,
             'table_rows': table_rows,
@@ -3387,7 +3389,7 @@ class BednyListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
         zakazka_priorita_filter = self.request.GET.get('zakazka_priorita_filter', '')
         fake_skupina_TZ_filter = self.request.GET.get('fake_skupina_TZ_filter', '')
         pozastaveno_filter = self.request.GET.get('pozastaveno_filter', 'False')
-        delka_filter = self.request.GET.get('delka_filter', '')
+        delka_filter = self._get_effective_delka_filter() if include_delka_filter else ''
 
         if stav_filter == 'SK' or not stav_filter:
             queryset = queryset.exclude(stav_bedny='EX')
@@ -3429,13 +3431,30 @@ class BednyListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
         return queryset
 
     def _get_available_delky(self):
-        return (
-            self._apply_filters(self._get_base_queryset(), include_delka_filter=False)
-            .exclude(zakazka__delka__isnull=True)
-            .order_by('zakazka__delka')
-            .values_list('zakazka__delka', flat=True)
-            .distinct()
-        )
+        if not hasattr(self, '_available_delky_cache'):
+            self._available_delky_cache = list(
+                self._apply_filters(self._get_base_queryset(), include_delka_filter=False)
+                .exclude(zakazka__delka__isnull=True)
+                .order_by('zakazka__delka')
+                .values_list('zakazka__delka', flat=True)
+                .distinct()
+            )
+        return self._available_delky_cache
+
+    def _get_effective_delka_filter(self):
+        delka_filter = self.request.GET.get('delka_filter', '')
+        if not delka_filter:
+            return ''
+
+        try:
+            selected_delka = Decimal(str(delka_filter))
+        except (InvalidOperation, TypeError, ValueError):
+            return ''
+
+        for available_delka in self._get_available_delky():
+            if selected_delka == Decimal(str(available_delka)):
+                return str(available_delka)
+        return ''
 
     def _get_available_fake_skupiny_TZ(self):
         return (
