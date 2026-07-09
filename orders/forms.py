@@ -24,6 +24,25 @@ from .choices import (
 import logging
 logger = logging.getLogger('orders')
 
+
+class BednaPreviewSelect(forms.Select):
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+        option = super().create_option(name, value, label, selected, index, subindex=subindex, attrs=attrs)
+        if value:
+            bedna = getattr(value, 'instance', None)
+
+            if bedna:
+                zakazka = getattr(bedna, 'zakazka', None)
+                zakaznik = getattr(getattr(zakazka, 'kamion_prijem', None), 'zakaznik', None)
+                option['attrs']['data-cislo-bedny'] = bedna.cislo_bedny or ''
+                option['attrs']['data-rozmer'] = (
+                    f"Ø{zakazka.prumer}x{zakazka.delka:.0f}" if zakazka and zakazka.delka is not None else ''
+                )
+                option['attrs']['data-zakaznik-zkratka'] = getattr(zakaznik, 'zkratka', '') or ''
+                option['attrs']['data-skupina-tz'] = bedna.fake_skupina_TZ or ''
+        return option
+
+
 class ImportZakazekForm(forms.Form):
     file = forms.FileField(
         label="Soubor (pouze XLSX)",
@@ -662,7 +681,7 @@ class SarzeKrokPatroPolozkaForm(forms.Form):
         queryset=Bedna.objects.none(),
         required=False,
         label='Bedna',
-        widget=forms.Select(attrs={'class': 'form-select form-select-sm js-bedna'}),
+        widget=BednaPreviewSelect(attrs={'class': 'form-select form-select-sm js-bedna'}),
     )
     popis_mimo_db = forms.CharField(
         required=False,
@@ -705,7 +724,12 @@ class SarzeKrokPatroPolozkaForm(forms.Form):
         self.fields['bedna'].queryset = (
             Bedna.objects
             .filter(stav_bedny__in=allowed_states)
-            .select_related('zakazka', 'zakazka__kamion_prijem', 'zakazka__kamion_prijem__zakaznik')
+            .select_related(
+                'zakazka',
+                'zakazka__predpis',
+                'zakazka__kamion_prijem',
+                'zakazka__kamion_prijem__zakaznik',
+            )
             .order_by('-cislo_bedny')
         )
         if self.bedna_only:

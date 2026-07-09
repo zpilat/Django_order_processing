@@ -213,14 +213,49 @@
         return rows().filter(rowHasItem);
     }
 
-    function rowLabel(row) {
+    function selectedBednaOption(row) {
         const bedna = row.querySelector('.js-bedna');
         if (bedna && bedna.value) {
-            const option = bedna.options[bedna.selectedIndex];
-            return option ? option.text.trim() : 'Bedna';
+            return bedna.options[bedna.selectedIndex] || null;
         }
 
-        return 'Bedna';
+        return null;
+    }
+
+    function appendBreak(parent) {
+        parent.appendChild(document.createElement('br'));
+    }
+
+    function buildRackSegmentContent(row, percentage) {
+        const option = selectedBednaOption(row);
+        const wrapper = document.createElement('div');
+
+        if (!option) {
+            wrapper.textContent = `Bedna (${percentage} %)`;
+            return wrapper;
+        }
+
+        const number = document.createElement('span');
+        number.className = 'fw-bold fs-5';
+        number.textContent = option.dataset.cisloBedny || option.text.trim();
+        wrapper.appendChild(number);
+        appendBreak(wrapper);
+
+        if (option.dataset.rozmer) {
+            const size = document.createElement('span');
+            size.className = 'fw-bold';
+            size.textContent = option.dataset.rozmer;
+            wrapper.appendChild(size);
+            appendBreak(wrapper);
+        }
+
+        const customer = option.dataset.zakaznikZkratka || '';
+        const group = option.dataset.skupinaTz || '';
+        wrapper.appendChild(document.createTextNode(`${customer} - SK${group}`));
+        appendBreak(wrapper);
+        wrapper.appendChild(document.createTextNode(`(${percentage} %)`));
+
+        return wrapper;
     }
 
     function percentageInput(row) {
@@ -322,7 +357,7 @@
             segment.className = 'rack-segment';
             segment.style.width = `${values[index] || 0}%`;
             segment.style.backgroundColor = colors[index % colors.length];
-            segment.textContent = `${rowLabel(row)} (${values[index] || 0} %)`;
+            segment.appendChild(buildRackSegmentContent(row, values[index] || 0));
             preview.appendChild(segment);
         });
 
