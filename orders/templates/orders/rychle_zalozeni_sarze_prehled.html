@@ -51,7 +51,7 @@
                          style="width: {{ item.procent_z_patra }}%;">
                         <div>
                             {% if item.bedna %}
-                                <span class="fw-bold fs-5">{{ item.bedna.cislo_bedny }}</span><br>
+                                <span class="fw-bold fs-6">{{ item.bedna.cislo_bedny }}</span><br>
                                 <span class="fw-bold">Ø{{ item.bedna.zakazka.prumer }}x{{ item.bedna.zakazka.delka|floatformat:'0' }}</span><br>
                                 {{ item.bedna.zakazka.kamion_prijem.zakaznik.zkratka|default:"" }} - SK{{ item.bedna.fake_skupina_TZ }}
                             {% else %}
