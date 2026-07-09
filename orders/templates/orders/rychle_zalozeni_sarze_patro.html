@@ -40,7 +40,7 @@
                 </thead>
                 <tbody id="item-rows">
                     {% for item_form in formset %}
-                        <tr class="item-row" data-form-index="{{ forloop.counter0 }}">
+                        <tr class="item-row{% if item_form.DELETE.value %} is-removed{% endif %}" data-form-index="{{ forloop.counter0 }}">
                             <td>
                                 <div class="input-group input-group-sm bedna-scan-group">
                                     <div class="bedna-picker">
@@ -676,6 +676,11 @@
     }
 
     function bindRow(row) {
+        const deleteInput = row.querySelector('input[name$="-DELETE"]');
+        if (deleteInputIsChecked(deleteInput)) {
+            row.classList.add('is-removed');
+        }
+
         row.querySelectorAll('input, select').forEach(input => {
             input.addEventListener('input', render);
             input.addEventListener('change', render);
@@ -693,13 +698,16 @@
         }
 
         row.querySelector('.remove-row').addEventListener('click', function () {
-            const deleteInput = row.querySelector('input[name$="-DELETE"]');
             if (deleteInput) {
                 deleteInput.value = 'on';
             }
             row.classList.add('is-removed');
             render();
         });
+    }
+
+    function deleteInputIsChecked(input) {
+        return input && ['1', 'true', 'on', 'yes'].includes(String(input.value || '').toLowerCase());
     }
 
     function setScannerStatus(message, type) {

@@ -2674,6 +2674,49 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 		self.assertEqual(resp.context["formset"].initial_form_count(), 1)
 		self.assertEqual(resp.context["formset"].total_form_count(), 2)
 
+	def test_existing_patro_invalid_delete_keeps_deleted_row_hidden(self):
+		sarze = Sarze.objects.create(
+			datum_zalozeni=date(2026, 6, 5),
+			cislo_pripravku=12,
+			aktivni=True,
+		)
+		krok = SarzeKrok.objects.create(
+			sarze=sarze,
+			poradi=1,
+			datum=date(2026, 6, 5),
+			zarizeni=self.nakladani,
+			zacatek=time(6, 0),
+			konec=time(7, 30),
+			operator="Novak",
+		)
+		SarzeKrokBedna.objects.create(
+			krok=krok,
+			bedna=self.b_eur_pr,
+			patro=1,
+			procent_z_patra=100,
+		)
+
+		resp = self.client.post(
+			reverse("rychle_zalozeni_sarze_patro", args=[krok.pk, 1]),
+			{
+				"polozky-TOTAL_FORMS": "2",
+				"polozky-INITIAL_FORMS": "1",
+				"polozky-MIN_NUM_FORMS": "0",
+				"polozky-MAX_NUM_FORMS": "5",
+				"polozky-0-bedna": str(self.b_eur_pr.pk),
+				"polozky-0-procent_z_patra": "100",
+				"polozky-0-DELETE": "on",
+				"polozky-1-bedna": "",
+				"polozky-1-procent_z_patra": "",
+				"action": "save",
+			},
+		)
+
+		self.assertEqual(resp.status_code, 200)
+		self.assertContains(resp, "Vyplňte alespoň jednu bednu.")
+		self.assertContains(resp, 'class="item-row is-removed"')
+		self.assertTrue(SarzeKrokBedna.objects.filter(krok=krok, patro=1).exists())
+
 	def test_patro_save_redirects_to_batch_summary(self):
 		sarze = Sarze.objects.create(
 			datum_zalozeni=date(2026, 6, 5),
