@@ -210,7 +210,7 @@
                     {% csrf_token %}
                     <input type="hidden"
                            name="next"
-                           value="{% if user.is_staff %}{% url 'admin:login' %}{% else %}{% url 'login' %}{% endif %}">
+                           value="{% url 'login' %}">
                     <button type="submit" class="btn btn-sm app-navbar-button"
                             style="background-color: var(--navbar-button-bg); color: var(--navbar-button-fg); border-color: var(--navbar-button-bg);">
                         Odhlásit se

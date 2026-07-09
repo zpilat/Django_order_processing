@@ -1,11 +1,13 @@
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.contrib.auth.decorators import login_required, permission_required
+from django.contrib.auth import logout as auth_logout
 from django import forms as django_forms
 from django.shortcuts import render, redirect, get_object_or_404
 from django.template.loader import render_to_string
 from django.views.generic import ListView
 from django.views.generic.edit import CreateView, UpdateView, DeleteView
 from django.views.generic.detail import DetailView
+from django.views.decorators.http import require_POST
 from django.urls import reverse, reverse_lazy
 from django.db.models import Q, Max, Sum, Count, F, Exists, OuterRef, Subquery, DecimalField, ExpressionWrapper, Value
 from django.db.models.functions import Coalesce
@@ -62,6 +64,12 @@ def _build_provozni_prehledy_context(user):
     return {
         'db_table': 'home',
     }
+
+
+@require_POST
+def logout_view(request):
+    auth_logout(request)
+    return redirect('login')
 
 
 @login_required

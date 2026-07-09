@@ -1,0 +1,21 @@
+{% extends "orders/base.html" %}
+
+{% block title %}Odhlášení - Správa zakázek HPM HEAT SK{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-12 col-sm-8 col-md-6 col-lg-4">
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <h1 class="h4 mb-3">Odhlášení</h1>
+                    <p>Uživatel byl odhlášen.</p>
+                    <a class="btn btn-primary w-100"
+                       style="background-color: #ffde17; color: #214290; border-color: #ffde17;"
+                       href="{% url 'login' %}">Přihlásit se</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

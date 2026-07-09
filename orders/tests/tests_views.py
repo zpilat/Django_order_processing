@@ -270,7 +270,7 @@ class AuthenticationRoutingTests(TestCase):
 
 		self.assertRedirects(response, reverse("login"), fetch_redirect_response=False)
 
-	def test_logout_redirects_staff_to_admin_login(self):
+	def test_logout_redirects_staff_to_regular_login(self):
 		user = self.User.objects.create_user(
 			username="staff",
 			password="pass1234",
@@ -280,7 +280,20 @@ class AuthenticationRoutingTests(TestCase):
 
 		response = self.client.post(reverse("logout"), {"next": reverse("admin:login")})
 
-		self.assertRedirects(response, reverse("admin:login"), fetch_redirect_response=False)
+		self.assertRedirects(response, reverse("login"), fetch_redirect_response=False)
+
+	def test_admin_logout_offers_regular_login(self):
+		user = self.User.objects.create_user(
+			username="staff-admin-logout",
+			password="pass1234",
+			is_staff=True,
+		)
+		self.client.force_login(user)
+
+		response = self.client.post(reverse("admin:logout"))
+
+		self.assertRedirects(response, reverse("login"), fetch_redirect_response=False)
+		self.assertNotEqual(response.url, reverse("admin:login"))
 
 
 class BednaScanViewTests(ViewsTestBase):
