@@ -244,8 +244,10 @@
     }
 
     function focusFirstBednaField() {
-        const firstSelect = rowsContainer.querySelector('.item-row:not(.is-removed) .js-bedna');
-        focusBednaSelect(firstSelect);
+        const select = rows()
+            .map(row => row.querySelector('.js-bedna'))
+            .find(select => select && !select.value && !select.disabled);
+        focusBednaSelect(select);
     }
 
     function focusNextBednaField(currentSelect) {
@@ -255,7 +257,7 @@
         const nextRows = currentIndex >= 0 ? rowList.slice(currentIndex + 1) : rowList;
         const nextSelect = nextRows
             .map(row => row.querySelector('.js-bedna'))
-            .find(select => select && !select.disabled);
+            .find(select => select && !select.value && !select.disabled);
         focusBednaSelect(nextSelect);
     }
 
