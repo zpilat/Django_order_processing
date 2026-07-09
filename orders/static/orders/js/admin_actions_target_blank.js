@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', function () {
         'tisk_karet_kontroly_kvality_action',
         'tisk_karet_kontroly_kvality_zakazek_action',
         'tisk_karet_kontroly_kvality_kamionu_action',
+        'tisk_karet_bedny_a_kontroly_kamionu_action',
         'tisk_protokolu_kamionu_vydej_action',
         'oznacit_rovna_se_action',
         'tisk_rozpracovanost_action',

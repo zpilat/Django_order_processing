@@ -3212,6 +3212,62 @@ def tisk_karet_beden_kamionu_action(modeladmin, request, queryset):
         modeladmin.message_user(request, "Kamion nemá přiřazeného zákazníka nebo zákazník nemá zkratku.", level=messages.ERROR)
         return None
 
+@admin.action(description="Vytisknout karty bedny + KKK z vybraného kamionu příjem se zakázkami")
+def tisk_karet_bedny_a_kontroly_kamion_action(modeladmin, request, queryset):
+    """
+    Vytvoří PDF, kde má každá bedna z vybraného kamionu svoji kartu a navazující kartu kontroly kvality.
+    Musí být vybrán pouze jeden kamion příjem.
+    Tisknou se pouze karty beden, které nejsou již expedovány.
+    Bedny musí mít zadanou hmotnost, zakázku a předpis.
+    """
+    if queryset.count() != 1:
+        logger.info(f"Uživatel {request.user} se pokusil tisknout kombinované karty beden, ale vybral více než jeden kamion.")
+        modeladmin.message_user(request, "Vyberte pouze jeden kamion.", level=messages.ERROR)
+        return None
+
+    kamion = queryset.first()
+    if kamion.prijem_vydej != KamionChoice.PRIJEM:
+        logger.info(
+            f"Uživatel {request.user} se pokusil tisknout kombinované karty beden kamionu {kamion.cislo_dl}, "
+            "ale není to kamion s příznakem příjem."
+        )
+        modeladmin.message_user(request, "Tisk kombinovaných karet je možný pouze pro kamiony příjem.", level=messages.ERROR)
+        return None
+
+    bedny = Bedna.objects.filter(zakazka__kamion_prijem=kamion).exclude(stav_bedny=StavBednyChoice.EXPEDOVANO)
+
+    if not bedny.exists():
+        logger.info(f"Uživatel {request.user} se pokusil tisknout kombinované karty beden, ale v označeném kamionu nejsou žádné bedny skladem.")
+        modeladmin.message_user(request, "V označeném kamionu nejsou žádné bedny skladem.", level=messages.ERROR)
+        return None
+
+    if _abort_if_bedna_has_not_hmotnost_zakazka_predpis(
+        modeladmin,
+        request,
+        bedny,
+        "Tisk kombinovaných karet z vybraného kamionu příjem se zakázkami",
+    ):
+        return None
+
+    zakaznik_zkratka = kamion.zakaznik.zkratka
+    if zakaznik_zkratka:
+        try:
+            html_paths, filename = resolve_customer_templates(
+                zakaznik_zkratka=zakaznik_zkratka,
+                mode="kombi",
+            )
+        except ServiceValidationError as exc:
+            modeladmin.message_user(request, str(exc), level=messages.ERROR)
+            return None
+        response = utilita_tisk_dokumentace_sablony(modeladmin, request, bedny, html_paths, filename)
+        if response:
+            logger.info(f"Uživatel {request.user} tiskne kombinované karty bedny+KKK pro {bedny.count()} beden z kamionu {kamion}.")
+        return response
+
+    logger.error(f"Kamion {kamion} nemá přiřazeného zákazníka nebo zákazník nemá zkratku.")
+    modeladmin.message_user(request, "Kamion nemá přiřazeného zákazníka nebo zákazník nemá zkratku.", level=messages.ERROR)
+    return None
+
 @admin.action(description="Vytisknout KKK z vybraného kamionu příjem se zakázkami")
 def tisk_karet_kontroly_kvality_kamionu_action(modeladmin, request, queryset):
     """

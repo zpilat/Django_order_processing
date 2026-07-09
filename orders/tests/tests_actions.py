@@ -1160,6 +1160,40 @@ class ActionsTests(ActionsBase):
         resp = actions.tisk_karet_beden_kamionu_action(self.admin, self.get_request(), Kamion.objects.filter(id=self.kamion_prijem.id))
         self.assertIsInstance(resp, HttpResponse)
 
+    @patch('orders.actions.utilita_tisk_dokumentace_sablony')
+    def test_tisk_karet_bedny_a_kontroly_kamion_action(self, mock_util):
+        mock_util.return_value = HttpResponse('ok')
+        expedovana_bedna = Bedna.objects.create(
+            zakazka=self.zakazka,
+            hmotnost=Decimal('1.0'),
+            tara=Decimal('1.0'),
+            mnozstvi=1,
+            stav_bedny=StavBednyChoice.EXPEDOVANO,
+        )
+
+        req = self.get_request()
+        resp = actions.tisk_karet_bedny_a_kontroly_kamion_action(
+            self.admin,
+            req,
+            Kamion.objects.filter(id=self.kamion_prijem.id),
+        )
+
+        self.assertIsInstance(resp, HttpResponse)
+        mock_util.assert_called_once()
+        args = mock_util.call_args.args
+        self.assertEqual(args[0], self.admin)
+        self.assertEqual(args[1], req)
+        self.assertEqual(list(args[2].order_by('id').values_list('id', flat=True)), [self.bedna.id])
+        self.assertNotIn(expedovana_bedna.id, list(args[2].values_list('id', flat=True)))
+        self.assertEqual(
+            args[3],
+            [
+                'orders/karta_bedny/karta_bedny_eur.html',
+                'orders/karta_kontroly_kvality/karta_kontroly_kvality_eur.html',
+            ],
+        )
+        self.assertEqual(args[4], 'karty_bedny_a_kontroly_eur.pdf')
+
     def test_tisk_karet_beden_kamionu_action_wrong_direction_error(self):
         admin_obj = self._messaging_admin()
         req = self.get_request('get')
@@ -1167,6 +1201,14 @@ class ActionsTests(ActionsBase):
         self.assertIsNone(resp)
         msgs = self._messages_texts(req)
         self.assertTrue(any('Tisk karet beden je možný pouze pro kamiony příjem' in m for m in msgs))
+
+    def test_tisk_karet_bedny_a_kontroly_kamion_action_wrong_direction_error(self):
+        admin_obj = self._messaging_admin()
+        req = self.get_request('get')
+        resp = actions.tisk_karet_bedny_a_kontroly_kamion_action(admin_obj, req, Kamion.objects.filter(id=self.kamion_vydej.id))
+        self.assertIsNone(resp)
+        msgs = self._messages_texts(req)
+        self.assertTrue(any('Tisk kombinovaných karet je možný pouze pro kamiony příjem' in m for m in msgs))
 
     def test_tisk_karet_beden_kamionu_action_no_bedny_error(self):
         admin_obj = self._messaging_admin()

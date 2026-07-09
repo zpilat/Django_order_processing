@@ -38,7 +38,7 @@ from .models import (
 )
 from .actions import (
     expedice_zakazek_action, import_kamionu_action, tisk_karet_beden_action, tisk_karet_beden_zakazek_action,
-    tisk_karet_beden_kamionu_action, tisk_dodaciho_listu_kamionu_action, vratit_zakazky_z_expedice_action, expedice_zakazek_kamion_action,
+    tisk_karet_beden_kamionu_action, tisk_karet_bedny_a_kontroly_kamion_action, tisk_dodaciho_listu_kamionu_action, vratit_zakazky_z_expedice_action, expedice_zakazek_kamion_action,
     tisk_karet_kontroly_kvality_action, tisk_karet_kontroly_kvality_zakazek_action, tisk_karet_kontroly_kvality_kamionu_action,
     tisk_karet_bedny_a_kontroly_action, tisk_protokolu_kamionu_vydej_action, tisk_proforma_faktury_kamionu_action,
     oznacit_k_navezeni_action, vratit_bedny_ze_stavu_k_navezeni_do_stavu_prijato_action, oznacit_navezeno_action, oznacit_prijato_do_zakaleno_action,
@@ -985,6 +985,7 @@ class KamionAdmin(SimpleHistoryAdmin):
     actions = [
         import_kamionu_action,
         tisk_karet_beden_kamionu_action,
+        tisk_karet_bedny_a_kontroly_kamion_action,
         tisk_karet_kontroly_kvality_kamionu_action,
         tisk_dodaciho_listu_kamionu_action,
         tisk_proforma_faktury_kamionu_action,
@@ -1375,6 +1376,7 @@ class KamionAdmin(SimpleHistoryAdmin):
         if (request.GET.get('prijem_vydej') == PrijemVydejChoice.PRIJEM_BEZ_ZAKAZEK):
             actions_to_remove = [
                 'tisk_karet_beden_kamionu_action',
+                'tisk_karet_bedny_a_kontroly_kamion_action',
                 'tisk_karet_kontroly_kvality_kamionu_action',
                 'tisk_dodaciho_listu_kamionu_action',
                 'tisk_proforma_faktury_kamionu_action',
@@ -1407,6 +1409,7 @@ class KamionAdmin(SimpleHistoryAdmin):
             actions_to_remove = [
                 'import_kamionu_action',
                 'tisk_karet_beden_kamionu_action',
+                'tisk_karet_bedny_a_kontroly_kamion_action',
                 'tisk_karet_kontroly_kvality_kamionu_action',
                 'tisk_dodaciho_listu_kamionu_action',
                 'tisk_proforma_faktury_kamionu_action',
@@ -1419,6 +1422,7 @@ class KamionAdmin(SimpleHistoryAdmin):
             actions_to_remove = [
                 'import_kamionu_action',
                 'tisk_karet_beden_kamionu_action',
+                'tisk_karet_bedny_a_kontroly_kamion_action',
                 'tisk_karet_kontroly_kvality_kamionu_action',
                 'prijmout_kamion_action',
                 'tisk_prehledu_zakazek_kamionu_action',
@@ -1471,6 +1475,7 @@ class KamionAdmin(SimpleHistoryAdmin):
             'import_kamionu_action': 'Import / Příjem',
             'prijmout_kamion_action': 'Import / Příjem',
             'tisk_karet_beden_kamionu_action': 'Tisk karet',
+            'tisk_karet_bedny_a_kontroly_kamion_action': 'Tisk karet',
             'tisk_karet_kontroly_kvality_kamionu_action': 'Tisk karet',
             'tisk_dodaciho_listu_kamionu_action': 'Tisk dokladů',
             'tisk_proforma_faktury_kamionu_action': 'Tisk dokladů',
