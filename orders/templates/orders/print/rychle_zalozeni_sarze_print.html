@@ -183,7 +183,7 @@
             <td style="font-weight: bold; font-size: 14px;">{% if spolecna_skupina_TZ %}SK {{ spolecna_skupina_TZ }}{% endif %}</td>
             <td style="font-weight: bold; font-size: 14px;">{{ krok.sarze.cislo_pracoviste|default:"" }}</td>
             <td style="font-weight: bold; font-size: 14px;">{{ krok.sarze.cislo_pripravku }}</td>
-            <td style="font-weight: bold; font-size: 14px;">{{ krok.sarze }}</td>
+            <td style="font-weight: bold; font-size: 16px;">{{ krok.sarze }}</td>
             <td></td>
             <td></td>
             <td></td>
@@ -204,9 +204,9 @@
                                     <td style="font-weight: bold; font-size: 14px;">{{ item.procent_z_patra }}%</td>
                                 </tr>
                                 <tr>
-                                    <td><span style="font-weight: bold; font-size: 12px;">{{ item.bedna.zakazka.kamion_prijem.zakaznik.zkratka }} {{ item.bedna.cislo_bedny }}</span>
+                                    <td><span style="font-weight: bold; font-size: 16px;">{{ item.bedna.cislo_bedny }}</span>
                                         <br ><span style="font-size: 12px;">⌀{{item.bedna.zakazka.prumer}}x{{item.bedna.zakazka.delka|floatformat:0 }}</span>
-                                        <br><span style="font-size: 12px;">SK{{ item.bedna.fake_skupina_TZ }}</span></td>
+                                        <br><span style="font-size: 12px;">{{ item.bedna.zakazka.kamion_prijem.zakaznik.zkratka }} - SK{{ item.bedna.fake_skupina_TZ }}</span></td>
                                 </tr>
                                 <tr class="inspection-row">
                                     <td>Ohyb (2ks):<br>
