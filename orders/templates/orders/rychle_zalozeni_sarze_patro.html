@@ -237,21 +237,8 @@
 
         const number = document.createElement('span');
         number.className = 'fw-bold fs-5';
-        number.textContent = option.dataset.cisloBedny || option.text.trim();
+        number.textContent = bednaNumberFromOption(option) || option.text.trim();
         wrapper.appendChild(number);
-        appendBreak(wrapper);
-
-        if (option.dataset.rozmer) {
-            const size = document.createElement('span');
-            size.className = 'fw-bold';
-            size.textContent = option.dataset.rozmer;
-            wrapper.appendChild(size);
-            appendBreak(wrapper);
-        }
-
-        const customer = option.dataset.zakaznikZkratka || '';
-        const group = option.dataset.skupinaTz || '';
-        wrapper.appendChild(document.createTextNode(`${customer} - SK${group}`));
         appendBreak(wrapper);
         wrapper.appendChild(document.createTextNode(`(${percentage} %)`));
 
