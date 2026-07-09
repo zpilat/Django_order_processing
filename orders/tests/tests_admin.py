@@ -880,7 +880,7 @@ class KamionAdminTests(AdminBase):
         actions_filtered = self.admin.get_actions(request)
 
         self.assertIn('tisk_karet_beden_kamionu_action', actions_filtered)
-        self.assertIn('tisk_karet_bedny_a_kontroly_kamion_action', actions_filtered)
+        self.assertIn('tisk_karet_bedny_a_kontroly_kamionu_action', actions_filtered)
         self.assertIn('tisk_karet_kontroly_kvality_kamionu_action', actions_filtered)
         self.assertNotIn('import_kamionu_action', actions_filtered)
 
@@ -897,13 +897,13 @@ class KamionAdminTests(AdminBase):
             with self.subTest(filter_value=filter_value):
                 actions = self.admin.get_actions(self.get_request('get', '/', data))
                 self.assertIn('tisk_karet_beden_kamionu_action', actions)
-                self.assertIn('tisk_karet_bedny_a_kontroly_kamion_action', actions)
+                self.assertIn('tisk_karet_bedny_a_kontroly_kamionu_action', actions)
 
         for filter_value in hidden_filters:
             with self.subTest(filter_value=filter_value):
                 actions = self.admin.get_actions(self.get_request('get', '/', {'prijem_vydej': filter_value}))
                 self.assertNotIn('tisk_karet_beden_kamionu_action', actions)
-                self.assertNotIn('tisk_karet_bedny_a_kontroly_kamion_action', actions)
+                self.assertNotIn('tisk_karet_bedny_a_kontroly_kamionu_action', actions)
 
     def test_get_actions_karta_kontroly_prohybu_visibility_by_kamion_filter(self):
         action_name = 'tisk_karty_kontroly_prohybu_kamionu_action'

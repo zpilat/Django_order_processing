@@ -1161,7 +1161,7 @@ class ActionsTests(ActionsBase):
         self.assertIsInstance(resp, HttpResponse)
 
     @patch('orders.actions.utilita_tisk_dokumentace_sablony')
-    def test_tisk_karet_bedny_a_kontroly_kamion_action(self, mock_util):
+    def test_tisk_karet_bedny_a_kontroly_kamionu_action(self, mock_util):
         mock_util.return_value = HttpResponse('ok')
         expedovana_bedna = Bedna.objects.create(
             zakazka=self.zakazka,
@@ -1172,7 +1172,7 @@ class ActionsTests(ActionsBase):
         )
 
         req = self.get_request()
-        resp = actions.tisk_karet_bedny_a_kontroly_kamion_action(
+        resp = actions.tisk_karet_bedny_a_kontroly_kamionu_action(
             self.admin,
             req,
             Kamion.objects.filter(id=self.kamion_prijem.id),
@@ -1202,10 +1202,10 @@ class ActionsTests(ActionsBase):
         msgs = self._messages_texts(req)
         self.assertTrue(any('Tisk karet beden je možný pouze pro kamiony příjem' in m for m in msgs))
 
-    def test_tisk_karet_bedny_a_kontroly_kamion_action_wrong_direction_error(self):
+    def test_tisk_karet_bedny_a_kontroly_kamionu_action_wrong_direction_error(self):
         admin_obj = self._messaging_admin()
         req = self.get_request('get')
-        resp = actions.tisk_karet_bedny_a_kontroly_kamion_action(admin_obj, req, Kamion.objects.filter(id=self.kamion_vydej.id))
+        resp = actions.tisk_karet_bedny_a_kontroly_kamionu_action(admin_obj, req, Kamion.objects.filter(id=self.kamion_vydej.id))
         self.assertIsNone(resp)
         msgs = self._messages_texts(req)
         self.assertTrue(any('Tisk kombinovaných karet je možný pouze pro kamiony příjem' in m for m in msgs))

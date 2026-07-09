@@ -3213,7 +3213,7 @@ def tisk_karet_beden_kamionu_action(modeladmin, request, queryset):
         return None
 
 @admin.action(description="Vytisknout karty bedny + KKK z vybraného kamionu příjem se zakázkami")
-def tisk_karet_bedny_a_kontroly_kamion_action(modeladmin, request, queryset):
+def tisk_karet_bedny_a_kontroly_kamionu_action(modeladmin, request, queryset):
     """
     Vytvoří PDF, kde má každá bedna z vybraného kamionu svoji kartu a navazující kartu kontroly kvality.
     Musí být vybrán pouze jeden kamion příjem.
