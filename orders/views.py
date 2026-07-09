@@ -961,6 +961,10 @@ def rychle_zalozeni_sarze_patro_view(request, krok_id, patro):
         .select_related('bedna')
         .order_by('pk')
     )
+    max_patro = krok.krok_bedny.aggregate(max_patro=Max('patro'))['max_patro']
+    user_can_delete_patro = request.user.has_perm('orders.delete_sarzekrokbedna_patro')
+    is_last_patro = bool(existing_items) and max_patro == patro
+    can_delete_patro = user_can_delete_patro and is_last_patro
     initial = [
         {
             'bedna': item.bedna_id,
@@ -971,6 +975,26 @@ def rychle_zalozeni_sarze_patro_view(request, krok_id, patro):
     PatroFormSet = get_sarze_krok_patro_formset(is_change=bool(existing_items))
 
     if request.method == 'POST':
+        if request.POST.get('action') == 'delete_floor':
+            if not user_can_delete_patro:
+                raise PermissionDenied
+
+            with transaction.atomic():
+                locked_krok = SarzeKrok.objects.select_for_update().get(pk=krok.pk)
+                current_max_patro = locked_krok.krok_bedny.aggregate(max_patro=Max('patro'))['max_patro']
+                if current_max_patro != patro:
+                    messages.error(request, 'Smazat lze pouze poslední patro kroku šarže.')
+                    return redirect('rychle_zalozeni_sarze_patro', krok_id=krok.pk, patro=patro)
+
+                deleted_count, _ = locked_krok.krok_bedny.filter(patro=patro).delete()
+
+            messages.success(request, f'{patro}. patro bylo smazáno.')
+            logger.info(
+                f"Uživatel {request.user} smazal {patro}. patro kroku {krok.pk} šarže {krok.sarze} "
+                f"(smazáno položek {deleted_count})."
+            )
+            return redirect('rychle_zalozeni_sarze_prehled', krok_id=krok.pk)
+
         if request.POST.get('action') == 'finish':
             return redirect('rychle_zalozeni_sarze_prehled', krok_id=krok.pk)
 
@@ -1019,6 +1043,10 @@ def rychle_zalozeni_sarze_patro_view(request, krok_id, patro):
             'formset': formset,
             'krok': krok,
             'patro': patro,
+            'show_delete_patro_button': user_can_delete_patro and bool(existing_items),
+            'can_delete_patro': can_delete_patro,
+            'is_last_patro': is_last_patro,
+            'max_patro': max_patro,
             'db_table': 'rychle_zalozeni_sarze',
         },
     )

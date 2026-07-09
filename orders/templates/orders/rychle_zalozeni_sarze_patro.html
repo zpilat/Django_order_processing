@@ -87,7 +87,17 @@
             </table>
         </div>
 
-        <button type="button" id="add-row" class="btn btn-sm btn-outline-primary mb-4">Přidat řádek</button>
+        <div class="d-flex justify-content-between align-items-start gap-2 mb-4">
+            <button type="button" id="add-row" class="btn btn-sm btn-outline-primary">Přidat řádek</button>
+            {% if show_delete_patro_button %}
+                <button type="submit"
+                        data-action="delete_floor"
+                        class="btn btn-sm btn-outline-danger"
+                        {% if not can_delete_patro %}disabled title="Smazat lze pouze poslední patro kroku šarže."{% endif %}>
+                    {% if can_delete_patro %}Smazat patro{% else %}Smazat lze pouze poslední patro!{% endif %}
+                </button>
+            {% endif %}
+        </div>
 
         <section class="mb-4" aria-labelledby="rack-heading">
             <div class="mb-2">
@@ -859,7 +869,13 @@
         });
     });
 
-    form.addEventListener('submit', function () {
+    form.addEventListener('submit', function (event) {
+        if (document.getElementById('form-action').value === 'delete_floor'
+            && !window.confirm('Opravdu smazat celé patro?')) {
+            event.preventDefault();
+            return;
+        }
+
         form.querySelectorAll('button[type="submit"]').forEach(button => {
             button.disabled = true;
         });

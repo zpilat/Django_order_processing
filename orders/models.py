@@ -1736,6 +1736,9 @@ class SarzeKrokBedna(models.Model):
         verbose_name = 'Bedna v kroku šarže'
         verbose_name_plural = 'deník'
         ordering = ['krok_id', 'patro', 'pk']
+        permissions = (
+            ('delete_sarzekrokbedna_patro', 'Může smazat celé patro v kroku šarže'),
+        )
         constraints = [
             models.CheckConstraint(
                 check=Q(procent_z_patra__isnull=True) | Q(procent_z_patra__gte=0, procent_z_patra__lte=100),

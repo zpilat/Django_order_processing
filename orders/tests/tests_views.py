@@ -1893,6 +1893,10 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			),
 			Permission.objects.get(
 				content_type__app_label="orders",
+				codename="delete_sarzekrokbedna_patro",
+			),
+			Permission.objects.get(
+				content_type__app_label="orders",
 				codename="change_sarze",
 			),
 			Permission.objects.get(
@@ -2715,6 +2719,111 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 		self.assertEqual(resp.status_code, 200)
 		self.assertContains(resp, "Vyplňte alespoň jednu bednu.")
 		self.assertContains(resp, 'class="item-row is-removed"')
+		self.assertTrue(SarzeKrokBedna.objects.filter(krok=krok, patro=1).exists())
+
+	def test_delete_patro_deletes_last_floor(self):
+		sarze = Sarze.objects.create(
+			datum_zalozeni=date(2026, 6, 5),
+			cislo_pripravku=12,
+			aktivni=True,
+		)
+		krok = SarzeKrok.objects.create(
+			sarze=sarze,
+			poradi=1,
+			datum=date(2026, 6, 5),
+			zarizeni=self.nakladani,
+			zacatek=time(6, 0),
+			konec=time(7, 30),
+			operator="Novak",
+		)
+		other_bedna = Bedna.objects.create(
+			zakazka=self.zak_abc,
+			stav_bedny=StavBednyChoice.PRIJATO,
+			hmotnost=3,
+			tara=1,
+			mnozstvi=1,
+			tryskat=TryskaniChoice.NEZADANO,
+			rovnat=RovnaniChoice.NEZADANO,
+		)
+		SarzeKrokBedna.objects.create(krok=krok, bedna=self.b_eur_pr, patro=1, procent_z_patra=100)
+		SarzeKrokBedna.objects.create(krok=krok, bedna=other_bedna, patro=2, procent_z_patra=100)
+
+		resp = self.client.post(
+			reverse("rychle_zalozeni_sarze_patro", args=[krok.pk, 2]),
+			{"action": "delete_floor"},
+		)
+
+		self.assertEqual(resp.status_code, 302)
+		self.assertEqual(resp["Location"], reverse("rychle_zalozeni_sarze_prehled", args=[krok.pk]))
+		self.assertTrue(SarzeKrokBedna.objects.filter(krok=krok, patro=1).exists())
+		self.assertFalse(SarzeKrokBedna.objects.filter(krok=krok, patro=2).exists())
+
+	def test_delete_patro_rejects_non_last_floor(self):
+		sarze = Sarze.objects.create(
+			datum_zalozeni=date(2026, 6, 5),
+			cislo_pripravku=12,
+			aktivni=True,
+		)
+		krok = SarzeKrok.objects.create(
+			sarze=sarze,
+			poradi=1,
+			datum=date(2026, 6, 5),
+			zarizeni=self.nakladani,
+			zacatek=time(6, 0),
+			konec=time(7, 30),
+			operator="Novak",
+		)
+		other_bedna = Bedna.objects.create(
+			zakazka=self.zak_abc,
+			stav_bedny=StavBednyChoice.PRIJATO,
+			hmotnost=3,
+			tara=1,
+			mnozstvi=1,
+			tryskat=TryskaniChoice.NEZADANO,
+			rovnat=RovnaniChoice.NEZADANO,
+		)
+		SarzeKrokBedna.objects.create(krok=krok, bedna=self.b_eur_pr, patro=1, procent_z_patra=100)
+		SarzeKrokBedna.objects.create(krok=krok, bedna=other_bedna, patro=2, procent_z_patra=100)
+
+		resp = self.client.post(
+			reverse("rychle_zalozeni_sarze_patro", args=[krok.pk, 1]),
+			{"action": "delete_floor"},
+		)
+
+		self.assertEqual(resp.status_code, 302)
+		self.assertEqual(resp["Location"], reverse("rychle_zalozeni_sarze_patro", args=[krok.pk, 1]))
+		self.assertTrue(SarzeKrokBedna.objects.filter(krok=krok, patro=1).exists())
+		self.assertTrue(SarzeKrokBedna.objects.filter(krok=krok, patro=2).exists())
+
+	def test_delete_patro_requires_permission(self):
+		self.user.user_permissions.remove(
+			Permission.objects.get(
+				content_type__app_label="orders",
+				codename="delete_sarzekrokbedna_patro",
+			)
+		)
+		sarze = Sarze.objects.create(
+			datum_zalozeni=date(2026, 6, 5),
+			cislo_pripravku=12,
+			aktivni=True,
+		)
+		krok = SarzeKrok.objects.create(
+			sarze=sarze,
+			poradi=1,
+			datum=date(2026, 6, 5),
+			zarizeni=self.nakladani,
+			zacatek=time(6, 0),
+			konec=time(7, 30),
+			operator="Novak",
+		)
+		SarzeKrokBedna.objects.create(krok=krok, bedna=self.b_eur_pr, patro=1, procent_z_patra=100)
+
+		resp = self.client.post(
+			reverse("rychle_zalozeni_sarze_patro", args=[krok.pk, 1]),
+			{"action": "delete_floor"},
+		)
+
+		self.assertEqual(resp.status_code, 403)
 		self.assertTrue(SarzeKrokBedna.objects.filter(krok=krok, patro=1).exists())
 
 	def test_patro_save_redirects_to_batch_summary(self):
