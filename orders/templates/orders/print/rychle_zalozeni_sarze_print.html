@@ -147,100 +147,132 @@
         .rack-segment-last {
             border-right: 0;
         }
+
+        .print-layout {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .print-layout > thead {
+            display: table-header-group;
+        }
+
+        .print-layout > tbody {
+            display: table-row-group;
+        }
+
+        .print-layout > thead > tr > td,
+        .print-layout > tbody > tr > td {
+            padding: 0;
+            border: 0;
+        }
     </style>
 </head>
 <body>
-    <table class="guide-header">
-        <tr>
-            <td>KW2 <span class="checkbox"></span></td>
-            <td>KW1 <span class="checkbox"></span></td>
-            <td>Předohřev <span class="checkbox"></span></td>
-            <td class="guide-title">
-                <div class="guide-title-text">PRŮVODKA VRUTY</div>
-                <div class="sarze-barcode">{% sarze_code128_svg krok.sarze %}</div>
-            </td>
-            <td>Otryskané <span class="checkbox"></span></td>
-        </tr>
-    </table>
+    <table class="print-layout">
+        <thead>
+            <tr>
+                <td>
+                    <table class="guide-header">
+                        <tr>
+                            <td>KW2 <span class="checkbox"></span></td>
+                            <td>KW1 <span class="checkbox"></span></td>
+                            <td>Předohřev <span class="checkbox"></span></td>
+                            <td class="guide-title">
+                                <div class="guide-title-text">PRŮVODKA VRUTY</div>
+                                <div class="sarze-barcode">{% sarze_code128_svg krok.sarze %}</div>
+                            </td>
+                            <td>Otryskané <span class="checkbox"></span></td>
+                        </tr>
+                    </table>
 
-    <table class="guide-details">
-        <tr>
-            <td>naložil</td>
-            <td>vyp. + vyf.</td>
-            <td>odfo. + vyf.</td>
-            <td>skupina</td>
-            <td>č. prac.</td>
-            <td>č. přípravku</td>
-            <td>č. šarže</td>
-            <td>vypral + vyf.</td>
-            <td>popouštění</td>
-            <td>změřil</td>
-        </tr>
-        <tr>
-            <td></td>
-            <td></td>
-            <td></td>
-            <td style="font-weight: bold; font-size: 14px;">{% if spolecna_skupina_TZ %}SK {{ spolecna_skupina_TZ }}{% endif %}</td>
-            <td style="font-weight: bold; font-size: 14px;">{{ krok.sarze.cislo_pracoviste|default:"" }}</td>
-            <td style="font-weight: bold; font-size: 14px;">{{ krok.sarze.cislo_pripravku }}</td>
-            <td style="font-weight: bold; font-size: 16px;">{{ krok.sarze }}</td>
-            <td></td>
-            <td></td>
-            <td></td>
-        </tr>
-    </table>
-
-    {% regroup items by patro as patra %}
-    {% for floor in patra %}
-        <section class="floor">
-            <h2>{{ floor.grouper }}. patro</h2>
-            <div class="rack-preview">
-                {% for item in floor.list %}
-                    <div class="rack-segment{% if forloop.last %} rack-segment-last{% endif %}"
-                         style="width: {{ item.procent_z_patra }}%;">
-                        {% if item.bedna %}
-                            <table class="rack-item-details">
-                                <tr>
-                                    <td style="font-weight: bold; font-size: 14px;">{{ item.procent_z_patra }}%</td>
-                                </tr>
-                                <tr>
-                                    <td><span style="font-weight: bold; font-size: 16px;">{{ item.bedna.cislo_bedny }}</span>
-                                        <br ><span style="font-size: 12px;">⌀{{item.bedna.zakazka.prumer}}x{{item.bedna.zakazka.delka|floatformat:0 }}</span>
-                                        <br><span style="font-size: 12px;">{{ item.bedna.zakazka.kamion_prijem.zakaznik.zkratka }} - SK{{ item.bedna.fake_skupina_TZ }}</span></td>
-                                </tr>
-                                <tr class="inspection-row">
-                                    <td>Ohyb (2ks):<br>
-                                        <span style="font-weight: bold; font-size: 14px;">{{ item.bedna.zakazka.predpis.ohyb }}</span>
-                                </td>
-                                </tr>
-                                <tr class="inspection-row">
-                                    <td>Krut (2ks):<br>
-                                        <span style="font-weight: bold; font-size: 14px;">{{ item.bedna.zakazka.predpis.krut }}</span>
-                                    </td>
-                                </tr>
-                                <tr class="inspection-row">
-                                    <td>Popouštění (šarže):<br>
-                                        <span style="font-weight: bold; font-size: 14px;">{{ item.krok.sarze }} -&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
-                                    </td>
-                                </tr>
-                                <tr class="inspection-row">
-                                    <td style="font-size: 14px;">OK&nbsp;&nbsp;/&nbsp;&nbsp;NOK</td>
-                                </tr>
-                                <tr class="inspection-row">
-                                    <td style="text-align: left; vertical-align: top;">Poznámka:</td>
-                                </tr>
-                            </table>
-                        {% else %}
-                            <div>
-                                Průvodka se tiskne pouze pro vruty, tato položka je mimo databázi!
+                    <table class="guide-details">
+                        <tr>
+                            <td>naložil</td>
+                            <td>vyp. + vyf.</td>
+                            <td>odfo. + vyf.</td>
+                            <td>skupina</td>
+                            <td>č. prac.</td>
+                            <td>č. přípravku</td>
+                            <td>č. šarže</td>
+                            <td>vypral + vyf.</td>
+                            <td>popouštění</td>
+                            <td>změřil</td>
+                        </tr>
+                        <tr>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td style="font-weight: bold; font-size: 14px;">{% if spolecna_skupina_TZ %}SK {{ spolecna_skupina_TZ }}{% endif %}</td>
+                            <td style="font-weight: bold; font-size: 14px;">{{ krok.sarze.cislo_pracoviste|default:"" }}</td>
+                            <td style="font-weight: bold; font-size: 14px;">{{ krok.sarze.cislo_pripravku }}</td>
+                            <td style="font-weight: bold; font-size: 16px;">{{ krok.sarze }}</td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>
+                    {% regroup items by patro as patra %}
+                    {% for floor in patra %}
+                        <section class="floor">
+                            <h2>{{ floor.grouper }}. patro</h2>
+                            <div class="rack-preview">
+                                {% for item in floor.list %}
+                                    <div class="rack-segment{% if forloop.last %} rack-segment-last{% endif %}"
+                                         style="width: {{ item.procent_z_patra }}%;">
+                                        {% if item.bedna %}
+                                            <table class="rack-item-details">
+                                                <tr>
+                                                    <td style="font-weight: bold; font-size: 14px;">{{ item.procent_z_patra }}%</td>
+                                                </tr>
+                                                <tr>
+                                                    <td><span style="font-weight: bold; font-size: 16px;">{{ item.bedna.cislo_bedny }}</span>
+                                                        <br ><span style="font-size: 12px;">⌀{{item.bedna.zakazka.prumer}}x{{item.bedna.zakazka.delka|floatformat:0 }}</span>
+                                                        <br><span style="font-size: 12px;">{{ item.bedna.zakazka.kamion_prijem.zakaznik.zkratka }} - SK{{ item.bedna.fake_skupina_TZ }}</span></td>
+                                                </tr>
+                                                <tr class="inspection-row">
+                                                    <td>Ohyb (2ks):<br>
+                                                        <span style="font-weight: bold; font-size: 14px;">{{ item.bedna.zakazka.predpis.ohyb }}</span>
+                                                </td>
+                                                </tr>
+                                                <tr class="inspection-row">
+                                                    <td>Krut (2ks):<br>
+                                                        <span style="font-weight: bold; font-size: 14px;">{{ item.bedna.zakazka.predpis.krut }}</span>
+                                                    </td>
+                                                </tr>
+                                                <tr class="inspection-row">
+                                                    <td>Popouštění (šarže):<br>
+                                                        <span style="font-weight: bold; font-size: 14px;">{{ item.krok.sarze }} -&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+                                                    </td>
+                                                </tr>
+                                                <tr class="inspection-row">
+                                                    <td style="font-size: 14px;">OK&nbsp;&nbsp;/&nbsp;&nbsp;NOK</td>
+                                                </tr>
+                                                <tr class="inspection-row">
+                                                    <td style="text-align: left; vertical-align: top;">Poznámka:</td>
+                                                </tr>
+                                            </table>
+                                        {% else %}
+                                            <div>
+                                                Průvodka se tiskne pouze pro vruty, tato položka je mimo databázi!
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                {% endfor %}
                             </div>
-                        {% endif %}
-                    </div>
-                {% endfor %}
-            </div>
-        </section>
-    {% empty %}
-        <p>Pro tento krok zatím nejsou uložené žádné položky.</p>
-    {% endfor %}
+                        </section>
+                    {% empty %}
+                        <p>Pro tento krok zatím nejsou uložené žádné položky.</p>
+                    {% endfor %}
+                </td>
+            </tr>
+        </tbody>
+    </table>
 </body>
 </html>
