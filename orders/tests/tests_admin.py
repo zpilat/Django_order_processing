@@ -2086,6 +2086,46 @@ class SarzeKrokBednaInlineAdminTests(AdminBase):
         self.assertIn(str(skladem_bedna.pk), returned_ids)
         self.assertNotIn(str(ne_skladem_bedna.pk), returned_ids)
 
+    def test_sarze_inline_bedna_autocomplete_returns_no_results_for_short_term(self):
+        self.client.force_login(self.user)
+
+        zakaznik = Zakaznik.objects.create(
+            nazev='ShortAutoSearch',
+            zkraceny_nazev='SAS',
+            zkratka='XYZ',
+            ciselna_rada=210000,
+        )
+        kamion = Kamion.objects.create(zakaznik=zakaznik, datum=date.today())
+        zakazka = Zakazka.objects.create(
+            kamion_prijem=kamion,
+            artikl='EMPTY-AUTO',
+            prumer=Decimal('10.0'),
+            delka=Decimal('20.0'),
+            predpis=self.predpis,
+            typ_hlavy=self.typ_hlavy,
+            popis='short autocomplete',
+        )
+        Bedna.objects.create(
+            zakazka=zakazka,
+            hmotnost=Decimal('1.0'),
+            tara=Decimal('1.0'),
+            mnozstvi=1,
+            stav_bedny=StavBednyChoice.PRIJATO,
+        )
+
+        response = self.client.get(
+            reverse('admin:autocomplete'),
+            {
+                'app_label': 'orders',
+                'model_name': 'sarzekrokbedna',
+                'field_name': 'bedna',
+                'term': 'XYZ',
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json().get('results'), [])
+
     def test_sarze_inline_formset_rejects_bedna_outside_skladem_states(self):
         request = self.factory.get('/admin/orders/sarzekrok/')
         request.user = self.user

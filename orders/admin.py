@@ -1,4 +1,4 @@
-from django.contrib import admin, messages
+﻿from django.contrib import admin, messages
 from django.contrib.auth.models import Permission
 from django.db import models, transaction
 from django.db.models import Case, When, Value, IntegerField, Prefetch, Exists, OuterRef, Q, F, Subquery
@@ -2837,7 +2837,12 @@ class BednaAdmin(SimpleHistoryAdmin):
             and request.GET.get('field_name') == 'bedna'
         )
 
+        # Pokud je vyvoláno inline autocomplete pro šarže, filtruje queryset podle stavu bedny.
+        # Pokud je search_term kratší než 4 znaky, vrátí prázdný queryset,
+        # aby omylem nezadal první nabídnutou bednu.
         if is_sarze_inline_autocomplete:
+            if len(search_term.strip()) < 4:
+                return queryset.none(), use_distinct
             queryset = queryset.filter(stav_bedny__in=STAV_BEDNY_SKLADEM)
 
         return queryset, use_distinct
