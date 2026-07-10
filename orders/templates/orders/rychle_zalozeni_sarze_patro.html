@@ -87,8 +87,7 @@
             </table>
         </div>
 
-        <div class="d-flex justify-content-between align-items-start gap-2 mb-4">
-            <button type="button" id="add-row" class="btn btn-sm btn-outline-primary">Přidat řádek</button>
+        <div class="d-flex justify-content-end align-items-start gap-2 mb-4">
             {% if show_delete_patro_button %}
                 <button type="submit"
                         data-action="delete_floor"
@@ -712,8 +711,27 @@
                 deleteInput.value = 'on';
             }
             row.classList.add('is-removed');
+            appendEmptyRow();
             render();
         });
+    }
+
+    function visibleRows() {
+        return rowsContainer.querySelectorAll('.item-row:not(.is-removed)').length;
+    }
+
+    function appendEmptyRow(focusNewRow = true) {
+        if (visibleRows() >= maxItems) {
+            return;
+        }
+        const index = Number.parseInt(totalForms.value, 10);
+        const html = template.innerHTML.replaceAll('__prefix__', index);
+        rowsContainer.insertAdjacentHTML('beforeend', html);
+        totalForms.value = index + 1;
+        bindRow(rowsContainer.lastElementChild);
+        if (focusNewRow) {
+            focusBednaSelect(rowsContainer.lastElementChild.querySelector('.js-bedna'));
+        }
     }
 
     function deleteInputIsChecked(input) {
@@ -846,22 +864,9 @@
     }
 
     rowsContainer.querySelectorAll('.item-row').forEach(bindRow);
-
-    document.getElementById('add-row').addEventListener('click', function () {
-        const index = Number.parseInt(totalForms.value, 10);
-        if (activeRows().length >= maxItems) {
-            warning.textContent = `Jedno patro může obsahovat nejvýše ${maxItems} řádků.`;
-            warning.classList.remove('d-none');
-            return;
-        }
-
-        const html = template.innerHTML.replaceAll('__prefix__', index);
-        rowsContainer.insertAdjacentHTML('beforeend', html);
-        totalForms.value = index + 1;
-        bindRow(rowsContainer.lastElementChild);
-        render();
-        focusBednaSelect(rowsContainer.lastElementChild.querySelector('.js-bedna'));
-    });
+    while (visibleRows() < maxItems) {
+        appendEmptyRow(false);
+    }
 
     form.querySelectorAll('button[type="submit"]').forEach(button => {
         button.addEventListener('click', function () {

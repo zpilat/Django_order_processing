@@ -67,13 +67,15 @@
                                 <div class="invalid-feedback d-block">{{ error }}</div>
                             {% endfor %}
                         </div>
-                        <div class="col-6 col-md-4">
-                            <label class="form-label" for="{{ form.konec.id_for_label }}">{{ form.konec.label }}</label>
-                            {{ form.konec }}
-                            {% for error in form.konec.errors %}
-                                <div class="invalid-feedback d-block">{{ error }}</div>
-                            {% endfor %}
-                        </div>
+                        {% if form.konec %}
+                            <div class="col-6 col-md-4">
+                                <label class="form-label" for="{{ form.konec.id_for_label }}">{{ form.konec.label }}</label>
+                                {{ form.konec }}
+                                {% for error in form.konec.errors %}
+                                    <div class="invalid-feedback d-block">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
                         <div class="col-12 col-md-6">
                             <label class="form-label" for="{{ form.operator.id_for_label }}">{{ form.operator.label }}</label>
                             {{ form.operator }}

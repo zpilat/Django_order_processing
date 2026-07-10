@@ -66,6 +66,117 @@ def _build_provozni_prehledy_context(user):
     }
 
 
+def _otevreny_krok_pracoviste(cislo_pracoviste):
+    """
+    Vrátí otevřený krok šarže pro dané pracoviště, pokud existuje.
+    """
+    return (
+        SarzeKrok.objects
+        .filter(
+            sarze__isnull=False,
+            sarze__cislo_pracoviste=cislo_pracoviste,
+            zarizeni__typ_zarizeni=TypZarizeniChoice.NAKLADANI,
+            konec__isnull=True,
+        )
+        .order_by('-pk')
+        .first()
+    )
+
+
+def _cislo_pracoviste_z_query(request):
+    try:
+        cislo_pracoviste = int(request.GET.get('cislo_pracoviste'))
+    except (TypeError, ValueError):
+        return None
+
+    if cislo_pracoviste < 1 or cislo_pracoviste > 6:
+        return None
+    return cislo_pracoviste
+
+
+def _redirect_invalid_rychle_zalozeni(request, message):
+    messages.error(request, message)
+    return redirect('provozni_prehledy')
+
+
+def _redirect_invalid_rychle_zalozeni_patro(request, krok, message):
+    messages.error(request, message)
+    return redirect('rychle_zalozeni_sarze_prehled', krok_id=krok.pk)
+
+
+def _redirect_invalid_rychle_zalozeni_krok(request, krok, message, target):
+    if target == 'prehled':
+        return _redirect_invalid_rychle_zalozeni_patro(request, krok, message)
+    return _redirect_invalid_rychle_zalozeni(request, message)
+
+
+def _validate_rychle_zalozeni_krok(request, krok, action_label, invalid_target):
+
+    cislo_pracoviste = krok.sarze.cislo_pracoviste
+    if cislo_pracoviste is None or cislo_pracoviste < 1 or cislo_pracoviste > 6:
+        logger.warning(
+            f"Uživatel {request.user} se pokusil {action_label} šarže {krok.sarze} "
+            f"pro neplatné pracoviště {cislo_pracoviste}."
+        )
+        return _redirect_invalid_rychle_zalozeni_krok(
+            request,
+            krok,
+            'Číslo pracoviště musí být v rozsahu 1 až 6.',
+            invalid_target,
+        )
+
+    if krok.zarizeni.typ_zarizeni != TypZarizeniChoice.NAKLADANI:
+        logger.warning(
+            f"Uživatel {request.user} se pokusil {action_label} šarže {krok.sarze} "
+            f"pro krok ID {krok.pk}, který není pro pracoviště Nakládání."
+        )
+        return _redirect_invalid_rychle_zalozeni_krok(
+            request,
+            krok,
+            'Neplatný krok pro pracoviště Nakládání.',
+            invalid_target,
+        )
+
+    if _otevreny_krok_pracoviste(cislo_pracoviste) != krok:
+        logger.warning(
+            f"Uživatel {request.user} se pokusil {action_label} šarže {krok.sarze} "
+            f"pro krok ID {krok.pk}, který není otevřený pro pracoviště Nakládání."
+        )
+        return _redirect_invalid_rychle_zalozeni_krok(
+            request,
+            krok,
+            'Krok pro dané pracoviště není otevřený.',
+            invalid_target,
+        )
+
+    return None
+
+
+def _validate_rychle_zalozeni_krok_base(request, krok, action_label):
+    cislo_pracoviste = krok.sarze.cislo_pracoviste
+    if cislo_pracoviste is None or cislo_pracoviste < 1 or cislo_pracoviste > 6:
+        logger.warning(
+            f"Uživatel {request.user} se pokusil {action_label} šarže {krok.sarze} "
+            f"pro neplatné pracoviště {cislo_pracoviste}."
+        )
+        return _redirect_invalid_rychle_zalozeni(
+            request,
+            'Číslo pracoviště musí být v rozsahu 1 až 6.',
+        )
+
+    if krok.zarizeni.typ_zarizeni != TypZarizeniChoice.NAKLADANI:
+        logger.warning(
+            f"Uživatel {request.user} se pokusil {action_label} šarže {krok.sarze} "
+            f"pro krok ID {krok.pk}, který není pro pracoviště Nakládání."
+        )
+        return _redirect_invalid_rychle_zalozeni(
+            request,
+            'Neplatný krok pro pracoviště Nakládání.',
+        )
+
+    return None
+
+
 @require_POST
 def logout_view(request):
     auth_logout(request)
@@ -875,9 +986,18 @@ def rychle_zalozeni_sarze_view(request):
     Zobrazuje stránku pro rychlé založení šarže a jejího prvního kroku.
     """
     cancel_url = _safe_return_url(request, reverse('provozni_prehledy'))
+    cislo_pracoviste = _cislo_pracoviste_z_query(request)
+    if cislo_pracoviste is None:
+        return _redirect_invalid_rychle_zalozeni(
+            request,
+            'Rychlé založení šarže spusťte přes konkrétní pracoviště.',
+        )
 
     if request.method == 'POST':
-        form = RychleZalozeniSarzeForm(request.POST)
+        form = RychleZalozeniSarzeForm(
+            request.POST,
+            locked_cislo_pracoviste=cislo_pracoviste,
+        )
         if form.is_valid():
             sarze, krok = form.save()
             messages.success(request, f'Šarže {sarze} a první krok byly uloženy.')
@@ -888,12 +1008,11 @@ def rychle_zalozeni_sarze_view(request):
     else:
         initial = {
             'operator': request.user.get_full_name() or request.user.username,
+            'cislo_pracoviste': cislo_pracoviste,
         }
-        cislo_pracoviste = request.GET.get('cislo_pracoviste')
-        if cislo_pracoviste in {'1', '2', '3', '4', '5', '6'}:
-            initial['cislo_pracoviste'] = int(cislo_pracoviste)
         form = RychleZalozeniSarzeForm(
             initial=initial,
+            locked_cislo_pracoviste=cislo_pracoviste,
         )
 
     return render(
@@ -918,19 +1037,12 @@ def rychle_zalozeni_sarze_pracoviste_prehled_view(request, cislo_pracoviste):
     pokud ještě žádná šarže na daném pracovišti není otevřená nebo do přehledu aktuálně nakládané šarže.
     """
     if cislo_pracoviste < 1 or cislo_pracoviste > 6:
-        return HttpResponseBadRequest('Číslo pracoviště musí být v rozsahu 1 až 6.')
-
-    otevreny_krok = (
-        SarzeKrok.objects
-        .filter(
-            sarze__isnull=False,
-            sarze__cislo_pracoviste=cislo_pracoviste,
-            zarizeni__typ_zarizeni=TypZarizeniChoice.NAKLADANI,
-            konec__isnull=True,
+        return _redirect_invalid_rychle_zalozeni(
+            request,
+            'Neplatné číslo pracoviště.',
         )
-        .order_by('-pk')
-        .first()
-    )
+
+    otevreny_krok = _otevreny_krok_pracoviste(cislo_pracoviste)
     
     if otevreny_krok is None:
         return redirect(f"{reverse('rychle_zalozeni_sarze')}?cislo_pracoviste={cislo_pracoviste}")
@@ -947,13 +1059,28 @@ def rychle_zalozeni_sarze_pracoviste_prehled_view(request, cislo_pracoviste):
 def rychle_zalozeni_sarze_patro_view(request, krok_id, patro):
     """
     Zobrazuje stránku pro rychlé založení nebo úpravu patra šarže.
+    Kontroluje, jestli je daný krok pro pracoviště Nakládání a
+    jestli je pro daný krok šarže otevřené pracoviště nakládání.
     """
     krok = get_object_or_404(
         SarzeKrok.objects.select_related('sarze', 'zarizeni'),
         pk=krok_id,
     )
-    if patro < 1:
-        return HttpResponseBadRequest('Číslo patra musí být větší než nula.')
+
+    invalid_krok_response = _validate_rychle_zalozeni_krok(request, krok, 'upravit patro', 'prehled')
+    if invalid_krok_response is not None:
+        return invalid_krok_response
+    
+    if patro < 1 or patro > 6:
+        logger.warning(
+            f"Uživatel {request.user} se pokusil upravit patro šarže {krok.sarze} "
+            f"na neplatné číslo patra {patro}."
+        )
+        return _redirect_invalid_rychle_zalozeni_patro(
+            request,
+            krok,
+            'Číslo patra musí být mezi 1 a 6.',
+        )
 
     existing_items = list(
         krok.krok_bedny
@@ -972,7 +1099,9 @@ def rychle_zalozeni_sarze_patro_view(request, krok_id, patro):
         }
         for item in existing_items
     ]
-    PatroFormSet = get_sarze_krok_patro_formset(is_change=bool(existing_items))
+    visible_rows = 5
+    extra_rows = max(visible_rows - len(initial), 0)
+    PatroFormSet = get_sarze_krok_patro_formset(extra=extra_rows)
 
     if request.method == 'POST':
         if request.POST.get('action') == 'delete_floor':
@@ -1063,6 +1192,10 @@ def rychle_zalozeni_sarze_prehled_view(request, krok_id):
         SarzeKrok.objects.select_related('sarze', 'zarizeni'),
         pk=krok_id,
     )
+    invalid_krok_response = _validate_rychle_zalozeni_krok(request, krok, 'zobrazit přehled', 'provozni')
+    if invalid_krok_response is not None:
+        return invalid_krok_response
+
     items = (
         krok.krok_bedny
         .select_related('bedna')
@@ -1099,6 +1232,10 @@ def rychle_zalozeni_sarze_tisk_view(request, krok_id):
         SarzeKrok.objects.select_related('sarze', 'zarizeni'),
         pk=krok_id,
     )
+    invalid_krok_response = _validate_rychle_zalozeni_krok(request, krok, 'vytisknout průvodku', 'provozni')
+    if invalid_krok_response is not None:
+        return invalid_krok_response
+
     items = (
         krok.krok_bedny
         .select_related('bedna', 'bedna__zakazka', 'bedna__zakazka__predpis')
@@ -1142,10 +1279,14 @@ def rychle_zalozeni_sarze_upravit_view(request, krok_id):
     Zobrazuje stránku pro rychlé založení nebo úpravu patra šarže.
     """
     krok = get_object_or_404(
-        SarzeKrok.objects.select_related('sarze'),
+        SarzeKrok.objects.select_related('sarze', 'zarizeni'),
         pk=krok_id,
         poradi=1,
     )
+    invalid_krok_response = _validate_rychle_zalozeni_krok_base(request, krok, 'upravit krok')
+    if invalid_krok_response is not None:
+        return invalid_krok_response
+
     sarze = krok.sarze
     fallback_cancel_url = reverse('rychle_zalozeni_sarze_prehled', args=[krok.pk])
     cancel_url = _safe_return_url(request, fallback_cancel_url)
@@ -1157,6 +1298,8 @@ def rychle_zalozeni_sarze_upravit_view(request, krok_id):
             logger.info(
                 f"Uživatel {request.user} upravil šarži {sarze} a její první krok {krok.pk}."
             )
+            if krok.konec is not None:
+                return redirect('provozni_prehledy')
             return redirect('rychle_zalozeni_sarze_prehled', krok_id=krok.pk)
     else:
         form = RychleZalozeniSarzeForm(sarze=sarze, krok=krok)

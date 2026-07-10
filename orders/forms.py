@@ -539,7 +539,7 @@ class RychleZalozeniSarzeForm(forms.Form):
         widget=forms.TextInput(attrs={'class': 'form-control'}),
     )
 
-    def __init__(self, *args, sarze=None, krok=None, **kwargs):
+    def __init__(self, *args, sarze=None, krok=None, locked_cislo_pracoviste=None, **kwargs):
         if (sarze is None) != (krok is None):
             raise ValueError('Pro úpravu musí být předána šarže i krok.')
         if krok is not None and krok.sarze_id != sarze.pk:
@@ -547,6 +547,7 @@ class RychleZalozeniSarzeForm(forms.Form):
 
         self.sarze = sarze
         self.krok = krok
+        self.locked_cislo_pracoviste = locked_cislo_pracoviste
         if sarze is not None:
             initial = kwargs.setdefault('initial', {})
             initial.setdefault('cislo_pripravku', sarze.cislo_pripravku)
@@ -559,6 +560,11 @@ class RychleZalozeniSarzeForm(forms.Form):
             initial.setdefault('poznamka_kroku', krok.poznamka)
 
         super().__init__(*args, **kwargs)
+        if self.krok is None:
+            self.fields.pop('konec', None)
+        if self.locked_cislo_pracoviste is not None:
+            self.initial['cislo_pracoviste'] = self.locked_cislo_pracoviste
+            self.fields['cislo_pracoviste'].widget.attrs['readonly'] = 'readonly'
 
     def clean_operator(self):
         operator = (self.cleaned_data.get('operator') or '').strip()
@@ -580,7 +586,24 @@ class RychleZalozeniSarzeForm(forms.Form):
                 'Pracoviště Nakládání nebylo nalezeno jednoznačně. Zkontrolujte číselník pracovišť.'
             )
         cleaned_data['zarizeni'] = zarizeni
+        if self.krok is None and (self.data.get(self.add_prefix('konec')) or '').strip():
+            raise ValidationError('Při rychlém založení šarže se konec kroku nezadává.')
+
         cislo_pracoviste = cleaned_data.get('cislo_pracoviste')
+        if self.locked_cislo_pracoviste is not None and cislo_pracoviste != self.locked_cislo_pracoviste:
+            self.add_error(
+                'cislo_pracoviste',
+                f'Šarži lze založit pouze pro pracoviště č.{self.locked_cislo_pracoviste}.',
+            )
+
+        if self.krok is not None and cleaned_data.get('konec') is not None:
+            ma_zadanou_bednu = self.krok.krok_bedny.filter(bedna__isnull=False).exists()
+            if not ma_zadanou_bednu:
+                self.add_error(
+                    'konec',
+                    'Konec kroku lze zadat až po zadání alespoň jedné bedny do šarže.',
+                )
+
         uklada_se_otevreny_krok = cleaned_data.get('konec') is None
         if cislo_pracoviste and uklada_se_otevreny_krok:
             otevrene_kroky = SarzeKrok.objects.filter(
@@ -645,7 +668,7 @@ class RychleZalozeniSarzeForm(forms.Form):
                 datum=data['datum'],
                 zarizeni=data['zarizeni'],
                 zacatek=data['zacatek'],
-                konec=data['konec'],
+                konec=None,
                 operator=data['operator'],
                 poznamka=data['poznamka_kroku'] or None,
             )
@@ -811,11 +834,11 @@ class BaseSarzeKrokPatroFormSet(BaseFormSet):
         return [form for form in self.forms if form.has_item()]
 
 
-def get_sarze_krok_patro_formset(*, is_change):
+def get_sarze_krok_patro_formset(*, extra=5):
     return formset_factory(
         SarzeKrokPatroPolozkaForm,
         formset=BaseSarzeKrokPatroFormSet,
-        extra=1 if is_change else 3,
+        extra=extra,
         can_delete=True,
         max_num=5,
         validate_max=True,
