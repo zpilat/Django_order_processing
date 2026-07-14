@@ -36,6 +36,7 @@ from .forms import (
     RychleZalozeniSarzeForm,
     SarzeKrokActionInitForm,
     SarzeScanKrokChangeForm,
+    SarzeSkenerCteckaForm,
     get_sarze_krok_patro_formset,
 )
 from .actions import _build_sarzekrokbedna_preview_rows, _create_sarzekrok_and_copy_rows
@@ -973,6 +974,33 @@ def bedna_skener_view(request):
         'orders/bedna_skener.html',
         {
             'db_table': 'bedna_skener',
+        },
+    )
+
+@login_required
+def sarze_skener_ctecka_view(request):
+    """
+    Zobrazuje stránku pro skenování šarže.
+    """
+    if request.method == 'POST':
+        form = SarzeSkenerCteckaForm(request.POST)
+        if form.is_valid():
+            cislo_sarze = form.cleaned_data['cislo_sarze']
+            if not Sarze.objects.filter(cislo_sarze=cislo_sarze).exists():
+                messages.error(request, f'Šarže {cislo_sarze} neexistuje.')
+                return redirect('sarze_skener_ctecka')
+            return redirect('sarze_scan', cislo_sarze=cislo_sarze)
+        else:
+            messages.error(request, 'Neplatné číslo šarže.')
+    else:
+        form = SarzeSkenerCteckaForm() 
+
+    return render(
+        request,
+        'orders/sarze_skener_ctecka.html',
+        {
+            'db_table': 'sarze_skener_ctecka',
+            'form': form,
         },
     )
 

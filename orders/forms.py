@@ -9,6 +9,8 @@ from django.core.exceptions import ValidationError
 
 from decimal import Decimal, ROUND_HALF_UP
 
+from orders.utils import parse_sarze_search_term
+
 from .models import Sarze, SarzeKrok, Zakaznik, Kamion, Zakazka, Bedna, Predpis, Odberatel, Pozice, Zarizeni
 from .choices import (
     StavBednyChoice,
@@ -421,6 +423,28 @@ class NavezenoForm(forms.Form):
         label="Pozice",
         required=False
     )
+
+class SarzeSkenerCteckaForm(forms.Form):
+    
+    cislo_sarze = forms.CharField(
+        required=True,
+        label='Šarže',
+        max_length=10,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control form-control-lg text-center',
+            'size': '10',
+            'autocomplete': 'off',
+            'autofocus': 'autofocus',
+            'placeholder': 'Zadej číslo šarže (např. 25, 00025, S00025)',
+        }),
+    )
+
+    def clean_cislo_sarze(self):
+        value = parse_sarze_search_term(self.cleaned_data.get('cislo_sarze'))
+        if value is None:
+            raise ValidationError('Zadaná šarže není ve správném formátu (např. S00025 nebo 00025).')
+        return value
+
 
 class SarzeKrokActionInitForm(forms.Form):
     datum = forms.DateField(

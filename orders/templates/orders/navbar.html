@@ -108,12 +108,6 @@
                     </button>
                     <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
                         <li>
-                            <a class="dropdown-item small{% if db_table == 'home' %} active{% endif %}"
-                            {% if db_table == 'home' %}aria-current="page"{% endif %}
-                            href="{% url 'provozni_prehledy' %}">Přehled nakládání</a>
-                        </li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li>
                             <a class="dropdown-item small{% if db_table == 'dashboard_bedny' %} active{% endif %}"
                             {% if db_table == 'dashboard_bedny' %}aria-current="page"{% endif %}
                             href="{% url 'dashboard_bedny' %}">Přehled beden</a>
@@ -163,9 +157,15 @@
                             data-bs-toggle="dropdown"
                             aria-expanded="false">
                         ŠARŽE
-                    </button>
+                    </button>              
                     <ul class="dropdown-menu" aria-labelledby="rychleZalozeniSarzeDropdown">
                         {% if perms.orders.view_sarzekrok and perms.orders.view_sarzekrokbedna and pracoviste_nakladani_links %}
+                            <li>
+                                <a class="dropdown-item small{% if db_table == 'home' %} active{% endif %}"
+                                {% if db_table == 'home' %}aria-current="page"{% endif %}
+                                href="{% url 'provozni_prehledy' %}">Přehled nakládání</a>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>                              
                             {% for pracoviste in pracoviste_nakladani_links %}
                                 <li>
                                     <a class="dropdown-item small app-navbar-workplace {% if pracoviste.is_open %}app-navbar-workplace-open{% else %}app-navbar-workplace-closed{% endif %}"
@@ -173,16 +173,36 @@
                                         Pracoviště {{ pracoviste.cislo_pracoviste }} {% if pracoviste.is_open %}({{ pracoviste.krok.sarze }}){% endif %}
                                     </a>
                                 </li>
-                            {% endfor %}
+                            {% endfor %}                   
                         {% endif %}
                     </ul>
                 </div>
             {% endif %}
-            <!-- Odkaz: Skenování -->
+            <!-- Dropdown: Skenování -->
             {% if user.is_authenticated %}
-                <a class="btn btn-sm app-navbar-button"
-                   style="background-color: var(--navbar-button-bg); color: var(--navbar-button-fg); border-color: var(--navbar-button-bg);"
-                   href="{% url 'bedna_skener' %}">SKENOVÁNÍ</a>
+                <div class="btn-group btn-group-sm dropdown my-1">
+                    <button class="btn dropdown-toggle app-navbar-button"
+                            style="background-color: var(--navbar-button-bg); color: var(--navbar-button-fg); border-color: var(--navbar-button-bg);"
+                            type="button"
+                            id="rychleZalozeniSarzeDropdown"
+                            data-bs-toggle="dropdown"
+                            aria-expanded="false">
+                        SKENOVÁNÍ
+                    </button>              
+                    <ul class="dropdown-menu" aria-labelledby="rychleZalozeniSarzeDropdown">
+                        <li>
+                            <a class="dropdown-item small{% if db_table == 'sarze_skener_ctecka' %} active{% endif %}"
+                            {% if db_table == 'sarze_skener_ctecka' %}aria-current="page"{% endif %}
+                            href="{% url 'sarze_skener_ctecka' %}">Skenování šarže</a>
+                        </li>            
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item small{% if db_table == 'bedna_skener' %} active{% endif %}"
+                            {% if db_table == 'bedna_skener' %}aria-current="page"{% endif %}
+                            href="{% url 'bedna_skener' %}">Skenování mobil</a>
+                        </li>
+                    </ul>
+                </div>          
             {% endif %}
             <!-- Odkaz: Admin-->
             {% if user.is_staff %}

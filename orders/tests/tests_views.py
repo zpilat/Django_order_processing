@@ -581,6 +581,66 @@ class BednaScanViewTests(ViewsTestBase):
 		self.assertContains(response, "Novak")
 		self.assertContains(response, "Svoboda")
 
+	def test_sarze_skener_ctecka_requires_login(self):
+		self.client.logout()
+
+		response = self.client.get(reverse("sarze_skener_ctecka"))
+
+		self.assertEqual(response.status_code, 302)
+		self.assertIn("login", response.url)
+
+	def test_sarze_skener_ctecka_get_renders_form(self):
+		response = self.client.get(reverse("sarze_skener_ctecka"))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertTemplateUsed(response, "orders/sarze_skener_ctecka.html")
+		self.assertContains(response, 'name="cislo_sarze"', html=False)
+		self.assertContains(response, "autofocus", html=False)
+		self.assertContains(response, 'type="submit"', html=False)
+		self.assertContains(response, "Otevřít")
+
+	def test_sarze_skener_ctecka_post_redirects_to_sarze_scan(self):
+		sarze = Sarze.objects.create(
+			cislo_sarze=25,
+			datum_zalozeni=timezone.localdate(),
+			cislo_pripravku=1,
+		)
+
+		response = self.client.post(
+			reverse("sarze_skener_ctecka"),
+			{"cislo_sarze": "S00025"},
+		)
+
+		self.assertEqual(response.status_code, 302)
+		self.assertEqual(response["Location"], reverse("sarze_scan", args=[sarze.cislo_sarze]))
+
+	def test_sarze_skener_ctecka_post_rejects_invalid_code(self):
+		response = self.client.post(
+			reverse("sarze_skener_ctecka"),
+			{"cislo_sarze": "ABC"},
+		)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertTemplateUsed(response, "orders/sarze_skener_ctecka.html")
+		self.assertIn("cislo_sarze", response.context["form"].errors)
+		self.assertIn(
+			"Neplatné číslo šarže.",
+			[str(message) for message in get_messages(response.wsgi_request)],
+		)
+
+	def test_sarze_skener_ctecka_post_redirects_back_for_missing_sarze(self):
+		response = self.client.post(
+			reverse("sarze_skener_ctecka"),
+			{"cislo_sarze": "S99999"},
+		)
+
+		self.assertEqual(response.status_code, 302)
+		self.assertEqual(response["Location"], reverse("sarze_skener_ctecka"))
+		self.assertIn(
+			"Šarže 99999 neexistuje.",
+			[str(message) for message in get_messages(response.wsgi_request)],
+		)
+
 	def test_sarze_scan_shows_move_buttons_for_user_with_permissions(self):
 		self.user.user_permissions.add(*Permission.objects.filter(
 			codename__in=["add_sarzekrok", "add_sarzekrokbedna"],
