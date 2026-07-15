@@ -22,7 +22,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from weasyprint import HTML
 from weasyprint import CSS
 
-from .models import Zakazka, Bedna, Kamion, Zakaznik, Pozice, PoziceZakazkaOrder, Rozpracovanost, Cena, Zarizeni, SarzeKrok, SarzeKrokBedna
+from .models import Zakazka, Bedna, Kamion, Zakaznik, Pozice, PoziceZakazkaOrder, Rozpracovanost, Cena, Zarizeni, Sarze, SarzeKrok, SarzeKrokBedna
 from .utils import (
     utilita_tisk_dokumentace,
     utilita_tisk_dokumentace_sablony,
@@ -46,6 +46,7 @@ from .choices import (
     StavBednyChoice,
     RovnaniChoice,
     TryskaniChoice,
+    TypZarizeniChoice,
     ZinkovaniChoice,
     PrioritaChoice,
     STAV_BEDNY_SKLADEM,
@@ -510,6 +511,89 @@ def vytvorit_novy_krok_z_kroku_sarze_action(modeladmin, request, queryset):
             level=messages.WARNING,
         )
     return HttpResponseRedirect(_get_changelist_url(modeladmin))
+
+
+@admin.action(description='Vytisknout průvodku vruty')
+def tisk_pruvodky_vruty_sarze_action(modeladmin, request, queryset):
+    """
+    Vytiskne průvodku vrutů pro první krok vybrané šarže.
+    První krok musí být Nakládání a musí obsahovat alespoň jednu skutečnou bednu.
+    """
+    if queryset.count() != 1:
+        modeladmin.message_user(
+            request,
+            'Vyberte prosím právě jednu šarži.',
+            level=messages.ERROR,
+        )
+        return None
+
+    sarze = queryset.first()
+    krok = (
+        SarzeKrok.objects
+        .filter(sarze=sarze, poradi=1)
+        .select_related('sarze', 'zarizeni')
+        .order_by('pk')
+        .first()
+    )
+    if krok is None:
+        modeladmin.message_user(
+            request,
+            f'Šarže {sarze} nemá první krok.',
+            level=messages.ERROR,
+        )
+        return None
+
+    if krok.zarizeni.typ_zarizeni != TypZarizeniChoice.NAKLADANI:
+        modeladmin.message_user(
+            request,
+            f'První krok šarže {sarze} není pracoviště Nakládání.',
+            level=messages.ERROR,
+        )
+        return None
+
+    items = (
+        krok.krok_bedny
+        .select_related('bedna', 'bedna__zakazka', 'bedna__zakazka__predpis')
+        .order_by('-patro', 'pk')
+    )
+    if not items.filter(bedna__isnull=False).exists():
+        modeladmin.message_user(
+            request,
+            f'Šarže {sarze} neobsahuje v prvním kroku žádné vruty.',
+            level=messages.ERROR,
+        )
+        return None
+
+    fake_skupiny = set()
+    for item in items:
+        if item.bedna:
+            fake_skupiny.add(item.bedna.fake_skupina_TZ)
+        else:
+            fake_skupiny.add(None)
+    spolecna_skupina_TZ = next(iter(fake_skupiny)) if len(fake_skupiny) == 1 else None
+
+    html_string = render_to_string(
+        'orders/print/rychle_zalozeni_sarze_print.html',
+        {
+            'krok': krok,
+            'items': items,
+            'spolecna_skupina_TZ': spolecna_skupina_TZ,
+            'generated_at': timezone.now(),
+        },
+    )
+    base_url = getattr(settings, 'WEASYPRINT_BASEURL', None) or request.build_absolute_uri('/')
+    pdf_bytes = HTML(string=html_string, base_url=base_url).write_pdf()
+
+    filename = f"sarze_{sarze.pk}_pruvodka_vruty.pdf"
+    response = HttpResponse(pdf_bytes, content_type='application/pdf')
+    response['Content-Disposition'] = f'inline; filename="{filename}"'
+    response['Content-Length'] = str(len(pdf_bytes))
+    logger.info(
+        f"Uživatel {request.user} tiskne průvodku vrutů pro šarži {sarze} "
+        f"a první krok {krok.pk} z adminu."
+    )
+    return response
+
 
 # Akce pro bedny:
 

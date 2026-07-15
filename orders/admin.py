@@ -49,7 +49,7 @@ from .actions import (
     oznacit_uvolneno_action, prijmout_kamion_action, prijmout_zakazku_action, prijmout_bedny_action,
     export_bedny_to_csv_action, export_bedny_to_csv_customer_action, export_bedny_dl_action, tisk_rozpracovanost_action, tisk_prehledu_zakazek_kamionu_action, expedice_beden_action,
     expedice_beden_kamion_action, uvolnit_pozastavene_bedny_action, oznacit_nefakturovat_action,
-    vytvorit_dalsi_krok_sarze_action, vytvorit_novy_krok_z_kroku_sarze_action, tisk_karty_kontroly_prohybu_kamionu_action,
+    vytvorit_dalsi_krok_sarze_action, vytvorit_novy_krok_z_kroku_sarze_action, tisk_pruvodky_vruty_sarze_action, tisk_karty_kontroly_prohybu_kamionu_action,
 )
 from .filters import (
     SklademZakazkaFilter, StavBednyFilter, KompletZakazkaFilter, AktivniPredpisFilter, SkupinaFilter, ZakaznikBednyFilter,
@@ -362,6 +362,7 @@ class SarzeAdmin(SimpleHistoryAdmin):
     date_hierarchy = 'datum_zalozeni'
     ordering = ('-datum_zalozeni', '-cislo_sarze',)
     inlines = [SarzeKrokInline]
+    actions = (tisk_pruvodky_vruty_sarze_action,)
 
     history_list_display = [
         "cislo_sarze", "datum_zalozeni", "cislo_pripravku", "cislo_pracoviste", "aktivni", "poznamka",
@@ -369,6 +370,11 @@ class SarzeAdmin(SimpleHistoryAdmin):
     history_search_fields = ["cislo_sarze", "poznamka"]
     history_list_filter = ["aktivni", "datum_zalozeni"]
     history_list_per_page = 20
+
+    class Media:
+        js = (
+            'orders/js/admin_actions_target_blank.js',
+        )
 
     @admin.display(description='Šarže', ordering='cislo_sarze')
     def get_cislo_sarze(self, obj):

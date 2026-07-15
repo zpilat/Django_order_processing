@@ -9,20 +9,22 @@ from django.db import IntegrityError
 
 from decimal import Decimal
 from unittest.mock import patch, Mock
-from datetime import date
+from datetime import date, time
 import csv
 import io
 import json
 
 from orders.models import (
     Zakaznik, Kamion, Zakazka, Bedna, Predpis, TypHlavy,
-    Odberatel, Pozice, PoziceZakazkaOrder, Rozpracovanost, RozpracovanostBednaSnapshot, Cena
+    Odberatel, Pozice, PoziceZakazkaOrder, Rozpracovanost, RozpracovanostBednaSnapshot, Cena,
+    Zarizeni, Sarze, SarzeKrok, SarzeKrokBedna,
 )
 from orders.choices import (
     KamionChoice,
     StavBednyChoice,
     RovnaniChoice,
     TryskaniChoice,
+    TypZarizeniChoice,
     ZinkovaniChoice,
     STAV_BEDNY_ROZPRACOVANOST,
 )
@@ -125,6 +127,120 @@ class ActionsTests(ActionsBase):
 
     def _messages_texts(self, request):
         return [m.message for m in list(request._messages)]
+
+    @patch('orders.actions.render_to_string', return_value='<html></html>')
+    @patch('orders.actions.HTML')
+    def test_tisk_pruvodky_vruty_sarze_action_success(self, html_mock, render_mock):
+        html_mock.return_value.write_pdf.return_value = b'%PDF-test'
+        admin_obj = self._messaging_admin()
+        request = self.get_request()
+        nakladani = Zarizeni.objects.create(
+            kod_zarizeni='NAK',
+            nazev_zarizeni='Nakládání',
+            zkraceny_nazev_zarizeni='Nakládání',
+            typ_zarizeni=TypZarizeniChoice.NAKLADANI,
+        )
+        sarze = Sarze.objects.create(datum_zalozeni=date.today(), cislo_pripravku=1, aktivni=True)
+        krok = SarzeKrok.objects.create(
+            sarze=sarze,
+            poradi=1,
+            datum=date.today(),
+            zarizeni=nakladani,
+            zacatek=time(6, 0),
+            operator='Novak',
+        )
+        item = SarzeKrokBedna.objects.create(
+            krok=krok,
+            bedna=self.bedna,
+            patro=1,
+            procent_z_patra=100,
+        )
+
+        response = actions.tisk_pruvodky_vruty_sarze_action(
+            admin_obj,
+            request,
+            Sarze.objects.filter(pk=sarze.pk),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'application/pdf')
+        self.assertEqual(
+            response['Content-Disposition'],
+            f'inline; filename="sarze_{sarze.pk}_pruvodka_vruty.pdf"',
+        )
+        self.assertEqual(response.content, b'%PDF-test')
+        render_mock.assert_called_once()
+        context = render_mock.call_args.args[1]
+        self.assertEqual(context['krok'], krok)
+        self.assertIn(item, list(context['items']))
+        html_mock.return_value.write_pdf.assert_called_once()
+
+    def test_tisk_pruvodky_vruty_sarze_action_requires_single_sarze(self):
+        admin_obj = self._messaging_admin()
+        request = self.get_request()
+        Sarze.objects.create(datum_zalozeni=date.today(), cislo_pripravku=1, aktivni=True)
+        Sarze.objects.create(datum_zalozeni=date.today(), cislo_pripravku=2, aktivni=True)
+
+        response = actions.tisk_pruvodky_vruty_sarze_action(admin_obj, request, Sarze.objects.all())
+
+        self.assertIsNone(response)
+        self.assertIn('Vyberte prosím právě jednu šarži.', self._messages_texts(request))
+
+    def test_tisk_pruvodky_vruty_sarze_action_rejects_non_nakladani_first_step(self):
+        admin_obj = self._messaging_admin()
+        request = self.get_request()
+        predehrev = Zarizeni.objects.create(
+            kod_zarizeni='PRED',
+            nazev_zarizeni='Předehřev',
+            zkraceny_nazev_zarizeni='Předehřev',
+            typ_zarizeni=TypZarizeniChoice.PREDEHREV,
+        )
+        sarze = Sarze.objects.create(datum_zalozeni=date.today(), cislo_pripravku=1, aktivni=True)
+        SarzeKrok.objects.create(
+            sarze=sarze,
+            poradi=1,
+            datum=date.today(),
+            zarizeni=predehrev,
+            zacatek=time(6, 0),
+            operator='Novak',
+        )
+
+        response = actions.tisk_pruvodky_vruty_sarze_action(
+            admin_obj,
+            request,
+            Sarze.objects.filter(pk=sarze.pk),
+        )
+
+        self.assertIsNone(response)
+        self.assertTrue(any('není pracoviště Nakládání' in message for message in self._messages_texts(request)))
+
+    def test_tisk_pruvodky_vruty_sarze_action_rejects_sarze_without_vruty(self):
+        admin_obj = self._messaging_admin()
+        request = self.get_request()
+        nakladani = Zarizeni.objects.create(
+            kod_zarizeni='NAK',
+            nazev_zarizeni='Nakládání',
+            zkraceny_nazev_zarizeni='Nakládání',
+            typ_zarizeni=TypZarizeniChoice.NAKLADANI,
+        )
+        sarze = Sarze.objects.create(datum_zalozeni=date.today(), cislo_pripravku=1, aktivni=True)
+        SarzeKrok.objects.create(
+            sarze=sarze,
+            poradi=1,
+            datum=date.today(),
+            zarizeni=nakladani,
+            zacatek=time(6, 0),
+            operator='Novak',
+        )
+
+        response = actions.tisk_pruvodky_vruty_sarze_action(
+            admin_obj,
+            request,
+            Sarze.objects.filter(pk=sarze.pk),
+        )
+
+        self.assertIsNone(response)
+        self.assertTrue(any('žádné vruty' in message for message in self._messages_texts(request)))
 
     @patch('orders.actions.render_to_string', return_value='<html></html>')
     @patch('orders.actions.finders.find', return_value=None)

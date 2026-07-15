@@ -2900,6 +2900,11 @@ class SarzeAdminCreateBehaviorTests(AdminBase):
 
         self.assertIn('datum_zalozeni', fields)
 
+    def test_media_loads_admin_actions_target_blank_script(self):
+        media_js = list(self.admin.media._js)
+
+        self.assertIn('orders/js/admin_actions_target_blank.js', media_js)
+
     def test_save_model_autofills_datum_zalozeni_on_create(self):
         request = self.factory.post('/admin/orders/sarze/add/')
         request.user = self.user
