@@ -1210,6 +1210,51 @@ class ActionsTests(ActionsBase):
         self.assertEqual(args[3], 'orders/karta_kontroly_prohybu.html')
         self.assertTrue(args[4].startswith('karta_kontroly_prohybu_'))
 
+    @patch('orders.actions.utilita_tisk_dl_a_proforma_faktury')
+    def test_tisk_karty_kontroly_prohybu_kamionu_action_uses_spx_template(self, mock_util):
+        mock_util.return_value = HttpResponse('ok')
+        spx = Zakaznik.objects.create(
+            nazev='SPAX',
+            zkraceny_nazev='SPX',
+            zkratka='SPX',
+            ciselna_rada=300000,
+        )
+        kamion = Kamion.objects.create(
+            zakaznik=spx,
+            datum=date.today(),
+            prijem_vydej=KamionChoice.PRIJEM,
+        )
+        zakazka = Zakazka.objects.create(
+            kamion_prijem=kamion,
+            artikl='SPX-1',
+            prumer=1,
+            delka=1,
+            predpis=self.predpis,
+            typ_hlavy=self.typ_hlavy,
+            popis='spx',
+        )
+        Bedna.objects.create(
+            zakazka=zakazka,
+            hmotnost=Decimal('1.0'),
+            tara=Decimal('1.0'),
+            mnozstvi=1,
+            stav_bedny=StavBednyChoice.PRIJATO,
+        )
+        req = self.get_request()
+
+        resp = actions.tisk_karty_kontroly_prohybu_kamionu_action(
+            self.admin,
+            req,
+            Kamion.objects.filter(id=kamion.id),
+        )
+
+        self.assertIsInstance(resp, HttpResponse)
+        mock_util.assert_called_once()
+        args, _ = mock_util.call_args
+        self.assertEqual(args[2], kamion)
+        self.assertEqual(args[3], 'orders/karta_kontroly_prohybu_spx.html')
+        self.assertTrue(args[4].endswith('_SPX.pdf'))
+
     def test_tisk_karty_kontroly_prohybu_kamionu_action_multiple_selection_error(self):
         admin_obj = self._messaging_admin()
         req = self.get_request('get')

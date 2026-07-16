@@ -3481,6 +3481,8 @@ def tisk_karty_kontroly_prohybu_kamionu_action(modeladmin, request, queryset):
 
     filename = f"karta_kontroly_prohybu_{kamion.cislo_dl}_{zakaznik_zkratka}.pdf"
     html_path = "orders/karta_kontroly_prohybu.html"
+    if zakaznik_zkratka == "SPX":
+        html_path = "orders/karta_kontroly_prohybu_spx.html"
     response = utilita_tisk_dl_a_proforma_faktury(modeladmin, request, kamion, html_path, filename)
     logger.info(f"Uživatel {request.user} tiskne kartu kontroly prohybu pro kamion {kamion.cislo_dl} obsahující {kamion.zakazky_prijem.count()} zakázek.")
     return response
