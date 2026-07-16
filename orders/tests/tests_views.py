@@ -3591,6 +3591,38 @@ class VyrobaDashboardContextTests(TestCase):
 		self.assertEqual(customer_values.get("EUR"), 1200)
 		self.assertEqual(customer_values.get("SPX"), 700)
 
+	def test_vyroba_dashboard_shift_counts_use_six_to_eighteen_boundaries(self):
+		target_day = date(2026, 3, 3)
+		next_day = target_day + timedelta(days=1)
+
+		def create_step(step_date, start_time, device):
+			sarze = Sarze.objects.create(
+				datum_zalozeni=step_date,
+				aktivni=True,
+			)
+			return SarzeKrok.objects.create(
+				sarze=sarze,
+				poradi=1,
+				datum=step_date,
+				zarizeni=device,
+				zacatek=start_time,
+				operator="op",
+				program="p",
+			)
+
+		create_step(target_day, time(5, 59), self.dev_xl1)
+		create_step(target_day, time(6, 0), self.dev_xl1)
+		create_step(target_day, time(17, 59), self.dev_xl1)
+		create_step(target_day, time(18, 0), self.dev_xl2)
+		create_step(next_day, time(5, 59), self.dev_xl2)
+		create_step(next_day, time(6, 0), self.dev_xl2)
+
+		ctx = _build_vyroba_dashboard_context(date_value=target_day)
+		shifts = ctx["vyroba_dashboard"]["shifts"]
+
+		self.assertEqual(shifts["day"]["counts"], {"xl1": 2, "xl2": 0, "total": 2})
+		self.assertEqual(shifts["night"]["counts"], {"xl1": 0, "xl2": 2, "total": 2})
+
 	def test_historie_produkce_vrutu_has_14_days_and_weekly_averages(self):
 		target_day = date(2026, 3, 3)
 		for idx in range(14):

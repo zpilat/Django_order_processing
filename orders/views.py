@@ -2430,12 +2430,12 @@ def _build_vyroba_dashboard_context(date_value=None):
             },
         }
 
-    day_qs = base_qs.filter(zacatek__gte=time(7, 0), zacatek__lt=time(19, 0))
+    day_qs = base_qs.filter(zacatek__gte=time(6, 0), zacatek__lt=time(18, 0))
     night_qs = SarzeKrok.objects.filter(
         zarizeni__kod_zarizeni__in=device_codes,
     ).filter(
-        Q(datum=date_value, zacatek__gte=time(19, 0))
-        | Q(datum=today, zacatek__lt=time(7, 0))
+        Q(datum=date_value, zacatek__gte=time(18, 0))
+        | Q(datum=today, zacatek__lt=time(6, 0))
     ).select_related('sarze', 'zarizeni')
 
     dashboard = {
