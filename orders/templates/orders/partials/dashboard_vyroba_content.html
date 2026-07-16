@@ -127,6 +127,32 @@
           </tbody>
         </table>
         <div class="small text-muted mt-2">Čas prostoje je očištěn o 10 minut technologického prostoje u každé vsázky.</div>
+
+        <br><hr class="my-3">
+        <div class="fw-bold mb-2 px-2 py-1 rounded" style="color: #214290; background-color: #ffde17; border: 1px solid #214290;">
+          Počet naložených šarží a pater včerejších směn
+        </div>
+        <table class="table table-sm align-middle mb-0">
+          <thead>
+            <tr>
+              <th style="background-color: #214290; color: #ffde17;"></th>
+              <th style="background-color: #214290; color: #ffde17;">Šarží</th>
+              <th style="background-color: #214290; color: #ffde17;">Pater</th>
+            </tr>
+          </thead>
+          <tbody class="table-striped">
+            <tr>
+              <th>Denní (6:00 - 17:59)</th>
+              <td>{{ vyroba_dashboard.shifts.day.counts.sarze }}</td>
+              <td>{{ vyroba_dashboard.shifts.day.counts.patra }}</td>
+            </tr>
+            <tr>
+              <th>Noční (18:00 - 5:59)</th>
+              <td>{{ vyroba_dashboard.shifts.night.counts.sarze }}</td>
+              <td>{{ vyroba_dashboard.shifts.night.counts.patra }}</td>
+            </tr>
+          </tbody>
+        </table>      
       </div>
     </div>
   </div>

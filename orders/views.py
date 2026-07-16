@@ -2352,6 +2352,7 @@ def _build_vyroba_dashboard_context(date_value=None):
     date_value = date_value or (timezone.localdate() - timedelta(days=1))
     today = date_value + timedelta(days=1)
     device_codes = ["TQF_XL1", "TQF_XL2"]
+    shift_times = (time(6, 0), time(18, 0))
 
     base_qs = SarzeKrok.objects.filter(
         datum=date_value,
@@ -2402,7 +2403,7 @@ def _build_vyroba_dashboard_context(date_value=None):
     xl2 = _device_stats([device_codes[1]])
     summary = _device_stats(device_codes)
 
-    def _shift_stats(shift_qs):
+    def _shift_stats(shift_qs, nakladani_qs):
         """
         Vypočítá statistiky pro zadaný queryset směny.
         """
@@ -2417,11 +2418,22 @@ def _build_vyroba_dashboard_context(date_value=None):
         xl2_minutes = _calc_prostoj_minutes(list(xl2_qs))
         total_minutes = xl1_minutes + xl2_minutes
 
+        sarze_count = nakladani_qs.count()
+        patra_count = (
+            nakladani_qs
+            .annotate(pocet_pater=Count('krok_bedny__patro', distinct=True))
+            .aggregate(total_patra=Sum('pocet_pater'))
+            .get('total_patra')
+            or 0
+        )
+
         return {
             'counts': {
                 'xl1': xl1_count,
                 'xl2': xl2_count,
                 'total': total_count,
+                'sarze': sarze_count,
+                'patra': patra_count,
             },
             'prostoje': {
                 'xl1': _format_hours(xl1_minutes / 60) if xl1_minutes else '0,0',
@@ -2430,12 +2442,24 @@ def _build_vyroba_dashboard_context(date_value=None):
             },
         }
 
-    day_qs = base_qs.filter(zacatek__gte=time(6, 0), zacatek__lt=time(18, 0))
+    day_qs = base_qs.filter(zacatek__gte=shift_times[0], zacatek__lt=shift_times[1])
     night_qs = SarzeKrok.objects.filter(
         zarizeni__kod_zarizeni__in=device_codes,
     ).filter(
-        Q(datum=date_value, zacatek__gte=time(18, 0))
-        | Q(datum=today, zacatek__lt=time(6, 0))
+        Q(datum=date_value, zacatek__gte=shift_times[1])
+        | Q(datum=today, zacatek__lt=shift_times[0])
+    ).select_related('sarze', 'zarizeni')
+    day_nakladani_qs = SarzeKrok.objects.filter(
+        zarizeni__typ_zarizeni=TypZarizeniChoice.NAKLADANI,
+        datum=date_value,
+        zacatek__gte=shift_times[0],
+        zacatek__lt=shift_times[1],
+    ).select_related('sarze', 'zarizeni')
+    night_nakladani_qs = SarzeKrok.objects.filter(
+        zarizeni__typ_zarizeni=TypZarizeniChoice.NAKLADANI,
+    ).filter(
+        Q(datum=date_value, zacatek__gte=shift_times[1])
+        | Q(datum=today, zacatek__lt=shift_times[0])
     ).select_related('sarze', 'zarizeni')
 
     dashboard = {
@@ -2446,8 +2470,8 @@ def _build_vyroba_dashboard_context(date_value=None):
             'celkem': summary,
         },
         'shifts': {
-            'day': _shift_stats(day_qs),
-            'night': _shift_stats(night_qs),
+            'day': _shift_stats(day_qs, day_nakladani_qs),
+            'night': _shift_stats(night_qs, night_nakladani_qs),
         },
     }
 

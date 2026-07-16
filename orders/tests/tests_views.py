@@ -3499,6 +3499,12 @@ class VyrobaDashboardContextTests(TestCase):
 		self.dev_xl2 = Zarizeni.objects.create(
 			kod_zarizeni="TQF_XL2", nazev_zarizeni="XL2", zkraceny_nazev_zarizeni="XL2", typ_zarizeni=TypZarizeniChoice.VICEUCELOVKA
 		)
+		self.dev_nakladani = Zarizeni.objects.create(
+			kod_zarizeni="NAK",
+			nazev_zarizeni="Nakládání",
+			zkraceny_nazev_zarizeni="Nakládání",
+			typ_zarizeni=TypZarizeniChoice.NAKLADANI,
+		)
 
 	def _create_bedna(self, zakaznik, hmotnost):
 		kamion = Kamion.objects.create(zakaznik=zakaznik, datum=date(2026, 3, 1), prijem_vydej=KamionChoice.PRIJEM)
@@ -3620,8 +3626,60 @@ class VyrobaDashboardContextTests(TestCase):
 		ctx = _build_vyroba_dashboard_context(date_value=target_day)
 		shifts = ctx["vyroba_dashboard"]["shifts"]
 
-		self.assertEqual(shifts["day"]["counts"], {"xl1": 2, "xl2": 0, "total": 2})
-		self.assertEqual(shifts["night"]["counts"], {"xl1": 0, "xl2": 2, "total": 2})
+		self.assertEqual(shifts["day"]["counts"]["xl1"], 2)
+		self.assertEqual(shifts["day"]["counts"]["xl2"], 0)
+		self.assertEqual(shifts["day"]["counts"]["total"], 2)
+		self.assertEqual(shifts["night"]["counts"]["xl1"], 0)
+		self.assertEqual(shifts["night"]["counts"]["xl2"], 2)
+		self.assertEqual(shifts["night"]["counts"]["total"], 2)
+
+	def test_vyroba_dashboard_counts_nakladani_sarze_and_distinct_patra_by_shift(self):
+		target_day = date(2026, 3, 3)
+		next_day = target_day + timedelta(days=1)
+
+		def create_nakladani_step(step_date, start_time, patra):
+			sarze = Sarze.objects.create(
+				datum_zalozeni=step_date,
+				aktivni=True,
+			)
+			krok = SarzeKrok.objects.create(
+				sarze=sarze,
+				poradi=1,
+				datum=step_date,
+				zarizeni=self.dev_nakladani,
+				zacatek=start_time,
+				operator="op",
+				program="p",
+			)
+			for patro in patra:
+				SarzeKrokBedna.objects.create(krok=krok, bedna=None, patro=patro, popis_mimo_db=f"Patro {patro}")
+			return krok
+
+		create_nakladani_step(target_day, time(6, 0), [1, 2, 2])
+		create_nakladani_step(target_day, time(17, 59), [4])
+		create_nakladani_step(target_day, time(18, 0), [1, 3])
+		create_nakladani_step(next_day, time(5, 59), [1])
+		create_nakladani_step(next_day, time(6, 0), [1, 2, 3])
+
+		sarze_xl = Sarze.objects.create(datum_zalozeni=target_day, aktivni=True)
+		krok_xl = SarzeKrok.objects.create(
+			sarze=sarze_xl,
+			poradi=1,
+			datum=target_day,
+			zarizeni=self.dev_xl1,
+			zacatek=time(10, 0),
+			operator="op",
+			program="p",
+		)
+		SarzeKrokBedna.objects.create(krok=krok_xl, bedna=None, patro=1, popis_mimo_db="Ignorovat")
+
+		ctx = _build_vyroba_dashboard_context(date_value=target_day)
+		shifts = ctx["vyroba_dashboard"]["shifts"]
+
+		self.assertEqual(shifts["day"]["counts"]["sarze"], 2)
+		self.assertEqual(shifts["day"]["counts"]["patra"], 3)
+		self.assertEqual(shifts["night"]["counts"]["sarze"], 2)
+		self.assertEqual(shifts["night"]["counts"]["patra"], 3)
 
 	def test_historie_produkce_vrutu_has_14_days_and_weekly_averages(self):
 		target_day = date(2026, 3, 3)
