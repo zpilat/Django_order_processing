@@ -33,6 +33,7 @@ from .models import (
     Sarze, SarzeKrok, SarzeKrokBedna
 )
 from .forms import (
+    BednaScanZkontrolovanoForm,
     RychleZalozeniSarzeForm,
     SarzeKrokActionInitForm,
     SarzeScanKrokChangeForm,
@@ -246,45 +247,6 @@ def _bedna_scan_can_mark_zkontrolovano(user, bedna):
         and not bedna.pozastaveno
         and bedna.stav_bedny in STAV_BEDNY_ROZPRACOVANOST
     )
-
-
-def _include_current_choice(choices, current_value, all_choices):
-    choice_values = {choice for choice, _label in choices}
-    choice_values.add(current_value)
-    choice_labels = dict(all_choices)
-    choice_labels.update(dict(choices))
-
-    return [
-        (choice, choice_labels[choice])
-        for choice, _label in all_choices
-        if choice in choice_values
-    ]
-
-
-class BednaScanZkontrolovanoForm(django_forms.Form):
-    rovnat = django_forms.ChoiceField(label='Rovnání')
-    tryskat = django_forms.ChoiceField(label='Tryskání')
-
-    def __init__(self, *args, bedna, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Kontrolor má pro označení jako zkontrolované vybrat jen finální hodnotu,
-        # ale aktuální hodnotu zobrazíme, aby bylo vidět, z čeho se mění.
-        allowed_rovnat_choices = [
-            (choice, label)
-            for choice, label in RovnaniChoice.choices
-            if choice in [RovnaniChoice.ROVNA, RovnaniChoice.KRIVA]
-        ]
-        allowed_rovnat_choices = _include_current_choice(allowed_rovnat_choices, bedna.rovnat, RovnaniChoice.choices)
-        self.fields['rovnat'].choices = allowed_rovnat_choices
-        self.fields['rovnat'].initial = bedna.rovnat
-        self.fields['rovnat'].widget.attrs.update({'class': 'form-select scan-position-select'})
-        allowed_tryskat_choices = bedna.get_allowed_tryskat_choices()
-        # Pro kontrolora nechceme, aby mohl nastavit hodnotu NEZADANO, musí určitě, zda je bedna čistá, špinavá nebo otryskaná.
-        allowed_tryskat_choices = [(choice, label) for choice, label in allowed_tryskat_choices if choice != TryskaniChoice.NEZADANO]
-        allowed_tryskat_choices = _include_current_choice(allowed_tryskat_choices, bedna.tryskat, TryskaniChoice.choices)
-        self.fields['tryskat'].choices = allowed_tryskat_choices
-        self.fields['tryskat'].initial = bedna.tryskat
-        self.fields['tryskat'].widget.attrs.update({'class': 'form-select scan-position-select'})
 
 
 def _bedna_scan_sections(bedna):
