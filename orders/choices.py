@@ -6,7 +6,7 @@ class StavBednyChoice(models.TextChoices):
     PRIJATO = 'PR', 'Přijato'
     K_NAVEZENI = 'KN', 'K navezení'
     NAVEZENO = 'NA', 'Navezeno'
-    DO_ZPRACOVANI = 'DZ', 'Do zpracování'
+    DO_ZPRACOVANI = 'DZ', 'Ve zpracování'
     ZAKALENO = 'ZA', 'Zakaleno'
     ZKONTROLOVANO = 'ZK', 'Zkontrolováno'
     K_EXPEDICI = 'KE', 'K expedici'
