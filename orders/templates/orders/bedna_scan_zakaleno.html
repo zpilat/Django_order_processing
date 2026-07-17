@@ -1,0 +1,57 @@
+{% extends "orders/base.html" %}
+{% load static %}
+
+{% block title %}Zakalení bedny {{ bedna.cislo_bedny }}{% endblock %}
+
+{% block extra_head %}{{ block.super }}<link rel="stylesheet" href="{% static 'orders/css/scan_workflows.css' %}">{% endblock %}
+
+{% block content %}
+<main class="scan-page scan-page-narrow px-0 px-sm-2 py-2">
+    <section class="card rounded-2">
+        <div class="card-body">
+            <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3">
+                <div class="text-center text-sm-start">
+                    <div class="text-muted fw-semibold">Bedna</div>
+                    <div class="scan-number">{{ bedna.cislo_bedny }}</div>
+                </div>
+                <div class="text-sm-center">
+                    <div class="text-muted fw-semibold mb-2">Stav bedny</div>
+                    <span class="scan-status badge rounded-2 text-bg-primary">{{ bedna.get_stav_bedny_display }}</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="card rounded-2 mt-3">
+        <div class="list-group list-group-flush">
+            <div class="list-group-item d-sm-flex justify-content-between gap-3">
+                <div class="text-muted">Zákazník</div>
+                <div class="fw-bold text-break">{{ bedna.zakazka.kamion_prijem.zakaznik|default:"-" }}</div>
+            </div>
+            <div class="list-group-item d-sm-flex justify-content-between gap-3">
+                <div class="text-muted">Zakázka / rozměr</div>
+                <div class="fw-bold text-break">{{ bedna.zakazka.artikl }} / {{ bedna.zakazka.prumer }} x {{ bedna.zakazka.delka }}</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="card rounded-2 mt-3">
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="mark_zakaleno">
+
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary scan-action-button">
+                        Označit bednu jako zakalenou
+                    </button>
+                    <a class="btn btn-outline-secondary scan-action-button d-flex align-items-center justify-content-center"
+                       href="{% url 'bedna_scan' bedna.cislo_bedny %}">
+                        Zpět na detail bedny
+                    </a>
+                </div>
+            </form>
+        </div>
+    </section>
+</main>
+{% endblock %}

@@ -44,7 +44,8 @@ from .forms import (
 from .actions import _build_sarzekrokbedna_preview_rows, _create_sarzekrok_and_copy_rows
 from .choices import (
     StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice, TypZarizeniChoice,
-    ZinkovaniChoice, STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM, STAV_BEDNY_PRO_NAVEZENI
+    ZinkovaniChoice, STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM, STAV_BEDNY_PRO_NAVEZENI,
+    STAV_BEDNY_PODMINKA_PRO_ZMENU_NA_ZAKALENO
 )
 from weasyprint import HTML, CSS
 
@@ -244,9 +245,24 @@ def _bedna_scan_can_mark_zkontrolovano(user, bedna):
     Kontroluje, zda má uživatel oprávnění označit bednu jako zkontrolovanou.
     """
     return (
-        user.has_perm('orders.change_bedna')
+        user.has_perm('orders.mark_bedna_zkontrolovano')
         and not bedna.pozastaveno
         and bedna.stav_bedny in STAV_BEDNY_ROZPRACOVANOST
+    )
+
+
+def _bedna_scan_can_mark_zakaleno(user, bedna):
+    """
+    Kontroluje, zda má uživatel oprávnění označit bednu jako zakalenou.
+    """
+    has_permission = (
+        user.has_perm('orders.mark_bedna_zakaleno')
+        or user.has_perm('orders.change_bedna')
+    )
+    return (
+        has_permission
+        and not bedna.pozastaveno
+        and bedna.stav_bedny in STAV_BEDNY_PODMINKA_PRO_ZMENU_NA_ZAKALENO
     )
 
 
@@ -372,8 +388,13 @@ def bedna_scan_view(request, cislo_bedny: int):
             request.user.has_perm('orders.mark_bedna_navezeno')
             or request.user.has_perm('orders.change_bedna')
         ),
+        'can_mark_zakaleno': _bedna_scan_can_mark_zakaleno(request.user, bedna),
+        'has_mark_zakaleno_permission': (
+            request.user.has_perm('orders.mark_bedna_zakaleno')
+            or request.user.has_perm('orders.change_bedna')
+        ),
         'can_mark_zkontrolovano': _bedna_scan_can_mark_zkontrolovano(request.user, bedna),
-        'has_mark_zkontrolovano_permission': request.user.has_perm('orders.change_bedna'),
+        'has_mark_zkontrolovano_permission': request.user.has_perm('orders.mark_bedna_zkontrolovano'),
         'db_table': 'bedna_scan',
     }
     return render(request, 'orders/bedna_scan_detail.html', context)
@@ -453,6 +474,85 @@ def bedna_scan_navezeni_view(request, cislo_bedny: int):
 
 
 @login_required
+def bedna_scan_zakaleno_view(request, cislo_bedny: int):
+    """
+    Zobrazuje stránku pro označení bedny jako zakalené.
+    """
+    bedna_qs = Bedna.objects.select_related(
+        'zakazka',
+        'zakazka__kamion_prijem',
+        'zakazka__kamion_prijem__zakaznik',
+    )
+    bedna = get_object_or_404(bedna_qs, cislo_bedny=cislo_bedny)
+
+    has_permission = (
+        request.user.has_perm('orders.mark_bedna_zakaleno')
+        or request.user.has_perm('orders.change_bedna')
+    )
+    if not has_permission:
+        raise PermissionDenied
+    if bedna.pozastaveno:
+        logger.warning(
+            f"Uživatel {request.user} se pokusil označit přes scan bednu {bedna.cislo_bedny} jako zakalenou, "
+            f"ale bedna je pozastavená."
+        )
+        messages.error(request, f'Bedna {bedna.cislo_bedny} je pozastavená a nelze ji označit jako zakalenou.')
+        return redirect('bedna_scan', cislo_bedny=bedna.cislo_bedny)
+    if bedna.stav_bedny not in STAV_BEDNY_PODMINKA_PRO_ZMENU_NA_ZAKALENO:
+        logger.warning(
+            f"Uživatel {request.user} se pokusil označit přes scan bednu {bedna.cislo_bedny} jako zakalenou, "
+            f"ale stav bedny není povolený pro změnu na zakaleno."
+        )
+        messages.error(request, f'Bedna {bedna.cislo_bedny} není ve stavu povoleném pro změnu na zakaleno.')
+        return redirect('bedna_scan', cislo_bedny=bedna.cislo_bedny)
+
+    if request.method == 'POST':
+        if request.POST.get('action') != 'mark_zakaleno':
+            return HttpResponseBadRequest('Neplatná akce.')
+
+        with transaction.atomic():
+            bedna = get_object_or_404(
+                Bedna.objects.select_for_update(),
+                cislo_bedny=cislo_bedny,
+            )
+            if bedna.pozastaveno:
+                logger.warning(
+                    f"Uživatel {request.user} se pokusil označit přes scan bednu {bedna.cislo_bedny} jako zakalenou, "
+                    f"ale bedna je pozastavená."
+                )
+                messages.error(request, f'Bedna {bedna.cislo_bedny} je pozastavená a nelze ji označit jako zakalenou.')
+                return redirect('bedna_scan', cislo_bedny=bedna.cislo_bedny)
+            if bedna.stav_bedny not in STAV_BEDNY_PODMINKA_PRO_ZMENU_NA_ZAKALENO:
+                logger.warning(
+                    f"Uživatel {request.user} se pokusil označit přes scan bednu {bedna.cislo_bedny} jako zakalenou, "
+                    f"ale stav bedny není povolený pro změnu na zakaleno."
+                )
+                messages.error(request, f'Bedna {bedna.cislo_bedny} není ve stavu povoleném pro změnu na zakaleno.')
+                return redirect('bedna_scan', cislo_bedny=bedna.cislo_bedny)
+
+            bedna.stav_bedny = StavBednyChoice.ZAKALENO
+            bedna.save(update_fields=['stav_bedny'])
+
+        messages.success(request, f'Bedna {cislo_bedny} byla označena jako zakalená.')
+        logger.info(
+            f"Uživatel {request.user} označil přes scan bednu {cislo_bedny} jako ZAKALENO."
+        )
+        user_agent = get_user_agent(request)
+        if user_agent.is_mobile or user_agent.is_tablet:
+            return redirect('bedna_skener')
+        return redirect('bedna_scan', cislo_bedny=cislo_bedny)
+
+    return render(
+        request,
+        'orders/bedna_scan_zakaleno.html',
+        {
+            'bedna': bedna,
+            'db_table': 'bedna_scan_zakaleno',
+        },
+    )
+
+
+@login_required
 def bedna_scan_zkontrolovano_view(request, cislo_bedny: int):
     """
     Zobrazuje stránku pro označení bedny jako zkontrolované a úpravu rovnání/tryskání.
@@ -464,7 +564,7 @@ def bedna_scan_zkontrolovano_view(request, cislo_bedny: int):
     )
     bedna = get_object_or_404(bedna_qs, cislo_bedny=cislo_bedny)
 
-    if not request.user.has_perm('orders.change_bedna'):
+    if not request.user.has_perm('orders.mark_bedna_zkontrolovano'):
         raise PermissionDenied
     if bedna.pozastaveno:
         logger.warning(

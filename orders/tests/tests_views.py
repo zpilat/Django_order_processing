@@ -332,6 +332,30 @@ class BednaScanViewTests(ViewsTestBase):
 		self.assertContains(response, "Označit navezeno")
 		self.assertContains(response, reverse("bedna_scan_navezeni", args=[self.b_eur_pr.cislo_bedny]))
 
+	def test_scan_detail_shows_mark_zakaleno_action_with_permission(self):
+		self.b_eur_pr.stav_bedny = StavBednyChoice.DO_ZPRACOVANI
+		self.b_eur_pr.save(update_fields=["stav_bedny"])
+		permission = Permission.objects.get(codename="mark_bedna_zakaleno")
+		self.user.user_permissions.add(permission)
+
+		response = self.client.get(reverse("bedna_scan", args=[self.b_eur_pr.cislo_bedny]))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "Označit zakaleno")
+		self.assertContains(response, reverse("bedna_scan_zakaleno", args=[self.b_eur_pr.cislo_bedny]))
+
+	def test_scan_detail_shows_mark_zkontrolovano_action_with_controller_permission(self):
+		self.b_eur_pr.stav_bedny = StavBednyChoice.ZAKALENO
+		self.b_eur_pr.save(update_fields=["stav_bedny"])
+		permission = Permission.objects.get(codename="mark_bedna_zkontrolovano")
+		self.user.user_permissions.add(permission)
+
+		response = self.client.get(reverse("bedna_scan", args=[self.b_eur_pr.cislo_bedny]))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "Označit zkontrolováno")
+		self.assertContains(response, reverse("bedna_scan_zkontrolovano", args=[self.b_eur_pr.cislo_bedny]))
+
 	def test_scan_navezeni_get_renders_position_selection(self):
 		self.b_eur_pr.stav_bedny = StavBednyChoice.K_NAVEZENI
 		pozice = Pozice.objects.create(kod="A", kapacita=10)
@@ -974,13 +998,85 @@ class BednaScanViewTests(ViewsTestBase):
 		self.assertContains(response, reverse("rychle_zalozeni_sarze_pracoviste_prehled", args=[0]))
 
 	def _set_bedna_zkontrolovano_ready(self):
-		"""Nastaví b_eur_pr do stavu ZAKALENO (in STAV_BEDNY_ROZPRACOVANOST) a přidá oprávnění change_bedna."""
+		"""Nastaví b_eur_pr do stavu ZAKALENO a přidá oprávnění kontrolora."""
 		self.b_eur_pr.stav_bedny = StavBednyChoice.ZAKALENO
 		self.b_eur_pr.rovnat = RovnaniChoice.NEZADANO
 		self.b_eur_pr.tryskat = TryskaniChoice.NEZADANO
 		self.b_eur_pr.save(update_fields=["stav_bedny", "rovnat", "tryskat"])
-		permission = Permission.objects.get(codename="change_bedna")
+		permission = Permission.objects.get(codename="mark_bedna_zkontrolovano")
 		self.user.user_permissions.add(permission)
+
+	def _set_bedna_zakaleno_ready(self):
+		self.b_eur_pr.stav_bedny = StavBednyChoice.DO_ZPRACOVANI
+		self.b_eur_pr.save(update_fields=["stav_bedny"])
+		permission = Permission.objects.get(codename="mark_bedna_zakaleno")
+		self.user.user_permissions.add(permission)
+
+	def test_scan_zakaleno_get_renders_confirmation(self):
+		self._set_bedna_zakaleno_ready()
+
+		response = self.client.get(
+			reverse("bedna_scan_zakaleno", args=[self.b_eur_pr.cislo_bedny])
+		)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertTemplateUsed(response, "orders/bedna_scan_zakaleno.html")
+		self.assertContains(response, str(self.b_eur_pr.cislo_bedny))
+		self.assertContains(response, "Označit bednu jako zakalenou")
+
+	def test_scan_zakaleno_get_requires_permission(self):
+		self.b_eur_pr.stav_bedny = StavBednyChoice.DO_ZPRACOVANI
+		self.b_eur_pr.save(update_fields=["stav_bedny"])
+
+		response = self.client.get(
+			reverse("bedna_scan_zakaleno", args=[self.b_eur_pr.cislo_bedny])
+		)
+
+		self.assertEqual(response.status_code, 403)
+
+	def test_scan_zakaleno_requires_login(self):
+		self.client.logout()
+
+		response = self.client.get(
+			reverse("bedna_scan_zakaleno", args=[self.b_eur_pr.cislo_bedny])
+		)
+
+		self.assertEqual(response.status_code, 302)
+		self.assertIn("login", response.url)
+
+	def test_scan_zakaleno_get_redirects_if_state_not_allowed(self):
+		self.b_eur_pr.stav_bedny = StavBednyChoice.K_EXPEDICI
+		self.b_eur_pr.save(update_fields=["stav_bedny"])
+		permission = Permission.objects.get(codename="mark_bedna_zakaleno")
+		self.user.user_permissions.add(permission)
+
+		response = self.client.get(
+			reverse("bedna_scan_zakaleno", args=[self.b_eur_pr.cislo_bedny])
+		)
+
+		self.assertRedirects(
+			response,
+			reverse("bedna_scan", args=[self.b_eur_pr.cislo_bedny]),
+			fetch_redirect_response=False,
+		)
+		messages_list = list(response.wsgi_request._messages)
+		self.assertTrue(any("povoleném pro změnu na zakaleno" in str(m) for m in messages_list))
+
+	def test_scan_zakaleno_post_marks_bedna_zakaleno(self):
+		self._set_bedna_zakaleno_ready()
+
+		response = self.client.post(
+			reverse("bedna_scan_zakaleno", args=[self.b_eur_pr.cislo_bedny]),
+			{"action": "mark_zakaleno"},
+		)
+
+		self.assertRedirects(
+			response,
+			reverse("bedna_scan", args=[self.b_eur_pr.cislo_bedny]),
+			fetch_redirect_response=False,
+		)
+		self.b_eur_pr.refresh_from_db()
+		self.assertEqual(self.b_eur_pr.stav_bedny, StavBednyChoice.ZAKALENO)
 
 	def test_scan_zkontrolovano_get_renders_form(self):
 		self._set_bedna_zkontrolovano_ready()
@@ -1021,6 +1117,17 @@ class BednaScanViewTests(ViewsTestBase):
 
 		self.assertEqual(response.status_code, 403)
 
+	def test_scan_zkontrolovano_get_rejects_change_bedna_without_controller_permission(self):
+		self.b_eur_pr.stav_bedny = StavBednyChoice.ZAKALENO
+		self.b_eur_pr.save(update_fields=["stav_bedny"])
+		self.user.user_permissions.add(Permission.objects.get(codename="change_bedna"))
+
+		response = self.client.get(
+			reverse("bedna_scan_zkontrolovano", args=[self.b_eur_pr.cislo_bedny])
+		)
+
+		self.assertEqual(response.status_code, 403)
+
 	def test_scan_zkontrolovano_requires_login(self):
 		self.client.logout()
 
@@ -1035,7 +1142,7 @@ class BednaScanViewTests(ViewsTestBase):
 		self.b_eur_pr.stav_bedny = StavBednyChoice.ZAKALENO
 		self.b_eur_pr.pozastaveno = True
 		self.b_eur_pr.save(update_fields=["stav_bedny", "pozastaveno"])
-		permission = Permission.objects.get(codename="change_bedna")
+		permission = Permission.objects.get(codename="mark_bedna_zkontrolovano")
 		self.user.user_permissions.add(permission)
 
 		response = self.client.get(
@@ -1052,7 +1159,7 @@ class BednaScanViewTests(ViewsTestBase):
 
 	def test_scan_zkontrolovano_get_redirects_if_not_in_rozpracovanost(self):
 		# b_eur_pr je ve stavu PRIJATO, který není v STAV_BEDNY_ROZPRACOVANOST
-		permission = Permission.objects.get(codename="change_bedna")
+		permission = Permission.objects.get(codename="mark_bedna_zkontrolovano")
 		self.user.user_permissions.add(permission)
 
 		response = self.client.get(

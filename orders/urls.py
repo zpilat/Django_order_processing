@@ -19,6 +19,7 @@ from .views import (
     bedna_scan_view,
     bedna_changes_poll_view,
     bedna_scan_navezeni_view,
+    bedna_scan_zakaleno_view,
     bedna_scan_zkontrolovano_view,
     bedna_scan_pohyb_view,
     sarze_scan_view,
@@ -62,6 +63,11 @@ urlpatterns = [
         'bedny/scan/<int:cislo_bedny>/navezeni/',
         bedna_scan_navezeni_view,
         name='bedna_scan_navezeni'
+    ),
+    path(
+        'bedny/scan/<int:cislo_bedny>/zakaleno/',
+        bedna_scan_zakaleno_view,
+        name='bedna_scan_zakaleno'
     ),
     path(
         'bedny/scan/<int:cislo_bedny>/zkontrolovano/',
