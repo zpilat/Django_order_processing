@@ -685,6 +685,18 @@ class TestSarzeModels(ModelsBase):
         with self.assertRaises(ValidationError):
             sb.full_clean()
 
+    def test_sarzebedna_clean_rejects_bedna_not_allowed_for_navezeni(self):
+        self.bedna1.stav_bedny = StavBednyChoice.K_EXPEDICI
+        self.bedna1.save(update_fields=['stav_bedny'])
+
+        sb = SarzeBedna(
+            krok=self.krok_base,
+            bedna=self.bedna1,
+            patro=1,
+        )
+        with self.assertRaises(ValidationError):
+            sb.full_clean()
+
     def test_sarzebedna_clean_valid_popis_and_customer(self):
         sb = SarzeBedna(
             krok=self.krok_base,

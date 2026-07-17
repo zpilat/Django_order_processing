@@ -2034,7 +2034,7 @@ class SarzeKrokBednaInlineAdminTests(AdminBase):
             program='P1',
         )
 
-    def test_sarze_inline_bedna_autocomplete_supports_zakaznik_zkratka_and_filters_only_skladem(self):
+    def test_sarze_inline_bedna_autocomplete_supports_zakaznik_zkratka_and_filters_only_pro_navezeni(self):
         self.client.force_login(self.user)
 
         zakaznik = Zakaznik.objects.create(
@@ -2054,14 +2054,21 @@ class SarzeKrokBednaInlineAdminTests(AdminBase):
             popis='autocomplete',
         )
 
-        skladem_bedna = Bedna.objects.create(
+        pro_navezeni_bedna = Bedna.objects.create(
             zakazka=zakazka,
             hmotnost=Decimal('1.0'),
             tara=Decimal('1.0'),
             mnozstvi=1,
             stav_bedny=StavBednyChoice.PRIJATO,
         )
-        ne_skladem_bedna = Bedna.objects.create(
+        mimo_pro_navezeni_bedna = Bedna.objects.create(
+            zakazka=zakazka,
+            hmotnost=Decimal('1.0'),
+            tara=Decimal('1.0'),
+            mnozstvi=1,
+            stav_bedny=StavBednyChoice.K_EXPEDICI,
+        )
+        expedovana_bedna = Bedna.objects.create(
             zakazka=zakazka,
             hmotnost=Decimal('1.0'),
             tara=Decimal('1.0'),
@@ -2083,8 +2090,9 @@ class SarzeKrokBednaInlineAdminTests(AdminBase):
         payload = response.json()
         returned_ids = {item['id'] for item in payload.get('results', [])}
 
-        self.assertIn(str(skladem_bedna.pk), returned_ids)
-        self.assertNotIn(str(ne_skladem_bedna.pk), returned_ids)
+        self.assertIn(str(pro_navezeni_bedna.pk), returned_ids)
+        self.assertNotIn(str(mimo_pro_navezeni_bedna.pk), returned_ids)
+        self.assertNotIn(str(expedovana_bedna.pk), returned_ids)
 
     def test_sarze_inline_bedna_autocomplete_returns_no_results_for_short_term(self):
         self.client.force_login(self.user)
@@ -2126,14 +2134,14 @@ class SarzeKrokBednaInlineAdminTests(AdminBase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json().get('results'), [])
 
-    def test_sarze_inline_formset_rejects_bedna_outside_skladem_states(self):
+    def test_sarze_inline_formset_rejects_bedna_outside_pro_navezeni_states(self):
         request = self.factory.get('/admin/orders/sarzekrok/')
         request.user = self.user
 
         formset_class = self.sarze_inline.get_formset(request, obj=self.krok)
         prefix = formset_class.get_default_prefix()
 
-        bedna_mimo_skladem = Bedna.objects.create(
+        bedna_mimo_pro_navezeni = Bedna.objects.create(
             zakazka=Zakazka.objects.create(
                 kamion_prijem=self.kamion,
                 artikl='BAD-1',
@@ -2146,7 +2154,7 @@ class SarzeKrokBednaInlineAdminTests(AdminBase):
             hmotnost=Decimal('1.0'),
             tara=Decimal('1.0'),
             mnozstvi=1,
-            stav_bedny=StavBednyChoice.EXPEDOVANO,
+            stav_bedny=StavBednyChoice.K_EXPEDICI,
         )
 
         data = {
@@ -2154,7 +2162,7 @@ class SarzeKrokBednaInlineAdminTests(AdminBase):
             f'{prefix}-INITIAL_FORMS': '0',
             f'{prefix}-MIN_NUM_FORMS': '0',
             f'{prefix}-MAX_NUM_FORMS': '1000',
-            f'{prefix}-0-bedna': str(bedna_mimo_skladem.pk),
+            f'{prefix}-0-bedna': str(bedna_mimo_pro_navezeni.pk),
             f'{prefix}-0-patro': '1',
             f'{prefix}-0-procent_z_patra': '100',
             f'{prefix}-0-popis_mimo_db': '',
@@ -2166,7 +2174,7 @@ class SarzeKrokBednaInlineAdminTests(AdminBase):
         formset = formset_class(data=data, instance=self.krok, prefix=prefix)
 
         self.assertFalse(formset.is_valid())
-        self.assertTrue(any('nejsou ve stavu skladem' in str(err) for err in formset.non_form_errors()))
+        self.assertTrue(any('nejsou ve stavu povoleném pro navezení' in str(err) for err in formset.non_form_errors()))
 
     def test_sarze_inline_formset_requires_any_row_on_add(self):
         request = self.factory.get('/admin/orders/sarzekrok/add/')

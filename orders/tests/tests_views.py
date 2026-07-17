@@ -2705,6 +2705,46 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 		self.assertEqual(items[0].procent_z_patra, 50)
 		self.assertEqual(items[1].bedna, other_bedna)
 		self.assertEqual(items[1].procent_z_patra, 50)
+		self.b_eur_pr.refresh_from_db()
+		other_bedna.refresh_from_db()
+		self.assertEqual(self.b_eur_pr.stav_bedny, StavBednyChoice.DO_ZPRACOVANI)
+		self.assertEqual(other_bedna.stav_bedny, StavBednyChoice.DO_ZPRACOVANI)
+
+	def test_patro_post_rejects_bedna_not_allowed_for_navezeni(self):
+		sarze = Sarze.objects.create(
+			datum_zalozeni=date(2026, 6, 5),
+			cislo_pripravku=12,
+			cislo_pracoviste=1,
+			aktivni=True,
+		)
+		krok = SarzeKrok.objects.create(
+			sarze=sarze,
+			poradi=1,
+			datum=date(2026, 6, 5),
+			zarizeni=self.nakladani,
+			zacatek=time(6, 0),
+			operator="Novak",
+		)
+		self.b_eur_pr.stav_bedny = StavBednyChoice.K_EXPEDICI
+		self.b_eur_pr.save(update_fields=["stav_bedny"])
+
+		resp = self.client.post(
+			reverse("rychle_zalozeni_sarze_patro", args=[krok.pk, 1]),
+			{
+				"polozky-TOTAL_FORMS": "1",
+				"polozky-INITIAL_FORMS": "0",
+				"polozky-MIN_NUM_FORMS": "0",
+				"polozky-MAX_NUM_FORMS": "5",
+				"polozky-0-bedna": str(self.b_eur_pr.pk),
+				"polozky-0-procent_z_patra": "100",
+				"action": "save",
+			},
+		)
+
+		self.assertEqual(resp.status_code, 200)
+		self.assertFalse(SarzeKrokBedna.objects.filter(krok=krok, patro=1).exists())
+		self.b_eur_pr.refresh_from_db()
+		self.assertEqual(self.b_eur_pr.stav_bedny, StavBednyChoice.K_EXPEDICI)
 
 	def test_patro_post_rejects_mimo_db_without_bedna(self):
 		sarze = Sarze.objects.create(

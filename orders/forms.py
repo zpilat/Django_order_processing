@@ -20,7 +20,7 @@ from .choices import (
     KamionChoice,
     TypZarizeniChoice,
     ZinkovaniChoice,
-    STAV_BEDNY_SKLADEM,
+    STAV_BEDNY_PRO_NAVEZENI,
 )
 
 import logging
@@ -790,7 +790,7 @@ class SarzeKrokPatroPolozkaForm(forms.Form):
         super().__init__(*args, **kwargs)
         allowed_states = [
             state.value if hasattr(state, 'value') else state
-            for state in STAV_BEDNY_SKLADEM
+            for state in STAV_BEDNY_PRO_NAVEZENI
         ]
         self.fields['bedna'].queryset = (
             Bedna.objects

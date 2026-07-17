@@ -70,7 +70,8 @@ from .forms import (
 )
 from .choices import (
     StavBednyChoice, RovnaniChoice, TryskaniChoice, ZinkovaniChoice, PrioritaChoice, KamionChoice, PrijemVydejChoice, SklademZakazkyChoice,
-    BARVA_SKUPINY_TZ, STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM, STAV_BEDNY_PRO_NAVEZENI, STAV_BEDNY_KONTROLA_ZMENY_PRIORITY,
+    BARVA_SKUPINY_TZ, STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM, STAV_BEDNY_PRO_NAVEZENI,
+    STAV_BEDNY_KONTROLA_ZMENY_PRIORITY,
 )
 from .utils import (
     utilita_validate_excel_upload, build_postup_vyroby_cases, truncate_with_title, parse_sarze_search_term,
@@ -80,12 +81,20 @@ from .utils import (
 import logging
 logger = logging.getLogger('orders')
 
+
+def _stav_bedny_pro_navezeni_values():
+    return [
+        state.value if hasattr(state, 'value') else state
+        for state in STAV_BEDNY_PRO_NAVEZENI
+    ]
+
+
 class SarzeKrokBednaInlineFormSet(BaseInlineFormSet):
     """
     Formset pro validaci beden v krocích šarže.
     Validace zajišťuje:
     - že uživatel začal vyplňovat první bednu kroku šarže,
-    - že všechny vybrané bedny jsou ve stavu skladem,
+    - že všechny vybrané bedny jsou ve stavu povoleném pro navezení,
     - že součet procent z patra nepřekročí 100%.
     """
     def clean(self):
@@ -122,7 +131,7 @@ class SarzeKrokBednaInlineFormSet(BaseInlineFormSet):
 
         allowed_states = {
             state.value if hasattr(state, 'value') else state
-            for state in STAV_BEDNY_SKLADEM
+            for state in STAV_BEDNY_PRO_NAVEZENI
         }
         invalid_bedna_numbers = []
 
@@ -142,7 +151,7 @@ class SarzeKrokBednaInlineFormSet(BaseInlineFormSet):
         if invalid_bedna_numbers:
             raise ValidationError(
                 _(
-                    f"Některé vybrané bedny nejsou ve stavu skladem: {', '.join(invalid_bedna_numbers)}."
+                    f"Některé vybrané bedny nejsou ve stavu povoleném pro navezení: {', '.join(invalid_bedna_numbers)}."
                 )
             )
 
@@ -2832,7 +2841,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     def get_search_results(self, request, queryset, search_term):
         """
         Přizpůsobí výsledky hledání pro inline autocomplete pole 'bedna' v deníku beden v krocích šarže,
-        aby se zobrazovaly pouze bedny se stavem bedny STAV_BEDNY_SKLADEM.
+        aby se zobrazovaly pouze bedny se stavem bedny STAV_BEDNY_PRO_NAVEZENI.
         """
         queryset, use_distinct = super().get_search_results(request, queryset, search_term)
 
@@ -2849,7 +2858,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         if is_sarze_inline_autocomplete:
             if len(search_term.strip()) < 4:
                 return queryset.none(), use_distinct
-            queryset = queryset.filter(stav_bedny__in=STAV_BEDNY_SKLADEM)
+            queryset = queryset.filter(stav_bedny__in=_stav_bedny_pro_navezeni_values())
 
         return queryset, use_distinct
 

@@ -27,6 +27,7 @@ from .choices import (
     AlphabetChoice,
     TypZarizeniChoice,
     STAV_BEDNY_SKLADEM,
+    STAV_BEDNY_PRO_NAVEZENI,
     STAV_BEDNY_ROZPRACOVANOST,
 )
 
@@ -1784,12 +1785,12 @@ class SarzeKrokBedna(models.Model):
         if self.bedna:
             allowed_states = {
                 state.value if hasattr(state, 'value') else state
-                for state in STAV_BEDNY_SKLADEM
+                for state in STAV_BEDNY_PRO_NAVEZENI
             }
             if self.bedna.stav_bedny not in allowed_states:
                 raise ValidationError(
                     _(
-                        "Vybraná bedna musí být ve stavu skladem."
+                        "Vybraná bedna musí být ve stavu povoleném pro přesun do zpracování."
                     )
                 )
 

@@ -44,6 +44,13 @@ STAV_BEDNY_KONTROLA_ZMENY_PRIORITY = [
     StavBednyChoice.DO_ZPRACOVANI,
     StavBednyChoice.ZAKALENO,
     StavBednyChoice.ZKONTROLOVANO,
+]   
+
+STAV_BEDNY_PODMINKA_PRO_ZMENU_NA_ZAKALENO = [
+    StavBednyChoice.PRIJATO,
+    StavBednyChoice.K_NAVEZENI,
+    StavBednyChoice.NAVEZENO,
+    StavBednyChoice.DO_ZPRACOVANI,
 ]
 
 class RovnaniChoice(models.TextChoices):
