@@ -34,6 +34,7 @@ from .models import (
 )
 from .forms import (
     BednaScanZkontrolovanoForm,
+    BednaSkenerCteckaForm,
     RychleZalozeniSarzeForm,
     SarzeKrokActionInitForm,
     SarzeScanKrokChangeForm,
@@ -938,6 +939,36 @@ def bedna_skener_view(request):
             'db_table': 'bedna_skener',
         },
     )
+
+
+@login_required
+@permission_required('orders.view_bedna', raise_exception=True)
+def bedna_skener_ctecka_view(request):
+    """
+    Zobrazuje stránku pro skenování bedny čtečkou nebo ruční zadání čísla bedny.
+    """
+    if request.method == 'POST':
+        form = BednaSkenerCteckaForm(request.POST)
+        if form.is_valid():
+            cislo_bedny = form.cleaned_data['cislo_bedny']
+            if not Bedna.objects.filter(cislo_bedny=cislo_bedny).exists():
+                messages.error(request, f'Bedna {cislo_bedny} neexistuje.')
+                return redirect('bedna_skener_ctecka')
+            return redirect('bedna_scan', cislo_bedny=cislo_bedny)
+        else:
+            messages.error(request, 'Neplatné číslo bedny.')
+    else:
+        form = BednaSkenerCteckaForm()
+
+    return render(
+        request,
+        'orders/bedna_skener_ctecka.html',
+        {
+            'db_table': 'bedna_skener_ctecka',
+            'form': form,
+        },
+    )
+
 
 @login_required
 def sarze_skener_ctecka_view(request):

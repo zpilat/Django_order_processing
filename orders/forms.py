@@ -488,6 +488,21 @@ class SarzeSkenerCteckaForm(forms.Form):
         return value
 
 
+class BednaSkenerCteckaForm(forms.Form):
+    cislo_bedny = forms.IntegerField(
+        required=True,
+        label='Bedna',
+        min_value=1,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control form-control-lg text-center',
+            'size': '10',
+            'autocomplete': 'off',
+            'autofocus': 'autofocus',
+            'placeholder': 'Zadej číslo bedny',
+        }),
+    )
+
+
 class SarzeKrokActionInitForm(forms.Form):
     datum = forms.DateField(
         required=True,

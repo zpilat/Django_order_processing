@@ -195,6 +195,13 @@
                             {% if db_table == 'sarze_skener_ctecka' %}aria-current="page"{% endif %}
                             href="{% url 'sarze_skener_ctecka' %}">Skenování šarže</a>
                         </li>            
+                        {% if perms.orders.view_bedna %}
+                            <li>
+                                <a class="dropdown-item small{% if db_table == 'bedna_skener_ctecka' %} active{% endif %}"
+                                {% if db_table == 'bedna_skener_ctecka' %}aria-current="page"{% endif %}
+                                href="{% url 'bedna_skener_ctecka' %}">Skenování bedny</a>
+                            </li>
+                        {% endif %}
                         <li><hr class="dropdown-divider"></li>
                         <li>
                             <a class="dropdown-item small{% if db_table == 'bedna_skener' %} active{% endif %}"

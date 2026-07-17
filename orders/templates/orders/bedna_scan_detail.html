@@ -44,6 +44,13 @@
     </section>
 
     <div class="d-grid gap-2 mt-3">
+        {% if perms.orders.view_bedna %}
+            <a class="btn btn-outline-secondary w-100 scan-action-button d-flex align-items-center justify-content-center"
+               href="{% url 'bedna_skener_ctecka' %}">
+                Skenování bedny
+            </a>
+        {% endif %}
+
         {% if can_mark_navezeno %}
             <a class="btn btn-success w-100 scan-action-button d-flex align-items-center justify-content-center"
                href="{% url 'bedna_scan_navezeni' bedna.cislo_bedny %}">
@@ -51,7 +58,7 @@
             </a>
         {% elif has_mark_navezeno_permission %}
             <div class="alert alert-secondary d-flex align-items-center justify-content-center mb-0">
-                Akce „Označit navezeno“ není pro aktuální stav bedny ({{ bedna.get_stav_bedny_display }}) dostupná.
+                Akce „Označit navezeno“ není dostupná.
             </div>
         {% endif %}
 
@@ -62,7 +69,7 @@
             </a>
         {% elif has_mark_zkontrolovano_permission %}
             <div class="alert alert-secondary d-flex align-items-center justify-content-center mb-0">
-                Akce „Označit zkontrolováno“ není pro aktuální stav bedny ({{ bedna.get_stav_bedny_display }}) dostupná.
+                Akce „Označit zkontrolováno“ není dostupná.
             </div>
         {% endif %}
 

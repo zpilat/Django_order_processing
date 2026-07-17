@@ -311,6 +311,15 @@ class BednaScanViewTests(ViewsTestBase):
 		self.assertContains(response, reverse("bedna_scan_pohyb", args=[self.b_eur_pr.cislo_bedny]))
 		self.assertNotContains(response, "Označit navezeno")
 
+	def test_scan_detail_shows_bedna_scanner_link_for_view_bedna_user(self):
+		self.user.user_permissions.add(Permission.objects.get(codename="view_bedna"))
+
+		response = self.client.get(reverse("bedna_scan", args=[self.b_eur_pr.cislo_bedny]))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "Skenování bedny")
+		self.assertContains(response, reverse("bedna_skener_ctecka"))
+
 	def test_scan_detail_shows_mark_navezeno_action_with_permission(self):
 		self.b_eur_pr.stav_bedny = StavBednyChoice.K_NAVEZENI
 		self.b_eur_pr.save(update_fields=["stav_bedny"])
@@ -638,6 +647,73 @@ class BednaScanViewTests(ViewsTestBase):
 		self.assertEqual(response["Location"], reverse("sarze_skener_ctecka"))
 		self.assertIn(
 			"Šarže 99999 neexistuje.",
+			[str(message) for message in get_messages(response.wsgi_request)],
+		)
+
+	def test_bedna_skener_ctecka_requires_login(self):
+		self.client.logout()
+
+		response = self.client.get(reverse("bedna_skener_ctecka"))
+
+		self.assertEqual(response.status_code, 302)
+		self.assertIn("login", response.url)
+
+	def test_bedna_skener_ctecka_requires_view_bedna_permission(self):
+		response = self.client.get(reverse("bedna_skener_ctecka"))
+
+		self.assertEqual(response.status_code, 403)
+
+	def test_bedna_skener_ctecka_get_renders_form(self):
+		self.user.user_permissions.add(Permission.objects.get(codename="view_bedna"))
+
+		response = self.client.get(reverse("bedna_skener_ctecka"))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertTemplateUsed(response, "orders/bedna_skener_ctecka.html")
+		self.assertContains(response, 'name="cislo_bedny"', html=False)
+		self.assertContains(response, "autofocus", html=False)
+		self.assertContains(response, 'type="submit"', html=False)
+		self.assertContains(response, "Otevřít")
+
+	def test_bedna_skener_ctecka_post_redirects_to_bedna_scan(self):
+		self.user.user_permissions.add(Permission.objects.get(codename="view_bedna"))
+
+		response = self.client.post(
+			reverse("bedna_skener_ctecka"),
+			{"cislo_bedny": str(self.b_eur_pr.cislo_bedny)},
+		)
+
+		self.assertEqual(response.status_code, 302)
+		self.assertEqual(response["Location"], reverse("bedna_scan", args=[self.b_eur_pr.cislo_bedny]))
+
+	def test_bedna_skener_ctecka_post_rejects_invalid_code(self):
+		self.user.user_permissions.add(Permission.objects.get(codename="view_bedna"))
+
+		response = self.client.post(
+			reverse("bedna_skener_ctecka"),
+			{"cislo_bedny": "ABC"},
+		)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertTemplateUsed(response, "orders/bedna_skener_ctecka.html")
+		self.assertIn("cislo_bedny", response.context["form"].errors)
+		self.assertIn(
+			"Neplatné číslo bedny.",
+			[str(message) for message in get_messages(response.wsgi_request)],
+		)
+
+	def test_bedna_skener_ctecka_post_redirects_back_for_missing_bedna(self):
+		self.user.user_permissions.add(Permission.objects.get(codename="view_bedna"))
+
+		response = self.client.post(
+			reverse("bedna_skener_ctecka"),
+			{"cislo_bedny": "999999"},
+		)
+
+		self.assertEqual(response.status_code, 302)
+		self.assertEqual(response["Location"], reverse("bedna_skener_ctecka"))
+		self.assertIn(
+			"Bedna 999999 neexistuje.",
 			[str(message) for message in get_messages(response.wsgi_request)],
 		)
 
