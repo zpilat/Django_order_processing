@@ -3730,7 +3730,7 @@ class BednyListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
         delka_filter = self._get_effective_delka_filter() if include_delka_filter else ''
 
         if stav_filter == 'SK' or not stav_filter:
-            queryset = queryset.exclude(stav_bedny='EX')
+            queryset = queryset.filter(stav_bedny__in=STAV_BEDNY_SKLADEM)
         elif stav_filter == 'RO':
             queryset = queryset.filter(stav_bedny__in=STAV_BEDNY_ROZPRACOVANOST)
         elif stav_filter == 'PE':

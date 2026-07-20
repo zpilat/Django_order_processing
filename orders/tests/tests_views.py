@@ -1880,8 +1880,13 @@ class BednyListViewTests(ViewsTestBase):
 			)
 		)
 
-	def test_default_excludes_expedovano_and_htmx_partial(self):
-		# default stav_filter=SKLAD => vyřadí EXPEDOVANO
+	def test_default_excludes_non_skladem_states_and_htmx_partial(self):
+		# default stav_filter=SKLAD => vrátí pouze STAV_BEDNY_SKLADEM
+		neprijata_bedna = Bedna.objects.create(
+			zakazka=self.zak_eur,
+			stav_bedny=StavBednyChoice.NEPRIJATO,
+		)
+
 		resp = self.client.get(reverse("bedny_list"))
 		self.assertEqual(resp.status_code, 200)
 		self.assertTemplateUsed(resp, "orders/bedny_list.html")
@@ -1890,6 +1895,14 @@ class BednyListViewTests(ViewsTestBase):
 		objects = list(resp.context["object_list"])
 		self.assertIn(self.b_eur_pr, objects)
 		self.assertNotIn(self.b_abc_ex, objects)
+		self.assertNotIn(neprijata_bedna, objects)
+
+		resp_sk = self.client.get(reverse("bedny_list"), {"stav_filter": "SK"})
+		objects_sk = list(resp_sk.context["object_list"])
+		self.assertIn(self.b_eur_pr, objects_sk)
+		self.assertNotIn(self.b_abc_ex, objects_sk)
+		self.assertNotIn(neprijata_bedna, objects_sk)
+
 		self.assertEqual(resp.context["pozastaveno_filter"], "False")
 		delka_choice_labels = [label for value, label in resp.context["delka_choices"]]
 		self.assertIn(str(int(self.zak_eur.delka)), delka_choice_labels)
