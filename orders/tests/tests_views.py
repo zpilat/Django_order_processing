@@ -5,7 +5,7 @@ from django.contrib.auth.models import Permission
 from django.contrib.messages import get_messages
 from django.utils import timezone
 from django.template.loader import render_to_string
-from datetime import date, time, timedelta
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from unittest.mock import patch
 import json
@@ -786,10 +786,14 @@ class BednaScanViewTests(ViewsTestBase):
 		)
 		SarzeKrokBedna.objects.create(krok=krok, bedna=self.b_eur_pr, patro=1, procent_z_patra=100)
 
-		response = self.client.get(reverse("sarze_scan_presunout", args=[sarze.cislo_sarze, krok.pk]))
+		with patch("orders.views.timezone.localtime") as localtime_mock:
+			localtime_mock.return_value = datetime(2026, 7, 20, 14, 35)
+			response = self.client.get(reverse("sarze_scan_presunout", args=[sarze.cislo_sarze, krok.pk]))
 
 		self.assertEqual(response.status_code, 200)
 		self.assertTemplateUsed(response, "orders/sarze_scan_presunout.html")
+		self.assertEqual(response.context["form"].initial["zacatek"], "14:35")
+		self.assertEqual(response.context["form"].initial["operator"], "tester")
 		self.assertContains(response, "Nový krok šarže")
 		self.assertContains(response, "Vytvořit další krok")
 		self.assertContains(response, 'name="source_row_ids"', html=False)

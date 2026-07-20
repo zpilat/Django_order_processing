@@ -935,7 +935,11 @@ def sarze_scan_presunout_view(request, cislo_sarze: int, krok_id: int):
         )
     else:
         form = SarzeKrokActionInitForm(
-            initial={'datum': timezone.localdate()},
+            initial={
+                'datum': timezone.localdate(),
+                'zacatek': timezone.localtime().strftime('%H:%M'),
+                'operator': request.user.get_full_name() or request.user.username,
+            },
             sarze=source_krok.sarze,
         )
         _style_sarze_scan_move_form(form)
