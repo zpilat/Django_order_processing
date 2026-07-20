@@ -2075,6 +2075,14 @@ class SarzeKrokBednaInlineAdminTests(AdminBase):
             mnozstvi=1,
             stav_bedny=StavBednyChoice.EXPEDOVANO,
         )
+        pozastavena_bedna = Bedna.objects.create(
+            zakazka=zakazka,
+            hmotnost=Decimal('1.0'),
+            tara=Decimal('1.0'),
+            mnozstvi=1,
+            stav_bedny=StavBednyChoice.PRIJATO,
+            pozastaveno=True,
+        )
 
         response = self.client.get(
             reverse('admin:autocomplete'),
@@ -2093,6 +2101,44 @@ class SarzeKrokBednaInlineAdminTests(AdminBase):
         self.assertIn(str(pro_navezeni_bedna.pk), returned_ids)
         self.assertNotIn(str(mimo_pro_navezeni_bedna.pk), returned_ids)
         self.assertNotIn(str(expedovana_bedna.pk), returned_ids)
+        self.assertNotIn(str(pozastavena_bedna.pk), returned_ids)
+
+    def test_sarze_inline_bedna_formfield_queryset_excludes_paused_bedny(self):
+        request = self.factory.get('/admin/orders/sarzekrok/')
+        request.user = self.user
+
+        zakazka = Zakazka.objects.create(
+            kamion_prijem=self.kamion,
+            artikl='INLINE-QS',
+            prumer=Decimal('10.0'),
+            delka=Decimal('20.0'),
+            predpis=self.predpis,
+            typ_hlavy=self.typ_hlavy,
+            popis='inline queryset',
+        )
+        active_bedna = Bedna.objects.create(
+            zakazka=zakazka,
+            hmotnost=Decimal('1.0'),
+            tara=Decimal('1.0'),
+            mnozstvi=1,
+            stav_bedny=StavBednyChoice.PRIJATO,
+        )
+        paused_bedna = Bedna.objects.create(
+            zakazka=zakazka,
+            hmotnost=Decimal('1.0'),
+            tara=Decimal('1.0'),
+            mnozstvi=1,
+            stav_bedny=StavBednyChoice.PRIJATO,
+            pozastaveno=True,
+        )
+
+        formfield = self.sarze_inline.formfield_for_foreignkey(
+            SarzeKrokBedna._meta.get_field('bedna'),
+            request,
+        )
+
+        self.assertIn(active_bedna, formfield.queryset)
+        self.assertNotIn(paused_bedna, formfield.queryset)
 
     def test_sarze_inline_bedna_autocomplete_returns_no_results_for_short_term(self):
         self.client.force_login(self.user)
@@ -2174,7 +2220,50 @@ class SarzeKrokBednaInlineAdminTests(AdminBase):
         formset = formset_class(data=data, instance=self.krok, prefix=prefix)
 
         self.assertFalse(formset.is_valid())
-        self.assertTrue(any('nejsou ve stavu povoleném pro navezení' in str(err) for err in formset.non_form_errors()))
+        self.assertIn('bedna', formset.forms[0].errors)
+
+    def test_sarze_inline_formset_rejects_paused_bedna(self):
+        request = self.factory.get('/admin/orders/sarzekrok/')
+        request.user = self.user
+
+        formset_class = self.sarze_inline.get_formset(request, obj=self.krok)
+        prefix = formset_class.get_default_prefix()
+
+        paused_bedna = Bedna.objects.create(
+            zakazka=Zakazka.objects.create(
+                kamion_prijem=self.kamion,
+                artikl='PAUSED-1',
+                prumer=Decimal('9.0'),
+                delka=Decimal('30.0'),
+                predpis=self.predpis,
+                typ_hlavy=self.typ_hlavy,
+                popis='paused inline',
+            ),
+            hmotnost=Decimal('1.0'),
+            tara=Decimal('1.0'),
+            mnozstvi=1,
+            stav_bedny=StavBednyChoice.PRIJATO,
+            pozastaveno=True,
+        )
+
+        data = {
+            f'{prefix}-TOTAL_FORMS': '1',
+            f'{prefix}-INITIAL_FORMS': '0',
+            f'{prefix}-MIN_NUM_FORMS': '0',
+            f'{prefix}-MAX_NUM_FORMS': '1000',
+            f'{prefix}-0-bedna': str(paused_bedna.pk),
+            f'{prefix}-0-patro': '1',
+            f'{prefix}-0-procent_z_patra': '100',
+            f'{prefix}-0-popis_mimo_db': '',
+            f'{prefix}-0-zakaznik_mimo_db': '',
+            f'{prefix}-0-zakazka_mimo_db': '',
+            f'{prefix}-0-cislo_bedny_mimo_db': '',
+        }
+
+        formset = formset_class(data=data, instance=self.krok, prefix=prefix)
+
+        self.assertFalse(formset.is_valid())
+        self.assertIn('bedna', formset.forms[0].errors)
 
     def test_sarze_inline_formset_requires_any_row_on_add(self):
         request = self.factory.get('/admin/orders/sarzekrok/add/')

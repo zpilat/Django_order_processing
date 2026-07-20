@@ -810,6 +810,7 @@ class SarzeKrokPatroPolozkaForm(forms.Form):
         self.fields['bedna'].queryset = (
             Bedna.objects
             .filter(stav_bedny__in=allowed_states)
+            .filter(pozastaveno=False)
             .select_related('zakazka', 'zakazka__kamion_prijem', 'zakazka__kamion_prijem__zakaznik')
             .order_by('-cislo_bedny')
         )
@@ -828,6 +829,9 @@ class SarzeKrokPatroPolozkaForm(forms.Form):
             return cleaned_data
 
         bedna = cleaned_data.get('bedna')
+        if bedna and bedna.pozastaveno:
+            self.add_error('bedna', 'Pozastavenou bednu nelze vložit do šarže.')
+
         if self.bedna_only:
             return cleaned_data
 

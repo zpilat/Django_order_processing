@@ -1794,6 +1794,10 @@ class SarzeKrokBedna(models.Model):
                         "Vybraná bedna musí být ve stavu povoleném pro přesun do zpracování."
                     )
                 )
+            if self.bedna.pozastaveno:
+                raise ValidationError(
+                    _("Pozastavenou bednu nelze vložit do šarže.")
+                )
 
         required_with_popis = [
             (

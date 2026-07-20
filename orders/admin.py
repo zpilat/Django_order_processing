@@ -134,6 +134,7 @@ class SarzeKrokBednaInlineFormSet(BaseInlineFormSet):
             for state in STAV_BEDNY_PRO_NAVEZENI
         }
         invalid_bedna_numbers = []
+        paused_bedna_numbers = []
 
         for form in self.forms:
             if not hasattr(form, 'cleaned_data'):
@@ -147,11 +148,19 @@ class SarzeKrokBednaInlineFormSet(BaseInlineFormSet):
 
             if bedna.stav_bedny not in allowed_states:
                 invalid_bedna_numbers.append(str(bedna.cislo_bedny))
+            if bedna.pozastaveno:
+                paused_bedna_numbers.append(str(bedna.cislo_bedny))
 
         if invalid_bedna_numbers:
             raise ValidationError(
                 _(
                     f"Některé vybrané bedny nejsou ve stavu povoleném pro navezení: {', '.join(invalid_bedna_numbers)}."
+                )
+            )
+        if paused_bedna_numbers:
+            raise ValidationError(
+                _(
+                    f"Některé vybrané bedny jsou pozastavené a nelze je vložit do šarže: {', '.join(paused_bedna_numbers)}."
                 )
             )
 
@@ -208,6 +217,16 @@ class SarzeKrokBednaInline(admin.TabularInline):
         'bedna', 'patro', 'procent_z_patra', 'popis_mimo_db', 'zakaznik_mimo_db', 'zakazka_mimo_db', 'cislo_bedny_mimo_db',
     )
     extra = 5 
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == 'bedna':
+            kwargs['queryset'] = (
+                Bedna.objects
+                .filter(stav_bedny__in=_stav_bedny_pro_navezeni_values(), pozastaveno=False)
+                .select_related('zakazka', 'zakazka__kamion_prijem', 'zakazka__kamion_prijem__zakaznik')
+                .order_by('-cislo_bedny')
+            )
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
     def formfield_for_dbfield(self, db_field, request, **kwargs):
         """
@@ -2858,7 +2877,10 @@ class BednaAdmin(SimpleHistoryAdmin):
         if is_sarze_inline_autocomplete:
             if len(search_term.strip()) < 4:
                 return queryset.none(), use_distinct
-            queryset = queryset.filter(stav_bedny__in=_stav_bedny_pro_navezeni_values())
+            queryset = queryset.filter(
+                stav_bedny__in=_stav_bedny_pro_navezeni_values(),
+                pozastaveno=False,
+            )
 
         return queryset, use_distinct
 
