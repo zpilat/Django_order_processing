@@ -47,7 +47,7 @@ from .actions import (
     oznacit_kriva_action, oznacit_kouleni_action, oznacit_rovna_se_action, oznacit_vyrovnana_action, oznacit_cista_action, oznacit_spinava_action,
     oznacit_otryskana_action, odeslat_na_zinkovani_action, export_na_zinkovani_action, oznacit_k_zinkovani_action, oznacit_po_zinkovani_action,
     oznacit_uvolneno_action, prijmout_kamion_action, prijmout_zakazku_action, prijmout_bedny_action,
-    export_bedny_to_csv_action, export_bedny_to_csv_customer_action, export_bedny_dl_action, tisk_rozpracovanost_action, tisk_prehledu_zakazek_kamionu_action, expedice_beden_action,
+    export_bedny_to_csv_customer_action, export_bedny_dl_action, tisk_rozpracovanost_action, tisk_prehledu_zakazek_kamionu_action, expedice_beden_action,
     expedice_beden_kamion_action, uvolnit_pozastavene_bedny_action, oznacit_nefakturovat_action,
     vytvorit_dalsi_krok_sarze_action, vytvorit_novy_krok_z_kroku_sarze_action, tisk_pruvodky_vruty_sarze_action, tisk_karty_kontroly_prohybu_kamionu_action,
 )
@@ -2705,7 +2705,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     change_list_template = 'admin/orders/bedna/change_list.html'
     poll_interval_ms = 30000
     actions = [
-        export_bedny_to_csv_action, tisk_karet_beden_action, tisk_karet_kontroly_kvality_action, tisk_karet_bedny_a_kontroly_action,
+        tisk_karet_beden_action, tisk_karet_kontroly_kvality_action, tisk_karet_bedny_a_kontroly_action,
         export_bedny_to_csv_customer_action, export_bedny_dl_action,
         oznacit_k_navezeni_action, oznacit_navezeno_action, oznacit_prijato_navezeno_action, vratit_bedny_ze_stavu_k_navezeni_do_stavu_prijato_action,
         vratit_bedny_ze_stavu_navezeno_do_stavu_prijato_action, vratit_bedny_z_rozpracovanosti_do_stavu_prijato_action,
@@ -3871,10 +3871,6 @@ class BednaAdmin(SimpleHistoryAdmin):
                 actions_to_remove += [
                     'prijmout_bedny_action',
                 ]
-            if stav_filter:
-                actions_to_remove += [
-                    'export_bedny_to_csv_action',
-                ]
             if stav_filter and stav_filter != StavBednyChoice.PRIJATO:
                 actions_to_remove += [
                     'oznacit_k_navezeni_action', 'oznacit_prijato_do_zakaleno_action',
@@ -3991,7 +3987,6 @@ class BednaAdmin(SimpleHistoryAdmin):
             return default_choices
 
         group_map = {
-            'export_bedny_to_csv_action': 'Export',
             'export_bedny_to_csv_customer_action': 'Export',
             'export_bedny_dl_action': 'Export',
             'tisk_karet_beden_action': 'Tisk',

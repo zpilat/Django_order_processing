@@ -13,7 +13,7 @@ from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
 from django.conf import settings
 from django.contrib.staticfiles import finders
-from django.db.models import Count, Q, Max
+from django.db.models import Q, Max
 
 import csv
 import datetime
@@ -597,166 +597,6 @@ def tisk_pruvodky_vruty_sarze_action(modeladmin, request, queryset):
 
 # Akce pro bedny:
 
-@admin.action(description="Export vybraných beden do CSV pro původní rozpracovanost")
-def export_bedny_to_csv_action(modeladmin, request, queryset):
-    """Exportuje aktuálně vyfiltrované bedny do CSV (celý queryset, ne jen stránku)."""
-    select_across = request.POST.get('select_across') == '1'
-    selected_ids = request.POST.getlist(admin.helpers.ACTION_CHECKBOX_NAME)
-
-    try:
-        initial_count = queryset.count()
-    except Exception:
-        logger.warning("Nepodařilo se získat queryset.count() v export_bedny_to_csv_action, používá se fallback.", exc_info=True)
-        initial_count = len(list(queryset))
-
-    queryset = queryset.select_related(
-        'zakazka',
-        'zakazka__kamion_prijem',
-        'zakazka__kamion_prijem__zakaznik',
-        'zakazka__typ_hlavy',
-        'zakazka__predpis',
-    )
-
-    zakazka_ids = list(queryset.values_list('zakazka_id', flat=True).distinct())
-    all_ke_map = {}
-    if zakazka_ids:
-        aggregation = (
-            Bedna.objects.filter(zakazka_id__in=zakazka_ids)
-            .values('zakazka_id')
-            .annotate(
-                total=Count('id'),
-                ke_total=Count('id', filter=Q(stav_bedny=StavBednyChoice.K_EXPEDICI)),
-            )
-        )
-        all_ke_map = {row['zakazka_id']: row['total'] == row['ke_total'] and row['total'] > 0 for row in aggregation}
-
-    rows = list(queryset.order_by('pk'))
-
-    response = HttpResponse(content_type='text/csv; charset=utf-8')
-    filename = f"bedny_export_{timezone.now().strftime('%Y%m%d_%H%M%S')}.csv"
-    response['Content-Disposition'] = f'attachment; filename="{filename}"'
-    response.write('\ufeff')  # BOM pro korektní otevření v Excelu
-    writer = csv.writer(response, delimiter=';', quoting=csv.QUOTE_MINIMAL)
-
-    header = [
-        'Zákazník',
-        'Datum',
-        'Zakázka',
-        'Číslo bedny',
-        'Navezené',
-        'Rozměr',
-        'Do zprac.',
-        'Zakal.',
-        'Kontrol.',
-        'Křivost',
-        'Čistota',
-        'K expedici',
-        'Hmotnost',
-        'Poznámka',
-        'Hlava + závit',
-        'Název',
-        'Skupina',
-    ]
-    writer.writerow(header)
-
-    stav_pro_navezene_x = {
-        StavBednyChoice.K_NAVEZENI: 'o',
-        StavBednyChoice.NAVEZENO: 'x',
-    }
-    do_zpracovani_states = {
-        StavBednyChoice.DO_ZPRACOVANI,
-        StavBednyChoice.ZAKALENO,
-        StavBednyChoice.ZKONTROLOVANO,
-        StavBednyChoice.K_EXPEDICI,
-    }
-    zakaleno_states = {
-        StavBednyChoice.ZAKALENO,
-        StavBednyChoice.ZKONTROLOVANO,
-        StavBednyChoice.K_EXPEDICI,
-    }
-    zkontrolovano_states = {
-        StavBednyChoice.ZKONTROLOVANO,
-        StavBednyChoice.K_EXPEDICI,
-    }
-    rovnat_map = {
-        RovnaniChoice.ROVNA: 'x',
-        RovnaniChoice.KRIVA: 'křivá',
-        RovnaniChoice.KOULENI: 'koulení',
-        RovnaniChoice.ROVNA_SE: 'rovná se',
-        RovnaniChoice.VYROVNANA: 'vyrovnaná',
-    }
-    tryskat_map = {
-        TryskaniChoice.CISTA: 'x',
-        TryskaniChoice.SPINAVA: 'špinavá',
-        TryskaniChoice.OTRYSKANA: 'otryskaná',
-    }
-
-    for bedna in rows:
-        zakazka = getattr(bedna, 'zakazka', None)
-        kamion_prijem = getattr(zakazka, 'kamion_prijem', None) if zakazka else None
-        zakaznik = getattr(kamion_prijem, 'zakaznik', None) if kamion_prijem else None
-
-        prumer = _format_decimal(getattr(zakazka, 'prumer', None)) if zakazka else ''
-        delka = _format_decimal(getattr(zakazka, 'delka', None)) if zakazka else ''
-        if prumer and delka:
-            rozmer = f'{prumer} x {delka}'
-        elif prumer:
-            rozmer = prumer
-        elif delka:
-            rozmer = delka
-        else:
-            rozmer = ''
-
-        stav = bedna.stav_bedny
-        navezene = stav_pro_navezene_x.get(stav, '')
-        do_zpracovani = 'x' if stav in do_zpracovani_states else ''
-        zakaleno = 'x' if stav in zakaleno_states else ''
-        zkontrolovano = 'x' if stav in zkontrolovano_states else ''
-
-        rovnat_value = rovnat_map.get(bedna.rovnat, '')
-        tryskat_value = tryskat_map.get(bedna.tryskat, '')
-
-        all_ke = all_ke_map.get(getattr(zakazka, 'id', None), False)
-        if stav == StavBednyChoice.K_EXPEDICI:
-            k_expedici = 'x' if all_ke else '0'
-        else:
-            k_expedici = ''
-
-        typ_hlavy = ''
-        if zakazka and zakazka.typ_hlavy:
-            typ_hlavy = str(zakazka.typ_hlavy)
-        if zakazka and zakazka.celozavit:
-            typ_hlavy = f"{typ_hlavy} + VG" if typ_hlavy else 'VG'
-
-        datum = ''
-        if zakazka and zakazka.kamion_prijem and zakazka.kamion_prijem.datum:
-            datum = zakazka.kamion_prijem.datum.strftime('%d.%m.%Y')
-
-        writer.writerow([
-            str(zakaznik) if zakaznik else '',
-            datum,
-            getattr(zakazka, 'artikl', '') if zakazka else '',
-            bedna.cislo_bedny,
-            navezene,
-            rozmer,
-            do_zpracovani,
-            zakaleno,
-            zkontrolovano,
-            rovnat_value,
-            tryskat_value,
-            k_expedici,
-            _format_decimal(bedna.hmotnost),
-            bedna.poznamka or '',
-            typ_hlavy,
-            getattr(zakazka, 'zkraceny_popis', '') if zakazka else '',
-            getattr(getattr(zakazka, 'predpis', None), 'skupina', '') if zakazka else '',
-        ])
-
-    logger.info(
-        f"Uživatel {getattr(request, 'user', None)} exportoval {len(rows)} beden do CSV.",
-    )
-    return response
-
 @admin.action(description="Export vybraných beden do CSV pro zákazníka")
 def export_bedny_to_csv_customer_action(modeladmin, request, queryset):
     """
@@ -804,6 +644,10 @@ def export_bedny_to_csv_customer_action(modeladmin, request, queryset):
             writer.writerow([
                 'Batch', 'Nr. Cass', 'Dimensione', '', 'Descrizione', 'Stato', 'Priorità', 'Data di completamento', 'HPM-Nr.', 'kg'
             ])
+        elif zakaznik_zkratka == 'SPX':
+            writer.writerow([
+                'Artikel-Nr.', 'Charge', 'Behälter-Nr.', 'Abmessung', 'Kopf', 'Bezeichnung', 'Stand', 'Priorität', 'Fertigstellungsdatum', 'HPM-Nr.', 'kg'
+            ])
         else:
             writer.writerow([
                 'Artikel-Nr.', 'Behälter-Nr.', 'Abmessung', 'Kopf', 'Bezeichnung', 'Stand', 'Priorität', 'Fertigstellungsdatum', 'HPM-Nr.', 'kg'
@@ -811,6 +655,8 @@ def export_bedny_to_csv_customer_action(modeladmin, request, queryset):
     else:
         if zakaznik_zkratka == 'ROT':
             writer.writerow(['Batch', 'Nr. Cass', 'Dimensione', '', 'Descrizione', 'HPM-Nr.', 'kg'])
+        elif zakaznik_zkratka == 'SPX':
+            writer.writerow(['Artikel-Nr.', 'Charge', 'Behälter-Nr.', 'Abmessung', 'Kopf', 'Bezeichnung', 'HPM-Nr.', 'kg'])
         else:
             writer.writerow(['Artikel-Nr.', 'Behälter-Nr.', 'Abmessung', 'Kopf', 'Bezeichnung', 'HPM-Nr.', 'kg'])
 
@@ -831,6 +677,7 @@ def export_bedny_to_csv_customer_action(modeladmin, request, queryset):
         typ_hlavy = getattr(zakazka, 'typ_hlavy', '') if zakazka else ''
         zkraceny_popis = getattr(zakazka, 'zkraceny_popis', '') if zakazka else ''
         cislo_bedny = getattr(bedna, 'cislo_bedny', '') if bedna else ''
+        sarze = (getattr(bedna, 'sarze', '') or '') if bedna else ''
         hmotnost = _format_decimal(getattr(bedna, 'hmotnost', None)) if bedna else ''
 
         if is_rovnani_export:
@@ -852,7 +699,10 @@ def export_bedny_to_csv_customer_action(modeladmin, request, queryset):
                             datum_vyrovnani = datum_vyrovnani_date.strftime('%d.%m.%Y')
                             break
 
-        row = [artikl, behalter_nr, abm, typ_hlavy, zkraceny_popis]
+        if zakaznik_zkratka == "SPX":
+            row = [artikl, sarze, behalter_nr, abm, typ_hlavy, zkraceny_popis]
+        else:
+            row = [artikl, behalter_nr, abm, typ_hlavy, zkraceny_popis]
         if is_rovnani_export:
             row.extend([stav_rovnani, priorita, datum_vyrovnani])
         row.extend([cislo_bedny, hmotnost])

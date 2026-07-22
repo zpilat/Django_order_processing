@@ -1518,7 +1518,7 @@ class BednaAdminTests(AdminBase):
             {
                 'form-TOTAL_FORMS': '1',
                 'index': '0',
-                'action': 'export_bedny_to_csv_action',
+                'action': 'export_bedny_to_csv_customer_action',
             },
         )
         req.user = self.user

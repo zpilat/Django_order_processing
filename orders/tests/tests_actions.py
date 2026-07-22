@@ -1442,77 +1442,6 @@ class ExportBednyCsvActionTests(ActionsBase):
     def _messages_texts(self, request):
         return [m.message for m in list(request._messages)]
 
-    def test_export_bedny_to_csv_action_generates_expected_rows(self):
-        bedna = self.bedna
-        bedna.stav_bedny = StavBednyChoice.K_EXPEDICI
-        bedna.rovnat = RovnaniChoice.ROVNA
-        bedna.tryskat = TryskaniChoice.CISTA
-        bedna.poznamka = 'Pozn'
-        bedna.behalter_nr = 42
-        bedna.save()
-
-        self.zakazka.celozavit = True
-        self.zakazka.popis = 'Plny popis'
-        self.zakazka.save()
-
-        Bedna.objects.create(
-            zakazka=self.zakazka,
-            hmotnost=Decimal('2.5'),
-            tara=Decimal('1.0'),
-            mnozstvi=1,
-            stav_bedny=StavBednyChoice.DO_ZPRACOVANI,
-        )
-
-        request = self.get_request('post', data={'select_across': '1', 'action': 'export_bedny_to_csv_action'})
-        response = actions.export_bedny_to_csv_action(self.bedna_admin, request, Bedna.objects.all())
-
-        self.assertIsInstance(response, HttpResponse)
-        content = response.content.decode('utf-8-sig')
-        rows = list(csv.reader(io.StringIO(content), delimiter=';'))
-
-        self.assertGreaterEqual(len(rows), 2)
-        expected_header = [
-            'Zákazník',
-            'Datum',
-            'Zakázka',
-            'Číslo bedny',
-            'Navezené',
-            'Rozměr',
-            'Do zprac.',
-            'Zakal.',
-            'Kontrol.',
-            'Křivost',
-            'Čistota',
-            'K expedici',
-            'Hmotnost',
-            'Poznámka',
-            'Hlava + závit',
-            'Název',
-            'Skupina',
-        ]
-        self.assertEqual(rows[0], expected_header)
-
-        expected_row = [
-            'T',
-            self.kamion_prijem.datum.strftime('%d.%m.%Y'),
-            'A1',
-            str(bedna.cislo_bedny),
-            '',
-            '1 x 1',
-            'x',
-            'x',
-            'x',
-            'x',
-            'x',
-            '0',
-            '1',
-            'Pozn',
-            'SK + VG',
-            'Plny popis',
-            '1',
-        ]
-        self.assertEqual(rows[1], expected_row)
-
     def test_export_bedny_to_csv_customer_action_single_customer_only(self):
         z2 = Zakaznik.objects.create(nazev='Z2', zkraceny_nazev='Z2', zkratka='E2', ciselna_rada=200000)
         k2 = Kamion.objects.create(zakaznik=z2, datum=date.today())
@@ -1569,6 +1498,61 @@ class ExportBednyCsvActionTests(ActionsBase):
                 '1',
             ],
         )
+
+    def test_export_bedny_to_csv_customer_action_spx_includes_charge(self):
+        self.zakaznik.zkratka = 'SPX'
+        self.zakaznik.save(update_fields=['zkratka'])
+
+        bedna = self.bedna
+        bedna.behalter_nr = 42
+        bedna.sarze = 'CH-123'
+        bedna.save(update_fields=['behalter_nr', 'sarze'])
+
+        self.zakazka.prumer = Decimal('10.5')
+        self.zakazka.delka = Decimal('20.0')
+        self.zakazka.artikl = 'ART1'
+        self.zakazka.save(update_fields=['prumer', 'delka', 'artikl'])
+
+        req = self.get_request('post')
+        resp = actions.export_bedny_to_csv_customer_action(self.bedna_admin, req, Bedna.objects.filter(id=bedna.id))
+        self.assertIsInstance(resp, HttpResponse)
+
+        rows = list(csv.reader(io.StringIO(resp.content.decode('utf-8-sig')), delimiter=';'))
+        self.assertEqual(
+            rows[0],
+            ['Artikel-Nr.', 'Charge', 'Behälter-Nr.', 'Abmessung', 'Kopf', 'Bezeichnung', 'HPM-Nr.', 'kg'],
+        )
+        self.assertEqual(
+            rows[1],
+            [
+                'ART1',
+                'CH-123',
+                str(bedna.behalter_nr),
+                '10,5 x 20',
+                str(self.zakazka.typ_hlavy),
+                self.zakazka.zkraceny_popis,
+                str(bedna.cislo_bedny),
+                '1',
+            ],
+        )
+
+        req_rovnani = self.get_request('get', {'rovnani': 'k_vyrovnani'})
+        bedna.rovnat = RovnaniChoice.KRIVA
+        bedna.save(update_fields=['rovnat'])
+        resp_rovnani = actions.export_bedny_to_csv_customer_action(
+            self.bedna_admin,
+            req_rovnani,
+            Bedna.objects.filter(id=bedna.id),
+        )
+        self.assertIsInstance(resp_rovnani, HttpResponse)
+
+        rows_rovnani = list(csv.reader(io.StringIO(resp_rovnani.content.decode('utf-8-sig')), delimiter=';'))
+        self.assertEqual(
+            rows_rovnani[0],
+            ['Artikel-Nr.', 'Charge', 'Behälter-Nr.', 'Abmessung', 'Kopf', 'Bezeichnung', 'Stand', 'Priorität', 'Fertigstellungsdatum', 'HPM-Nr.', 'kg'],
+        )
+        self.assertEqual(rows_rovnani[1][1], 'CH-123')
+        self.assertEqual(rows_rovnani[1][6], 'Krumm')
 
     def test_export_bedny_to_csv_customer_action_with_rovnani_filter_columns(self):
         bedna = self.bedna
