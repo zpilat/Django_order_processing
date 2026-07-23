@@ -7,6 +7,7 @@ from django.template.loader import render_to_string
 from django.views.generic import ListView
 from django.views.generic.edit import CreateView, UpdateView, DeleteView
 from django.views.generic.detail import DetailView
+from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 from django.urls import reverse, reverse_lazy
 from django.db.models import Q, Max, Sum, Count, F, Exists, OuterRef, Subquery, DecimalField, ExpressionWrapper, Value
@@ -794,6 +795,7 @@ def _build_sarze_scan_move_preview_rows(source_rows, selected_row_ids):
 
 
 @login_required
+@never_cache
 def sarze_scan_view(request, cislo_sarze: int):
     """
     Zobrazuje detail šarže při naskenování čárového kódu.

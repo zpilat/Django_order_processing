@@ -616,6 +616,8 @@ class BednaScanViewTests(ViewsTestBase):
 		self.assertContains(response, 'data-bs-toggle="collapse"', html=False)
 		self.assertContains(response, f'data-bs-target="#sarze-step-body-{krok.pk}"', html=False)
 		self.assertContains(response, f'id="sarze-step-body-{krok.pk}"', html=False)
+		self.assertIn("no-cache", response["Cache-Control"])
+		self.assertIn("no-store", response["Cache-Control"])
 
 	def test_sarze_scan_orders_steps_newest_first(self):
 		sarze = Sarze.objects.create(datum_zalozeni=timezone.localdate(), cislo_pripravku=1)
