@@ -3271,10 +3271,16 @@ class PredpisAdminSaveAsTests(AdminBase):
         request.user = self.user
         request.resolver_match = SimpleNamespace(kwargs={'object_id': str(source_predpis.pk)})
 
+        history_count = source_predpis.history.count()
+
         self.admin._deactivate_source_predpis_on_saveasnew_copy_ceny_deactivate(request, new_predpis)
         source_predpis.refresh_from_db()
 
         self.assertFalse(source_predpis.aktivni)
+        self.assertEqual(source_predpis.history.count(), history_count + 1)
+        latest_history = source_predpis.history.order_by('-history_date', '-history_id').first()
+        self.assertEqual(latest_history.history_type, '~')
+        self.assertFalse(latest_history.aktivni)
 
 
 class CenaAdminTests(AdminBase):

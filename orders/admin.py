@@ -4265,7 +4265,12 @@ class PredpisAdmin(SimpleHistoryAdmin):
         if not source_predpis_id:
             return
 
-        Predpis.objects.filter(pk=source_predpis_id, aktivni=True).update(aktivni=False)
+        source_predpis = Predpis.objects.filter(pk=source_predpis_id, aktivni=True).first()
+        if not source_predpis:
+            return
+
+        source_predpis.aktivni = False
+        source_predpis.save(update_fields=['aktivni'])
 
     def save_related(self, request, form, formsets, change):
         super().save_related(request, form, formsets, change)
