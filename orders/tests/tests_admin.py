@@ -17,6 +17,7 @@ from types import SimpleNamespace
 from orders.admin import KamionAdmin, ZakazkaAdmin, BednaAdmin, BednaInline, NotificationAdmin, SarzeAdmin, SarzeKrokAdmin, SarzeKrokBednaAdmin, SarzeKrokBednaInline, SarzeKrokInline, PredpisAdmin, CenaAdmin
 from orders.actions import vytvorit_dalsi_krok_sarze_action, vytvorit_novy_krok_z_kroku_sarze_action
 from orders.forms import ImportZakazekForm
+from orders.import_strategies import EURImportStrategy
 from orders.models import Zakaznik, Kamion, Zakazka, Bedna, Predpis, TypHlavy, Odberatel, Cena, Notification, PriorityNotificationRecipient, Zarizeni, Sarze, SarzeKrok, SarzeKrokBedna
 from orders.choices import StavBednyChoice, SklademZakazkyChoice, PrijemVydejChoice, KamionChoice, ZinkovaniChoice, PrioritaChoice
 from orders.filters import DelkaFilter
@@ -82,6 +83,47 @@ class KamionAdminTests(AdminBase):
             popis='Test zakázka',
         )
         return kamion_vydej, zakazka
+
+    def test_eur_import_reads_sarze_as_text_and_strips_whitespace(self):
+        predpis_column_name = 'n. Zg. / \n' 'as drg'
+        df_data = {
+            'Abhol- datum': ['2024-01-01', '2024-01-01'],
+            'Unnamed: 7': ['10 x 50', '10 x 50'],
+            'Bezeichnung': ['desc 1', 'desc 2'],
+            'Sonder / Zusatzinfo': ['', ''],
+            'Artikel- nummer': ['A1', 'A2'],
+            predpis_column_name: ['123', '123'],
+            'Material- charge': [' 48885 ', ' T56666 '],
+            'Material': ['steel', 'steel'],
+            'Ober- fläche': ['ZP', 'ZP'],
+            'Gewicht in kg': [1, 1],
+            'Gew.': [1, 1],
+            'Tara kg': [1, 1],
+            'Behälter-Nr.:': [1, 2],
+            'Lief.': ['L1', 'L1'],
+            'Fertigungs- auftrags Nr.': ['F1', 'F2'],
+            'Unnamed: 6': ['TK', 'TK'],
+        }
+
+        import pandas as pandas_mod
+        df = pandas_mod.DataFrame(df_data)
+        request = self.get_request('post')
+
+        with patch('orders.import_strategies.pd.read_excel', return_value=df.copy()) as read_excel_mock:
+            parsed_df, preview, errors, warnings, required_fields = EURImportStrategy().parse_excel(
+                excel_stream=object(),
+                request=request,
+                kamion=self.kamion,
+            )
+
+        self.assertEqual(read_excel_mock.call_args.kwargs['dtype']['Material- charge'], str)
+        self.assertEqual(errors, [])
+        self.assertEqual(list(parsed_df['sarze']), ['48885', 'T56666'])
+        self.assertEqual([row['sarze'] for row in preview], ['48885', 'T56666'])
+        self.assertEqual(
+            [EURImportStrategy().get_cache_key(row)[1] for _, row in parsed_df.iterrows()],
+            ['48885', 'T56666'],
+        )
 
     def test_get_inlines(self):
         add_inlines = self.admin.get_inlines(self.get_request(), None)

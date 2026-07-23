@@ -58,6 +58,7 @@ class EURImportStrategy(BaseImportStrategy):
             dtype={
                 'Artikel- nummer': str,
                 'Vorgang+': str,
+                'Material- charge': str,
             },
         )
 
@@ -97,6 +98,10 @@ class EURImportStrategy(BaseImportStrategy):
             'Gew.': 'hmotnost_ks',
         }
         df.rename(columns=column_mapping, inplace=True)
+
+        # Očistí sloupec sarze od mezer a převede na string
+        if 'sarze' in df.columns:
+            df['sarze'] = df['sarze'].fillna('').astype(str).str.strip()
 
         # Povinné zdrojové sloupce dle specifikace
         required_src = [
