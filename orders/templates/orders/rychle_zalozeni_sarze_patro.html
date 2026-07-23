@@ -240,16 +240,22 @@
         const wrapper = document.createElement('div');
 
         if (!option) {
-            wrapper.textContent = `Bedna (${percentage} %)`;
+            wrapper.textContent = 'Bedna';
+            if (percentage >= 15) {
+                appendBreak(wrapper);
+                wrapper.appendChild(document.createTextNode(`(${percentage} %)`));
+            }
             return wrapper;
         }
 
         const number = document.createElement('span');
-        number.className = 'fw-bold fs-6';
+        number.className = 'rack-bedna-number fw-bold fs-6';
         number.textContent = bednaNumberFromOption(option) || option.text.trim();
         wrapper.appendChild(number);
-        appendBreak(wrapper);
-        wrapper.appendChild(document.createTextNode(`(${percentage} %)`));
+        if (percentage >= 15) {
+            appendBreak(wrapper);
+            wrapper.appendChild(document.createTextNode(`(${percentage} %)`));
+        }
 
         return wrapper;
     }
