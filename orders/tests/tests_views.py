@@ -613,6 +613,40 @@ class BednaScanViewTests(ViewsTestBase):
 		self.assertContains(response, "100 %")
 		self.assertContains(response, "Novak")
 		self.assertContains(response, "Svoboda")
+		self.assertContains(response, 'data-bs-toggle="collapse"', html=False)
+		self.assertContains(response, f'data-bs-target="#sarze-step-body-{krok.pk}"', html=False)
+		self.assertContains(response, f'id="sarze-step-body-{krok.pk}"', html=False)
+
+	def test_sarze_scan_orders_steps_newest_first(self):
+		sarze = Sarze.objects.create(datum_zalozeni=timezone.localdate(), cislo_pripravku=1)
+		zarizeni = Zarizeni.objects.create(
+			kod_zarizeni="Z1",
+			nazev_zarizeni="Zařízení 1",
+			zkraceny_nazev_zarizeni="Z1",
+		)
+		krok_1 = SarzeKrok.objects.create(
+			sarze=sarze,
+			zarizeni=zarizeni,
+			zacatek=time(6, 0),
+			konec=time(7, 0),
+			operator="Novak",
+		)
+		krok_2 = SarzeKrok.objects.create(
+			sarze=sarze,
+			zarizeni=zarizeni,
+			zacatek=time(8, 0),
+			konec=time(9, 0),
+			operator="Svoboda",
+		)
+
+		response = self.client.get(reverse("sarze_scan", args=[sarze.cislo_sarze]))
+
+		self.assertEqual(
+			[group["krok"].pk for group in response.context["kroky"]],
+			[krok_2.pk, krok_1.pk],
+		)
+		content = response.content.decode(response.charset)
+		self.assertLess(content.find("(krok 2)"), content.find("(krok 1)"))
 
 	def test_sarze_skener_ctecka_requires_login(self):
 		self.client.logout()
@@ -766,6 +800,81 @@ class BednaScanViewTests(ViewsTestBase):
 		self.assertContains(response, move_url)
 		self.assertContains(response, "Přesunout do dalšího kroku")
 		self.assertContains(response, "Přesunout")
+
+	def test_sarze_scan_top_move_button_uses_newest_step(self):
+		self.user.user_permissions.add(*Permission.objects.filter(
+			codename__in=["add_sarzekrok", "add_sarzekrokbedna"],
+		))
+		sarze = Sarze.objects.create(datum_zalozeni=timezone.localdate(), cislo_pripravku=1)
+		zarizeni = Zarizeni.objects.create(
+			kod_zarizeni="Z1",
+			nazev_zarizeni="Zařízení 1",
+			zkraceny_nazev_zarizeni="Z1",
+		)
+		krok_1 = SarzeKrok.objects.create(
+			sarze=sarze,
+			zarizeni=zarizeni,
+			zacatek=time(6, 0),
+			konec=time(7, 0),
+			operator="Novak",
+		)
+		krok_2 = SarzeKrok.objects.create(
+			sarze=sarze,
+			zarizeni=zarizeni,
+			zacatek=time(8, 0),
+			konec=time(9, 0),
+			operator="Svoboda",
+		)
+
+		response = self.client.get(reverse("sarze_scan", args=[sarze.cislo_sarze]))
+
+		self.assertEqual(response.context["last_krok"].pk, krok_2.pk)
+		self.assertContains(
+			response,
+			reverse("sarze_scan_presunout", args=[sarze.cislo_sarze, krok_2.pk]),
+			count=2,
+		)
+		self.assertContains(
+			response,
+			reverse("sarze_scan_presunout", args=[sarze.cislo_sarze, krok_1.pk]),
+			count=1,
+		)
+
+	def test_sarze_scan_shows_fill_end_button_for_open_steps(self):
+		self.user.user_permissions.add(*Permission.objects.filter(
+			codename__in=["change_sarzekrok", "change_sarzekrokbedna"],
+		))
+		sarze = Sarze.objects.create(datum_zalozeni=timezone.localdate(), cislo_pripravku=1)
+		zarizeni = Zarizeni.objects.create(
+			kod_zarizeni="Z1",
+			nazev_zarizeni="Zařízení 1",
+			zkraceny_nazev_zarizeni="Z1",
+		)
+		closed_krok = SarzeKrok.objects.create(
+			sarze=sarze,
+			zarizeni=zarizeni,
+			zacatek=time(6, 0),
+			konec=time(7, 0),
+			operator="Novak",
+		)
+		open_krok = SarzeKrok.objects.create(
+			sarze=sarze,
+			zarizeni=zarizeni,
+			zacatek=time(8, 0),
+			operator="Svoboda",
+		)
+
+		response = self.client.get(reverse("sarze_scan", args=[sarze.cislo_sarze]))
+
+		self.assertContains(response, "Doplnit konec kroku", count=1)
+		self.assertContains(
+			response,
+			f'{reverse("sarze_scan_change_krok", args=[sarze.cislo_sarze, open_krok.pk])}#id_konec',
+		)
+		self.assertNotContains(
+			response,
+			f'{reverse("sarze_scan_change_krok", args=[sarze.cislo_sarze, closed_krok.pk])}#id_konec',
+		)
 
 	def test_sarze_scan_move_view_get_renders_form(self):
 		self.user.user_permissions.add(*Permission.objects.filter(

@@ -803,7 +803,7 @@ def sarze_scan_view(request, cislo_sarze: int):
         SarzeKrok.objects
         .filter(sarze=sarze)
         .select_related('sarze', 'zarizeni')
-        .order_by('poradi', 'datum', 'zacatek', 'pk')
+        .order_by('-poradi', '-datum', '-zacatek', '-pk')
     )
     krok_groups = []
     krok_groups_by_id = {}
@@ -847,7 +847,7 @@ def sarze_scan_view(request, cislo_sarze: int):
         {
             'sarze': sarze,
             'kroky': krok_groups,
-            'last_krok': kroky[-1] if kroky else None,
+            'last_krok': kroky[0] if kroky else None,
             'can_move_sarze': _can_move_sarze_scan(request.user),
             'can_change_sarze': _can_change_sarze_scan(request.user),
             'db_table': 'sarze_scan',

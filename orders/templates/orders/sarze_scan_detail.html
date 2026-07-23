@@ -53,10 +53,18 @@
                                     <span class="text-muted small">{{ krok.operator|default:"-" }}</span>
                                 </div>
                                 {% if can_change_sarze %}
-                                    <a class="btn btn-sm btn-primary mt-2"
-                                       href="{% url 'sarze_scan_change_krok' sarze.cislo_sarze krok.pk %}">
-                                        Upravit
-                                    </a>
+                                    <div class="d-flex flex-wrap gap-2 mt-2">
+                                        <a class="btn btn-sm btn-primary"
+                                           href="{% url 'sarze_scan_change_krok' sarze.cislo_sarze krok.pk %}">
+                                            Upravit
+                                        </a>
+                                        {% if not krok.konec %}
+                                            <a class="btn btn-sm btn-danger"
+                                               href="{% url 'sarze_scan_change_krok' sarze.cislo_sarze krok.pk %}#id_konec">
+                                                Doplnit konec kroku
+                                            </a>
+                                        {% endif %}
+                                    </div>
                                 {% endif %}                                
                             </div>
                             <div class="text-sm-end">
@@ -70,62 +78,72 @@
                                         Přesunout
                                     </a>
                                 {% endif %}
+                                <button class="btn btn-sm btn-outline-secondary mt-2"
+                                        type="button"
+                                        data-bs-toggle="collapse"
+                                        data-bs-target="#sarze-step-body-{{ krok.pk }}"
+                                        aria-expanded="false"
+                                        aria-controls="sarze-step-body-{{ krok.pk }}">
+                                    Patra <span class="movement-toggle-icon" aria-hidden="true"></span>
+                                </button>
                             </div>
                         </div>
                     </div>
-                    <div class="movement-body">
-                        {% if krok.alarm or krok.poznamka %}
-                            <div class="movement-grid movement-step-meta">
-                                {% if krok.alarm %}
-                                    <div>
-                                        <div class="movement-label">Alarm</div>
-                                        <div class="movement-value">{{ krok.alarm }}</div>
-                                    </div>
-                                {% endif %}
-                                {% if krok.poznamka %}
-                                    <div>
-                                        <div class="movement-label">Poznámka kroku</div>
-                                        <div class="movement-value">{{ krok.poznamka }}</div>
-                                    </div>
-                                {% endif %}
-                            </div>
-                        {% endif %}
-                        {% for patro in krok_item.patra %}
-                            <div class="movement-floor">
-                                <div class="movement-label">Patro {{ patro.patro }}</div>
-                                <div class="bedna-list">
-                                    {% for polozka in patro.polozky %}
-                                        <div class="bedna-item">
-                                            <div>
-                                                <div class="fw-bold">
-                                                    {% if polozka.bedna %}
-                                                        {{ polozka.bedna.cislo_bedny }}
-                                                    {% else %}
-                                                        {{ polozka.popis_mimo_db|default:"-" }}
-                                                    {% endif %}
-                                                </div>
-                                                <div class="text-muted small">
-                                                    {% if polozka.bedna and polozka.bedna.zakazka %}
-                                                        {{ polozka.bedna.zakazka.artikl }}
-                                                    {% elif polozka.zakazka_mimo_db %}
-                                                        {{ polozka.zakazka_mimo_db }}
-                                                    {% else %}
-                                                        -
-                                                    {% endif %}
-                                                </div>
-                                            </div>
-                                            <div class="fw-bold">
-                                                {{ polozka.procent_z_patra|default:"-" }}{% if polozka.procent_z_patra is not None %} %{% endif %}
-                                            </div>
+                    <div class="collapse" id="sarze-step-body-{{ krok.pk }}">
+                        <div class="movement-body">
+                            {% if krok.alarm or krok.poznamka %}
+                                <div class="movement-grid movement-step-meta">
+                                    {% if krok.alarm %}
+                                        <div>
+                                            <div class="movement-label">Alarm</div>
+                                            <div class="movement-value">{{ krok.alarm }}</div>
                                         </div>
-                                    {% endfor %}
+                                    {% endif %}
+                                    {% if krok.poznamka %}
+                                        <div>
+                                            <div class="movement-label">Poznámka kroku</div>
+                                            <div class="movement-value">{{ krok.poznamka }}</div>
+                                        </div>
+                                    {% endif %}
                                 </div>
-                            </div>
-                        {% empty %}
-                            <div class="alert alert-secondary mt-3 mb-0">
-                                Tento krok zatím nemá uložené žádné bedny.
-                            </div>
-                        {% endfor %}
+                            {% endif %}
+                            {% for patro in krok_item.patra %}
+                                <div class="movement-floor">
+                                    <div class="movement-label">Patro {{ patro.patro }}</div>
+                                    <div class="bedna-list">
+                                        {% for polozka in patro.polozky %}
+                                            <div class="bedna-item">
+                                                <div>
+                                                    <div class="fw-bold">
+                                                        {% if polozka.bedna %}
+                                                            {{ polozka.bedna.cislo_bedny }}
+                                                        {% else %}
+                                                            {{ polozka.popis_mimo_db|default:"-" }}
+                                                        {% endif %}
+                                                    </div>
+                                                    <div class="text-muted small">
+                                                        {% if polozka.bedna and polozka.bedna.zakazka %}
+                                                            {{ polozka.bedna.zakazka.artikl }}
+                                                        {% elif polozka.zakazka_mimo_db %}
+                                                            {{ polozka.zakazka_mimo_db }}
+                                                        {% else %}
+                                                            -
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                                <div class="fw-bold">
+                                                    {{ polozka.procent_z_patra|default:"-" }}{% if polozka.procent_z_patra is not None %} %{% endif %}
+                                                </div>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            {% empty %}
+                                <div class="alert alert-secondary mt-3 mb-0">
+                                    Tento krok zatím nemá uložené žádné bedny.
+                                </div>
+                            {% endfor %}
+                        </div>
                     </div>
                 </section>
             {% endwith %}

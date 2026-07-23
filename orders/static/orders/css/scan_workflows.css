@@ -184,13 +184,23 @@
 }
 
 .movement-toggle-icon {
-    font-size: 1.35rem;
-    line-height: 1;
-    font-weight: 800;
+    display: inline-block;
+    width: .55rem;
+    height: .55rem;
+    margin-left: .15rem;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    vertical-align: .12rem;
+    transform: rotate(45deg);
+    transition: transform .15s ease-in-out;
 }
 
 .movement-header[aria-expanded="true"] .movement-toggle-icon {
-    transform: rotate(180deg);
+    transform: rotate(225deg);
+}
+
+[aria-expanded="true"] .movement-toggle-icon {
+    transform: rotate(225deg);
 }
 
 .movement-step-meta:empty {
