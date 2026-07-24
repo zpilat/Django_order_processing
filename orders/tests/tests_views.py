@@ -803,6 +803,56 @@ class BednaScanViewTests(ViewsTestBase):
 		self.assertContains(response, "Přesunout do dalšího kroku")
 		self.assertContains(response, "Přesunout")
 
+	def test_sarze_scan_shows_print_preview_for_valid_nakladani_first_step(self):
+		self.user.user_permissions.add(*Permission.objects.filter(
+			codename__in=["view_sarzekrok", "view_sarzekrokbedna"],
+		))
+		sarze = Sarze.objects.create(datum_zalozeni=timezone.localdate(), cislo_pripravku=1)
+		nakladani = Zarizeni.objects.create(
+			kod_zarizeni="NAK",
+			nazev_zarizeni="Nakládání",
+			zkraceny_nazev_zarizeni="Nakládání",
+			typ_zarizeni=TypZarizeniChoice.NAKLADANI,
+		)
+		krok = SarzeKrok.objects.create(
+			sarze=sarze,
+			poradi=1,
+			zarizeni=nakladani,
+			zacatek=time(6, 0),
+			operator="Novak",
+		)
+		SarzeKrokBedna.objects.create(krok=krok, bedna=self.b_eur_pr, patro=1, procent_z_patra=100)
+
+		response = self.client.get(reverse("sarze_scan", args=[sarze.cislo_sarze]))
+
+		self.assertContains(response, "Náhled tisku")
+		self.assertContains(response, reverse("sarze_scan_tisk_pruvodky", args=[sarze.cislo_sarze]))
+		self.assertEqual(response.context["tisk_pruvodky_krok"], krok)
+
+	def test_sarze_scan_print_preview_unavailable_without_nakladani_first_step(self):
+		self.user.user_permissions.add(*Permission.objects.filter(
+			codename__in=["view_sarzekrok", "view_sarzekrokbedna"],
+		))
+		sarze = Sarze.objects.create(datum_zalozeni=timezone.localdate(), cislo_pripravku=1)
+		zarizeni = Zarizeni.objects.create(
+			kod_zarizeni="Z1",
+			nazev_zarizeni="Zařízení 1",
+			zkraceny_nazev_zarizeni="Z1",
+			typ_zarizeni=TypZarizeniChoice.VICEUCELOVKA,
+		)
+		SarzeKrok.objects.create(
+			sarze=sarze,
+			poradi=1,
+			zarizeni=zarizeni,
+			zacatek=time(6, 0),
+			operator="Novak",
+		)
+
+		response = self.client.get(reverse("sarze_scan", args=[sarze.cislo_sarze]))
+
+		self.assertContains(response, "Náhled tisku není pro tuto šarži dostupný")
+		self.assertNotContains(response, reverse("sarze_scan_tisk_pruvodky", args=[sarze.cislo_sarze]))
+
 	def test_sarze_scan_top_move_button_uses_newest_step(self):
 		self.user.user_permissions.add(*Permission.objects.filter(
 			codename__in=["add_sarzekrok", "add_sarzekrokbedna"],
@@ -3635,7 +3685,7 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			procent_z_patra=100,
 		)
 
-		with patch("orders.views.HTML.write_pdf", return_value=b"%PDF-test"):
+		with patch("orders.services.sarze_print_service.HTML.write_pdf", return_value=b"%PDF-test"):
 			response = self.client.get(
 				reverse("rychle_zalozeni_sarze_tisk", args=[krok.pk]),
 			)
@@ -3720,7 +3770,7 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 
 		self.assertLess(prehled_html.index("2. patro"), prehled_html.index("1. patro"))
 
-		with patch("orders.views.HTML") as html_mock:
+		with patch("orders.services.sarze_print_service.HTML") as html_mock:
 			html_mock.return_value.write_pdf.return_value = b"%PDF-test"
 			self.client.get(
 				reverse("rychle_zalozeni_sarze_tisk", args=[krok.pk]),

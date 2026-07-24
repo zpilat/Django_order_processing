@@ -39,6 +39,10 @@ from .services.expedice_service import (
     expedice_zakazek_do_noveho_kamionu,
 )
 from .services.exceptions import ServiceValidationError
+from .services.sarze_print_service import (
+    build_tisk_pruvodky_vruty_response,
+    get_tisk_pruvodky_vruty_krok,
+)
 from django.urls import reverse
 from .forms import VyberKamionVydejForm, OdberatelForm, KNavezeniForm, NavezenoForm, SarzeKrokActionInitForm
 from .choices import (
@@ -528,66 +532,17 @@ def tisk_pruvodky_vruty_sarze_action(modeladmin, request, queryset):
         return None
 
     sarze = queryset.first()
-    krok = (
-        SarzeKrok.objects
-        .filter(sarze=sarze, poradi=1)
-        .select_related('sarze', 'zarizeni')
-        .order_by('pk')
-        .first()
-    )
-    if krok is None:
+    krok, error_message = get_tisk_pruvodky_vruty_krok(sarze)
+    if error_message:
         modeladmin.message_user(
             request,
-            f'Šarže {sarze} nemá první krok.',
+            error_message,
             level=messages.ERROR,
         )
         return None
-
-    if krok.zarizeni.typ_zarizeni != TypZarizeniChoice.NAKLADANI:
-        modeladmin.message_user(
-            request,
-            f'První krok šarže {sarze} není pracoviště Nakládání.',
-            level=messages.ERROR,
-        )
-        return None
-
-    items = (
-        krok.krok_bedny
-        .select_related('bedna', 'bedna__zakazka', 'bedna__zakazka__predpis')
-        .order_by('-patro', 'pk')
-    )
-    if not items.filter(bedna__isnull=False).exists():
-        modeladmin.message_user(
-            request,
-            f'Šarže {sarze} neobsahuje v prvním kroku žádné vruty.',
-            level=messages.ERROR,
-        )
-        return None
-
-    fake_skupiny = set()
-    for item in items:
-        if item.bedna:
-            fake_skupiny.add(item.bedna.fake_skupina_TZ)
-        else:
-            fake_skupiny.add(None)
-    spolecna_skupina_TZ = next(iter(fake_skupiny)) if len(fake_skupiny) == 1 else None
-
-    html_string = render_to_string(
-        'orders/print/rychle_zalozeni_sarze_print.html',
-        {
-            'krok': krok,
-            'items': items,
-            'spolecna_skupina_TZ': spolecna_skupina_TZ,
-            'generated_at': timezone.now(),
-        },
-    )
-    base_url = getattr(settings, 'WEASYPRINT_BASEURL', None) or request.build_absolute_uri('/')
-    pdf_bytes = HTML(string=html_string, base_url=base_url).write_pdf()
 
     filename = f"sarze_{sarze.pk}_pruvodka_vruty.pdf"
-    response = HttpResponse(pdf_bytes, content_type='application/pdf')
-    response['Content-Disposition'] = f'inline; filename="{filename}"'
-    response['Content-Length'] = str(len(pdf_bytes))
+    response = build_tisk_pruvodky_vruty_response(request, krok, filename)
     logger.info(
         f"Uživatel {request.user} tiskne průvodku vrutů pro šarži {sarze} "
         f"a první krok {krok.pk} z adminu."

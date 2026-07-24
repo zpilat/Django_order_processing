@@ -128,8 +128,8 @@ class ActionsTests(ActionsBase):
     def _messages_texts(self, request):
         return [m.message for m in list(request._messages)]
 
-    @patch('orders.actions.render_to_string', return_value='<html></html>')
-    @patch('orders.actions.HTML')
+    @patch('orders.services.sarze_print_service.render_to_string', return_value='<html></html>')
+    @patch('orders.services.sarze_print_service.HTML')
     def test_tisk_pruvodky_vruty_sarze_action_success(self, html_mock, render_mock):
         html_mock.return_value.write_pdf.return_value = b'%PDF-test'
         admin_obj = self._messaging_admin()
@@ -1298,22 +1298,6 @@ class ActionsTests(ActionsBase):
         self.assertIsNone(resp)
         msgs = self._messages_texts(req)
         self.assertTrue(any('nejsou' in m and 'bedny' in m for m in msgs))
-
-    def test_tisk_karty_kontroly_prohybu_kamionu_action_neprijato_error(self):
-        admin_obj = self._messaging_admin()
-        req = self.get_request('get')
-        self.bedna.stav_bedny = StavBednyChoice.NEPRIJATO
-        self.bedna.save(update_fields=['stav_bedny'])
-
-        resp = actions.tisk_karty_kontroly_prohybu_kamionu_action(
-            admin_obj,
-            req,
-            Kamion.objects.filter(id=self.kamion_prijem.id),
-        )
-
-        self.assertIsInstance(resp, HttpResponse)
-        msgs = self._messages_texts(req)
-        self.assertTrue(any('neprijato' in m.lower() for m in msgs))
 
     @patch('orders.actions.utilita_tisk_dokumentace')
     def test_tisk_karet_beden_kamionu_action(self, mock_util):

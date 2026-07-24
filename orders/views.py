@@ -43,6 +43,10 @@ from .forms import (
     get_sarze_krok_patro_formset,
 )
 from .actions import _build_sarzekrokbedna_preview_rows, _create_sarzekrok_and_copy_rows
+from .services.sarze_print_service import (
+    build_tisk_pruvodky_vruty_response,
+    get_tisk_pruvodky_vruty_krok,
+)
 from .choices import (
     StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice, TypZarizeniChoice,
     ZinkovaniChoice, STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM, STAV_BEDNY_PRO_NAVEZENI,
@@ -794,6 +798,13 @@ def _build_sarze_scan_move_preview_rows(source_rows, selected_row_ids):
     return preview_rows
 
 
+def _can_print_sarze_pruvodka(user):
+    return (
+        user.has_perm('orders.view_sarzekrok')
+        and user.has_perm('orders.view_sarzekrokbedna')
+    )
+
+
 @login_required
 @never_cache
 def sarze_scan_view(request, cislo_sarze: int):
@@ -843,6 +854,11 @@ def sarze_scan_view(request, cislo_sarze: int):
     for krok_group in krok_groups:
         krok_group.pop('patra_by_number', None)
 
+    tisk_krok, tisk_error_message = get_tisk_pruvodky_vruty_krok(sarze)
+    if not _can_print_sarze_pruvodka(request.user):
+        tisk_krok = None
+        tisk_error_message = 'Náhled tisku není dostupný.'
+
     return render(
         request,
         'orders/sarze_scan_detail.html',
@@ -852,9 +868,25 @@ def sarze_scan_view(request, cislo_sarze: int):
             'last_krok': kroky[0] if kroky else None,
             'can_move_sarze': _can_move_sarze_scan(request.user),
             'can_change_sarze': _can_change_sarze_scan(request.user),
+            'tisk_pruvodky_krok': tisk_krok,
+            'tisk_pruvodky_unavailable_message': tisk_error_message,
             'db_table': 'sarze_scan',
         },
     )
+
+
+@login_required
+@permission_required('orders.view_sarzekrok', raise_exception=True)
+@permission_required('orders.view_sarzekrokbedna', raise_exception=True)
+def sarze_scan_tisk_pruvodky_view(request, cislo_sarze: int):
+    sarze = get_object_or_404(Sarze, cislo_sarze=cislo_sarze)
+    krok, error_message = get_tisk_pruvodky_vruty_krok(sarze)
+    if error_message:
+        messages.error(request, error_message)
+        return redirect('sarze_scan', cislo_sarze=sarze.cislo_sarze)
+
+    filename = f"sarze_{sarze.pk}_pruvodka_vruty.pdf"
+    return build_tisk_pruvodky_vruty_response(request, krok, filename)
 
 
 @login_required
@@ -1380,39 +1412,8 @@ def rychle_zalozeni_sarze_tisk_view(request, krok_id):
     if invalid_krok_response is not None:
         return invalid_krok_response
 
-    items = (
-        krok.krok_bedny
-        .select_related('bedna', 'bedna__zakazka', 'bedna__zakazka__predpis')
-        .order_by('-patro', 'pk')
-    )
-
-    fake_skupiny = set()
-    for item in items:
-        if item.bedna:
-            fake_skupina = item.bedna.fake_skupina_TZ
-            fake_skupiny.add(fake_skupina)
-        else:
-            fake_skupiny.add(None)
-    spolecna_skupina_TZ = next(iter(fake_skupiny)) if len(fake_skupiny) == 1 else None
-
-    context = {
-        'krok': krok,
-        'items': items,
-        'spolecna_skupina_TZ': spolecna_skupina_TZ,
-        'generated_at': timezone.now(),
-    }
-    html_string = render_to_string(
-        'orders/print/rychle_zalozeni_sarze_print.html',
-        context,
-    )
-    base_url = getattr(settings, 'WEASYPRINT_BASEURL', None) or request.build_absolute_uri('/')
-    pdf_bytes = HTML(string=html_string, base_url=base_url).write_pdf()
-
     filename = f"sarze_{krok.sarze_id}_krok_{krok.pk}.pdf"
-    response = HttpResponse(pdf_bytes, content_type='application/pdf')
-    response['Content-Disposition'] = f'inline; filename="{filename}"'
-    response['Content-Length'] = str(len(pdf_bytes))
-    return response
+    return build_tisk_pruvodky_vruty_response(request, krok, filename)
 
 
 @login_required
