@@ -2965,6 +2965,11 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 		self.assertIn("Číslo pracoviště musí být v rozsahu 1 až 6.", self._response_messages(resp))
 
 	def test_patro_post_saves_bedny_and_opens_next_floor(self):
+		pozice = Pozice.objects.create(kod="A", kapacita=10)
+		self.b_eur_pr.stav_bedny = StavBednyChoice.K_NAVEZENI
+		self.b_eur_pr.pozice = pozice
+		self.b_eur_pr.save(update_fields=["stav_bedny", "pozice"])
+
 		sarze = Sarze.objects.create(
 			datum_zalozeni=date(2026, 6, 5),
 			cislo_pripravku=12,
@@ -3019,6 +3024,7 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 		self.b_eur_pr.refresh_from_db()
 		other_bedna.refresh_from_db()
 		self.assertEqual(self.b_eur_pr.stav_bedny, StavBednyChoice.DO_ZPRACOVANI)
+		self.assertIsNone(self.b_eur_pr.pozice_id)
 		self.assertEqual(other_bedna.stav_bedny, StavBednyChoice.DO_ZPRACOVANI)
 
 	def test_patro_post_rejects_bedna_not_allowed_for_navezeni(self):

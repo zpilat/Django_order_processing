@@ -1283,7 +1283,10 @@ def rychle_zalozeni_sarze_patro_view(request, krok_id, patro):
                     Bedna.objects.filter(
                         pk__in=saved_bedna_ids,
                         stav_bedny__in=allowed_states,
-                    ).update(stav_bedny=StavBednyChoice.DO_ZPRACOVANI)
+                    ).update(
+                        stav_bedny=StavBednyChoice.DO_ZPRACOVANI,
+                        pozice=None,
+                    )
 
             if request.POST.get('action') == 'next':
                 messages.success(request, f'{patro}. patro bylo uloženo.')
