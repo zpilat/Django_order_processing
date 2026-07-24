@@ -1,4 +1,4 @@
-{% load tz %}
+{% load tz custom_filters %}
 <!DOCTYPE html>
 <html lang="cs">
 <head>
@@ -24,8 +24,31 @@
             page-break-inside: avoid;
         }
 
+        .order-block tr:last-child td,
+        .order-block td[rowspan] {
+            border-bottom: 2px solid !important;
+        }
+
         .measurement-row th {
             line-height: 0.95;
+        }
+
+        .deflection-table .zakazka-header-start th {
+            border-top-width: 2px !important;
+        }
+
+        .deflection-table .zakazka-header-end th {
+            border-bottom-width: 2px !important;
+        }
+
+        .deflection-table .zakazka-header-start th:first-child,
+        .deflection-table .zakazka-header-end th:first-child {
+            border-left-width: 2px !important;
+        }
+
+        .deflection-table .zakazka-header-start th:last-child,
+        .deflection-table .zakazka-header-end th:last-child {
+            border-right-width: 2px !important;
         }
 
         .measurement-row th br {
@@ -52,7 +75,7 @@
             padding: 0 !important;
             line-height: 0;
             border-top: 0;
-            border-bottom: var(--bs-border-width) solid var(--bs-border-color);
+            border-bottom: 1px solid var(--bs-border-color) !important;
         }
 
         .box-number {
@@ -80,11 +103,10 @@
     </table>
     <table class="table table-bordered my-1 deflection-table">
         <colgroup>
-            <col style="width: 9%;">
             <col style="width: 12%;">
-            <col style="width: 11%;">
-            <col style="width: 12%;">
-            <col style="width: 16%;">
+            <col style="width: 14%;">
+            <col style="width: 14%;">
+            <col style="width: 20%;">
             <col style="width: 8%;">
             <col style="width: 8%;">
             <col style="width: 8%;">
@@ -93,26 +115,33 @@
         </colgroup>
         <tfoot>
             <tr class="page-bottom-border">
-                <td colspan="10"></td>
+                <td colspan="9"></td>
             </tr>
         </tfoot>
         {% for zakazka in kamion.zakazky_prijem.all %}
             {% for bedna in zakazka.bedny.all %}
                 <tbody class="order-block">
-                    <tr class="text-center measurement-row">
-                        <th class="py-1 small">BEDNA<br><span class="fw-normal">Gebinde</span></th>
-                        <th class="py-1 small">ROZMĚR<br><span class="fw-normal">Abmessung</span></th>
-                        <th class="py-1 small">ŠARŽE<br><span class="fw-normal">Charge</span></th>
-                        <th class="py-1 small">OBJ. Č.<br><span class="fw-normal">Belegnummer</span></th>
-                        <th class="py-1 small">DATUM KONTROLY<br><span class="fw-normal">Prüfdatum</span></th>
-                        <th class="py-1 small" colspan="5">KONTROLA PROHYBU<br><span class="fw-normal">Abweichung Geradheit</span></th>
-                    </tr>
+                    {% if forloop.first %}
+                        <tr class="text-center measurement-row zakazka-header-start">
+                            <th colspan="4" class="py-1 small">ZAKÁZKA <span class="fw-normal d-inline">/ Art. Nr.: </span>{{ zakazka.artikl }}</th>
+                            <th colspan="5" class="py-1 small">ROZMĚR <span class="fw-normal d-inline">/ Abmessung:</span> Ø{{ zakazka.prumer }}x{{ zakazka.delka|floatformat:0 }}</th>
+                        </tr>
+                        <tr class="text-center measurement-row zakazka-header-end">
+                            <th class="py-1 small">BEDNA<br><span class="fw-normal">Gebinde</span></th>
+                            <th class="py-1 small">ŠARŽE<br><span class="fw-normal">Charge</span></th>
+                            <th class="py-1 small">OBJ. Č.<br><span class="fw-normal">Belegnummer</span></th>
+                            <th class="py-1 small">DATUM KONTROLY<br><span class="fw-normal">Prüfdatum</span></th>
+                            <th class="py-1 small" colspan="5">
+                                KONTROLA PROHYBU <span class="fw-normal d-inline">/ Abweichung Geradheit</span><br>
+                                <span class="fw-normal">0,002: max {{ zakazka.delka|multiply:"0.002"|floatformat:2 }} mm &nbsp;&nbsp;&nbsp;/&nbsp;&nbsp;&nbsp; 0,004: max {{ zakazka.delka|multiply:"0.004"|floatformat:2 }} mm</span>
+                            </th>
+                        </tr>
+                    {% endif %}
                     <tr class="text-center measurement-row">
                         <td rowspan="3" class="py-1">
                             <span class="box-number">{{ bedna.cislo_bedny|default:"-" }}</span>
                             <span class="box-count">({{ forloop.counter }}. z {{ zakazka.pocet_beden }})</span>
                         </td>
-                        <td rowspan="3">Ø{{ zakazka.prumer }}x{{ zakazka.delka|floatformat:0 }}</td>
                         <td rowspan="3">{{ bedna.sarze|default:"-" }}</td>
                         <td rowspan="3">{{ bedna.vyrobni_zakazka|default:"-" }}</td>
                         <td rowspan="3"></td>
@@ -140,14 +169,14 @@
             {% empty %}
                 <tbody>
                     <tr>
-                        <td colspan="10" style="text-align: center;">Zakázka {{ zakazka.artikl }} nemá žádné bedny.</td>
+                        <td colspan="9" style="text-align: center;">Zakázka {{ zakazka.artikl }} nemá žádné bedny.</td>
                     </tr>
                 </tbody>
             {% endfor %}
         {% empty %}
             <tbody>
                 <tr>
-                    <td colspan="10" style="text-align: center;">Žádné zakázky k zobrazení.</td>
+                    <td colspan="9" style="text-align: center;">Žádné zakázky k zobrazení.</td>
                 </tr>
             </tbody>
         {% endfor %}
