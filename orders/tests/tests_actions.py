@@ -1506,7 +1506,8 @@ class ExportBednyCsvActionTests(ActionsBase):
         bedna = self.bedna
         bedna.behalter_nr = 42
         bedna.sarze = 'CH-123'
-        bedna.save(update_fields=['behalter_nr', 'sarze'])
+        bedna.vyrobni_zakazka = 'BZ-456'
+        bedna.save(update_fields=['behalter_nr', 'sarze', 'vyrobni_zakazka'])
 
         self.zakazka.prumer = Decimal('10.5')
         self.zakazka.delka = Decimal('20.0')
@@ -1520,13 +1521,14 @@ class ExportBednyCsvActionTests(ActionsBase):
         rows = list(csv.reader(io.StringIO(resp.content.decode('utf-8-sig')), delimiter=';'))
         self.assertEqual(
             rows[0],
-            ['Artikel-Nr.', 'Charge', 'Behälter-Nr.', 'Abmessung', 'Kopf', 'Bezeichnung', 'HPM-Nr.', 'kg'],
+            ['Artikel-Nr.', 'Charge', 'Belegnummer', 'Behälter-Nr.', 'Abmessung', 'Kopf', 'Bezeichnung', 'HPM-Nr.', 'kg'],
         )
         self.assertEqual(
             rows[1],
             [
                 'ART1',
                 'CH-123',
+                'BZ-456',
                 str(bedna.behalter_nr),
                 '10,5 x 20',
                 str(self.zakazka.typ_hlavy),
@@ -1549,10 +1551,11 @@ class ExportBednyCsvActionTests(ActionsBase):
         rows_rovnani = list(csv.reader(io.StringIO(resp_rovnani.content.decode('utf-8-sig')), delimiter=';'))
         self.assertEqual(
             rows_rovnani[0],
-            ['Artikel-Nr.', 'Charge', 'Behälter-Nr.', 'Abmessung', 'Kopf', 'Bezeichnung', 'Stand', 'Priorität', 'Fertigstellungsdatum', 'HPM-Nr.', 'kg'],
+            ['Artikel-Nr.', 'Charge', 'Belegnummer', 'Behälter-Nr.', 'Abmessung', 'Kopf', 'Bezeichnung', 'Stand', 'Priorität', 'Fertigstellungsdatum', 'HPM-Nr.', 'kg'],
         )
         self.assertEqual(rows_rovnani[1][1], 'CH-123')
-        self.assertEqual(rows_rovnani[1][6], 'Krumm')
+        self.assertEqual(rows_rovnani[1][2], 'BZ-456')
+        self.assertEqual(rows_rovnani[1][7], 'Krumm')
 
     def test_export_bedny_to_csv_customer_action_with_rovnani_filter_columns(self):
         bedna = self.bedna
