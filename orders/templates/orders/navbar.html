@@ -180,7 +180,7 @@
                                     <a class="dropdown-item small{% if db_table == 'sarze_scan' and sarze.pk == posledni_uzavrena_sarze_s_krokem_nakladani.pk %} active{% endif %}"
                                        {% if db_table == 'sarze_scan' and sarze.pk == posledni_uzavrena_sarze_s_krokem_nakladani.pk %}aria-current="page"{% endif %}
                                        href="{% url 'sarze_scan' posledni_uzavrena_sarze_s_krokem_nakladani.cislo_sarze %}">
-                                        Poslední šarže {{ posledni_uzavrena_sarze_s_krokem_nakladani }}
+                                        Poslední naložená šarže {{ posledni_uzavrena_sarze_s_krokem_nakladani }}
                                     </a>
                                 </li>
                             {% endif %}
