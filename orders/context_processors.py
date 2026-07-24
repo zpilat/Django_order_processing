@@ -30,6 +30,22 @@ def _build_pracoviste_nakladani_links():
     ]
 
 
+def _get_posledni_uzavrena_nakladani_sarze():
+    krok = (
+        SarzeKrok.objects
+        .filter(
+            sarze__isnull=False,
+            poradi=1,
+            zarizeni__typ_zarizeni=TypZarizeniChoice.NAKLADANI,
+            konec__isnull=False,
+        )
+        .select_related('sarze', 'zarizeni')
+        .order_by('-sarze__cislo_sarze', '-sarze__pk', '-pk')
+        .first()
+    )
+    return krok.sarze if krok else None
+
+
 def environment_flags(request):
     return {
         "is_debug": bool(settings.DEBUG),
@@ -42,6 +58,7 @@ def otevrene_kroky_nakladani(request):
         return {
             'otevrene_kroky_nakladani': [],
             'pracoviste_nakladani_links': [],
+            'posledni_uzavrena_sarze_s_krokem_nakladani': None,
         }
     if not (
         user.has_perm('orders.view_sarzekrok')
@@ -50,6 +67,7 @@ def otevrene_kroky_nakladani(request):
         return {
             'otevrene_kroky_nakladani': [],
             'pracoviste_nakladani_links': [],
+            'posledni_uzavrena_sarze_s_krokem_nakladani': None,
         }
 
     pracoviste_links = _build_pracoviste_nakladani_links()
@@ -58,4 +76,5 @@ def otevrene_kroky_nakladani(request):
             item['krok'] for item in pracoviste_links if item['is_open']
         ],
         'pracoviste_nakladani_links': pracoviste_links,
+        'posledni_uzavrena_sarze_s_krokem_nakladani': _get_posledni_uzavrena_nakladani_sarze(),
     }

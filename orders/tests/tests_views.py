@@ -2490,7 +2490,61 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 		self.assertContains(resp, reverse("rychle_zalozeni_sarze_pracoviste_prehled", args=[2]))
 		self.assertContains(resp, reverse("rychle_zalozeni_sarze_pracoviste_prehled", args=[3]))
 		self.assertContains(resp, reverse("rychle_zalozeni_sarze_pracoviste_prehled", args=[6]))
-		self.assertNotContains(resp, "Přehled poslední šarže")
+		self.assertContains(resp, "Poslední šarže")
+		self.assertContains(resp, reverse("sarze_scan", args=[uzavrena_sarze.cislo_sarze]))
+
+	def test_navbar_links_to_latest_closed_nakladani_sarze(self):
+		starsi_sarze = Sarze.objects.create(
+			datum_zalozeni=date(2026, 6, 5),
+			cislo_pripravku=12,
+			cislo_pracoviste=1,
+			aktivni=True,
+		)
+		SarzeKrok.objects.create(
+			sarze=starsi_sarze,
+			poradi=1,
+			datum=date(2026, 6, 5),
+			zarizeni=self.nakladani,
+			zacatek=time(6, 0),
+			konec=time(7, 0),
+			operator="Novak",
+		)
+		novejsi_sarze = Sarze.objects.create(
+			datum_zalozeni=date(2026, 6, 6),
+			cislo_pripravku=13,
+			cislo_pracoviste=2,
+			aktivni=True,
+		)
+		SarzeKrok.objects.create(
+			sarze=novejsi_sarze,
+			poradi=1,
+			datum=date(2026, 6, 6),
+			zarizeni=self.nakladani,
+			zacatek=time(8, 0),
+			konec=time(9, 0),
+			operator="Novak",
+		)
+		otevrena_sarze = Sarze.objects.create(
+			datum_zalozeni=date(2026, 6, 7),
+			cislo_pripravku=14,
+			cislo_pracoviste=3,
+			aktivni=True,
+		)
+		SarzeKrok.objects.create(
+			sarze=otevrena_sarze,
+			poradi=1,
+			datum=date(2026, 6, 7),
+			zarizeni=self.nakladani,
+			zacatek=time(10, 0),
+			operator="Novak",
+		)
+
+		resp = self.client.get(reverse("provozni_prehledy"))
+
+		self.assertContains(resp, "Poslední šarže")
+		self.assertContains(resp, reverse("sarze_scan", args=[novejsi_sarze.cislo_sarze]))
+		self.assertNotContains(resp, reverse("sarze_scan", args=[starsi_sarze.cislo_sarze]))
+		self.assertNotContains(resp, reverse("sarze_scan", args=[otevrena_sarze.cislo_sarze]))
 
 	def test_pracoviste_prehled_redirects_to_open_nakladani_step(self):
 		sarze = Sarze.objects.create(

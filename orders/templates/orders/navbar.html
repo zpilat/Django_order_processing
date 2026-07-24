@@ -173,7 +173,17 @@
                                         Pracoviště {{ pracoviste.cislo_pracoviste }} {% if pracoviste.is_open %}({{ pracoviste.krok.sarze }}){% endif %}
                                     </a>
                                 </li>
-                            {% endfor %}                   
+                            {% endfor %}
+                            {% if posledni_uzavrena_sarze_s_krokem_nakladani %}
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item small{% if db_table == 'sarze_scan' and sarze.pk == posledni_uzavrena_sarze_s_krokem_nakladani.pk %} active{% endif %}"
+                                       {% if db_table == 'sarze_scan' and sarze.pk == posledni_uzavrena_sarze_s_krokem_nakladani.pk %}aria-current="page"{% endif %}
+                                       href="{% url 'sarze_scan' posledni_uzavrena_sarze_s_krokem_nakladani.cislo_sarze %}">
+                                        Poslední šarže {{ posledni_uzavrena_sarze_s_krokem_nakladani }}
+                                    </a>
+                                </li>
+                            {% endif %}
                         {% endif %}
                     </ul>
                 </div>
