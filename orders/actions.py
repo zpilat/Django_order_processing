@@ -646,7 +646,7 @@ def export_bedny_to_csv_customer_action(modeladmin, request, queryset):
             ])
         elif zakaznik_zkratka == 'SPX':
             writer.writerow([
-                'Artikel-Nr.', 'Charge', 'Behälter-Nr.', 'Abmessung', 'Kopf', 'Bezeichnung', 'Stand', 'Priorität', 'Fertigstellungsdatum', 'HPM-Nr.', 'kg'
+                'Artikel-Nr.', 'Charge', 'Belegnummer', 'Behälter-Nr.', 'Abmessung', 'Kopf', 'Bezeichnung', 'Stand', 'Priorität', 'Fertigstellungsdatum', 'HPM-Nr.', 'kg'
             ])
         else:
             writer.writerow([
@@ -656,7 +656,7 @@ def export_bedny_to_csv_customer_action(modeladmin, request, queryset):
         if zakaznik_zkratka == 'ROT':
             writer.writerow(['Batch', 'Nr. Cass', 'Dimensione', '', 'Descrizione', 'HPM-Nr.', 'kg'])
         elif zakaznik_zkratka == 'SPX':
-            writer.writerow(['Artikel-Nr.', 'Charge', 'Behälter-Nr.', 'Abmessung', 'Kopf', 'Bezeichnung', 'HPM-Nr.', 'kg'])
+            writer.writerow(['Artikel-Nr.', 'Charge', 'Belegnummer', 'Behälter-Nr.', 'Abmessung', 'Kopf', 'Bezeichnung', 'HPM-Nr.', 'kg'])
         else:
             writer.writerow(['Artikel-Nr.', 'Behälter-Nr.', 'Abmessung', 'Kopf', 'Bezeichnung', 'HPM-Nr.', 'kg'])
 
@@ -678,6 +678,7 @@ def export_bedny_to_csv_customer_action(modeladmin, request, queryset):
         zkraceny_popis = getattr(zakazka, 'zkraceny_popis', '') if zakazka else ''
         cislo_bedny = getattr(bedna, 'cislo_bedny', '') if bedna else ''
         sarze = (getattr(bedna, 'sarze', '') or '') if bedna else ''
+        vyrobni_zakazka = getattr(bedna, 'vyrobni_zakazka', '') if bedna else ''
         hmotnost = _format_decimal(getattr(bedna, 'hmotnost', None)) if bedna else ''
 
         if is_rovnani_export:
@@ -700,7 +701,7 @@ def export_bedny_to_csv_customer_action(modeladmin, request, queryset):
                             break
 
         if zakaznik_zkratka == "SPX":
-            row = [artikl, sarze, behalter_nr, abm, typ_hlavy, zkraceny_popis]
+            row = [artikl, sarze, vyrobni_zakazka, behalter_nr, abm, typ_hlavy, zkraceny_popis]
         else:
             row = [artikl, behalter_nr, abm, typ_hlavy, zkraceny_popis]
         if is_rovnani_export:
@@ -3302,6 +3303,7 @@ def tisk_karty_kontroly_prohybu_kamionu_action(modeladmin, request, queryset):
     Musí se jednat o kamion s příznakem příjem, jinak se zobrazí chybová zpráva.     
     Tiskne se vždy přehled všech zakázek v kamionu, i těch, které jsou již expedovány.
     Pokud jsou v kamionu bedny nepřijaté, zobrazí se varovná zpráva, ale tisk se nepřeruší.
+    Pro SPX se použije jiná šablona pro tisk karty kontroly prohybu.
     """
     if queryset.count() != 1:
         logger.info(f"Uživatel {request.user} se pokusil tisknout kartu kontroly prohybu, ale vybral více než jeden kamion.")

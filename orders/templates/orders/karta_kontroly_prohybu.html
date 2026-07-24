@@ -43,6 +43,18 @@
             width: 100%;
         }
 
+        .deflection-table tfoot {
+            display: table-footer-group;
+        }
+
+        .deflection-table .page-bottom-border td {
+            height: 0;
+            padding: 0 !important;
+            line-height: 0;
+            border-top: 0;
+            border-bottom: var(--bs-border-width) solid var(--bs-border-color);
+        }
+
         .box-number {
             display: block;
             line-height: 0.9;
@@ -78,6 +90,11 @@
             <col style="width: 8%;">
             <col style="width: 8%;">
         </colgroup>
+        <tfoot>
+            <tr class="page-bottom-border">
+                <td colspan="9"></td>
+            </tr>
+        </tfoot>
         {% for zakazka in kamion.zakazky_prijem.all %}
             <tbody class="order-block">
                 <tr class="text-center measurement-row">
