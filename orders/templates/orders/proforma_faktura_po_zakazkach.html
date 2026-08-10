@@ -151,7 +151,8 @@
                     <th style="background-color: #e0e0e0;">EUR / kg</th>
                     <th style="border-right: 1px solid black; background-color: #e0e0e0;">Netto cena</th>
                 {% endif %}
-            </tr>            
+            </tr>
+        </thead>
         <tbody>
             {% for zakazka in kamion.zakazky_vydej.all %}
                 <tr class="text-center">
@@ -193,45 +194,43 @@
                     {% endif %}
                 </tr>
             {% endfor %}
-            <tfoot>
-                <tr class="text-center fw-bold">
-                    <td colspan="4"></td>
-                    <td {% if kamion.zakaznik.fakturovat_rovnani or kamion.zakaznik.fakturovat_tryskani %}style="border-left: 1px solid black;"{% endif %}>
-                        {{ kamion.pocet_beden_expedovano_fakturovanych }} ks
-                    </td>                
-                    <td>
-                        {{ kamion.celkova_hmotnost_fakturovanych_netto|floatformat:"1g" }} kg
-                    </td>                
-                    <td></td>
-                    <td {% if kamion.zakaznik.fakturovat_rovnani or kamion.zakaznik.fakturovat_tryskani %}style="border-right: 1px solid black;"{% endif %}>
-                        {{ kamion.cena_za_kamion_vydej|floatformat:"2g" }} €
+            <tr class="text-center fw-bold">
+                <td colspan="4"></td>
+                <td {% if kamion.zakaznik.fakturovat_rovnani or kamion.zakaznik.fakturovat_tryskani %}style="border-left: 1px solid black;"{% endif %}>
+                    {{ kamion.pocet_beden_expedovano_fakturovanych }} ks
+                </td>                
+                <td>
+                    {{ kamion.celkova_hmotnost_fakturovanych_netto|floatformat:"1g" }} kg
+                </td>                
+                <td></td>
+                <td {% if kamion.zakaznik.fakturovat_rovnani or kamion.zakaznik.fakturovat_tryskani %}style="border-right: 1px solid black;"{% endif %}>
+                    {{ kamion.cena_za_kamion_vydej|floatformat:"2g" }} €
+                </td>
+                {% if kamion.zakaznik.fakturovat_rovnani %}
+                    <td style="background-color: #f0f0f0;">
+                        {{ kamion.pocet_vyrovnanych_beden }} ks
                     </td>
-                    {% if kamion.zakaznik.fakturovat_rovnani %}
-                        <td style="background-color: #f0f0f0;">
-                            {{ kamion.pocet_vyrovnanych_beden }} ks
-                        </td>
-                        <td style="background-color: #f0f0f0;">
-                            {{ kamion.hmotnost_vyrovnanych_beden|floatformat:"1g"|default:"0,0" }} kg
-                        </td>
-                        <td style="background-color: #f0f0f0;"></td>    
-                        <td style="border-right: 1px solid black; background-color: #f0f0f0;">
-                            {{ kamion.cena_rovnani_za_kamion_vydej|floatformat:"2g"|default:"0,00" }} €
-                        </td>
-                    {% endif %}
-                    {% if kamion.zakaznik.fakturovat_tryskani %}
-                        <td style="background-color: #e0e0e0;">
-                            {{ kamion.pocet_otryskanych_beden }} ks
-                        </td>
-                        <td style="background-color: #e0e0e0;">
-                            {{ kamion.hmotnost_otryskanych_beden|floatformat:"1g"|default:"0,0" }} kg
-                        </td>
-                        <td style="background-color: #e0e0e0;"></td>    
-                        <td style="border-right: 1px solid black; background-color: #e0e0e0;">
-                            {{ kamion.cena_tryskani_za_kamion_vydej|floatformat:"2g"|default:"0,00" }} €
-                        </td>
-                    {% endif %}
-                </tr>
-            </tfoot>
+                    <td style="background-color: #f0f0f0;">
+                        {{ kamion.hmotnost_vyrovnanych_beden|floatformat:"1g"|default:"0,0" }} kg
+                    </td>
+                    <td style="background-color: #f0f0f0;"></td>    
+                    <td style="border-right: 1px solid black; background-color: #f0f0f0;">
+                        {{ kamion.cena_rovnani_za_kamion_vydej|floatformat:"2g"|default:"0,00" }} €
+                    </td>
+                {% endif %}
+                {% if kamion.zakaznik.fakturovat_tryskani %}
+                    <td style="background-color: #e0e0e0;">
+                        {{ kamion.pocet_otryskanych_beden }} ks
+                    </td>
+                    <td style="background-color: #e0e0e0;">
+                        {{ kamion.hmotnost_otryskanych_beden|floatformat:"1g"|default:"0,0" }} kg
+                    </td>
+                    <td style="background-color: #e0e0e0;"></td>    
+                    <td style="border-right: 1px solid black; background-color: #e0e0e0;">
+                        {{ kamion.cena_tryskani_za_kamion_vydej|floatformat:"2g"|default:"0,00" }} €
+                    </td>
+                {% endif %}
+            </tr>
         </tbody>
     </table>    
 </body>

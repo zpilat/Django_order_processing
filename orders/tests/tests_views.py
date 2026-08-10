@@ -1458,6 +1458,16 @@ class DashboardBednyViewTests(ViewsTestBase):
 
 
 class DashboardKamionyViewTests(ViewsTestBase):
+	def test_proforma_po_zakazkach_total_row_is_not_table_footer(self):
+		html = render_to_string(
+			"orders/proforma_faktura_po_zakazkach.html",
+			{"kamion": self.k_vydej_eur},
+		)
+
+		self.assertNotIn("<tfoot", html)
+		self.assertIn(str(self.k_vydej_eur.pocet_beden_expedovano_fakturovanych), html)
+		self.assertIn("€", html)
+
 	def test_renders_and_aggregates(self):
 		year = timezone.now().year
 		yesterday = timezone.localdate() - timedelta(days=1)
