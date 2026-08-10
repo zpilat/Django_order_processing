@@ -2490,7 +2490,7 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 		self.assertContains(resp, reverse("rychle_zalozeni_sarze_pracoviste_prehled", args=[2]))
 		self.assertContains(resp, reverse("rychle_zalozeni_sarze_pracoviste_prehled", args=[3]))
 		self.assertContains(resp, reverse("rychle_zalozeni_sarze_pracoviste_prehled", args=[6]))
-		self.assertContains(resp, "Poslední šarže")
+		self.assertContains(resp, "Poslední naložená šarže")
 		self.assertContains(resp, reverse("sarze_scan", args=[uzavrena_sarze.cislo_sarze]))
 
 	def test_navbar_links_to_latest_closed_nakladani_sarze(self):
@@ -2541,7 +2541,7 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 
 		resp = self.client.get(reverse("provozni_prehledy"))
 
-		self.assertContains(resp, "Poslední šarže")
+		self.assertContains(resp, "Poslední naložená šarže")
 		self.assertContains(resp, reverse("sarze_scan", args=[novejsi_sarze.cislo_sarze]))
 		self.assertNotContains(resp, reverse("sarze_scan", args=[starsi_sarze.cislo_sarze]))
 		self.assertNotContains(resp, reverse("sarze_scan", args=[otevrena_sarze.cislo_sarze]))
