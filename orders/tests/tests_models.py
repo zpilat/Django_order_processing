@@ -349,6 +349,15 @@ class TestSarzeModels(ModelsBase):
         )
         self.assertEqual(str(sarze), "S00003")
 
+    def test_sarze_stav_permissions_defined(self):
+        permission_codenames = {
+            codename
+            for codename, _label in Sarze._meta.permissions
+        }
+
+        self.assertIn('change_stav_sarze_operator', permission_codenames)
+        self.assertIn('change_stav_sarze_kontrolor', permission_codenames)
+
     def test_sarzekrok_prodleva(self):
         zar = Zarizeni.objects.create(
             kod_zarizeni="ZP",

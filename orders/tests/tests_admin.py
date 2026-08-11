@@ -15,12 +15,13 @@ from unittest.mock import patch
 from types import SimpleNamespace
 
 from orders.admin import KamionAdmin, ZakazkaAdmin, BednaAdmin, BednaInline, NotificationAdmin, SarzeAdmin, SarzeKrokAdmin, SarzeKrokBednaAdmin, SarzeKrokBednaInline, SarzeKrokInline, PredpisAdmin, CenaAdmin
+from orders import actions
 from orders.actions import vytvorit_dalsi_krok_sarze_action, vytvorit_novy_krok_z_kroku_sarze_action
 from orders.forms import ImportZakazekForm
 from orders.import_strategies import EURImportStrategy
 from orders.models import Zakaznik, Kamion, Zakazka, Bedna, Predpis, TypHlavy, Odberatel, Cena, Notification, PriorityNotificationRecipient, Zarizeni, Sarze, SarzeKrok, SarzeKrokBedna
-from orders.choices import StavBednyChoice, SklademZakazkyChoice, PrijemVydejChoice, KamionChoice, ZinkovaniChoice, PrioritaChoice
-from orders.filters import DelkaFilter
+from orders.choices import StavBednyChoice, StavSarzeChoice, SklademZakazkyChoice, PrijemVydejChoice, KamionChoice, ZinkovaniChoice, PrioritaChoice
+from orders.filters import DelkaFilter, TypSarzeFilter
 
 
 class DummySession(dict):
@@ -3018,6 +3019,41 @@ class SarzeAdminCreateBehaviorTests(AdminBase):
     def setUp(self):
         self.admin = SarzeAdmin(Sarze, self.site)
 
+    def get_request(self, method='get', path='/', data=None, **extra):
+        request = getattr(self.factory, method)(path, data=data or {}, **extra)
+        request.user = self.user
+        return self.with_session_and_messages(request)
+
+    def _create_sarze_krok(self, sarze):
+        zarizeni = Zarizeni.objects.create(
+            kod_zarizeni=f'SZ{sarze.pk}',
+            nazev_zarizeni=f'Zařízení šarže {sarze.pk}',
+            zkraceny_nazev_zarizeni=f'SZ{sarze.pk}',
+        )
+        return SarzeKrok.objects.create(
+            sarze=sarze,
+            poradi=1,
+            datum=date.today(),
+            zarizeni=zarizeni,
+            zacatek=time(6, 0),
+            operator='Novak',
+        )
+
+    def _create_bedna(self, cislo_bedny):
+        zakazka = Zakazka.objects.create(
+            kamion_prijem=self.kamion,
+            artikl=f'ART-{cislo_bedny}',
+            prumer=Decimal('10.0'),
+            delka=Decimal('50.0'),
+            predpis=self.predpis,
+            typ_hlavy=self.typ_hlavy,
+            popis='Test zakázka',
+        )
+        return Bedna.objects.create(
+            zakazka=zakazka,
+            cislo_bedny=cislo_bedny,
+        )
+
     def test_get_fields_hides_datum_zalozeni_on_add(self):
         request = self.factory.get('/admin/orders/sarze/add/')
         request.user = self.user
@@ -3043,6 +3079,275 @@ class SarzeAdminCreateBehaviorTests(AdminBase):
         media_js = list(self.admin.media._js)
 
         self.assertIn('orders/js/admin_actions_target_blank.js', media_js)
+
+    def test_list_display_contains_typ_sarze(self):
+        self.assertIn('get_typ_sarze', self.admin.list_display)
+
+    def test_list_filter_contains_typ_sarze_filter(self):
+        self.assertIn(TypSarzeFilter, self.admin.list_filter)
+
+    def test_get_typ_sarze_empty(self):
+        sarze = Sarze.objects.create(
+            cislo_sarze=401,
+            datum_zalozeni=date.today(),
+            aktivni=True,
+        )
+        request = self.get_request('get', '/admin/orders/sarze/')
+        sarze = self.admin.get_queryset(request).get(pk=sarze.pk)
+
+        self.assertEqual(self.admin.get_typ_sarze(sarze), 'Prázdná')
+
+    def test_get_typ_sarze_s_vruty(self):
+        sarze = Sarze.objects.create(
+            cislo_sarze=402,
+            datum_zalozeni=date.today(),
+            aktivni=True,
+        )
+        krok = self._create_sarze_krok(sarze)
+        SarzeKrokBedna.objects.create(
+            krok=krok,
+            bedna=self._create_bedna(402001),
+            patro=1,
+        )
+        request = self.get_request('get', '/admin/orders/sarze/')
+        sarze = self.admin.get_queryset(request).get(pk=sarze.pk)
+
+        self.assertEqual(self.admin.get_typ_sarze(sarze), 'Vruty')
+
+    def test_get_typ_sarze_se_zelezem(self):
+        sarze = Sarze.objects.create(
+            cislo_sarze=403,
+            datum_zalozeni=date.today(),
+            aktivni=True,
+        )
+        krok = self._create_sarze_krok(sarze)
+        SarzeKrokBedna.objects.create(
+            krok=krok,
+            popis_mimo_db='Test železo',
+            patro=1,
+        )
+        request = self.get_request('get', '/admin/orders/sarze/')
+        sarze = self.admin.get_queryset(request).get(pk=sarze.pk)
+
+        self.assertEqual(self.admin.get_typ_sarze(sarze), 'Železo')
+
+    def test_get_typ_sarze_smisena(self):
+        sarze = Sarze.objects.create(
+            cislo_sarze=404,
+            datum_zalozeni=date.today(),
+            aktivni=True,
+        )
+        krok = self._create_sarze_krok(sarze)
+        SarzeKrokBedna.objects.create(
+            krok=krok,
+            bedna=self._create_bedna(404001),
+            patro=1,
+        )
+        SarzeKrokBedna.objects.create(
+            krok=krok,
+            popis_mimo_db='Test železo',
+            patro=2,
+        )
+        request = self.get_request('get', '/admin/orders/sarze/')
+        sarze = self.admin.get_queryset(request).get(pk=sarze.pk)
+
+        self.assertEqual(self.admin.get_typ_sarze(sarze), 'Smíšená')
+
+    def test_get_typ_sarze_without_annotations_uses_new_labels(self):
+        sarze_vruty = Sarze.objects.create(
+            cislo_sarze=405,
+            datum_zalozeni=date.today(),
+            aktivni=True,
+        )
+        krok_vruty = self._create_sarze_krok(sarze_vruty)
+        SarzeKrokBedna.objects.create(
+            krok=krok_vruty,
+            bedna=self._create_bedna(405001),
+            patro=1,
+        )
+        sarze_zelezo = Sarze.objects.create(
+            cislo_sarze=406,
+            datum_zalozeni=date.today(),
+            aktivni=True,
+        )
+        krok_zelezo = self._create_sarze_krok(sarze_zelezo)
+        SarzeKrokBedna.objects.create(
+            krok=krok_zelezo,
+            popis_mimo_db='Test železo',
+            patro=1,
+        )
+
+        self.assertEqual(self.admin.get_typ_sarze(sarze_vruty), 'Vruty')
+        self.assertEqual(self.admin.get_typ_sarze(sarze_zelezo), 'Železo')
+
+    def test_typ_sarze_filter_filters_by_content(self):
+        prazdna = Sarze.objects.create(cislo_sarze=407, datum_zalozeni=date.today(), aktivni=True)
+
+        vruty = Sarze.objects.create(cislo_sarze=408, datum_zalozeni=date.today(), aktivni=True)
+        krok_vruty = self._create_sarze_krok(vruty)
+        SarzeKrokBedna.objects.create(
+            krok=krok_vruty,
+            bedna=self._create_bedna(408001),
+            patro=1,
+        )
+
+        zelezo = Sarze.objects.create(cislo_sarze=409, datum_zalozeni=date.today(), aktivni=True)
+        krok_zelezo = self._create_sarze_krok(zelezo)
+        SarzeKrokBedna.objects.create(
+            krok=krok_zelezo,
+            popis_mimo_db='Test železo',
+            patro=1,
+        )
+
+        smisena = Sarze.objects.create(cislo_sarze=410, datum_zalozeni=date.today(), aktivni=True)
+        krok_smisena = self._create_sarze_krok(smisena)
+        SarzeKrokBedna.objects.create(
+            krok=krok_smisena,
+            bedna=self._create_bedna(410001),
+            patro=1,
+        )
+        SarzeKrokBedna.objects.create(
+            krok=krok_smisena,
+            popis_mimo_db='Test železo',
+            patro=2,
+        )
+
+        expected = {
+            'prazdna': {prazdna.pk},
+            'vruty': {vruty.pk},
+            'zelezo': {zelezo.pk},
+            'smisena': {smisena.pk},
+        }
+        for value, expected_pks in expected.items():
+            with self.subTest(value=value):
+                request = self.get_request('get', '/admin/orders/sarze/', {'typ_sarze': value})
+                filtr = TypSarzeFilter(request, request.GET.copy(), Sarze, self.admin)
+                qs = filtr.queryset(request, Sarze.objects.filter(
+                    pk__in=[prazdna.pk, vruty.pk, zelezo.pk, smisena.pk],
+                ))
+
+                self.assertEqual(set(qs.values_list('pk', flat=True)), expected_pks)
+
+    def test_get_actions_shows_zaplanovat_sarzi_without_stav_filter(self):
+        request = self.get_request('get', '/admin/orders/sarze/')
+
+        actions = self.admin.get_actions(request)
+
+        self.assertIn('oznacit_sarze_jako_zaplanovane_action', actions)
+        self.assertEqual(
+            actions['oznacit_sarze_jako_zaplanovane_action'][2],
+            'Zaplánovat šarži do výroby',
+        )
+
+    def test_get_actions_shows_zaplanovat_sarzi_for_vytvorena_filter(self):
+        request = self.get_request(
+            'get',
+            '/admin/orders/sarze/',
+            {'stav_sarze': StavSarzeChoice.VYTVORENA},
+        )
+
+        actions = self.admin.get_actions(request)
+
+        self.assertIn('oznacit_sarze_jako_zaplanovane_action', actions)
+
+    def test_get_actions_hides_zaplanovat_sarzi_for_other_stav_filter(self):
+        request = self.get_request(
+            'get',
+            '/admin/orders/sarze/',
+            {'stav_sarze': StavSarzeChoice.ZAPLANOVANA},
+        )
+
+        actions = self.admin.get_actions(request)
+
+        self.assertNotIn('oznacit_sarze_jako_zaplanovane_action', actions)
+
+    def test_get_action_choices_groups_sarze_actions(self):
+        request = self.get_request('get', '/admin/orders/sarze/')
+
+        choices = self.admin.get_action_choices(request)
+        grouped_choices = dict(choices[1:])
+
+        self.assertIn('Stav šarže', grouped_choices)
+        self.assertIn(
+            ('oznacit_sarze_jako_zaplanovane_action', 'Zaplánovat šarži do výroby'),
+            grouped_choices['Stav šarže'],
+        )
+        self.assertIn('Tisk průvodek', grouped_choices)
+        self.assertIn(
+            ('tisk_pruvodky_vruty_sarze_action', 'Vytisknout průvodku šarže pro vruty'),
+            grouped_choices['Tisk průvodek'],
+        )
+
+    def test_get_action_choices_puts_unmapped_actions_to_ostatni(self):
+        request = self.get_request('get', '/admin/orders/sarze/')
+
+        choices = self.admin.get_action_choices(request)
+        grouped_choices = dict(choices[1:])
+
+        self.assertIn('Ostatní', grouped_choices)
+        self.assertTrue(
+            any(action_name == 'delete_selected' for action_name, _label in grouped_choices['Ostatní'])
+        )
+
+    def test_get_action_choices_respects_hidden_zaplanovat_action(self):
+        request = self.get_request(
+            'get',
+            '/admin/orders/sarze/',
+            {'stav_sarze': StavSarzeChoice.ZAPLANOVANA},
+        )
+
+        choices = self.admin.get_action_choices(request)
+        grouped_choices = dict(choices[1:])
+
+        self.assertNotIn('Stav šarže', grouped_choices)
+        self.assertIn('Tisk průvodek', grouped_choices)
+
+    def test_oznacit_sarze_jako_zaplanovane_action_updates_only_vytvorena(self):
+        vytvorena = Sarze.objects.create(
+            cislo_sarze=301,
+            datum_zalozeni=date.today(),
+            cislo_pripravku=1,
+            stav_sarze=StavSarzeChoice.VYTVORENA,
+            aktivni=True,
+        )
+        zaplanovana = Sarze.objects.create(
+            cislo_sarze=302,
+            datum_zalozeni=date.today(),
+            cislo_pripravku=2,
+            stav_sarze=StavSarzeChoice.ZAPLANOVANA,
+            aktivni=True,
+        )
+        request = self.get_request('post', '/admin/orders/sarze/')
+
+        actions.oznacit_sarze_jako_zaplanovane_action(
+            self.admin,
+            request,
+            Sarze.objects.filter(pk__in=(vytvorena.pk, zaplanovana.pk)),
+        )
+
+        vytvorena.refresh_from_db()
+        zaplanovana.refresh_from_db()
+        self.assertEqual(vytvorena.stav_sarze, StavSarzeChoice.ZAPLANOVANA)
+        self.assertEqual(zaplanovana.stav_sarze, StavSarzeChoice.ZAPLANOVANA)
+
+    def test_oznacit_sarze_jako_zaplanovane_action_keeps_non_vytvorena(self):
+        ukoncena = Sarze.objects.create(
+            cislo_sarze=303,
+            datum_zalozeni=date.today(),
+            cislo_pripravku=3,
+            stav_sarze=StavSarzeChoice.UKONCENA,
+            aktivni=False,
+        )
+        request = self.get_request('post', '/admin/orders/sarze/')
+
+        actions.oznacit_sarze_jako_zaplanovane_action(
+            self.admin,
+            request,
+            Sarze.objects.filter(pk=ukoncena.pk),
+        )
+
+        ukoncena.refresh_from_db()
+        self.assertEqual(ukoncena.stav_sarze, StavSarzeChoice.UKONCENA)
 
     def test_save_model_autofills_datum_zalozeni_on_create(self):
         request = self.factory.post('/admin/orders/sarze/add/')

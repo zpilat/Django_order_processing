@@ -13,7 +13,7 @@ import json
 from orders.models import (
 	Zakaznik, Odberatel, Kamion, Zakazka, Bedna, Predpis, TypHlavy, Pozice, PoziceZakazkaOrder, Zarizeni, Sarze, SarzeKrok, SarzeKrokBedna, Cena
 )
-from orders.choices import StavBednyChoice, KamionChoice, TryskaniChoice, RovnaniChoice, PrioritaChoice, TypZarizeniChoice
+from orders.choices import StavBednyChoice, StavSarzeChoice, KamionChoice, TryskaniChoice, RovnaniChoice, PrioritaChoice, TypZarizeniChoice
 from orders.views import (
 	_get_bedny_k_navezeni_groups,
 	_split_bedny_k_navezeni_groups_by_nasledne,
@@ -571,7 +571,11 @@ class BednaScanViewTests(ViewsTestBase):
 		self.assertIn("login", response.url)
 
 	def test_sarze_scan_renders_steps_floors_and_bedny(self):
-		sarze = Sarze.objects.create(datum_zalozeni=timezone.localdate(), cislo_pripravku=1)
+		sarze = Sarze.objects.create(
+			datum_zalozeni=timezone.localdate(),
+			cislo_pripravku=1,
+			stav_sarze=StavSarzeChoice.NALOZENA,
+		)
 		zarizeni = Zarizeni.objects.create(
 			kod_zarizeni="Z1",
 			nazev_zarizeni="Zařízení 1",
@@ -602,6 +606,8 @@ class BednaScanViewTests(ViewsTestBase):
 		self.assertEqual(response.status_code, 200)
 		self.assertTemplateUsed(response, "orders/sarze_scan_detail.html")
 		self.assertContains(response, str(sarze))
+		self.assertContains(response, "Naložená")
+		self.assertContains(response, "Přípravek")
 		self.assertContains(response, "(krok 1)")
 		self.assertContains(response, "(krok 2)")
 		self.assertContains(response, "Patro 1")
@@ -800,8 +806,154 @@ class BednaScanViewTests(ViewsTestBase):
 		self.assertEqual(response.status_code, 200)
 		move_url = reverse("sarze_scan_presunout", args=[sarze.cislo_sarze, krok.pk])
 		self.assertContains(response, move_url)
+		self.assertContains(response, 'class="btn btn-success scan-action-button d-flex align-items-center justify-content-center"', html=False)
 		self.assertContains(response, "Přesunout do dalšího kroku")
 		self.assertContains(response, "Přesunout")
+
+	def test_sarze_scan_shows_operator_state_buttons_for_nalozena_sarze(self):
+		self.user.user_permissions.add(Permission.objects.get(codename="change_stav_sarze_operator"))
+		sarze = Sarze.objects.create(
+			datum_zalozeni=timezone.localdate(),
+			cislo_pripravku=1,
+			stav_sarze=StavSarzeChoice.NALOZENA,
+		)
+
+		response = self.client.get(reverse("sarze_scan", args=[sarze.cislo_sarze]))
+
+		self.assertContains(response, "Označit zakalená ke kontrole")
+		self.assertContains(response, 'class="btn btn-primary scan-action-button"', html=False)
+		self.assertContains(response, "Označit vyložená ke kontrole")
+		self.assertContains(response, 'class="btn btn-warning scan-action-button"', html=False)
+		self.assertNotContains(response, "Ukončit šarži")
+
+	def test_sarze_scan_hides_operator_state_buttons_without_permission(self):
+		sarze = Sarze.objects.create(
+			datum_zalozeni=timezone.localdate(),
+			cislo_pripravku=1,
+			stav_sarze=StavSarzeChoice.NALOZENA,
+		)
+
+		response = self.client.get(reverse("sarze_scan", args=[sarze.cislo_sarze]))
+
+		self.assertNotContains(response, "Označit zakalená ke kontrole")
+		self.assertNotContains(response, "Označit vyložená ke kontrole")
+		self.assertNotContains(response, "Ukončit šarži")
+
+	def test_sarze_scan_hides_nalozena_operator_buttons_for_other_state(self):
+		self.user.user_permissions.add(Permission.objects.get(codename="change_stav_sarze_operator"))
+		sarze = Sarze.objects.create(
+			datum_zalozeni=timezone.localdate(),
+			cislo_pripravku=1,
+			stav_sarze=StavSarzeChoice.VYTVORENA,
+		)
+
+		response = self.client.get(reverse("sarze_scan", args=[sarze.cislo_sarze]))
+
+		self.assertNotContains(response, "Označit zakalená ke kontrole")
+		self.assertNotContains(response, "Označit vyložená ke kontrole")
+		self.assertNotContains(response, "Ukončit šarži")
+
+	def test_sarze_scan_shows_finish_button_for_zkontrolovana_k_vylozeni(self):
+		self.user.user_permissions.add(Permission.objects.get(codename="change_stav_sarze_operator"))
+		sarze = Sarze.objects.create(
+			datum_zalozeni=timezone.localdate(),
+			cislo_pripravku=1,
+			stav_sarze=StavSarzeChoice.ZKONTROLOVANA_K_VYLOZENI,
+		)
+
+		response = self.client.get(reverse("sarze_scan", args=[sarze.cislo_sarze]))
+
+		self.assertContains(response, "Ukončit šarži")
+		self.assertNotContains(response, "Označit zakalená ke kontrole")
+		self.assertNotContains(response, "Označit vyložená ke kontrole")
+
+	def test_sarze_scan_operator_post_marks_zakalena_ke_kontrole(self):
+		self.user.user_permissions.add(Permission.objects.get(codename="change_stav_sarze_operator"))
+		sarze = Sarze.objects.create(
+			datum_zalozeni=timezone.localdate(),
+			cislo_pripravku=1,
+			stav_sarze=StavSarzeChoice.NALOZENA,
+		)
+
+		response = self.client.post(
+			reverse("sarze_scan", args=[sarze.cislo_sarze]),
+			{"action": "mark_zakalena_ke_kontrole"},
+		)
+
+		self.assertRedirects(response, reverse("sarze_scan", args=[sarze.cislo_sarze]))
+		sarze.refresh_from_db()
+		self.assertEqual(sarze.stav_sarze, StavSarzeChoice.ZAKALENA_KE_KONTROLE)
+
+	def test_sarze_scan_operator_post_marks_vylozena_ke_kontrole(self):
+		self.user.user_permissions.add(Permission.objects.get(codename="change_stav_sarze_operator"))
+		sarze = Sarze.objects.create(
+			datum_zalozeni=timezone.localdate(),
+			cislo_pripravku=1,
+			stav_sarze=StavSarzeChoice.NALOZENA,
+		)
+
+		response = self.client.post(
+			reverse("sarze_scan", args=[sarze.cislo_sarze]),
+			{"action": "mark_vylozena_ke_kontrole"},
+		)
+
+		self.assertRedirects(response, reverse("sarze_scan", args=[sarze.cislo_sarze]))
+		sarze.refresh_from_db()
+		self.assertEqual(sarze.stav_sarze, StavSarzeChoice.VYLOZENA_KE_KONTROLE)
+
+	def test_sarze_scan_operator_post_marks_ukoncena(self):
+		self.user.user_permissions.add(Permission.objects.get(codename="change_stav_sarze_operator"))
+		sarze = Sarze.objects.create(
+			datum_zalozeni=timezone.localdate(),
+			cislo_pripravku=1,
+			stav_sarze=StavSarzeChoice.ZKONTROLOVANA_K_VYLOZENI,
+		)
+
+		response = self.client.post(
+			reverse("sarze_scan", args=[sarze.cislo_sarze]),
+			{"action": "mark_ukoncena"},
+		)
+
+		self.assertRedirects(response, reverse("sarze_scan", args=[sarze.cislo_sarze]))
+		sarze.refresh_from_db()
+		self.assertEqual(sarze.stav_sarze, StavSarzeChoice.UKONCENA)
+
+	def test_sarze_scan_operator_post_rejects_without_permission(self):
+		sarze = Sarze.objects.create(
+			datum_zalozeni=timezone.localdate(),
+			cislo_pripravku=1,
+			stav_sarze=StavSarzeChoice.NALOZENA,
+		)
+
+		response = self.client.post(
+			reverse("sarze_scan", args=[sarze.cislo_sarze]),
+			{"action": "mark_zakalena_ke_kontrole"},
+		)
+
+		self.assertEqual(response.status_code, 403)
+		sarze.refresh_from_db()
+		self.assertEqual(sarze.stav_sarze, StavSarzeChoice.NALOZENA)
+
+	def test_sarze_scan_operator_post_rejects_wrong_source_state(self):
+		self.user.user_permissions.add(Permission.objects.get(codename="change_stav_sarze_operator"))
+		sarze = Sarze.objects.create(
+			datum_zalozeni=timezone.localdate(),
+			cislo_pripravku=1,
+			stav_sarze=StavSarzeChoice.VYTVORENA,
+		)
+
+		response = self.client.post(
+			reverse("sarze_scan", args=[sarze.cislo_sarze]),
+			{"action": "mark_zakalena_ke_kontrole"},
+		)
+
+		self.assertRedirects(response, reverse("sarze_scan", args=[sarze.cislo_sarze]))
+		sarze.refresh_from_db()
+		self.assertEqual(sarze.stav_sarze, StavSarzeChoice.VYTVORENA)
+		self.assertIn(
+			"Stav šarže nelze změnit z aktuálního stavu.",
+			[str(message) for message in get_messages(response.wsgi_request)],
+		)
 
 	def test_sarze_scan_shows_print_preview_for_valid_nakladani_first_step(self):
 		self.user.user_permissions.add(*Permission.objects.filter(
@@ -2609,6 +2761,7 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 		self.assertIsNotNone(sarze.cislo_sarze)
 		self.assertEqual(sarze.cislo_pripravku, 12)
 		self.assertEqual(sarze.cislo_pracoviste, 3)
+		self.assertEqual(sarze.stav_sarze, StavSarzeChoice.NALOZENA)
 		self.assertTrue(sarze.aktivni)
 		self.assertEqual(sarze.poznamka, "Poznámka k šarži")
 

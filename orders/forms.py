@@ -14,6 +14,7 @@ from orders.utils import parse_sarze_search_term
 from .models import Sarze, SarzeKrok, Zakaznik, Kamion, Zakazka, Bedna, Predpis, Odberatel, Pozice, Zarizeni
 from .choices import (
     StavBednyChoice,
+    StavSarzeChoice,
     RovnaniChoice,
     TryskaniChoice,
     PrioritaChoice,
@@ -740,6 +741,7 @@ class RychleZalozeniSarzeForm(forms.Form):
                 datum_zalozeni=timezone.localdate(),
                 cislo_pripravku=data['cislo_pripravku'],
                 cislo_pracoviste=data['cislo_pracoviste'],
+                stav_sarze=StavSarzeChoice.NALOZENA,
                 aktivni=True,
                 poznamka=data['poznamka_sarze'] or None,
             )

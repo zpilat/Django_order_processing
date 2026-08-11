@@ -48,7 +48,7 @@ from .services.sarze_print_service import (
     get_tisk_pruvodky_vruty_krok,
 )
 from .choices import (
-    StavBednyChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice, TypZarizeniChoice,
+    StavBednyChoice, StavSarzeChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice, TypZarizeniChoice,
     ZinkovaniChoice, STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM, STAV_BEDNY_PRO_NAVEZENI,
     STAV_BEDNY_PODMINKA_PRO_ZMENU_NA_ZAKALENO
 )
@@ -766,6 +766,47 @@ def _can_change_sarze_scan(user):
     ))
 
 
+def _can_change_stav_sarze_operator(user):
+    return user.has_perm('orders.change_stav_sarze_operator')
+
+
+SARZE_SCAN_OPERATOR_STATE_ACTIONS = {
+    'mark_zakalena_ke_kontrole': (
+        StavSarzeChoice.NALOZENA,
+        StavSarzeChoice.ZAKALENA_KE_KONTROLE,
+        'Šarže byla označena jako zakalená ke kontrole.',
+    ),
+    'mark_vylozena_ke_kontrole': (
+        StavSarzeChoice.NALOZENA,
+        StavSarzeChoice.VYLOZENA_KE_KONTROLE,
+        'Šarže byla označena jako vyložená ke kontrole.',
+    ),
+    'mark_ukoncena': (
+        StavSarzeChoice.ZKONTROLOVANA_K_VYLOZENI,
+        StavSarzeChoice.UKONCENA,
+        'Šarže byla ukončena.',
+    ),
+}
+
+
+def _handle_sarze_scan_state_action(request, sarze):
+    action = request.POST.get('action')
+    if action not in SARZE_SCAN_OPERATOR_STATE_ACTIONS:
+        return False
+    if not _can_change_stav_sarze_operator(request.user):
+        raise PermissionDenied
+
+    source_state, target_state, success_message = SARZE_SCAN_OPERATOR_STATE_ACTIONS[action]
+    if sarze.stav_sarze != source_state:
+        messages.error(request, 'Stav šarže nelze změnit z aktuálního stavu.')
+        return True
+
+    sarze.stav_sarze = target_state
+    sarze.save(update_fields=['stav_sarze'])
+    messages.success(request, success_message)
+    return True
+
+
 def _style_sarze_scan_move_form(form):
     """
     Aplikuje stylování na formulář pro přesun šarže.
@@ -812,6 +853,10 @@ def sarze_scan_view(request, cislo_sarze: int):
     Zobrazuje detail šarže při naskenování čárového kódu.
     """
     sarze = get_object_or_404(Sarze, cislo_sarze=cislo_sarze)
+    if request.method == 'POST':
+        if _handle_sarze_scan_state_action(request, sarze):
+            return redirect('sarze_scan', cislo_sarze=sarze.cislo_sarze)
+
     kroky = list(
         SarzeKrok.objects
         .filter(sarze=sarze)
@@ -868,6 +913,7 @@ def sarze_scan_view(request, cislo_sarze: int):
             'last_krok': kroky[0] if kroky else None,
             'can_move_sarze': _can_move_sarze_scan(request.user),
             'can_change_sarze': _can_change_sarze_scan(request.user),
+            'can_change_stav_sarze_operator': _can_change_stav_sarze_operator(request.user),
             'tisk_pruvodky_krok': tisk_krok,
             'tisk_pruvodky_unavailable_message': tisk_error_message,
             'db_table': 'sarze_scan',

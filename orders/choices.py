@@ -12,6 +12,17 @@ class StavBednyChoice(models.TextChoices):
     K_EXPEDICI = 'KE', 'K expedici'
     EXPEDOVANO = 'EX', 'Expedováno'
 
+class StavSarzeChoice(models.TextChoices):
+    VYTVORENA = 'VY', 'Vytvořená'
+    ZAPLANOVANA = 'PL', 'Zaplánovaná'
+    NALOZENA = 'NL', 'Naložená'
+    VYLOZENA_KE_KONTROLE = 'VK', 'Vyložená ke kontrole'
+    ZAKALENA_KE_KONTROLE = 'ZK', 'Zakalená ke kontrole'
+    ZKONTROLOVANA_K_VYLOZENI = 'ZV', 'Zkontrolovaná k vyložení'
+    UKONCENA = 'UK', 'Ukončená'
+    POZASTAVENA = 'PO', 'Pozastavená'
+    ZRUSENA = 'ZR', 'Zrušená'
+
 STAV_BEDNY_SKLADEM = [
     stavbedny for stavbedny in StavBednyChoice if stavbedny not in (StavBednyChoice.NEPRIJATO, StavBednyChoice.EXPEDOVANO)
 ]

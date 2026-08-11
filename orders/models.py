@@ -19,6 +19,7 @@ from decimal import Decimal, ROUND_HALF_UP
 
 from .choices import (
     StavBednyChoice,
+    StavSarzeChoice,
     RovnaniChoice,
     TryskaniChoice,
     ZinkovaniChoice,
@@ -1490,6 +1491,7 @@ class Sarze(models.Model):
         verbose_name='Číslo pracoviště')
     datum_zalozeni = models.DateField(verbose_name='Datum založení')
     cislo_pripravku = models.PositiveSmallIntegerField(blank=True, null=True, verbose_name='Číslo přípravku')
+    stav_sarze = models.CharField(choices=StavSarzeChoice.choices, max_length=2, default=StavSarzeChoice.VYTVORENA, verbose_name='Stav šarže')
     aktivni = models.BooleanField(default=True, verbose_name='Aktivní')
     poznamka = models.CharField(max_length=100, blank=True, null=True, verbose_name='Poznámka')
     history = HistoricalRecords()
@@ -1498,6 +1500,10 @@ class Sarze(models.Model):
         verbose_name = 'Šarže'
         verbose_name_plural = 'šarže'
         ordering = ['-datum_zalozeni', '-cislo_sarze']
+        permissions = (
+            ('change_stav_sarze_operator', 'Může měnit stav šarže jako operátor'),
+            ('change_stav_sarze_kontrolor', 'Může měnit stav šarže jako kontrolor'),
+        )
 
     def __str__(self):
         return f"S{self.cislo_sarze:05d}"

@@ -49,14 +49,15 @@ from .actions import (
     oznacit_uvolneno_action, prijmout_kamion_action, prijmout_zakazku_action, prijmout_bedny_action,
     export_bedny_to_csv_customer_action, export_bedny_dl_action, tisk_rozpracovanost_action, tisk_prehledu_zakazek_kamionu_action, expedice_beden_action,
     expedice_beden_kamion_action, uvolnit_pozastavene_bedny_action, oznacit_nefakturovat_action,
-    vytvorit_dalsi_krok_sarze_action, vytvorit_novy_krok_z_kroku_sarze_action, tisk_pruvodky_vruty_sarze_action, tisk_karty_kontroly_prohybu_kamionu_action,
+    oznacit_sarze_jako_zaplanovane_action, vytvorit_dalsi_krok_sarze_action, vytvorit_novy_krok_z_kroku_sarze_action,
+    tisk_pruvodky_vruty_sarze_action, tisk_karty_kontroly_prohybu_kamionu_action,
 )
 from .filters import (
     SklademZakazkaFilter, StavBednyFilter, KompletZakazkaFilter, AktivniPredpisFilter, SkupinaFilter, ZakaznikBednyFilter,
     ZakaznikZakazkyFilter, ZakaznikKamionuFilter, PrijemVydejFilter, TryskaniFilter, RovnaniFilter, PrioritaBednyFilter, PrioritaZakazkyFilter,
     OberflacheFilter, TypHlavyBednyFilter, TypHlavyZakazkyFilter, CelozavitBednyFilter, CelozavitZakazkyFilter, DelkaFilter, PozastavenoFilter,
     OdberatelFilter, OdberatelBednyFilter, AktivniNotifikaceBednyFilter, ZakaznikPredpisFilter, ZinkovaniFilter,
-    ZarizeniSarzeKrokFilter, TypZarizeniSarzeKrokFilter, KonecSarzeKrokFilter, AktivniSarzeKrokFilter,
+    StavSarzeFilter, TypSarzeFilter, ZarizeniSarzeKrokFilter, TypZarizeniSarzeKrokFilter, KonecSarzeKrokFilter, AktivniSarzeKrokFilter,
     ZarizeniSarzeBednaFilter, TypZarizeniSarzeBednaFilter, KonecSarzeBednaFilter, AktivniSarzeBednaFilter,
     FakturovatFilter,
 )
@@ -69,7 +70,7 @@ from .forms import (
     ZakazkaMeasurementForm,
 )
 from .choices import (
-    StavBednyChoice, RovnaniChoice, TryskaniChoice, ZinkovaniChoice, PrioritaChoice, KamionChoice, PrijemVydejChoice, SklademZakazkyChoice,
+    StavBednyChoice, StavSarzeChoice, RovnaniChoice, TryskaniChoice, ZinkovaniChoice, PrioritaChoice, KamionChoice, PrijemVydejChoice, SklademZakazkyChoice,
     BARVA_SKUPINY_TZ, STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM, STAV_BEDNY_PRO_NAVEZENI,
     STAV_BEDNY_KONTROLA_ZMENY_PRIORITY,
 )
@@ -382,21 +383,22 @@ class ZarizeniAdmin(SimpleHistoryAdmin):
 
 @admin.register(Sarze)
 class SarzeAdmin(SimpleHistoryAdmin):
-    fields = ('cislo_sarze', 'datum_zalozeni', 'cislo_pripravku', 'cislo_pracoviste', 'aktivni', 'poznamka',)
-    list_display = ('get_cislo_sarze', 'datum_zalozeni', 'cislo_pripravku', 'aktivni', 'get_poznamka', 'get_pocet_kroku',)
-    list_filter = ('aktivni',)
+    fields = ('cislo_sarze', 'datum_zalozeni', 'cislo_pripravku', 'cislo_pracoviste', 'stav_sarze', 'aktivni', 'poznamka',)
+    list_display = ('get_cislo_sarze', 'stav_sarze', 'get_typ_sarze', 'get_datum_zalozeni', 'get_cislo_pripravku', 'aktivni', 'get_poznamka', 'get_pocet_kroku',)
+    list_editable = ('stav_sarze',)
+    list_filter = (StavSarzeFilter, TypSarzeFilter)
     search_fields = ('cislo_sarze',)
     readonly_fields = ('cislo_sarze',)
     date_hierarchy = 'datum_zalozeni'
-    ordering = ('-datum_zalozeni', '-cislo_sarze',)
+    ordering = ('-cislo_sarze',)
     inlines = [SarzeKrokInline]
-    actions = (tisk_pruvodky_vruty_sarze_action,)
+    actions = (oznacit_sarze_jako_zaplanovane_action, tisk_pruvodky_vruty_sarze_action,)
 
     history_list_display = [
-        "cislo_sarze", "datum_zalozeni", "cislo_pripravku", "cislo_pracoviste", "aktivni", "poznamka",
+        "cislo_sarze", "datum_zalozeni", "cislo_pripravku", "cislo_pracoviste", "stav_sarze", "aktivni", "poznamka",
     ]
     history_search_fields = ["cislo_sarze", "poznamka"]
-    history_list_filter = ["aktivni", "datum_zalozeni"]
+    history_list_filter = ["stav_sarze", "datum_zalozeni"]
     history_list_per_page = 20
 
     class Media:
@@ -404,23 +406,111 @@ class SarzeAdmin(SimpleHistoryAdmin):
             'orders/js/admin_actions_target_blank.js',
         )
 
+    @admin.display(description='Přípravek', ordering='cislo_pripravku')
+    def get_cislo_pripravku(self, obj):
+        return obj.cislo_pripravku if obj.cislo_pripravku else '-'
+
     @admin.display(description='Šarže', ordering='cislo_sarze')
     def get_cislo_sarze(self, obj):
         return obj
 
     @admin.display(description='Poznámka', ordering='poznamka')
     def get_poznamka(self, obj):
-        return truncate_with_title(obj.poznamka)
+        return truncate_with_title(obj.poznamka, 25)
 
     @admin.display(description='Kroků')
     def get_pocet_kroku(self, obj):
         return obj.kroky.count()
+
+    @admin.display(description='Datum', ordering='datum_zalozeni')
+    def get_datum_zalozeni(self, obj):
+        return obj.datum_zalozeni.strftime('%d.%m.%Y') if obj.datum_zalozeni else '-'
+
+    @admin.display(description='Typ šarže')
+    def get_typ_sarze(self, obj):
+        has_db_items = getattr(obj, '_has_sarze_bedna_db', None)
+        has_mimo_db_items = getattr(obj, '_has_sarze_bedna_mimo_db', None)
+
+        if has_db_items is None:
+            has_db_items = SarzeKrokBedna.objects.filter(krok__sarze=obj, bedna__isnull=False).exists()
+        if has_mimo_db_items is None:
+            has_mimo_db_items = (
+                SarzeKrokBedna.objects
+                .filter(krok__sarze=obj, popis_mimo_db__isnull=False)
+                .exclude(popis_mimo_db='')
+                .exists()
+            )
+
+        if has_db_items and has_mimo_db_items:
+            return 'Smíšená'
+        if has_db_items:
+            return 'Vruty'
+        if has_mimo_db_items:
+            return 'Železo'
+        return 'Prázdná'
+
+    def get_actions(self, request):
+        actions = super().get_actions(request)
+        stav_sarze_filter = request.GET.get('stav_sarze')
+        if stav_sarze_filter not in (None, StavSarzeChoice.VYTVORENA):
+            actions.pop('oznacit_sarze_jako_zaplanovane_action', None)
+        return actions
+
+    def get_action_choices(self, request, default_choices=models.BLANK_CHOICE_DASH):
+        """
+        Seskupení akcí šarží do optgroup.
+        Ostatní akce (např. delete_selected) spadnou do 'Ostatní'.
+        """
+        actions = self.get_actions(request)
+        if not actions:
+            return default_choices
+
+        group_map = {
+            'oznacit_sarze_jako_zaplanovane_action': 'Stav šarže',
+            'tisk_pruvodky_vruty_sarze_action': 'Tisk průvodek',
+        }
+        order = ['Stav šarže', 'Tisk průvodek']
+        grouped = {group: [] for group in order}
+
+        for name, (_func, _action_name, desc) in actions.items():
+            group = group_map.get(name, 'Ostatní')
+            text = str(desc) if desc is not None else ''
+            if '%(verbose_name' in text:
+                try:
+                    text = text % {
+                        'verbose_name': self.model._meta.verbose_name,
+                        'verbose_name_plural': self.model._meta.verbose_name_plural,
+                    }
+                except Exception:
+                    logger.warning("Nepodařilo se naformátovat popis admin akce v SarzeAdmin.get_action_choices.", exc_info=True)
+                    pass
+            grouped.setdefault(group, []).append((name, text))
+
+        choices = [default_choices[0]]
+        for group in order + [group for group in grouped.keys() if group not in order]:
+            options = grouped.get(group)
+            if options:
+                choices.append((group, options))
+        return choices
 
     def get_fields(self, request, obj=None):
         fields = list(super().get_fields(request, obj))
         if obj is None and 'datum_zalozeni' in fields:
             fields.remove('datum_zalozeni')
         return fields
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        db_items = SarzeKrokBedna.objects.filter(krok__sarze=OuterRef('pk'), bedna__isnull=False)
+        mimo_db_items = (
+            SarzeKrokBedna.objects
+            .filter(krok__sarze=OuterRef('pk'), popis_mimo_db__isnull=False)
+            .exclude(popis_mimo_db='')
+        )
+        return queryset.annotate(
+            _has_sarze_bedna_db=Exists(db_items),
+            _has_sarze_bedna_mimo_db=Exists(mimo_db_items),
+        )
 
     def save_model(self, request, obj, form, change):
         if not change and not obj.datum_zalozeni:

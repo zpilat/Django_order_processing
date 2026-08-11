@@ -13,10 +13,13 @@
                 <div class="text-muted fw-semibold">Šarže</div>
                 <div class="scan-number">{{ sarze }}</div>
             </div>
-            <div class="text-center text-sm-end">
-                <div class="text-muted fw-semibold">Přípravek</div>
-                <div class="fw-bold">{{ sarze.cislo_pripravku|default:"-" }}</div>
+            <div class="d-flex flex-column align-items-center align-items-sm-end gap-2 text-center text-sm-end">
+                <div>
+                    <span class="text-muted fw-semibold">Přípravek</span>
+                    <span class="fw-bold ms-1">{{ sarze.cislo_pripravku|default:"-" }}</span>
+                </div>
                 <div class="text-muted small">{{ sarze.datum_zalozeni|date:"j. n. Y" }}</div>
+                <span class="scan-status badge rounded-2 text-bg-primary">{{ sarze.get_stav_sarze_display }}</span>
                 {% if sarze.poznamka %}
                     <div class="text-muted small scan-note">{{ sarze.poznamka }}</div>
                 {% endif %}
@@ -38,9 +41,33 @@
             </a>
         </div>
     {% endif %}
+    {% if can_change_stav_sarze_operator and sarze.stav_sarze == "NL" %}
+        <form method="post" class="d-grid mt-2">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="mark_zakalena_ke_kontrole">
+            <button type="submit" class="btn btn-success scan-action-button">
+                Označit zakalená ke kontrole
+            </button>
+        </form>
+        <form method="post" class="d-grid mt-2">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="mark_vylozena_ke_kontrole">
+            <button type="submit" class="btn btn-warning scan-action-button">
+                Označit vyložená ke kontrole
+            </button>
+        </form>
+    {% elif can_change_stav_sarze_operator and sarze.stav_sarze == "ZV" %}
+        <form method="post" class="d-grid mt-2">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="mark_ukoncena">
+            <button type="submit" class="btn btn-outline-danger scan-action-button">
+                Ukončit šarži
+            </button>
+        </form>
+    {% endif %}
     <div class="d-grid mt-2">
         {% if tisk_pruvodky_krok %}
-            <a class="btn btn-outline-primary scan-action-button d-flex align-items-center justify-content-center"
+            <a class="btn btn-outline-secondary scan-action-button d-flex align-items-center justify-content-center"
                href="{% url 'sarze_scan_tisk_pruvodky' sarze.cislo_sarze %}"
                target="_blank"
                rel="noopener">

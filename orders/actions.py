@@ -53,6 +53,7 @@ from .choices import (
     TypZarizeniChoice,
     ZinkovaniChoice,
     PrioritaChoice,
+    StavSarzeChoice,
     STAV_BEDNY_SKLADEM,
     STAV_BEDNY_ROZPRACOVANOST,
 )
@@ -63,6 +64,33 @@ logger = logging.getLogger('orders')
 def _get_changelist_url(modeladmin):
     opts = modeladmin.model._meta
     return reverse(f'admin:{opts.app_label}_{opts.model_name}_changelist')
+
+
+@admin.action(description='Zaplánovat šarži do výroby', permissions=('change',))
+def oznacit_sarze_jako_zaplanovane_action(modeladmin, request, queryset):
+    vytvorene_sarze = list(queryset.filter(stav_sarze=StavSarzeChoice.VYTVORENA))
+    skipped_count = queryset.count() - len(vytvorene_sarze)
+
+    for sarze in vytvorene_sarze:
+        sarze.stav_sarze = StavSarzeChoice.ZAPLANOVANA
+        sarze.save(update_fields=['stav_sarze'])
+
+    if vytvorene_sarze:
+        modeladmin.message_user(
+            request,
+            f"Zaplánováno: {len(vytvorene_sarze)} šarží.",
+            level=messages.SUCCESS,
+        )
+
+    if skipped_count:
+        modeladmin.message_user(
+            request,
+            f"Přeskočeno: {skipped_count} šarží nebylo ve stavu Vytvořená.",
+            level=messages.WARNING,
+        )
+
+    if not vytvorene_sarze and not skipped_count:
+        modeladmin.message_user(request, "Nebyla vybrána žádná šarže.", level=messages.WARNING)
 
 
 def _build_sarzekrokbedna_preview_rows(source_rows):
@@ -517,7 +545,7 @@ def vytvorit_novy_krok_z_kroku_sarze_action(modeladmin, request, queryset):
     return HttpResponseRedirect(_get_changelist_url(modeladmin))
 
 
-@admin.action(description='Vytisknout průvodku vruty')
+@admin.action(description='Vytisknout průvodku šarže pro vruty')
 def tisk_pruvodky_vruty_sarze_action(modeladmin, request, queryset):
     """
     Vytiskne průvodku vrutů pro první krok vybrané šarže.

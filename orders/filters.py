@@ -6,10 +6,10 @@ from django.utils import timezone
 from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 
-from .models import Zakazka, Bedna, Zakaznik, Kamion, TypHlavy, Predpis, Odberatel, Zarizeni, Sarze, Notification
+from .models import Zakazka, Bedna, Zakaznik, Kamion, TypHlavy, Predpis, Odberatel, Zarizeni, Sarze, SarzeKrokBedna, Notification
 from .choices import (
     StavBednyChoice, TryskaniChoice, RovnaniChoice, ZinkovaniChoice, PrioritaChoice, PrijemVydejChoice, SklademZakazkyChoice,
-    TypZarizeniChoice, STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM,
+    StavSarzeChoice, TypZarizeniChoice, STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM,
 )
 
 class DynamicTitleFilter(SimpleListFilter):
@@ -929,6 +929,82 @@ class ZakaznikPredpisFilter(DynamicTitleFilter):
             return queryset.filter(zakaznik=zakaznik)
         except Zakaznik.DoesNotExist:
             return queryset.none()
+
+# filtry pro Šarže
+
+class StavSarzeFilter(DynamicTitleFilter):
+    """
+    Filtrovat šarže podle stavu.
+    """
+    title = "Stav šarže"
+    parameter_name = "stav_sarze"
+    vse = "Vše"
+
+    def __init__(self, request, params, model, model_admin):
+        self.label_dict = {**dict(StavSarzeChoice.choices)}
+        self.label_dict['KE_KONTROLE'] = 'Ke kontrole'
+        super().__init__(request, params, model, model_admin)
+
+    def lookups(self, request, model_admin):
+        return self.label_dict.items()
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if value == 'KE_KONTROLE':
+            return queryset.filter(stav_sarze__in=(
+                StavSarzeChoice.VYLOZENA_KE_KONTROLE,
+                StavSarzeChoice.ZAKALENA_KE_KONTROLE,
+            ))
+        if value:
+            return queryset.filter(stav_sarze=value)
+        return queryset
+
+
+class TypSarzeFilter(DynamicTitleFilter):
+    """
+    Filtrovat šarže podle obsahu deníku šarže.
+    """
+    title = "Typ šarže"
+    parameter_name = "typ_sarze"
+    vse = "Vše"
+
+    def __init__(self, request, params, model, model_admin):
+        self.label_dict = {
+            'prazdna': 'Prázdná',
+            'vruty': 'Vruty',
+            'zelezo': 'Železo',
+            'smisena': 'Smíšená',
+        }
+        super().__init__(request, params, model, model_admin)
+
+    def lookups(self, request, model_admin):
+        return self.label_dict.items()
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if not value:
+            return queryset
+
+        db_items = SarzeKrokBedna.objects.filter(krok__sarze=OuterRef('pk'), bedna__isnull=False)
+        mimo_db_items = (
+            SarzeKrokBedna.objects
+            .filter(krok__sarze=OuterRef('pk'), popis_mimo_db__isnull=False)
+            .exclude(popis_mimo_db='')
+        )
+        queryset = queryset.annotate(
+            _typ_sarze_has_db=Exists(db_items),
+            _typ_sarze_has_mimo_db=Exists(mimo_db_items),
+        )
+
+        if value == 'prazdna':
+            return queryset.filter(_typ_sarze_has_db=False, _typ_sarze_has_mimo_db=False)
+        if value == 'vruty':
+            return queryset.filter(_typ_sarze_has_db=True, _typ_sarze_has_mimo_db=False)
+        if value == 'zelezo':
+            return queryset.filter(_typ_sarze_has_db=False, _typ_sarze_has_mimo_db=True)
+        if value == 'smisena':
+            return queryset.filter(_typ_sarze_has_db=True, _typ_sarze_has_mimo_db=True)
+        return queryset
 
 # filtry pro ŠaržeKrok
 
