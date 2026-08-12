@@ -16,6 +16,7 @@ from orders.models import (
     Zarizeni,
     Sarze,
     SarzeKrok,
+    SarzeKrokBedna,
     SarzeBedna,
 )
 from orders.choices import (
@@ -25,6 +26,7 @@ from orders.choices import (
     RovnaniChoice,
     ZinkovaniChoice,
     TypZarizeniChoice,
+    StavSarzeChoice,
 )
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
@@ -415,7 +417,7 @@ class TestSarzeModels(ModelsBase):
         )
         self.assertEqual(krok.takt, 2.0)
 
-    def test_finished_terminal_step_deactivates_sarze(self):
+    def test_finished_terminal_step_finishes_vruty_sarze(self):
         for index, typ_zarizeni in enumerate(
             (TypZarizeniChoice.VYKLADANI, TypZarizeniChoice.TRYSKAC),
             start=1,
@@ -430,11 +432,27 @@ class TestSarzeModels(ModelsBase):
                     cislo_sarze=200 + index,
                     datum_zalozeni=date(2026, 2, 16),
                     aktivni=True,
+                    stav_sarze=StavSarzeChoice.NALOZENA,
+                )
+                source_krok = SarzeKrok.objects.create(
+                    sarze=sarze,
+                    poradi=1,
+                    datum=date(2026, 2, 16),
+                    zarizeni=self.zarizeni_base,
+                    zacatek=time(7, 0),
+                    konec=time(8, 0),
+                    operator="Op",
+                )
+                SarzeKrokBedna.objects.create(
+                    krok=source_krok,
+                    bedna=self.bedna1,
+                    patro=1,
+                    procent_z_patra=100,
                 )
 
                 SarzeKrok.objects.create(
                     sarze=sarze,
-                    poradi=1,
+                    poradi=2,
                     datum=date(2026, 2, 16),
                     zarizeni=zarizeni,
                     zacatek=time(8, 0),
@@ -443,9 +461,10 @@ class TestSarzeModels(ModelsBase):
                 )
 
                 sarze.refresh_from_db()
-                self.assertFalse(sarze.aktivni)
+                self.assertTrue(sarze.aktivni)
+                self.assertEqual(sarze.stav_sarze, StavSarzeChoice.UKONCENA)
 
-    def test_filling_terminal_step_end_deactivates_sarze(self):
+    def test_filling_terminal_step_end_finishes_vruty_sarze(self):
         zarizeni = Zarizeni.objects.create(
             kod_zarizeni="TERM3",
             nazev_zarizeni="Vykládání",
@@ -455,6 +474,7 @@ class TestSarzeModels(ModelsBase):
             cislo_sarze=203,
             datum_zalozeni=date(2026, 2, 16),
             aktivni=True,
+            stav_sarze=StavSarzeChoice.NALOZENA,
         )
 
         krok = SarzeKrok.objects.create(
@@ -465,15 +485,93 @@ class TestSarzeModels(ModelsBase):
             zacatek=time(8, 0),
             operator="Op",
         )
+        SarzeKrokBedna.objects.create(
+            krok=krok,
+            bedna=self.bedna1,
+            patro=1,
+            procent_z_patra=100,
+        )
 
         sarze.refresh_from_db()
         self.assertTrue(sarze.aktivni)
+        self.assertEqual(sarze.stav_sarze, StavSarzeChoice.NALOZENA)
 
         krok.konec = time(9, 0)
         krok.save(update_fields=["konec"])
 
         sarze.refresh_from_db()
-        self.assertFalse(sarze.aktivni)
+        self.assertTrue(sarze.aktivni)
+        self.assertEqual(sarze.stav_sarze, StavSarzeChoice.UKONCENA)
+
+    def test_finished_terminal_step_keeps_zelezo_sarze_state_for_manual_control(self):
+        zarizeni = Zarizeni.objects.create(
+            kod_zarizeni="TERM4",
+            nazev_zarizeni="Vykládání",
+            typ_zarizeni=TypZarizeniChoice.VYKLADANI,
+        )
+        sarze = Sarze.objects.create(
+            cislo_sarze=205,
+            datum_zalozeni=date(2026, 2, 16),
+            aktivni=True,
+            stav_sarze=StavSarzeChoice.NALOZENA,
+        )
+        source_krok = SarzeKrok.objects.create(
+            sarze=sarze,
+            poradi=1,
+            datum=date(2026, 2, 16),
+            zarizeni=self.zarizeni_base,
+            zacatek=time(7, 0),
+            konec=time(8, 0),
+            operator="Op",
+        )
+        SarzeKrokBedna.objects.create(
+            krok=source_krok,
+            patro=1,
+            procent_z_patra=100,
+            popis_mimo_db="Železo",
+            zakaznik_mimo_db="Zákazník",
+            zakazka_mimo_db="ZAK-1",
+        )
+
+        SarzeKrok.objects.create(
+            sarze=sarze,
+            poradi=2,
+            datum=date(2026, 2, 16),
+            zarizeni=zarizeni,
+            zacatek=time(8, 0),
+            konec=time(9, 0),
+            operator="Op",
+        )
+
+        sarze.refresh_from_db()
+        self.assertTrue(sarze.aktivni)
+        self.assertEqual(sarze.stav_sarze, StavSarzeChoice.NALOZENA)
+
+    def test_sarze_has_mimo_db_items_detects_row_without_bedna(self):
+        sarze = Sarze.objects.create(
+            cislo_sarze=206,
+            datum_zalozeni=date(2026, 2, 16),
+            aktivni=True,
+        )
+        krok = SarzeKrok.objects.create(
+            sarze=sarze,
+            poradi=1,
+            datum=date(2026, 2, 16),
+            zarizeni=self.zarizeni_base,
+            zacatek=time(8, 0),
+            operator="Op",
+        )
+        SarzeKrokBedna.objects.create(
+            krok=krok,
+            patro=1,
+            procent_z_patra=100,
+            popis_mimo_db="Železo",
+            zakaznik_mimo_db="Zákazník",
+            zakazka_mimo_db="ZAK-1",
+        )
+
+        self.assertTrue(sarze.has_mimo_db_items())
+        self.assertFalse(sarze.has_only_db_items())
 
     def test_finished_non_terminal_step_keeps_sarze_active(self):
         sarze = Sarze.objects.create(

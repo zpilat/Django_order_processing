@@ -771,7 +771,16 @@ def _can_change_stav_sarze_kontrolor(user):
     return user.has_perm('orders.change_stav_sarze_kontrolor')
 
 
+def _sarze_contains_zelezo(sarze):
+    return sarze.has_mimo_db_items()
+
+
 SARZE_SCAN_OPERATOR_STATE_ACTIONS = {
+    'mark_nalozena': (
+        StavSarzeChoice.ZAPLANOVANA,
+        StavSarzeChoice.NALOZENA,
+        'Šarže byla označena jako naložená.',
+    ),
     'mark_zakalena_ke_kontrole': (
         StavSarzeChoice.NALOZENA,
         StavSarzeChoice.ZAKALENA_KE_KONTROLE,
@@ -816,6 +825,9 @@ def _handle_sarze_scan_state_action(request, sarze):
         source_state, target_state, success_message = SARZE_SCAN_KONTROLOR_STATE_ACTIONS[action]
     else:
         return False
+    if not _sarze_contains_zelezo(sarze):
+        messages.error(request, 'Stav šarže lze touto akcí měnit jen u šarží se železem.')
+        return True
     if sarze.stav_sarze != source_state:
         messages.error(request, 'Stav šarže nelze změnit z aktuálního stavu.')
         return True
@@ -934,6 +946,7 @@ def sarze_scan_view(request, cislo_sarze: int):
             'can_change_sarze': _can_change_sarze_scan(request.user),
             'can_change_stav_sarze_operator': _can_change_stav_sarze_operator(request.user),
             'can_change_stav_sarze_kontrolor': _can_change_stav_sarze_kontrolor(request.user),
+            'sarze_has_zelezo': _sarze_contains_zelezo(sarze),
             'tisk_pruvodky_krok': tisk_krok,
             'tisk_pruvodky_unavailable_message': tisk_error_message,
             'db_table': 'sarze_scan',

@@ -1509,6 +1509,24 @@ class Sarze(models.Model):
     def __str__(self):
         return f"S{self.cislo_sarze:05d}"
 
+    def has_mimo_db_items(self):
+        return (
+            SarzeKrokBedna.objects
+            .filter(krok__sarze=self)
+            .filter(Q(bedna__isnull=True) | Q(popis_mimo_db__isnull=False))
+            .exclude(bedna__isnull=False, popis_mimo_db__isnull=True)
+            .exclude(bedna__isnull=False, popis_mimo_db='')
+            .exists()
+        )
+
+    def has_only_db_items(self):
+        return (
+            SarzeKrokBedna.objects
+            .filter(krok__sarze=self, bedna__isnull=False)
+            .exists()
+            and not self.has_mimo_db_items()
+        )
+
     def save(self, *args, **kwargs):
         if self.pk or self.cislo_sarze:
             return super().save(*args, **kwargs)
@@ -1583,7 +1601,7 @@ class SarzeKrok(models.Model):
 
         if self.pk or self.poradi:
             result = super().save(*args, **kwargs)
-            self._deactivate_sarze_if_terminal_step_finished()
+            self._finish_vruty_sarze_if_terminal_step_finished()
             return result
 
         max_attempts = 5
@@ -1601,7 +1619,7 @@ class SarzeKrok(models.Model):
                     ) or 0
                     self.poradi = last_number + 1
                     result = super().save(*args, **kwargs)
-                    self._deactivate_sarze_if_terminal_step_finished()
+                    self._finish_vruty_sarze_if_terminal_step_finished()
                     return result
             except IntegrityError as error:
                 if self.action_token and SarzeKrok.objects.filter(action_token=self.action_token).exists():
@@ -1615,7 +1633,7 @@ class SarzeKrok(models.Model):
 
         raise last_error
 
-    def _deactivate_sarze_if_terminal_step_finished(self):
+    def _finish_vruty_sarze_if_terminal_step_finished(self):
         if not self.konec or not self.sarze_id or not self.zarizeni_id:
             return
         if not Zarizeni.objects.filter(
@@ -1627,10 +1645,14 @@ class SarzeKrok(models.Model):
         ).exists():
             return
 
-        sarze = Sarze.objects.filter(pk=self.sarze_id, aktivni=True).first()
-        if sarze:
-            sarze.aktivni = False
-            sarze.save(update_fields=['aktivni'])
+        sarze = Sarze.objects.filter(pk=self.sarze_id).first()
+        if (
+            sarze
+            and sarze.stav_sarze != StavSarzeChoice.UKONCENA
+            and sarze.has_only_db_items()
+        ):
+            sarze.stav_sarze = StavSarzeChoice.UKONCENA
+            sarze.save(update_fields=['stav_sarze'])
 
     @property
     def prodleva(self):

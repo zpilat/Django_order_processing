@@ -830,6 +830,36 @@ class BednaScanViewTests(ViewsTestBase):
 		self.assertNotContains(response, "Přesunout do dalšího kroku")
 		self.assertNotContains(response, reverse("sarze_scan_presunout", args=[sarze.cislo_sarze, krok.pk]))
 
+	def _add_sarze_zelezo_row(self, sarze):
+		zarizeni = Zarizeni.objects.create(
+			kod_zarizeni=f"ZH{sarze.pk}",
+			nazev_zarizeni=f"Pomocné zařízení {sarze.pk}",
+			zkraceny_nazev_zarizeni=f"ZH{sarze.pk}",
+		)
+		krok = SarzeKrok.objects.create(sarze=sarze, zarizeni=zarizeni, zacatek=time(6, 0), operator="Novak")
+		return SarzeKrokBedna.objects.create(
+			krok=krok,
+			patro=1,
+			procent_z_patra=100,
+			popis_mimo_db="Železo",
+			zakaznik_mimo_db="Zákazník",
+			zakazka_mimo_db="ZAK-1",
+		)
+
+	def _add_sarze_vruty_row(self, sarze):
+		zarizeni = Zarizeni.objects.create(
+			kod_zarizeni=f"VH{sarze.pk}",
+			nazev_zarizeni=f"Pomocné zařízení {sarze.pk}",
+			zkraceny_nazev_zarizeni=f"VH{sarze.pk}",
+		)
+		krok = SarzeKrok.objects.create(sarze=sarze, zarizeni=zarizeni, zacatek=time(6, 0), operator="Novak")
+		return SarzeKrokBedna.objects.create(
+			krok=krok,
+			bedna=self.b_eur_pr,
+			patro=1,
+			procent_z_patra=100,
+		)
+
 	def test_sarze_scan_shows_operator_state_buttons_for_nalozena_sarze(self):
 		self.user.user_permissions.add(Permission.objects.get(codename="change_stav_sarze_operator"))
 		sarze = Sarze.objects.create(
@@ -837,6 +867,7 @@ class BednaScanViewTests(ViewsTestBase):
 			cislo_pripravku=1,
 			stav_sarze=StavSarzeChoice.NALOZENA,
 		)
+		self._add_sarze_zelezo_row(sarze)
 
 		response = self.client.get(reverse("sarze_scan", args=[sarze.cislo_sarze]))
 
@@ -844,6 +875,51 @@ class BednaScanViewTests(ViewsTestBase):
 		self.assertContains(response, 'class="btn btn-primary scan-action-button"', html=False)
 		self.assertContains(response, "Označit vyložená ke kontrole")
 		self.assertContains(response, 'class="btn btn-warning scan-action-button"', html=False)
+		self.assertNotContains(response, "Ukončit šarži")
+
+	def test_sarze_scan_shows_operator_mark_nalozena_button_for_zaplanovana_zelezo_sarze(self):
+		self.user.user_permissions.add(Permission.objects.get(codename="change_stav_sarze_operator"))
+		sarze = Sarze.objects.create(
+			datum_zalozeni=timezone.localdate(),
+			cislo_pripravku=1,
+			stav_sarze=StavSarzeChoice.ZAPLANOVANA,
+		)
+		self._add_sarze_zelezo_row(sarze)
+
+		response = self.client.get(reverse("sarze_scan", args=[sarze.cislo_sarze]))
+
+		self.assertContains(response, "Označit Naložená")
+		self.assertContains(response, 'value="mark_nalozena"', html=False)
+		self.assertNotContains(response, "Označit zakalená ke kontrole")
+		self.assertNotContains(response, "Označit vyložená ke kontrole")
+
+	def test_sarze_scan_hides_operator_mark_nalozena_button_for_zaplanovana_vruty_sarze(self):
+		self.user.user_permissions.add(Permission.objects.get(codename="change_stav_sarze_operator"))
+		sarze = Sarze.objects.create(
+			datum_zalozeni=timezone.localdate(),
+			cislo_pripravku=1,
+			stav_sarze=StavSarzeChoice.ZAPLANOVANA,
+		)
+		self._add_sarze_vruty_row(sarze)
+
+		response = self.client.get(reverse("sarze_scan", args=[sarze.cislo_sarze]))
+
+		self.assertNotContains(response, "Označit Naložená")
+		self.assertNotContains(response, 'value="mark_nalozena"', html=False)
+
+	def test_sarze_scan_hides_operator_state_buttons_for_vruty_only_sarze(self):
+		self.user.user_permissions.add(Permission.objects.get(codename="change_stav_sarze_operator"))
+		sarze = Sarze.objects.create(
+			datum_zalozeni=timezone.localdate(),
+			cislo_pripravku=1,
+			stav_sarze=StavSarzeChoice.NALOZENA,
+		)
+		self._add_sarze_vruty_row(sarze)
+
+		response = self.client.get(reverse("sarze_scan", args=[sarze.cislo_sarze]))
+
+		self.assertNotContains(response, "Označit zakalená ke kontrole")
+		self.assertNotContains(response, "Označit vyložená ke kontrole")
 		self.assertNotContains(response, "Ukončit šarži")
 
 	def test_sarze_scan_hides_operator_state_buttons_without_permission(self):
@@ -866,6 +942,7 @@ class BednaScanViewTests(ViewsTestBase):
 			cislo_pripravku=1,
 			stav_sarze=StavSarzeChoice.VYTVORENA,
 		)
+		self._add_sarze_zelezo_row(sarze)
 
 		response = self.client.get(reverse("sarze_scan", args=[sarze.cislo_sarze]))
 
@@ -880,6 +957,7 @@ class BednaScanViewTests(ViewsTestBase):
 			cislo_pripravku=1,
 			stav_sarze=StavSarzeChoice.ZKONTROLOVANA_K_VYLOZENI,
 		)
+		self._add_sarze_zelezo_row(sarze)
 
 		response = self.client.get(reverse("sarze_scan", args=[sarze.cislo_sarze]))
 
@@ -894,6 +972,7 @@ class BednaScanViewTests(ViewsTestBase):
 			cislo_pripravku=1,
 			stav_sarze=StavSarzeChoice.NALOZENA,
 		)
+		self._add_sarze_zelezo_row(sarze)
 
 		response = self.client.post(
 			reverse("sarze_scan", args=[sarze.cislo_sarze]),
@@ -904,6 +983,46 @@ class BednaScanViewTests(ViewsTestBase):
 		sarze.refresh_from_db()
 		self.assertEqual(sarze.stav_sarze, StavSarzeChoice.ZAKALENA_KE_KONTROLE)
 
+	def test_sarze_scan_operator_post_marks_nalozena(self):
+		self.user.user_permissions.add(Permission.objects.get(codename="change_stav_sarze_operator"))
+		sarze = Sarze.objects.create(
+			datum_zalozeni=timezone.localdate(),
+			cislo_pripravku=1,
+			stav_sarze=StavSarzeChoice.ZAPLANOVANA,
+		)
+		self._add_sarze_zelezo_row(sarze)
+
+		response = self.client.post(
+			reverse("sarze_scan", args=[sarze.cislo_sarze]),
+			{"action": "mark_nalozena"},
+		)
+
+		self.assertRedirects(response, reverse("sarze_scan", args=[sarze.cislo_sarze]))
+		sarze.refresh_from_db()
+		self.assertEqual(sarze.stav_sarze, StavSarzeChoice.NALOZENA)
+
+	def test_sarze_scan_operator_post_rejects_vruty_only_sarze(self):
+		self.user.user_permissions.add(Permission.objects.get(codename="change_stav_sarze_operator"))
+		sarze = Sarze.objects.create(
+			datum_zalozeni=timezone.localdate(),
+			cislo_pripravku=1,
+			stav_sarze=StavSarzeChoice.NALOZENA,
+		)
+		self._add_sarze_vruty_row(sarze)
+
+		response = self.client.post(
+			reverse("sarze_scan", args=[sarze.cislo_sarze]),
+			{"action": "mark_zakalena_ke_kontrole"},
+		)
+
+		self.assertRedirects(response, reverse("sarze_scan", args=[sarze.cislo_sarze]))
+		sarze.refresh_from_db()
+		self.assertEqual(sarze.stav_sarze, StavSarzeChoice.NALOZENA)
+		self.assertIn(
+			"Stav šarže lze touto akcí měnit jen u šarží se železem.",
+			[str(message) for message in get_messages(response.wsgi_request)],
+		)
+
 	def test_sarze_scan_operator_post_marks_vylozena_ke_kontrole(self):
 		self.user.user_permissions.add(Permission.objects.get(codename="change_stav_sarze_operator"))
 		sarze = Sarze.objects.create(
@@ -911,6 +1030,7 @@ class BednaScanViewTests(ViewsTestBase):
 			cislo_pripravku=1,
 			stav_sarze=StavSarzeChoice.NALOZENA,
 		)
+		self._add_sarze_zelezo_row(sarze)
 
 		response = self.client.post(
 			reverse("sarze_scan", args=[sarze.cislo_sarze]),
@@ -928,6 +1048,7 @@ class BednaScanViewTests(ViewsTestBase):
 			cislo_pripravku=1,
 			stav_sarze=StavSarzeChoice.ZKONTROLOVANA_K_VYLOZENI,
 		)
+		self._add_sarze_zelezo_row(sarze)
 
 		response = self.client.post(
 			reverse("sarze_scan", args=[sarze.cislo_sarze]),
@@ -961,6 +1082,7 @@ class BednaScanViewTests(ViewsTestBase):
 			cislo_pripravku=1,
 			stav_sarze=StavSarzeChoice.VYTVORENA,
 		)
+		self._add_sarze_zelezo_row(sarze)
 
 		response = self.client.post(
 			reverse("sarze_scan", args=[sarze.cislo_sarze]),
@@ -982,6 +1104,7 @@ class BednaScanViewTests(ViewsTestBase):
 			cislo_pripravku=1,
 			stav_sarze=StavSarzeChoice.ZAKALENA_KE_KONTROLE,
 		)
+		self._add_sarze_zelezo_row(sarze)
 
 		response = self.client.get(reverse("sarze_scan", args=[sarze.cislo_sarze]))
 
@@ -998,6 +1121,7 @@ class BednaScanViewTests(ViewsTestBase):
 			cislo_pripravku=1,
 			stav_sarze=StavSarzeChoice.VYLOZENA_KE_KONTROLE,
 		)
+		self._add_sarze_zelezo_row(sarze)
 
 		response = self.client.get(reverse("sarze_scan", args=[sarze.cislo_sarze]))
 
@@ -1026,6 +1150,7 @@ class BednaScanViewTests(ViewsTestBase):
 			cislo_pripravku=1,
 			stav_sarze=StavSarzeChoice.ZAKALENA_KE_KONTROLE,
 		)
+		self._add_sarze_zelezo_row(sarze)
 
 		response = self.client.post(
 			reverse("sarze_scan", args=[sarze.cislo_sarze]),
@@ -1043,6 +1168,7 @@ class BednaScanViewTests(ViewsTestBase):
 			cislo_pripravku=1,
 			stav_sarze=StavSarzeChoice.VYLOZENA_KE_KONTROLE,
 		)
+		self._add_sarze_zelezo_row(sarze)
 
 		response = self.client.post(
 			reverse("sarze_scan", args=[sarze.cislo_sarze]),
@@ -1076,6 +1202,7 @@ class BednaScanViewTests(ViewsTestBase):
 			cislo_pripravku=1,
 			stav_sarze=StavSarzeChoice.NALOZENA,
 		)
+		self._add_sarze_zelezo_row(sarze)
 
 		response = self.client.post(
 			reverse("sarze_scan", args=[sarze.cislo_sarze]),

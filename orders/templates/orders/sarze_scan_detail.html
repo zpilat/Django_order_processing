@@ -41,7 +41,15 @@
             </a>
         </div>
     {% endif %}
-    {% if can_change_stav_sarze_operator and sarze.stav_sarze == "NL" %}
+    {% if sarze_has_zelezo and can_change_stav_sarze_operator and sarze.stav_sarze == "PL" %}
+        <form method="post" class="d-grid mt-2">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="mark_nalozena">
+            <button type="submit" class="btn btn-primary scan-action-button">
+                Označit Naložená
+            </button>
+        </form>
+    {% elif sarze_has_zelezo and can_change_stav_sarze_operator and sarze.stav_sarze == "NL" %}
         <form method="post" class="d-grid mt-2">
             {% csrf_token %}
             <input type="hidden" name="action" value="mark_zakalena_ke_kontrole">
@@ -56,7 +64,7 @@
                 Označit vyložená ke kontrole
             </button>
         </form>
-    {% elif can_change_stav_sarze_operator and sarze.stav_sarze == "ZV" %}
+    {% elif sarze_has_zelezo and can_change_stav_sarze_operator and sarze.stav_sarze == "ZV" %}
         <form method="post" class="d-grid mt-2">
             {% csrf_token %}
             <input type="hidden" name="action" value="mark_ukoncena">
@@ -65,7 +73,7 @@
             </button>
         </form>
     {% endif %}
-    {% if can_change_stav_sarze_kontrolor and sarze.stav_sarze == "ZK" %}
+    {% if sarze_has_zelezo and can_change_stav_sarze_kontrolor and sarze.stav_sarze == "ZK" %}
         <form method="post" class="d-grid mt-2">
             {% csrf_token %}
             <input type="hidden" name="action" value="mark_zkontrolovana_k_vylozeni">
@@ -73,7 +81,7 @@
                 Označit na zkontrolovaná k vyložení
             </button>
         </form>
-    {% elif can_change_stav_sarze_kontrolor and sarze.stav_sarze == "VK" %}
+    {% elif sarze_has_zelezo and can_change_stav_sarze_kontrolor and sarze.stav_sarze == "VK" %}
         <form method="post" class="d-grid mt-2">
             {% csrf_token %}
             <input type="hidden" name="action" value="mark_ukoncena_kontrolor">
