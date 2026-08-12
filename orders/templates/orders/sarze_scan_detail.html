@@ -42,53 +42,47 @@
         </div>
     {% endif %}
     {% if sarze_has_zelezo and can_change_stav_sarze_operator and sarze.stav_sarze == "PL" %}
-        <form method="post" class="d-grid mt-2">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="mark_nalozena">
-            <button type="submit" class="btn btn-primary scan-action-button">
+        <div class="d-grid mt-2">
+            <a class="btn btn-primary scan-action-button d-flex align-items-center justify-content-center"
+               href="{% url 'sarze_scan_stav' sarze.cislo_sarze 'mark_nalozena' %}">
                 Označit Naložená
-            </button>
-        </form>
+            </a>
+        </div>
     {% elif sarze_has_zelezo and can_change_stav_sarze_operator and sarze.stav_sarze == "NL" %}
-        <form method="post" class="d-grid mt-2">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="mark_zakalena_ke_kontrole">
-            <button type="submit" class="btn btn-primary scan-action-button">
+        <div class="d-grid mt-2">
+            <a class="btn btn-primary scan-action-button d-flex align-items-center justify-content-center"
+               href="{% url 'sarze_scan_stav' sarze.cislo_sarze 'mark_zakalena_ke_kontrole' %}">
                 Označit zakalená ke kontrole
-            </button>
-        </form>
-        <form method="post" class="d-grid mt-2">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="mark_vylozena_ke_kontrole">
-            <button type="submit" class="btn btn-warning scan-action-button">
+            </a>
+        </div>
+        <div class="d-grid mt-2">
+            <a class="btn btn-warning scan-action-button d-flex align-items-center justify-content-center"
+               href="{% url 'sarze_scan_stav' sarze.cislo_sarze 'mark_vylozena_ke_kontrole' %}">
                 Označit vyložená ke kontrole
-            </button>
-        </form>
+            </a>
+        </div>
     {% elif sarze_has_zelezo and can_change_stav_sarze_operator and sarze.stav_sarze == "ZV" %}
-        <form method="post" class="d-grid mt-2">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="mark_ukoncena">
-            <button type="submit" class="btn btn-outline-danger scan-action-button">
+        <div class="d-grid mt-2">
+            <a class="btn btn-outline-danger scan-action-button d-flex align-items-center justify-content-center"
+               href="{% url 'sarze_scan_stav' sarze.cislo_sarze 'mark_ukoncena' %}">
                 Ukončit šarži
-            </button>
-        </form>
+            </a>
+        </div>
     {% endif %}
     {% if sarze_has_zelezo and can_change_stav_sarze_kontrolor and sarze.stav_sarze == "ZK" %}
-        <form method="post" class="d-grid mt-2">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="mark_zkontrolovana_k_vylozeni">
-            <button type="submit" class="btn btn-info scan-action-button">
+        <div class="d-grid mt-2">
+            <a class="btn btn-info scan-action-button d-flex align-items-center justify-content-center"
+               href="{% url 'sarze_scan_stav' sarze.cislo_sarze 'mark_zkontrolovana_k_vylozeni' %}">
                 Označit na zkontrolovaná k vyložení
-            </button>
-        </form>
+            </a>
+        </div>
     {% elif sarze_has_zelezo and can_change_stav_sarze_kontrolor and sarze.stav_sarze == "VK" %}
-        <form method="post" class="d-grid mt-2">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="mark_ukoncena_kontrolor">
-            <button type="submit" class="btn btn-outline-danger scan-action-button">
+        <div class="d-grid mt-2">
+            <a class="btn btn-outline-danger scan-action-button d-flex align-items-center justify-content-center"
+               href="{% url 'sarze_scan_stav' sarze.cislo_sarze 'mark_ukoncena_kontrolor' %}">
                 Ukončit šarži
-            </button>
-        </form>
+            </a>
+        </div>
     {% endif %}
     <div class="d-grid mt-2">
         {% if tisk_pruvodky_krok %}

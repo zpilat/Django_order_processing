@@ -1,0 +1,57 @@
+{% extends "orders/base.html" %}
+{% load static %}
+
+{% block title %}Změna stavu šarže {{ sarze }}{% endblock %}
+
+{% block extra_head %}{{ block.super }}<link rel="stylesheet" href="{% static 'orders/css/scan_workflows.css' %}">{% endblock %}
+
+{% block content %}
+<main class="scan-page scan-page-narrow px-0 px-sm-2 py-2">
+    <section class="card rounded-2">
+        <div class="card-body">
+            <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3">
+                <div class="text-center text-sm-start">
+                    <div class="text-muted fw-semibold">Šarže</div>
+                    <div class="scan-number">{{ sarze }}</div>
+                </div>
+                <div class="text-sm-center">
+                    <div class="text-muted fw-semibold mb-2">Aktuální stav</div>
+                    <span class="scan-status badge rounded-2 text-bg-primary">{{ sarze.get_stav_sarze_display }}</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="card rounded-2 mt-3">
+        <div class="list-group list-group-flush">
+            <div class="list-group-item d-sm-flex justify-content-between gap-3">
+                <div class="text-muted">Cílový stav</div>
+                <div class="fw-bold text-break">{{ target_state_label }}</div>
+            </div>
+            <div class="list-group-item d-sm-flex justify-content-between gap-3">
+                <div class="text-muted">Přípravek</div>
+                <div class="fw-bold text-break">{{ sarze.cislo_pripravku|default:"-" }}</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="card rounded-2 mt-3">
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="{{ action }}">
+
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn {{ button_class }} scan-action-button">
+                        {{ button_label }}
+                    </button>
+                    <a class="btn btn-outline-secondary scan-action-button d-flex align-items-center justify-content-center"
+                       href="{% url 'sarze_scan' sarze.cislo_sarze %}">
+                        Zpět na detail šarže
+                    </a>
+                </div>
+            </form>
+        </div>
+    </section>
+</main>
+{% endblock %}

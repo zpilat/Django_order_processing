@@ -21,7 +21,7 @@ import uuid
 from django.db import transaction
 from django.contrib import messages
 from django.contrib.staticfiles import finders
-from django.http import HttpResponseBadRequest, HttpResponse, JsonResponse
+from django.http import Http404, HttpResponseBadRequest, HttpResponse, JsonResponse
 from django.conf import settings
 from django.utils.text import slugify
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -772,21 +772,29 @@ SARZE_SCAN_OPERATOR_STATE_ACTIONS = {
         StavSarzeChoice.ZAPLANOVANA,
         StavSarzeChoice.NALOZENA,
         'Šarže byla označena jako naložená.',
+        'Označit Naložená',
+        'btn-success',
     ),
     'mark_zakalena_ke_kontrole': (
         StavSarzeChoice.NALOZENA,
         StavSarzeChoice.ZAKALENA_KE_KONTROLE,
         'Šarže byla označena jako zakalená ke kontrole.',
+        'Označit zakalená ke kontrole',
+        'btn-primary',
     ),
     'mark_vylozena_ke_kontrole': (
         StavSarzeChoice.NALOZENA,
         StavSarzeChoice.VYLOZENA_KE_KONTROLE,
         'Šarže byla označena jako vyložená ke kontrole.',
+        'Označit vyložená ke kontrole',
+        'btn-warning',
     ),
     'mark_ukoncena': (
         StavSarzeChoice.ZKONTROLOVANA_K_VYLOZENI,
         StavSarzeChoice.UKONCENA,
         'Šarže byla ukončena.',
+        'Ukončit šarži',
+        'btn-outline-danger',
     ),
 }
 
@@ -796,37 +804,62 @@ SARZE_SCAN_KONTROLOR_STATE_ACTIONS = {
         StavSarzeChoice.ZAKALENA_KE_KONTROLE,
         StavSarzeChoice.ZKONTROLOVANA_K_VYLOZENI,
         'Šarže byla označena jako zkontrolovaná k vyložení.',
+        'Označit na zkontrolovaná k vyložení',
+        'btn-info',
     ),
     'mark_ukoncena_kontrolor': (
         StavSarzeChoice.VYLOZENA_KE_KONTROLE,
         StavSarzeChoice.UKONCENA,
         'Šarže byla ukončena.',
+        'Ukončit šarži',
+        'btn-outline-danger',
     ),
 }
 
 
-def _handle_sarze_scan_state_action(request, sarze):
-    action = request.POST.get('action')
+def _get_sarze_scan_state_action_config(user, action):
     if action in SARZE_SCAN_OPERATOR_STATE_ACTIONS:
-        if not _can_change_stav_sarze_operator(request.user):
+        if not _can_change_stav_sarze_operator(user):
             raise PermissionDenied
-        source_state, target_state, success_message = SARZE_SCAN_OPERATOR_STATE_ACTIONS[action]
+        return SARZE_SCAN_OPERATOR_STATE_ACTIONS[action]
     elif action in SARZE_SCAN_KONTROLOR_STATE_ACTIONS:
-        if not _can_change_stav_sarze_kontrolor(request.user):
+        if not _can_change_stav_sarze_kontrolor(user):
             raise PermissionDenied
-        source_state, target_state, success_message = SARZE_SCAN_KONTROLOR_STATE_ACTIONS[action]
-    else:
+        return SARZE_SCAN_KONTROLOR_STATE_ACTIONS[action]
+    return None
+
+
+def _validate_sarze_scan_state_action(request, sarze, action):
+    config = _get_sarze_scan_state_action_config(request.user, action)
+    if config is None:
         return False
+    source_state, target_state, success_message, button_label, button_class = config
     if not _sarze_contains_zelezo(sarze):
         messages.error(request, 'Stav šarže lze touto akcí měnit jen u šarží se železem.')
-        return True
+        return None
     if sarze.stav_sarze != source_state:
         messages.error(request, 'Stav šarže nelze změnit z aktuálního stavu.')
+        return None
+    return {
+        'source_state': source_state,
+        'target_state': target_state,
+        'success_message': success_message,
+        'button_label': button_label,
+        'button_class': button_class,
+    }
+
+
+def _handle_sarze_scan_state_action(request, sarze):
+    action = request.POST.get('action')
+    action_config = _validate_sarze_scan_state_action(request, sarze, action)
+    if action_config is False:
+        return False
+    if action_config is None:
         return True
 
-    sarze.stav_sarze = target_state
+    sarze.stav_sarze = action_config['target_state']
     sarze.save(update_fields=['stav_sarze'])
-    messages.success(request, success_message)
+    messages.success(request, action_config['success_message'])
     return True
 
 
@@ -942,6 +975,39 @@ def sarze_scan_view(request, cislo_sarze: int):
             'tisk_pruvodky_krok': tisk_krok,
             'tisk_pruvodky_unavailable_message': tisk_error_message,
             'db_table': 'sarze_scan',
+        },
+    )
+
+
+@login_required
+@never_cache
+def sarze_scan_stav_view(request, cislo_sarze: int, action: str):
+    sarze = get_object_or_404(Sarze, cislo_sarze=cislo_sarze)
+    action_config = _validate_sarze_scan_state_action(request, sarze, action)
+    if action_config is False:
+        raise Http404
+    if action_config is None:
+        return redirect('sarze_scan', cislo_sarze=sarze.cislo_sarze)
+
+    if request.method == 'POST':
+        if request.POST.get('action') != action:
+            return HttpResponseBadRequest('Neplatná akce.')
+
+        sarze.stav_sarze = action_config['target_state']
+        sarze.save(update_fields=['stav_sarze'])
+        messages.success(request, action_config['success_message'])
+        return redirect('sarze_scan', cislo_sarze=sarze.cislo_sarze)
+
+    return render(
+        request,
+        'orders/sarze_scan_stav.html',
+        {
+            'sarze': sarze,
+            'action': action,
+            'button_label': action_config['button_label'],
+            'button_class': action_config['button_class'],
+            'target_state_label': StavSarzeChoice(action_config['target_state']).label,
+            'db_table': 'sarze_scan_stav',
         },
     )
 

@@ -894,10 +894,12 @@ class BednaScanViewTests(ViewsTestBase):
 
 		response = self.client.get(reverse("sarze_scan", args=[sarze.cislo_sarze]))
 
+		zakalena_url = reverse("sarze_scan_stav", args=[sarze.cislo_sarze, "mark_zakalena_ke_kontrole"])
+		vylozena_url = reverse("sarze_scan_stav", args=[sarze.cislo_sarze, "mark_vylozena_ke_kontrole"])
 		self.assertContains(response, "Označit zakalená ke kontrole")
-		self.assertContains(response, 'class="btn btn-primary scan-action-button"', html=False)
+		self.assertContains(response, zakalena_url)
 		self.assertContains(response, "Označit vyložená ke kontrole")
-		self.assertContains(response, 'class="btn btn-warning scan-action-button"', html=False)
+		self.assertContains(response, vylozena_url)
 		self.assertNotContains(response, "Ukončit šarži")
 
 	def test_sarze_scan_shows_operator_mark_nalozena_button_for_zaplanovana_zelezo_sarze(self):
@@ -911,8 +913,9 @@ class BednaScanViewTests(ViewsTestBase):
 
 		response = self.client.get(reverse("sarze_scan", args=[sarze.cislo_sarze]))
 
+		nalozena_url = reverse("sarze_scan_stav", args=[sarze.cislo_sarze, "mark_nalozena"])
 		self.assertContains(response, "Označit Naložená")
-		self.assertContains(response, 'value="mark_nalozena"', html=False)
+		self.assertContains(response, nalozena_url)
 		self.assertNotContains(response, "Označit zakalená ke kontrole")
 		self.assertNotContains(response, "Označit vyložená ke kontrole")
 
@@ -928,7 +931,7 @@ class BednaScanViewTests(ViewsTestBase):
 		response = self.client.get(reverse("sarze_scan", args=[sarze.cislo_sarze]))
 
 		self.assertNotContains(response, "Označit Naložená")
-		self.assertNotContains(response, 'value="mark_nalozena"', html=False)
+		self.assertNotContains(response, reverse("sarze_scan_stav", args=[sarze.cislo_sarze, "mark_nalozena"]))
 
 	def test_sarze_scan_hides_operator_state_buttons_for_vruty_only_sarze(self):
 		self.user.user_permissions.add(Permission.objects.get(codename="change_stav_sarze_operator"))
@@ -984,7 +987,9 @@ class BednaScanViewTests(ViewsTestBase):
 
 		response = self.client.get(reverse("sarze_scan", args=[sarze.cislo_sarze]))
 
+		ukoncena_url = reverse("sarze_scan_stav", args=[sarze.cislo_sarze, "mark_ukoncena"])
 		self.assertContains(response, "Ukončit šarži")
+		self.assertContains(response, ukoncena_url)
 		self.assertNotContains(response, "Označit zakalená ke kontrole")
 		self.assertNotContains(response, "Označit vyložená ke kontrole")
 
@@ -1023,6 +1028,79 @@ class BednaScanViewTests(ViewsTestBase):
 		self.assertRedirects(response, reverse("sarze_scan", args=[sarze.cislo_sarze]))
 		sarze.refresh_from_db()
 		self.assertEqual(sarze.stav_sarze, StavSarzeChoice.NALOZENA)
+
+	def test_sarze_scan_stav_get_renders_confirmation(self):
+		self.user.user_permissions.add(Permission.objects.get(codename="change_stav_sarze_operator"))
+		sarze = Sarze.objects.create(
+			datum_zalozeni=timezone.localdate(),
+			cislo_pripravku=1,
+			stav_sarze=StavSarzeChoice.ZAPLANOVANA,
+		)
+		self._add_sarze_zelezo_row(sarze)
+
+		response = self.client.get(
+			reverse("sarze_scan_stav", args=[sarze.cislo_sarze, "mark_nalozena"])
+		)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertTemplateUsed(response, "orders/sarze_scan_stav.html")
+		self.assertContains(response, str(sarze))
+		self.assertContains(response, "Aktuální stav")
+		self.assertContains(response, "Cílový stav")
+		self.assertContains(response, "Naložená")
+		self.assertContains(response, "Označit Naložená")
+		self.assertContains(response, 'value="mark_nalozena"', html=False)
+
+	def test_sarze_scan_stav_post_marks_nalozena(self):
+		self.user.user_permissions.add(Permission.objects.get(codename="change_stav_sarze_operator"))
+		sarze = Sarze.objects.create(
+			datum_zalozeni=timezone.localdate(),
+			cislo_pripravku=1,
+			stav_sarze=StavSarzeChoice.ZAPLANOVANA,
+		)
+		self._add_sarze_zelezo_row(sarze)
+
+		response = self.client.post(
+			reverse("sarze_scan_stav", args=[sarze.cislo_sarze, "mark_nalozena"]),
+			{"action": "mark_nalozena"},
+		)
+
+		self.assertRedirects(response, reverse("sarze_scan", args=[sarze.cislo_sarze]))
+		sarze.refresh_from_db()
+		self.assertEqual(sarze.stav_sarze, StavSarzeChoice.NALOZENA)
+
+	def test_sarze_scan_stav_get_redirects_for_wrong_source_state(self):
+		self.user.user_permissions.add(Permission.objects.get(codename="change_stav_sarze_operator"))
+		sarze = Sarze.objects.create(
+			datum_zalozeni=timezone.localdate(),
+			cislo_pripravku=1,
+			stav_sarze=StavSarzeChoice.VYTVORENA,
+		)
+		self._add_sarze_zelezo_row(sarze)
+
+		response = self.client.get(
+			reverse("sarze_scan_stav", args=[sarze.cislo_sarze, "mark_nalozena"])
+		)
+
+		self.assertRedirects(response, reverse("sarze_scan", args=[sarze.cislo_sarze]))
+		self.assertIn(
+			"Stav šarže nelze změnit z aktuálního stavu.",
+			[str(message) for message in get_messages(response.wsgi_request)],
+		)
+
+	def test_sarze_scan_stav_get_requires_permission(self):
+		sarze = Sarze.objects.create(
+			datum_zalozeni=timezone.localdate(),
+			cislo_pripravku=1,
+			stav_sarze=StavSarzeChoice.ZAPLANOVANA,
+		)
+		self._add_sarze_zelezo_row(sarze)
+
+		response = self.client.get(
+			reverse("sarze_scan_stav", args=[sarze.cislo_sarze, "mark_nalozena"])
+		)
+
+		self.assertEqual(response.status_code, 403)
 
 	def test_sarze_scan_operator_post_rejects_vruty_only_sarze(self):
 		self.user.user_permissions.add(Permission.objects.get(codename="change_stav_sarze_operator"))
@@ -1131,8 +1209,9 @@ class BednaScanViewTests(ViewsTestBase):
 
 		response = self.client.get(reverse("sarze_scan", args=[sarze.cislo_sarze]))
 
+		zkontrolovana_url = reverse("sarze_scan_stav", args=[sarze.cislo_sarze, "mark_zkontrolovana_k_vylozeni"])
 		self.assertContains(response, "Označit na zkontrolovaná k vyložení")
-		self.assertContains(response, 'class="btn btn-info scan-action-button"', html=False)
+		self.assertContains(response, zkontrolovana_url)
 		self.assertNotContains(response, "Označit zakalená ke kontrole")
 		self.assertNotContains(response, "Označit vyložená ke kontrole")
 		self.assertNotContains(response, "Ukončit šarži")
@@ -1148,8 +1227,9 @@ class BednaScanViewTests(ViewsTestBase):
 
 		response = self.client.get(reverse("sarze_scan", args=[sarze.cislo_sarze]))
 
+		ukoncena_url = reverse("sarze_scan_stav", args=[sarze.cislo_sarze, "mark_ukoncena_kontrolor"])
 		self.assertContains(response, "Ukončit šarži")
-		self.assertContains(response, 'class="btn btn-outline-danger scan-action-button"', html=False)
+		self.assertContains(response, ukoncena_url)
 		self.assertNotContains(response, "Označit na zkontrolovaná k vyložení")
 		self.assertNotContains(response, "Označit zakalená ke kontrole")
 		self.assertNotContains(response, "Označit vyložená ke kontrole")

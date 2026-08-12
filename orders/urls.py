@@ -23,6 +23,7 @@ from .views import (
     bedna_scan_zkontrolovano_view,
     bedna_scan_pohyb_view,
     sarze_scan_view,
+    sarze_scan_stav_view,
     sarze_scan_presunout_view,
     sarze_scan_change_krok_view,
     sarze_scan_tisk_pruvodky_view,
@@ -77,6 +78,11 @@ urlpatterns = [
     ),
     path('bedny/scan/<int:cislo_bedny>/pohyb/', bedna_scan_pohyb_view, name='bedna_scan_pohyb'),
     path('sarze/scan/<int:cislo_sarze>/', sarze_scan_view, name='sarze_scan'),
+    path(
+        'sarze/scan/<int:cislo_sarze>/stav/<slug:action>/',
+        sarze_scan_stav_view,
+        name='sarze_scan_stav',
+    ),
     path(
         'sarze/scan/<int:cislo_sarze>/krok/<int:krok_id>/presunout/',
         sarze_scan_presunout_view,
