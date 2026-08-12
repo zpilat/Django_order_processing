@@ -58,9 +58,6 @@ STAV_BEDNY_KONTROLA_ZMENY_PRIORITY = [
 ]   
 
 STAV_BEDNY_PODMINKA_PRO_ZMENU_NA_ZAKALENO = [
-    StavBednyChoice.PRIJATO,
-    StavBednyChoice.K_NAVEZENI,
-    StavBednyChoice.NAVEZENO,
     StavBednyChoice.DO_ZPRACOVANI,
 ]
 

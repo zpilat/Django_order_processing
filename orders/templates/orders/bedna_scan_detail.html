@@ -56,10 +56,6 @@
                href="{% url 'bedna_scan_navezeni' bedna.cislo_bedny %}">
                 Označit navezeno
             </a>
-        {% elif has_mark_navezeno_permission %}
-            <div class="alert alert-secondary d-flex align-items-center justify-content-center mb-0">
-                Akce „Označit navezeno“ není dostupná.
-            </div>
         {% endif %}
 
         {% if can_mark_zakaleno %}
@@ -67,10 +63,6 @@
                href="{% url 'bedna_scan_zakaleno' bedna.cislo_bedny %}">
                 Označit zakaleno
             </a>
-        {% elif has_mark_zakaleno_permission %}
-            <div class="alert alert-secondary d-flex align-items-center justify-content-center mb-0">
-                Akce „Označit zakaleno“ není dostupná.
-            </div>
         {% endif %}
 
         {% if can_mark_zkontrolovano %}
@@ -78,10 +70,6 @@
                href="{% url 'bedna_scan_zkontrolovano' bedna.cislo_bedny %}">
                 Označit zkontrolováno
             </a>
-        {% elif has_mark_zkontrolovano_permission %}
-            <div class="alert alert-secondary d-flex align-items-center justify-content-center mb-0">
-                Akce „Označit zkontrolováno“ není dostupná.
-            </div>
         {% endif %}
 
         <a class="btn btn-outline-primary w-100 scan-action-button d-flex align-items-center justify-content-center"

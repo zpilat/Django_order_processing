@@ -939,7 +939,7 @@ class Bedna(models.Model):
             ('change_neprijata_bedna', 'Může upravovat bedny ve stavu NEPŘIJATO'),
             ('change_poznamka_neprijata_bedna', 'Může upravovat poznámku u bedny ve stavu NEPŘIJATO'),
             ('mark_bedna_navezeno', 'Může označit bednu jako navezenou a vrátit ji zpět na příjem'),
-            ('mark_bedna_zakaleno', 'Může označit bednu jako zakalenou přímo z příjmu (např. při reklamaci)'),
+            ('mark_bedna_zakaleno', 'Může označit bednu jako zakalenou přes skenování'),
             ('mark_bedna_zkontrolovano', 'Může označit bednu jako zkontrolovanou přes skenování')
         )
         constraints = [models.CheckConstraint(

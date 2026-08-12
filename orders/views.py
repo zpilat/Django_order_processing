@@ -260,12 +260,8 @@ def _bedna_scan_can_mark_zakaleno(user, bedna):
     """
     Kontroluje, zda má uživatel oprávnění označit bednu jako zakalenou.
     """
-    has_permission = (
-        user.has_perm('orders.mark_bedna_zakaleno')
-        or user.has_perm('orders.change_bedna')
-    )
     return (
-        has_permission
+        user.has_perm('orders.mark_bedna_zakaleno')
         and not bedna.pozastaveno
         and bedna.stav_bedny in STAV_BEDNY_PODMINKA_PRO_ZMENU_NA_ZAKALENO
     )
@@ -490,11 +486,7 @@ def bedna_scan_zakaleno_view(request, cislo_bedny: int):
     )
     bedna = get_object_or_404(bedna_qs, cislo_bedny=cislo_bedny)
 
-    has_permission = (
-        request.user.has_perm('orders.mark_bedna_zakaleno')
-        or request.user.has_perm('orders.change_bedna')
-    )
-    if not has_permission:
+    if not request.user.has_perm('orders.mark_bedna_zakaleno'):
         raise PermissionDenied
     if bedna.pozastaveno:
         logger.warning(
