@@ -357,6 +357,7 @@ class TestSarzeModels(ModelsBase):
 
         self.assertIn('change_stav_sarze_operator', permission_codenames)
         self.assertIn('change_stav_sarze_kontrolor', permission_codenames)
+        self.assertIn('can_move_sarze', permission_codenames)
 
     def test_sarzekrok_prodleva(self):
         zar = Zarizeni.objects.create(

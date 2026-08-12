@@ -751,10 +751,7 @@ def _can_move_sarze_scan(user):
     """
     Kontroluje, zda má uživatel oprávnění přesunout šarži.
     """
-    return user.has_perms((
-        'orders.add_sarzekrok',
-        'orders.add_sarzekrokbedna',
-    ))
+    return user.has_perm('orders.can_move_sarze')
 
 def _can_change_sarze_scan(user):
     """
@@ -768,6 +765,10 @@ def _can_change_sarze_scan(user):
 
 def _can_change_stav_sarze_operator(user):
     return user.has_perm('orders.change_stav_sarze_operator')
+
+
+def _can_change_stav_sarze_kontrolor(user):
+    return user.has_perm('orders.change_stav_sarze_kontrolor')
 
 
 SARZE_SCAN_OPERATOR_STATE_ACTIONS = {
@@ -789,14 +790,32 @@ SARZE_SCAN_OPERATOR_STATE_ACTIONS = {
 }
 
 
+SARZE_SCAN_KONTROLOR_STATE_ACTIONS = {
+    'mark_zkontrolovana_k_vylozeni': (
+        StavSarzeChoice.ZAKALENA_KE_KONTROLE,
+        StavSarzeChoice.ZKONTROLOVANA_K_VYLOZENI,
+        'Šarže byla označena jako zkontrolovaná k vyložení.',
+    ),
+    'mark_ukoncena_kontrolor': (
+        StavSarzeChoice.VYLOZENA_KE_KONTROLE,
+        StavSarzeChoice.UKONCENA,
+        'Šarže byla ukončena.',
+    ),
+}
+
+
 def _handle_sarze_scan_state_action(request, sarze):
     action = request.POST.get('action')
-    if action not in SARZE_SCAN_OPERATOR_STATE_ACTIONS:
+    if action in SARZE_SCAN_OPERATOR_STATE_ACTIONS:
+        if not _can_change_stav_sarze_operator(request.user):
+            raise PermissionDenied
+        source_state, target_state, success_message = SARZE_SCAN_OPERATOR_STATE_ACTIONS[action]
+    elif action in SARZE_SCAN_KONTROLOR_STATE_ACTIONS:
+        if not _can_change_stav_sarze_kontrolor(request.user):
+            raise PermissionDenied
+        source_state, target_state, success_message = SARZE_SCAN_KONTROLOR_STATE_ACTIONS[action]
+    else:
         return False
-    if not _can_change_stav_sarze_operator(request.user):
-        raise PermissionDenied
-
-    source_state, target_state, success_message = SARZE_SCAN_OPERATOR_STATE_ACTIONS[action]
     if sarze.stav_sarze != source_state:
         messages.error(request, 'Stav šarže nelze změnit z aktuálního stavu.')
         return True
@@ -914,6 +933,7 @@ def sarze_scan_view(request, cislo_sarze: int):
             'can_move_sarze': _can_move_sarze_scan(request.user),
             'can_change_sarze': _can_change_sarze_scan(request.user),
             'can_change_stav_sarze_operator': _can_change_stav_sarze_operator(request.user),
+            'can_change_stav_sarze_kontrolor': _can_change_stav_sarze_kontrolor(request.user),
             'tisk_pruvodky_krok': tisk_krok,
             'tisk_pruvodky_unavailable_message': tisk_error_message,
             'db_table': 'sarze_scan',
@@ -936,8 +956,7 @@ def sarze_scan_tisk_pruvodky_view(request, cislo_sarze: int):
 
 
 @login_required
-@permission_required('orders.add_sarzekrok', raise_exception=True)
-@permission_required('orders.add_sarzekrokbedna', raise_exception=True)
+@permission_required('orders.can_move_sarze', raise_exception=True)
 def sarze_scan_presunout_view(request, cislo_sarze: int, krok_id: int):
     """
     Zobrazuje stránku pro přesun šarže do dalšího kroku.

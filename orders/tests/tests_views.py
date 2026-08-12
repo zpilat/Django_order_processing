@@ -785,7 +785,7 @@ class BednaScanViewTests(ViewsTestBase):
 
 	def test_sarze_scan_shows_move_buttons_for_user_with_permissions(self):
 		self.user.user_permissions.add(*Permission.objects.filter(
-			codename__in=["add_sarzekrok", "add_sarzekrokbedna"],
+			codename__in=["can_move_sarze"],
 		))
 		sarze = Sarze.objects.create(datum_zalozeni=timezone.localdate(), cislo_pripravku=1)
 		zarizeni = Zarizeni.objects.create(
@@ -809,6 +809,26 @@ class BednaScanViewTests(ViewsTestBase):
 		self.assertContains(response, 'class="btn btn-success scan-action-button d-flex align-items-center justify-content-center"', html=False)
 		self.assertContains(response, "Přesunout do dalšího kroku")
 		self.assertContains(response, "Přesunout")
+
+	def test_sarze_scan_hides_move_buttons_without_special_permission(self):
+		sarze = Sarze.objects.create(datum_zalozeni=timezone.localdate(), cislo_pripravku=1)
+		zarizeni = Zarizeni.objects.create(
+			kod_zarizeni="Z1",
+			nazev_zarizeni="Zařízení 1",
+			zkraceny_nazev_zarizeni="Z1",
+		)
+		krok = SarzeKrok.objects.create(
+			sarze=sarze,
+			zarizeni=zarizeni,
+			zacatek=time(6, 0),
+			konec=time(7, 0),
+			operator="Novak",
+		)
+
+		response = self.client.get(reverse("sarze_scan", args=[sarze.cislo_sarze]))
+
+		self.assertNotContains(response, "Přesunout do dalšího kroku")
+		self.assertNotContains(response, reverse("sarze_scan_presunout", args=[sarze.cislo_sarze, krok.pk]))
 
 	def test_sarze_scan_shows_operator_state_buttons_for_nalozena_sarze(self):
 		self.user.user_permissions.add(Permission.objects.get(codename="change_stav_sarze_operator"))
@@ -955,6 +975,121 @@ class BednaScanViewTests(ViewsTestBase):
 			[str(message) for message in get_messages(response.wsgi_request)],
 		)
 
+	def test_sarze_scan_shows_kontrolor_button_for_zakalena_ke_kontrole(self):
+		self.user.user_permissions.add(Permission.objects.get(codename="change_stav_sarze_kontrolor"))
+		sarze = Sarze.objects.create(
+			datum_zalozeni=timezone.localdate(),
+			cislo_pripravku=1,
+			stav_sarze=StavSarzeChoice.ZAKALENA_KE_KONTROLE,
+		)
+
+		response = self.client.get(reverse("sarze_scan", args=[sarze.cislo_sarze]))
+
+		self.assertContains(response, "Označit na zkontrolovaná k vyložení")
+		self.assertContains(response, 'class="btn btn-info scan-action-button"', html=False)
+		self.assertNotContains(response, "Označit zakalená ke kontrole")
+		self.assertNotContains(response, "Označit vyložená ke kontrole")
+		self.assertNotContains(response, "Ukončit šarži")
+
+	def test_sarze_scan_shows_kontrolor_finish_button_for_vylozena_ke_kontrole(self):
+		self.user.user_permissions.add(Permission.objects.get(codename="change_stav_sarze_kontrolor"))
+		sarze = Sarze.objects.create(
+			datum_zalozeni=timezone.localdate(),
+			cislo_pripravku=1,
+			stav_sarze=StavSarzeChoice.VYLOZENA_KE_KONTROLE,
+		)
+
+		response = self.client.get(reverse("sarze_scan", args=[sarze.cislo_sarze]))
+
+		self.assertContains(response, "Ukončit šarži")
+		self.assertContains(response, 'class="btn btn-outline-danger scan-action-button"', html=False)
+		self.assertNotContains(response, "Označit na zkontrolovaná k vyložení")
+		self.assertNotContains(response, "Označit zakalená ke kontrole")
+		self.assertNotContains(response, "Označit vyložená ke kontrole")
+
+	def test_sarze_scan_hides_kontrolor_buttons_without_permission(self):
+		sarze = Sarze.objects.create(
+			datum_zalozeni=timezone.localdate(),
+			cislo_pripravku=1,
+			stav_sarze=StavSarzeChoice.ZAKALENA_KE_KONTROLE,
+		)
+
+		response = self.client.get(reverse("sarze_scan", args=[sarze.cislo_sarze]))
+
+		self.assertNotContains(response, "Označit na zkontrolovaná k vyložení")
+		self.assertNotContains(response, "Ukončit šarži")
+
+	def test_sarze_scan_kontrolor_post_marks_zkontrolovana_k_vylozeni(self):
+		self.user.user_permissions.add(Permission.objects.get(codename="change_stav_sarze_kontrolor"))
+		sarze = Sarze.objects.create(
+			datum_zalozeni=timezone.localdate(),
+			cislo_pripravku=1,
+			stav_sarze=StavSarzeChoice.ZAKALENA_KE_KONTROLE,
+		)
+
+		response = self.client.post(
+			reverse("sarze_scan", args=[sarze.cislo_sarze]),
+			{"action": "mark_zkontrolovana_k_vylozeni"},
+		)
+
+		self.assertRedirects(response, reverse("sarze_scan", args=[sarze.cislo_sarze]))
+		sarze.refresh_from_db()
+		self.assertEqual(sarze.stav_sarze, StavSarzeChoice.ZKONTROLOVANA_K_VYLOZENI)
+
+	def test_sarze_scan_kontrolor_post_marks_ukoncena(self):
+		self.user.user_permissions.add(Permission.objects.get(codename="change_stav_sarze_kontrolor"))
+		sarze = Sarze.objects.create(
+			datum_zalozeni=timezone.localdate(),
+			cislo_pripravku=1,
+			stav_sarze=StavSarzeChoice.VYLOZENA_KE_KONTROLE,
+		)
+
+		response = self.client.post(
+			reverse("sarze_scan", args=[sarze.cislo_sarze]),
+			{"action": "mark_ukoncena_kontrolor"},
+		)
+
+		self.assertRedirects(response, reverse("sarze_scan", args=[sarze.cislo_sarze]))
+		sarze.refresh_from_db()
+		self.assertEqual(sarze.stav_sarze, StavSarzeChoice.UKONCENA)
+
+	def test_sarze_scan_kontrolor_post_rejects_without_permission(self):
+		sarze = Sarze.objects.create(
+			datum_zalozeni=timezone.localdate(),
+			cislo_pripravku=1,
+			stav_sarze=StavSarzeChoice.ZAKALENA_KE_KONTROLE,
+		)
+
+		response = self.client.post(
+			reverse("sarze_scan", args=[sarze.cislo_sarze]),
+			{"action": "mark_zkontrolovana_k_vylozeni"},
+		)
+
+		self.assertEqual(response.status_code, 403)
+		sarze.refresh_from_db()
+		self.assertEqual(sarze.stav_sarze, StavSarzeChoice.ZAKALENA_KE_KONTROLE)
+
+	def test_sarze_scan_kontrolor_post_rejects_wrong_source_state(self):
+		self.user.user_permissions.add(Permission.objects.get(codename="change_stav_sarze_kontrolor"))
+		sarze = Sarze.objects.create(
+			datum_zalozeni=timezone.localdate(),
+			cislo_pripravku=1,
+			stav_sarze=StavSarzeChoice.NALOZENA,
+		)
+
+		response = self.client.post(
+			reverse("sarze_scan", args=[sarze.cislo_sarze]),
+			{"action": "mark_zkontrolovana_k_vylozeni"},
+		)
+
+		self.assertRedirects(response, reverse("sarze_scan", args=[sarze.cislo_sarze]))
+		sarze.refresh_from_db()
+		self.assertEqual(sarze.stav_sarze, StavSarzeChoice.NALOZENA)
+		self.assertIn(
+			"Stav šarže nelze změnit z aktuálního stavu.",
+			[str(message) for message in get_messages(response.wsgi_request)],
+		)
+
 	def test_sarze_scan_shows_print_preview_for_valid_nakladani_first_step(self):
 		self.user.user_permissions.add(*Permission.objects.filter(
 			codename__in=["view_sarzekrok", "view_sarzekrokbedna"],
@@ -1007,7 +1142,7 @@ class BednaScanViewTests(ViewsTestBase):
 
 	def test_sarze_scan_top_move_button_uses_newest_step(self):
 		self.user.user_permissions.add(*Permission.objects.filter(
-			codename__in=["add_sarzekrok", "add_sarzekrokbedna"],
+			codename__in=["can_move_sarze"],
 		))
 		sarze = Sarze.objects.create(datum_zalozeni=timezone.localdate(), cislo_pripravku=1)
 		zarizeni = Zarizeni.objects.create(
@@ -1082,7 +1217,7 @@ class BednaScanViewTests(ViewsTestBase):
 
 	def test_sarze_scan_move_view_get_renders_form(self):
 		self.user.user_permissions.add(*Permission.objects.filter(
-			codename__in=["add_sarzekrok", "add_sarzekrokbedna"],
+			codename__in=["can_move_sarze"],
 		))
 		sarze = Sarze.objects.create(datum_zalozeni=timezone.localdate(), cislo_pripravku=1)
 		zarizeni = Zarizeni.objects.create(
@@ -1112,9 +1247,28 @@ class BednaScanViewTests(ViewsTestBase):
 		self.assertContains(response, 'name="source_row_ids"', html=False)
 		self.assertContains(response, str(self.b_eur_pr.cislo_bedny))
 
+	def test_sarze_scan_move_view_requires_special_permission(self):
+		sarze = Sarze.objects.create(datum_zalozeni=timezone.localdate(), cislo_pripravku=1)
+		zarizeni = Zarizeni.objects.create(
+			kod_zarizeni="Z1",
+			nazev_zarizeni="Zařízení 1",
+			zkraceny_nazev_zarizeni="Z1",
+		)
+		krok = SarzeKrok.objects.create(
+			sarze=sarze,
+			zarizeni=zarizeni,
+			zacatek=time(6, 0),
+			konec=time(7, 0),
+			operator="Novak",
+		)
+
+		response = self.client.get(reverse("sarze_scan_presunout", args=[sarze.cislo_sarze, krok.pk]))
+
+		self.assertEqual(response.status_code, 403)
+
 	def test_sarze_scan_move_view_post_creates_next_step_from_selected_step(self):
 		self.user.user_permissions.add(*Permission.objects.filter(
-			codename__in=["add_sarzekrok", "add_sarzekrokbedna"],
+			codename__in=["can_move_sarze"],
 		))
 		sarze = Sarze.objects.create(datum_zalozeni=timezone.localdate(), cislo_pripravku=1)
 		source_zarizeni = Zarizeni.objects.create(
@@ -1167,7 +1321,7 @@ class BednaScanViewTests(ViewsTestBase):
 
 	def test_sarze_scan_move_view_post_copies_only_selected_rows(self):
 		self.user.user_permissions.add(*Permission.objects.filter(
-			codename__in=["add_sarzekrok", "add_sarzekrokbedna"],
+			codename__in=["can_move_sarze"],
 		))
 		sarze = Sarze.objects.create(datum_zalozeni=timezone.localdate(), cislo_pripravku=1)
 		source_zarizeni = Zarizeni.objects.create(

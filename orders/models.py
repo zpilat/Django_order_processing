@@ -1501,6 +1501,7 @@ class Sarze(models.Model):
         verbose_name_plural = 'šarže'
         ordering = ['-datum_zalozeni', '-cislo_sarze']
         permissions = (
+            ('can_move_sarze', 'Může přesouvat šarže mezi kroky'),
             ('change_stav_sarze_operator', 'Může měnit stav šarže jako operátor'),
             ('change_stav_sarze_kontrolor', 'Může měnit stav šarže jako kontrolor'),
         )

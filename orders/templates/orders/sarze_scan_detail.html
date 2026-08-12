@@ -35,7 +35,7 @@
     </div>
     {% if can_move_sarze and last_krok %}
         <div class="d-grid mt-2">
-            <a class="btn btn-primary scan-action-button d-flex align-items-center justify-content-center"
+            <a class="btn btn-success scan-action-button d-flex align-items-center justify-content-center"
                href="{% url 'sarze_scan_presunout' sarze.cislo_sarze last_krok.pk %}">
                 Přesunout do dalšího kroku
             </a>
@@ -45,7 +45,7 @@
         <form method="post" class="d-grid mt-2">
             {% csrf_token %}
             <input type="hidden" name="action" value="mark_zakalena_ke_kontrole">
-            <button type="submit" class="btn btn-success scan-action-button">
+            <button type="submit" class="btn btn-primary scan-action-button">
                 Označit zakalená ke kontrole
             </button>
         </form>
@@ -60,6 +60,23 @@
         <form method="post" class="d-grid mt-2">
             {% csrf_token %}
             <input type="hidden" name="action" value="mark_ukoncena">
+            <button type="submit" class="btn btn-outline-danger scan-action-button">
+                Ukončit šarži
+            </button>
+        </form>
+    {% endif %}
+    {% if can_change_stav_sarze_kontrolor and sarze.stav_sarze == "ZK" %}
+        <form method="post" class="d-grid mt-2">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="mark_zkontrolovana_k_vylozeni">
+            <button type="submit" class="btn btn-info scan-action-button">
+                Označit na zkontrolovaná k vyložení
+            </button>
+        </form>
+    {% elif can_change_stav_sarze_kontrolor and sarze.stav_sarze == "VK" %}
+        <form method="post" class="d-grid mt-2">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="mark_ukoncena_kontrolor">
             <button type="submit" class="btn btn-outline-danger scan-action-button">
                 Ukončit šarži
             </button>
