@@ -140,7 +140,7 @@ class ActionsTests(ActionsBase):
             zkraceny_nazev_zarizeni='Nakládání',
             typ_zarizeni=TypZarizeniChoice.NAKLADANI,
         )
-        sarze = Sarze.objects.create(datum_zalozeni=date.today(), cislo_pripravku=1, aktivni=True)
+        sarze = Sarze.objects.create(datum_zalozeni=date.today(), cislo_pripravku=1)
         krok = SarzeKrok.objects.create(
             sarze=sarze,
             poradi=1,
@@ -178,8 +178,8 @@ class ActionsTests(ActionsBase):
     def test_tisk_pruvodky_vruty_sarze_action_requires_single_sarze(self):
         admin_obj = self._messaging_admin()
         request = self.get_request()
-        Sarze.objects.create(datum_zalozeni=date.today(), cislo_pripravku=1, aktivni=True)
-        Sarze.objects.create(datum_zalozeni=date.today(), cislo_pripravku=2, aktivni=True)
+        Sarze.objects.create(datum_zalozeni=date.today(), cislo_pripravku=1)
+        Sarze.objects.create(datum_zalozeni=date.today(), cislo_pripravku=2)
 
         response = actions.tisk_pruvodky_vruty_sarze_action(admin_obj, request, Sarze.objects.all())
 
@@ -195,7 +195,7 @@ class ActionsTests(ActionsBase):
             zkraceny_nazev_zarizeni='Předehřev',
             typ_zarizeni=TypZarizeniChoice.PREDEHREV,
         )
-        sarze = Sarze.objects.create(datum_zalozeni=date.today(), cislo_pripravku=1, aktivni=True)
+        sarze = Sarze.objects.create(datum_zalozeni=date.today(), cislo_pripravku=1)
         SarzeKrok.objects.create(
             sarze=sarze,
             poradi=1,
@@ -223,7 +223,7 @@ class ActionsTests(ActionsBase):
             zkraceny_nazev_zarizeni='Nakládání',
             typ_zarizeni=TypZarizeniChoice.NAKLADANI,
         )
-        sarze = Sarze.objects.create(datum_zalozeni=date.today(), cislo_pripravku=1, aktivni=True)
+        sarze = Sarze.objects.create(datum_zalozeni=date.today(), cislo_pripravku=1)
         SarzeKrok.objects.create(
             sarze=sarze,
             poradi=1,
@@ -2691,3 +2691,4 @@ class RozpracovanostCommandTests(ActionsBase):
 
         self.assertEqual(Rozpracovanost.objects.count(), 0)
         self.assertEqual(RozpracovanostBednaSnapshot.objects.count(), 0)
+

@@ -1,4 +1,4 @@
-﻿from django.test import TestCase, RequestFactory
+from django.test import TestCase, RequestFactory
 from django.contrib.admin.sites import AdminSite
 from django.contrib import admin
 from django.contrib.auth import get_user_model
@@ -270,7 +270,6 @@ class KamionAdminTests(AdminBase):
             nazev=predpis_name,
             skupina=1,
             zakaznik=self.zakaznik,
-            aktivni=True,
         )
         TypHlavy.objects.create(nazev='TK', popis='Test')
 
@@ -2065,7 +2064,6 @@ class SarzeKrokBednaInlineAdminTests(AdminBase):
         self.sarze = Sarze.objects.create(
             cislo_sarze=10,
             datum_zalozeni=date.today(),
-            aktivni=True,
         )
         self.krok = SarzeKrok.objects.create(
             sarze=self.sarze,
@@ -2423,7 +2421,6 @@ class SarzeKrokBednaAdminActionTests(AdminBase):
             cislo_sarze=100,
             datum_zalozeni=date.today(),
             cislo_pripravku=21,
-            aktivni=True,
         )
         self.krok_1 = SarzeKrok.objects.create(
             sarze=self.sarze,
@@ -2738,7 +2735,6 @@ class SarzeKrokAdminActionTests(AdminBase):
             cislo_sarze=101,
             datum_zalozeni=date.today(),
             cislo_pripravku=11,
-            aktivni=True,
         )
         self.krok = SarzeKrok.objects.create(
             sarze=self.sarze,
@@ -3066,7 +3062,6 @@ class SarzeAdminCreateBehaviorTests(AdminBase):
         sarze = Sarze.objects.create(
             datum_zalozeni=date.today(),
             cislo_pripravku=5,
-            aktivni=True,
         )
         request = self.factory.get(f'/admin/orders/sarze/{sarze.pk}/change/')
         request.user = self.user
@@ -3090,7 +3085,6 @@ class SarzeAdminCreateBehaviorTests(AdminBase):
         sarze = Sarze.objects.create(
             cislo_sarze=401,
             datum_zalozeni=date.today(),
-            aktivni=True,
         )
         request = self.get_request('get', '/admin/orders/sarze/')
         sarze = self.admin.get_queryset(request).get(pk=sarze.pk)
@@ -3101,7 +3095,6 @@ class SarzeAdminCreateBehaviorTests(AdminBase):
         sarze = Sarze.objects.create(
             cislo_sarze=402,
             datum_zalozeni=date.today(),
-            aktivni=True,
         )
         krok = self._create_sarze_krok(sarze)
         SarzeKrokBedna.objects.create(
@@ -3118,7 +3111,6 @@ class SarzeAdminCreateBehaviorTests(AdminBase):
         sarze = Sarze.objects.create(
             cislo_sarze=403,
             datum_zalozeni=date.today(),
-            aktivni=True,
         )
         krok = self._create_sarze_krok(sarze)
         SarzeKrokBedna.objects.create(
@@ -3135,7 +3127,6 @@ class SarzeAdminCreateBehaviorTests(AdminBase):
         sarze = Sarze.objects.create(
             cislo_sarze=404,
             datum_zalozeni=date.today(),
-            aktivni=True,
         )
         krok = self._create_sarze_krok(sarze)
         SarzeKrokBedna.objects.create(
@@ -3157,7 +3148,6 @@ class SarzeAdminCreateBehaviorTests(AdminBase):
         sarze_vruty = Sarze.objects.create(
             cislo_sarze=405,
             datum_zalozeni=date.today(),
-            aktivni=True,
         )
         krok_vruty = self._create_sarze_krok(sarze_vruty)
         SarzeKrokBedna.objects.create(
@@ -3168,7 +3158,6 @@ class SarzeAdminCreateBehaviorTests(AdminBase):
         sarze_zelezo = Sarze.objects.create(
             cislo_sarze=406,
             datum_zalozeni=date.today(),
-            aktivni=True,
         )
         krok_zelezo = self._create_sarze_krok(sarze_zelezo)
         SarzeKrokBedna.objects.create(
@@ -3181,9 +3170,9 @@ class SarzeAdminCreateBehaviorTests(AdminBase):
         self.assertEqual(self.admin.get_typ_sarze(sarze_zelezo), 'Železo')
 
     def test_typ_sarze_filter_filters_by_content(self):
-        prazdna = Sarze.objects.create(cislo_sarze=407, datum_zalozeni=date.today(), aktivni=True)
+        prazdna = Sarze.objects.create(cislo_sarze=407, datum_zalozeni=date.today())
 
-        vruty = Sarze.objects.create(cislo_sarze=408, datum_zalozeni=date.today(), aktivni=True)
+        vruty = Sarze.objects.create(cislo_sarze=408, datum_zalozeni=date.today())
         krok_vruty = self._create_sarze_krok(vruty)
         SarzeKrokBedna.objects.create(
             krok=krok_vruty,
@@ -3191,7 +3180,7 @@ class SarzeAdminCreateBehaviorTests(AdminBase):
             patro=1,
         )
 
-        zelezo = Sarze.objects.create(cislo_sarze=409, datum_zalozeni=date.today(), aktivni=True)
+        zelezo = Sarze.objects.create(cislo_sarze=409, datum_zalozeni=date.today())
         krok_zelezo = self._create_sarze_krok(zelezo)
         SarzeKrokBedna.objects.create(
             krok=krok_zelezo,
@@ -3199,7 +3188,7 @@ class SarzeAdminCreateBehaviorTests(AdminBase):
             patro=1,
         )
 
-        smisena = Sarze.objects.create(cislo_sarze=410, datum_zalozeni=date.today(), aktivni=True)
+        smisena = Sarze.objects.create(cislo_sarze=410, datum_zalozeni=date.today())
         krok_smisena = self._create_sarze_krok(smisena)
         SarzeKrokBedna.objects.create(
             krok=krok_smisena,
@@ -3308,14 +3297,12 @@ class SarzeAdminCreateBehaviorTests(AdminBase):
             datum_zalozeni=date.today(),
             cislo_pripravku=1,
             stav_sarze=StavSarzeChoice.VYTVORENA,
-            aktivni=True,
         )
         zaplanovana = Sarze.objects.create(
             cislo_sarze=302,
             datum_zalozeni=date.today(),
             cislo_pripravku=2,
             stav_sarze=StavSarzeChoice.ZAPLANOVANA,
-            aktivni=True,
         )
         request = self.get_request('post', '/admin/orders/sarze/')
 
@@ -3336,7 +3323,6 @@ class SarzeAdminCreateBehaviorTests(AdminBase):
             datum_zalozeni=date.today(),
             cislo_pripravku=3,
             stav_sarze=StavSarzeChoice.UKONCENA,
-            aktivni=False,
         )
         request = self.get_request('post', '/admin/orders/sarze/')
 
@@ -3353,7 +3339,7 @@ class SarzeAdminCreateBehaviorTests(AdminBase):
         request = self.factory.post('/admin/orders/sarze/add/')
         request.user = self.user
 
-        sarze = Sarze(cislo_pripravku=9, aktivni=True)
+        sarze = Sarze(cislo_pripravku=9)
         self.admin.save_model(request, sarze, form=None, change=False)
 
         self.assertIsNotNone(sarze.pk)
@@ -3382,7 +3368,7 @@ class SarzeAdminCreateBehaviorTests(AdminBase):
             f'{prefix}-0-poznamka': '',
         }
 
-        sarze = Sarze(cislo_pripravku=7, aktivni=True, datum_zalozeni=date.today())
+        sarze = Sarze(cislo_pripravku=7, datum_zalozeni=date.today())
         formset = formset_class(data=data, instance=sarze, prefix=prefix)
 
         self.assertFalse(formset.is_valid())
@@ -3422,7 +3408,7 @@ class SarzeAdminCreateBehaviorTests(AdminBase):
             f'{prefix}-0-poznamka': '',
         }
 
-        sarze = Sarze(cislo_pripravku=8, aktivni=True, datum_zalozeni=date.today())
+        sarze = Sarze(cislo_pripravku=8, datum_zalozeni=date.today())
         formset = formset_class(data=data, instance=sarze, prefix=prefix)
 
         self.assertFalse(formset.is_valid())
@@ -3438,13 +3424,11 @@ class SarzeAdminSearchByDisplayedNumberTests(AdminBase):
             cislo_sarze=25,
             datum_zalozeni=date.today(),
             cislo_pripravku=1,
-            aktivni=True,
         )
         self.sarze_125 = Sarze.objects.create(
             cislo_sarze=125,
             datum_zalozeni=date.today(),
             cislo_pripravku=2,
-            aktivni=True,
         )
 
         self.zarizeni = Zarizeni.objects.create(
@@ -3548,13 +3532,11 @@ class PredpisAdminSaveAsTests(AdminBase):
             nazev='P-SRC',
             skupina=1,
             zakaznik=self.zakaznik,
-            aktivni=False,
         )
         new_predpis = Predpis.objects.create(
             nazev='P-NEW',
             skupina=1,
             zakaznik=self.zakaznik,
-            aktivni=True,
         )
 
         cena_1 = Cena.objects.create(
@@ -3602,13 +3584,11 @@ class PredpisAdminSaveAsTests(AdminBase):
             nazev='P-SRC-ACTIVE',
             skupina=1,
             zakaznik=self.zakaznik,
-            aktivni=True,
         )
         new_predpis = Predpis.objects.create(
             nazev='P-NEW-ACTIVE',
             skupina=1,
             zakaznik=self.zakaznik,
-            aktivni=True,
         )
 
         request = self.factory.post(
@@ -3703,4 +3683,5 @@ class CenaAdminTests(AdminBase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'orders/js/changelist_dirty_guard.js')
+
 

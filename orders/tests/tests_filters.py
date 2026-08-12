@@ -6,7 +6,7 @@ from orders.models import (
 )
 from orders.choices import (
 	StavBednyChoice, TryskaniChoice, RovnaniChoice, PrioritaChoice, KamionChoice,
-	SklademZakazkyChoice, ZinkovaniChoice, TypZarizeniChoice
+	SklademZakazkyChoice, ZinkovaniChoice, TypZarizeniChoice, StavSarzeChoice
 )
 from orders import filters as F
 from orders.templatetags import custom_filters
@@ -422,12 +422,12 @@ class SarzeBednaFiltersTests(FilterTestBase):
 		self.sar_pp = Sarze.objects.create(
 			cislo_sarze=9001,
 			datum_zalozeni=today,
-			aktivni=True,
+			stav_sarze=StavSarzeChoice.NALOZENA,
 		)
 		self.sar_vu = Sarze.objects.create(
 			cislo_sarze=9002,
 			datum_zalozeni=today,
-			aktivni=True,
+			stav_sarze=StavSarzeChoice.UKONCENA,
 		)
 
 		self.krok_pp = SarzeKrok.objects.create(
@@ -561,45 +561,39 @@ class SarzeBednaFiltersTests(FilterTestBase):
 		self.assertNotIn(self.sb_pp, qs)
 		self.assertIn(self.sb_vu, qs)
 
-	def test_aktivni_sarze_krok_filter(self):
-		self.sar_vu.aktivni = False
-		self.sar_vu.save(update_fields=["aktivni"])
-
+	def test_stav_sarze_krok_filter(self):
 		f = self._make_filter(
-			F.AktivniSarzeKrokFilter,
+			F.StavSarzeKrokFilter,
 			SarzeKrok,
-			params={"aktivni_sarze": "ano"},
+			params={"stav_sarze": StavSarzeChoice.NALOZENA},
 		)
 		qs = f.queryset(None, SarzeKrok.objects.all())
 		self.assertIn(self.krok_pp, qs)
 		self.assertNotIn(self.krok_vu, qs)
 
 		f = self._make_filter(
-			F.AktivniSarzeKrokFilter,
+			F.StavSarzeKrokFilter,
 			SarzeKrok,
-			params={"aktivni_sarze": "ne"},
+			params={"stav_sarze": StavSarzeChoice.UKONCENA},
 		)
 		qs = f.queryset(None, SarzeKrok.objects.all())
 		self.assertNotIn(self.krok_pp, qs)
 		self.assertIn(self.krok_vu, qs)
 
-	def test_aktivni_sarze_bedna_filter(self):
-		self.sar_vu.aktivni = False
-		self.sar_vu.save(update_fields=["aktivni"])
-
+	def test_stav_sarze_bedna_filter(self):
 		f = self._make_filter(
-			F.AktivniSarzeBednaFilter,
+			F.StavSarzeBednaFilter,
 			SarzeBedna,
-			params={"aktivni_sarze": "ano"},
+			params={"stav_sarze": StavSarzeChoice.NALOZENA},
 		)
 		qs = f.queryset(None, SarzeBedna.objects.all())
 		self.assertIn(self.sb_pp, qs)
 		self.assertNotIn(self.sb_vu, qs)
 
 		f = self._make_filter(
-			F.AktivniSarzeBednaFilter,
+			F.StavSarzeBednaFilter,
 			SarzeBedna,
-			params={"aktivni_sarze": "ne"},
+			params={"stav_sarze": StavSarzeChoice.UKONCENA},
 		)
 		qs = f.queryset(None, SarzeBedna.objects.all())
 		self.assertNotIn(self.sb_pp, qs)

@@ -57,8 +57,8 @@ from .filters import (
     ZakaznikZakazkyFilter, ZakaznikKamionuFilter, PrijemVydejFilter, TryskaniFilter, RovnaniFilter, PrioritaBednyFilter, PrioritaZakazkyFilter,
     OberflacheFilter, TypHlavyBednyFilter, TypHlavyZakazkyFilter, CelozavitBednyFilter, CelozavitZakazkyFilter, DelkaFilter, PozastavenoFilter,
     OdberatelFilter, OdberatelBednyFilter, AktivniNotifikaceBednyFilter, ZakaznikPredpisFilter, ZinkovaniFilter,
-    StavSarzeFilter, TypSarzeFilter, ZarizeniSarzeKrokFilter, TypZarizeniSarzeKrokFilter, KonecSarzeKrokFilter, AktivniSarzeKrokFilter,
-    ZarizeniSarzeBednaFilter, TypZarizeniSarzeBednaFilter, KonecSarzeBednaFilter, AktivniSarzeBednaFilter,
+    StavSarzeFilter, TypSarzeFilter, ZarizeniSarzeKrokFilter, TypZarizeniSarzeKrokFilter, KonecSarzeKrokFilter, StavSarzeKrokFilter,
+    ZarizeniSarzeBednaFilter, TypZarizeniSarzeBednaFilter, KonecSarzeBednaFilter, StavSarzeBednaFilter,
     FakturovatFilter,
 )
 from .forms import (
@@ -383,8 +383,8 @@ class ZarizeniAdmin(SimpleHistoryAdmin):
 
 @admin.register(Sarze)
 class SarzeAdmin(SimpleHistoryAdmin):
-    fields = ('cislo_sarze', 'datum_zalozeni', 'cislo_pripravku', 'cislo_pracoviste', 'stav_sarze', 'aktivni', 'poznamka',)
-    list_display = ('get_cislo_sarze', 'stav_sarze', 'get_typ_sarze', 'get_datum_zalozeni', 'get_cislo_pripravku', 'aktivni', 'get_poznamka', 'get_pocet_kroku',)
+    fields = ('cislo_sarze', 'datum_zalozeni', 'cislo_pripravku', 'cislo_pracoviste', 'stav_sarze', 'poznamka',)
+    list_display = ('get_cislo_sarze', 'stav_sarze', 'get_typ_sarze', 'get_datum_zalozeni', 'get_cislo_pripravku', 'get_poznamka', 'get_pocet_kroku',)
     list_editable = ('stav_sarze',)
     list_filter = (StavSarzeFilter, TypSarzeFilter)
     search_fields = ('cislo_sarze',)
@@ -395,7 +395,7 @@ class SarzeAdmin(SimpleHistoryAdmin):
     actions = (oznacit_sarze_jako_zaplanovane_action, tisk_pruvodky_vruty_sarze_action,)
 
     history_list_display = [
-        "cislo_sarze", "datum_zalozeni", "cislo_pripravku", "cislo_pracoviste", "stav_sarze", "aktivni", "poznamka",
+        "cislo_sarze", "datum_zalozeni", "cislo_pripravku", "cislo_pracoviste", "stav_sarze", "poznamka",
     ]
     history_search_fields = ["cislo_sarze", "poznamka"]
     history_list_filter = ["stav_sarze", "datum_zalozeni"]
@@ -541,12 +541,6 @@ class SarzeAdmin(SimpleHistoryAdmin):
 
         return super().response_add(request, obj, post_url_continue)
 
-    def get_readonly_fields(self, request, obj=None):
-        readonly_fields = list(super().get_readonly_fields(request, obj))
-        if not obj:
-            readonly_fields.append('aktivni')
-        return readonly_fields
-
 @admin.register(SarzeKrok)
 class SarzeKrokAdmin(SimpleHistoryAdmin):
     fields = ('sarze', 'poradi', 'datum', 'zarizeni', 'zacatek', 'konec', 'operator', 'program', 'alarm', 'poznamka',)
@@ -560,7 +554,7 @@ class SarzeKrokAdmin(SimpleHistoryAdmin):
         ZarizeniSarzeKrokFilter,
         TypZarizeniSarzeKrokFilter,
         KonecSarzeKrokFilter,
-        AktivniSarzeKrokFilter,
+        StavSarzeKrokFilter,
     )
     search_fields = ('sarze__cislo_sarze', 'operator', 'program')
     list_select_related = ('sarze', 'zarizeni')
@@ -652,7 +646,7 @@ class SarzeKrokBednaAdmin(SimpleHistoryAdmin):
         ZarizeniSarzeBednaFilter,
         TypZarizeniSarzeBednaFilter,
         KonecSarzeBednaFilter,
-        AktivniSarzeBednaFilter,
+        StavSarzeBednaFilter,
     )
     search_fields = ('krok__sarze__cislo_sarze', 'bedna__cislo_bedny', 'bedna__zakazka__predpis__nazev',)
     search_help_text = "Dle čísla šarže, čísla bedny a předpisu"

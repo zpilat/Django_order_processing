@@ -305,7 +305,6 @@ class TestSarzeModels(ModelsBase):
             cislo_sarze=1,
             datum_zalozeni=date(2026, 2, 16),
             cislo_pripravku=11,
-            aktivni=True,
         )
         cls.krok_base = SarzeKrok.objects.create(
             sarze=cls.sarze_base,
@@ -330,9 +329,9 @@ class TestSarzeModels(ModelsBase):
             typ_zarizeni=TypZarizeniChoice.POPOUSTECKA,
         )
 
-        s1 = Sarze.objects.create(datum_zalozeni=date(2026, 2, 16), aktivni=True)
-        s2 = Sarze.objects.create(datum_zalozeni=date(2026, 2, 16), aktivni=True)
-        s3 = Sarze.objects.create(datum_zalozeni=date(2026, 2, 16), aktivni=True)
+        s1 = Sarze.objects.create(datum_zalozeni=date(2026, 2, 16))
+        s2 = Sarze.objects.create(datum_zalozeni=date(2026, 2, 16))
+        s3 = Sarze.objects.create(datum_zalozeni=date(2026, 2, 16))
 
         SarzeKrok.objects.create(sarze=s1, poradi=1, datum=date(2026, 2, 16), zarizeni=zar1, zacatek=time(10, 0), konec=time(11, 0), operator="Op", program="P")
         SarzeKrok.objects.create(sarze=s2, poradi=1, datum=date(2026, 2, 16), zarizeni=zar1, zacatek=time(12, 0), konec=time(13, 0), operator="Op", program="P")
@@ -347,7 +346,6 @@ class TestSarzeModels(ModelsBase):
             cislo_sarze=3,
             datum_zalozeni=date(2026, 2, 16),
             cislo_pripravku=7,
-            aktivni=True,
         )
         self.assertEqual(str(sarze), "S00003")
 
@@ -370,7 +368,6 @@ class TestSarzeModels(ModelsBase):
         sarze_prev = Sarze.objects.create(
             cislo_sarze=100,
             datum_zalozeni=date(2026, 2, 16),
-            aktivni=True,
         )
         SarzeKrok.objects.create(
             sarze=sarze_prev,
@@ -385,7 +382,6 @@ class TestSarzeModels(ModelsBase):
         sarze_current = Sarze.objects.create(
             cislo_sarze=101,
             datum_zalozeni=date(2026, 2, 16),
-            aktivni=True,
         )
         current = SarzeKrok.objects.create(
             sarze=sarze_current,
@@ -403,7 +399,6 @@ class TestSarzeModels(ModelsBase):
         sarze = Sarze.objects.create(
             cislo_sarze=10,
             datum_zalozeni=date(2026, 2, 16),
-            aktivni=True,
         )
         krok = SarzeKrok.objects.create(
             sarze=sarze,
@@ -431,7 +426,6 @@ class TestSarzeModels(ModelsBase):
                 sarze = Sarze.objects.create(
                     cislo_sarze=200 + index,
                     datum_zalozeni=date(2026, 2, 16),
-                    aktivni=True,
                     stav_sarze=StavSarzeChoice.NALOZENA,
                 )
                 source_krok = SarzeKrok.objects.create(
@@ -461,7 +455,6 @@ class TestSarzeModels(ModelsBase):
                 )
 
                 sarze.refresh_from_db()
-                self.assertTrue(sarze.aktivni)
                 self.assertEqual(sarze.stav_sarze, StavSarzeChoice.UKONCENA)
 
     def test_filling_terminal_step_end_finishes_vruty_sarze(self):
@@ -473,7 +466,6 @@ class TestSarzeModels(ModelsBase):
         sarze = Sarze.objects.create(
             cislo_sarze=203,
             datum_zalozeni=date(2026, 2, 16),
-            aktivni=True,
             stav_sarze=StavSarzeChoice.NALOZENA,
         )
 
@@ -493,14 +485,12 @@ class TestSarzeModels(ModelsBase):
         )
 
         sarze.refresh_from_db()
-        self.assertTrue(sarze.aktivni)
         self.assertEqual(sarze.stav_sarze, StavSarzeChoice.NALOZENA)
 
         krok.konec = time(9, 0)
         krok.save(update_fields=["konec"])
 
         sarze.refresh_from_db()
-        self.assertTrue(sarze.aktivni)
         self.assertEqual(sarze.stav_sarze, StavSarzeChoice.UKONCENA)
 
     def test_finished_terminal_step_keeps_zelezo_sarze_state_for_manual_control(self):
@@ -512,7 +502,6 @@ class TestSarzeModels(ModelsBase):
         sarze = Sarze.objects.create(
             cislo_sarze=205,
             datum_zalozeni=date(2026, 2, 16),
-            aktivni=True,
             stav_sarze=StavSarzeChoice.NALOZENA,
         )
         source_krok = SarzeKrok.objects.create(
@@ -544,14 +533,12 @@ class TestSarzeModels(ModelsBase):
         )
 
         sarze.refresh_from_db()
-        self.assertTrue(sarze.aktivni)
         self.assertEqual(sarze.stav_sarze, StavSarzeChoice.NALOZENA)
 
     def test_sarze_has_mimo_db_items_detects_row_without_bedna(self):
         sarze = Sarze.objects.create(
             cislo_sarze=206,
             datum_zalozeni=date(2026, 2, 16),
-            aktivni=True,
         )
         krok = SarzeKrok.objects.create(
             sarze=sarze,
@@ -577,7 +564,6 @@ class TestSarzeModels(ModelsBase):
         sarze = Sarze.objects.create(
             cislo_sarze=204,
             datum_zalozeni=date(2026, 2, 16),
-            aktivni=True,
         )
 
         SarzeKrok.objects.create(
@@ -591,7 +577,6 @@ class TestSarzeModels(ModelsBase):
         )
 
         sarze.refresh_from_db()
-        self.assertTrue(sarze.aktivni)
 
     def test_sarzebedna_procent_z_patra_validators(self):
         base_kwargs = {
@@ -673,7 +658,6 @@ class TestSarzeModels(ModelsBase):
         sarze1 = Sarze.objects.create(
             cislo_sarze=1,
             datum_zalozeni=date(2026, 2, 16),
-            aktivni=True,
         )
         krok1 = SarzeKrok.objects.create(
             sarze=sarze1,
@@ -688,7 +672,6 @@ class TestSarzeModels(ModelsBase):
         sarze2 = Sarze.objects.create(
             cislo_sarze=2,
             datum_zalozeni=date(2026, 2, 17),
-            aktivni=True,
         )
         krok2 = SarzeKrok.objects.create(
             sarze=sarze2,
@@ -716,7 +699,6 @@ class TestSarzeModels(ModelsBase):
         sarze = Sarze.objects.create(
             cislo_sarze=1,
             datum_zalozeni=date(2026, 2, 18),
-            aktivni=True,
         )
         krok = SarzeKrok.objects.create(
             sarze=sarze,
@@ -1183,3 +1165,4 @@ class TestSarzeModels(ModelsBase):
         self.bedna1.save()
         with self.assertRaises(ProtectedError):
             self.kamion_prijem.delete()
+

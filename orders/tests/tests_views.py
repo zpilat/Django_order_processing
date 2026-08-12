@@ -3013,7 +3013,6 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			datum_zalozeni=date(2026, 6, 5),
 			cislo_pripravku=12,
 			cislo_pracoviste=1,
-			aktivni=True,
 		)
 		krok_1 = SarzeKrok.objects.create(
 			sarze=sarze_1,
@@ -3027,7 +3026,6 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			datum_zalozeni=date(2026, 6, 5),
 			cislo_pripravku=13,
 			cislo_pracoviste=2,
-			aktivni=True,
 		)
 		krok_2 = SarzeKrok.objects.create(
 			sarze=sarze_2,
@@ -3041,7 +3039,6 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			datum_zalozeni=date(2026, 6, 5),
 			cislo_pripravku=14,
 			cislo_pracoviste=3,
-			aktivni=True,
 		)
 		SarzeKrok.objects.create(
 			sarze=uzavrena_sarze,
@@ -3073,7 +3070,6 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			datum_zalozeni=date(2026, 6, 5),
 			cislo_pripravku=12,
 			cislo_pracoviste=1,
-			aktivni=True,
 		)
 		SarzeKrok.objects.create(
 			sarze=starsi_sarze,
@@ -3088,7 +3084,6 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			datum_zalozeni=date(2026, 6, 6),
 			cislo_pripravku=13,
 			cislo_pracoviste=2,
-			aktivni=True,
 		)
 		SarzeKrok.objects.create(
 			sarze=novejsi_sarze,
@@ -3103,7 +3098,6 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			datum_zalozeni=date(2026, 6, 7),
 			cislo_pripravku=14,
 			cislo_pracoviste=3,
-			aktivni=True,
 		)
 		SarzeKrok.objects.create(
 			sarze=otevrena_sarze,
@@ -3126,7 +3120,6 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			datum_zalozeni=date(2026, 6, 5),
 			cislo_pripravku=12,
 			cislo_pracoviste=2,
-			aktivni=True,
 		)
 		krok = SarzeKrok.objects.create(
 			sarze=sarze,
@@ -3175,7 +3168,6 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 		self.assertEqual(sarze.cislo_pripravku, 12)
 		self.assertEqual(sarze.cislo_pracoviste, 3)
 		self.assertEqual(sarze.stav_sarze, StavSarzeChoice.NALOZENA)
-		self.assertTrue(sarze.aktivni)
 		self.assertEqual(sarze.poznamka, "Poznámka k šarži")
 
 		krok = SarzeKrok.objects.get(sarze=sarze)
@@ -3234,7 +3226,6 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 		puvodni_sarze = Sarze.objects.create(
 			datum_zalozeni=date(2026, 6, 4),
 			cislo_pripravku=10,
-			aktivni=True,
 		)
 		puvodni_krok = SarzeKrok.objects.create(
 			sarze=puvodni_sarze,
@@ -3308,7 +3299,6 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			datum_zalozeni=date(2026, 6, 4),
 			cislo_pripravku=10,
 			cislo_pracoviste=3,
-			aktivni=True,
 		)
 		SarzeKrok.objects.create(
 			sarze=puvodni_sarze,
@@ -3344,7 +3334,6 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			datum_zalozeni=date(2026, 6, 4),
 			cislo_pripravku=10,
 			cislo_pracoviste=3,
-			aktivni=True,
 		)
 		SarzeKrok.objects.create(
 			sarze=puvodni_sarze,
@@ -3379,7 +3368,6 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			datum_zalozeni=date(2026, 6, 5),
 			cislo_pripravku=12,
 			cislo_pracoviste=2,
-			aktivni=True,
 			poznamka="Původní poznámka",
 		)
 		krok = SarzeKrok.objects.create(
@@ -3413,7 +3401,6 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			datum_zalozeni=date(2026, 6, 5),
 			cislo_pripravku=12,
 			cislo_pracoviste=2,
-			aktivni=True,
 			poznamka="Původní poznámka",
 		)
 		krok = SarzeKrok.objects.create(
@@ -3468,7 +3455,6 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			datum_zalozeni=date(2026, 6, 5),
 			cislo_pripravku=12,
 			cislo_pracoviste=2,
-			aktivni=True,
 			poznamka="Původní poznámka",
 		)
 		krok = SarzeKrok.objects.create(
@@ -3506,7 +3492,6 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			datum_zalozeni=date(2026, 6, 5),
 			cislo_pripravku=12,
 			cislo_pracoviste=2,
-			aktivni=True,
 		)
 		krok = SarzeKrok.objects.create(
 			sarze=sarze,
@@ -3546,7 +3531,6 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 		sarze = Sarze.objects.create(
 			datum_zalozeni=date(2026, 6, 5),
 			cislo_pripravku=12,
-			aktivni=True,
 		)
 		krok = SarzeKrok.objects.create(
 			sarze=sarze,
@@ -3573,7 +3557,6 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 		sarze = Sarze.objects.create(
 			datum_zalozeni=date(2026, 6, 5),
 			cislo_pripravku=12,
-			aktivni=True,
 		)
 		krok = SarzeKrok.objects.create(
 			sarze=sarze,
@@ -3601,7 +3584,6 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			datum_zalozeni=date(2026, 6, 5),
 			cislo_pripravku=12,
 			cislo_pracoviste=1,
-			aktivni=True,
 		)
 		krok = SarzeKrok.objects.create(
 			sarze=sarze,
@@ -3625,7 +3607,6 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			datum_zalozeni=date(2026, 6, 5),
 			cislo_pripravku=12,
 			cislo_pracoviste=7,
-			aktivni=True,
 		)
 		krok = SarzeKrok.objects.create(
 			sarze=sarze,
@@ -3654,7 +3635,6 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			datum_zalozeni=date(2026, 6, 5),
 			cislo_pripravku=12,
 			cislo_pracoviste=1,
-			aktivni=True,
 		)
 		krok = SarzeKrok.objects.create(
 			sarze=sarze,
@@ -3712,7 +3692,6 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			datum_zalozeni=date(2026, 6, 5),
 			cislo_pripravku=12,
 			cislo_pracoviste=1,
-			aktivni=True,
 		)
 		krok = SarzeKrok.objects.create(
 			sarze=sarze,
@@ -3748,7 +3727,6 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			datum_zalozeni=date(2026, 6, 5),
 			cislo_pripravku=12,
 			cislo_pracoviste=1,
-			aktivni=True,
 		)
 		krok = SarzeKrok.objects.create(
 			sarze=sarze,
@@ -3785,7 +3763,6 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			datum_zalozeni=date(2026, 6, 5),
 			cislo_pripravku=12,
 			cislo_pracoviste=1,
-			aktivni=True,
 		)
 		krok = SarzeKrok.objects.create(
 			sarze=sarze,
@@ -3821,7 +3798,6 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			datum_zalozeni=date(2026, 6, 5),
 			cislo_pripravku=12,
 			cislo_pracoviste=1,
-			aktivni=True,
 		)
 		krok = SarzeKrok.objects.create(
 			sarze=sarze,
@@ -3878,7 +3854,6 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			datum_zalozeni=date(2026, 6, 5),
 			cislo_pripravku=12,
 			cislo_pracoviste=1,
-			aktivni=True,
 		)
 		krok = SarzeKrok.objects.create(
 			sarze=sarze,
@@ -3929,7 +3904,6 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			datum_zalozeni=date(2026, 6, 5),
 			cislo_pripravku=12,
 			cislo_pracoviste=1,
-			aktivni=True,
 		)
 		krok = SarzeKrok.objects.create(
 			sarze=sarze,
@@ -3965,7 +3939,6 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			datum_zalozeni=date(2026, 6, 5),
 			cislo_pripravku=12,
 			cislo_pracoviste=1,
-			aktivni=True,
 		)
 		krok = SarzeKrok.objects.create(
 			sarze=sarze,
@@ -3996,7 +3969,6 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			datum_zalozeni=date(2026, 6, 5),
 			cislo_pripravku=12,
 			cislo_pracoviste=1,
-			aktivni=True,
 		)
 		krok = SarzeKrok.objects.create(
 			sarze=sarze,
@@ -4018,7 +3990,6 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			datum_zalozeni=date(2026, 6, 5),
 			cislo_pripravku=12,
 			cislo_pracoviste=7,
-			aktivni=True,
 		)
 		krok = SarzeKrok.objects.create(
 			sarze=sarze,
@@ -4040,7 +4011,6 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			datum_zalozeni=date(2026, 6, 5),
 			cislo_pripravku=12,
 			cislo_pracoviste=2,
-			aktivni=True,
 		)
 		krok = SarzeKrok.objects.create(
 			sarze=sarze,
@@ -4075,7 +4045,6 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			datum_zalozeni=date(2026, 6, 5),
 			cislo_pripravku=12,
 			cislo_pracoviste=1,
-			aktivni=True,
 		)
 		krok = SarzeKrok.objects.create(
 			sarze=sarze,
@@ -4105,7 +4074,6 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			datum_zalozeni=date(2026, 6, 5),
 			cislo_pripravku=12,
 			cislo_pracoviste=1,
-			aktivni=True,
 		)
 		krok = SarzeKrok.objects.create(
 			sarze=sarze,
@@ -4148,7 +4116,6 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			datum_zalozeni=date(2026, 6, 5),
 			cislo_pripravku=12,
 			cislo_pracoviste=1,
-			aktivni=True,
 		)
 		krok = SarzeKrok.objects.create(
 			sarze=sarze,
@@ -4185,7 +4152,6 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			datum_zalozeni=date(2026, 6, 5),
 			cislo_pripravku=12,
 			cislo_pracoviste=1,
-			aktivni=True,
 		)
 		krok = SarzeKrok.objects.create(
 			sarze=sarze,
@@ -4228,7 +4194,6 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			datum_zalozeni=date(2026, 6, 5),
 			cislo_pripravku=12,
 			cislo_pracoviste=1,
-			aktivni=True,
 		)
 		krok = SarzeKrok.objects.create(
 			sarze=sarze,
@@ -4253,7 +4218,6 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			datum_zalozeni=date(2026, 6, 5),
 			cislo_pripravku=12,
 			cislo_pracoviste=1,
-			aktivni=True,
 		)
 		krok = SarzeKrok.objects.create(
 			sarze=sarze,
@@ -4298,7 +4262,6 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			datum_zalozeni=date(2026, 6, 5),
 			cislo_pripravku=12,
 			cislo_pracoviste=1,
-			aktivni=True,
 		)
 		krok = SarzeKrok.objects.create(
 			sarze=sarze,
@@ -4347,7 +4310,6 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			datum_zalozeni=date(2026, 6, 5),
 			cislo_pripravku=12,
 			cislo_pracoviste=2,
-			aktivni=True,
 		)
 		krok = SarzeKrok.objects.create(
 			sarze=sarze,
@@ -4370,7 +4332,6 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			datum_zalozeni=date(2026, 6, 5),
 			cislo_pripravku=12,
 			cislo_pracoviste=1,
-			aktivni=True,
 		)
 		krok = SarzeKrok.objects.create(
 			sarze=sarze,
@@ -4420,7 +4381,6 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			datum_zalozeni=date(2026, 6, 5),
 			cislo_pripravku=12,
 			cislo_pracoviste=1,
-			aktivni=True,
 		)
 		krok = SarzeKrok.objects.create(
 			sarze=sarze,
@@ -4442,7 +4402,6 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			datum_zalozeni=date(2026, 6, 5),
 			cislo_pripravku=12,
 			cislo_pracoviste=7,
-			aktivni=True,
 		)
 		krok = SarzeKrok.objects.create(
 			sarze=sarze,
@@ -4464,7 +4423,6 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			datum_zalozeni=date(2026, 6, 5),
 			cislo_pripravku=12,
 			cislo_pracoviste=2,
-			aktivni=True,
 		)
 		krok = SarzeKrok.objects.create(
 			sarze=sarze,
@@ -4487,7 +4445,6 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			datum_zalozeni=date(2026, 6, 5),
 			cislo_pripravku=12,
 			cislo_pracoviste=1,
-			aktivni=True,
 		)
 		krok = SarzeKrok.objects.create(
 			sarze=sarze,
@@ -4515,7 +4472,6 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			datum_zalozeni=date(2026, 6, 5),
 			cislo_pripravku=12,
 			cislo_pracoviste=1,
-			aktivni=True,
 		)
 		krok = SarzeKrok.objects.create(
 			sarze=sarze,
@@ -4611,7 +4567,6 @@ class VyrobaDashboardContextTests(TestCase):
 		sarze_prev = Sarze.objects.create(
 			cislo_sarze=1,
 			datum_zalozeni=prev_day,
-			aktivni=True,
 		)
 		krok_prev = SarzeKrok.objects.create(
 			sarze=sarze_prev,
@@ -4627,7 +4582,6 @@ class VyrobaDashboardContextTests(TestCase):
 		sarze_day_xl1 = Sarze.objects.create(
 			cislo_sarze=2,
 			datum_zalozeni=target_day,
-			aktivni=True,
 		)
 		krok_day_xl1 = SarzeKrok.objects.create(
 			sarze=sarze_day_xl1,
@@ -4645,7 +4599,6 @@ class VyrobaDashboardContextTests(TestCase):
 		sarze_day_xl2 = Sarze.objects.create(
 			cislo_sarze=3,
 			datum_zalozeni=target_day,
-			aktivni=True,
 		)
 		krok_day_xl2 = SarzeKrok.objects.create(
 			sarze=sarze_day_xl2,
@@ -4678,7 +4631,6 @@ class VyrobaDashboardContextTests(TestCase):
 		def create_step(step_date, start_time, device):
 			sarze = Sarze.objects.create(
 				datum_zalozeni=step_date,
-				aktivni=True,
 			)
 			return SarzeKrok.objects.create(
 				sarze=sarze,
@@ -4714,7 +4666,6 @@ class VyrobaDashboardContextTests(TestCase):
 		def create_nakladani_step(step_date, start_time, patra):
 			sarze = Sarze.objects.create(
 				datum_zalozeni=step_date,
-				aktivni=True,
 			)
 			krok = SarzeKrok.objects.create(
 				sarze=sarze,
@@ -4735,7 +4686,7 @@ class VyrobaDashboardContextTests(TestCase):
 		create_nakladani_step(next_day, time(5, 59), [1])
 		create_nakladani_step(next_day, time(6, 0), [1, 2, 3])
 
-		sarze_xl = Sarze.objects.create(datum_zalozeni=target_day, aktivni=True)
+		sarze_xl = Sarze.objects.create(datum_zalozeni=target_day)
 		krok_xl = SarzeKrok.objects.create(
 			sarze=sarze_xl,
 			poradi=1,
@@ -4763,7 +4714,6 @@ class VyrobaDashboardContextTests(TestCase):
 			sarze = Sarze.objects.create(
 				cislo_sarze=100 + idx,
 				datum_zalozeni=day,
-				aktivni=True,
 			)
 			krok = SarzeKrok.objects.create(
 				sarze=sarze,
@@ -4793,7 +4743,7 @@ class VyrobaDashboardContextTests(TestCase):
 		bedna_2 = self._create_bedna(self.z_spx, 500)
 
 		# Předešlé kroky pro výpočet prostoje (prodleva) u kroků s bednami.
-		sarze_prev_xl1 = Sarze.objects.create(cislo_sarze=300, datum_zalozeni=date(2026, 1, 1), aktivni=True)
+		sarze_prev_xl1 = Sarze.objects.create(cislo_sarze=300, datum_zalozeni=date(2026, 1, 1))
 		SarzeKrok.objects.create(
 			sarze=sarze_prev_xl1,
 			poradi=1,
@@ -4805,7 +4755,7 @@ class VyrobaDashboardContextTests(TestCase):
 			program="p",
 		)
 
-		sarze_1 = Sarze.objects.create(cislo_sarze=301, datum_zalozeni=date(2026, 1, 1), aktivni=True)
+		sarze_1 = Sarze.objects.create(cislo_sarze=301, datum_zalozeni=date(2026, 1, 1))
 		krok_1 = SarzeKrok.objects.create(
 			sarze=sarze_1,
 			poradi=1,
@@ -4817,7 +4767,7 @@ class VyrobaDashboardContextTests(TestCase):
 		)
 		SarzeKrokBedna.objects.create(krok=krok_1, bedna=bedna_1, patro=1)
 
-		sarze_prev_xl2 = Sarze.objects.create(cislo_sarze=304, datum_zalozeni=date(2026, 1, 2), aktivni=True)
+		sarze_prev_xl2 = Sarze.objects.create(cislo_sarze=304, datum_zalozeni=date(2026, 1, 2))
 		SarzeKrok.objects.create(
 			sarze=sarze_prev_xl2,
 			poradi=1,
@@ -4829,7 +4779,7 @@ class VyrobaDashboardContextTests(TestCase):
 			program="p",
 		)
 
-		sarze_2 = Sarze.objects.create(cislo_sarze=302, datum_zalozeni=date(2026, 1, 2), aktivni=True)
+		sarze_2 = Sarze.objects.create(cislo_sarze=302, datum_zalozeni=date(2026, 1, 2))
 		krok_2 = SarzeKrok.objects.create(
 			sarze=sarze_2,
 			poradi=1,
@@ -4842,7 +4792,7 @@ class VyrobaDashboardContextTests(TestCase):
 		SarzeKrokBedna.objects.create(krok=krok_2, bedna=bedna_2, patro=1)
 
 		# Krok bez bedny (typicky "železo") se nesmí započítat do vytížení roštu.
-		sarze_3 = Sarze.objects.create(cislo_sarze=303, datum_zalozeni=date(2026, 1, 2), aktivni=True)
+		sarze_3 = Sarze.objects.create(cislo_sarze=303, datum_zalozeni=date(2026, 1, 2))
 		SarzeKrok.objects.create(
 			sarze=sarze_3,
 			poradi=1,
@@ -4880,8 +4830,8 @@ class VyrobaDashboardContextTests(TestCase):
 		bedna_elapsed = self._create_bedna(self.z_eur, 600)
 		bedna_future = self._create_bedna(self.z_eur, 900)
 
-		sarze_elapsed = Sarze.objects.create(cislo_sarze=401, datum_zalozeni=date(2026, 1, 5), aktivni=True)
-		sarze_prev = Sarze.objects.create(cislo_sarze=400, datum_zalozeni=date(2026, 1, 5), aktivni=True)
+		sarze_elapsed = Sarze.objects.create(cislo_sarze=401, datum_zalozeni=date(2026, 1, 5))
+		sarze_prev = Sarze.objects.create(cislo_sarze=400, datum_zalozeni=date(2026, 1, 5))
 		SarzeKrok.objects.create(
 			sarze=sarze_prev,
 			poradi=1,
@@ -4903,7 +4853,7 @@ class VyrobaDashboardContextTests(TestCase):
 		)
 		SarzeKrokBedna.objects.create(krok=krok_elapsed, bedna=bedna_elapsed, patro=1)
 
-		sarze_future = Sarze.objects.create(cislo_sarze=402, datum_zalozeni=date(2026, 1, 20), aktivni=True)
+		sarze_future = Sarze.objects.create(cislo_sarze=402, datum_zalozeni=date(2026, 1, 20))
 		krok_future = SarzeKrok.objects.create(
 			sarze=sarze_future,
 			poradi=1,
@@ -4942,7 +4892,7 @@ class VyrobaDashboardContextTests(TestCase):
 		today_value = date(2026, 1, 10)
 		bedna = self._create_bedna(self.z_eur, 500)
 
-		sarze_prev = Sarze.objects.create(cislo_sarze=510, datum_zalozeni=date(2026, 1, 7), aktivni=True)
+		sarze_prev = Sarze.objects.create(cislo_sarze=510, datum_zalozeni=date(2026, 1, 7))
 		SarzeKrok.objects.create(
 			sarze=sarze_prev,
 			poradi=1,
@@ -4954,7 +4904,7 @@ class VyrobaDashboardContextTests(TestCase):
 			program="p",
 		)
 
-		sarze_current = Sarze.objects.create(cislo_sarze=511, datum_zalozeni=date(2026, 1, 10), aktivni=True)
+		sarze_current = Sarze.objects.create(cislo_sarze=511, datum_zalozeni=date(2026, 1, 10))
 		krok_current = SarzeKrok.objects.create(
 			sarze=sarze_current,
 			poradi=1,
@@ -4979,7 +4929,7 @@ class VyrobaDashboardContextTests(TestCase):
 		bedna_spx_shared = self._create_bedna(self.z_spx, 400)
 		bedna_eur_full = self._create_bedna(self.z_eur, 1000)
 
-		sarze_1 = Sarze.objects.create(cislo_sarze=601, datum_zalozeni=date(2026, 1, 1), aktivni=True)
+		sarze_1 = Sarze.objects.create(cislo_sarze=601, datum_zalozeni=date(2026, 1, 1))
 		krok_1 = SarzeKrok.objects.create(
 			sarze=sarze_1,
 			poradi=1,
@@ -4992,7 +4942,7 @@ class VyrobaDashboardContextTests(TestCase):
 		SarzeKrokBedna.objects.create(krok=krok_1, bedna=bedna_eur_shared, patro=1, procent_z_patra=25)
 		SarzeKrokBedna.objects.create(krok=krok_1, bedna=bedna_spx_shared, patro=1, procent_z_patra=25)
 
-		sarze_2 = Sarze.objects.create(cislo_sarze=602, datum_zalozeni=date(2026, 1, 2), aktivni=True)
+		sarze_2 = Sarze.objects.create(cislo_sarze=602, datum_zalozeni=date(2026, 1, 2))
 		krok_2 = SarzeKrok.objects.create(
 			sarze=sarze_2,
 			poradi=1,
@@ -5030,3 +4980,4 @@ class VyrobaHistorieViewTests(ViewsTestBase):
 		resp = self.client.get(reverse("dashboard_vyroba_historie_mesic"), {"rok": timezone.localdate().year})
 		self.assertEqual(resp.status_code, 302)
 		self.assertIn(reverse("dashboard_vyroba_historie"), resp["Location"])
+

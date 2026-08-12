@@ -1492,7 +1492,6 @@ class Sarze(models.Model):
     datum_zalozeni = models.DateField(verbose_name='Datum založení')
     cislo_pripravku = models.PositiveSmallIntegerField(blank=True, null=True, verbose_name='Číslo přípravku')
     stav_sarze = models.CharField(choices=StavSarzeChoice.choices, max_length=2, default=StavSarzeChoice.VYTVORENA, verbose_name='Stav šarže')
-    aktivni = models.BooleanField(default=True, verbose_name='Aktivní')
     poznamka = models.CharField(max_length=100, blank=True, null=True, verbose_name='Poznámka')
     history = HistoricalRecords()
 

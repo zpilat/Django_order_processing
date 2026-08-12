@@ -742,7 +742,6 @@ class RychleZalozeniSarzeForm(forms.Form):
                 cislo_pripravku=data['cislo_pripravku'],
                 cislo_pracoviste=data['cislo_pracoviste'],
                 stav_sarze=StavSarzeChoice.NALOZENA,
-                aktivni=True,
                 poznamka=data['poznamka_sarze'] or None,
             )
             krok = SarzeKrok.objects.create(
