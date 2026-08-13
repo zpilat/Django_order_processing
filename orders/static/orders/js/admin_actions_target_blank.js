@@ -66,7 +66,7 @@ document.addEventListener('DOMContentLoaded', function () {
             setTimeout(function () {
                 try {
                     if (window.sessionStorage) {
-                        window.sessionStorage.removeItem('bedna-reload-after-action');
+                        window.sessionStorage.removeItem('model-reload-after-action');
                     }
                 } catch (err) {
                     /* ignore storage errors */

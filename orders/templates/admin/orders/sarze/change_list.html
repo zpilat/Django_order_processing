@@ -1,0 +1,15 @@
+{% extends "admin/change_list.html" %}
+{% load static %}
+
+{% block extrahead %}
+{{ block.super }}
+<script>
+window.adminModelPollConfig = {
+    pollUrl: "{{ sarze_poll_url|escapejs }}",
+    lastChange: {% if sarze_last_change %}"{{ sarze_last_change|escapejs }}"{% else %}null{% endif %},
+    lastChangeId: {% if sarze_last_change_id %}{{ sarze_last_change_id }}{% else %}null{% endif %},
+    intervalMs: {{ sarze_poll_interval|default:30000 }},
+};
+</script>
+<script src="{% static 'orders/js/admin_model_change_poll.js' %}" defer></script>
+{% endblock %}

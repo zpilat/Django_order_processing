@@ -13,6 +13,7 @@ from datetime import date, time
 from django.utils import timezone
 from unittest.mock import patch
 from types import SimpleNamespace
+import json
 
 from orders.admin import KamionAdmin, ZakazkaAdmin, BednaAdmin, BednaInline, NotificationAdmin, SarzeAdmin, SarzeKrokAdmin, SarzeKrokBednaAdmin, SarzeKrokBednaInline, SarzeKrokInline, PredpisAdmin, CenaAdmin
 from orders import actions
@@ -3055,6 +3056,39 @@ class SarzeAdminCreateBehaviorTests(AdminBase):
             zakazka=zakazka,
             cislo_bedny=cislo_bedny,
         )
+
+    def test_poll_changes_view_detects_sarze_update(self):
+        sarze = Sarze.objects.create(datum_zalozeni=date.today())
+        initial_payload = json.loads(
+            self.admin.poll_changes_view(self.get_request()).content.decode('utf-8')
+        )
+
+        self.assertFalse(initial_payload['changed'])
+        self.assertIsNotNone(initial_payload['timestamp'])
+        self.assertIsNotNone(initial_payload['history_id'])
+
+        sarze.stav_sarze = StavSarzeChoice.ZAPLANOVANA
+        sarze.save(update_fields=['stav_sarze'])
+
+        payload = json.loads(
+            self.admin.poll_changes_view(
+                self.get_request(data={'since_id': initial_payload['history_id']})
+            ).content.decode('utf-8')
+        )
+        self.assertTrue(payload['changed'])
+        self.assertGreater(payload['history_id'], initial_payload['history_id'])
+
+    def test_changelist_includes_shared_polling_script(self):
+        Sarze.objects.create(datum_zalozeni=date.today())
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse('admin:orders_sarze_changelist'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'window.adminModelPollConfig')
+        self.assertContains(response, reverse('admin:orders_sarze_poll'))
+        self.assertContains(response, 'orders/js/admin_model_change_poll.js')
+        self.assertContains(response, 'orders/js/changelist_dirty_guard.js')
 
     def test_get_fields_hides_datum_zalozeni_on_add(self):
         request = self.factory.get('/admin/orders/sarze/add/')

@@ -1,11 +1,11 @@
 (function () {
-    const config = window.bednaPollConfig || {};
+    const config = window.adminModelPollConfig || {};
     if (!config.pollUrl) {
         return;
     }
 
-    const bannerId = 'bedna-change-banner';
-    const storageKey = 'bedna-reload-after-action';
+    const bannerId = 'model-change-banner';
+    const storageKey = 'model-reload-after-action';
     const autoReloadActions = [];
     const interval = typeof config.intervalMs === 'number' && config.intervalMs > 0 ? config.intervalMs : 30000;
     let lastKnown = config.lastChange || null;
@@ -18,7 +18,7 @@
         }
 
         // If the dedicated inline container exists in the toolbar, show an inline banner there
-        const searchContainer = document.getElementById('bedna-change-container');
+        const searchContainer = document.getElementById('model-change-container');
         if (searchContainer) {
             const inlineId = bannerId + '-inline';
             if (document.getElementById(inlineId)) return;

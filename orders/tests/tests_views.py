@@ -2674,9 +2674,9 @@ class BednyListViewTests(ViewsTestBase):
 		self.assertFalse(table_rows[0]["starts_new_zakazka_group"])
 		self.assertTrue(table_rows[1]["starts_new_zakazka_group"])
 		self.assertContains(resp, 'class="bedna-group-separator"')
-		self.assertContains(resp, "window.bednaPollConfig")
+		self.assertContains(resp, "window.adminModelPollConfig")
 		self.assertContains(resp, reverse("bedny_changes_poll"))
-		self.assertContains(resp, "orders/js/admin_bedna_change_poll.js")
+		self.assertContains(resp, "orders/js/admin_model_change_poll.js")
 		# HTMX partial vrací tabulku
 		resp_hx = self.client.get(reverse("bedny_list"), HTTP_HX_REQUEST="true")
 		self.assertEqual(resp_hx.status_code, 200)

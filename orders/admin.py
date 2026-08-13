@@ -383,6 +383,8 @@ class ZarizeniAdmin(SimpleHistoryAdmin):
 
 @admin.register(Sarze)
 class SarzeAdmin(SimpleHistoryAdmin):
+    change_list_template = 'admin/orders/sarze/change_list.html'
+    poll_interval_ms = 30000
     fields = ('cislo_sarze', 'datum_zalozeni', 'cislo_pripravku', 'cislo_pracoviste', 'stav_sarze', 'poznamka',)
     list_display = ('get_cislo_sarze', 'stav_sarze', 'get_typ_sarze', 'get_datum_zalozeni', 'get_cislo_pripravku', 'get_poznamka', 'get_pocet_kroku',)
     list_editable = ('stav_sarze',)
@@ -404,7 +406,73 @@ class SarzeAdmin(SimpleHistoryAdmin):
     class Media:
         js = (
             'orders/js/admin_actions_target_blank.js',
+            'orders/js/changelist_dirty_guard.js',
         )
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                'changes/poll/',
+                self.admin_site.admin_view(self.poll_changes_view),
+                name='orders_sarze_poll',
+            ),
+        ]
+        return custom_urls + urls
+
+    def _get_latest_change_marker(self):
+        history_model = Sarze.history.model
+        return history_model.objects.order_by('-history_date', '-history_id').first()
+
+    def poll_changes_view(self, request):
+        latest = self._get_latest_change_marker()
+        last_change = latest.history_date if latest else None
+        last_history_id = latest.history_id if latest else None
+        since_raw = request.GET.get('since')
+        since_id_raw = request.GET.get('since_id')
+        since_value = None
+        since_id = None
+
+        if since_raw:
+            try:
+                normalized = since_raw.replace(' ', '+')
+                since_value = datetime.fromisoformat(normalized)
+                if timezone.is_naive(since_value):
+                    since_value = timezone.make_aware(since_value, timezone.get_current_timezone())
+            except ValueError:
+                since_value = None
+
+        if since_id_raw:
+            try:
+                since_id = int(since_id_raw)
+            except (TypeError, ValueError):
+                since_id = None
+
+        changed = False
+        if last_change:
+            if since_id is not None and last_history_id is not None:
+                changed = last_history_id > since_id
+            elif since_value:
+                changed = last_change > since_value
+
+        return JsonResponse({
+            'changed': changed,
+            'timestamp': last_change.isoformat() if last_change else None,
+            'history_id': last_history_id,
+        })
+
+    def changelist_view(self, request, extra_context=None):
+        extra_context = extra_context or {}
+        latest = self._get_latest_change_marker()
+        last_change = latest.history_date if latest else None
+        last_history_id = latest.history_id if latest else None
+        extra_context.update({
+            'sarze_poll_url': reverse('admin:orders_sarze_poll'),
+            'sarze_last_change': last_change.isoformat() if last_change else '',
+            'sarze_last_change_id': last_history_id if last_history_id else '',
+            'sarze_poll_interval': self.poll_interval_ms,
+        })
+        return super().changelist_view(request, extra_context)
 
     @admin.display(description='Přípravek', ordering='cislo_pripravku')
     def get_cislo_pripravku(self, obj):
@@ -2859,7 +2927,7 @@ class BednaAdmin(SimpleHistoryAdmin):
             'orders/js/admin_actions_target_blank.js',
             'orders/js/changelist_dirty_guard.js',
             'orders/js/admin_bedna_group_separator.js',
-            'orders/js/admin_bedna_change_poll.js',
+            'orders/js/admin_model_change_poll.js',
             'orders/js/bedny_hmotnost_sum.js',
             'orders/js/bedny_netto_hmotnost_sum.js',
         )

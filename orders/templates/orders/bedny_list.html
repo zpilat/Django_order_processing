@@ -6,22 +6,22 @@
 {{ block.super }}
 <link rel="stylesheet" href="{% static 'orders/css/scan_workflows.css' %}">
 <style>
-    #bedna-change-container {
+    #model-change-container {
         display: block;
         margin-bottom: 0.25rem;
         max-width: 760px;
     }
-    #bedna-change-container:empty {
+    #model-change-container:empty {
         display: none;
     }
-    #bedna-change-container #bedna-change-banner-inline {
+    #model-change-container #model-change-banner-inline {
         display: flex;
         justify-content: center;
     }
-    #bedna-change-container #bedna-change-banner-inline > span {
+    #model-change-container #model-change-banner-inline > span {
         display: none !important;
     }
-    #bedna-change-container #bedna-change-banner-inline button {
+    #model-change-container #model-change-banner-inline button {
         width: 100%;
         background-color: #ffde17;
         border: 1px solid #ffde17;
@@ -33,25 +33,25 @@
         margin-left: 0 !important;
         padding: 0.375rem 0.75rem;
     }
-    #bedna-change-container #bedna-change-banner-inline button::before {
+    #model-change-container #model-change-banner-inline button::before {
         content: "Data se změnila - ";
     }
-    #bedna-change-container #bedna-change-banner-inline button:hover,
-    #bedna-change-container #bedna-change-banner-inline button:focus {
+    #model-change-container #model-change-banner-inline button:hover,
+    #model-change-container #model-change-banner-inline button:focus {
         background-color: #ffe766;
         border-color: #ffe766;
         color: #214290;
     }
 </style>
 <script>
-window.bednaPollConfig = {
+window.adminModelPollConfig = {
     pollUrl: "{{ bedna_poll_url|escapejs }}",
     lastChange: {% if bedna_last_change %}"{{ bedna_last_change|escapejs }}"{% else %}null{% endif %},
     lastChangeId: {% if bedna_last_change_id %}{{ bedna_last_change_id }}{% else %}null{% endif %},
     intervalMs: {{ bedna_poll_interval|default:30000 }},
 };
 </script>
-<script src="{% static 'orders/js/admin_bedna_change_poll.js' %}" defer></script>
+<script src="{% static 'orders/js/admin_model_change_poll.js' %}" defer></script>
 {% endblock %}
 
 {% block content %}
