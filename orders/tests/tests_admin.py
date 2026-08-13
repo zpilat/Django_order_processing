@@ -1739,6 +1739,12 @@ class BednaAdminTests(AdminBase):
         actions_with = self.admin.get_actions(req)
         self.assertIn('oznacit_prijato_do_zakaleno_action', actions_with)
 
+        user.user_permissions.remove(Permission.objects.get(codename='mark_bedna_zakaleno'))
+        user.user_permissions.add(Permission.objects.get(codename='scan_mark_bedna_zakaleno'))
+        req.user = User.objects.get(pk=user.pk)
+        actions_with_scan_permission = self.admin.get_actions(req)
+        self.assertNotIn('oznacit_prijato_do_zakaleno_action', actions_with_scan_permission)
+
     def test_has_mark_bedna_zakaleno_permission(self):
         User = get_user_model()
         user = User.objects.create_user('user_perm_zak', 'permzak@example.com', 'pass', is_staff=True)
