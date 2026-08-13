@@ -3090,6 +3090,55 @@ class SarzeAdminCreateBehaviorTests(AdminBase):
         self.assertContains(response, 'orders/js/admin_model_change_poll.js')
         self.assertContains(response, 'orders/js/changelist_dirty_guard.js')
 
+    def test_changelist_save_updates_only_touched_sarze(self):
+        first = Sarze.objects.create(datum_zalozeni=date.today())
+        second = Sarze.objects.create(datum_zalozeni=date.today())
+        self.client.force_login(self.user)
+        url = reverse('admin:orders_sarze_changelist')
+
+        # Formset používá stejné výchozí řazení jako changelist šarží.
+        ordered = list(Sarze.objects.filter(pk__in=[first.pk, second.pk]).order_by('-cislo_sarze'))
+        touched = ordered[0]
+        untouched = ordered[1]
+        post_data = {
+            'form-TOTAL_FORMS': '2',
+            'form-INITIAL_FORMS': '2',
+            'form-MIN_NUM_FORMS': '0',
+            'form-MAX_NUM_FORMS': '1000',
+            '_save': 'Uložit',
+            '_touched_enabled': '1',
+            '_touched_field': ['form-0-stav_sarze'],
+            'form-0-id': str(touched.pk),
+            'form-0-stav_sarze': StavSarzeChoice.ZAPLANOVANA,
+            'form-1-id': str(untouched.pk),
+            # Simuluje zastaralou/neplatnou hodnotu z jiné otevřené karty.
+            'form-1-stav_sarze': '__INVALID_STALE_CHOICE__',
+        }
+
+        response = self.client.post(url, post_data)
+
+        self.assertEqual(response.status_code, 302)
+        touched.refresh_from_db()
+        untouched.refresh_from_db()
+        self.assertEqual(touched.stav_sarze, StavSarzeChoice.ZAPLANOVANA)
+        self.assertEqual(untouched.stav_sarze, StavSarzeChoice.VYTVORENA)
+
+    def test_changelist_admin_action_is_not_intercepted_by_custom_save(self):
+        request = self.get_request(
+            method='post',
+            data={
+                'form-TOTAL_FORMS': '1',
+                'index': '0',
+                'action': 'oznacit_sarze_jako_zaplanovane_action',
+            },
+        )
+
+        with patch('orders.admin.SimpleHistoryAdmin.changelist_view', return_value=HttpResponse('ok')) as parent_view:
+            response = self.admin.changelist_view(request)
+
+        self.assertEqual(response.status_code, 200)
+        parent_view.assert_called_once()
+
     def test_get_fields_hides_datum_zalozeni_on_add(self):
         request = self.factory.get('/admin/orders/sarze/add/')
         request.user = self.user

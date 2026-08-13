@@ -472,6 +472,57 @@ class SarzeAdmin(SimpleHistoryAdmin):
             'sarze_last_change_id': last_history_id if last_history_id else '',
             'sarze_poll_interval': self.poll_interval_ms,
         })
+
+        # Uložení inline editace: hodnoty polí, kterých se uživatel nedotkl,
+        # se před validací nahradí aktuálními hodnotami z DB. Tím stará karta
+        # nepřepíše změny provedené mezitím jiným uživatelem.
+        if request.method == 'POST' and 'form-TOTAL_FORMS' in request.POST and '_save' in request.POST:
+            FormSet = self.get_changelist_formset(request)
+            form_prefix = FormSet.get_default_prefix() if hasattr(FormSet, 'get_default_prefix') else 'form'
+            modified_queryset = self._get_list_editable_queryset(request, form_prefix)
+            touched_enabled = request.POST.get('_touched_enabled') == '1'
+            touched_field_names = set(request.POST.getlist('_touched_field'))
+            formset_data = request.POST
+
+            if touched_enabled:
+                editable_fields = tuple(self.list_editable or ())
+                formset_for_initials = FormSet(queryset=modified_queryset)
+                normalized_data = request.POST.copy()
+                for form in getattr(formset_for_initials, 'forms', []):
+                    for field_name in editable_fields:
+                        field_key = f'{form.prefix}-{field_name}'
+                        if field_key in touched_field_names or field_key not in normalized_data:
+                            continue
+                        initial_value = form.initial.get(field_name)
+                        prepared_value = form.fields[field_name].prepare_value(initial_value)
+                        normalized_data[field_key] = '' if prepared_value is None else str(prepared_value)
+                formset_data = normalized_data
+
+            formset = FormSet(formset_data, request.FILES, queryset=modified_queryset)
+            if formset.is_valid():
+                with transaction.atomic():
+                    for form in getattr(formset, 'forms', []):
+                        if not form.has_changed():
+                            continue
+                        changed = list(form.changed_data)
+                        if touched_enabled:
+                            changed = [
+                                field_name for field_name in changed
+                                if f'{form.prefix}-{field_name}' in touched_field_names
+                            ]
+                        if not changed:
+                            continue
+                        try:
+                            obj = self.model.objects.select_for_update().get(pk=form.instance.pk)
+                        except self.model.DoesNotExist:
+                            continue
+                        for field_name in changed:
+                            setattr(obj, field_name, form.cleaned_data.get(field_name))
+                        obj.save()
+
+                self.message_user(request, 'Uloženy změny')
+                return HttpResponseRedirect(request.get_full_path())
+
         return super().changelist_view(request, extra_context)
 
     @admin.display(description='Přípravek', ordering='cislo_pripravku')
