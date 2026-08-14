@@ -80,11 +80,17 @@ def _build_pracoviste_prehled_context():
     Seskupí všechny otevřené kroky šarží podle pracoviště mimo Nakládání.
 
     Na rozdíl od přehledu nakládání může jedno pracoviště obsahovat libovolný
-    počet současně otevřených kroků.
+    počet současně otevřených kroků. Pracoviště bez otevřeného kroku se do
+    přehledu nezařazují.
     """
     pracoviste = list(
         Zarizeni.objects
+        .filter(
+            sarze_kroky__isnull=False,
+            sarze_kroky__konec__isnull=True,
+        )
         .exclude(typ_zarizeni=TypZarizeniChoice.NAKLADANI)
+        .distinct()
         .order_by('typ_zarizeni', 'kod_zarizeni')
     )
     otevrene_kroky = (

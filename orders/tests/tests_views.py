@@ -2953,7 +2953,7 @@ class PracovistePrehledViewTests(TestCase):
 		response = self.client.get(reverse("pracoviste_prehled"))
 		self.assertEqual(response.status_code, 403)
 
-	def test_lists_all_non_loading_workplaces_and_multiple_open_batches(self):
+	def test_lists_only_active_non_loading_workplaces_and_multiple_open_batches(self):
 		sarze_1, krok_1 = self._create_krok(91001, self.pec, program="17")
 		sarze_2, _ = self._create_krok(91002, self.pec, program="320/80")
 		closed_sarze, _ = self._create_krok(91003, self.pec, konec=time(10, 0))
@@ -2976,7 +2976,7 @@ class PracovistePrehledViewTests(TestCase):
 		self.assertEqual(response.status_code, 200)
 		self.assertTemplateUsed(response, "orders/pracoviste_prehled.html")
 		self.assertContains(response, "Pec 1")
-		self.assertContains(response, "Pračka 1")
+		self.assertNotContains(response, "Pračka 1")
 		self.assertContains(response, "Otevřené šarže: 2")
 		self.assertContains(response, "2 pater / 2 položek")
 		self.assertContains(response, reverse("sarze_scan", args=[sarze_1.cislo_sarze]))
