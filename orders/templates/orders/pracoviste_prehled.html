@@ -1,0 +1,93 @@
+{% extends "orders/base.html" %}
+{% load static %}
+
+{% block title %}Přehled pracovišť{% endblock %}
+
+{% block extra_head %}{{ block.super }}<meta http-equiv="refresh" content="60"><link rel="stylesheet" href="{% static 'orders/css/scan_workflows.css' %}">{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 px-2 px-md-3">
+    <div class="alert d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3"
+         role="alert"
+         style="background-color: #214290; color: #ffde17; font-family: 'Liberation Sans', Arial;">
+        <div>
+            <h1 class="h4 mb-1">Přehled ostatních pracovišť</h1>
+            <div>Aktuálně otevřené šarže na pracovištích mimo nakládání.</div>
+        </div>
+        <a class="btn btn-sm btn-warning" href="{% url 'provozni_prehledy' %}">Přehled nakládání</a>
+    </div>
+
+    <div class="row g-3">
+        {% for polozka in pracoviste %}
+            {% with zarizeni=polozka.zarizeni %}
+                <div class="col-12 col-xl-6">
+                    <section class="border rounded-2 h-100 overflow-hidden" aria-labelledby="pracoviste-{{ zarizeni.pk }}">
+                        <header class="d-flex flex-wrap justify-content-between align-items-start gap-2 p-3 border-bottom bg-light">
+                            <div>
+                                <h2 id="pracoviste-{{ zarizeni.pk }}" class="h5 mb-1">{{ zarizeni.zkraceny_nazev_zarizeni }}</h2>
+                                <div class="small text-muted">
+                                    {{ zarizeni.get_typ_zarizeni_display|default:"Neuvedený typ" }}
+                                    {% if zarizeni.umisteni %} · {{ zarizeni.umisteni }}{% endif %}
+                                </div>
+                            </div>
+                            <span class="badge {% if polozka.otevrene_kroky %}text-bg-primary{% else %}text-bg-secondary{% endif %}">
+                                Otevřené šarže: {{ polozka.otevrene_kroky|length }}
+                            </span>
+                        </header>
+
+                        <div class="p-2 p-md-3">
+                            <div class="row g-2">
+                                {% for krok in polozka.otevrene_kroky %}
+                                    <div class="col-12 {% if polozka.otevrene_kroky|length > 1 %}col-lg-6{% endif %}">
+                                        <a class="d-block h-100 border border-primary rounded-2 p-3 text-decoration-none text-body bg-white shadow-sm"
+                                           href="{% url 'sarze_scan' krok.sarze.cislo_sarze %}"
+                                           aria-label="Otevřít detail šarže {{ krok.sarze }}">
+                                            <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                                                <div class="h5 text-primary mb-0">{{ krok.sarze }}</div>
+                                                <span class="badge text-bg-primary">{{ krok.sarze.get_stav_sarze_display }}</span>
+                                            </div>
+                                            <dl class="row small mb-0">
+                                                <dt class="col-5">Začátek</dt>
+                                                <dd class="col-7 text-end mb-1">{{ krok.datum|date:"j. n. Y" }} {{ krok.zacatek|time:"H:i" }}</dd>
+
+                                                <dt class="col-5">Přípravek</dt>
+                                                <dd class="col-7 text-end mb-1">{{ krok.sarze.cislo_pripravku|default:"-" }}</dd>
+
+                                                <dt class="col-5">Program</dt>
+                                                <dd class="col-7 text-end mb-1">{{ krok.program|default:"-" }}</dd>
+
+                                                <dt class="col-5">Operátor</dt>
+                                                <dd class="col-7 text-end mb-1 text-break">{{ krok.operator|default:"-" }}</dd>
+
+                                                <dt class="col-5">Obsah</dt>
+                                                <dd class="col-7 text-end mb-1">{{ krok.pocet_pater }} pater / {{ krok.pocet_polozek }} položek</dd>
+
+                                                <dt class="col-5">Krok</dt>
+                                                <dd class="col-7 text-end mb-0">{{ krok.poradi }}</dd>
+                                            </dl>
+                                            {% if krok.poznamka or krok.sarze.poznamka %}
+                                                <div class="small text-muted border-top mt-2 pt-2">
+                                                    {{ krok.poznamka|default:krok.sarze.poznamka }}
+                                                </div>
+                                            {% endif %}
+                                            <div class="small fw-semibold text-primary mt-2 text-end">Otevřít detail →</div>
+                                        </a>
+                                    </div>
+                                {% empty %}
+                                    <div class="col-12">
+                                        <div class="text-muted text-center py-4">Momentálně bez otevřené šarže.</div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            {% endwith %}
+        {% empty %}
+            <div class="col-12">
+                <div class="alert alert-secondary mb-0">V číselníku nejsou žádná další pracoviště.</div>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

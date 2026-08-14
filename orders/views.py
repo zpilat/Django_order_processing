@@ -31,7 +31,7 @@ from django_user_agents.utils import get_user_agent
 from .utils import get_verbose_name_for_column, utilita_tisk_dl_a_proforma_faktury, format_cislo_bedny, format_skupina_TZ, build_fake_skupina_TZ_annotation
 from .models import (
     Bedna, Zakazka, Kamion, Zakaznik, TypHlavy, Predpis, Odberatel, Cena, Pozice, PoziceZakazkaOrder,
-    Sarze, SarzeKrok, SarzeKrokBedna
+    Sarze, SarzeKrok, SarzeKrokBedna, Zarizeni
 )
 from .forms import (
     BednaScanZkontrolovanoForm,
@@ -72,6 +72,48 @@ def _safe_return_url(request, fallback_url):
 def _build_provozni_prehledy_context(user):
     return {
         'db_table': 'home',
+    }
+
+
+def _build_pracoviste_prehled_context():
+    """
+    Seskupí všechny otevřené kroky šarží podle pracoviště mimo Nakládání.
+
+    Na rozdíl od přehledu nakládání může jedno pracoviště obsahovat libovolný
+    počet současně otevřených kroků.
+    """
+    pracoviste = list(
+        Zarizeni.objects
+        .exclude(typ_zarizeni=TypZarizeniChoice.NAKLADANI)
+        .order_by('typ_zarizeni', 'kod_zarizeni')
+    )
+    otevrene_kroky = (
+        SarzeKrok.objects
+        .filter(
+            zarizeni__in=pracoviste,
+            konec__isnull=True,
+        )
+        .select_related('sarze', 'zarizeni')
+        .annotate(
+            pocet_polozek=Count('krok_bedny', distinct=True),
+            pocet_pater=Count('krok_bedny__patro', distinct=True),
+        )
+        .order_by('zarizeni_id', '-datum', '-zacatek', '-pk')
+    )
+
+    kroky_podle_pracoviste = {zarizeni.pk: [] for zarizeni in pracoviste}
+    for krok in otevrene_kroky:
+        kroky_podle_pracoviste[krok.zarizeni_id].append(krok)
+
+    return {
+        'pracoviste': [
+            {
+                'zarizeni': zarizeni,
+                'otevrene_kroky': kroky_podle_pracoviste[zarizeni.pk],
+            }
+            for zarizeni in pracoviste
+        ],
+        'db_table': 'pracoviste_prehled',
     }
 
 
@@ -217,6 +259,18 @@ def provozni_prehledy_view(request):
         request,
         'orders/home.html',
         _build_provozni_prehledy_context(request.user),
+    )
+
+
+@login_required
+@permission_required('orders.view_sarzekrok', raise_exception=True)
+@permission_required('orders.view_sarzekrokbedna', raise_exception=True)
+def pracoviste_prehled_view(request):
+    """Zobrazí otevřené šarže na všech pracovištích kromě Nakládání."""
+    return render(
+        request,
+        'orders/pracoviste_prehled.html',
+        _build_pracoviste_prehled_context(),
     )
 
 

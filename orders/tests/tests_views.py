@@ -2890,6 +2890,102 @@ class BednyListViewTests(ViewsTestBase):
 		self.assertEqual(annotated_bedna.fake_skupina_TZ_ann, 10)
 
 
+class PracovistePrehledViewTests(TestCase):
+	def setUp(self):
+		User = get_user_model()
+		self.user = User.objects.create_user(username="prehled", password="pass1234")
+		self.user.user_permissions.add(
+			Permission.objects.get(
+				content_type__app_label="orders",
+				codename="view_sarzekrok",
+			),
+			Permission.objects.get(
+				content_type__app_label="orders",
+				codename="view_sarzekrokbedna",
+			),
+		)
+		self.client.force_login(self.user)
+		self.nakladani = Zarizeni.objects.create(
+			kod_zarizeni="NAKL",
+			nazev_zarizeni="Nakládání",
+			zkraceny_nazev_zarizeni="Nakládání",
+			typ_zarizeni=TypZarizeniChoice.NAKLADANI,
+		)
+		self.pec = Zarizeni.objects.create(
+			kod_zarizeni="PEC_1",
+			nazev_zarizeni="Víceúčelová pec 1",
+			zkraceny_nazev_zarizeni="Pec 1",
+			typ_zarizeni=TypZarizeniChoice.VICEUCELOVKA,
+			umisteni="Hala 2",
+		)
+		self.pracka = Zarizeni.objects.create(
+			kod_zarizeni="PR_1",
+			nazev_zarizeni="Pračka 1",
+			zkraceny_nazev_zarizeni="Pračka 1",
+			typ_zarizeni=TypZarizeniChoice.PRACKA,
+		)
+
+	def _create_krok(self, cislo_sarze, zarizeni, *, konec=None, program="P1"):
+		sarze = Sarze.objects.create(
+			cislo_sarze=cislo_sarze,
+			datum_zalozeni=date(2026, 8, 14),
+			cislo_pripravku=12,
+		)
+		krok = SarzeKrok.objects.create(
+			sarze=sarze,
+			poradi=2,
+			datum=date(2026, 8, 14),
+			zarizeni=zarizeni,
+			zacatek=time(8, 30),
+			konec=konec,
+			operator="Novák",
+			program=program,
+		)
+		return sarze, krok
+
+	def test_requires_login_and_view_permissions(self):
+		self.client.logout()
+		response = self.client.get(reverse("pracoviste_prehled"))
+		self.assertEqual(response.status_code, 302)
+		self.assertIn("login", response.url)
+
+		self.client.force_login(get_user_model().objects.create_user(username="bez-opravneni"))
+		response = self.client.get(reverse("pracoviste_prehled"))
+		self.assertEqual(response.status_code, 403)
+
+	def test_lists_all_non_loading_workplaces_and_multiple_open_batches(self):
+		sarze_1, krok_1 = self._create_krok(91001, self.pec, program="17")
+		sarze_2, _ = self._create_krok(91002, self.pec, program="320/80")
+		closed_sarze, _ = self._create_krok(91003, self.pec, konec=time(10, 0))
+		loading_sarze, _ = self._create_krok(91004, self.nakladani)
+		SarzeKrokBedna.objects.create(
+			krok=krok_1,
+			popis_mimo_db="Zakázka A",
+			patro=1,
+			procent_z_patra=100,
+		)
+		SarzeKrokBedna.objects.create(
+			krok=krok_1,
+			popis_mimo_db="Zakázka B",
+			patro=2,
+			procent_z_patra=100,
+		)
+
+		response = self.client.get(reverse("pracoviste_prehled"))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertTemplateUsed(response, "orders/pracoviste_prehled.html")
+		self.assertContains(response, "Pec 1")
+		self.assertContains(response, "Pračka 1")
+		self.assertContains(response, "Otevřené šarže: 2")
+		self.assertContains(response, "2 pater / 2 položek")
+		self.assertContains(response, reverse("sarze_scan", args=[sarze_1.cislo_sarze]))
+		self.assertContains(response, reverse("sarze_scan", args=[sarze_2.cislo_sarze]))
+		self.assertNotContains(response, reverse("sarze_scan", args=[closed_sarze.cislo_sarze]))
+		self.assertNotContains(response, reverse("sarze_scan", args=[loading_sarze.cislo_sarze]))
+		self.assertNotContains(response, ">Nakládání<")
+
+
 class RychleZalozeniSarzeViewTests(ViewsTestBase):
 	def setUp(self):
 		super().setUp()

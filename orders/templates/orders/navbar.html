@@ -165,6 +165,11 @@
                                 {% if db_table == 'home' %}aria-current="page"{% endif %}
                                 href="{% url 'provozni_prehledy' %}">Přehled nakládání</a>
                             </li>
+                            <li>
+                                <a class="dropdown-item small{% if db_table == 'pracoviste_prehled' %} active{% endif %}"
+                                {% if db_table == 'pracoviste_prehled' %}aria-current="page"{% endif %}
+                                href="{% url 'pracoviste_prehled' %}">Přehled ostatních pracovišť</a>
+                            </li>
                             <li><hr class="dropdown-divider"></li>                              
                             {% for pracoviste in pracoviste_nakladani_links %}
                                 <li>
