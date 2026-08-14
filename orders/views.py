@@ -1161,7 +1161,7 @@ def sarze_scan_presunout_view(request, cislo_sarze: int, krok_id: int):
         form = SarzeKrokActionInitForm(
             initial={
                 'datum': timezone.localdate(),
-                'zacatek': timezone.localtime().strftime('%H:%M'),
+                'zacatek': timezone.localtime().time().replace(second=0, microsecond=0),
                 'operator': request.user.get_full_name() or request.user.username,
             },
             sarze=source_krok.sarze,

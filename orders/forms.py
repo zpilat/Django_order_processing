@@ -28,6 +28,10 @@ import logging
 logger = logging.getLogger('orders')
 
 
+def _current_local_time_without_seconds():
+    return timezone.localtime().time().replace(second=0, microsecond=0)
+
+
 class ImportZakazekForm(forms.Form):
     file = forms.FileField(
         label="Soubor (pouze XLSX)",
@@ -599,7 +603,7 @@ class RychleZalozeniSarzeForm(forms.Form):
         required=True,
         label='Začátek',
         input_formats=['%H:%M', '%H.%M'],
-        initial=timezone.localtime().strftime('%H:%M'),
+        initial=_current_local_time_without_seconds,
         widget=forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}, format='%H:%M'),
     )
     konec = forms.TimeField(
