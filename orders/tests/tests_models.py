@@ -457,6 +457,51 @@ class TestSarzeModels(ModelsBase):
                 sarze.refresh_from_db()
                 self.assertEqual(sarze.stav_sarze, StavSarzeChoice.UKONCENA)
 
+    def test_open_terminal_step_keeps_vruty_sarze_state(self):
+        for index, typ_zarizeni in enumerate(
+            (TypZarizeniChoice.VYKLADANI, TypZarizeniChoice.TRYSKAC),
+            start=1,
+        ):
+            with self.subTest(typ_zarizeni=typ_zarizeni):
+                zarizeni = Zarizeni.objects.create(
+                    kod_zarizeni=f"OPEN_TERM{index}",
+                    nazev_zarizeni=f"Otevřené koncové zařízení {index}",
+                    typ_zarizeni=typ_zarizeni,
+                )
+                sarze = Sarze.objects.create(
+                    cislo_sarze=210 + index,
+                    datum_zalozeni=date(2026, 2, 16),
+                    stav_sarze=StavSarzeChoice.NALOZENA,
+                )
+                source_krok = SarzeKrok.objects.create(
+                    sarze=sarze,
+                    poradi=1,
+                    datum=date(2026, 2, 16),
+                    zarizeni=self.zarizeni_base,
+                    zacatek=time(7, 0),
+                    konec=time(8, 0),
+                    operator="Op",
+                )
+                SarzeKrokBedna.objects.create(
+                    krok=source_krok,
+                    bedna=self.bedna1,
+                    patro=1,
+                    procent_z_patra=100,
+                )
+
+                SarzeKrok.objects.create(
+                    sarze=sarze,
+                    poradi=2,
+                    datum=date(2026, 2, 16),
+                    zarizeni=zarizeni,
+                    zacatek=time(8, 0),
+                    konec=None,
+                    operator="Op",
+                )
+
+                sarze.refresh_from_db()
+                self.assertEqual(sarze.stav_sarze, StavSarzeChoice.NALOZENA)
+
     def test_filling_terminal_step_end_finishes_vruty_sarze(self):
         zarizeni = Zarizeni.objects.create(
             kod_zarizeni="TERM3",
