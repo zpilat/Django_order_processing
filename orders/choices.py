@@ -58,6 +58,8 @@ STAV_BEDNY_KONTROLA_ZMENY_PRIORITY = [
 ]   
 
 STAV_BEDNY_PODMINKA_PRO_ZMENU_NA_ZAKALENO = [
+    # dočasně i navezeno, aby bylo možné označit bednu jako zakalenou přes skenování, i když ji nikdo nepřesunul do stavu Ve zpracování. Později by se mělo změnit na StavBednyChoice.NAVEZENO, StavBednyChoice.DO_ZPRACOVANI, StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO
+    StavBednyChoice.NAVEZENO,
     StavBednyChoice.DO_ZPRACOVANI,
 ]
 
