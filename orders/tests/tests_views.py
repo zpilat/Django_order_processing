@@ -155,6 +155,7 @@ class AuthenticationRoutingTests(TestCase):
 		self.assertEqual(response.status_code, 200)
 		self.assertTemplateUsed(response, "orders/home.html")
 		self.assertContains(response, "Přehled nakládání")
+		self.assertContains(response, "Aktualizováno:")
 		self.assertNotContains(response, "Provozní přehledy")
 		self.assertNotContains(response, "Akce")
 		self.assertContains(response, "Pracoviště nakládání")
@@ -2975,6 +2976,7 @@ class PracovistePrehledViewTests(TestCase):
 
 		self.assertEqual(response.status_code, 200)
 		self.assertTemplateUsed(response, "orders/pracoviste_prehled.html")
+		self.assertContains(response, "Aktualizováno:")
 		self.assertContains(response, "Pec 1")
 		self.assertNotContains(response, "Pračka 1")
 		self.assertContains(response, "Otevřené šarže: 2")

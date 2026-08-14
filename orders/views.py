@@ -72,6 +72,7 @@ def _safe_return_url(request, fallback_url):
 def _build_provozni_prehledy_context(user):
     return {
         'db_table': 'home',
+        'current_time': timezone.now(),
     }
 
 
@@ -120,6 +121,7 @@ def _build_pracoviste_prehled_context():
             for zarizeni in pracoviste
         ],
         'db_table': 'pracoviste_prehled',
+        'current_time': timezone.now(),
     }
 
 

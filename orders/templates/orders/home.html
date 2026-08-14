@@ -16,10 +16,13 @@
                     <h1 class="h4 mb-1">Přehled nakládání</h1>
                     <div>Aktuální stav pracovišť nakládání.</div>
                 </div>
-                {% if perms.orders.view_sarzekrok and perms.orders.view_sarzekrokbedna %}
-                    <a class="btn btn-sm btn-warning"
-                       href="{% url 'pracoviste_prehled' %}">Ostatní pracoviště</a>
-                {% endif %}
+                <div class="d-flex flex-column align-items-start align-items-sm-end gap-2">
+                    <div class="small">Aktualizováno: {{ current_time|date:"d.m.Y H:i" }}</div>
+                    {% if perms.orders.view_sarzekrok and perms.orders.view_sarzekrokbedna %}
+                        <a class="btn btn-sm btn-warning"
+                           href="{% url 'pracoviste_prehled' %}">Ostatní pracoviště</a>
+                    {% endif %}
+                </div>
             </div>
 
             {% if pracoviste_nakladani_links %}

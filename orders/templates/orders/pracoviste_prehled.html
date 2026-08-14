@@ -14,7 +14,10 @@
             <h1 class="h4 mb-1">Přehled ostatních pracovišť</h1>
             <div>Aktuálně otevřené šarže na pracovištích mimo nakládání.</div>
         </div>
-        <a class="btn btn-sm btn-warning" href="{% url 'provozni_prehledy' %}">Přehled nakládání</a>
+        <div class="d-flex flex-column align-items-start align-items-sm-end gap-2">
+            <div class="small">Aktualizováno: {{ current_time|date:"d.m.Y H:i" }}</div>
+            <a class="btn btn-sm btn-warning" href="{% url 'provozni_prehledy' %}">Přehled nakládání</a>
+        </div>
     </div>
 
     <div class="row g-3">
