@@ -1,4 +1,18 @@
 {% extends "admin/change_list.html" %}
+{% load static %}
+
+{% block extrahead %}
+{{ block.super }}
+<script>
+window.adminModelPollConfig = {
+    pollUrl: "{{ model_poll_url|escapejs }}",
+    lastChange: {% if model_last_change %}"{{ model_last_change|escapejs }}"{% else %}null{% endif %},
+    lastChangeId: {% if model_last_change_id %}{{ model_last_change_id }}{% else %}null{% endif %},
+    intervalMs: {{ model_poll_interval|default:30000 }},
+};
+</script>
+<script src="{% static 'orders/js/admin_model_change_poll.js' %}" defer></script>
+{% endblock %}
 
 {% block object-tools-items %}
     <li>

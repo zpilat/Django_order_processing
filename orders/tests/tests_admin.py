@@ -2464,6 +2464,36 @@ class SarzeKrokBednaAdminActionTests(AdminBase):
             stav_bedny=StavBednyChoice.PRIJATO,
         )
 
+    def test_polling_detects_denik_update(self):
+        row = SarzeKrokBedna.objects.create(
+            krok=self.krok_1,
+            bedna=self.bedna,
+            patro=1,
+            procent_z_patra=100,
+        )
+        request = self.factory.get('/')
+        request.user = self.user
+        initial = json.loads(self.admin.poll_changes_view(request).content.decode('utf-8'))
+
+        row.procent_z_patra = 90
+        row.save(update_fields=['procent_z_patra'])
+        request = self.factory.get('/', {'since_id': initial['history_id']})
+        request.user = self.user
+        payload = json.loads(self.admin.poll_changes_view(request).content.decode('utf-8'))
+
+        self.assertTrue(payload['changed'])
+        self.assertGreater(payload['history_id'], initial['history_id'])
+
+    def test_denik_changelist_includes_polling(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse('admin:orders_sarzekrokbedna_changelist'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'window.adminModelPollConfig')
+        self.assertContains(response, reverse('admin:orders_sarzekrokbedna_poll'))
+        self.assertContains(response, 'orders/js/admin_model_change_poll.js')
+        self.assertContains(response, 'Šarže: Přidat')
+
     def test_action_creates_new_step_and_copies_selected_rows(self):
         source = SarzeKrokBedna.objects.create(
             krok=self.krok_1,
@@ -2768,6 +2798,30 @@ class SarzeKrokAdminActionTests(AdminBase):
             mnozstvi=1,
             stav_bedny=StavBednyChoice.PRIJATO,
         )
+
+    def test_polling_detects_sarzekrok_update(self):
+        request = self.factory.get('/')
+        request.user = self.user
+        initial = json.loads(self.admin.poll_changes_view(request).content.decode('utf-8'))
+
+        self.krok.poznamka = 'Změna pro polling'
+        self.krok.save(update_fields=['poznamka'])
+        request = self.factory.get('/', {'since_id': initial['history_id']})
+        request.user = self.user
+        payload = json.loads(self.admin.poll_changes_view(request).content.decode('utf-8'))
+
+        self.assertTrue(payload['changed'])
+        self.assertGreater(payload['history_id'], initial['history_id'])
+
+    def test_sarzekrok_changelist_includes_polling(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse('admin:orders_sarzekrok_changelist'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'window.adminModelPollConfig')
+        self.assertContains(response, reverse('admin:orders_sarzekrok_poll'))
+        self.assertContains(response, 'orders/js/admin_model_change_poll.js')
+        self.assertContains(response, 'Šarže: Přidat')
 
     def test_action_creates_new_step_with_all_rows(self):
         SarzeKrokBedna.objects.create(krok=self.krok, bedna=self.bedna, patro=1, procent_z_patra=40)

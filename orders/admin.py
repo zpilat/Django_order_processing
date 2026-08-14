@@ -381,33 +381,11 @@ class ZarizeniAdmin(SimpleHistoryAdmin):
     history_list_per_page = 20
 
 
-@admin.register(Sarze)
-class SarzeAdmin(SimpleHistoryAdmin):
-    change_list_template = 'admin/orders/sarze/change_list.html'
+class HistoryPollingAdminMixin:
+    """Společný polling změn modelu podle django-simple-history."""
+
     poll_interval_ms = 30000
-    fields = ('cislo_sarze', 'datum_zalozeni', 'cislo_pripravku', 'cislo_pracoviste', 'stav_sarze', 'poznamka',)
-    list_display = ('get_cislo_sarze', 'stav_sarze', 'get_typ_sarze', 'get_datum_zalozeni', 'get_cislo_pripravku', 'get_poznamka', 'get_pocet_kroku',)
-    list_editable = ('stav_sarze',)
-    list_filter = (StavSarzeFilter, TypSarzeFilter)
-    search_fields = ('cislo_sarze',)
-    readonly_fields = ('cislo_sarze',)
-    date_hierarchy = 'datum_zalozeni'
-    ordering = ('-cislo_sarze',)
-    inlines = [SarzeKrokInline]
-    actions = (oznacit_sarze_jako_zaplanovane_action, tisk_pruvodky_vruty_sarze_action,)
-
-    history_list_display = [
-        "cislo_sarze", "datum_zalozeni", "cislo_pripravku", "cislo_pracoviste", "stav_sarze", "poznamka",
-    ]
-    history_search_fields = ["cislo_sarze", "poznamka"]
-    history_list_filter = ["stav_sarze", "datum_zalozeni"]
-    history_list_per_page = 20
-
-    class Media:
-        js = (
-            'orders/js/admin_actions_target_blank.js',
-            'orders/js/changelist_dirty_guard.js',
-        )
+    poll_url_name = None
 
     def get_urls(self):
         urls = super().get_urls()
@@ -415,13 +393,13 @@ class SarzeAdmin(SimpleHistoryAdmin):
             path(
                 'changes/poll/',
                 self.admin_site.admin_view(self.poll_changes_view),
-                name='orders_sarze_poll',
+                name=self.poll_url_name,
             ),
         ]
         return custom_urls + urls
 
     def _get_latest_change_marker(self):
-        history_model = Sarze.history.model
+        history_model = self.model.history.model
         return history_model.objects.order_by('-history_date', '-history_id').first()
 
     def poll_changes_view(self, request):
@@ -467,12 +445,43 @@ class SarzeAdmin(SimpleHistoryAdmin):
         last_change = latest.history_date if latest else None
         last_history_id = latest.history_id if latest else None
         extra_context.update({
-            'sarze_poll_url': reverse('admin:orders_sarze_poll'),
-            'sarze_last_change': last_change.isoformat() if last_change else '',
-            'sarze_last_change_id': last_history_id if last_history_id else '',
-            'sarze_poll_interval': self.poll_interval_ms,
+            'model_poll_url': reverse(f'admin:{self.poll_url_name}'),
+            'model_last_change': last_change.isoformat() if last_change else '',
+            'model_last_change_id': last_history_id if last_history_id else '',
+            'model_poll_interval': self.poll_interval_ms,
         })
+        return super().changelist_view(request, extra_context)
 
+
+@admin.register(Sarze)
+class SarzeAdmin(HistoryPollingAdminMixin, SimpleHistoryAdmin):
+    change_list_template = 'admin/orders/sarze/change_list.html'
+    poll_url_name = 'orders_sarze_poll'
+    fields = ('cislo_sarze', 'datum_zalozeni', 'cislo_pripravku', 'cislo_pracoviste', 'stav_sarze', 'poznamka',)
+    list_display = ('get_cislo_sarze', 'stav_sarze', 'get_typ_sarze', 'get_datum_zalozeni', 'get_cislo_pripravku', 'get_poznamka', 'get_pocet_kroku',)
+    list_editable = ('stav_sarze',)
+    list_filter = (StavSarzeFilter, TypSarzeFilter)
+    search_fields = ('cislo_sarze',)
+    readonly_fields = ('cislo_sarze',)
+    date_hierarchy = 'datum_zalozeni'
+    ordering = ('-cislo_sarze',)
+    inlines = [SarzeKrokInline]
+    actions = (oznacit_sarze_jako_zaplanovane_action, tisk_pruvodky_vruty_sarze_action,)
+
+    history_list_display = [
+        "cislo_sarze", "datum_zalozeni", "cislo_pripravku", "cislo_pracoviste", "stav_sarze", "poznamka",
+    ]
+    history_search_fields = ["cislo_sarze", "poznamka"]
+    history_list_filter = ["stav_sarze", "datum_zalozeni"]
+    history_list_per_page = 20
+
+    class Media:
+        js = (
+            'orders/js/admin_actions_target_blank.js',
+            'orders/js/changelist_dirty_guard.js',
+        )
+
+    def changelist_view(self, request, extra_context=None):
         # Uložení inline editace: hodnoty polí, kterých se uživatel nedotkl,
         # se před validací nahradí aktuálními hodnotami z DB. Tím stará karta
         # nepřepíše změny provedené mezitím jiným uživatelem.
@@ -661,7 +670,8 @@ class SarzeAdmin(SimpleHistoryAdmin):
         return super().response_add(request, obj, post_url_continue)
 
 @admin.register(SarzeKrok)
-class SarzeKrokAdmin(SimpleHistoryAdmin):
+class SarzeKrokAdmin(HistoryPollingAdminMixin, SimpleHistoryAdmin):
+    poll_url_name = 'orders_sarzekrok_poll'
     fields = ('sarze', 'poradi', 'datum', 'zarizeni', 'zacatek', 'konec', 'operator', 'program', 'alarm', 'poznamka',)
     readonly_fields = ('sarze', 'poradi',)
     list_display = (
@@ -749,7 +759,8 @@ class SarzeKrokAdmin(SimpleHistoryAdmin):
 
 
 @admin.register(SarzeKrokBedna)
-class SarzeKrokBednaAdmin(SimpleHistoryAdmin):
+class SarzeKrokBednaAdmin(HistoryPollingAdminMixin, SimpleHistoryAdmin):
+    poll_url_name = 'orders_sarzekrokbedna_poll'
     fields = ('krok', 'bedna', 'popis_mimo_db', 'zakaznik_mimo_db', 'zakazka_mimo_db', 'cislo_bedny_mimo_db', 'patro', 'procent_z_patra',)
     readonly_fields = ('krok', 'bedna', 'popis_mimo_db', 'zakaznik_mimo_db', 'zakazka_mimo_db', 'cislo_bedny_mimo_db', 'patro', 'procent_z_patra',)
     actions = (vytvorit_dalsi_krok_sarze_action,)
