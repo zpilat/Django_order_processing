@@ -6,7 +6,9 @@
 {% block extra_head %}{{ block.super }}<meta http-equiv="refresh" content="60"><link rel="stylesheet" href="{% static 'orders/css/scan_workflows.css' %}">{% endblock %}
 
 {% block content %}
-<div class="container-fluid py-3 px-2 px-md-3">
+<div class="container py-3">
+    <div class="row justify-content-center">
+        <div class="col-12 col-xl-8">
     <div class="alert d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3"
          role="alert"
          style="background-color: #214290; color: #ffde17; font-family: 'Liberation Sans', Arial;">
@@ -23,7 +25,7 @@
     <div class="row g-3">
         {% for polozka in pracoviste %}
             {% with zarizeni=polozka.zarizeni %}
-                <div class="col-12 col-xl-6">
+                <div class="col-12">
                     <section class="border rounded-2 h-100 overflow-hidden" aria-labelledby="pracoviste-{{ zarizeni.pk }}">
                         <header class="d-flex flex-wrap justify-content-between align-items-start gap-2 p-3 border-bottom bg-light">
                             <div>
@@ -91,6 +93,8 @@
                 <div class="alert alert-secondary mb-0">Žádné pracoviště aktuálně nemá otevřenou šarži.</div>
             </div>
         {% endfor %}
+    </div>
+        </div>
     </div>
 </div>
 {% endblock %}
