@@ -368,7 +368,7 @@ class BednaScanViewTests(ViewsTestBase):
 		self.assertNotContains(response, "Označit zakaleno")
 		self.assertNotContains(response, reverse("bedna_scan_zakaleno", args=[self.b_eur_pr.cislo_bedny]))
 
-	def test_scan_detail_hides_mark_zakaleno_action_for_navezeno(self):
+	def test_scan_detail_shows_mark_zakaleno_action_for_navezeno(self):
 		self.b_eur_pr.stav_bedny = StavBednyChoice.NAVEZENO
 		self.b_eur_pr.save(update_fields=["stav_bedny"])
 		permission = Permission.objects.get(codename="scan_mark_bedna_zakaleno")
@@ -377,8 +377,8 @@ class BednaScanViewTests(ViewsTestBase):
 		response = self.client.get(reverse("bedna_scan", args=[self.b_eur_pr.cislo_bedny]))
 
 		self.assertEqual(response.status_code, 200)
-		self.assertNotContains(response, "Označit zakaleno")
-		self.assertNotContains(response, reverse("bedna_scan_zakaleno", args=[self.b_eur_pr.cislo_bedny]))
+		self.assertContains(response, "Označit zakaleno")
+		self.assertContains(response, reverse("bedna_scan_zakaleno", args=[self.b_eur_pr.cislo_bedny]))
 
 	def test_scan_detail_shows_mark_zkontrolovano_action_with_controller_permission(self):
 		self.b_eur_pr.stav_bedny = StavBednyChoice.ZAKALENO
@@ -1483,7 +1483,7 @@ class BednaScanViewTests(ViewsTestBase):
 
 		self.assertEqual(response.status_code, 200)
 		self.assertTemplateUsed(response, "orders/sarze_scan_presunout.html")
-		self.assertEqual(response.context["form"].initial["zacatek"], "14:35")
+		self.assertEqual(response.context["form"].initial["zacatek"], time(14, 35))
 		self.assertEqual(response.context["form"].initial["operator"], "tester")
 		self.assertContains(response, "Nový krok šarže")
 		self.assertContains(response, "Vytvořit další krok")
@@ -1798,7 +1798,7 @@ class BednaScanViewTests(ViewsTestBase):
 		messages_list = list(response.wsgi_request._messages)
 		self.assertTrue(any("povoleném pro změnu na zakaleno" in str(m) for m in messages_list))
 
-	def test_scan_zakaleno_get_redirects_for_navezeno(self):
+	def test_scan_zakaleno_get_renders_confirmation_for_navezeno(self):
 		self.b_eur_pr.stav_bedny = StavBednyChoice.NAVEZENO
 		self.b_eur_pr.save(update_fields=["stav_bedny"])
 		permission = Permission.objects.get(codename="scan_mark_bedna_zakaleno")
@@ -1808,13 +1808,9 @@ class BednaScanViewTests(ViewsTestBase):
 			reverse("bedna_scan_zakaleno", args=[self.b_eur_pr.cislo_bedny])
 		)
 
-		self.assertRedirects(
-			response,
-			reverse("bedna_scan", args=[self.b_eur_pr.cislo_bedny]),
-			fetch_redirect_response=False,
-		)
-		messages_list = list(response.wsgi_request._messages)
-		self.assertTrue(any("povoleném pro změnu na zakaleno" in str(m) for m in messages_list))
+		self.assertEqual(response.status_code, 200)
+		self.assertTemplateUsed(response, "orders/bedna_scan_zakaleno.html")
+		self.assertContains(response, "Označit bednu jako zakalenou")
 
 	def test_scan_zakaleno_post_marks_bedna_zakaleno(self):
 		self._set_bedna_zakaleno_ready()
