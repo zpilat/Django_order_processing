@@ -2163,6 +2163,10 @@ class DashboardKamionyViewTests(ViewsTestBase):
 class BednyKNavezeniViewTests(ViewsTestBase):
 	def setUp(self):
 		super().setUp()
+		self.user.user_permissions.add(*Permission.objects.filter(
+			content_type__app_label="orders",
+			codename__in=["view_bedna", "change_bedna"],
+		))
 		# Pozice a bedny K_NAVEZENI
 		self.poz_a = Pozice.objects.create(kod="A", kapacita=10)
 		self.poz_b = Pozice.objects.create(kod="B", kapacita=10)
@@ -2190,6 +2194,75 @@ class BednyKNavezeniViewTests(ViewsTestBase):
 			tara=1,
 			mnozstvi=1,
 		)
+
+	def test_read_endpoints_require_view_bedna_permission(self):
+		self.user.user_permissions.remove(Permission.objects.get(
+			content_type__app_label="orders",
+			codename="view_bedna",
+		))
+		urls = [
+			reverse("dashboard_bedny_k_navezeni"),
+			reverse("dashboard_bedny_k_navezeni_poznamka")
+			+ f"?pozice_id={self.poz_a.id}&zakazka_id={self.zak_eur.id}&mode=form",
+			reverse("dashboard_bedny_k_navezeni_pozice_poznamka")
+			+ f"?pozice_id={self.poz_a.id}&mode=form",
+			reverse("dashboard_bedny_k_navezeni_pdf"),
+		]
+
+		for url in urls:
+			with self.subTest(url=url):
+				self.assertEqual(self.client.get(url).status_code, 403)
+
+	def test_write_endpoints_require_change_bedna_permission(self):
+		_get_bedny_k_navezeni_groups()
+		self.user.user_permissions.remove(Permission.objects.get(
+			content_type__app_label="orders",
+			codename="change_bedna",
+		))
+		requests = [
+			(
+				reverse("dashboard_bedny_k_navezeni"),
+				{"pozice_id": self.poz_a.id, "zakazka_id": self.zak_eur.id, "move": "down"},
+			),
+			(
+				reverse("dashboard_bedny_k_navezeni_poznamka"),
+				{"pozice_id": self.poz_a.id, "zakazka_id": self.zak_eur.id, "poznamka": "Zakázáno"},
+			),
+			(
+				reverse("dashboard_bedny_k_navezeni_pozice_poznamka"),
+				{"pozice_id": self.poz_a.id, "poznamka": "Zakázáno"},
+			),
+			(
+				reverse("dashboard_bedny_k_navezeni_nasledne"),
+				{"pozice_id": self.poz_a.id, "zakazka_id": self.zak_eur.id, "nasledne": "1"},
+			),
+		]
+
+		for url, data in requests:
+			with self.subTest(url=url):
+				self.assertEqual(self.client.post(url, data).status_code, 403)
+
+	def test_unauthorized_note_post_does_not_create_order(self):
+		self.user.user_permissions.remove(Permission.objects.get(
+			content_type__app_label="orders",
+			codename="change_bedna",
+		))
+
+		response = self.client.post(
+			reverse("dashboard_bedny_k_navezeni_poznamka"),
+			{"pozice_id": self.poz_a.id, "zakazka_id": self.zak_eur.id, "poznamka": "Zakázáno"},
+		)
+
+		self.assertEqual(response.status_code, 403)
+		self.assertFalse(PoziceZakazkaOrder.objects.filter(
+			pozice=self.poz_a,
+			zakazka=self.zak_eur,
+		).exists())
+
+	def test_nasledne_endpoint_rejects_get(self):
+		response = self.client.get(reverse("dashboard_bedny_k_navezeni_nasledne"))
+
+		self.assertEqual(response.status_code, 405)
 
 	def test_groups_structure(self):
 		resp = self.client.get(reverse("dashboard_bedny_k_navezeni"))

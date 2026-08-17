@@ -3324,6 +3324,7 @@ def _split_bedny_k_navezeni_groups_by_nasledne(groups):
 
 
 @login_required
+@permission_required('orders.view_bedna', raise_exception=True)
 def dashboard_bedny_k_navezeni_view(request):
     """
     Zobrazí všechny bedny se stavem K_NAVEZENI, seskupené podle pozice a zakázky.
@@ -3349,6 +3350,9 @@ def dashboard_bedny_k_navezeni_view(request):
 
     # Umožní aktualizaci pořadí pro konkrétní zakázku v pozici
     if request.method == 'POST':
+        if not request.user.has_perm('orders.change_bedna'):
+            raise PermissionDenied
+
         try:
             pozice_id = int(request.POST.get('pozice_id'))
             zakazka_id = int(request.POST.get('zakazka_id'))
@@ -3559,8 +3563,12 @@ def dashboard_bedny_k_navezeni_view(request):
 
 
 @login_required
+@permission_required('orders.view_bedna', raise_exception=True)
 def dashboard_bedny_k_navezeni_poznamka_view(request):
     """HTMX endpoint pro inline úpravu poznámky k navezení pro zakázku v pozici."""
+    if request.method == 'POST' and not request.user.has_perm('orders.change_bedna'):
+        raise PermissionDenied
+
     pozice_id_raw = request.GET.get('pozice_id') or request.POST.get('pozice_id')
     zakazka_id_raw = request.GET.get('zakazka_id') or request.POST.get('zakazka_id')
     mode = (request.GET.get('mode') or request.POST.get('mode') or '').lower()
@@ -3605,8 +3613,12 @@ def dashboard_bedny_k_navezeni_poznamka_view(request):
 
 
 @login_required
+@permission_required('orders.view_bedna', raise_exception=True)
 def dashboard_bedny_k_navezeni_poznamka_pozice_view(request):
     """HTMX endpoint pro inline úpravu poznámky na úrovni pozice."""
+    if request.method == 'POST' and not request.user.has_perm('orders.change_bedna'):
+        raise PermissionDenied
+
     pozice_id_raw = request.GET.get('pozice_id') or request.POST.get('pozice_id')
     mode = (request.GET.get('mode') or request.POST.get('mode') or '').lower()
 
@@ -3634,6 +3646,8 @@ def dashboard_bedny_k_navezeni_poznamka_pozice_view(request):
 
 
 @login_required
+@permission_required('orders.change_bedna', raise_exception=True)
+@require_POST
 def dashboard_bedny_k_navezeni_nasledne_view(request):
     """HTMX endpoint pro inline přepnutí příznaku 'Následně?' pro zakázku v pozici."""
     pozice_id_raw = request.POST.get('pozice_id') or request.GET.get('pozice_id')
@@ -3662,10 +3676,9 @@ def dashboard_bedny_k_navezeni_nasledne_view(request):
         }
     )
 
-    if request.method == 'POST':
-        nasledne = request.POST.get('nasledne') in ('1', 'true', 'on', 'yes')
-        order_obj.nasledne = nasledne
-        order_obj.save(update_fields=['nasledne'])
+    nasledne = request.POST.get('nasledne') in ('1', 'true', 'on', 'yes')
+    order_obj.nasledne = nasledne
+    order_obj.save(update_fields=['nasledne'])
 
     context = {
         'pozice_id': pozice_id,
@@ -3677,6 +3690,7 @@ def dashboard_bedny_k_navezeni_nasledne_view(request):
 
 
 @login_required
+@permission_required('orders.view_bedna', raise_exception=True)
 def dashboard_bedny_k_navezeni_pdf_view(request):
     """PDF verze přehledu beden k navezení (WeasyPrint)."""
     groups = _get_bedny_k_navezeni_groups()
