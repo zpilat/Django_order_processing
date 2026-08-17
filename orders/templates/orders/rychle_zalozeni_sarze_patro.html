@@ -445,6 +445,9 @@
             const endHandle = document.createElement('button');
             endHandle.type = 'button';
             endHandle.className = 'rack-boundary';
+            if (total === 100) {
+                endHandle.classList.add('rack-boundary-at-end');
+            }
             endHandle.style.left = `${total}%`;
             endHandle.title = 'Nastavit celkové využití patra';
             endHandle.setAttribute('aria-label', 'Celkové využití patra');
