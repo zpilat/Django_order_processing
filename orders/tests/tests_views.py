@@ -1817,6 +1817,8 @@ class BednaScanViewTests(ViewsTestBase):
 
 	def test_scan_zakaleno_post_marks_bedna_zakaleno(self):
 		self._set_bedna_zakaleno_ready()
+		stara_pozice = Pozice.objects.create(kod="A")
+		Bedna.objects.filter(pk=self.b_eur_pr.pk).update(pozice=stara_pozice)
 
 		response = self.client.post(
 			reverse("bedna_scan_zakaleno", args=[self.b_eur_pr.cislo_bedny]),
@@ -1830,6 +1832,7 @@ class BednaScanViewTests(ViewsTestBase):
 		)
 		self.b_eur_pr.refresh_from_db()
 		self.assertEqual(self.b_eur_pr.stav_bedny, StavBednyChoice.ZAKALENO)
+		self.assertIsNone(self.b_eur_pr.pozice)
 
 	def test_scan_zkontrolovano_get_renders_form(self):
 		self._set_bedna_zkontrolovano_ready()
@@ -1929,6 +1932,8 @@ class BednaScanViewTests(ViewsTestBase):
 
 	def test_scan_zkontrolovano_post_marks_bedna_zkontrolovano(self):
 		self._set_bedna_zkontrolovano_ready()
+		stara_pozice = Pozice.objects.create(kod="A")
+		Bedna.objects.filter(pk=self.b_eur_pr.pk).update(pozice=stara_pozice)
 
 		response = self.client.post(
 			reverse("bedna_scan_zkontrolovano", args=[self.b_eur_pr.cislo_bedny]),
@@ -1944,6 +1949,7 @@ class BednaScanViewTests(ViewsTestBase):
 		self.assertEqual(self.b_eur_pr.stav_bedny, StavBednyChoice.ZKONTROLOVANO)
 		self.assertEqual(self.b_eur_pr.rovnat, RovnaniChoice.ROVNA)
 		self.assertEqual(self.b_eur_pr.tryskat, TryskaniChoice.CISTA)
+		self.assertIsNone(self.b_eur_pr.pozice)
 
 	def test_scan_zkontrolovano_post_redirects_mobile_to_skener(self):
 		self._set_bedna_zkontrolovano_ready()

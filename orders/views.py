@@ -590,7 +590,7 @@ def bedna_scan_zakaleno_view(request, cislo_bedny: int):
                 return redirect('bedna_scan', cislo_bedny=bedna.cislo_bedny)
 
             bedna.stav_bedny = StavBednyChoice.ZAKALENO
-            bedna.save(update_fields=['stav_bedny'])
+            bedna.save(update_fields=['stav_bedny', 'pozice'])
 
         messages.success(request, f'Bedna {cislo_bedny} byla označena jako zakalená.')
         logger.info(
@@ -697,7 +697,7 @@ def bedna_scan_zkontrolovano_view(request, cislo_bedny: int):
                             'db_table': 'bedna_scan_zkontrolovano',
                         }
                     )
-                bedna.save(update_fields=['stav_bedny', 'rovnat', 'tryskat'])
+                bedna.save(update_fields=['stav_bedny', 'rovnat', 'tryskat', 'pozice'])
             else:
                 return render(
                     request,
