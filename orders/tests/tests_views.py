@@ -3,6 +3,7 @@ from django.urls import reverse
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
 from django.contrib.messages import get_messages
+from django.http import HttpResponse
 from django.utils import timezone
 from django.template.loader import render_to_string
 from datetime import date, datetime, time, timedelta
@@ -2164,6 +2165,39 @@ class DashboardKamionyViewTests(ViewsTestBase):
 		resp = self.client.get(reverse("dashboard_kamiony"), HTTP_HX_REQUEST="true")
 		self.assertEqual(resp.status_code, 200)
 		self.assertTemplateUsed(resp, "orders/partials/dashboard_kamiony_content.html")
+
+
+class KamionVydejPdfPermissionTests(ViewsTestBase):
+	def _pdf_urls(self):
+		return [
+			reverse("protokol_kamion_vydej_pdf", args=[self.k_vydej_eur.pk]),
+			reverse("dodaci_list_kamion_vydej_pdf", args=[self.k_vydej_eur.pk]),
+			reverse("proforma_kamion_vydej_pdf", args=[self.k_vydej_eur.pk]),
+		]
+
+	def test_pdf_endpoints_require_view_kamion_permission(self):
+		for url in self._pdf_urls():
+			with self.subTest(url=url):
+				self.assertEqual(self.client.get(url).status_code, 403)
+
+	def test_pdf_endpoints_allow_view_kamion_permission(self):
+		self.user.user_permissions.add(Permission.objects.get(
+			content_type__app_label="orders",
+			codename="view_kamion",
+		))
+
+		with (
+			patch("orders.views.render_to_string", return_value="<html></html>"),
+			patch("orders.views.HTML.write_pdf", return_value=b"%PDF"),
+			patch("orders.views.finders.find", return_value=None),
+			patch(
+				"orders.views.utilita_tisk_dl_a_proforma_faktury",
+				return_value=HttpResponse(b"%PDF", content_type="application/pdf"),
+			),
+		):
+			for url in self._pdf_urls():
+				with self.subTest(url=url):
+					self.assertEqual(self.client.get(url).status_code, 200)
 
 
 class BednyKNavezeniViewTests(ViewsTestBase):

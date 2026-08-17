@@ -3711,6 +3711,7 @@ def dashboard_bedny_k_navezeni_pdf_view(request):
 
 
 @login_required
+@permission_required('orders.view_kamion', raise_exception=True)
 def protokol_kamion_vydej_pdf_view(request, pk: int):
     """GET endpoint pro PDF protokol kamionu (výdej)."""
     kamion = get_object_or_404(Kamion, pk=pk, prijem_vydej=KamionChoice.VYDEJ)
@@ -3757,6 +3758,7 @@ def protokol_kamion_vydej_pdf_view(request, pk: int):
 
 
 @login_required
+@permission_required('orders.view_kamion', raise_exception=True)
 def dodaci_list_kamion_vydej_pdf_view(request, pk: int):
     """GET endpoint pro dodací list kamionu výdej."""
     kamion = get_object_or_404(Kamion, pk=pk, prijem_vydej=KamionChoice.VYDEJ)
@@ -3774,6 +3776,7 @@ def dodaci_list_kamion_vydej_pdf_view(request, pk: int):
 
 
 @login_required
+@permission_required('orders.view_kamion', raise_exception=True)
 def proforma_kamion_vydej_pdf_view(request, pk: int):
     """GET endpoint pro proforma fakturu kamionu výdej."""
     kamion = get_object_or_404(Kamion, pk=pk, prijem_vydej=KamionChoice.VYDEJ)
