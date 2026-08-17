@@ -375,7 +375,7 @@
 
 /* At 100 % the centered handle would be clipped to half its touch area. */
 .rack-boundary.rack-boundary-at-end {
-    width: 44px;
+    width: 25px;
     transform: translateX(-100%);
 }
 
