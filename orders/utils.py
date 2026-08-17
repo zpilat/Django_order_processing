@@ -1,4 +1,5 @@
 from django.contrib import messages
+from django.conf import settings
 from django.http import HttpResponse
 from django.template.loader import render_to_string
 from django.forms.models import model_to_dict
@@ -431,6 +432,14 @@ def utilita_validate_excel_upload(uploaded_file):
 
     if uploaded_file.size == 0:
         errors.append("Soubor je prázdný.")
+        return errors
+
+    max_size = settings.EXCEL_UPLOAD_MAX_SIZE
+    if uploaded_file.size > max_size:
+        max_size_mb = max_size / (1024 * 1024)
+        errors.append(
+            f"Soubor je příliš velký. Maximální povolená velikost je {max_size_mb:g} MB."
+        )
         return errors
 
     # Volitelný lehký sanity read: při chybě uživatele pouze varujeme do logu,

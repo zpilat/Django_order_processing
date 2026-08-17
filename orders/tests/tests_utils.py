@@ -1,5 +1,5 @@
 from decimal import Decimal
-from django.test import TestCase, RequestFactory
+from django.test import TestCase, RequestFactory, override_settings
 from django.contrib.auth import get_user_model
 from django.contrib.messages.storage.fallback import FallbackStorage
 from django.contrib.messages import get_messages
@@ -41,6 +41,39 @@ class CsvSanitizationTests(TestCase):
         self.assertEqual(sanitize_csv_cell('Běžný text'), 'Běžný text')
         self.assertEqual(sanitize_csv_cell(Decimal('-1')), Decimal('-1'))
         self.assertIsNone(sanitize_csv_cell(None))
+
+
+class ExcelUploadValidationTests(TestCase):
+    @override_settings(EXCEL_UPLOAD_MAX_SIZE=1024 * 1024)
+    @patch('orders.utils.pd.read_excel')
+    def test_rejects_xlsx_larger_than_configured_limit_before_reading(self, read_excel_mock):
+        uploaded_file = SimpleUploadedFile(
+            'objednavky.xlsx',
+            b'x' * (1024 * 1024 + 1),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
+
+        errors = utilita_validate_excel_upload(uploaded_file)
+
+        self.assertEqual(
+            errors,
+            ['Soubor je příliš velký. Maximální povolená velikost je 1 MB.'],
+        )
+        read_excel_mock.assert_not_called()
+
+    @override_settings(EXCEL_UPLOAD_MAX_SIZE=1024 * 1024)
+    @patch('orders.utils.pd.read_excel')
+    def test_accepts_xlsx_at_configured_limit(self, read_excel_mock):
+        uploaded_file = SimpleUploadedFile(
+            'objednavky.xlsx',
+            b'x' * (1024 * 1024),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
+
+        errors = utilita_validate_excel_upload(uploaded_file)
+
+        self.assertEqual(errors, [])
+        read_excel_mock.assert_called_once()
 
 
 class UtilsBase(ModelsBase):

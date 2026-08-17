@@ -197,6 +197,11 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Default Django value is 1000; adjust here to 2000 per request.
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 2000
 
+# Maximum size of an XLSX file processed by the order import. Keep the
+# reverse-proxy request-body limit aligned with this application-level limit.
+EXCEL_UPLOAD_MAX_SIZE_MB = max(1, int(os.getenv('EXCEL_UPLOAD_MAX_SIZE_MB', '10')))
+EXCEL_UPLOAD_MAX_SIZE = EXCEL_UPLOAD_MAX_SIZE_MB * 1024 * 1024
+
 # Logging
 if DEBUG:
     LOGGING = {
