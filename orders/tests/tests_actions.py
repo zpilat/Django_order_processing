@@ -1453,6 +1453,19 @@ class ExportBednyCsvActionTests(ActionsBase):
         msgs = [m.message for m in list(req._messages)]
         self.assertTrue(any('pouze od jednoho zákazníka' in m for m in msgs))
 
+    def test_customer_csv_export_sanitizes_formula(self):
+        self.zakazka.artikl = '=1+1'
+        self.zakazka.save(update_fields=['artikl'])
+
+        response = actions.export_bedny_to_csv_customer_action(
+            self.bedna_admin,
+            self.get_request('get'),
+            Bedna.objects.filter(pk=self.bedna.pk),
+        )
+        rows = list(csv.reader(io.StringIO(response.content.decode('utf-8-sig')), delimiter=';'))
+
+        self.assertEqual(rows[1][0], "'=1+1")
+
     def test_export_bedny_to_csv_customer_action_generates_minimal_columns(self):
         bedna = self.bedna
         bedna.behalter_nr = 42
@@ -1725,6 +1738,21 @@ class ExportBednyCsvActionTests(ActionsBase):
             'P1', 'A99', 'S1', '', '3,2', '5,5 x 10', str(self.zakazka.typ_hlavy), 'Pop',
             'OBR', 'VR', '99', 'Info', 'L1', 'FA1', 'sandgestrahlt'
         ])
+
+    def test_dl_csv_export_sanitizes_formula(self):
+        self.bedna.stav_bedny = StavBednyChoice.EXPEDOVANO
+        self.bedna.save(update_fields=['stav_bedny'])
+        self.zakazka.popis = '+SUM(A1:A2)'
+        self.zakazka.save(update_fields=['popis'])
+
+        response = actions.export_bedny_dl_action(
+            self.bedna_admin,
+            self.get_request('get'),
+            Bedna.objects.filter(pk=self.bedna.pk),
+        )
+        rows = list(csv.reader(io.StringIO(response.content.decode('utf-8-sig')), delimiter=';'))
+
+        self.assertEqual(rows[1][7], "'+SUM(A1:A2)")
 
     def test_export_bedny_dl_action_orders_like_dl(self):
         self.bedna.stav_bedny = StavBednyChoice.EXPEDOVANO

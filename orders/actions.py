@@ -31,6 +31,7 @@ from .utils import (
     utilita_kontrola_zakazek,
     utilita_tisk_dl_a_proforma_faktury,
     utilita_export_beden_zinkovani_csv,
+    sanitize_csv_row,
     validate_bedny_pripraveny_k_expedici,
 )
 from .services.pdf_cards_service import resolve_customer_templates
@@ -691,7 +692,7 @@ def export_bedny_to_csv_customer_action(modeladmin, request, queryset):
             row.extend([stav_rovnani, priorita, datum_vyrovnani])
         row.extend([cislo_bedny, hmotnost])
 
-        writer.writerow(row)
+        writer.writerow(sanitize_csv_row(row))
 
     logger.info(
         f"Uživatel {getattr(request, 'user', None)} vyexportoval {queryset.count()} beden pro schválení zákazníkem do CSV.",
@@ -771,7 +772,7 @@ def export_bedny_dl_action(modeladmin, request, queryset):
         ]
         if request.GET.get('stav_bedny', '') == StavBednyChoice.K_EXPEDICI:
             row.append(getattr(bedna, 'cislo_bedny', '') or '')
-        writer.writerow(row)
+        writer.writerow(sanitize_csv_row(row))
 
     logger.info(
         f"Uživatel {getattr(request, 'user', None)} exportoval {queryset.count()} beden {zakaznik_zkratka} do CSV pro DL.",

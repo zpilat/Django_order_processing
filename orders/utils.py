@@ -233,6 +233,17 @@ def format_decimal_csv(value):
     return text.replace('.', ',')
 
 
+def sanitize_csv_cell(value):
+    """Prevent spreadsheet applications from interpreting text as a formula."""
+    if isinstance(value, str) and value.lstrip().startswith(('=', '+', '-', '@')):
+        return f"'{value}"
+    return value
+
+
+def sanitize_csv_row(row):
+    return [sanitize_csv_cell(value) for value in row]
+
+
 def utilita_export_beden_zinkovani_csv(bedny_qs, filename_prefix="bedny_zinkovani", sort_like_dl=False):
     order_fields = ('zakazka_id', 'id') if sort_like_dl else ('cislo_bedny',)
     rows = list(bedny_qs.select_related('zakazka').order_by(*order_fields))
@@ -259,7 +270,7 @@ def utilita_export_beden_zinkovani_csv(bedny_qs, filename_prefix="bedny_zinkovan
     for bedna in rows:
         zakazka = getattr(bedna, 'zakazka', None)
         rozmer = f"{getattr(zakazka, 'prumer', '')} x {getattr(zakazka, 'delka', '')}" if zakazka else ''
-        writer.writerow([
+        writer.writerow(sanitize_csv_row([
             bedna.cislo_bedny,
             getattr(bedna, 'behalter_nr', '') if zakazka else '',
             getattr(bedna, 'vyrobni_zakazka', '') if zakazka else '',
@@ -270,7 +281,7 @@ def utilita_export_beden_zinkovani_csv(bedny_qs, filename_prefix="bedny_zinkovan
             getattr(bedna, 'mnozstvi', '') or '',
             getattr(zakazka, 'vrstva', '') if zakazka else '',
             getattr(zakazka, 'povrch', '') if zakazka else '',
-        ])
+        ]))
 
     logger.info(f"Vyexportováno {len(rows)} beden pro zinkování do CSV.")
     return response

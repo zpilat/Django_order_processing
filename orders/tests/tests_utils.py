@@ -21,12 +21,26 @@ from orders.utils import (
     utilita_kontrola_zakazek,
     utilita_validate_excel_upload,
     utilita_export_beden_zinkovani_csv,
+    sanitize_csv_cell,
     validate_bedny_pripraveny_k_expedici,
 )
 from orders.models import Bedna, Zakazka, Kamion
 from orders.choices import StavBednyChoice, KamionChoice, ZinkovaniChoice
 from .tests_models import ModelsBase
 from django.conf import settings
+
+
+class CsvSanitizationTests(TestCase):
+    def test_sanitize_csv_cell_blocks_formula_prefixes(self):
+        self.assertEqual(sanitize_csv_cell('=1+1'), "'=1+1")
+        self.assertEqual(sanitize_csv_cell('  +SUM(A1:A2)'), "'  +SUM(A1:A2)")
+        self.assertEqual(sanitize_csv_cell('-1+2'), "'-1+2")
+        self.assertEqual(sanitize_csv_cell('@SUM(A1:A2)'), "'@SUM(A1:A2)")
+
+    def test_sanitize_csv_cell_preserves_safe_and_non_text_values(self):
+        self.assertEqual(sanitize_csv_cell('Běžný text'), 'Běžný text')
+        self.assertEqual(sanitize_csv_cell(Decimal('-1')), Decimal('-1'))
+        self.assertIsNone(sanitize_csv_cell(None))
 
 
 class UtilsBase(ModelsBase):
@@ -316,6 +330,23 @@ class UtilitaExpediceBedenTests(UtilsBase):
 
 
 class UtilitaZinkovaniTests(UtilsBase):
+
+    def test_utilita_export_beden_zinkovani_csv_sanitizes_formula(self):
+        self.zakazka.popis = '=1+1'
+        self.zakazka.save(update_fields=['popis'])
+        bedna = Bedna.objects.create(
+            zakazka=self.zakazka,
+            hmotnost=Decimal('2.5'),
+            tara=Decimal('1'),
+            mnozstvi=3,
+            cislo_bedny=5,
+        )
+
+        response = utilita_export_beden_zinkovani_csv(Bedna.objects.filter(pk=bedna.pk))
+        rows = list(csv.reader(io.StringIO(response.content.decode('utf-8-sig')), delimiter=';'))
+
+        self.assertEqual(rows[1][3], "'=1+1")
+
     def test_utilita_export_beden_zinkovani_csv_format(self):
         self.zakazka.popis = 'Popis Z'
         self.zakazka.vrstva = 'V1'
