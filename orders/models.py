@@ -1869,6 +1869,49 @@ class SarzeKrokBedna(models.Model):
                     }
                 )
 
+    def save(self, *args, **kwargs):
+        update_fields = kwargs.get('update_fields')
+        bedna_will_be_saved = self._state.adding or update_fields is None or 'bedna' in update_fields
+        previous_bedna_id = None
+        if bedna_will_be_saved and self.pk:
+            previous_bedna_id = (
+                type(self).objects
+                .filter(pk=self.pk)
+                .values_list('bedna_id', flat=True)
+                .first()
+            )
+
+        bedna_added = (
+            bedna_will_be_saved
+            and self.bedna_id is not None
+            and self.bedna_id != previous_bedna_id
+        )
+        super().save(*args, **kwargs)
+
+        if not bedna_added or not self.krok_id:
+            return
+
+        typ_zarizeni = (
+            SarzeKrok.objects
+            .filter(pk=self.krok_id)
+            .values_list('zarizeni__typ_zarizeni', flat=True)
+            .first()
+        )
+        if typ_zarizeni != TypZarizeniChoice.NAKLADANI:
+            return
+
+        allowed_states = [
+            state.value if hasattr(state, 'value') else state
+            for state in STAV_BEDNY_PRO_NAVEZENI
+        ]
+        Bedna.objects.filter(
+            pk=self.bedna_id,
+            stav_bedny__in=allowed_states,
+        ).update(
+            stav_bedny=StavBednyChoice.DO_ZPRACOVANI,
+            pozice=None,
+        )
+
     @property
     def prvni_pouziti(self):
         """

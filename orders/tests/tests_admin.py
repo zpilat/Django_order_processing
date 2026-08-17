@@ -21,7 +21,7 @@ from orders.actions import vytvorit_dalsi_krok_sarze_action, vytvorit_novy_krok_
 from orders.forms import ImportZakazekForm
 from orders.import_strategies import EURImportStrategy
 from orders.models import Zakaznik, Kamion, Zakazka, Bedna, Predpis, TypHlavy, Odberatel, Cena, Notification, PriorityNotificationRecipient, Zarizeni, Sarze, SarzeKrok, SarzeKrokBedna
-from orders.choices import StavBednyChoice, StavSarzeChoice, SklademZakazkyChoice, PrijemVydejChoice, KamionChoice, ZinkovaniChoice, PrioritaChoice
+from orders.choices import StavBednyChoice, StavSarzeChoice, SklademZakazkyChoice, PrijemVydejChoice, KamionChoice, ZinkovaniChoice, PrioritaChoice, TypZarizeniChoice
 from orders.filters import DelkaFilter, TypSarzeFilter
 
 
@@ -2463,6 +2463,23 @@ class SarzeKrokBednaAdminActionTests(AdminBase):
             mnozstvi=1,
             stav_bedny=StavBednyChoice.PRIJATO,
         )
+
+    def test_admin_add_moves_bedna_to_processing_for_nakladani(self):
+        self.zarizeni_1.typ_zarizeni = TypZarizeniChoice.NAKLADANI
+        self.zarizeni_1.save(update_fields=['typ_zarizeni'])
+        row = SarzeKrokBedna(
+            krok=self.krok_1,
+            bedna=self.bedna,
+            patro=1,
+            procent_z_patra=100,
+        )
+        request = self.factory.post('/admin/orders/sarzekrokbedna/add/')
+        request.user = self.user
+
+        self.admin.save_model(request, row, form=None, change=False)
+
+        self.bedna.refresh_from_db()
+        self.assertEqual(self.bedna.stav_bedny, StavBednyChoice.DO_ZPRACOVANI)
 
     def test_polling_detects_denik_update(self):
         row = SarzeKrokBedna.objects.create(

@@ -49,7 +49,7 @@ from .services.sarze_print_service import (
 )
 from .choices import (
     StavBednyChoice, StavSarzeChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice, TypZarizeniChoice,
-    ZinkovaniChoice, STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM, STAV_BEDNY_PRO_NAVEZENI,
+    ZinkovaniChoice, STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM,
     STAV_BEDNY_PODMINKA_PRO_ZMENU_NA_ZAKALENO
 )
 from weasyprint import HTML, CSS
@@ -1490,7 +1490,6 @@ def rychle_zalozeni_sarze_patro_view(request, krok_id, patro):
                 locked_krok = SarzeKrok.objects.select_for_update().get(pk=krok.pk)
                 locked_krok.krok_bedny.filter(patro=patro).delete()
 
-                saved_bedna_ids = set()
                 for item_form in formset.active_forms():
                     data = item_form.cleaned_data
                     bedna = data.get('bedna')
@@ -1502,21 +1501,6 @@ def rychle_zalozeni_sarze_patro_view(request, krok_id, patro):
                     )
                     item.full_clean()
                     item.save()
-                    if bedna:
-                        saved_bedna_ids.add(bedna.pk)
-
-                if locked_krok.zarizeni.typ_zarizeni == TypZarizeniChoice.NAKLADANI and saved_bedna_ids:
-                    allowed_states = [
-                        state.value if hasattr(state, 'value') else state
-                        for state in STAV_BEDNY_PRO_NAVEZENI
-                    ]
-                    Bedna.objects.filter(
-                        pk__in=saved_bedna_ids,
-                        stav_bedny__in=allowed_states,
-                    ).update(
-                        stav_bedny=StavBednyChoice.DO_ZPRACOVANI,
-                        pozice=None,
-                    )
 
             if request.POST.get('action') == 'next':
                 messages.success(request, f'{patro}. patro bylo uloženo.')

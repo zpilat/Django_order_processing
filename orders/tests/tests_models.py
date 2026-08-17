@@ -808,6 +808,67 @@ class TestSarzeModels(ModelsBase):
         )
         sb.full_clean()
 
+    def test_adding_bedna_to_nakladani_moves_it_to_processing(self):
+        nakladani = Zarizeni.objects.create(
+            kod_zarizeni="NAKLADANI",
+            nazev_zarizeni="Nakládání",
+            typ_zarizeni=TypZarizeniChoice.NAKLADANI,
+        )
+        krok = SarzeKrok.objects.create(
+            sarze=self.sarze_base,
+            poradi=2,
+            datum=date(2026, 2, 16),
+            zarizeni=nakladani,
+            zacatek=time(10, 0),
+            operator="Operátor",
+        )
+        pozice = Pozice.objects.create(kod="TEST-NAKLADANI")
+        self.bedna1.stav_bedny = StavBednyChoice.PRIJATO
+        self.bedna1.pozice = pozice
+        self.bedna1.save(update_fields=['stav_bedny', 'pozice'])
+
+        SarzeKrokBedna.objects.create(
+            krok=krok,
+            bedna=self.bedna1,
+            patro=1,
+            procent_z_patra=100,
+        )
+
+        self.bedna1.refresh_from_db()
+        self.assertEqual(self.bedna1.stav_bedny, StavBednyChoice.DO_ZPRACOVANI)
+        self.assertIsNone(self.bedna1.pozice)
+
+    def test_editing_existing_row_does_not_reset_bedna_state(self):
+        nakladani = Zarizeni.objects.create(
+            kod_zarizeni="NAKLADANI-EDIT",
+            nazev_zarizeni="Nakládání editace",
+            typ_zarizeni=TypZarizeniChoice.NAKLADANI,
+        )
+        krok = SarzeKrok.objects.create(
+            sarze=self.sarze_base,
+            poradi=2,
+            datum=date(2026, 2, 16),
+            zarizeni=nakladani,
+            zacatek=time(10, 0),
+            operator="Operátor",
+        )
+        self.bedna1.stav_bedny = StavBednyChoice.PRIJATO
+        self.bedna1.save(update_fields=['stav_bedny'])
+        row = SarzeKrokBedna.objects.create(
+            krok=krok,
+            bedna=self.bedna1,
+            patro=1,
+            procent_z_patra=100,
+        )
+        self.bedna1.stav_bedny = StavBednyChoice.ZAKALENO
+        self.bedna1.save(update_fields=['stav_bedny'])
+
+        row.procent_z_patra = 90
+        row.save(update_fields=['procent_z_patra'])
+
+        self.bedna1.refresh_from_db()
+        self.assertEqual(self.bedna1.stav_bedny, StavBednyChoice.ZAKALENO)
+
     def test_sarzebedna_clean_rejects_bedna_not_in_skladem_states(self):
         self.bedna1.stav_bedny = StavBednyChoice.NEPRIJATO
         self.bedna1.save(update_fields=['stav_bedny'])
