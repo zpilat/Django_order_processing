@@ -1,0 +1,54 @@
+.dashboard-status-table {
+  --dashboard-blue: #214290;
+  font-variant-numeric: tabular-nums;
+}
+
+.dashboard-status-table > tbody > .status-row > td {
+  border-bottom-color: #e3e7ee;
+  padding-block: 0.38rem;
+}
+
+.dashboard-status-table > tbody > .status-row.status-row--group > td {
+  --bs-table-bg-state: #edf2fb;
+  --bs-table-bg-type: #edf2fb;
+  background-color: #edf2fb;
+  border-top: 2px solid var(--dashboard-blue);
+  font-weight: 700;
+  padding-block: 0.48rem;
+}
+
+.dashboard-status-table .status-label {
+  position: relative;
+  white-space: nowrap;
+}
+
+.dashboard-status-table .status-row--level-1 .status-label {
+  padding-left: 1.35rem;
+}
+
+.dashboard-status-table .status-row--level-2 .status-label {
+  padding-left: 2.35rem;
+  font-size: 0.93em;
+}
+
+.dashboard-status-table .status-branch {
+  color: #7b8494;
+  display: inline-block;
+  font-weight: 700;
+  margin-right: 0.3rem;
+}
+
+.dashboard-status-table .status-branch--nested {
+  color: var(--dashboard-blue);
+}
+
+.dashboard-status-table .status-row--level-0:not(.status-row--group) > td {
+  border-top: 2px solid #d5dae3;
+  font-weight: 600;
+  padding-top: 0.55rem;
+}
+
+.dashboard-status-table th:nth-child(n + 2),
+.dashboard-status-table td:nth-child(n + 2) {
+  text-align: right;
+}

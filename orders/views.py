@@ -2882,34 +2882,102 @@ def dashboard_bedny_view(request):
     )
 
     stavy = {
-        'Nepřijaté': ({'stav_bedny': StavBednyChoice.NEPRIJATO}, 'gray'),
-        'Surové': ({'stav_bedny__in': [StavBednyChoice.PRIJATO, StavBednyChoice.K_NAVEZENI, StavBednyChoice.NAVEZENO, StavBednyChoice.DO_ZPRACOVANI]}, "red"),
-        '-> Přijaté': ({'stav_bedny': StavBednyChoice.PRIJATO}, 'red'),
-        '-> K navezení': ({'stav_bedny': StavBednyChoice.K_NAVEZENI}, 'red'),
-        '-> Navezené': ({'stav_bedny': StavBednyChoice.NAVEZENO}, 'red'),
-        '-> Ve zpracování': ({'stav_bedny': StavBednyChoice.DO_ZPRACOVANI}, 'red'),
-        'Zpracované': ({'stav_bedny__in': [StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO, StavBednyChoice.K_EXPEDICI]}, 'orange'),
-        '-> Ke kontrole': ({'stav_bedny': StavBednyChoice.ZAKALENO}, 'orange'),
-        '-> K tryskání': ({'tryskat': TryskaniChoice.SPINAVA, 'stav_bedny__in': [StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO]}, 'yellowgreen'),
-        '-> Křivé': ({'rovnat': RovnaniChoice.KRIVA, 'stav_bedny__in': [StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO]}, 'blue'),
-        '-> Koulení': ({'rovnat': RovnaniChoice.KOULENI, 'stav_bedny__in': [StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO]}, 'blue'),
-        '-> Rovná se': ({'rovnat': RovnaniChoice.ROVNA_SE, 'stav_bedny__in': [StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO]}, 'blue'),
-        #'-> Zinkovat': ({'zinkovat': ZinkovaniChoice.ZINKOVAT, 'stav_bedny__in': [StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO]}, 'violet'),
-        #'-> V zinkovně': ({'zinkovat': ZinkovaniChoice.V_ZINKOVNE}, 'violet'),
-        '-> K exp. po bednách': ({'stav_bedny': StavBednyChoice.K_EXPEDICI}, 'green'),
-        '--> K exp. po zakáz.': ({'stav_bedny': StavBednyChoice.K_EXPEDICI, 'zakazka__in': kompletni_zakazky}, 'green'),
-        'Po exspiraci': ({'stav_bedny__in': STAV_BEDNY_SKLADEM, 'zakazka__kamion_prijem__datum__lt': timezone.now().date() - timezone.timedelta(days=28)}, '#ff66b3'),
+        'Nepřijaté': {
+            'filters': {'stav_bedny': StavBednyChoice.NEPRIJATO},
+            'color': 'gray', 'level': 0, 'is_group': True,
+        },
+        'Surové': {
+            'filters': {'stav_bedny__in': [StavBednyChoice.PRIJATO, StavBednyChoice.K_NAVEZENI, StavBednyChoice.NAVEZENO, StavBednyChoice.DO_ZPRACOVANI]},
+            'color': 'red', 'level': 0, 'is_group': True,
+        },
+        'Přijaté': {
+            'filters': {'stav_bedny': StavBednyChoice.PRIJATO},
+            'color': 'red', 'level': 1,
+        },
+        'K navezení': {
+            'filters': {'stav_bedny': StavBednyChoice.K_NAVEZENI},
+            'color': 'red', 'level': 1,
+        },
+        'Navezené': {
+            'filters': {'stav_bedny': StavBednyChoice.NAVEZENO},
+            'color': 'red', 'level': 1,
+        },
+        'Ve zpracování': {
+            'filters': {'stav_bedny': StavBednyChoice.DO_ZPRACOVANI},
+            'color': 'red', 'level': 1,
+        },
+        'Zpracované': {
+            'filters': {'stav_bedny__in': [StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO, StavBednyChoice.K_EXPEDICI]},
+            'color': 'orange', 'level': 0, 'is_group': True,
+        },
+        'Zakalené ke kontrole': {
+            'filters': {'stav_bedny': StavBednyChoice.ZAKALENO},
+            'color': 'orange', 'level': 1,
+        },
+        'K tryskání': {
+            'filters': {'tryskat': TryskaniChoice.SPINAVA, 'stav_bedny__in': [StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO]},
+            'color': 'yellowgreen', 'level': 1,
+        },
+        'K rovnání': {
+            'filters': {'rovnat__in': [RovnaniChoice.KRIVA, RovnaniChoice.KOULENI, RovnaniChoice.ROVNA_SE], 'stav_bedny__in': [StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO]},
+            'color': 'blue', 'level': 1,
+        },
+
+        'Křivé': {
+            'filters': {'rovnat': RovnaniChoice.KRIVA, 'stav_bedny__in': [StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO]},
+            'color': 'blue', 'level': 2,
+        },
+        'Koulení': {
+            'filters': {'rovnat': RovnaniChoice.KOULENI, 'stav_bedny__in': [StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO]},
+            'color': 'blue', 'level': 2,
+        },
+        'Rovná se': {
+            'filters': {'rovnat': RovnaniChoice.ROVNA_SE, 'stav_bedny__in': [StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO]},
+            'color': 'blue', 'level': 2,
+        },
+        'K expedici': {
+            'filters': {'stav_bedny': StavBednyChoice.K_EXPEDICI},
+            'color': 'green', 'level': 1,
+        },
+        'K expedici po zakázkách': {
+            'filters': {'stav_bedny': StavBednyChoice.K_EXPEDICI, 'zakazka__in': kompletni_zakazky},
+            'color': 'green', 'level': 2,
+        },
+        'Po exspiraci': {
+            'filters': {'stav_bedny__in': STAV_BEDNY_SKLADEM, 'zakazka__kamion_prijem__datum__lt': timezone.now().date() - timezone.timedelta(days=28)},
+            'color': '#ff66b3', 'level': 0,
+        },
     }
 
-    zakaznici = list(Zakaznik.objects.values_list('zkraceny_nazev', flat=True).order_by('zkraceny_nazev')) + ['CELKEM']
+    zakaznici_s_neexpedovanou_bednou = (
+        Bedna.objects.exclude(stav_bedny=StavBednyChoice.EXPEDOVANO)
+        .filter(zakazka__kamion_prijem__zakaznik__isnull=False)
+        .values_list(
+            'zakazka__kamion_prijem__zakaznik__zkraceny_nazev',
+            flat=True,
+        )
+        .distinct()
+        .order_by('zakazka__kamion_prijem__zakaznik__zkraceny_nazev')
+    )
+    zakaznici = list(zakaznici_s_neexpedovanou_bednou) + ['CELKEM']
     prehled_beden_zakaznika = {zak: {stav: (0, 0, '') for stav in stavy} for zak in zakaznici}
 
-    for stav, (filter_kwargs, color) in stavy.items():
-        stav_data = get_stav_data(filter_kwargs)
+    for stav, definition in stavy.items():
+        stav_data = get_stav_data(definition['filters'])
         for zak in zakaznici:
-            prehled_beden_zakaznika[zak][stav] = (stav_data.get(zak, (0, 0)) + (color,))
+            prehled_beden_zakaznika[zak][stav] = (
+                stav_data.get(zak, (0, 0)) + (definition['color'],)
+            )
 
-    stavy_bedny_list = list(stavy.keys())
+    stavy_bedny_list = [
+        {
+            'key': stav,
+            'label': stav,
+            'level': definition['level'],
+            'is_group': definition.get('is_group', False),
+        }
+        for stav, definition in stavy.items()
+    ]
 
     context = {
         'prehled_beden_zakaznika': prehled_beden_zakaznika,

@@ -10,13 +10,13 @@
 
 <div class="row">
   {% for zakaznik, bedny_stavy in prehled_beden_zakaznika.items %}
-    <div class="col-xxl-2 col-xl-3 col-lg-4 col-md-6 col-sm-12 mb-4" style="font-family: 'Liberation Sans', Arial;">
+    <div class="col-xl-3 col-lg-4 col-md-6 col-sm-12 mb-4" style="font-family: 'Liberation Sans', Arial;">
       <div class="card h-100 shadow-sm">
         <div class="card-header fw-bold" style="background-color: #ffde17; color: #214290;">
           {{ zakaznik }}
         </div>
         <div class="card-body p-2">
-          <table class="table table-sm align-middle mb-0">
+          <table class="table table-sm align-middle mb-0 dashboard-status-table">
             <thead>
               <tr>
                 <th style="background-color: #214290; color: #ffde17;">Stav bedny</th>
@@ -26,14 +26,17 @@
             </thead>
             <tbody class="table-striped">
               {% for stav in stavy_bedny_list %}
-                {% with bedna_row=bedny_stavy|dict_get:stav %}
-                {% if forloop.counter|divisibleby:2 %}
-                  <tr class="table-light">
-                {% else %}
-                  <tr>
-                {% endif %}
+                {% with bedna_row=bedny_stavy|dict_get:stav.key %}
+                  <tr class="status-row status-row--level-{{ stav.level }}{% if stav.is_group %} status-row--group{% endif %}">
                     {% if bedna_row %}
-                      <td{% if bedna_row.2 %} style="color: {{ bedna_row.2 }};"{% endif %}>{{ stav }}</td>
+                      <td class="status-label"{% if bedna_row.2 %} style="color: {{ bedna_row.2 }};"{% endif %}>
+                        {% if stav.level == 1 %}
+                          <span class="status-branch" aria-hidden="true">↳</span>
+                        {% elif stav.level == 2 %}
+                          <span class="status-branch status-branch--nested" aria-hidden="true">↳</span>
+                        {% endif %}
+                        {{ stav.label }}
+                      </td>
                       <td{% if bedna_row.2 %} style="color: {{ bedna_row.2 }};"{% endif %}>{{ bedna_row.0 }}</td>
                       <td{% if bedna_row.2 %} style="color: {{ bedna_row.2 }};"{% endif %}>
                         {% if bedna_row.1 %}
@@ -43,7 +46,7 @@
                         {% endif %}
                       </td>
                     {% else %}
-                      <td>{{ stav }}</td>
+                      <td class="status-label">{{ stav.label }}</td>
                       <td class="text-muted">–</td>
                       <td class="text-muted">–</td>
                     {% endif %}

@@ -2041,6 +2041,19 @@ class DashboardBednyViewTests(ViewsTestBase):
 		# Přítomnost CELKEM v přehledu
 		prehled = resp.context["prehled_beden_zakaznika"]
 		self.assertIn("CELKEM", prehled)
+		self.assertContains(resp, 'status-row--group')
+		self.assertContains(resp, 'status-row--level-1')
+		self.assertContains(resp, 'status-row--level-2')
+		self.assertContains(resp, 'Po zakázkách')
+
+	def test_shows_only_customers_with_non_dispatched_crates(self):
+		resp = self.client.get(reverse("dashboard_bedny"))
+
+		self.assertEqual(resp.status_code, 200)
+		prehled = resp.context["prehled_beden_zakaznika"]
+		self.assertIn(self.z_eur.zkraceny_nazev, prehled)
+		self.assertNotIn(self.z_abc.zkraceny_nazev, prehled)
+		self.assertIn("CELKEM", prehled)
 
 	def test_htmx_partial_template(self):
 		resp = self.client.get(reverse("dashboard_bedny"), HTTP_HX_REQUEST="true")
