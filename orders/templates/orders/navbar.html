@@ -170,15 +170,6 @@
                                 {% if db_table == 'pracoviste_prehled' %}aria-current="page"{% endif %}
                                 href="{% url 'pracoviste_prehled' %}">Přehled ostatních pracovišť</a>
                             </li>
-                            <li><hr class="dropdown-divider"></li>                              
-                            {% for pracoviste in pracoviste_nakladani_links %}
-                                <li>
-                                    <a class="dropdown-item small app-navbar-workplace {% if pracoviste.is_open %}app-navbar-workplace-open{% else %}app-navbar-workplace-closed{% endif %}"
-                                       href="{% url 'rychle_zalozeni_sarze_pracoviste_prehled' pracoviste.cislo_pracoviste %}">
-                                        Pracoviště {{ pracoviste.cislo_pracoviste }} {% if pracoviste.is_open %}({{ pracoviste.krok.sarze }}){% endif %}
-                                    </a>
-                                </li>
-                            {% endfor %}
                             {% if posledni_uzavrena_sarze_s_krokem_nakladani %}
                                 <li><hr class="dropdown-divider"></li>
                                 <li>
@@ -188,7 +179,16 @@
                                         Poslední naložená šarže {{ posledni_uzavrena_sarze_s_krokem_nakladani }}
                                     </a>
                                 </li>
-                            {% endif %}
+                            {% endif %}                            
+                            <li><hr class="dropdown-divider"></li>                              
+                            {% for pracoviste in pracoviste_nakladani_links %}
+                                <li>
+                                    <a class="dropdown-item small app-navbar-workplace {% if pracoviste.is_open %}app-navbar-workplace-open{% else %}app-navbar-workplace-closed{% endif %}"
+                                       href="{% url 'rychle_zalozeni_sarze_pracoviste_prehled' pracoviste.cislo_pracoviste %}">
+                                        Pracoviště {{ pracoviste.cislo_pracoviste }} {% if pracoviste.is_open %}({{ pracoviste.krok.sarze }}){% endif %}
+                                    </a>
+                                </li>
+                            {% endfor %}
                         {% endif %}
                     </ul>
                 </div>
