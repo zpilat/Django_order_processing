@@ -844,6 +844,15 @@ class TestSarzeModels(ModelsBase):
             StavBednyChoice.DO_ZPRACOVANI,
         )
 
+        history_count = self.bedna1.history.count()
+        SarzeKrokBedna.objects.create(
+            krok=krok,
+            bedna=self.bedna1,
+            patro=2,
+            procent_z_patra=100,
+        )
+        self.assertEqual(self.bedna1.history.count(), history_count)
+
     def test_editing_existing_row_does_not_reset_bedna_state(self):
         nakladani = Zarizeni.objects.create(
             kod_zarizeni="NAKLADANI-EDIT",

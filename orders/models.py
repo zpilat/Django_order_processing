@@ -1904,14 +1904,18 @@ class SarzeKrokBedna(models.Model):
             state.value if hasattr(state, 'value') else state
             for state in STAV_BEDNY_PRO_NAVEZENI
         ]
-        bedna = Bedna.objects.filter(
-            pk=self.bedna_id,
-            stav_bedny__in=allowed_states,
-        ).first()
-        if bedna:
-            bedna.stav_bedny = StavBednyChoice.DO_ZPRACOVANI
-            bedna.pozice = None
-            bedna.save(update_fields=['stav_bedny', 'pozice'])
+        with transaction.atomic():
+            bedna = Bedna.objects.select_for_update().filter(
+                pk=self.bedna_id,
+                stav_bedny__in=allowed_states,
+            ).first()
+            if bedna and (
+                bedna.stav_bedny != StavBednyChoice.DO_ZPRACOVANI
+                or bedna.pozice_id is not None
+            ):
+                bedna.stav_bedny = StavBednyChoice.DO_ZPRACOVANI
+                bedna.pozice = None
+                bedna.save(update_fields=['stav_bedny', 'pozice'])
 
     @property
     def prvni_pouziti(self):
