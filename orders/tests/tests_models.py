@@ -826,6 +826,7 @@ class TestSarzeModels(ModelsBase):
         self.bedna1.stav_bedny = StavBednyChoice.PRIJATO
         self.bedna1.pozice = pozice
         self.bedna1.save(update_fields=['stav_bedny', 'pozice'])
+        history_count = self.bedna1.history.count()
 
         SarzeKrokBedna.objects.create(
             krok=krok,
@@ -837,6 +838,11 @@ class TestSarzeModels(ModelsBase):
         self.bedna1.refresh_from_db()
         self.assertEqual(self.bedna1.stav_bedny, StavBednyChoice.DO_ZPRACOVANI)
         self.assertIsNone(self.bedna1.pozice)
+        self.assertEqual(self.bedna1.history.count(), history_count + 1)
+        self.assertEqual(
+            self.bedna1.history.latest().stav_bedny,
+            StavBednyChoice.DO_ZPRACOVANI,
+        )
 
     def test_editing_existing_row_does_not_reset_bedna_state(self):
         nakladani = Zarizeni.objects.create(

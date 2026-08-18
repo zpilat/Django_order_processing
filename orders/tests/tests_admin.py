@@ -2475,11 +2475,17 @@ class SarzeKrokBednaAdminActionTests(AdminBase):
         )
         request = self.factory.post('/admin/orders/sarzekrokbedna/add/')
         request.user = self.user
+        history_count = self.bedna.history.count()
 
         self.admin.save_model(request, row, form=None, change=False)
 
         self.bedna.refresh_from_db()
         self.assertEqual(self.bedna.stav_bedny, StavBednyChoice.DO_ZPRACOVANI)
+        self.assertEqual(self.bedna.history.count(), history_count + 1)
+        self.assertEqual(
+            self.bedna.history.latest().stav_bedny,
+            StavBednyChoice.DO_ZPRACOVANI,
+        )
 
     def test_polling_detects_denik_update(self):
         row = SarzeKrokBedna.objects.create(
