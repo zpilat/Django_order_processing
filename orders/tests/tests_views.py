@@ -2044,7 +2044,7 @@ class DashboardBednyViewTests(ViewsTestBase):
 		self.assertContains(resp, 'status-row--group')
 		self.assertContains(resp, 'status-row--level-1')
 		self.assertContains(resp, 'status-row--level-2')
-		self.assertContains(resp, 'Po zakázkách')
+		self.assertContains(resp, 'K expedici po zakázkách')
 
 	def test_shows_only_customers_with_non_dispatched_crates(self):
 		resp = self.client.get(reverse("dashboard_bedny"))
