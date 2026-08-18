@@ -2884,6 +2884,7 @@ def dashboard_bedny_view(request):
     stavy = {
         'Nepřijaté': ({'stav_bedny': StavBednyChoice.NEPRIJATO}, 'gray'),
         'Surové': ({'stav_bedny__in': [StavBednyChoice.PRIJATO, StavBednyChoice.K_NAVEZENI, StavBednyChoice.NAVEZENO, StavBednyChoice.DO_ZPRACOVANI]}, "red"),
+        '-> Přijaté': ({'stav_bedny': StavBednyChoice.PRIJATO}, 'red'),
         '-> K navezení': ({'stav_bedny': StavBednyChoice.K_NAVEZENI}, 'red'),
         '-> Navezené': ({'stav_bedny': StavBednyChoice.NAVEZENO}, 'red'),
         '-> Ve zpracování': ({'stav_bedny': StavBednyChoice.DO_ZPRACOVANI}, 'red'),
