@@ -556,26 +556,7 @@ class SarzeAdmin(HistoryPollingAdminMixin, SimpleHistoryAdmin):
 
     @admin.display(description='Typ šarže')
     def get_typ_sarze(self, obj):
-        has_db_items = getattr(obj, '_has_sarze_bedna_db', None)
-        has_mimo_db_items = getattr(obj, '_has_sarze_bedna_mimo_db', None)
-
-        if has_db_items is None:
-            has_db_items = SarzeKrokBedna.objects.filter(krok__sarze=obj, bedna__isnull=False).exists()
-        if has_mimo_db_items is None:
-            has_mimo_db_items = (
-                SarzeKrokBedna.objects
-                .filter(krok__sarze=obj, popis_mimo_db__isnull=False)
-                .exclude(popis_mimo_db='')
-                .exists()
-            )
-
-        if has_db_items and has_mimo_db_items:
-            return 'Smíšená'
-        if has_db_items:
-            return 'Vruty'
-        if has_mimo_db_items:
-            return 'Železo'
-        return 'Prázdná'
+        return obj.typ_sarze
 
     def get_actions(self, request):
         actions = super().get_actions(request)
@@ -628,17 +609,7 @@ class SarzeAdmin(HistoryPollingAdminMixin, SimpleHistoryAdmin):
         return fields
 
     def get_queryset(self, request):
-        queryset = super().get_queryset(request)
-        db_items = SarzeKrokBedna.objects.filter(krok__sarze=OuterRef('pk'), bedna__isnull=False)
-        mimo_db_items = (
-            SarzeKrokBedna.objects
-            .filter(krok__sarze=OuterRef('pk'), popis_mimo_db__isnull=False)
-            .exclude(popis_mimo_db='')
-        )
-        return queryset.annotate(
-            _has_sarze_bedna_db=Exists(db_items),
-            _has_sarze_bedna_mimo_db=Exists(mimo_db_items),
-        )
+        return Sarze.with_typ_sarze(super().get_queryset(request))
 
     def save_model(self, request, obj, form, change):
         if not change and not obj.datum_zalozeni:

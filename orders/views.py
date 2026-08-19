@@ -10,7 +10,7 @@ from django.views.generic.detail import DetailView
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 from django.urls import reverse, reverse_lazy
-from django.db.models import Q, Max, Sum, Count, F, Exists, OuterRef, Subquery, DecimalField, ExpressionWrapper, Value
+from django.db.models import Q, Max, Sum, Count, F, Exists, OuterRef, Subquery, DecimalField, ExpressionWrapper, Value, Prefetch
 from django.db.models.functions import Coalesce
 from django.core.exceptions import PermissionDenied
 from django.utils.translation import gettext_lazy as _
@@ -100,7 +100,8 @@ def _build_pracoviste_prehled_context():
             zarizeni__in=pracoviste,
             konec__isnull=True,
         )
-        .select_related('sarze', 'zarizeni')
+        .select_related('zarizeni')
+        .prefetch_related(Prefetch('sarze', queryset=Sarze.with_typ_sarze()))
         .annotate(
             pocet_polozek=Count('krok_bedny', distinct=True),
             pocet_pater=Count('krok_bedny__patro', distinct=True),

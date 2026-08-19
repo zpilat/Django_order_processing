@@ -7,7 +7,7 @@ from django.urls import reverse
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db.models import Sum
-from django.db.models import Q, Max, F
+from django.db.models import Q, Max, F, Exists, OuterRef
 from django.db.models.functions import ExtractYear
 from django.utils import timezone
 from datetime import datetime, timedelta
@@ -1508,6 +1508,53 @@ class Sarze(models.Model):
 
     def __str__(self):
         return f"S{self.cislo_sarze:05d}"
+
+    @classmethod
+    def with_typ_sarze(cls, queryset=None):
+        """Doplní queryset o příznaky pro výpočet typu šarže bez dalších dotazů."""
+        if queryset is None:
+            queryset = cls.objects.all()
+
+        db_items = SarzeKrokBedna.objects.filter(
+            krok__sarze=OuterRef('pk'),
+            bedna__isnull=False,
+        )
+        mimo_db_items = (
+            SarzeKrokBedna.objects
+            .filter(krok__sarze=OuterRef('pk'), popis_mimo_db__isnull=False)
+            .exclude(popis_mimo_db='')
+        )
+        return queryset.annotate(
+            _has_sarze_bedna_db=Exists(db_items),
+            _has_sarze_bedna_mimo_db=Exists(mimo_db_items),
+        )
+
+    @property
+    def typ_sarze(self):
+        """Vrátí typ šarže podle obsahu jejího deníku."""
+        has_db_items = getattr(self, '_has_sarze_bedna_db', None)
+        has_mimo_db_items = getattr(self, '_has_sarze_bedna_mimo_db', None)
+
+        if has_db_items is None:
+            has_db_items = SarzeKrokBedna.objects.filter(
+                krok__sarze=self,
+                bedna__isnull=False,
+            ).exists()
+        if has_mimo_db_items is None:
+            has_mimo_db_items = (
+                SarzeKrokBedna.objects
+                .filter(krok__sarze=self, popis_mimo_db__isnull=False)
+                .exclude(popis_mimo_db='')
+                .exists()
+            )
+
+        if has_db_items and has_mimo_db_items:
+            return 'Smíšená'
+        if has_db_items:
+            return 'Vruty'
+        if has_mimo_db_items:
+            return 'Železo'
+        return 'Prázdná'
 
     def has_mimo_db_items(self):
         return (

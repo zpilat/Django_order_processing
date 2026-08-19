@@ -349,6 +349,27 @@ class TestSarzeModels(ModelsBase):
         )
         self.assertEqual(str(sarze), "S00003")
 
+    def test_typ_sarze_property_uses_content_and_queryset_annotations(self):
+        sarze = Sarze.objects.create(
+            cislo_sarze=999,
+            datum_zalozeni=date(2026, 2, 16),
+        )
+        krok = SarzeKrok.objects.create(
+            sarze=sarze,
+            poradi=1,
+            datum=date(2026, 2, 16),
+            zarizeni=self.zarizeni_base,
+            zacatek=time(10, 0),
+            operator="Operátor",
+        )
+        SarzeKrokBedna.objects.create(krok=krok, bedna=self.bedna1, patro=1)
+        SarzeKrokBedna.objects.create(krok=krok, popis_mimo_db="Železo", patro=2)
+
+        self.assertEqual(sarze.typ_sarze, "Smíšená")
+
+        annotated_sarze = Sarze.with_typ_sarze().get(pk=sarze.pk)
+        self.assertEqual(annotated_sarze.typ_sarze, "Smíšená")
+
     def test_sarze_stav_permissions_defined(self):
         permission_codenames = {
             codename
