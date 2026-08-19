@@ -40,7 +40,14 @@
                                 <div class="invalid-feedback d-block">{{ error }}</div>
                             {% endfor %}
                         </div>
-                        <div class="col-12 col-md-8">
+                        <div class="col-12 col-md-2">
+                            <label class="form-label" for="{{ form.popousteni.id_for_label }}">{{ form.popousteni.label }}</label>
+                            {{ form.popousteni }}
+                            {% for error in form.popousteni.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-12 col-md-6">
                             <label class="form-label" for="{{ form.poznamka_sarze.id_for_label }}">{{ form.poznamka_sarze.label }}</label>
                             {{ form.poznamka_sarze }}
                             {% for error in form.poznamka_sarze.errors %}

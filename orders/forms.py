@@ -586,6 +586,12 @@ class RychleZalozeniSarzeForm(forms.Form):
         label='Číslo pracoviště',
         widget=forms.NumberInput(attrs={'class': 'form-control', 'min': '1', 'max': '6'}),
     )
+    popousteni = forms.CharField(
+        required=False,
+        max_length=30,
+        label='Popouštění',
+        widget=forms.TextInput(attrs={'class': 'form-control'}),
+    )
     poznamka_sarze = forms.CharField(
         required=False,
         max_length=100,
@@ -638,6 +644,7 @@ class RychleZalozeniSarzeForm(forms.Form):
             initial = kwargs.setdefault('initial', {})
             initial.setdefault('cislo_pripravku', sarze.cislo_pripravku)
             initial.setdefault('cislo_pracoviste', sarze.cislo_pracoviste)
+            initial.setdefault('popousteni', sarze.popousteni)
             initial.setdefault('poznamka_sarze', sarze.poznamka)
             initial.setdefault('datum', krok.datum)
             initial.setdefault('zacatek', krok.zacatek)
@@ -720,8 +727,16 @@ class RychleZalozeniSarzeForm(forms.Form):
                 )
                 sarze.cislo_pripravku = data['cislo_pripravku']
                 sarze.cislo_pracoviste = data['cislo_pracoviste']
+                sarze.popousteni = data['popousteni'] or None
                 sarze.poznamka = data['poznamka_sarze'] or None
-                sarze.save(update_fields=['cislo_pripravku', 'cislo_pracoviste', 'poznamka'])
+                sarze.save(
+                    update_fields=[
+                        'cislo_pripravku',
+                        'cislo_pracoviste',
+                        'popousteni',
+                        'poznamka'
+                    ]
+                )
 
                 krok.datum = data['datum']
                 krok.zarizeni = data['zarizeni']
@@ -746,6 +761,7 @@ class RychleZalozeniSarzeForm(forms.Form):
                 cislo_pripravku=data['cislo_pripravku'],
                 cislo_pracoviste=data['cislo_pracoviste'],
                 stav_sarze=StavSarzeChoice.NALOZENA,
+                popousteni=data['popousteni'] or None,
                 poznamka=data['poznamka_sarze'] or None,
             )
             krok = SarzeKrok.objects.create(

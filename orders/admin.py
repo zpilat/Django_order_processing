@@ -457,8 +457,8 @@ class HistoryPollingAdminMixin:
 class SarzeAdmin(HistoryPollingAdminMixin, SimpleHistoryAdmin):
     change_list_template = 'admin/orders/sarze/change_list.html'
     poll_url_name = 'orders_sarze_poll'
-    fields = ('cislo_sarze', 'datum_zalozeni', 'cislo_pripravku', 'cislo_pracoviste', 'stav_sarze', 'poznamka',)
-    list_display = ('get_cislo_sarze', 'stav_sarze', 'get_typ_sarze', 'get_datum_zalozeni', 'get_cislo_pripravku', 'get_poznamka', 'get_pocet_kroku',)
+    fields = ('cislo_sarze', 'datum_zalozeni', 'cislo_pripravku', 'cislo_pracoviste', 'stav_sarze', 'popousteni', 'poznamka',)
+    list_display = ('get_cislo_sarze', 'stav_sarze', 'get_typ_sarze', 'get_datum_zalozeni', 'get_cislo_pripravku', 'popousteni', 'get_poznamka', 'get_pocet_kroku',)
     list_editable = ('stav_sarze',)
     list_filter = (StavSarzeFilter, TypSarzeFilter)
     search_fields = ('cislo_sarze',)
@@ -469,7 +469,7 @@ class SarzeAdmin(HistoryPollingAdminMixin, SimpleHistoryAdmin):
     actions = (oznacit_sarze_jako_zaplanovane_action, tisk_pruvodky_vruty_sarze_action,)
 
     history_list_display = [
-        "cislo_sarze", "datum_zalozeni", "cislo_pripravku", "cislo_pracoviste", "stav_sarze", "poznamka",
+        "cislo_sarze", "datum_zalozeni", "cislo_pripravku", "cislo_pracoviste", "stav_sarze", "popousteni", "poznamka",
     ]
     history_search_fields = ["cislo_sarze", "poznamka"]
     history_list_filter = ["stav_sarze", "datum_zalozeni"]
@@ -482,9 +482,11 @@ class SarzeAdmin(HistoryPollingAdminMixin, SimpleHistoryAdmin):
         )
 
     def changelist_view(self, request, extra_context=None):
-        # Uložení inline editace: hodnoty polí, kterých se uživatel nedotkl,
-        # se před validací nahradí aktuálními hodnotami z DB. Tím stará karta
-        # nepřepíše změny provedené mezitím jiným uživatelem.
+        """
+        Uložení inline editace: hodnoty polí, kterých se uživatel nedotkl,
+        se před validací nahradí aktuálními hodnotami z DB. Tím stará karta
+        nepřepíše změny provedené mezitím jiným uživatelem.
+        """
         if request.method == 'POST' and 'form-TOTAL_FORMS' in request.POST and '_save' in request.POST:
             FormSet = self.get_changelist_formset(request)
             form_prefix = FormSet.get_default_prefix() if hasattr(FormSet, 'get_default_prefix') else 'form'

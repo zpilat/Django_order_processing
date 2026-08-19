@@ -3194,6 +3194,7 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 		self.assertEqual(resp.context["db_table"], "rychle_zalozeni_sarze")
 		self.assertContains(resp, "ŠARŽE")
 		self.assertContains(resp, "Číslo pracoviště")
+		self.assertIn("popousteni", resp.context["form"].fields)
 		self.assertEqual(resp.context["form"].initial["cislo_pracoviste"], 3)
 		self.assertContains(resp, 'name="cislo_pracoviste" value="3"', html=False)
 		self.assertContains(resp, "readonly", html=False)
@@ -3398,6 +3399,7 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			{
 				"cislo_pripravku": "12",
 				"cislo_pracoviste": "3",
+				"popousteni": "180 °C / 2 h",
 				"poznamka_sarze": "Poznámka k šarži",
 				"datum": "2026-06-05",
 				"zacatek": "06:00",
@@ -3413,6 +3415,7 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 		self.assertEqual(sarze.cislo_pripravku, 12)
 		self.assertEqual(sarze.cislo_pracoviste, 3)
 		self.assertEqual(sarze.stav_sarze, StavSarzeChoice.NALOZENA)
+		self.assertEqual(sarze.popousteni, "180 °C / 2 h")
 		self.assertEqual(sarze.poznamka, "Poznámka k šarži")
 
 		krok = SarzeKrok.objects.get(sarze=sarze)
@@ -3443,6 +3446,26 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 
 		self.assertEqual(resp.status_code, 200)
 		self.assertContains(resp, "Při rychlém založení šarže se konec kroku nezadává.")
+		self.assertFalse(Sarze.objects.exists())
+		self.assertFalse(SarzeKrok.objects.exists())
+
+	def test_post_rejects_popousteni_longer_than_model_limit(self):
+		resp = self.client.post(
+			self._rychle_zalozeni_url(3),
+			{
+				"cislo_pripravku": "12",
+				"cislo_pracoviste": "3",
+				"popousteni": "x" * 31,
+				"poznamka_sarze": "",
+				"datum": "2026-06-05",
+				"zacatek": "06:00",
+				"operator": "Novak",
+				"poznamka_kroku": "",
+			},
+		)
+
+		self.assertEqual(resp.status_code, 200)
+		self.assertIn("popousteni", resp.context["form"].errors)
 		self.assertFalse(Sarze.objects.exists())
 		self.assertFalse(SarzeKrok.objects.exists())
 
@@ -3613,6 +3636,7 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			datum_zalozeni=date(2026, 6, 5),
 			cislo_pripravku=12,
 			cislo_pracoviste=2,
+			popousteni="160 °C / 1 h",
 			poznamka="Původní poznámka",
 		)
 		krok = SarzeKrok.objects.create(
@@ -3635,6 +3659,7 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 		self.assertTrue(resp.context["is_edit"])
 		self.assertEqual(resp.context["form"].initial["cislo_pripravku"], 12)
 		self.assertEqual(resp.context["form"].initial["cislo_pracoviste"], 2)
+		self.assertEqual(resp.context["form"].initial["popousteni"], "160 °C / 1 h")
 		self.assertEqual(resp.context["form"].initial["operator"], "Novak")
 		self.assertEqual(
 			resp.context["cancel_url"],
@@ -3646,6 +3671,7 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			datum_zalozeni=date(2026, 6, 5),
 			cislo_pripravku=12,
 			cislo_pracoviste=2,
+			popousteni="160 °C / 1 h",
 			poznamka="Původní poznámka",
 		)
 		krok = SarzeKrok.objects.create(
@@ -3666,6 +3692,7 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			{
 				"cislo_pripravku": "24",
 				"cislo_pracoviste": "6",
+				"popousteni": "180 °C / 2 h",
 				"poznamka_sarze": "Upravená poznámka",
 				"datum": "2026-06-06",
 				"zacatek": "08:00",
@@ -3687,6 +3714,7 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 		krok.refresh_from_db()
 		self.assertEqual(sarze.cislo_pripravku, 24)
 		self.assertEqual(sarze.cislo_pracoviste, 6)
+		self.assertEqual(sarze.popousteni, "180 °C / 2 h")
 		self.assertEqual(sarze.poznamka, "Upravená poznámka")
 		self.assertEqual(krok.datum, date(2026, 6, 6))
 		self.assertEqual(krok.zacatek, time(8, 0))
@@ -3731,6 +3759,41 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 		self.assertContains(resp, "Konec kroku lze zadat až po zadání alespoň jedné bedny do šarže.")
 		krok.refresh_from_db()
 		self.assertIsNone(krok.konec)
+
+	def test_upravit_post_clears_popousteni(self):
+		sarze = Sarze.objects.create(
+			datum_zalozeni=date(2026, 6, 5),
+			cislo_pripravku=12,
+			cislo_pracoviste=2,
+			popousteni="160 °C / 1 h",
+		)
+		krok = SarzeKrok.objects.create(
+			sarze=sarze,
+			poradi=1,
+			datum=date(2026, 6, 5),
+			zarizeni=self.nakladani,
+			zacatek=time(6, 0),
+			operator="Novak",
+		)
+
+		resp = self.client.post(
+			reverse("rychle_zalozeni_sarze_upravit", args=[krok.pk]),
+			{
+				"cislo_pripravku": "12",
+				"cislo_pracoviste": "2",
+				"popousteni": "",
+				"poznamka_sarze": "",
+				"datum": "2026-06-05",
+				"zacatek": "06:00",
+				"konec": "",
+				"operator": "Novak",
+				"poznamka_kroku": "",
+			},
+		)
+
+		self.assertEqual(resp.status_code, 302)
+		sarze.refresh_from_db()
+		self.assertIsNone(sarze.popousteni)
 
 	def test_upravit_allows_end_time_when_bedna_exists(self):
 		sarze = Sarze.objects.create(
@@ -4507,6 +4570,7 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			datum_zalozeni=date(2026, 6, 5),
 			cislo_pripravku=12,
 			cislo_pracoviste=1,
+			popousteni="180 °C / 2 h",
 		)
 		krok = SarzeKrok.objects.create(
 			sarze=sarze,
@@ -4547,6 +4611,7 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 		self.assertIn("1. patro", html)
 		self.assertIn(str(self.b_eur_pr.cislo_bedny), html)
 		self.assertIn("PRŮVODKA VRUTY", html)
+		self.assertIn("180 °C / 2 h", html)
 		self.assertIn("sarze-barcode", html)
 		self.assertIn("<svg", html)
 

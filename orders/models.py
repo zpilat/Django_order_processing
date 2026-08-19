@@ -1494,6 +1494,7 @@ class Sarze(models.Model):
     cislo_pripravku = models.PositiveSmallIntegerField(blank=True, null=True, verbose_name='Číslo přípravku')
     stav_sarze = models.CharField(choices=StavSarzeChoice.choices, max_length=2, default=StavSarzeChoice.VYTVORENA, verbose_name='Stav šarže')
     poznamka = models.CharField(max_length=100, blank=True, null=True, verbose_name='Poznámka')
+    popousteni = models.CharField(max_length=30, blank=True, null=True, verbose_name='Popouštění')
     history = HistoricalRecords()
 
     class Meta:
