@@ -101,11 +101,11 @@
   {% endif %}
 {% endfor %}
 
-{# --- Vlastní sekce Přehledy --- #}
+{# --- Vlastní sekce Přehledy zboží --- #}
 <div class="app-prehledy module">
   <table>
     <caption>
-      <span class="section">Přehledy</span>
+      <span class="section">Přehledy zboží</span>
     </caption>
     <thead class="visually-hidden">
       <tr>
@@ -115,34 +115,16 @@
       </tr>
     </thead>
     <tbody>
-      <tr class="model-dashboard">
-        <th scope="row">
-          <a href="{% url 'provozni_prehledy' %}" target='blank'>
-            Přehled pracovišť nakládání
-          </a>
-        </th>
-        <td></td>
-        <td></td>
-      </tr>
-      <tr class="model-dashboard">
-        <th scope="row">
-          <a href="{% url 'dashboard_bedny' %}" target='blank'>
-            Přehled beden
-          </a>
-        </th>
-        <td></td>
-        <td></td>
-      </tr>
-      <tr class="model-dashboard">
-        <th scope="row">
-          <a href="{% url 'pracoviste_prehled' %}" target='blank'>
-            Přehled ostatních pracovišť
-          </a>
-        </th>
-        <td></td>
-        <td></td>
-      </tr>
       {% if perms.orders.view_bedna %}
+        <tr class="model-dashboard">
+          <th scope="row">
+            <a href="{% url 'dashboard_bedny' %}" target='blank'>
+              Přehled beden
+            </a>
+          </th>
+          <td></td>
+          <td></td>
+        </tr>      
         <tr class="model-dashboard">
           <th scope="row">
             <a href="{% url 'bedny_list' %}" target='blank'>
@@ -152,25 +134,83 @@
           <td></td>
           <td></td>
         </tr>
+        <tr class="model-dashboard">
+          <th scope="row">
+            <a href="{% url 'dashboard_bedny_k_navezeni' %}" target='blank'>
+              Přehled beden k navezení
+            </a>
+          </th>
+          <td></td>
+          <td></td>
+        </tr>      
       {% endif %}
-      <tr class="model-dashboard">
-        <th scope="row">
-          <a href="{% url 'dashboard_kamiony' %}" target='blank'>
-            Přehled kamionů
-          </a>
-        </th>
-        <td></td>
-        <td></td>
-      </tr>      
-      <tr class="model-dashboard">
-        <th scope="row">
-          <a href="{% url 'dashboard_bedny_k_navezeni' %}" target='blank'>
-            Přehled beden k navezení
-          </a>
-        </th>
-        <td></td>
-        <td></td>
-      </tr>   
+      {% if perms.orders.view_kamion %}
+        <tr class="model-dashboard">
+          <th scope="row">
+            <a href="{% url 'dashboard_kamiony' %}" target='blank'>
+              Přehled kamionů
+            </a>
+          </th>
+          <td></td>
+          <td></td>
+        </tr>        
+      {% endif %}     
+    </tbody>
+  </table>
+</div>
+
+{# --- Vlastní sekce Přehledy pracovišť --- #}
+<div class="app-prehledy module">
+  <table>
+    <caption>
+      <span class="section">Přehledy pracovišť</span>
+    </caption>
+    <thead class="visually-hidden">
+      <tr>
+        <th scope="col">{% translate 'Model name' %}</th>
+        <th scope="col">{% translate 'Add link' %}</th>
+        <th scope="col">{% translate 'Change or view list link' %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% if perms.orders.view_sarze %}
+        <tr class="model-dashboard">
+          <th scope="row">
+            <a href="{% url 'provozni_prehledy' %}" target='blank'>
+              Přehled pracovišť nakládání
+            </a>
+          </th>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr class="model-dashboard">
+          <th scope="row">
+            <a href="{% url 'pracoviste_prehled' %}" target='blank'>
+              Přehled ostatních pracovišť
+            </a>
+          </th>
+          <td></td>
+          <td></td>
+        </tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+
+{# --- Vlastní sekce Přehledy výroby --- #}
+<div class="app-prehledy module">
+  <table>
+    <caption>
+      <span class="section">Přehledy výroby</span>
+    </caption>
+    <thead class="visually-hidden">
+      <tr>
+        <th scope="col">{% translate 'Model name' %}</th>
+        <th scope="col">{% translate 'Add link' %}</th>
+        <th scope="col">{% translate 'Change or view list link' %}</th>
+      </tr>
+    </thead>
+    <tbody>
       <tr class="model-dashboard">
         <th scope="row">
           <a href="{% url 'dashboard_vyroba' %}" target='blank'>
@@ -183,7 +223,7 @@
       <tr class="model-dashboard">
         <th scope="row">
           <a href="{% url 'dashboard_vyroba_historie' %}" target='blank'>
-            Přehled výroby - historie
+            Historie výroby
           </a>
         </th>
         <td></td>
