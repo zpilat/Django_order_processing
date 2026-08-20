@@ -6,13 +6,15 @@ from django.db import migrations, models
 
 
 def doplnit_datum_konce(apps, schema_editor):
+    database_alias = schema_editor.connection.alias
     for model_name in ('SarzeKrok', 'HistoricalSarzeKrok'):
         model = apps.get_model('orders', model_name)
-        model.objects.filter(
+        queryset = model.objects.using(database_alias)
+        queryset.filter(
             konec__isnull=False,
             datum_konce__isnull=True,
         ).update(datum_konce=models.F('datum'))
-        model.objects.filter(
+        queryset.filter(
             konec__isnull=False,
             zacatek__isnull=False,
             datum_konce__isnull=False,
@@ -21,12 +23,16 @@ def doplnit_datum_konce(apps, schema_editor):
 
 
 def odebrat_datum_konce(apps, schema_editor):
+    database_alias = schema_editor.connection.alias
     for model_name in ('SarzeKrok', 'HistoricalSarzeKrok'):
         model = apps.get_model('orders', model_name)
-        model.objects.update(datum_konce=None)
+        model.objects.using(database_alias).update(datum_konce=None)
 
 
 class Migration(migrations.Migration):
+    # PostgreSQL nesmí po RunPython ve stejné transakci měnit tutéž tabulku,
+    # protože aktualizace mohou mít nevyřízené trigger události.
+    atomic = False
 
     dependencies = [
         ('orders', '0217_historicalsarze_popousteni_sarze_popousteni'),
