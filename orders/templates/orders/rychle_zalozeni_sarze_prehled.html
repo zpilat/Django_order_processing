@@ -20,6 +20,7 @@
                 {{ krok.datum|date:"d.m.Y" }},
                 {{ krok.zacatek|time:"H:i" }} -
                 {% if krok.konec %}
+                    {{ krok.datum_konce|date:"d.m.Y" }}
                     {{ krok.konec|time:"H:i" }}
                 {% else %}
                     <a href="{% url 'rychle_zalozeni_sarze_upravit' krok.pk %}#id_konec"

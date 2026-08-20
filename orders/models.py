@@ -1623,6 +1623,7 @@ class SarzeKrok(models.Model):
         null=False,
     )
     zacatek = models.TimeField(blank=False, null=False, verbose_name='Začátek')
+    datum_konce = models.DateField(blank=True, null=True, verbose_name='Datum konce')
     konec = models.TimeField(blank=True, null=True, verbose_name='Konec')
     operator = models.CharField(max_length=30, blank=False, null=False, verbose_name='Operátor')
     program = models.CharField(max_length=20, blank=True, null=True, verbose_name='Program')
@@ -1636,16 +1637,55 @@ class SarzeKrok(models.Model):
         ordering = ['sarze_id', 'poradi']
         constraints = [
             models.UniqueConstraint(fields=['sarze', 'poradi'], name='uniq_sarzekrok_sarze_poradi'),
+            models.CheckConstraint(
+                condition=(
+                    Q(datum_konce__isnull=True, konec__isnull=True)
+                    | Q(datum_konce__isnull=False, konec__isnull=False)
+                ),
+                name='sarzekrok_konec_a_datum_konce_spolecne',
+            ),
         ]
 
     def __str__(self):
         kod_zarizeni = self.zarizeni.kod_zarizeni if self.zarizeni_id else '-'
         return f"{self.sarze} / krok {self.poradi} ({kod_zarizeni})"
 
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.konec is not None and self.datum_konce is None:
+            errors['datum_konce'] = 'Při vyplnění konce je nutné zadat datum konce.'
+        elif self.datum_konce is not None and self.konec is None:
+            errors['konec'] = 'Při vyplnění data konce je nutné zadat čas konce.'
+        elif (
+            self.konec is not None
+            and self.datum_konce is not None
+            and self.datum is not None
+            and self.zacatek is not None
+        ):
+            if self.datum_konce < self.datum or (
+                self.datum_konce == self.datum and self.konec < self.zacatek
+            ):
+                errors['datum_konce'] = 'Konec kroku nesmí být před jeho začátkem.'
+        if errors:
+            raise ValidationError(errors)
+
     def save(self, *args, **kwargs):
         # Pokud není datum zadáno, nastaví se na aktuální datum. 
         if not self.datum:
             self.datum = timezone.localdate()
+
+        update_fields = kwargs.get('update_fields')
+        if self.konec is not None and self.datum_konce is None:
+            self.datum_konce = self.datum
+            if self.zacatek is not None and self.konec < self.zacatek:
+                self.datum_konce += timedelta(days=1)
+            if update_fields is not None:
+                kwargs['update_fields'] = set(update_fields) | {'datum_konce'}
+        elif self.konec is None and self.datum_konce is not None:
+            self.datum_konce = None
+            if update_fields is not None:
+                kwargs['update_fields'] = set(update_fields) | {'datum_konce'}
 
         if self.pk or self.poradi:
             result = super().save(*args, **kwargs)
@@ -1737,14 +1777,13 @@ class SarzeKrok(models.Model):
         if (
             not predchozi_krok
             or not predchozi_krok.konec
+            or not predchozi_krok.datum_konce
             or not predchozi_krok.zacatek
             or not predchozi_krok.datum
         ):
             return '-'
 
-        datum_predchoziho_kroku = predchozi_krok.datum
-        if predchozi_krok.konec < predchozi_krok.zacatek:
-            datum_predchoziho_kroku += timedelta(days=1)
+        datum_predchoziho_kroku = predchozi_krok.datum_konce
 
         # Dlouhá odstávka stroje (více než 1 den) se do prostoje nepočítá.
         if datum_predchoziho_kroku < (self.datum - timedelta(days=1)):
@@ -1767,16 +1806,13 @@ class SarzeKrok(models.Model):
             or self.zarizeni.typ_zarizeni != TypZarizeniChoice.VICEUCELOVKA
             or not self.datum
             or not self.zacatek
+            or not self.datum_konce
             or not self.konec
         ):
             return '-'
 
-        datum_konce = self.datum
-        if self.konec < self.zacatek:
-            datum_konce += timedelta(days=1)
-
         takt = (
-            datetime.combine(datum_konce, self.konec)
+            datetime.combine(self.datum_konce, self.konec)
             - datetime.combine(self.datum, self.zacatek)
         ).total_seconds() / 3600
         return round(takt, 1)

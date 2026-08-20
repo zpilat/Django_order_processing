@@ -129,7 +129,7 @@
                             </div>
                             <div class="text-sm-end">
                                 <div class="fw-bold">{{ krok.datum|date:"j. n. Y" }}
-                                    <span class="text-muted small">({{ krok.zacatek|time:"H:i" }} - {% if krok.konec %}{{ krok.konec|time:"H:i" }}{% else %}???{% endif %})</span>
+                                    <span class="text-muted small">({{ krok.zacatek|time:"H:i" }} - {% if krok.konec %}{{ krok.datum_konce|date:"j. n. Y" }} {{ krok.konec|time:"H:i" }}{% else %}???{% endif %})</span>
                                 </div>
                                 <div class="fw-bold">Program {{ krok.program|default:"-" }}</div>
                                 {% if can_move_sarze %}

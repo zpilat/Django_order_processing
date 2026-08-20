@@ -115,10 +115,18 @@
     }
 
     const konec = document.getElementById('id_konec');
+    const datumKonce = document.getElementById('id_datum_konce');
     if (!konec) {
         return;
     }
 
+    if (datumKonce && !datumKonce.value) {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        datumKonce.value = `${year}-${month}-${day}`;
+    }
     if (!konec.value) {
         const now = new Date();
         const hours = String(now.getHours()).padStart(2, '0');

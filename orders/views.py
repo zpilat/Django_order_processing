@@ -938,6 +938,10 @@ def _style_sarze_scan_move_form(form):
         attrs={'class': 'form-control', 'type': 'time'},
         format='%H:%M',
     )
+    form.fields['datum_konce'].widget = django_forms.DateInput(
+        attrs={'class': 'form-control', 'type': 'date'},
+        format='%Y-%m-%d',
+    )
     form.fields['konec'].widget = django_forms.TimeInput(
         attrs={'class': 'form-control', 'type': 'time'},
         format='%H:%M',
@@ -1135,6 +1139,7 @@ def sarze_scan_presunout_view(request, cislo_sarze: int, krok_id: int):
                 datum=form.cleaned_data['datum'],
                 zarizeni=form.cleaned_data['zarizeni'],
                 zacatek=form.cleaned_data['zacatek'],
+                datum_konce=form.cleaned_data['datum_konce'],
                 konec=form.cleaned_data['konec'],
                 operator=form.cleaned_data['operator'],
                 program=form.cleaned_data['program'],

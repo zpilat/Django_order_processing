@@ -1,5 +1,5 @@
 from django.test import TestCase
-from datetime import date, timedelta
+from datetime import date, time, timedelta
 from decimal import Decimal
 
 from orders.forms import (
@@ -8,8 +8,9 @@ from orders.forms import (
     BednaAdminForm,
     VyberKamionVydejForm,
     BednaChangeListForm,
+    SarzeKrokActionInitForm,
 )
-from orders.models import Zakaznik, Kamion, Zakazka, Predpis, TypHlavy, Bedna
+from orders.models import Zakaznik, Kamion, Zakazka, Predpis, TypHlavy, Bedna, Zarizeni
 from orders.choices import (
     StavBednyChoice,
     TryskaniChoice,
@@ -311,3 +312,45 @@ class VyberKamionVydejFormTests(FormsBase):
     def test_no_customer_yields_empty_queryset(self):
         form = VyberKamionVydejForm()
         self.assertEqual(list(form.fields["kamion"].queryset), [])
+
+
+class SarzeKrokActionInitFormTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.zarizeni = Zarizeni.objects.create(
+            kod_zarizeni="FORM-KROK",
+            nazev_zarizeni="Test formuláře kroku",
+        )
+
+    def _data(self, **overrides):
+        data = {
+            'datum': '2026-08-20',
+            'zarizeni': str(self.zarizeni.pk),
+            'zacatek': '22:00',
+            'datum_konce': '2026-08-21',
+            'konec': '01:00',
+            'operator': 'Novak',
+        }
+        data.update(overrides)
+        return data
+
+    def test_accepts_end_on_following_day(self):
+        form = SarzeKrokActionInitForm(self._data())
+
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.cleaned_data['datum_konce'], date(2026, 8, 21))
+        self.assertEqual(form.cleaned_data['konec'], time(1, 0))
+
+    def test_requires_end_date_with_end_time(self):
+        form = SarzeKrokActionInitForm(self._data(datum_konce=''))
+
+        self.assertFalse(form.is_valid())
+        self.assertIn('datum_konce', form.errors)
+
+    def test_rejects_end_before_start(self):
+        form = SarzeKrokActionInitForm(
+            self._data(datum_konce='2026-08-20', konec='21:00')
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn('datum_konce', form.errors)

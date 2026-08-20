@@ -67,7 +67,7 @@
                                 <div class="invalid-feedback d-block">{{ error }}</div>
                             {% endfor %}
                         </div>
-                        <div class="col-6 col-md-4">
+                        <div class="col-6 col-md-2">
                             <label class="form-label" for="{{ form.zacatek.id_for_label }}">{{ form.zacatek.label }}</label>
                             {{ form.zacatek }}
                             {% for error in form.zacatek.errors %}
@@ -76,6 +76,13 @@
                         </div>
                         {% if form.konec %}
                             <div class="col-6 col-md-4">
+                                <label class="form-label" for="{{ form.datum_konce.id_for_label }}">{{ form.datum_konce.label }}</label>
+                                {{ form.datum_konce }}
+                                {% for error in form.datum_konce.errors %}
+                                    <div class="invalid-feedback d-block">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            <div class="col-6 col-md-2">
                                 <label class="form-label" for="{{ form.konec.id_for_label }}">{{ form.konec.label }}</label>
                                 {{ form.konec }}
                                 {% for error in form.konec.errors %}
@@ -123,7 +130,15 @@
 
         if (window.location.hash === '#id_konec') {
             const konec = document.getElementById('id_konec');
+            const datumKonce = document.getElementById('id_datum_konce');
             if (konec) {
+                if (datumKonce && !datumKonce.value) {
+                    const now = new Date();
+                    const year = now.getFullYear();
+                    const month = String(now.getMonth() + 1).padStart(2, '0');
+                    const day = String(now.getDate()).padStart(2, '0');
+                    datumKonce.value = `${year}-${month}-${day}`;
+                }
                 if (!konec.value) {
                     const now = new Date();
                     const hours = String(now.getHours()).padStart(2, '0');

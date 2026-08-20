@@ -2836,6 +2836,15 @@ class SarzeKrokAdminActionTests(AdminBase):
         self.assertTrue(payload['changed'])
         self.assertGreater(payload['history_id'], initial['history_id'])
 
+    def test_list_display_formats_datum_konce_like_datum(self):
+        self.krok.datum_konce = date(2026, 8, 21)
+
+        self.assertIn('get_datum_konce', self.admin.list_display)
+        self.assertEqual(self.admin.get_datum_konce(self.krok), '21.08.2026')
+
+        self.krok.datum_konce = None
+        self.assertEqual(self.admin.get_datum_konce(self.krok), '-')
+
     def test_sarzekrok_changelist_includes_polling(self):
         self.client.force_login(self.user)
         response = self.client.get(reverse('admin:orders_sarzekrok_changelist'))

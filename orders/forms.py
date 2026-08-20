@@ -32,6 +32,30 @@ def _current_local_time_without_seconds():
     return timezone.localtime().time().replace(second=0, microsecond=0)
 
 
+def _validate_sarzekrok_end(cleaned_data):
+    datum = cleaned_data.get('datum')
+    zacatek = cleaned_data.get('zacatek')
+    datum_konce = cleaned_data.get('datum_konce')
+    konec = cleaned_data.get('konec')
+    errors = {}
+
+    if konec is not None and datum_konce is None:
+        errors['datum_konce'] = 'Při vyplnění konce je nutné zadat datum konce.'
+    elif datum_konce is not None and konec is None:
+        errors['konec'] = 'Při vyplnění data konce je nutné zadat čas konce.'
+    elif (
+        datum is not None
+        and zacatek is not None
+        and datum_konce is not None
+        and konec is not None
+        and (datum_konce < datum or (datum_konce == datum and konec < zacatek))
+    ):
+        errors['datum_konce'] = 'Konec kroku nesmí být před jeho začátkem.'
+
+    if errors:
+        raise ValidationError(errors)
+
+
 class ImportZakazekForm(forms.Form):
     file = forms.FileField(
         label="Soubor (pouze XLSX)",
@@ -521,6 +545,12 @@ class SarzeKrokActionInitForm(forms.Form):
         label='Pracoviště',
     )
     zacatek = forms.TimeField(required=True, label='Začátek', input_formats=['%H:%M', '%H.%M'])
+    datum_konce = forms.DateField(
+        required=False,
+        label='Datum konce',
+        input_formats=['%d.%m.%Y', '%Y-%m-%d'],
+        widget=AdminDateWidget(),
+    )
     konec = forms.TimeField(required=False, label='Konec', input_formats=['%H:%M', '%H.%M'])
     operator = forms.CharField(max_length=30, required=True, label='Operátor')
     program = forms.CharField(max_length=20, required=False, label='Program')
@@ -544,13 +574,21 @@ class SarzeKrokActionInitForm(forms.Form):
         operator = (self.cleaned_data.get('operator') or '').strip()
         if not operator:
             raise ValidationError('Pole Operátor je povinné.')
-        return operator    
+        return operator
+
+    def clean(self):
+        cleaned_data = super().clean()
+        _validate_sarzekrok_end(cleaned_data)
+        return cleaned_data
 
 
 class SarzeScanKrokChangeForm(forms.ModelForm):
     class Meta:
         model = SarzeKrok
-        fields = ('datum', 'zarizeni', 'zacatek', 'konec', 'operator', 'program', 'alarm', 'poznamka')
+        fields = (
+            'datum', 'zarizeni', 'zacatek', 'datum_konce', 'konec',
+            'operator', 'program', 'alarm', 'poznamka',
+        )
         widgets = {
             'datum': forms.DateInput(
                 attrs={'class': 'form-control', 'type': 'date'},
@@ -560,6 +598,10 @@ class SarzeScanKrokChangeForm(forms.ModelForm):
             'zacatek': forms.TimeInput(
                 attrs={'class': 'form-control', 'type': 'time'},
                 format='%H:%M',
+            ),
+            'datum_konce': forms.DateInput(
+                attrs={'class': 'form-control', 'type': 'date'},
+                format='%Y-%m-%d',
             ),
             'konec': forms.TimeInput(
                 attrs={'class': 'form-control', 'type': 'time'},
@@ -600,7 +642,7 @@ class RychleZalozeniSarzeForm(forms.Form):
     )
     datum = forms.DateField(
         required=True,
-        label='Datum kroku',
+        label='Datum začátku',
         input_formats=['%Y-%m-%d', '%d.%m.%Y'],
         initial=timezone.localdate,
         widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}, format='%Y-%m-%d'),
@@ -617,6 +659,12 @@ class RychleZalozeniSarzeForm(forms.Form):
         label='Konec',
         input_formats=['%H:%M', '%H.%M'],
         widget=forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}, format='%H:%M'),
+    )
+    datum_konce = forms.DateField(
+        required=False,
+        label='Datum konce',
+        input_formats=['%Y-%m-%d', '%d.%m.%Y'],
+        widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}, format='%Y-%m-%d'),
     )
     operator = forms.CharField(
         required=True,
@@ -648,12 +696,14 @@ class RychleZalozeniSarzeForm(forms.Form):
             initial.setdefault('poznamka_sarze', sarze.poznamka)
             initial.setdefault('datum', krok.datum)
             initial.setdefault('zacatek', krok.zacatek)
+            initial.setdefault('datum_konce', krok.datum_konce)
             initial.setdefault('konec', krok.konec)
             initial.setdefault('operator', krok.operator)
             initial.setdefault('poznamka_kroku', krok.poznamka)
 
         super().__init__(*args, **kwargs)
         if self.krok is None:
+            self.fields.pop('datum_konce', None)
             self.fields.pop('konec', None)
         if self.locked_cislo_pracoviste is not None:
             self.initial['cislo_pracoviste'] = self.locked_cislo_pracoviste
@@ -679,8 +729,13 @@ class RychleZalozeniSarzeForm(forms.Form):
                 'Pracoviště Nakládání nebylo nalezeno jednoznačně. Zkontrolujte číselník pracovišť.'
             )
         cleaned_data['zarizeni'] = zarizeni
-        if self.krok is None and (self.data.get(self.add_prefix('konec')) or '').strip():
+        if self.krok is None and any(
+            (self.data.get(self.add_prefix(field_name)) or '').strip()
+            for field_name in ('datum_konce', 'konec')
+        ):
             raise ValidationError('Při rychlém založení šarže se konec kroku nezadává.')
+
+        _validate_sarzekrok_end(cleaned_data)
 
         cislo_pracoviste = cleaned_data.get('cislo_pracoviste')
         if self.locked_cislo_pracoviste is not None and cislo_pracoviste != self.locked_cislo_pracoviste:
@@ -741,6 +796,7 @@ class RychleZalozeniSarzeForm(forms.Form):
                 krok.datum = data['datum']
                 krok.zarizeni = data['zarizeni']
                 krok.zacatek = data['zacatek']
+                krok.datum_konce = data['datum_konce']
                 krok.konec = data['konec']
                 krok.operator = data['operator']
                 krok.poznamka = data['poznamka_kroku'] or None
@@ -749,6 +805,7 @@ class RychleZalozeniSarzeForm(forms.Form):
                         'datum',
                         'zarizeni',
                         'zacatek',
+                        'datum_konce',
                         'konec',
                         'operator',
                         'poznamka',
@@ -770,6 +827,7 @@ class RychleZalozeniSarzeForm(forms.Form):
                 datum=data['datum'],
                 zarizeni=data['zarizeni'],
                 zacatek=data['zacatek'],
+                datum_konce=None,
                 konec=None,
                 operator=data['operator'],
                 poznamka=data['poznamka_kroku'] or None,

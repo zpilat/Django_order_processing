@@ -37,10 +37,11 @@ def _get_posledni_uzavrena_nakladani_sarze():
             sarze__isnull=False,
             poradi=1,
             zarizeni__typ_zarizeni=TypZarizeniChoice.NAKLADANI,
+            datum_konce__isnull=False,
             konec__isnull=False,
         )
         .select_related('sarze', 'zarizeni')
-        .order_by('-sarze__cislo_sarze', '-sarze__pk', '-pk')
+        .order_by('-datum_konce', '-konec', '-pk')
         .first()
     )
     return krok.sarze if krok else None

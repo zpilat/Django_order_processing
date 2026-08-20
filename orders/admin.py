@@ -285,7 +285,10 @@ class SarzeKrokInlineFormSet(BaseInlineFormSet):
             # že uživatel vůbec začal vyplňovat první krok šarže.
             has_any_user_value = any(
                 form.cleaned_data.get(name)
-                for name in ('datum', 'zarizeni', 'zacatek', 'konec', 'operator', 'program', 'alarm', 'poznamka')
+                for name in (
+                    'datum', 'zarizeni', 'zacatek', 'datum_konce', 'konec',
+                    'operator', 'program', 'alarm', 'poznamka',
+                )
             )
             if not has_any_user_value:
                 continue
@@ -306,7 +309,10 @@ class SarzeKrokInline(admin.TabularInline):
     """Inline pro správu kroků šarže."""
     model = SarzeKrok
     formset = SarzeKrokInlineFormSet
-    fields = ('poradi', 'datum', 'zarizeni', 'zacatek', 'konec', 'operator', 'program', 'alarm', 'poznamka')
+    fields = (
+        'poradi', 'datum', 'zarizeni', 'zacatek', 'datum_konce', 'konec',
+        'operator', 'program', 'alarm', 'poznamka',
+    )
     readonly_fields = ('poradi',)
     autocomplete_fields = ('zarizeni',)
     extra = 0
@@ -350,7 +356,10 @@ class SarzeKrokInline(admin.TabularInline):
 
     def get_fields(self, request, obj=None):
         if obj is None:
-            return ('datum', 'zarizeni', 'zacatek', 'konec', 'operator', 'program', 'alarm', 'poznamka')
+            return (
+                'datum', 'zarizeni', 'zacatek', 'datum_konce', 'konec',
+                'operator', 'program', 'alarm', 'poznamka',
+            )
         return self.fields
 
     def get_extra(self, request, obj=None, **kwargs):
@@ -645,10 +654,13 @@ class SarzeAdmin(HistoryPollingAdminMixin, SimpleHistoryAdmin):
 @admin.register(SarzeKrok)
 class SarzeKrokAdmin(HistoryPollingAdminMixin, SimpleHistoryAdmin):
     poll_url_name = 'orders_sarzekrok_poll'
-    fields = ('sarze', 'poradi', 'datum', 'zarizeni', 'zacatek', 'konec', 'operator', 'program', 'alarm', 'poznamka',)
+    fields = (
+        'sarze', 'poradi', 'datum', 'zarizeni', 'zacatek', 'datum_konce', 'konec',
+        'operator', 'program', 'alarm', 'poznamka',
+    )
     readonly_fields = ('sarze', 'poradi',)
     list_display = (
-        'get_sarze', 'poradi', 'get_datum', 'get_zarizeni', 'zacatek', 'konec', 'operator',
+        'get_sarze', 'poradi', 'get_zarizeni', 'get_datum', 'zacatek', 'get_datum_konce', 'konec', 'operator',
         'program', 'get_prodleva', 'get_takt', 'get_poznamka', 'get_alarm',
     )
     autocomplete_fields = ('sarze', 'zarizeni',)
@@ -677,7 +689,7 @@ class SarzeKrokAdmin(HistoryPollingAdminMixin, SimpleHistoryAdmin):
         }
 
     history_list_display = [
-        "sarze", "poradi", "datum", "zarizeni", "zacatek", "konec", "operator", "program", "alarm", "poznamka",
+        "sarze", "poradi", "datum", "zarizeni", "zacatek", "datum_konce", "konec", "operator", "program", "alarm", "poznamka",
     ]
     history_search_fields = ["sarze__cislo_sarze", "operator", "program"]
     history_list_filter = ["zarizeni", "datum"]
@@ -690,6 +702,10 @@ class SarzeKrokAdmin(HistoryPollingAdminMixin, SimpleHistoryAdmin):
     @admin.display(description='Datum', ordering='datum')
     def get_datum(self, obj):
         return obj.datum.strftime('%d.%m.%Y') if obj.datum else '-'
+
+    @admin.display(description='Datum konce', ordering='datum_konce')
+    def get_datum_konce(self, obj):
+        return obj.datum_konce.strftime('%d.%m.%Y') if obj.datum_konce else '-'
 
     @admin.display(description='Pracoviště', ordering='zarizeni__zkraceny_nazev_zarizeni')
     def get_zarizeni(self, obj):

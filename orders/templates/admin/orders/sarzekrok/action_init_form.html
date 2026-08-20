@@ -113,6 +113,10 @@
         <div class="field-value">{{ form.zacatek.errors }}{{ form.zacatek }}</div>
       </div>
       <div class="form-row">
+        <label for="{{ form.datum_konce.id_for_label }}"{% if form.datum_konce.field.required %} class="required"{% endif %}>{{ form.datum_konce.label }}:</label>
+        <div class="field-value">{{ form.datum_konce.errors }}{{ form.datum_konce }}</div>
+      </div>
+      <div class="form-row">
         <label for="{{ form.konec.id_for_label }}"{% if form.konec.field.required %} class="required"{% endif %}>{{ form.konec.label }}:</label>
         <div class="field-value">{{ form.konec.errors }}{{ form.konec }}</div>
       </div>

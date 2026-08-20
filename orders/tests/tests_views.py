@@ -1541,6 +1541,7 @@ class BednaScanViewTests(ViewsTestBase):
 				"datum": "2026-06-30",
 				"zarizeni": target_zarizeni.pk,
 				"zacatek": "08:00",
+				"datum_konce": "2026-06-30",
 				"konec": "09:00",
 				"operator": "Svoboda",
 				"program": "P2",
@@ -1554,6 +1555,7 @@ class BednaScanViewTests(ViewsTestBase):
 		target_krok = SarzeKrok.objects.get(sarze=sarze, poradi=2)
 		self.assertEqual(target_krok.zarizeni, target_zarizeni)
 		self.assertEqual(target_krok.operator, "Svoboda")
+		self.assertEqual(target_krok.datum_konce, date(2026, 6, 30))
 		copied_rows = list(target_krok.krok_bedny.order_by("bedna__cislo_bedny"))
 		self.assertEqual(len(copied_rows), 2)
 		self.assertEqual(copied_rows[0].bedna, self.b_eur_pr)
@@ -1594,6 +1596,7 @@ class BednaScanViewTests(ViewsTestBase):
 				"datum": "2026-06-30",
 				"zarizeni": target_zarizeni.pk,
 				"zacatek": "08:00",
+				"datum_konce": "2026-06-30",
 				"konec": "09:00",
 				"operator": "Svoboda",
 				"program": "P2",
@@ -1666,6 +1669,7 @@ class BednaScanViewTests(ViewsTestBase):
 				"datum": "2026-06-30",
 				"zarizeni": zarizeni.pk,
 				"zacatek": "08:00",
+				"datum_konce": "2026-06-30",
 				"konec": "09:00",
 				"operator": "Svoboda",
 				"program": "P2",
@@ -1677,6 +1681,7 @@ class BednaScanViewTests(ViewsTestBase):
 
 		self.assertRedirects(response, reverse("sarze_scan", args=[sarze.cislo_sarze]))
 		krok.refresh_from_db()
+		self.assertEqual(krok.datum_konce, date(2026, 6, 30))
 		self.assertEqual(krok.operator, "Svoboda")
 		self.assertEqual(krok.program, "P2")
 		self.assertEqual(krok.alarm, "A1")
@@ -3314,6 +3319,7 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 	def test_navbar_links_to_latest_closed_nakladani_sarze(self):
 		starsi_sarze = Sarze.objects.create(
 			datum_zalozeni=date(2026, 6, 5),
+			cislo_sarze=99,
 			cislo_pripravku=12,
 			cislo_pracoviste=1,
 		)
@@ -3323,11 +3329,13 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			datum=date(2026, 6, 5),
 			zarizeni=self.nakladani,
 			zacatek=time(6, 0),
+			datum_konce=date(2026, 6, 5),
 			konec=time(7, 0),
 			operator="Novak",
 		)
 		novejsi_sarze = Sarze.objects.create(
 			datum_zalozeni=date(2026, 6, 6),
+			cislo_sarze=13,
 			cislo_pripravku=13,
 			cislo_pracoviste=2,
 		)
@@ -3337,12 +3345,30 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			datum=date(2026, 6, 6),
 			zarizeni=self.nakladani,
 			zacatek=time(8, 0),
+			datum_konce=date(2026, 6, 6),
 			konec=time(9, 0),
+			operator="Novak",
+		)
+		pozdeji_uzavrena_sarze = Sarze.objects.create(
+			datum_zalozeni=date(2026, 6, 6),
+			cislo_sarze=12,
+			cislo_pripravku=14,
+			cislo_pracoviste=4,
+		)
+		SarzeKrok.objects.create(
+			sarze=pozdeji_uzavrena_sarze,
+			poradi=1,
+			datum=date(2026, 6, 6),
+			zarizeni=self.nakladani,
+			zacatek=time(8, 0),
+			datum_konce=date(2026, 6, 6),
+			konec=time(10, 0),
 			operator="Novak",
 		)
 		otevrena_sarze = Sarze.objects.create(
 			datum_zalozeni=date(2026, 6, 7),
-			cislo_pripravku=14,
+			cislo_sarze=14,
+			cislo_pripravku=15,
 			cislo_pracoviste=3,
 		)
 		SarzeKrok.objects.create(
@@ -3357,8 +3383,9 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 		resp = self.client.get(reverse("provozni_prehledy"))
 
 		self.assertContains(resp, "Poslední naložená šarže")
-		self.assertContains(resp, reverse("sarze_scan", args=[novejsi_sarze.cislo_sarze]))
+		self.assertContains(resp, reverse("sarze_scan", args=[pozdeji_uzavrena_sarze.cislo_sarze]))
 		self.assertNotContains(resp, reverse("sarze_scan", args=[starsi_sarze.cislo_sarze]))
+		self.assertNotContains(resp, reverse("sarze_scan", args=[novejsi_sarze.cislo_sarze]))
 		self.assertNotContains(resp, reverse("sarze_scan", args=[otevrena_sarze.cislo_sarze]))
 
 	def test_pracoviste_prehled_redirects_to_open_nakladani_step(self):
@@ -3748,6 +3775,7 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 				"poznamka_sarze": "Původní poznámka",
 				"datum": "2026-06-05",
 				"zacatek": "06:00",
+				"datum_konce": "2026-06-05",
 				"konec": "07:30",
 				"operator": "Novak",
 				"poznamka_kroku": "Původní krok",
@@ -3823,8 +3851,9 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 				"cislo_pracoviste": "2",
 				"poznamka_sarze": "",
 				"datum": "2026-06-05",
-				"zacatek": "06:00",
-				"konec": "07:30",
+				"zacatek": "23:00",
+				"datum_konce": "2026-06-06",
+				"konec": "01:30",
 				"operator": "Novak",
 				"poznamka_kroku": "",
 			},
@@ -3833,7 +3862,87 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 		self.assertEqual(resp.status_code, 302)
 		self.assertEqual(resp["Location"], reverse("provozni_prehledy"))
 		krok.refresh_from_db()
-		self.assertEqual(krok.konec, time(7, 30))
+		self.assertEqual(krok.datum_konce, date(2026, 6, 6))
+		self.assertEqual(krok.konec, time(1, 30))
+
+	def test_upravit_requires_end_date_with_end_time(self):
+		sarze = Sarze.objects.create(
+			datum_zalozeni=date(2026, 6, 5),
+			cislo_pripravku=12,
+			cislo_pracoviste=2,
+		)
+		krok = SarzeKrok.objects.create(
+			sarze=sarze,
+			poradi=1,
+			datum=date(2026, 6, 5),
+			zarizeni=self.nakladani,
+			zacatek=time(6, 0),
+			operator="Novak",
+		)
+		SarzeKrokBedna.objects.create(
+			krok=krok,
+			bedna=self.b_eur_pr,
+			patro=1,
+			procent_z_patra=100,
+		)
+
+		resp = self.client.post(
+			reverse("rychle_zalozeni_sarze_upravit", args=[krok.pk]),
+			{
+				"cislo_pripravku": "12",
+				"cislo_pracoviste": "2",
+				"datum": "2026-06-05",
+				"zacatek": "06:00",
+				"datum_konce": "",
+				"konec": "07:30",
+				"operator": "Novak",
+			},
+		)
+
+		self.assertEqual(resp.status_code, 200)
+		self.assertIn("datum_konce", resp.context["form"].errors)
+		krok.refresh_from_db()
+		self.assertIsNone(krok.konec)
+
+	def test_upravit_rejects_end_before_start(self):
+		sarze = Sarze.objects.create(
+			datum_zalozeni=date(2026, 6, 5),
+			cislo_pripravku=12,
+			cislo_pracoviste=2,
+		)
+		krok = SarzeKrok.objects.create(
+			sarze=sarze,
+			poradi=1,
+			datum=date(2026, 6, 5),
+			zarizeni=self.nakladani,
+			zacatek=time(8, 0),
+			operator="Novak",
+		)
+		SarzeKrokBedna.objects.create(
+			krok=krok,
+			bedna=self.b_eur_pr,
+			patro=1,
+			procent_z_patra=100,
+		)
+
+		resp = self.client.post(
+			reverse("rychle_zalozeni_sarze_upravit", args=[krok.pk]),
+			{
+				"cislo_pripravku": "12",
+				"cislo_pracoviste": "2",
+				"datum": "2026-06-05",
+				"zacatek": "08:00",
+				"datum_konce": "2026-06-05",
+				"konec": "07:30",
+				"operator": "Novak",
+			},
+		)
+
+		self.assertEqual(resp.status_code, 200)
+		self.assertIn("datum_konce", resp.context["form"].errors)
+		self.assertContains(resp, "Konec kroku nesmí být před jeho začátkem.")
+		krok.refresh_from_db()
+		self.assertIsNone(krok.konec)
 
 	def test_upravit_requires_change_permissions(self):
 		sarze = Sarze.objects.create(

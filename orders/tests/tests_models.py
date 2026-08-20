@@ -349,6 +349,29 @@ class TestSarzeModels(ModelsBase):
         )
         self.assertEqual(str(sarze), "S00003")
 
+    def test_sarzekrok_save_defaults_end_date_to_step_date(self):
+        self.assertEqual(self.krok_base.datum_konce, date(2026, 2, 16))
+
+    def test_sarzekrok_save_keeps_end_fields_consistent_with_update_fields(self):
+        krok = SarzeKrok.objects.create(
+            sarze=self.sarze_base,
+            poradi=2,
+            datum=date(2026, 2, 17),
+            zarizeni=self.zarizeni_base,
+            zacatek=time(22, 0),
+            operator="Operátor",
+        )
+
+        krok.konec = time(1, 0)
+        krok.save(update_fields=['konec'])
+        krok.refresh_from_db()
+        self.assertEqual(krok.datum_konce, date(2026, 2, 18))
+
+        krok.konec = None
+        krok.save(update_fields=['konec'])
+        krok.refresh_from_db()
+        self.assertIsNone(krok.datum_konce)
+
     def test_typ_sarze_property_uses_content_and_queryset_annotations(self):
         sarze = Sarze.objects.create(
             cislo_sarze=999,
