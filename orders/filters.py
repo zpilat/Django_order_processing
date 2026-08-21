@@ -1196,3 +1196,25 @@ class StavSarzeBednaFilter(DynamicTitleFilter):
         if value:
             return queryset.filter(krok__sarze__stav_sarze=value)
         return queryset
+
+
+class SkupinaSarzeBednaFilter(DynamicTitleFilter):
+    title = "Skupina TZ"
+    parameter_name = "skupina"
+    vse = "Vše"
+    povolene_skupiny = (2, 9, 14, 16, 19)
+
+    def __init__(self, request, params, model, model_admin):
+        self.label_dict = {str(skupina): f"SK{skupina}" for skupina in self.povolene_skupiny}
+        super().__init__(request, params, model, model_admin)
+
+    def lookups(self, request, model_admin):
+        return self.label_dict.items()
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if not value:
+            return queryset
+        if value not in self.label_dict:
+            return queryset.none()
+        return queryset.filter(bedna__zakazka__predpis__skupina=int(value))

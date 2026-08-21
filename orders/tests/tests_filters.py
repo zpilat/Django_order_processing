@@ -599,6 +599,27 @@ class SarzeBednaFiltersTests(FilterTestBase):
 		self.assertNotIn(self.sb_pp, qs)
 		self.assertIn(self.sb_vu, qs)
 
+	def test_skupina_sarze_bedna_filter(self):
+		self.p1.skupina = 2
+		self.p1.save(update_fields=["skupina"])
+		sb_skupina_2 = SarzeBedna.objects.create(krok=self.krok_pp, bedna=self.b_pr, patro=2)
+
+		f = self._make_filter(
+			F.SkupinaSarzeBednaFilter,
+			SarzeBedna,
+			params={"skupina": "2"},
+		)
+
+		self.assertEqual(
+			list(f.lookups(None, None)),
+			[("2", "SK2"), ("9", "SK9"), ("14", "SK14"), ("16", "SK16"), ("19", "SK19")],
+		)
+		self.assertQuerySetEqual(
+			f.queryset(None, SarzeBedna.objects.all()),
+			[sb_skupina_2],
+			ordered=False,
+		)
+
 
 class CustomTemplateFiltersTests(TestCase):
 	def test_splitlines_splits_text(self):

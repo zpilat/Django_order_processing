@@ -59,6 +59,7 @@ from .filters import (
     OdberatelFilter, OdberatelBednyFilter, AktivniNotifikaceBednyFilter, ZakaznikPredpisFilter, ZinkovaniFilter,
     StavSarzeFilter, TypSarzeFilter, ZarizeniSarzeKrokFilter, TypZarizeniSarzeKrokFilter, KonecSarzeKrokFilter, StavSarzeKrokFilter,
     ZarizeniSarzeBednaFilter, TypZarizeniSarzeBednaFilter, KonecSarzeBednaFilter, StavSarzeBednaFilter,
+    SkupinaSarzeBednaFilter,
     FakturovatFilter,
 )
 from .forms import (
@@ -685,7 +686,7 @@ class SarzeKrokAdmin(HistoryPollingAdminMixin, SimpleHistoryAdmin):
             'orders/js/admin_inline_prevent_enter_submit.js',
         )
         css = {
-            'all': ('orders/css/admin_paused_rows.css',)
+            'all': ('orders/css/admin_paused_rows.css', 'orders/css/admin_changelist_filters_scroll.css')
         }
 
     history_list_display = [
@@ -766,6 +767,7 @@ class SarzeKrokBednaAdmin(HistoryPollingAdminMixin, SimpleHistoryAdmin):
         TypZarizeniSarzeBednaFilter,
         KonecSarzeBednaFilter,
         StavSarzeBednaFilter,
+        SkupinaSarzeBednaFilter,
     )
     search_fields = ('krok__sarze__cislo_sarze', 'bedna__cislo_bedny', 'bedna__zakazka__predpis__nazev',)
     search_help_text = "Dle čísla šarže, čísla bedny a předpisu"
@@ -784,7 +786,7 @@ class SarzeKrokBednaAdmin(HistoryPollingAdminMixin, SimpleHistoryAdmin):
             'orders/js/admin_sarzebedna_group_separator.js',
         )
         css = {
-            'all': ('orders/css/admin_paused_rows.css',)
+            'all': ('orders/css/admin_paused_rows.css', 'orders/css/admin_changelist_filters_scroll.css')
         }
 
     def get_readonly_fields(self, request, obj=None):
@@ -857,7 +859,7 @@ class SarzeKrokBednaAdmin(HistoryPollingAdminMixin, SimpleHistoryAdmin):
     def get_program(self, obj):
         return obj.krok.program if obj.krok else '-'
 
-    @admin.display(description='Zakázka')
+    @admin.display(description='Zakázka', ordering='bedna__zakazka__predpis__skupina')
     def get_zakazka_skupina(self, obj):
         if obj.bedna and obj.bedna.zakazka and obj.bedna.zakazka.predpis and obj.bedna.zakazka.predpis.skupina:
             return f"SK{obj.bedna.zakazka.predpis.skupina}"

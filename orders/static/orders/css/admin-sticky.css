@@ -34,10 +34,10 @@
   top: 4.25rem;
 }
 
-/* Sticky panel filtrů vpravo (globálně), ale ne pro Bedna/Zakazka changelist,
+/* Sticky panel filtrů vpravo (globálně), ale ne pro changelisty s vlastním posuvníkem,
   kde je použita vlastní logika ve styles admin_changelist_filters_scroll.css */
-body.change-list:not(.model-bedna):not(.model-zakazka) #changelist-filter,
-body.change-list:not(.model-bedna):not(.model-zakazka) .filters {
+body.change-list:not(.model-bedna):not(.model-zakazka):not(.model-sarzekrok):not(.model-sarzekrokbedna) #changelist-filter,
+body.change-list:not(.model-bedna):not(.model-zakazka):not(.model-sarzekrok):not(.model-sarzekrokbedna) .filters {
   position: sticky;
   top: 0rem;
   align-self: start;
@@ -45,8 +45,8 @@ body.change-list:not(.model-bedna):not(.model-zakazka) .filters {
 
 /* Lepší chování jen na širších displejích, na mobilu nelepíme */
 @media (max-width: 767.98px) {
-  body.change-list:not(.model-bedna):not(.model-zakazka) #changelist-filter,
-  body.change-list:not(.model-bedna):not(.model-zakazka) .filters {
+  body.change-list:not(.model-bedna):not(.model-zakazka):not(.model-sarzekrok):not(.model-sarzekrokbedna) #changelist-filter,
+  body.change-list:not(.model-bedna):not(.model-zakazka):not(.model-sarzekrok):not(.model-sarzekrokbedna) .filters {
     position: static;
     top: auto;
   }
