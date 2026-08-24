@@ -4786,7 +4786,7 @@ class PriorityNotificationRecipientAdmin(admin.ModelAdmin):
 @admin.register(Notification)
 class NotificationAdmin(admin.ModelAdmin):
     list_display = ('created_at', 'recipient', 'zakazka', 'get_cislo_bedny', 'message', 'ack_required', 'ack_at')
-    list_filter = ('ack_required', 'ack_at', 'recipient')
+    list_filter = ('ack_required', 'ack_at', ('recipient', admin.RelatedOnlyFieldListFilter))
     search_fields = ('message', 'recipient__username', 'zakazka__artikl', 'bedna__cislo_bedny')
     ordering = ('-created_at',)
     readonly_fields = ('created_at', 'created_by', 'ack_at', 'ack_by')

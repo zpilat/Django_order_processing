@@ -2059,6 +2059,34 @@ class NotificationAdminTests(AdminBase):
         self.assertEqual(qs.count(), 1)
         self.assertEqual(qs.first().recipient, current_user)
 
+    def test_recipient_filter_contains_only_notification_recipients(self):
+        User = get_user_model()
+        recipient = User.objects.create_user('notification_recipient', is_staff=True)
+        unused_user = User.objects.create_user('unused_notification_user', is_staff=True)
+        Notification.objects.create(
+            recipient=recipient,
+            zakazka=self.zakazka,
+            bedna=self.bedna,
+            notif_type=Notification.NotificationType.PRIORITA,
+            message='Test příjemce filtru',
+        )
+
+        request = self.factory.get('/')
+        request.user = self.user
+        recipient_field = Notification._meta.get_field('recipient')
+        recipient_filter = admin.RelatedOnlyFieldListFilter(
+            recipient_field,
+            request,
+            {},
+            Notification,
+            self.admin,
+            'recipient',
+        )
+        recipient_ids = {int(value) for value, _label in recipient_filter.lookup_choices}
+
+        self.assertIn(recipient.pk, recipient_ids)
+        self.assertNotIn(unused_user.pk, recipient_ids)
+
 
 class SarzeKrokBednaInlineAdminTests(AdminBase):
     def setUp(self):
