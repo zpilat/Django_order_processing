@@ -2362,7 +2362,7 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
             'weekly_rows': weekly_rows,
             'month_detail': month_detail,
         },
-        'db_table': 'dashboard_vyroba',
+        'db_table': 'dashboard_vyroba_historie',
         'current_time': timezone.now(),
     }
 
