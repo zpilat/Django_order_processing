@@ -30,6 +30,15 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
 # Default to True locally if env not set; set DJANGO_DEBUG=False on server
 DEBUG = os.getenv('DJANGO_DEBUG', 'False').strip().lower() == 'true'
 
+# Adresář, do kterého analyzátor Vanta ukládá výsledky chemických měření.
+# Archiv zpracovaných JSONů je záměrně na stejném disku jako vstupní adresář,
+# aby šlo soubory po úspěšném importu bezpečně přesunout.
+if DEBUG:
+    CHEMISTRY_INCOMING_DIR = Path(r'C:\Users\zpilat\Documents\json')
+else:
+    CHEMISTRY_INCOMING_DIR = Path('/home/pilat/vanta_exports')
+CHEMISTRY_ARCHIVE_DIR = CHEMISTRY_INCOMING_DIR / 'archiv'
+
 ALLOWED_HOSTS = os.getenv('DJANGO_ALLOWED_HOSTS', '').split(',')
 
 

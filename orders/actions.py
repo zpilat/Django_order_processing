@@ -1,4 +1,5 @@
 from django.contrib import admin, messages
+from django.contrib.admin import helpers
 from django.shortcuts import redirect
 from django.http import HttpResponse, HttpResponseRedirect
 from django.template.loader import render_to_string
@@ -43,6 +44,11 @@ from .services.exceptions import ServiceValidationError
 from .services.sarze_print_service import (
     build_tisk_pruvodky_vruty_response,
     get_tisk_pruvodky_vruty_krok,
+)
+from .services.chemistry_import_service import (
+    ChemistryImportError,
+    apply_chemistry_import,
+    build_chemistry_import_preview,
 )
 from django.urls import reverse
 from .forms import VyberKamionVydejForm, OdberatelForm, KNavezeniForm, NavezenoForm, SarzeKrokActionInitForm
@@ -2882,6 +2888,81 @@ def vratit_zakazky_z_expedice_action(modeladmin, request, queryset):
         )
 
 # Akce pro kamiony:
+
+@admin.action(description="Importovat chemická měření beden", permissions=('change',))
+def import_chemickych_mereni_action(modeladmin, request, queryset):
+    """Načte a po potvrzení importuje JSONy měření pro jeden kamion příjem."""
+    count = queryset.count()
+    if count != 1:
+        modeladmin.message_user(
+            request,
+            f"Vyberte právě jeden kamion (vybráno: {count}).",
+            level=messages.ERROR,
+        )
+        return
+
+    kamion = queryset.select_related('zakaznik').first()
+    if kamion.prijem_vydej != KamionChoice.PRIJEM:
+        modeladmin.message_user(
+            request,
+            "Import chemických měření je možný pouze pro kamion příjem.",
+            level=messages.ERROR,
+        )
+        return
+    if not Bedna.objects.filter(zakazka__kamion_prijem=kamion).exists():
+        modeladmin.message_user(
+            request,
+            "Vybraný kamion neobsahuje žádné bedny.",
+            level=messages.ERROR,
+        )
+        return
+
+    preview = build_chemistry_import_preview(kamion)
+    if request.POST.get('confirm_chemistry_import'):
+        if preview.errors:
+            modeladmin.message_user(
+                request,
+                "Import nebyl proveden, protože aktuální náhled obsahuje chyby.",
+                level=messages.ERROR,
+            )
+        else:
+            try:
+                result = apply_chemistry_import(preview)
+            except ChemistryImportError as exc:
+                modeladmin.message_user(request, str(exc), level=messages.ERROR)
+            else:
+                modeladmin.message_user(
+                    request,
+                    f"Chemická měření byla aktualizována pro {result.updated_count} beden; "
+                    f"beze změny zůstalo {result.unchanged_count} beden a bylo zpracováno "
+                    f"{result.processed_file_count} JSONů.",
+                    level=messages.SUCCESS,
+                )
+                for archive_error in result.archive_errors:
+                    modeladmin.message_user(request, archive_error, level=messages.ERROR)
+                logger.info(
+                    f"Uživatel {request.user} importoval chemická měření pro kamion {kamion} "
+                    f"({result.updated_count} aktualizovaných beden, {result.unchanged_count} beze změny, {result.processed_file_count} JSONů, {len(result.archive_errors)} chyb archivace).",
+                )
+                return redirect(reverse('admin:orders_kamion_changelist'))
+
+    context = {
+        **modeladmin.admin_site.each_context(request),
+        'opts': modeladmin.model._meta,
+        'title': f'Import chemických měření – {kamion}',
+        'kamion': kamion,
+        'preview': preview,
+        'action_name': 'import_chemickych_mereni_action',
+        'action_checkbox_name': helpers.ACTION_CHECKBOX_NAME,
+        'changelist_url': reverse('admin:orders_kamion_changelist'),
+        'back_url': kamion.get_admin_url(),
+    }
+    request.current_app = modeladmin.admin_site.name
+    return TemplateResponse(
+        request,
+        'admin/orders/kamion/import_chemickych_mereni.html',
+        context,
+    )
 
 @admin.action(description="Importovat dodací list pro vybraný kamion příjem bez zakázek", permissions=('change',))
 def import_kamionu_action(modeladmin, request, queryset):

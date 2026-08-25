@@ -927,7 +927,31 @@ class Bedna(models.Model):
                                        help_text='Pokud je bedna pozastavena, nelze s ní pracovat, dokud ji odpovědná osoba neuvolní.')
     fakturovat = models.BooleanField(default=True, verbose_name='Fakturovat?',
                                      help_text='Pokud není bedna určena k fakturaci, nebude zahrnuta do proforma faktury pro zákazníka.')
-    history = HistoricalRecords()
+    obsah_ca = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal('0')), MaxValueValidator(Decimal('100'))],
+        verbose_name='Ca [%]',
+    )
+    obsah_p = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal('0')), MaxValueValidator(Decimal('100'))],
+        verbose_name='P [%]',
+    )
+    obsah_zn = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal('0')), MaxValueValidator(Decimal('100'))],
+        verbose_name='Zn [%]',
+    )
+    history = HistoricalRecords(excluded_fields=['obsah_ca', 'obsah_p', 'obsah_zn'])
 
     class Meta:
         verbose_name = 'Bedna'

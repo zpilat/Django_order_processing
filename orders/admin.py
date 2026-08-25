@@ -37,7 +37,7 @@ from .models import (
     Zarizeni, Sarze, SarzeKrok, SarzeKrokBedna, Notification, PriorityNotificationRecipient,
 )
 from .actions import (
-    expedice_zakazek_action, import_kamionu_action, tisk_karet_beden_action, tisk_karet_beden_zakazek_action,
+    expedice_zakazek_action, import_kamionu_action, import_chemickych_mereni_action, tisk_karet_beden_action, tisk_karet_beden_zakazek_action,
     tisk_karet_beden_kamionu_action, tisk_karet_bedny_a_kontroly_kamionu_action, tisk_dodaciho_listu_kamionu_action, vratit_zakazky_z_expedice_action, expedice_zakazek_kamion_action,
     tisk_karet_kontroly_kvality_action, tisk_karet_kontroly_kvality_zakazek_action, tisk_karet_kontroly_kvality_kamionu_action,
     tisk_karet_bedny_a_kontroly_action, tisk_protokolu_kamionu_vydej_action, tisk_proforma_faktury_kamionu_action,
@@ -1223,6 +1223,7 @@ class KamionAdmin(SimpleHistoryAdmin):
     # Použité akce
     actions = [
         import_kamionu_action,
+        import_chemickych_mereni_action,
         tisk_karet_beden_kamionu_action,
         tisk_karet_bedny_a_kontroly_kamionu_action,
         tisk_karet_kontroly_kvality_kamionu_action,
@@ -1622,6 +1623,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                 'tisk_prehledu_zakazek_kamionu_action',
                 'tisk_karty_kontroly_prohybu_kamionu_action',
                 'zadat_mereni_action',
+                'import_chemickych_mereni_action',
                 'tisk_protokolu_kamionu_vydej_action',                
                 'prijmout_kamion_action'
             ]
@@ -1666,6 +1668,7 @@ class KamionAdmin(SimpleHistoryAdmin):
                 'prijmout_kamion_action',
                 'tisk_prehledu_zakazek_kamionu_action',
                 'tisk_karty_kontroly_prohybu_kamionu_action',
+                'import_chemickych_mereni_action',
                 'delete_selected'
             ]            
         else:
@@ -1722,6 +1725,7 @@ class KamionAdmin(SimpleHistoryAdmin):
             'tisk_prehledu_zakazek_kamionu_action': 'Měření',
             'tisk_karty_kontroly_prohybu_kamionu_action': 'Měření',  
             'zadat_mereni_action': 'Měření',          
+            'import_chemickych_mereni_action': 'Měření',
         }
         order = ['Import / Příjem', 'Tisk karet', 'Tisk dokladů', 'Měření']
         grouped = {g: [] for g in order}
@@ -2923,7 +2927,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     form = BednaAdminForm
 
     # Parametry pro zobrazení detailu v administraci (použijeme get_fieldsets)
-    readonly_fields = ('cislo_bedny', 'cena_za_kg', 'cena_za_bednu', 'cena_rovnani_za_kg', 'cena_rovnani_za_bednu',
+    readonly_fields = ('cislo_bedny', 'obsah_ca', 'obsah_p', 'obsah_zn', 'cena_za_kg', 'cena_za_bednu', 'cena_rovnani_za_kg', 'cena_rovnani_za_bednu',
                        'cena_tryskani_za_kg', 'cena_tryskani_za_bednu', 'get_notifikace', 'get_pohyb_v_sarzich')
     autocomplete_fields = ('zakazka',)
 
@@ -3635,6 +3639,7 @@ class BednaAdmin(SimpleHistoryAdmin):
             )),
         ]
         if obj:
+            groups.insert(5, ('Chemické složení', ('obsah_ca', 'obsah_p', 'obsah_zn')))
             groups.append(('Pohyb v šaržích', ('get_pohyb_v_sarzich',)))
 
         # Logika vyloučení polí z původního get_fields

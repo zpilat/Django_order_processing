@@ -1,0 +1,81 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}{{ title }} | {{ site_title|default:_("Django site admin") }}{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% trans "Home" %}</a>
+    › <a href="{{ changelist_url }}">{{ opts.verbose_name_plural|capfirst }}</a>
+    › <a href="{{ back_url }}">{{ kamion }}</a>
+    › {{ title }}
+</div>
+{% endblock %}
+
+{% block content %}
+<p>
+    Vstupní adresář: <code>{{ preview.incoming_dir }}</code>.
+    Archivní adresář: <code>{{ preview.archive_dir }}</code>.
+    Pro každou bednu se použije nejnovější měření podle času v názvu JSONu;
+    stejné a starší výsledky již uložené hodnoty nepřepíšou.
+</p>
+
+{% if preview.errors %}
+<p class="errornote">Import nelze potvrdit, dokud nejsou vyřešeny následující chyby:</p>
+<ul class="errorlist nonfield">
+    {% for error in preview.errors %}<li>{{ error }}</li>{% endfor %}
+</ul>
+{% endif %}
+
+{% if preview.warnings %}
+<div class="messagelist">
+    {% for warning in preview.warnings %}<div class="warning">{{ warning }}</div>{% endfor %}
+</div>
+{% endif %}
+
+{% if preview.rows %}
+<div class="module">
+    <table>
+        <thead>
+            <tr>
+                <th scope="col">Bedna</th>
+                <th scope="col">Použitý soubor</th>
+                <th scope="col">Čas měření</th>
+                <th scope="col">Ca [%]</th>
+                <th scope="col">P [%]</th>
+                <th scope="col">Zn [%]</th>
+                <th scope="col">Stav</th>
+                <th scope="col">JSONů ke zpracování</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in preview.rows %}
+            <tr>
+                <th scope="row"><a href="{{ row.bedna.get_admin_url }}">{{ row.bedna.cislo_bedny }}</a></th>
+                <td>{{ row.selected_file.file_name }}</td>
+                <td>{{ row.selected_file.measured_at|date:"d.m.Y H:i:s" }}</td>
+                <td>{{ row.obsah_ca }}</td>
+                <td>{{ row.obsah_p }}</td>
+                <td>{{ row.obsah_zn }}</td>
+                <td>{{ row.status }}</td>
+                <td>{{ row.source_files|length }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="{{ action_name }}">
+    <input type="hidden" name="{{ action_checkbox_name }}" value="{{ kamion.pk }}">
+    <input type="hidden" name="confirm_chemistry_import" value="1">
+    <div class="submit-row">
+        <a href="{{ changelist_url }}" class="button cancel-link">Zpět bez importu</a>
+        {% if preview.can_import %}
+        <input type="submit" class="default" value="Zpracovat {{ preview.rows|length }} beden">
+        {% endif %}
+    </div>
+</form>
+{% endblock %}
