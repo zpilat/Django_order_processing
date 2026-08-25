@@ -4975,6 +4975,11 @@ class VyrobaDashboardContextTests(TestCase):
 			mnozstvi=1,
 		)
 
+	def test_context_assigns_dashboard_vyroba_db_table(self):
+		ctx = _build_vyroba_dashboard_context(date_value=date(2026, 3, 3))
+
+		self.assertEqual(ctx["db_table"], "dashboard_vyroba")
+
 	def test_vcerejsi_produkce_vrutu_counts_only_first_use_and_by_customer(self):
 		target_day = date(2026, 3, 3)
 		prev_day = target_day - timedelta(days=1)

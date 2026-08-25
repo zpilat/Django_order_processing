@@ -2842,7 +2842,11 @@ def _build_vyroba_dashboard_context(date_value=None):
         'rows': history_rows,
     }
 
-    return {'vyroba_dashboard': dashboard, 'current_time': timezone.now()}
+    return {
+        'vyroba_dashboard': dashboard,
+        'db_table': 'dashboard_vyroba',
+        'current_time': timezone.now(),
+    }
 
 @login_required
 def dashboard_bedny_view(request):
