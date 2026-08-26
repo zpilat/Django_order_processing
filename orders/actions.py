@@ -596,8 +596,45 @@ def tisk_pruvodky_vruty_sarze_action(modeladmin, request, queryset):
     permissions=('filter_chemistry_bedna',),
 )
 def export_chemie_beden_action(modeladmin, request, queryset):
-    """Budoucí export vybraných beden pro kontrolu chemie."""
-    pass
+    """Exportuje základní údaje vybraných beden pro kontrolu chemie."""
+    if not queryset.exists():
+        return None
+
+    queryset = queryset.select_related('zakazka').order_by('cislo_bedny')
+
+    response = HttpResponse(content_type='text/csv; charset=utf-8')
+    filename = f"bedny_chemie_{timezone.now().strftime('%Y%m%d')}.csv"
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    response.write('\ufeff')
+    writer = csv.writer(response, delimiter=';', quoting=csv.QUOTE_MINIMAL)
+    writer.writerow(['Číslo bedny', 'Rozměr', 'Název', 'Materiál', 'Šarže materiálu'])
+
+    for bedna in queryset:
+        zakazka = getattr(bedna, 'zakazka', None)
+        prumer = _format_decimal(getattr(zakazka, 'prumer', None)) if zakazka else ''
+        delka = getattr(zakazka, 'delka', None) if zakazka else None
+        try:
+            delka = str(int(delka)) if delka is not None else ''
+        except (TypeError, ValueError, ArithmeticError):
+            logger.warning(
+                f"Nepodařilo se naformátovat délku pro chemický export bedny {getattr(bedna, 'pk', None)}.",
+                exc_info=True,
+            )
+            delka = ''
+        rozmer = f'{prumer} x {delka}' if prumer and delka else ''
+
+        writer.writerow(sanitize_csv_row([
+            getattr(bedna, 'cislo_bedny', '') or '',
+            rozmer,
+            (getattr(zakazka, 'popis', '') or '') if zakazka else '',
+            getattr(bedna, 'material', '') or '',
+            getattr(bedna, 'sarze', '') or '',
+        ]))
+
+    logger.info(
+        f"Uživatel {getattr(request, 'user', None)} vyexportoval {queryset.count()} beden pro kontrolu chemie do CSV.",
+    )
+    return response
 
 
 @admin.action(description="Export vybraných beden do CSV pro zákazníka")

@@ -1426,6 +1426,48 @@ class ExportBednyCsvActionTests(ActionsBase):
     def _messages_texts(self, request):
         return [m.message for m in list(request._messages)]
 
+    def test_export_chemie_beden_action_uses_czech_columns_and_full_name(self):
+        self.zakazka.prumer = Decimal('10.9')
+        self.zakazka.delka = Decimal('20.5')
+        self.zakazka.popis = 'Celý dlouhý název výrobku 12345'
+        self.zakazka.save(update_fields=['prumer', 'delka', 'popis'])
+        self.bedna.material = '16MnCr5'
+        self.bedna.sarze = 'MAT-2026-08'
+        self.bedna.save(update_fields=['material', 'sarze'])
+
+        response = actions.export_chemie_beden_action(
+            self.bedna_admin,
+            self.get_request('post'),
+            Bedna.objects.filter(pk=self.bedna.pk),
+        )
+
+        self.assertIsInstance(response, HttpResponse)
+        self.assertEqual(response['Content-Type'], 'text/csv; charset=utf-8')
+        self.assertIn('bedny_chemie_', response['Content-Disposition'])
+        rows = list(csv.reader(io.StringIO(response.content.decode('utf-8-sig')), delimiter=';'))
+        self.assertEqual(
+            rows,
+            [
+                ['Číslo bedny', 'Rozměr', 'Název', 'Materiál', 'Šarže materiálu'],
+                [
+                    str(self.bedna.cislo_bedny),
+                    '10,9 x 20',
+                    'Celý dlouhý název výrobku 12345',
+                    '16MnCr5',
+                    'MAT-2026-08',
+                ],
+            ],
+        )
+
+    def test_export_chemie_beden_action_empty_selection_returns_none(self):
+        response = actions.export_chemie_beden_action(
+            self.bedna_admin,
+            self.get_request('post'),
+            Bedna.objects.none(),
+        )
+
+        self.assertIsNone(response)
+
     def test_export_bedny_to_csv_customer_action_single_customer_only(self):
         z2 = Zakaznik.objects.create(nazev='Z2', zkraceny_nazev='Z2', zkratka='E2', ciselna_rada=200000)
         k2 = Kamion.objects.create(zakaznik=z2, datum=date.today())
