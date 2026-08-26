@@ -421,7 +421,7 @@ class BednaScanViewTests(ViewsTestBase):
 
 		self.assertRedirects(
 			response,
-			reverse("bedna_scan", args=[self.b_eur_pr.cislo_bedny]),
+			reverse("provozni_prehledy"),
 			fetch_redirect_response=False,
 		)
 		self.b_eur_pr.refresh_from_db()
@@ -444,14 +444,14 @@ class BednaScanViewTests(ViewsTestBase):
 
 		self.assertRedirects(
 			response,
-			reverse("bedna_scan", args=[self.b_eur_pr.cislo_bedny]),
+			reverse("provozni_prehledy"),
 			fetch_redirect_response=False,
 		)
 		self.b_eur_pr.refresh_from_db()
 		self.assertEqual(self.b_eur_pr.stav_bedny, StavBednyChoice.NAVEZENO)
 		self.assertEqual(self.b_eur_pr.pozice, pozice_b)
 
-	def test_scan_navezeni_redirects_mobile_to_scanner(self):
+	def test_scan_navezeni_redirects_mobile_to_loading_overview(self):
 		pozice = Pozice.objects.create(kod="A", kapacita=10)
 		self.b_eur_pr.stav_bedny = StavBednyChoice.K_NAVEZENI
 		self.b_eur_pr.pozice = pozice
@@ -470,7 +470,7 @@ class BednaScanViewTests(ViewsTestBase):
 
 		self.assertRedirects(
 			response,
-			reverse("bedna_skener"),
+			reverse("provozni_prehledy"),
 			fetch_redirect_response=False,
 		)
 		self.b_eur_pr.refresh_from_db()
@@ -1829,12 +1829,32 @@ class BednaScanViewTests(ViewsTestBase):
 
 		self.assertRedirects(
 			response,
-			reverse("bedna_scan", args=[self.b_eur_pr.cislo_bedny]),
+			reverse("provozni_prehledy"),
 			fetch_redirect_response=False,
 		)
 		self.b_eur_pr.refresh_from_db()
 		self.assertEqual(self.b_eur_pr.stav_bedny, StavBednyChoice.ZAKALENO)
 		self.assertIsNone(self.b_eur_pr.pozice)
+
+	def test_scan_zakaleno_post_redirects_mobile_to_loading_overview(self):
+		self._set_bedna_zakaleno_ready()
+
+		response = self.client.post(
+			reverse("bedna_scan_zakaleno", args=[self.b_eur_pr.cislo_bedny]),
+			{"action": "mark_zakaleno"},
+			HTTP_USER_AGENT=(
+				"Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) "
+				"AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
+			),
+		)
+
+		self.assertRedirects(
+			response,
+			reverse("provozni_prehledy"),
+			fetch_redirect_response=False,
+		)
+		self.b_eur_pr.refresh_from_db()
+		self.assertEqual(self.b_eur_pr.stav_bedny, StavBednyChoice.ZAKALENO)
 
 	def test_scan_zkontrolovano_get_renders_form(self):
 		self._set_bedna_zkontrolovano_ready()
@@ -1944,7 +1964,7 @@ class BednaScanViewTests(ViewsTestBase):
 
 		self.assertRedirects(
 			response,
-			reverse("bedna_scan", args=[self.b_eur_pr.cislo_bedny]),
+			reverse("provozni_prehledy"),
 			fetch_redirect_response=False,
 		)
 		self.b_eur_pr.refresh_from_db()
@@ -1953,7 +1973,7 @@ class BednaScanViewTests(ViewsTestBase):
 		self.assertEqual(self.b_eur_pr.tryskat, TryskaniChoice.CISTA)
 		self.assertIsNone(self.b_eur_pr.pozice)
 
-	def test_scan_zkontrolovano_post_redirects_mobile_to_skener(self):
+	def test_scan_zkontrolovano_post_redirects_mobile_to_loading_overview(self):
 		self._set_bedna_zkontrolovano_ready()
 
 		response = self.client.post(
@@ -1967,7 +1987,7 @@ class BednaScanViewTests(ViewsTestBase):
 
 		self.assertRedirects(
 			response,
-			reverse("bedna_skener"),
+			reverse("provozni_prehledy"),
 			fetch_redirect_response=False,
 		)
 		self.b_eur_pr.refresh_from_db()
