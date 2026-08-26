@@ -197,6 +197,15 @@ class ZakazkaInlineFormTests(FormsBase):
         self.assertIn(inactive_predpis, form.fields["predpis"].queryset)
         self.assertIn(self.pred1, form.fields["predpis"].queryset)
 
+    def test_decimal_helper_fields_accept_comma(self):
+        form = ZakazkaInlineForm(data={
+            "celkova_hmotnost": "12,5",
+            "tara": "1,5",
+        })
+
+        self.assertEqual(form.fields["celkova_hmotnost"].clean("12,5"), Decimal("12.5"))
+        self.assertEqual(form.fields["tara"].clean("1,5"), Decimal("1.5"))
+
 
 class BednaAdminFormTests(FormsBase):
     def test_initial_values(self):
@@ -226,6 +235,23 @@ class BednaAdminFormTests(FormsBase):
             "zinkovat": ZinkovaniChoice.NEZINKOVAT,
         })
         self.assertTrue(form.is_valid())
+        self.assertEqual(form.cleaned_data["tara"], Decimal("1.1"))
+
+    def test_brutto_accepts_decimal_comma(self):
+        form = BednaAdminForm(data={
+            "zakazka": self.zakazka_edit.pk,
+            "hmotnost": "2.0",
+            "tara": "",
+            "mnozstvi": 1,
+            "stav_bedny": StavBednyChoice.NEPRIJATO,
+            "brutto": "3,1",
+            "tryskat": TryskaniChoice.NEZADANO,
+            "rovnat": RovnaniChoice.NEZADANO,
+            "zinkovat": ZinkovaniChoice.NEZINKOVAT,
+        })
+
+        self.assertTrue(form.is_valid())
+        self.assertEqual(form.cleaned_data["brutto"], Decimal("3.1"))
         self.assertEqual(form.cleaned_data["tara"], Decimal("1.1"))
 
     def test_clean_errors_when_tara_already_set(self):

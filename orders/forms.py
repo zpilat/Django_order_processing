@@ -156,6 +156,7 @@ class ZakazkaInlineForm(ZakazkaPredpisValidatorMixin, forms.ModelForm):
     celkova_hmotnost = forms.DecimalField(
         label="Celk. hmotn.",
         min_value=0.0,
+        localize=True,
         required=False,
         widget=forms.TextInput(attrs={'size': '8', 'style': 'width: 60px;'})
     )
@@ -174,6 +175,7 @@ class ZakazkaInlineForm(ZakazkaPredpisValidatorMixin, forms.ModelForm):
     tara = forms.DecimalField(
         label="Tára",
         min_value=0.0,
+        localize=True,
         required=False,
         widget=forms.TextInput(attrs={'size': '8', 'style': 'width: 40px;'})
     )
@@ -243,6 +245,7 @@ class BednaAdminForm(forms.ModelForm):
         min_value=0.0,
         decimal_places=1,
         max_digits=5,
+        localize=True,
         required=False,
         help_text="Zadejte brutto pro výpočet táry pouze v případě, že není zadána.",
         widget=forms.TextInput(attrs={'size': '8', 'style': 'width: 60px;'})
