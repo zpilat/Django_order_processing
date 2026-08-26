@@ -12,6 +12,10 @@ from .choices import (
     StavSarzeChoice, TypZarizeniChoice, STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM,
 )
 
+
+CHEMIE_FILTER_VALUE = 'CHEMIE'
+CHEMIE_FILTER_PERMISSION = 'orders.filter_chemistry_bedna'
+
 class DynamicTitleFilter(SimpleListFilter):
     """
     Dynamický filtr, který mění svůj název podle vybraného filtru.
@@ -44,6 +48,8 @@ class StavBednyFilter(DynamicTitleFilter):
         self.label_dict = {**dict(StavBednyChoice.choices)}
         self.label_dict['RO'] = 'Rozpracováno'
         self.label_dict['PE'] = 'Po exspiraci'
+        if request.user.has_perm(CHEMIE_FILTER_PERMISSION):
+            self.label_dict[CHEMIE_FILTER_VALUE] = 'Chemie'
         super().__init__(request, params, model, model_admin)
 
     def lookups(self, request, model_admin):
@@ -67,6 +73,10 @@ class StavBednyFilter(DynamicTitleFilter):
         elif value == 'PE':
             expiration_date = timezone.localdate() - timedelta(days=28)
             return queryset.exclude(stav_bedny=StavBednyChoice.EXPEDOVANO).filter(zakazka__kamion_prijem__datum__lt=expiration_date)
+        elif value == CHEMIE_FILTER_VALUE:
+            if not request.user.has_perm(CHEMIE_FILTER_PERMISSION):
+                return queryset.none()
+            return queryset.filter(stav_bedny__in=(StavBednyChoice.NEPRIJATO, StavBednyChoice.PRIJATO))
         return queryset.filter(stav_bedny=value)
 
 
@@ -141,13 +151,18 @@ class DelkaFilter(DynamicTitleFilter):
         počtu beden pro zobrazení v lookupech.
         """
         self.label_dict = {}
-        # Pokud není aktivován filtr stav_bedny nebo není vybrán "Neprijato" či "Prijato", filtr DelkaFilter se neaplikuje
+        # Filtr délky je dostupný pro jednotlivé stavy příjmu i pro jejich společný chemický pohled.
         stav_bedny = request.GET.get('stav_bedny', None)
-        if not stav_bedny or stav_bedny not in (StavBednyChoice.NEPRIJATO, StavBednyChoice.PRIJATO):
+        if stav_bedny not in (StavBednyChoice.NEPRIJATO, StavBednyChoice.PRIJATO, CHEMIE_FILTER_VALUE):
             return
         
-        # Základní queryset pro přijaté bedny, vyfiltrovaný dle filtru stav_bedny v requestu
-        base_qs = model.objects.filter(stav_bedny=stav_bedny)
+        # Základní queryset podle vybraného stavu; Chemie zahrnuje oba příjmové stavy.
+        if stav_bedny == CHEMIE_FILTER_VALUE:
+            base_qs = model.objects.filter(
+                stav_bedny__in=(StavBednyChoice.NEPRIJATO, StavBednyChoice.PRIJATO),
+            )
+        else:
+            base_qs = model.objects.filter(stav_bedny=stav_bedny)
         
         # Aplikace ostatních filtrů z request.GET (kromě filtru délky)
         other_filters = {k: v for k, v in request.GET.items() if k != self.parameter_name}
@@ -439,7 +454,11 @@ class SkupinaFilter(DynamicTitleFilter):
 
         if zakaznik:
             query = query.filter(zakazky__kamion_prijem__zakaznik__zkratka=zakaznik)
-        if stav_bedny and stav_bedny not in ('RO', 'PE'):
+        if stav_bedny == CHEMIE_FILTER_VALUE:
+            query = query.filter(
+                zakazky__bedny__stav_bedny__in=(StavBednyChoice.NEPRIJATO, StavBednyChoice.PRIJATO),
+            )
+        elif stav_bedny and stav_bedny not in ('RO', 'PE'):
             query = query.filter(zakazky__bedny__stav_bedny=stav_bedny)
 
         # Vytvoří slovník s unikátními názvy skupin pro zobrazení ve filtru ve správném formátu

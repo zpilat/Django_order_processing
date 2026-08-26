@@ -51,6 +51,7 @@ from .actions import (
     expedice_beden_kamion_action, uvolnit_pozastavene_bedny_action, oznacit_nefakturovat_action,
     oznacit_sarze_jako_zaplanovane_action, vytvorit_dalsi_krok_sarze_action, vytvorit_novy_krok_z_kroku_sarze_action,
     tisk_pruvodky_vruty_sarze_action, tisk_karty_kontroly_prohybu_kamionu_action,
+    export_chemie_beden_action,
 )
 from .filters import (
     SklademZakazkaFilter, StavBednyFilter, KompletZakazkaFilter, AktivniPredpisFilter, SkupinaFilter, ZakaznikBednyFilter,
@@ -61,6 +62,7 @@ from .filters import (
     ZarizeniSarzeBednaFilter, TypZarizeniSarzeBednaFilter, KonecSarzeBednaFilter, StavSarzeBednaFilter,
     SkupinaSarzeBednaFilter,
     FakturovatFilter,
+    CHEMIE_FILTER_VALUE, CHEMIE_FILTER_PERMISSION,
 )
 from .forms import (
     BednaAdminForm,
@@ -2915,7 +2917,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     poll_interval_ms = 30000
     actions = [
         tisk_karet_beden_action, tisk_karet_kontroly_kvality_action, tisk_karet_bedny_a_kontroly_action,
-        export_bedny_to_csv_customer_action, export_bedny_dl_action,
+        export_bedny_to_csv_customer_action, export_bedny_dl_action, export_chemie_beden_action,
         oznacit_k_navezeni_action, oznacit_navezeno_action, oznacit_prijato_navezeno_action, vratit_bedny_ze_stavu_k_navezeni_do_stavu_prijato_action,
         vratit_bedny_ze_stavu_navezeno_do_stavu_prijato_action, vratit_bedny_z_rozpracovanosti_do_stavu_prijato_action,
         oznacit_do_zpracovani_action, oznacit_zakaleno_action, oznacit_zkontrolovano_action, oznacit_k_expedici_action,
@@ -3325,6 +3327,14 @@ class BednaAdmin(SimpleHistoryAdmin):
         """
         return obj.pozice.kod if obj.pozice else '-'
 
+    @admin.display(description="Šarže mat.", ordering='sarze', empty_value='-')
+    def get_sarze(self, obj):
+        """
+        Zobrazí šarže materiálu bedny a umožní třídění podle hlavičky pole.
+        Pokud není šarže vyplněna, zobrazí se '-'.
+        """
+        return obj.sarze if obj.sarze else '-'
+
     def _safe_get_zakazka(self, obj):
         """Bezpečně vrátí zakázku pro bednu i pro historické záznamy s osiřelým FK."""
         try:
@@ -3726,6 +3736,9 @@ class BednaAdmin(SimpleHistoryAdmin):
         pozastaveno_filter = request.GET.get('pozastaveno')
         zinkovani_aktivni_filter = request.GET.get('zinkovani', None) is not None
 
+        if stav_filter == CHEMIE_FILTER_VALUE:
+            return []
+
         if stav_filter == StavBednyChoice.EXPEDOVANO or pozastaveno_filter == 'True':
             return []
         
@@ -3790,6 +3803,9 @@ class BednaAdmin(SimpleHistoryAdmin):
 
     def has_mark_bedna_zakaleno_permission(self, request):
         return request.user.has_perm('orders.mark_bedna_zakaleno')
+
+    def has_filter_chemistry_bedna_permission(self, request):
+        return request.user.has_perm(CHEMIE_FILTER_PERMISSION)
     
     def get_changelist_form(self, request, **kwargs):
         """
@@ -3948,6 +3964,14 @@ class BednaAdmin(SimpleHistoryAdmin):
         stav_zinkovani = request.GET.get('zinkovani', None)
         zinkovani_aktivni_filter = stav_zinkovani is not None
 
+        if stav_bedny == CHEMIE_FILTER_VALUE and request.user.has_perm(CHEMIE_FILTER_PERMISSION):
+            return [
+                'get_cislo_bedny', 'get_poradi_bedny_v_zakazce', 'zakazka_link', 'get_zakaznik_zkratka',
+                'get_material', 'get_sarze', 'obsah_ca', 'obsah_p', 'obsah_zn', 'get_prumer',
+                'get_delka_int', 'get_skupina_TZ', 'get_typ_hlavy', 'get_celozavit', 'get_zkraceny_popis',
+                'hmotnost', 'get_priorita', 'get_datum_prijem', 'poznamka',
+            ]
+
         # Podmínky pro odstranění sloupců z list_display
         if get_user_agent(request).is_mobile:
             return ['get_cislo_bedny', 'get_stav_bedny_mobile', 'get_prumer', 'get_delka_int', 'get_skupina_TZ']
@@ -4021,7 +4045,7 @@ class BednaAdmin(SimpleHistoryAdmin):
 
         if stav_bedny is None:
             filters_to_remove.update([DelkaFilter, TypHlavyBednyFilter, CelozavitBednyFilter])
-        elif stav_bedny != StavBednyChoice.PRIJATO:
+        elif stav_bedny not in [StavBednyChoice.PRIJATO, CHEMIE_FILTER_VALUE]:
             filters_to_remove.update([DelkaFilter, SkupinaFilter, TypHlavyBednyFilter, CelozavitBednyFilter])
         else:
             filters_to_remove.update([TryskaniFilter, RovnaniFilter, ZinkovaniFilter, PozastavenoFilter])
@@ -4076,6 +4100,9 @@ class BednaAdmin(SimpleHistoryAdmin):
             rovnani_filter = request.GET.get('rovnani', None)
             tryskani_filter = request.GET.get('tryskani', None)
             zinkovani_filter = request.GET.get('zinkovani', None)
+
+            if stav_filter != CHEMIE_FILTER_VALUE:
+                actions_to_remove.append('export_chemie_beden_action')
 
             if stav_filter != StavBednyChoice.NEPRIJATO:
                 actions_to_remove += [
@@ -4199,6 +4226,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         group_map = {
             'export_bedny_to_csv_customer_action': 'Export',
             'export_bedny_dl_action': 'Export',
+            'export_chemie_beden_action': 'Export',
             'tisk_karet_beden_action': 'Tisk',
             'tisk_karet_kontroly_kvality_action': 'Tisk',
             'tisk_karet_bedny_a_kontroly_action': 'Tisk',

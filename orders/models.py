@@ -965,7 +965,8 @@ class Bedna(models.Model):
             ('mark_bedna_navezeno', 'Může označit bednu jako navezenou a vrátit ji zpět na příjem'),
             ('mark_bedna_zakaleno', 'Může označit bednu jako zakalenou přímo z příjmu (např. při reklamaci)'),
             ('scan_mark_bedna_zakaleno', 'Může označit bednu jako zakalenou přes skenování'),
-            ('mark_bedna_zkontrolovano', 'Může označit bednu jako zkontrolovanou přes skenování')
+            ('mark_bedna_zkontrolovano', 'Může označit bednu jako zkontrolovanou přes skenování'),
+            ('filter_chemistry_bedna', 'Filtr chemie a export chemických údajů beden'),
         )
         constraints = [models.CheckConstraint(
             name="bedna_valid_when_not_neprijato",

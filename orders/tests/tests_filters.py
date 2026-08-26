@@ -1,4 +1,5 @@
 from django.test import TestCase, RequestFactory
+from django.contrib.auth.models import AnonymousUser
 from django.utils import timezone
 
 from orders.models import (
@@ -161,6 +162,7 @@ class FilterTestBase(TestCase):
 
 	def _make_filter(self, cls, model, params):
 		request = self.rf.get("/admin/", data=params)
+		request.user = AnonymousUser()
 		# SimpleListFilter očekává mutovatelný QueryDict (ChangeList předává request.GET.copy())
 		return cls(request, request.GET.copy(), model, None)
 

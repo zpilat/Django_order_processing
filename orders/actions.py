@@ -591,6 +591,15 @@ def tisk_pruvodky_vruty_sarze_action(modeladmin, request, queryset):
 
 # Akce pro bedny:
 
+@admin.action(
+    description="Export vybraných beden do CSV pro kontrolu chemie",
+    permissions=('filter_chemistry_bedna',),
+)
+def export_chemie_beden_action(modeladmin, request, queryset):
+    """Budoucí export vybraných beden pro kontrolu chemie."""
+    pass
+
+
 @admin.action(description="Export vybraných beden do CSV pro zákazníka")
 def export_bedny_to_csv_customer_action(modeladmin, request, queryset):
     """
