@@ -62,7 +62,6 @@ from .filters import (
     ZarizeniSarzeBednaFilter, TypZarizeniSarzeBednaFilter, KonecSarzeBednaFilter, StavSarzeBednaFilter,
     SkupinaSarzeBednaFilter,
     FakturovatFilter,
-    CHEMIE_FILTER_VALUE, CHEMIE_FILTER_PERMISSION,
 )
 from .forms import (
     BednaAdminForm,
@@ -84,6 +83,18 @@ from .utils import (
 
 import logging
 logger = logging.getLogger('orders')
+
+CHEMIE_VIEW_PARAM = 'chemie'
+CHEMIE_VIEW_PERMISSION = 'orders.filter_chemistry_bedna'
+
+
+class BednaChangeList(ChangeList):
+    """ChangeList, který nepovažuje parametr chemického pohledu za databázový lookup."""
+
+    def get_filters_params(self, params=None):
+        lookup_params = super().get_filters_params(params)
+        lookup_params.pop(CHEMIE_VIEW_PARAM, None)
+        return lookup_params
 
 
 def _stav_bedny_pro_navezeni_values():
@@ -3037,6 +3048,24 @@ class BednaAdmin(SimpleHistoryAdmin):
             return True
         return super().lookup_allowed(key, value)
 
+    def get_changelist(self, request, **kwargs):
+        return BednaChangeList
+
+    def _is_chemistry_view(self, request):
+        return (
+            request.GET.get(CHEMIE_VIEW_PARAM) == '1'
+            and request.user.has_perm(CHEMIE_VIEW_PERMISSION)
+        )
+
+    def _get_chemistry_view_toggle_url(self, request):
+        query_params = request.GET.copy()
+        if self._is_chemistry_view(request):
+            query_params.pop(CHEMIE_VIEW_PARAM, None)
+        else:
+            query_params[CHEMIE_VIEW_PARAM] = '1'
+        encoded = query_params.urlencode()
+        return f'{request.path}?{encoded}' if encoded else request.path
+
     def get_changelist_instance(self, request):
         """
         Použije dynamickou date_hierarchy (z get_date_hierarchy).
@@ -3462,18 +3491,6 @@ class BednaAdmin(SimpleHistoryAdmin):
             return format_html('<strong>{}</strong>', int(zakazka.delka.to_integral_value(rounding=ROUND_DOWN)))
         return '-'
     
-    @admin.display(description='Stav bedny', ordering='stav_bedny', empty_value='-')
-    def get_stav_bedny_mobile(self, obj):
-        """Zkrácený popis stavu bedny pro zúžené layouty (např. mobilní)."""
-        if not obj or obj.stav_bedny is None:
-            return '-'
-
-        label = obj.get_stav_bedny_display()
-        max_len = 10
-        if len(label) > max_len:
-            return f"{label[:max_len - 1]}…"
-        return label
-
     @admin.display(description='TZ', ordering='fake_skupina_TZ_ann', empty_value='-')
     def get_skupina_TZ(self, obj):
         """
@@ -3736,9 +3753,6 @@ class BednaAdmin(SimpleHistoryAdmin):
         pozastaveno_filter = request.GET.get('pozastaveno')
         zinkovani_aktivni_filter = request.GET.get('zinkovani', None) is not None
 
-        if stav_filter == CHEMIE_FILTER_VALUE:
-            return []
-
         if stav_filter == StavBednyChoice.EXPEDOVANO or pozastaveno_filter == 'True':
             return []
         
@@ -3805,7 +3819,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         return request.user.has_perm('orders.mark_bedna_zakaleno')
 
     def has_filter_chemistry_bedna_permission(self, request):
-        return request.user.has_perm(CHEMIE_FILTER_PERMISSION)
+        return request.user.has_perm(CHEMIE_VIEW_PERMISSION)
     
     def get_changelist_form(self, request, **kwargs):
         """
@@ -3837,6 +3851,9 @@ class BednaAdmin(SimpleHistoryAdmin):
             'bedna_last_change': last_change.isoformat() if last_change else '',
             'bedna_last_change_id': last_history_id if last_history_id else '',
             'bedna_poll_interval': self.poll_interval_ms,
+            'show_chemistry_view_button': request.user.has_perm(CHEMIE_VIEW_PERMISSION),
+            'chemistry_view_active': self._is_chemistry_view(request),
+            'chemistry_view_toggle_url': self._get_chemistry_view_toggle_url(request),
         })
 
         # Ošetření POST requestu z inline editace v changelistu,
@@ -3938,12 +3955,31 @@ class BednaAdmin(SimpleHistoryAdmin):
                                 field.disabled = True
 
         return CustomFormset
+
+    def _apply_chemistry_view_columns(self, request, list_display):
+        if not self._is_chemistry_view(request):
+            return list_display
+
+        removed_columns = {
+            'behalter_nr', 'stav_bedny', 'rovnat', 'tryskat', 'zinkovat', 'pozice', 'kamion_prijem_link',
+        }
+        chemistry_columns = ['get_material', 'get_sarze', 'obsah_ca', 'obsah_p', 'obsah_zn']
+        result = [
+            column for column in list_display
+            if column not in removed_columns and column not in chemistry_columns
+        ]
+
+        insert_at = 0
+        for anchor in ('get_zakaznik_zkratka', 'zakazka_link', 'get_poradi_bedny_v_zakazce', 'get_cislo_bedny'):
+            if anchor in result:
+                insert_at = result.index(anchor) + 1
+                break
+        result[insert_at:insert_at] = chemistry_columns
+        return result
     
     def get_list_display(self, request):
         """
         Přizpůsobení zobrazení sloupců v seznamu Bedna.
-        Pokud je zařízení mobil, zůstanou pouze sloupce 'get_cislo_bedny', 'get_stav_bedny_mobile',
-        'get_prumer', 'get_delka_int' a 'get_skupina_TZ'.
         Pokud je aktivní filtr stav bedny a zároveň stav bedny != Po exspiraci, vyloučí se zobrazení sloupce get_postup.        
         Pokud není filtr stav bedny == Expedováno, vyloučí se zobrazení sloupce kamion_vydej_link a get_datum_vydej,
         jinak get_datum_prijem.
@@ -3964,17 +4000,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         stav_zinkovani = request.GET.get('zinkovani', None)
         zinkovani_aktivni_filter = stav_zinkovani is not None
 
-        if stav_bedny == CHEMIE_FILTER_VALUE and request.user.has_perm(CHEMIE_FILTER_PERMISSION):
-            return [
-                'get_cislo_bedny', 'get_poradi_bedny_v_zakazce', 'zakazka_link', 'get_zakaznik_zkratka',
-                'get_material', 'get_sarze', 'obsah_ca', 'obsah_p', 'obsah_zn', 'get_prumer',
-                'get_delka_int', 'get_skupina_TZ', 'get_typ_hlavy', 'get_celozavit', 'get_zkraceny_popis',
-                'hmotnost', 'get_priorita', 'get_datum_prijem', 'poznamka',
-            ]
-
         # Podmínky pro odstranění sloupců z list_display
-        if get_user_agent(request).is_mobile:
-            return ['get_cislo_bedny', 'get_stav_bedny_mobile', 'get_prumer', 'get_delka_int', 'get_skupina_TZ']
         if stav_bedny and stav_bedny not in ['PE', 'RO']:
             if 'get_postup' in list_display:
                 list_display.remove('get_postup')
@@ -4027,7 +4053,7 @@ class BednaAdmin(SimpleHistoryAdmin):
             if 'get_material' in list_display:
                 list_display.remove('get_material')
                 
-        return list_display
+        return self._apply_chemistry_view_columns(request, list_display)
     
     def get_list_filter(self, request):
         """
@@ -4045,7 +4071,7 @@ class BednaAdmin(SimpleHistoryAdmin):
 
         if stav_bedny is None:
             filters_to_remove.update([DelkaFilter, TypHlavyBednyFilter, CelozavitBednyFilter])
-        elif stav_bedny not in [StavBednyChoice.PRIJATO, CHEMIE_FILTER_VALUE]:
+        elif stav_bedny != StavBednyChoice.PRIJATO:
             filters_to_remove.update([DelkaFilter, SkupinaFilter, TypHlavyBednyFilter, CelozavitBednyFilter])
         else:
             filters_to_remove.update([TryskaniFilter, RovnaniFilter, ZinkovaniFilter, PozastavenoFilter])
@@ -4101,7 +4127,7 @@ class BednaAdmin(SimpleHistoryAdmin):
             tryskani_filter = request.GET.get('tryskani', None)
             zinkovani_filter = request.GET.get('zinkovani', None)
 
-            if stav_filter != CHEMIE_FILTER_VALUE:
+            if not self._is_chemistry_view(request):
                 actions_to_remove.append('export_chemie_beden_action')
 
             if stav_filter != StavBednyChoice.NEPRIJATO:

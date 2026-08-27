@@ -15,14 +15,14 @@ from unittest.mock import patch
 from types import SimpleNamespace
 import json
 
-from orders.admin import KamionAdmin, ZakazkaAdmin, BednaAdmin, BednaInline, NotificationAdmin, SarzeAdmin, SarzeKrokAdmin, SarzeKrokBednaAdmin, SarzeKrokBednaInline, SarzeKrokInline, PredpisAdmin, CenaAdmin
+from orders.admin import CHEMIE_VIEW_PARAM, KamionAdmin, ZakazkaAdmin, BednaAdmin, BednaInline, NotificationAdmin, SarzeAdmin, SarzeKrokAdmin, SarzeKrokBednaAdmin, SarzeKrokBednaInline, SarzeKrokInline, PredpisAdmin, CenaAdmin
 from orders import actions
 from orders.actions import vytvorit_dalsi_krok_sarze_action, vytvorit_novy_krok_z_kroku_sarze_action
 from orders.forms import ImportZakazekForm
 from orders.import_strategies import EURImportStrategy
 from orders.models import Zakaznik, Kamion, Zakazka, Bedna, Predpis, TypHlavy, Odberatel, Cena, Notification, PriorityNotificationRecipient, Zarizeni, Sarze, SarzeKrok, SarzeKrokBedna
 from orders.choices import StavBednyChoice, StavSarzeChoice, SklademZakazkyChoice, PrijemVydejChoice, KamionChoice, ZinkovaniChoice, PrioritaChoice, TypZarizeniChoice
-from orders.filters import CHEMIE_FILTER_VALUE, DelkaFilter, StavBednyFilter, TypSarzeFilter
+from orders.filters import DelkaFilter, TypSarzeFilter
 
 
 class DummySession(dict):
@@ -1410,63 +1410,60 @@ class BednaAdminTests(AdminBase):
         ld2 = self.admin.get_list_display(self.get_request({'stav_bedny': 'EX'}))
         self.assertIn('kamion_vydej_link', ld2)
 
-    def test_chemie_filter_requires_permission_and_filters_expected_states(self):
-        User = get_user_model()
-        user = User.objects.create_user('chemie_filter', 'chemie-filter@example.com', 'pass', is_staff=True)
-        request_without_permission = self.factory.get('/', {'stav_bedny': CHEMIE_FILTER_VALUE})
-        request_without_permission.user = user
-        filter_without_permission = StavBednyFilter(
-            request_without_permission,
-            request_without_permission.GET.copy(),
-            Bedna,
-            self.admin,
+    def test_list_display_is_not_reduced_for_mobile_user_agent(self):
+        desktop_request = self.get_request()
+        mobile_request = self.factory.get(
+            '/',
+            HTTP_USER_AGENT='Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Mobile',
         )
-
-        self.assertNotIn(CHEMIE_FILTER_VALUE, dict(filter_without_permission.lookups(request_without_permission, self.admin)))
-        self.assertFalse(filter_without_permission.queryset(request_without_permission, Bedna.objects.all()).exists())
-
-        user.user_permissions.add(Permission.objects.get(codename='filter_chemistry_bedna'))
-        user = User.objects.get(pk=user.pk)
-        request = self.factory.get('/', {'stav_bedny': CHEMIE_FILTER_VALUE})
-        request.user = user
-        chemie_filter = StavBednyFilter(request, request.GET.copy(), Bedna, self.admin)
-        prijata = Bedna.objects.create(
-            zakazka=self.zakazka,
-            hmotnost=Decimal(3),
-            tara=Decimal(1),
-            mnozstvi=1,
-            stav_bedny=StavBednyChoice.PRIJATO,
-        )
-        jina = Bedna.objects.create(
-            zakazka=self.zakazka,
-            hmotnost=Decimal(4),
-            tara=Decimal(1),
-            mnozstvi=1,
-            stav_bedny=StavBednyChoice.K_NAVEZENI,
-        )
-
-        self.assertEqual(dict(chemie_filter.lookups(request, self.admin))[CHEMIE_FILTER_VALUE], 'Chemie')
-        result_ids = set(chemie_filter.queryset(request, Bedna.objects.all()).values_list('pk', flat=True))
-        self.assertSetEqual(result_ids, {self.bedna.pk, prijata.pk})
-        self.assertNotIn(jina.pk, result_ids)
-
-    def test_chemie_filter_uses_dedicated_columns_without_inline_editing(self):
-        request = self.get_request({'stav_bedny': CHEMIE_FILTER_VALUE})
+        mobile_request.user = self.user
 
         self.assertEqual(
-            self.admin.get_list_display(request),
-            [
-                'get_cislo_bedny', 'get_poradi_bedny_v_zakazce', 'zakazka_link', 'get_zakaznik_zkratka',
-                'get_material', 'get_sarze', 'obsah_ca', 'obsah_p', 'obsah_zn', 'get_prumer',
-                'get_delka_int', 'get_skupina_TZ', 'get_typ_hlavy', 'get_celozavit', 'get_zkraceny_popis',
-                'hmotnost', 'get_priorita', 'get_datum_prijem', 'poznamka',
-            ],
+            self.admin.get_list_display(mobile_request),
+            self.admin.get_list_display(desktop_request),
         )
-        self.assertEqual(self.admin.get_list_editable(request), [])
-        self.assertIn(DelkaFilter, self.admin.get_list_filter(request))
 
+    def test_chemistry_view_replaces_columns_for_multiple_states(self):
+        removed_columns = {
+            'behalter_nr', 'stav_bedny', 'rovnat', 'tryskat', 'zinkovat', 'pozice',
+        }
+        chemistry_columns = {'get_material', 'get_sarze', 'obsah_ca', 'obsah_p', 'obsah_zn'}
+
+        for state in (StavBednyChoice.PRIJATO, StavBednyChoice.EXPEDOVANO):
+            with self.subTest(state=state):
+                request = self.get_request({'stav_bedny': state, CHEMIE_VIEW_PARAM: '1'})
+                list_display = self.admin.get_list_display(request)
+
+                self.assertTrue(removed_columns.isdisjoint(list_display))
+                self.assertTrue(chemistry_columns.issubset(list_display))
+                response = self.admin.changelist_view(request)
+                self.assertEqual(response.status_code, 200)
+
+    def test_chemistry_view_button_preserves_filters_and_toggles_view(self):
+        request = self.get_request({'stav_bedny': StavBednyChoice.PRIJATO})
         response = self.admin.changelist_view(request)
-        self.assertEqual(response.status_code, 200)
+
+        self.assertTrue(response.context_data['show_chemistry_view_button'])
+        self.assertFalse(response.context_data['chemistry_view_active'])
+        toggle_url = response.context_data['chemistry_view_toggle_url']
+        self.assertIn(f'stav_bedny={StavBednyChoice.PRIJATO}', toggle_url)
+        self.assertIn(f'{CHEMIE_VIEW_PARAM}=1', toggle_url)
+        response.render()
+        self.assertContains(response, 'Chemie')
+        self.assertContains(response, 'class="addlink"')
+
+        active_request = self.get_request({
+            'stav_bedny': StavBednyChoice.PRIJATO,
+            CHEMIE_VIEW_PARAM: '1',
+        })
+        active_response = self.admin.changelist_view(active_request)
+        self.assertTrue(active_response.context_data['chemistry_view_active'])
+        self.assertNotIn(
+            CHEMIE_VIEW_PARAM,
+            active_response.context_data['chemistry_view_toggle_url'],
+        )
+        active_response.render()
+        self.assertContains(active_response, 'Běžný přehled')
 
     def test_get_sarze_formats_empty_value_and_supports_ordering(self):
         self.bedna.sarze = 'MAT-2026'
@@ -1476,10 +1473,10 @@ class BednaAdminTests(AdminBase):
         self.assertEqual(self.admin.get_sarze(self.bedna), '-')
         self.assertEqual(self.admin.get_sarze.admin_order_field, 'sarze')
 
-    def test_chemie_export_action_is_available_only_with_active_filter(self):
+    def test_chemie_export_action_is_available_only_with_active_view(self):
         self.assertNotIn('export_chemie_beden_action', self.admin.get_actions(self.get_request()))
 
-        chemistry_request = self.get_request({'stav_bedny': CHEMIE_FILTER_VALUE})
+        chemistry_request = self.get_request({CHEMIE_VIEW_PARAM: '1'})
         self.assertIn('export_chemie_beden_action', self.admin.get_actions(chemistry_request))
         self.assertTrue(self.admin.has_filter_chemistry_bedna_permission(chemistry_request))
 
@@ -1487,12 +1484,20 @@ class BednaAdminTests(AdminBase):
         user_without_permission = User.objects.create_user(
             'chemie_action', 'chemie-action@example.com', 'pass', is_staff=True,
         )
-        chemistry_request_without_permission = self.factory.get('/', {'stav_bedny': CHEMIE_FILTER_VALUE})
+        user_without_permission.user_permissions.add(Permission.objects.get(codename='view_bedna'))
+        user_without_permission = User.objects.get(pk=user_without_permission.pk)
+        chemistry_request_without_permission = self.factory.get('/', {CHEMIE_VIEW_PARAM: '1'})
         chemistry_request_without_permission.user = user_without_permission
         self.assertNotIn(
             'export_chemie_beden_action',
             self.admin.get_actions(chemistry_request_without_permission),
         )
+        list_display = self.admin.get_list_display(chemistry_request_without_permission)
+        self.assertIn('behalter_nr', list_display)
+        self.assertIn('stav_bedny', list_display)
+        self.assertNotIn('obsah_ca', list_display)
+        response = self.admin.changelist_view(chemistry_request_without_permission)
+        self.assertFalse(response.context_data['show_chemistry_view_button'])
 
     def test_changelist_view_pozastaveno_filter_keeps_editable(self):
         req = self.get_request({'pozastaveno': 'True'})

@@ -14,6 +14,17 @@ window.adminModelPollConfig = {
 <script src="{% static 'orders/js/admin_model_change_poll.js' %}" defer></script>
 {% endblock %}
 
+{% block object-tools-items %}
+{% if show_chemistry_view_button %}
+<li>
+    <a href="{{ chemistry_view_toggle_url }}" class="viewsitelink">
+        {% if chemistry_view_active %}Běžný přehled{% else %}Chemie{% endif %}
+    </a>
+</li>
+{% endif %}
+{{ block.super }}
+{% endblock %}
+
 {% block content %}
 {{ block.super }}
 {% endblock %}
