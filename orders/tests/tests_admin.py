@@ -1427,7 +1427,7 @@ class BednaAdminTests(AdminBase):
         removed_columns = {
             'behalter_nr', 'stav_bedny', 'rovnat', 'tryskat', 'zinkovat', 'pozice',
         }
-        chemistry_columns = {'get_material', 'get_sarze', 'obsah_ca', 'obsah_p', 'obsah_zn'}
+        chemistry_columns = {'get_material', 'get_sarze', 'get_obsah_ca', 'get_obsah_p', 'get_obsah_zn'}
 
         for state in (StavBednyChoice.PRIJATO, StavBednyChoice.EXPEDOVANO):
             with self.subTest(state=state):
@@ -1438,6 +1438,18 @@ class BednaAdminTests(AdminBase):
                 self.assertTrue(chemistry_columns.issubset(list_display))
                 response = self.admin.changelist_view(request)
                 self.assertEqual(response.status_code, 200)
+
+    def test_chemistry_values_are_displayed_with_two_decimal_places(self):
+        self.bedna.obsah_ca = Decimal('1.234567')
+        self.bedna.obsah_p = Decimal('2.100000')
+        self.bedna.obsah_zn = None
+
+        self.assertEqual(self.admin.get_obsah_ca(self.bedna), '1,23')
+        self.assertEqual(self.admin.get_obsah_p(self.bedna), '2,10')
+        self.assertEqual(self.admin.get_obsah_zn(self.bedna), '-')
+
+        chemistry_fields = dict(self.admin.get_fieldsets(self.get_request(), self.bedna))['Chemické složení']['fields']
+        self.assertEqual(chemistry_fields, ('get_obsah_ca', 'get_obsah_p', 'get_obsah_zn'))
 
     def test_chemistry_view_button_preserves_filters_and_toggles_view(self):
         request = self.get_request({'stav_bedny': StavBednyChoice.PRIJATO})
@@ -1495,7 +1507,7 @@ class BednaAdminTests(AdminBase):
         list_display = self.admin.get_list_display(chemistry_request_without_permission)
         self.assertIn('behalter_nr', list_display)
         self.assertIn('stav_bedny', list_display)
-        self.assertNotIn('obsah_ca', list_display)
+        self.assertNotIn('get_obsah_ca', list_display)
         response = self.admin.changelist_view(chemistry_request_without_permission)
         self.assertFalse(response.context_data['show_chemistry_view_button'])
 

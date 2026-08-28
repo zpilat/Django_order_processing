@@ -17,6 +17,7 @@ from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.db.models.deletion import ProtectedError
 from django.http import JsonResponse, HttpResponseRedirect
 from django.utils import timezone
+from django.utils.formats import number_format
 from datetime import datetime
 
 from simple_history.admin import SimpleHistoryAdmin
@@ -2940,7 +2941,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     form = BednaAdminForm
 
     # Parametry pro zobrazení detailu v administraci (použijeme get_fieldsets)
-    readonly_fields = ('cislo_bedny', 'obsah_ca', 'obsah_p', 'obsah_zn', 'cena_za_kg', 'cena_za_bednu', 'cena_rovnani_za_kg', 'cena_rovnani_za_bednu',
+    readonly_fields = ('cislo_bedny', 'get_obsah_ca', 'get_obsah_p', 'get_obsah_zn', 'cena_za_kg', 'cena_za_bednu', 'cena_rovnani_za_kg', 'cena_rovnani_za_bednu',
                        'cena_tryskani_za_kg', 'cena_tryskani_za_bednu', 'get_notifikace', 'get_pohyb_v_sarzich')
     autocomplete_fields = ('zakazka',)
 
@@ -3666,7 +3667,7 @@ class BednaAdmin(SimpleHistoryAdmin):
             )),
         ]
         if obj:
-            groups.insert(5, ('Chemické složení', ('obsah_ca', 'obsah_p', 'obsah_zn')))
+            groups.insert(5, ('Chemické složení', ('get_obsah_ca', 'get_obsah_p', 'get_obsah_zn')))
             groups.append(('Pohyb v šaržích', ('get_pohyb_v_sarzich',)))
 
         # Logika vyloučení polí z původního get_fields
@@ -3963,7 +3964,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         removed_columns = {
             'behalter_nr', 'stav_bedny', 'rovnat', 'tryskat', 'zinkovat', 'pozice', 'kamion_prijem_link',
         }
-        chemistry_columns = ['get_material', 'get_sarze', 'obsah_ca', 'obsah_p', 'obsah_zn']
+        chemistry_columns = ['get_material', 'get_sarze', 'get_obsah_ca', 'get_obsah_p', 'get_obsah_zn']
         result = [
             column for column in list_display
             if column not in removed_columns and column not in chemistry_columns
@@ -3976,6 +3977,24 @@ class BednaAdmin(SimpleHistoryAdmin):
                 break
         result[insert_at:insert_at] = chemistry_columns
         return result
+
+    @staticmethod
+    def _format_chemistry_value(value):
+        if value is None:
+            return '-'
+        return number_format(value, decimal_pos=2)
+
+    @admin.display(description='Ca [%]', ordering='obsah_ca')
+    def get_obsah_ca(self, obj):
+        return self._format_chemistry_value(obj.obsah_ca)
+
+    @admin.display(description='P [%]', ordering='obsah_p')
+    def get_obsah_p(self, obj):
+        return self._format_chemistry_value(obj.obsah_p)
+
+    @admin.display(description='Zn [%]', ordering='obsah_zn')
+    def get_obsah_zn(self, obj):
+        return self._format_chemistry_value(obj.obsah_zn)
     
     def get_list_display(self, request):
         """
