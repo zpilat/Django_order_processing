@@ -28,6 +28,7 @@ Thumbs.db
 
 # Lokální shell skripty (např. cron wrappery)
 *.sh
+!deploy/vanta-sync.sh
 
 # Dočasné soubory v adresáři tmp
 tmp/

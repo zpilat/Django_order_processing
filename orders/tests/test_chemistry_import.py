@@ -10,6 +10,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.messages.storage.fallback import FallbackStorage
 from django.test import RequestFactory, TestCase
 from django.template.response import TemplateResponse
+from django.utils import timezone
 from django.utils.text import get_valid_filename
 from django.urls import reverse
 
@@ -120,6 +121,31 @@ class ChemistryImportTests(TestCase):
         request.session = {}
         request._messages = FallbackStorage(request)
         return request
+
+    def _write_sync_status(
+        self,
+        *,
+        available=True,
+        running=False,
+        remaining_files=0,
+        downloaded_files=0,
+    ):
+        status = {
+            'checked_at': timezone.now().isoformat(),
+            'available': available,
+            'running': running,
+            'remote_files': (
+                None
+                if remaining_files is None
+                else remaining_files + downloaded_files
+            ),
+            'downloaded_files': downloaded_files,
+            'remaining_files': remaining_files,
+            'error': None,
+        }
+        path = self.incoming / '.vanta-sync-status.json'
+        path.write_text(json.dumps(status), encoding='utf-8')
+        return path
 
     def test_preview_selects_latest_measurement_without_scaling_percentages(self):
         self._write_measurement(
@@ -404,6 +430,74 @@ class ChemistryImportTests(TestCase):
 
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, reverse('admin:orders_kamion_changelist'))
+        self.bedna_1.refresh_from_db()
+        self.assertEqual(self.bedna_1.obsah_ca, Decimal('0.100000'))
+
+    def test_admin_action_blocks_confirmation_while_files_are_waiting(self):
+        self._write_measurement(
+            box_number=self.bedna_1.cislo_bedny,
+            timestamp='2026-08-21-13-24-58',
+            ca='0.1', p='0.2', zn='0.3',
+        )
+        self._write_sync_status(remaining_files=2, downloaded_files=1)
+        admin_object = KamionAdmin(Kamion, AdminSite())
+        queryset = Kamion.objects.filter(pk=self.kamion.pk)
+
+        with self.settings(
+            CHEMISTRY_INCOMING_DIR=self.incoming,
+            CHEMISTRY_ARCHIVE_DIR=self.archive,
+        ):
+            response = actions.import_chemickych_mereni_action(
+                admin_object,
+                self._request(confirm=True),
+                queryset,
+            )
+
+        self.assertIsInstance(response, TemplateResponse)
+        self.assertTrue(response.context_data['sync_status'].blocks_import)
+        self.assertFalse(response.context_data['can_confirm_import'])
+        self.assertFalse(
+            any(
+                '.vanta-sync-status.json' in warning
+                for warning in response.context_data['preview'].warnings
+            )
+        )
+        response.render()
+        self.assertContains(response, 'zbývá stáhnout 2 soubory')
+        self.assertContains(response, 'Obnovit náhled')
+        self.bedna_1.refresh_from_db()
+        self.assertIsNone(self.bedna_1.obsah_ca)
+
+    def test_unavailable_vanta_warns_but_does_not_block_import(self):
+        self._write_measurement(
+            box_number=self.bedna_1.cislo_bedny,
+            timestamp='2026-08-21-13-24-58',
+            ca='0.1', p='0.2', zn='0.3',
+        )
+        self._write_sync_status(available=False, remaining_files=None)
+        admin_object = KamionAdmin(Kamion, AdminSite())
+        queryset = Kamion.objects.filter(pk=self.kamion.pk)
+
+        with self.settings(
+            CHEMISTRY_INCOMING_DIR=self.incoming,
+            CHEMISTRY_ARCHIVE_DIR=self.archive,
+        ):
+            preview_response = actions.import_chemickych_mereni_action(
+                admin_object,
+                self._request(),
+                queryset,
+            )
+            preview_response.render()
+            self.assertContains(preview_response, 'nebyla dostupná')
+            self.assertTrue(preview_response.context_data['can_confirm_import'])
+
+            result_response = actions.import_chemickych_mereni_action(
+                admin_object,
+                self._request(confirm=True),
+                queryset,
+            )
+
+        self.assertEqual(result_response.status_code, 302)
         self.bedna_1.refresh_from_db()
         self.assertEqual(self.bedna_1.obsah_ca, Decimal('0.100000'))
 

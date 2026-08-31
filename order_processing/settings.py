@@ -38,6 +38,11 @@ if DEBUG:
 else:
     CHEMISTRY_INCOMING_DIR = Path('/home/pilat/vanta_exports')
 CHEMISTRY_ARCHIVE_DIR = CHEMISTRY_INCOMING_DIR / 'archiv'
+VANTA_SYNC_STATUS_FILENAME = '.vanta-sync-status.json'
+VANTA_SYNC_STATUS_MAX_AGE_SECONDS = max(
+    1,
+    int(os.getenv('VANTA_SYNC_STATUS_MAX_AGE_SECONDS', '180')),
+)
 
 ALLOWED_HOSTS = os.getenv('DJANGO_ALLOWED_HOSTS', '').split(',')
 

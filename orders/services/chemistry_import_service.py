@@ -217,9 +217,18 @@ def build_chemistry_import_preview(
         return preview
 
     try:
+        status_filename = getattr(
+            settings,
+            'VANTA_SYNC_STATUS_FILENAME',
+            '.vanta-sync-status.json',
+        )
         json_paths = sorted(
             path for path in source_dir.iterdir()
-            if path.is_file() and path.suffix.lower() == '.json'
+            if (
+                path.is_file()
+                and path.suffix.lower() == '.json'
+                and path.name != status_filename
+            )
         )
     except OSError as exc:
         preview.errors.append(f'Vstupní adresář nelze načíst: {exc}')
