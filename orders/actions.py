@@ -50,7 +50,7 @@ from .services.chemistry_import_service import (
     apply_chemistry_import,
     build_chemistry_import_preview,
 )
-from .services.vanta_sync_status_service import get_vanta_sync_status
+from .services.vanta_probe_service import probe_vanta_exports
 from django.urls import reverse
 from .forms import VyberKamionVydejForm, OdberatelForm, KNavezeniForm, NavezenoForm, SarzeKrokActionInitForm
 from .choices import (
@@ -2964,13 +2964,13 @@ def import_chemickych_mereni_action(modeladmin, request, queryset):
         )
         return
 
-    sync_status = get_vanta_sync_status()
+    vanta_probe = probe_vanta_exports()
     preview = build_chemistry_import_preview(kamion)
     if request.POST.get('confirm_chemistry_import'):
-        if sync_status.blocks_import:
+        if vanta_probe.blocks_import:
             modeladmin.message_user(
                 request,
-                sync_status.message,
+                vanta_probe.message,
                 level=messages.ERROR,
             )
         elif preview.errors:
@@ -3006,8 +3006,8 @@ def import_chemickych_mereni_action(modeladmin, request, queryset):
         'title': f'Import chemických měření – {kamion}',
         'kamion': kamion,
         'preview': preview,
-        'sync_status': sync_status,
-        'can_confirm_import': preview.can_import and not sync_status.blocks_import,
+        'vanta_probe': vanta_probe,
+        'can_confirm_import': preview.can_import and not vanta_probe.blocks_import,
         'action_name': 'import_chemickych_mereni_action',
         'action_checkbox_name': helpers.ACTION_CHECKBOX_NAME,
         'changelist_url': reverse('admin:orders_kamion_changelist'),

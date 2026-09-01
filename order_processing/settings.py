@@ -38,10 +38,15 @@ if DEBUG:
 else:
     CHEMISTRY_INCOMING_DIR = Path('/home/pilat/vanta_exports')
 CHEMISTRY_ARCHIVE_DIR = CHEMISTRY_INCOMING_DIR / 'archiv'
-VANTA_SYNC_STATUS_FILENAME = '.vanta-sync-status.json'
-VANTA_SYNC_STATUS_MAX_AGE_SECONDS = max(
+VANTA_SMBCLIENT_COMMAND = os.getenv('VANTA_SMBCLIENT_COMMAND', 'smbclient')
+VANTA_SMB_REMOTE = os.getenv('VANTA_SMB_REMOTE', '//192.168.1.152/Vanta')
+VANTA_SMB_REMOTE_DIR = os.getenv('VANTA_SMB_REMOTE_DIR', 'exports')
+VANTA_SMB_AUTH_FILE = Path(
+    os.getenv('VANTA_SMB_AUTH_FILE', '/etc/vanta-sync/credentials')
+)
+VANTA_PROBE_TIMEOUT_SECONDS = max(
     1,
-    int(os.getenv('VANTA_SYNC_STATUS_MAX_AGE_SECONDS', '180')),
+    int(os.getenv('VANTA_PROBE_TIMEOUT_SECONDS', '5')),
 )
 
 ALLOWED_HOSTS = os.getenv('DJANGO_ALLOWED_HOSTS', '').split(',')

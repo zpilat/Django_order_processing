@@ -71,16 +71,14 @@
 </p>
 
 <div class="module chemistry-sync-status">
-    <h2>Stav synchronizace Vanty</h2>
+    <h2>Aktuální stav Vanty</h2>
     <div class="chemistry-sync-status__content">
         <ul class="messagelist">
-            <li class="{{ sync_status.level }}">{{ sync_status.message }}</li>
+            <li class="{{ vanta_probe.level }}">{{ vanta_probe.message }}</li>
         </ul>
-        {% if sync_status.checked_at %}
         <p class="chemistry-sync-status__checked-at">
-            Poslední kontrola: {{ sync_status.checked_at|date:"d.m.Y H:i:s" }}.
+            Aktuální kontrola: {{ vanta_probe.checked_at|date:"d.m.Y H:i:s" }}.
         </p>
-        {% endif %}
     </div>
 </div>
 
@@ -148,7 +146,7 @@
         <a href="{{ changelist_url }}" class="button cancel-link">Zpět bez importu</a>
         {% if can_confirm_import %}
         <input type="submit" class="default" value="Zpracovat {{ preview.rows|length }} beden">
-        {% elif sync_status.blocks_import %}
+        {% elif vanta_probe.blocks_import %}
         <input type="submit" value="Obnovit náhled">
         {% endif %}
     </div>

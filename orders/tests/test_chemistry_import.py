@@ -4,6 +4,7 @@ from datetime import date
 from decimal import Decimal
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
 from django.contrib.admin.sites import AdminSite
 from django.contrib.auth import get_user_model
@@ -22,6 +23,7 @@ from orders.services.chemistry_import_service import (
     apply_chemistry_import,
     build_chemistry_import_preview,
 )
+from orders.services.vanta_probe_service import VantaProbeResult
 
 
 class ChemistryImportTests(TestCase):
@@ -122,30 +124,13 @@ class ChemistryImportTests(TestCase):
         request._messages = FallbackStorage(request)
         return request
 
-    def _write_sync_status(
-        self,
-        *,
-        available=True,
-        running=False,
-        remaining_files=0,
-        downloaded_files=0,
-    ):
-        status = {
-            'checked_at': timezone.now().isoformat(),
-            'available': available,
-            'running': running,
-            'remote_files': (
-                None
-                if remaining_files is None
-                else remaining_files + downloaded_files
-            ),
-            'downloaded_files': downloaded_files,
-            'remaining_files': remaining_files,
-            'error': None,
-        }
-        path = self.incoming / '.vanta-sync-status.json'
-        path.write_text(json.dumps(status), encoding='utf-8')
-        return path
+    def _probe_result(self, *, available=True, pending_files=(), error=None):
+        return VantaProbeResult(
+            checked_at=timezone.now(),
+            available=available,
+            pending_files=tuple(pending_files),
+            error=error,
+        )
 
     def test_preview_selects_latest_measurement_without_scaling_percentages(self):
         self._write_measurement(
@@ -202,6 +187,26 @@ class ChemistryImportTests(TestCase):
         self.assertFalse(preview.can_import)
         self.assertEqual(preview.rows, [])
         self.assertTrue(any('chybějí prvky P' in error for error in preview.errors))
+
+    def test_legacy_hidden_status_json_is_ignored(self):
+        self._write_measurement(
+            box_number=self.bedna_1.cislo_bedny,
+            timestamp='2026-08-21-13-24-58',
+            ca='0.1', p='0.2', zn='0.3',
+        )
+        legacy_status = self.incoming / '.vanta-sync-status.json'
+        legacy_status.write_text('{"available": true}', encoding='utf-8')
+
+        preview = build_chemistry_import_preview(
+            self.kamion,
+            incoming_dir=self.incoming,
+            archive_root=self.archive,
+        )
+
+        self.assertTrue(preview.can_import)
+        self.assertFalse(
+            any(legacy_status.name in warning for warning in preview.warnings)
+        )
 
     def test_apply_updates_boxes_and_archives_only_files_of_selected_truck(self):
         old_file = self._write_measurement(
@@ -399,7 +404,9 @@ class ChemistryImportTests(TestCase):
         self.assertTrue(any('jiný obsah' in error for error in conflicting_preview.errors))
         self.assertTrue(conflicting_source.exists())
 
-    def test_admin_action_renders_preview_and_confirmed_import(self):
+    @patch('orders.actions.probe_vanta_exports')
+    def test_admin_action_renders_preview_and_confirmed_import(self, probe_mock):
+        probe_mock.return_value = self._probe_result()
         self._write_measurement(
             box_number=self.bedna_1.cislo_bedny,
             timestamp='2026-08-21-13-24-58',
@@ -430,16 +437,20 @@ class ChemistryImportTests(TestCase):
 
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, reverse('admin:orders_kamion_changelist'))
+        self.assertEqual(probe_mock.call_count, 2)
         self.bedna_1.refresh_from_db()
         self.assertEqual(self.bedna_1.obsah_ca, Decimal('0.100000'))
 
-    def test_admin_action_blocks_confirmation_while_files_are_waiting(self):
+    @patch('orders.actions.probe_vanta_exports')
+    def test_admin_action_blocks_confirmation_while_files_are_waiting(self, probe_mock):
+        probe_mock.return_value = self._probe_result(
+            pending_files=('chemistry-a.json', 'chemistry-b.json'),
+        )
         self._write_measurement(
             box_number=self.bedna_1.cislo_bedny,
             timestamp='2026-08-21-13-24-58',
             ca='0.1', p='0.2', zn='0.3',
         )
-        self._write_sync_status(remaining_files=2, downloaded_files=1)
         admin_object = KamionAdmin(Kamion, AdminSite())
         queryset = Kamion.objects.filter(pk=self.kamion.pk)
 
@@ -454,27 +465,25 @@ class ChemistryImportTests(TestCase):
             )
 
         self.assertIsInstance(response, TemplateResponse)
-        self.assertTrue(response.context_data['sync_status'].blocks_import)
+        self.assertTrue(response.context_data['vanta_probe'].blocks_import)
         self.assertFalse(response.context_data['can_confirm_import'])
-        self.assertFalse(
-            any(
-                '.vanta-sync-status.json' in warning
-                for warning in response.context_data['preview'].warnings
-            )
-        )
         response.render()
-        self.assertContains(response, 'zbývá stáhnout 2 soubory')
+        self.assertContains(response, 'čeká na stažení 2 JSONy')
         self.assertContains(response, 'Obnovit náhled')
         self.bedna_1.refresh_from_db()
         self.assertIsNone(self.bedna_1.obsah_ca)
 
-    def test_unavailable_vanta_warns_but_does_not_block_import(self):
+    @patch('orders.actions.probe_vanta_exports')
+    def test_unavailable_vanta_warns_but_does_not_block_import(self, probe_mock):
+        probe_mock.return_value = self._probe_result(
+            available=False,
+            error='Vanta není dostupná',
+        )
         self._write_measurement(
             box_number=self.bedna_1.cislo_bedny,
             timestamp='2026-08-21-13-24-58',
             ca='0.1', p='0.2', zn='0.3',
         )
-        self._write_sync_status(available=False, remaining_files=None)
         admin_object = KamionAdmin(Kamion, AdminSite())
         queryset = Kamion.objects.filter(pk=self.kamion.pk)
 
@@ -488,7 +497,7 @@ class ChemistryImportTests(TestCase):
                 queryset,
             )
             preview_response.render()
-            self.assertContains(preview_response, 'nebyla dostupná')
+            self.assertContains(preview_response, 'kontrola Vanty se nezdařila')
             self.assertTrue(preview_response.context_data['can_confirm_import'])
 
             result_response = actions.import_chemickych_mereni_action(
