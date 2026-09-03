@@ -56,6 +56,33 @@ from weasyprint import HTML, CSS
 import logging
 logger = logging.getLogger('orders')
 
+RYCHLE_ZALOZENI_BARVY = (
+    '#ffde17', '#8ecae6', '#90be6d', '#f9844a', '#cdb4db',
+    '#f9c74f', '#43aa8b', '#adb5bd', '#f4978e', '#a9def9',
+)
+
+
+def _prirad_barvy_polozkam_pater(items):
+    """Přiřadí stejné bedně v rámci jednoho patra vždy stejnou barvu."""
+    barvy_patra = {}
+    aktualni_patro = None
+
+    for item in items:
+        if item.patro != aktualni_patro:
+            aktualni_patro = item.patro
+            barvy_patra = {}
+
+        # Položky mimo databázi nemají společný identifikátor, proto jsou
+        # považované za samostatné položky.
+        klic_bedny = ('bedna', item.bedna_id) if item.bedna_id else ('polozka', item.pk)
+        if klic_bedny not in barvy_patra:
+            barvy_patra[klic_bedny] = RYCHLE_ZALOZENI_BARVY[
+                len(barvy_patra) % len(RYCHLE_ZALOZENI_BARVY)
+            ]
+        item.barva_patra = barvy_patra[klic_bedny]
+
+    return items
+
 
 def _safe_return_url(request, fallback_url):
     next_url = request.POST.get('next') or request.GET.get('next') or request.META.get('HTTP_REFERER')
@@ -1550,12 +1577,13 @@ def rychle_zalozeni_sarze_prehled_view(request, krok_id):
     if invalid_krok_response is not None:
         return invalid_krok_response
 
-    items = (
+    items = list(
         krok.krok_bedny
         .select_related('bedna')
         .order_by('-patro', 'pk')
     )
-    nove_patro = (items.aggregate(max_patro=Max('patro'))['max_patro'] or 0) + 1
+    _prirad_barvy_polozkam_pater(items)
+    nove_patro = max((item.patro for item in items), default=0) + 1
     sarze_s_bednami = bool(
         krok.krok_bedny
         .filter(bedna__isnull=False)

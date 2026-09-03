@@ -49,7 +49,7 @@
             <div class="rack-preview" aria-label="Rozložení položek v {{ floor.grouper }}. patře">
                 {% for item in floor.list %}
                     <div class="rack-segment{% if forloop.last %} rack-segment-last{% endif %}"
-                         style="width: {{ item.procent_z_patra }}%;">
+                         style="width: {{ item.procent_z_patra }}%; background-color: {{ item.barva_patra }};">
                         <div>
                             {% if item.bedna %}
                                 <span class="rack-bedna-number fw-bold fs-6">{{ item.bedna.cislo_bedny }}</span>

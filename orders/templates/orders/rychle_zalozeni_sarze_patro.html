@@ -87,7 +87,13 @@
             </table>
         </div>
 
-        <div class="d-flex justify-content-end align-items-start gap-2 mb-4">
+        <div class="d-flex justify-content-between align-items-start gap-2 mb-4">
+            <button type="button"
+                    id="repeat-first-bedna"
+                    class="btn btn-sm btn-outline-primary"
+                    title="Zkopíruje bednu z prvního řádku do prvního volného řádku">
+                Zopakovat první bednu
+            </button>
             {% if show_delete_patro_button %}
                 <button type="submit"
                         data-action="delete_floor"
@@ -198,6 +204,7 @@
     const scannerStopButton = document.getElementById('bedna-scanner-stop');
     const scannerManualForm = document.getElementById('bedna-scanner-manual-form');
     const scannerManualInput = document.getElementById('bedna-scanner-manual-input');
+    const repeatFirstBednaButton = document.getElementById('repeat-first-bedna');
     const colors = ['#ffde17', '#8ecae6', '#90be6d', '#f9844a', '#cdb4db', '#f9c74f', '#43aa8b', '#adb5bd', '#f4978e', '#a9def9'];
     const maxItems = 5;
     let activeSignature = '';
@@ -354,11 +361,17 @@
 
     function renderPreview(active, values) {
         preview.innerHTML = '';
+        const colorsByBedna = new Map();
         active.forEach((row, index) => {
             const segment = document.createElement('div');
+            const option = selectedBednaOption(row);
+            const colorKey = option ? option.value : `row-${index}`;
+            if (!colorsByBedna.has(colorKey)) {
+                colorsByBedna.set(colorKey, colors[colorsByBedna.size % colors.length]);
+            }
             segment.className = 'rack-segment';
             segment.style.width = `${values[index] || 0}%`;
-            segment.style.backgroundColor = colors[index % colors.length];
+            segment.style.backgroundColor = colorsByBedna.get(colorKey);
             segment.appendChild(buildRackSegmentContent(row, values[index] || 0));
             preview.appendChild(segment);
         });
@@ -504,6 +517,19 @@
     function render(redistribute = true) {
         const active = activeRows();
         const signature = active.map(row => row.dataset.formIndex).join(',');
+        const rowList = rows();
+        const firstRowHasBedna = Boolean(rowList[0] && rowHasItem(rowList[0]));
+        const hasEmptyTargetRow = rowList.slice(1).some(row => !rowHasItem(row));
+        const firstBedna = active[0] ? active[0].querySelector('.js-bedna').value : '';
+        const lastBedna = active.length > 1
+            ? active[active.length - 1].querySelector('.js-bedna').value
+            : '';
+        const firstAndLastBednaAreSame = Boolean(firstBedna && firstBedna === lastBedna);
+
+        repeatFirstBednaButton.disabled = active.length < 2
+            || !firstRowHasBedna
+            || !hasEmptyTargetRow
+            || firstAndLastBednaAreSame;
 
         warning.classList.toggle('d-none', active.length <= maxItems);
         warning.textContent = active.length > maxItems ? `Jedno patro může obsahovat nejvýše ${maxItems} položek.` : '';
@@ -876,6 +902,23 @@
     while (visibleRows() < maxItems) {
         appendEmptyRow(false);
     }
+
+    repeatFirstBednaButton.addEventListener('click', function () {
+        const rowList = rows();
+        const sourceSelect = rowList[0] ? rowList[0].querySelector('.js-bedna') : null;
+        const targetRow = rowList.slice(1).find(row => !rowHasItem(row));
+        const targetSelect = targetRow ? targetRow.querySelector('.js-bedna') : null;
+        if (!sourceSelect || !sourceSelect.value || !targetSelect) {
+            return;
+        }
+
+        const targetOption = Array.from(targetSelect.options).find(
+            option => option.value === sourceSelect.value
+        );
+        if (targetOption) {
+            chooseBednaOption(targetSelect, targetOption);
+        }
+    });
 
     form.querySelectorAll('button[type="submit"]').forEach(button => {
         button.addEventListener('click', function () {

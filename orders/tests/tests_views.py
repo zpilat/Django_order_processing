@@ -4286,6 +4286,18 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 			],
 		)
 
+		prehled = self.client.get(
+			reverse("rychle_zalozeni_sarze_prehled", args=[krok.pk]),
+		)
+		items = prehled.context["items"]
+		self.assertEqual(items[0].barva_patra, items[2].barva_patra)
+		self.assertNotEqual(items[0].barva_patra, items[1].barva_patra)
+		self.assertContains(
+			prehled,
+			f"background-color: {items[0].barva_patra};",
+			count=2,
+		)
+
 	def test_patro_post_accepts_incomplete_floor_outside_five_percent_steps(self):
 		sarze = Sarze.objects.create(
 			datum_zalozeni=date(2026, 6, 5),
@@ -4394,6 +4406,8 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 		self.assertTemplateUsed(resp, "orders/rychle_zalozeni_sarze_patro.html")
 		self.assertEqual(resp.context["patro"], 1)
 		self.assertEqual(resp.context["formset"].total_form_count(), 5)
+		self.assertContains(resp, 'id="repeat-first-bedna"')
+		self.assertContains(resp, "Zopakovat první bednu")
 
 	def test_patro_rejects_non_nakladani_device_even_for_workplace_one(self):
 		predehrev = Zarizeni.objects.create(
