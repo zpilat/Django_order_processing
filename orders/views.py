@@ -182,7 +182,7 @@ def _build_kontrola_prehled_context(user, selected_filter='vse'):
         items.append({
             'typ': 'vruty',
             'typ_label': 'Vruty',
-            'identifikace': f'{bedna.cislo_bedny}',
+            'identifikace': bedna.cislo_bedny,
             'stav': bedna.get_stav_bedny_display(),
             'stav_kod': bedna.stav_bedny,
             'zakaznik': zakaznik.zkraceny_nazev,
