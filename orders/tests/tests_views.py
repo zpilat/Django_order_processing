@@ -195,6 +195,8 @@ class AuthenticationRoutingTests(TestCase):
 		self.assertEqual(response.status_code, 200)
 		self.assertContains(response, "Přehled pracovišť nakládání")
 		self.assertContains(response, reverse("provozni_prehledy"))
+		self.assertContains(response, "Přehled kontroly")
+		self.assertContains(response, reverse("kontrola_prehled"))
 		self.assertContains(response, "Seznam beden")
 		self.assertContains(response, reverse("bedny_list"))
 
@@ -297,6 +299,123 @@ class AuthenticationRoutingTests(TestCase):
 
 		self.assertRedirects(response, reverse("login"), fetch_redirect_response=False)
 		self.assertNotEqual(response.url, reverse("admin:login"))
+
+
+class KontrolaPrehledViewTests(ViewsTestBase):
+	def _grant_control_permissions(self):
+		self.user.user_permissions.add(*Permission.objects.filter(
+			content_type__app_label="orders",
+			codename__in=("mark_bedna_zkontrolovano", "change_stav_sarze_kontrolor"),
+		))
+
+	def _create_iron_batch(self, state=StavSarzeChoice.ZAKALENA_KE_KONTROLE):
+		sarze = Sarze.objects.create(
+			datum_zalozeni=timezone.localdate(),
+			cislo_pripravku=2,
+			stav_sarze=state,
+		)
+		zarizeni = Zarizeni.objects.create(
+			kod_zarizeni=f"KP{sarze.pk}",
+			nazev_zarizeni="Kontrolní zařízení",
+			zkraceny_nazev_zarizeni=f"KP{sarze.pk}",
+		)
+		krok = SarzeKrok.objects.create(
+			sarze=sarze,
+			zarizeni=zarizeni,
+			zacatek=time(6, 0),
+			operator="Novák",
+		)
+		SarzeKrokBedna.objects.create(
+			krok=krok,
+			patro=1,
+			procent_z_patra=100,
+			popis_mimo_db="Výkovek",
+			zakaznik_mimo_db="Kovárna",
+			zakazka_mimo_db="KOV-1",
+		)
+		return sarze
+
+	def test_requires_login(self):
+		self.client.logout()
+		response = self.client.get(reverse("kontrola_prehled"))
+
+		self.assertRedirects(
+			response,
+			f'{reverse("login")}?next={reverse("kontrola_prehled")}',
+			fetch_redirect_response=False,
+		)
+
+	def test_without_control_permission_shows_items_without_detail_links(self):
+		self.b_eur_pr.stav_bedny = StavBednyChoice.ZAKALENO
+		self.b_eur_pr.save(update_fields=["stav_bedny"])
+		sarze = self._create_iron_batch()
+
+		response = self.client.get(reverse("kontrola_prehled"))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(response.context["counts"]["vse"], 2)
+		self.assertContains(response, str(self.b_eur_pr.cislo_bedny))
+		self.assertContains(response, str(sarze))
+		self.assertNotContains(
+			response,
+			reverse("bedna_scan_zkontrolovano", args=[self.b_eur_pr.cislo_bedny]),
+		)
+		self.assertNotContains(response, reverse("sarze_scan", args=[sarze.cislo_sarze]))
+
+	def test_combines_boxes_and_iron_batches_in_oldest_first_order(self):
+		self._grant_control_permissions()
+		self.b_eur_pr.stav_bedny = StavBednyChoice.ZAKALENO
+		self.b_eur_pr.material = "10B21"
+		self.b_eur_pr.save(update_fields=["stav_bedny", "material"])
+		sarze = self._create_iron_batch()
+		old_time = timezone.now() - timedelta(hours=3)
+		new_time = timezone.now() - timedelta(minutes=30)
+		Sarze.history.model.objects.filter(
+			id=sarze.pk,
+			stav_sarze=StavSarzeChoice.ZAKALENA_KE_KONTROLE,
+		).update(history_date=old_time)
+		Bedna.history.model.objects.filter(
+			id=self.b_eur_pr.pk,
+			stav_bedny=StavBednyChoice.ZAKALENO,
+		).update(history_date=new_time)
+
+		response = self.client.get(reverse("kontrola_prehled"))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertTemplateUsed(response, "orders/kontrola_prehled.html")
+		items = response.context["items"]
+		self.assertEqual([item["typ"] for item in items], ["zelezo", "vruty"])
+		self.assertEqual(response.context["counts"], {
+			"vse": 2,
+			"vruty": 1,
+			"zelezo": 1,
+			"dlouho": 1,
+		})
+		self.assertContains(response, reverse("sarze_scan", args=[sarze.cislo_sarze]))
+		self.assertContains(
+			response,
+			reverse("bedna_scan_zkontrolovano", args=[self.b_eur_pr.cislo_bedny]),
+		)
+		self.assertContains(response, "Přehled kontroly")
+		self.assertContains(response, "1 položka")
+
+	def test_type_filter_and_non_iron_batch_exclusion(self):
+		self._grant_control_permissions()
+		self.b_eur_pr.stav_bedny = StavBednyChoice.ZAKALENO
+		self.b_eur_pr.save(update_fields=["stav_bedny"])
+		iron_batch = self._create_iron_batch(StavSarzeChoice.VYLOZENA_KE_KONTROLE)
+		Sarze.objects.create(
+			datum_zalozeni=timezone.localdate(),
+			stav_sarze=StavSarzeChoice.VYLOZENA_KE_KONTROLE,
+		)
+
+		response = self.client.get(reverse("kontrola_prehled"), {"filtr": "zelezo"})
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(len(response.context["items"]), 1)
+		self.assertEqual(response.context["items"][0]["typ"], "zelezo")
+		self.assertEqual(response.context["items"][0]["identifikace"], str(iron_batch))
+		self.assertEqual(response.context["counts"]["vse"], 2)
 
 
 class BednaScanViewTests(ViewsTestBase):

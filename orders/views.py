@@ -152,6 +152,138 @@ def _build_pracoviste_prehled_context():
     }
 
 
+def _build_kontrola_prehled_context(user, selected_filter='vse'):
+    """Sestaví jednu chronologickou frontu beden a železných šarží ke kontrole."""
+    current_time = timezone.now()
+    long_wait_before = current_time - timedelta(hours=2)
+    items = []
+
+    historical_bedna = Bedna.history.model
+    bedny = (
+        Bedna.objects
+        .filter(stav_bedny=StavBednyChoice.ZAKALENO)
+        .select_related(
+            'zakazka',
+            'zakazka__kamion_prijem',
+            'zakazka__kamion_prijem__zakaznik',
+        )
+        .annotate(
+            kontrola_ceka_od=Subquery(
+                historical_bedna.objects
+                .filter(id=OuterRef('pk'), stav_bedny=StavBednyChoice.ZAKALENO)
+                .order_by('-history_date', '-history_id')
+                .values('history_date')[:1]
+            )
+        )
+    )
+    can_control_boxes = user.has_perm('orders.mark_bedna_zkontrolovano')
+    for bedna in bedny:
+        zakaznik = bedna.zakazka.kamion_prijem.zakaznik
+        items.append({
+            'typ': 'vruty',
+            'typ_label': 'Vruty',
+            'identifikace': f'{bedna.cislo_bedny}',
+            'stav': bedna.get_stav_bedny_display(),
+            'stav_kod': bedna.stav_bedny,
+            'zakaznik': zakaznik.zkraceny_nazev,
+            'detail': f'{bedna.zakazka.artikl} · {bedna.zakazka.prumer} × {bedna.zakazka.delka}',
+            'material': bedna.material or '-',
+            'ceka_od': bedna.kontrola_ceka_od,
+            'dlouho_ceka': bool(
+                bedna.kontrola_ceka_od and bedna.kontrola_ceka_od <= long_wait_before
+            ),
+            'url': (
+                reverse('bedna_scan_zkontrolovano', args=[bedna.cislo_bedny])
+                if can_control_boxes else None
+            ),
+        })
+
+    historical_sarze = Sarze.history.model
+    zelezo_rows = (
+        SarzeKrokBedna.objects
+        .filter(popis_mimo_db__isnull=False)
+        .exclude(popis_mimo_db='')
+        .order_by('patro', 'pk')
+    )
+    zelezo_kroky = (
+        SarzeKrok.objects
+        .filter(krok_bedny__popis_mimo_db__gt='')
+        .distinct()
+        .prefetch_related(Prefetch('krok_bedny', queryset=zelezo_rows, to_attr='zelezo_rows'))
+        .order_by('-poradi', '-pk')
+    )
+    sarze_qs = (
+        Sarze.with_typ_sarze()
+        .filter(
+            stav_sarze__in=(
+                StavSarzeChoice.VYLOZENA_KE_KONTROLE,
+                StavSarzeChoice.ZAKALENA_KE_KONTROLE,
+            ),
+            _has_sarze_bedna_mimo_db=True,
+        )
+        .annotate(
+            kontrola_ceka_od=Subquery(
+                historical_sarze.objects
+                .filter(
+                    id=OuterRef('pk'),
+                    stav_sarze__in=(
+                        StavSarzeChoice.VYLOZENA_KE_KONTROLE,
+                        StavSarzeChoice.ZAKALENA_KE_KONTROLE,
+                    ),
+                )
+                .order_by('-history_date', '-history_id')
+                .values('history_date')[:1]
+            )
+        )
+        .prefetch_related(Prefetch('kroky', queryset=zelezo_kroky, to_attr='prehled_kroky'))
+    )
+    can_control_batches = user.has_perm('orders.change_stav_sarze_kontrolor')
+    for sarze in sarze_qs:
+        latest_rows = sarze.prehled_kroky[0].zelezo_rows if sarze.prehled_kroky else []
+        customers = sorted({row.zakaznik_mimo_db for row in latest_rows if row.zakaznik_mimo_db})
+        customer_label = ', '.join(customers) or 'Železo mimo DB'
+        item_count = len(latest_rows)
+        item_count_label = '1 položka' if item_count == 1 else f'{item_count} položek'
+        items.append({
+            'typ': 'zelezo',
+            'typ_label': 'Železo',
+            'identifikace': str(sarze),
+            'stav': sarze.get_stav_sarze_display(),
+            'stav_kod': sarze.stav_sarze,
+            'zakaznik': customer_label,
+            'detail': item_count_label,
+            'material': '-',
+            'ceka_od': sarze.kontrola_ceka_od,
+            'dlouho_ceka': bool(
+                sarze.kontrola_ceka_od and sarze.kontrola_ceka_od <= long_wait_before
+            ),
+            'url': reverse('sarze_scan', args=[sarze.cislo_sarze]) if can_control_batches else None,
+        })
+
+    items.sort(key=lambda item: (item['ceka_od'] is None, item['ceka_od'] or current_time))
+    counts = {
+        'vse': len(items),
+        'vruty': sum(item['typ'] == 'vruty' for item in items),
+        'zelezo': sum(item['typ'] == 'zelezo' for item in items),
+        'dlouho': sum(item['dlouho_ceka'] for item in items),
+    }
+    if selected_filter == 'dlouho':
+        filtered_items = [item for item in items if item['dlouho_ceka']]
+    elif selected_filter in ('vruty', 'zelezo'):
+        filtered_items = [item for item in items if item['typ'] == selected_filter]
+    else:
+        selected_filter = 'vse'
+        filtered_items = items
+
+    return {
+        'items': filtered_items,
+        'counts': counts,
+        'selected_filter': selected_filter,
+        'db_table': 'kontrola_prehled',
+        'current_time': current_time,
+    }
+
+
 def _otevreny_krok_pracoviste(cislo_pracoviste):
     """
     Vrátí otevřený krok šarže pro dané pracoviště, pokud existuje.
@@ -306,6 +438,17 @@ def pracoviste_prehled_view(request):
         request,
         'orders/pracoviste_prehled.html',
         _build_pracoviste_prehled_context(),
+    )
+
+
+@login_required
+@never_cache
+def kontrola_prehled_view(request):
+    """Zobrazí společnou pracovní frontu beden a železných šarží ke kontrole."""
+    return render(
+        request,
+        'orders/kontrola_prehled.html',
+        _build_kontrola_prehled_context(request.user, request.GET.get('filtr', 'vse')),
     )
 
 

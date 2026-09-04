@@ -112,6 +112,11 @@
                             {% if db_table == 'dashboard_bedny' %}aria-current="page"{% endif %}
                             href="{% url 'dashboard_bedny' %}">Přehled beden</a>
                         </li>
+                        <li>
+                            <a class="dropdown-item small{% if db_table == 'kontrola_prehled' %} active{% endif %}"
+                            {% if db_table == 'kontrola_prehled' %}aria-current="page"{% endif %}
+                            href="{% url 'kontrola_prehled' %}">Přehled kontroly</a>
+                        </li>
                         {% if perms.orders.view_bedna %}
                             <li>
                                 <a class="dropdown-item small{% if db_table == 'bedny' %} active{% endif %}"

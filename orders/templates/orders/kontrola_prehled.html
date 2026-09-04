@@ -1,0 +1,114 @@
+{% extends "orders/base.html" %}
+
+{% block title %}Přehled kontroly{% endblock %}
+
+{% block extra_head %}
+    {{ block.super }}
+    <meta http-equiv="refresh" content="60">
+    <style>
+        .control-row { color: inherit; transition: background-color .15s ease-in-out; }
+        .control-row:hover, .control-row:focus { background-color: #f1f5ff; color: inherit; }
+        .control-row-long { border-left: .35rem solid var(--bs-danger) !important; }
+        .control-type-screws { background-color: #214290; color: #ffde17; }
+        .control-type-iron { background-color: #495057; color: #fff; }
+        .control-status-vk { background-color: #ffc107; color: #212529; }
+        .control-status-zk { background-color: #0dcaf0; color: #212529; }
+        .control-status-batch { white-space: normal; line-height: 1.15; text-align: center; }
+        @media (max-width: 767.98px) {
+            .control-table-head { display: none; }
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<main class="container py-3">
+<div class="row justify-content-center">
+<div class="col-12 col-lg-10 col-xl-8">
+    <div class="alert d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3"
+         style="background-color: #214290; color: #ffde17;" role="status">
+        <div>
+            <h1 class="h4 mb-1">Přehled kontroly</h1>
+            <div>Společná fronta beden a šarží ke kontrole.</div>
+        </div>
+        <div class="text-sm-end">
+            <div class="fw-bold">Celkem: {{ counts.vse }}</div>
+            <div class="small">Aktualizováno: {{ current_time|date:"d.m.Y H:i" }}</div>
+        </div>
+    </div>
+
+    <nav class="d-flex flex-wrap gap-2 mb-3" aria-label="Filtr přehledu kontroly">
+        <a class="btn btn-sm {% if selected_filter == 'vse' %}btn-primary{% else %}btn-outline-primary{% endif %}"
+           href="{% url 'kontrola_prehled' %}">Vše: {{ counts.vse }}</a>
+        <a class="btn btn-sm {% if selected_filter == 'vruty' %}btn-primary{% else %}btn-outline-primary{% endif %}"
+           href="{% url 'kontrola_prehled' %}?filtr=vruty">Vruty: {{ counts.vruty }}</a>
+        <a class="btn btn-sm {% if selected_filter == 'zelezo' %}btn-primary{% else %}btn-outline-primary{% endif %}"
+           href="{% url 'kontrola_prehled' %}?filtr=zelezo">Železo: {{ counts.zelezo }}</a>
+        <a class="btn btn-sm {% if selected_filter == 'dlouho' %}btn-danger{% else %}btn-outline-danger{% endif %}"
+           href="{% url 'kontrola_prehled' %}?filtr=dlouho">Čeká přes 2 hodiny: {{ counts.dlouho }}</a>
+    </nav>
+
+    {% if items %}
+        <div class="border rounded-2 overflow-hidden">
+            <div class="row g-0 px-3 py-2 bg-light border-bottom fw-semibold small control-table-head">
+                <div class="col-md-1">Typ</div>
+                <div class="col-md-2">Identifikace</div>
+                <div class="col-md-3">Zákazník / obsah</div>
+                <div class="col-md-2">Materiál</div>
+                <div class="col-md-2">Stav</div>
+                <div class="col-md-2 text-md-end">Čeká od</div>
+            </div>
+            {% for item in items %}
+                {% if item.url %}
+                    <a class="control-row d-block text-decoration-none border-bottom px-3 py-3{% if item.dlouho_ceka %} control-row-long{% endif %}"
+                       href="{{ item.url }}" aria-label="Otevřít {{ item.identifikace }}">
+                {% else %}
+                    <div class="d-block border-bottom px-3 py-3{% if item.dlouho_ceka %} control-row-long{% endif %}">
+                {% endif %}
+                    <div class="row g-2 align-items-center">
+                        <div class="col-5 col-md-1">
+                            <span class="badge {% if item.typ == 'vruty' %}control-type-screws{% else %}control-type-iron{% endif %}">
+                                {{ item.typ_label }}
+                            </span>
+                        </div>
+                        <div class="col-7 col-md-2 fw-bold text-md-start text-end">{{ item.identifikace }}</div>
+                        <div class="col-12 col-md-3">
+                            <div class="fw-semibold">{{ item.zakaznik }}</div>
+                            <div class="small text-muted">{{ item.detail }}</div>
+                        </div>
+                        <div class="col-6 col-md-2 small">
+                            <span class="d-md-none text-muted">Materiál: </span>{{ item.material }}
+                        </div>
+                        <div class="col-6 col-md-2 text-end text-md-start">
+                            <span class="badge {% if item.stav_kod == 'VK' %}control-status-vk control-status-batch{% elif item.stav_kod == 'ZK' %}control-status-zk control-status-batch{% else %}text-bg-secondary{% endif %}">
+                                {% if item.stav_kod == 'VK' %}
+                                    <span class="d-block">Vyložená</span>
+                                    <span class="d-block">ke kontrole</span>
+                                {% elif item.stav_kod == 'ZK' %}
+                                    <span class="d-block">Zakalená</span>
+                                    <span class="d-block">ke kontrole</span>
+                                {% else %}
+                                    {{ item.stav }}
+                                {% endif %}
+                            </span>
+                        </div>
+                        <div class="col-12 col-md-2 text-md-end small">
+                            {% if item.ceka_od %}
+                                <span class="{% if item.dlouho_ceka %}text-danger fw-bold{% endif %}">
+                                    {{ item.ceka_od|date:"d.m.Y H:i" }}
+                                </span>
+                                <div class="text-muted">{{ item.ceka_od|timesince }} čekání</div>
+                            {% else %}
+                                <span class="text-muted">Čas nezjištěn</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% if item.url %}</a>{% else %}</div>{% endif %}
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="alert alert-success text-center mb-0">V tomto výběru momentálně nic nečeká na kontrolu.</div>
+    {% endif %}
+</div>
+</div>
+</main>
+{% endblock %}

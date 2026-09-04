@@ -4,6 +4,7 @@ from .views import (
     dashboard_bedny_view,
     provozni_prehledy_view,
     pracoviste_prehled_view,
+    kontrola_prehled_view,
     dashboard_kamiony_view,
     dashboard_vyroba_view,
     dashboard_vyroba_historie_view,
@@ -42,6 +43,7 @@ from .views import (
 urlpatterns = [
     path('provozni-prehledy/', provozni_prehledy_view, name='provozni_prehledy'),
     path('prehled-pracovist/', pracoviste_prehled_view, name='pracoviste_prehled'),
+    path('prehled-kontroly/', kontrola_prehled_view, name='kontrola_prehled'),
     path('dashboard/bedny/', dashboard_bedny_view, name='dashboard_bedny'),
     path('dashboard/kamiony/', dashboard_kamiony_view, name='dashboard_kamiony'),    
     path('dashboard/vyroba/', dashboard_vyroba_view, name='dashboard_vyroba'),
