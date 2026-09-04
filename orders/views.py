@@ -155,7 +155,7 @@ def _build_pracoviste_prehled_context():
 def _build_kontrola_prehled_context(user, selected_filter='vse'):
     """Sestaví jednu chronologickou frontu beden a železných šarží ke kontrole."""
     current_time = timezone.now()
-    long_wait_before = current_time - timedelta(hours=2)
+    long_wait_before = current_time - timedelta(hours=4)
     items = []
 
     historical_bedna = Bedna.history.model
@@ -243,7 +243,7 @@ def _build_kontrola_prehled_context(user, selected_filter='vse'):
         customers = sorted({row.zakaznik_mimo_db for row in latest_rows if row.zakaznik_mimo_db})
         customer_label = ', '.join(customers) or 'Železo mimo DB'
         item_count = len(latest_rows)
-        item_count_label = '1 položka' if item_count == 1 else f'{item_count} položek'
+        item_count_label = '1 položka' if item_count == 1 else f'{item_count} položky' if item_count < 5 else f'{item_count} položek'
         items.append({
             'typ': 'zelezo',
             'typ_label': 'Železo',

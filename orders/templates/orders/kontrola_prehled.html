@@ -44,7 +44,7 @@
         <a class="btn btn-sm {% if selected_filter == 'zelezo' %}btn-primary{% else %}btn-outline-primary{% endif %}"
            href="{% url 'kontrola_prehled' %}?filtr=zelezo">Železo: {{ counts.zelezo }}</a>
         <a class="btn btn-sm {% if selected_filter == 'dlouho' %}btn-danger{% else %}btn-outline-danger{% endif %}"
-           href="{% url 'kontrola_prehled' %}?filtr=dlouho">Čeká přes 2 hodiny: {{ counts.dlouho }}</a>
+           href="{% url 'kontrola_prehled' %}?filtr=dlouho">Čeká přes 4 hodiny: {{ counts.dlouho }}</a>
     </nav>
 
     {% if items %}
