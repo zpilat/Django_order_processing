@@ -9,6 +9,8 @@ from .views import (
     dashboard_vyroba_view,
     dashboard_vyroba_historie_view,
     dashboard_vyroba_historie_mesic_view,
+    dashboard_rovnani_historie_view,
+    dashboard_rovnani_historie_mesic_view,
     dashboard_vyroba_zakaznici_vyuziti_view,
     dashboard_bedny_k_navezeni_view,
     dashboard_bedny_k_navezeni_pdf_view,
@@ -41,6 +43,8 @@ from .views import (
 )
 
 urlpatterns = [
+    path('dashboard/rovnani/historie/', dashboard_rovnani_historie_view, name='dashboard_rovnani_historie'),
+    path('dashboard/rovnani/historie/mesic/', dashboard_rovnani_historie_mesic_view, name='dashboard_rovnani_historie_mesic'),
     path('provozni-prehledy/', provozni_prehledy_view, name='provozni_prehledy'),
     path('prehled-pracovist/', pracoviste_prehled_view, name='pracoviste_prehled'),
     path('prehled-kontroly/', kontrola_prehled_view, name='kontrola_prehled'),

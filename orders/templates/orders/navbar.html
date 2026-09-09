@@ -145,6 +145,11 @@
                             href="{% url 'dashboard_vyroba_historie' %}">Historie výroby</a>
                         </li>
                         <li>
+                            <a class="dropdown-item small{% if db_table == 'dashboard_rovnani_historie' %} active{% endif %}"
+                            {% if db_table == 'dashboard_rovnani_historie' %}aria-current="page"{% endif %}
+                            href="{% url 'dashboard_rovnani_historie' %}">Historie rovnání</a>
+                        </li>
+                        <li>
                             <a class="dropdown-item small{% if db_table == 'dashboard_vyroba_zakaznici_vyuziti' %} active{% endif %}"
                             {% if db_table == 'dashboard_vyroba_zakaznici_vyuziti' %}aria-current="page"{% endif %}
                             href="{% url 'dashboard_vyroba_zakaznici_vyuziti' %}">Využití roštů</a>

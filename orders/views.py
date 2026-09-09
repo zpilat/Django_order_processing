@@ -2539,6 +2539,164 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
     }
 
 
+def _vyrovnane_bedny_history_qs():
+    """Skutečné přechody na VY, včetně porovnání s historií mimo zvolené období."""
+    history = Bedna.history.model.objects
+    previous = history.filter(id=OuterRef('id')).filter(
+        Q(history_date__lt=OuterRef('history_date'))
+        | Q(history_date=OuterRef('history_date'), history_id__lt=OuterRef('history_id'))
+    ).order_by('-history_date', '-history_id')
+    return history.filter(
+        history_type='~', rovnat=RovnaniChoice.VYROVNANA,
+    ).annotate(
+        previous_rovnat=Subquery(previous.values('rovnat')[:1]),
+    ).filter(previous_rovnat__isnull=False).exclude(previous_rovnat=RovnaniChoice.VYROVNANA)
+
+
+def _build_rovnani_chart(rows, value_key, title, unit, x_label):
+    """Souřadnice spojnicového grafu; SVG funguje i při obnovení přes HTMX."""
+    maximum = max((int(row[value_key]) for row in rows), default=0)
+    # Horní hranice je násobek čtyř, aby všech pět popisků osy Y bylo celé číslo.
+    scale = max(4, ((maximum + 3) // 4) * 4)
+    points = []
+    label_step = max(1, (len(rows) + 11) // 12)
+    for index, row in enumerate(rows):
+        value = int(row[value_key])
+        x = 60 + (index * 640 / (len(rows) - 1) if len(rows) > 1 else 320)
+        y = 250 - (value / scale) * 210
+        display = str(value)
+        label = row['label']
+        detail = f" ({row['date_range']})" if 'date_range' in row else ''
+        points.append({
+            'x': f'{x:.2f}', 'y': f'{y:.2f}',
+            'label': label if x_label == 'Týden' else label[:5],
+            'show_label': index % label_step == 0 or index == len(rows) - 1,
+            'tooltip': f'{x_label} {label}{detail}: {display} {unit}',
+        })
+    return {
+        'title': title, 'unit': unit, 'x_label': x_label, 'points': points,
+        'line': ' '.join(f"{point['x']},{point['y']}" for point in points),
+        'ticks': [
+            {'y': str(250 - index * 52.5), 'label': str(scale * index // 4)}
+            for index in range(5)
+        ],
+    }
+
+
+def _build_rovnani_historie_context(year_value=None, month_value=None, today_value=None):
+    """Počty unikátních beden za období a průměry přes uplynulé dny Po–Pá."""
+    today = today_value or timezone.localdate()
+    transitions = _vyrovnane_bedny_history_qs()
+    available_years = sorted({today.year} | {
+        value.year for value in transitions.datetimes('history_date', 'year')
+        if value.year <= today.year
+    }, reverse=True)
+    try:
+        selected_year = int(year_value)
+    except (TypeError, ValueError):
+        selected_year = today.year
+    if selected_year not in available_years:
+        selected_year = today.year
+    try:
+        selected_month = int(month_value)
+        if not 1 <= selected_month <= 12:
+            selected_month = None
+    except (TypeError, ValueError):
+        selected_month = None
+
+    year_start = date(selected_year, 1, 1)
+    year_end = date(selected_year, 12, 31)
+    elapsed_end = min(today, year_end)
+    start_dt = timezone.make_aware(datetime.combine(year_start, time.min))
+    end_dt = timezone.make_aware(datetime.combine(elapsed_end + timedelta(days=1), time.min))
+    day_data = {}
+    for bedna_id, history_date in transitions.filter(
+        history_date__gte=start_dt, history_date__lt=end_dt,
+    ).order_by().values_list('id', 'history_date').iterator():
+        day_data.setdefault(timezone.localdate(history_date), set()).add(bedna_id)
+
+    def period_summary(start, end):
+        bedna_ids = set()
+        workdays = 0
+        current = start
+        while current <= min(end, elapsed_end):
+            bedna_ids.update(day_data.get(current, ()))
+            workdays += current.weekday() < 5
+            current += timedelta(days=1)
+        count = len(bedna_ids)
+        average = (
+            (Decimal(count) / Decimal(workdays)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            if workdays else Decimal('0.00')
+        )
+        return {'count': count, 'avg': average, 'workdays': workdays}
+
+    month_labels = [
+        'Leden', 'Únor', 'Březen', 'Duben', 'Květen', 'Červen',
+        'Červenec', 'Srpen', 'Září', 'Říjen', 'Listopad', 'Prosinec',
+    ]
+    monthly_rows = []
+    for month_no in range(1, 13):
+        start = date(selected_year, month_no, 1)
+        end = date(selected_year, month_no, calendar.monthrange(selected_year, month_no)[1])
+        monthly_rows.append({
+            'month': month_no, 'label': month_labels[month_no - 1],
+            **period_summary(start, end),
+        })
+
+    weekly_rows = []
+    week_start = year_start - timedelta(days=year_start.weekday())
+    while week_start <= year_end:
+        start = max(week_start, year_start)
+        end = min(week_start + timedelta(days=6), year_end)
+        weekly_rows.append({
+            'label': f'{len(weekly_rows) + 1:02d}',
+            'date_range': f"{start.strftime('%d.%m.')} - {end.strftime('%d.%m.')}",
+            'elapsed': start <= elapsed_end,
+            **period_summary(start, end),
+        })
+        week_start += timedelta(days=7)
+
+    month_detail = None
+    if selected_month is not None:
+        current = date(selected_year, selected_month, 1)
+        end = min(elapsed_end, date(
+            selected_year, selected_month, calendar.monthrange(selected_year, selected_month)[1],
+        ))
+        rows = []
+        while current <= end:
+            rows.append({
+                'label': current.strftime('%d.%m.%Y'),
+                'count': len(day_data.get(current, ())),
+            })
+            current += timedelta(days=1)
+        month_detail = {'label': month_labels[selected_month - 1], 'rows': rows}
+
+    weekly_chart = _build_rovnani_chart(
+        [row for row in weekly_rows if row['elapsed']], 'count',
+        f'Vývoj počtu vyrovnaných beden po týdnech – {selected_year}', 'beden', 'Týden',
+    )
+    if month_detail is not None:
+        month_detail['chart'] = _build_rovnani_chart(
+            month_detail['rows'], 'count',
+            f"Vývoj denního počtu beden – {month_detail['label']} {selected_year}", 'beden', 'Den',
+        )
+
+    return {
+        'rovnani_historie': {
+            'title': 'Historie rovnání',
+            'selected_year': selected_year,
+            'available_years': available_years,
+            'yearly': period_summary(year_start, year_end),
+            'monthly_rows': monthly_rows,
+            'weekly_rows': weekly_rows,
+            'weekly_chart': weekly_chart,
+            'month_detail': month_detail,
+        },
+        'db_table': 'dashboard_rovnani_historie',
+        'current_time': timezone.now(),
+    }
+
+
 def _build_vyroba_zakaznici_vyuziti_context(year_value=None, today_value=None):
     """
     Vytváří kontext pro využití zákazníků výroby na základě zadaného roku a dnešního data.
@@ -3352,6 +3510,27 @@ def dashboard_vyroba_historie_view(request):
     if request.htmx:
         return render(request, "orders/partials/dashboard_vyroba_historie_content.html", context)
     return render(request, 'orders/dashboard_vyroba_historie.html', context)
+
+
+@login_required
+def dashboard_rovnani_historie_view(request):
+    context = _build_rovnani_historie_context(year_value=request.GET.get('rok'))
+    if request.htmx:
+        return render(request, 'orders/partials/dashboard_rovnani_historie_content.html', context)
+    return render(request, 'orders/dashboard_rovnani_historie.html', context)
+
+
+@login_required
+def dashboard_rovnani_historie_mesic_view(request):
+    context = _build_rovnani_historie_context(
+        year_value=request.GET.get('rok'), month_value=request.GET.get('mesic'),
+    )
+    if context['rovnani_historie']['month_detail'] is None:
+        year = context['rovnani_historie']['selected_year']
+        return redirect(f"{reverse('dashboard_rovnani_historie')}?rok={year}")
+    if request.htmx:
+        return render(request, 'orders/partials/dashboard_rovnani_historie_mesic_content.html', context)
+    return render(request, 'orders/dashboard_rovnani_historie_mesic.html', context)
 
 
 @login_required

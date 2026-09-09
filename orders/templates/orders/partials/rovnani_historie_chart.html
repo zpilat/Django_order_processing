@@ -1,0 +1,34 @@
+<div class="card shadow-sm mb-3" style="font-family: 'Liberation Sans', Arial;">
+  <div class="card-header fw-bold" style="background-color: #ffde17; color: #214290;">{{ chart.title }}</div>
+  <div class="card-body p-2">
+    {% if chart.points %}
+      <div class="overflow-auto">
+        <svg viewBox="0 0 740 315" role="img" aria-label="{{ chart.title }}"
+             style="display: block; width: 100%; min-width: 480px; height: auto;">
+          <title>{{ chart.title }}</title>
+          <desc>{{ chart.x_label }} na vodorovné ose, {{ chart.unit }} na svislé ose. Přesné hodnoty jsou v tabulce nad grafem a v popiscích bodů.</desc>
+          <text x="60" y="20" fill="#495057" font-size="12">{{ chart.unit }}</text>
+          {% for tick in chart.ticks %}
+            <line x1="60" y1="{{ tick.y }}" x2="700" y2="{{ tick.y }}" stroke="#dee2e6" />
+            <text x="50" y="{{ tick.y }}" text-anchor="end" dominant-baseline="middle" fill="#495057" font-size="12">{{ tick.label }}</text>
+          {% endfor %}
+          <line x1="60" y1="40" x2="60" y2="250" stroke="#adb5bd" />
+          <line x1="60" y1="250" x2="700" y2="250" stroke="#adb5bd" />
+          <polyline points="{{ chart.line }}" fill="none" stroke="#214290" stroke-width="2.5" stroke-linejoin="round" />
+          {% for point in chart.points %}
+            <circle cx="{{ point.x }}" cy="{{ point.y }}" r="4" fill="#ffde17" stroke="#214290" stroke-width="2"
+                    tabindex="0" role="img" aria-label="{{ point.tooltip }}">
+              <title>{{ point.tooltip }}</title>
+            </circle>
+            {% if point.show_label %}
+              <text x="{{ point.x }}" y="273" text-anchor="middle" fill="#495057" font-size="12">{{ point.label }}</text>
+            {% endif %}
+          {% endfor %}
+          <text x="380" y="302" text-anchor="middle" fill="#495057" font-size="12">{{ chart.x_label }}</text>
+        </svg>
+      </div>
+    {% else %}
+      <p class="text-muted mb-0">Pro graf zatím nejsou žádná uplynulá období.</p>
+    {% endif %}
+  </div>
+</div>
