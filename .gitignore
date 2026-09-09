@@ -40,5 +40,11 @@ tmp/
 # Soubory pdf
 *.pdf
 
+# Soubory obrázků
+*.png
+*.jpg
+*.jpeg
+*.gif
+
 # archivní adresář
 archive/
