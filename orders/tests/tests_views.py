@@ -1,7 +1,7 @@
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import Permission
+from django.contrib.auth.models import Group, Permission
 from django.contrib.messages import get_messages
 from django.http import HttpResponse
 from django.utils import timezone
@@ -2166,6 +2166,95 @@ class BednaScanViewTests(ViewsTestBase):
 		self.assertFalse(response.context["form"].is_valid())
 		self.b_eur_pr.refresh_from_db()
 		self.assertEqual(self.b_eur_pr.stav_bedny, StavBednyChoice.ZAKALENO)
+
+
+class SarzeLimitedMoveTests(ViewsTestBase):
+	def setUp(self):
+		super().setUp()
+		group = Group.objects.create(name="Predak")
+		group.permissions.add(Permission.objects.get(
+			content_type__app_label="orders", codename="can_move_sarze_limited",
+		))
+		self.user.groups.add(group)
+		self.sarze = Sarze.objects.create(datum_zalozeni=timezone.localdate())
+		self.source_device = Zarizeni.objects.create(
+			kod_zarizeni="PEC", nazev_zarizeni="Pec", zkraceny_nazev_zarizeni="Pec",
+			typ_zarizeni=TypZarizeniChoice.VICEUCELOVKA,
+		)
+		self.target_device = Zarizeni.objects.create(
+			kod_zarizeni="TR1", nazev_zarizeni="Tryskač", zkraceny_nazev_zarizeni="Tryskač",
+			typ_zarizeni=TypZarizeniChoice.TRYSKAC,
+		)
+		self.source_krok = SarzeKrok.objects.create(
+			sarze=self.sarze, zarizeni=self.source_device,
+			zacatek=time(6, 0), konec=time(7, 0), operator="Operator",
+		)
+		self.selected_row = SarzeKrokBedna.objects.create(
+			krok=self.source_krok, bedna=self.b_eur_pr, patro=1, procent_z_patra=40,
+		)
+		SarzeKrokBedna.objects.create(
+			krok=self.source_krok, bedna=self.b_abc_ex, patro=1, procent_z_patra=60,
+		)
+		self.move_url = reverse("sarze_scan_presunout", args=[self.sarze.cislo_sarze, self.source_krok.pk])
+		self.scan_url = reverse("sarze_scan", args=[self.sarze.cislo_sarze])
+		self.post_data = {
+			"datum": timezone.localdate().isoformat(),
+			"zarizeni": self.target_device.pk,
+			"zacatek": "08:00",
+			"operator": "Predak",
+			"source_row_ids": [str(self.selected_row.pk)],
+		}
+
+	def test_limited_permission_shows_move_buttons_and_only_blasters(self):
+		response = self.client.get(self.scan_url)
+		self.assertContains(response, self.move_url, count=2)
+
+		response = self.client.get(self.move_url)
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(list(response.context["form"].fields["zarizeni"].queryset), [self.target_device])
+
+	def test_limited_permission_moves_selected_bedna_to_blaster(self):
+		response = self.client.post(self.move_url, self.post_data)
+
+		self.assertRedirects(response, self.scan_url)
+		target_krok = SarzeKrok.objects.get(sarze=self.sarze, poradi=2)
+		self.assertEqual(target_krok.zarizeni, self.target_device)
+		self.assertEqual(list(target_krok.krok_bedny.values_list("bedna_id", flat=True)), [self.b_eur_pr.pk])
+		self.assertEqual(self.source_krok.krok_bedny.count(), 2)
+
+	def test_limited_permission_rejects_all_other_device_types_on_post(self):
+		for device_type in [None, "", *TypZarizeniChoice.values]:
+			if device_type == TypZarizeniChoice.TRYSKAC:
+				continue
+			with self.subTest(device_type=device_type):
+				self.source_device.typ_zarizeni = device_type
+				self.source_device.save(update_fields=["typ_zarizeni"])
+				response = self.client.post(self.move_url, {
+					**self.post_data, "zarizeni": self.source_device.pk,
+				})
+				self.assertEqual(response.status_code, 200)
+				self.assertIn("zarizeni", response.context["form"].errors)
+				self.assertEqual(self.sarze.kroky.count(), 1)
+				self.assertEqual(SarzeKrokBedna.objects.count(), 2)
+
+	def test_full_permission_overrides_limited_permission(self):
+		self.user.user_permissions.add(Permission.objects.get(
+			content_type__app_label="orders", codename="can_move_sarze",
+		))
+		response = self.client.get(self.move_url)
+		self.assertEqual(response.status_code, 200)
+		self.assertIn(self.source_device, response.context["form"].fields["zarizeni"].queryset)
+
+		response = self.client.post(self.move_url, {**self.post_data, "zarizeni": self.source_device.pk})
+		self.assertRedirects(response, self.scan_url)
+		self.assertEqual(SarzeKrok.objects.get(sarze=self.sarze, poradi=2).zarizeni, self.source_device)
+
+	def test_no_permission_hides_buttons_and_denies_get_and_post(self):
+		self.user.groups.clear()
+		self.assertNotContains(self.client.get(self.scan_url), self.move_url)
+		self.assertEqual(self.client.get(self.move_url).status_code, 403)
+		self.assertEqual(self.client.post(self.move_url, self.post_data).status_code, 403)
+		self.assertEqual(self.sarze.kroky.count(), 1)
 
 
 class DashboardBednyViewTests(ViewsTestBase):

@@ -962,11 +962,18 @@ def bedna_scan_pohyb_view(request, cislo_bedny: int):
     )
 
 
+# Typy cílových pracovišť pro oprávnění can_move_sarze_limited.
+SARZE_LIMITED_MOVE_DEVICE_TYPES = (TypZarizeniChoice.TRYSKAC,)
+
+
 def _can_move_sarze_scan(user):
     """
     Kontroluje, zda má uživatel oprávnění přesunout šarži.
     """
-    return user.has_perm('orders.can_move_sarze')
+    return (
+        user.has_perm('orders.can_move_sarze')
+        or user.has_perm('orders.can_move_sarze_limited')
+    )
 
 def _can_change_sarze_scan(user):
     """
@@ -1254,11 +1261,13 @@ def sarze_scan_tisk_pruvodky_view(request, cislo_sarze: int):
 
 
 @login_required
-@permission_required('orders.can_move_sarze', raise_exception=True)
 def sarze_scan_presunout_view(request, cislo_sarze: int, krok_id: int):
     """
     Zobrazuje stránku pro přesun šarže do dalšího kroku.
     """
+    if not _can_move_sarze_scan(request.user):
+        raise PermissionDenied
+
     source_krok = get_object_or_404(
         SarzeKrok.objects.select_related('sarze', 'zarizeni'),
         pk=krok_id,
@@ -1273,6 +1282,21 @@ def sarze_scan_presunout_view(request, cislo_sarze: int, krok_id: int):
     action_token = request.POST.get('_sarzekrok_action_token') or uuid.uuid4().hex
     selected_source_row_ids = {row.pk for row in source_rows}
 
+    form = SarzeKrokActionInitForm(
+        request.POST if request.method == 'POST' else None,
+        initial={
+            'datum': timezone.localdate(),
+            'zacatek': timezone.localtime().time().replace(second=0, microsecond=0),
+            'operator': request.user.get_full_name() or request.user.username,
+        },
+        sarze=source_krok.sarze,
+    )
+    if not request.user.has_perm('orders.can_move_sarze'):
+        form.fields['zarizeni'].queryset = form.fields['zarizeni'].queryset.filter(
+            typ_zarizeni__in=SARZE_LIMITED_MOVE_DEVICE_TYPES,
+        )
+    _style_sarze_scan_move_form(form)
+
     if not source_krok.konec:
         messages.warning(
             request,
@@ -1280,8 +1304,6 @@ def sarze_scan_presunout_view(request, cislo_sarze: int, krok_id: int):
         )
 
     if request.method == 'POST':
-        form = SarzeKrokActionInitForm(request.POST, sarze=source_krok.sarze)
-        _style_sarze_scan_move_form(form)
         selected_source_row_ids = {
             int(row_id)
             for row_id in request.POST.getlist('source_row_ids')
@@ -1331,17 +1353,6 @@ def sarze_scan_presunout_view(request, cislo_sarze: int, krok_id: int):
             f"Uživatel {request.user} odeslal neplatný formulář pro scan přesun šarže "
             f"{source_krok.sarze} ze zdrojového kroku ID {source_krok.pk}. Chyby: {form.errors.as_json()}"
         )
-    else:
-        form = SarzeKrokActionInitForm(
-            initial={
-                'datum': timezone.localdate(),
-                'zacatek': timezone.localtime().time().replace(second=0, microsecond=0),
-                'operator': request.user.get_full_name() or request.user.username,
-            },
-            sarze=source_krok.sarze,
-        )
-        _style_sarze_scan_move_form(form)
-
     predicted_poradi = (
         SarzeKrok.objects
         .filter(sarze=source_krok.sarze)
