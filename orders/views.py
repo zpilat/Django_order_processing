@@ -2631,8 +2631,8 @@ def _build_rovnani_historie_context(year_value=None, month_value=None, today_val
         return {'count': count, 'avg': average, 'workdays': workdays}
 
     month_labels = [
-        'Leden', 'Únor', 'Březen', 'Duben', 'Květen', 'Červen',
-        'Červenec', 'Srpen', 'Září', 'Říjen', 'Listopad', 'Prosinec',
+        '01 - Leden', '02 - Únor', '03 - Březen', '04 - Duben', '05 - Květen', '06 - Červen',
+        '07 - Červenec', '08 - Srpen', '09 - Září', '10 - Říjen', '11 - Listopad', '12 - Prosinec',
     ]
     monthly_rows = []
     for month_no in range(1, 13):
