@@ -368,7 +368,7 @@ class KontrolaPrehledViewTests(ViewsTestBase):
 		self.b_eur_pr.material = "10B21"
 		self.b_eur_pr.save(update_fields=["stav_bedny", "material"])
 		sarze = self._create_iron_batch()
-		old_time = timezone.now() - timedelta(hours=3)
+		old_time = timezone.now() - timedelta(hours=5)
 		new_time = timezone.now() - timedelta(minutes=30)
 		Sarze.history.model.objects.filter(
 			id=sarze.pk,
