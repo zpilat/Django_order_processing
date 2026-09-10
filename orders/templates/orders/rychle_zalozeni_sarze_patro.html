@@ -214,7 +214,7 @@
     let scannerRunning = false;
     let lastScannedValue = '';
     let lastScannedAt = 0;
-    let pendingFocusAfterScannerClose = null;
+    let pendingPercentageFocusAfterScannerClose = null;
 
     function rows() {
         return Array.from(rowsContainer.querySelectorAll('.item-row:not(.is-removed)'));
@@ -294,15 +294,17 @@
         focusBednaSelect(select);
     }
 
-    function focusNextBednaField(currentSelect) {
-        const currentRow = currentSelect ? currentSelect.closest('.item-row') : null;
-        const rowList = rows();
-        const currentIndex = rowList.indexOf(currentRow);
-        const nextRows = currentIndex >= 0 ? rowList.slice(currentIndex + 1) : rowList;
-        const nextSelect = nextRows
-            .map(row => row.querySelector('.js-bedna'))
-            .find(select => select && !select.value && !select.disabled);
-        focusBednaSelect(nextSelect);
+    function focusPercentageSlider(select) {
+        const currentRow = select ? select.closest('.item-row') : null;
+        const currentIndex = activeRows().indexOf(currentRow);
+        const slider = Array.from(preview.querySelectorAll('.rack-boundary'))[currentIndex];
+        if (!slider) {
+            return;
+        }
+        window.setTimeout(function () {
+            slider.focus({ preventScroll: true });
+            slider.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+        }, 0);
     }
 
     function setEqualPercentages(active) {
@@ -588,7 +590,7 @@
         closeBednaResults(select.closest('.bedna-picker'));
         select.dispatchEvent(new Event('change', { bubbles: true }));
         if (select.value) {
-            focusNextBednaField(select);
+            focusPercentageSlider(select);
         }
     }
 
@@ -799,7 +801,7 @@
         activeBednaSelect.value = option.value;
         syncBednaSearchInput(activeBednaSelect);
         activeBednaSelect.dispatchEvent(new Event('change', { bubbles: true }));
-        pendingFocusAfterScannerClose = activeBednaSelect;
+        pendingPercentageFocusAfterScannerClose = activeBednaSelect;
         setScannerStatus('Bedna ' + normalizedNumber + ' byla přidána.', 'success');
         window.setTimeout(function () {
             closeScanner();
@@ -957,9 +959,9 @@
         stopScanner().catch(function () {
             setScannerStatus('Kameru se nepodařilo zastavit.', 'warning');
         });
-        if (pendingFocusAfterScannerClose) {
-            focusNextBednaField(pendingFocusAfterScannerClose);
-            pendingFocusAfterScannerClose = null;
+        if (pendingPercentageFocusAfterScannerClose) {
+            focusPercentageSlider(pendingPercentageFocusAfterScannerClose);
+            pendingPercentageFocusAfterScannerClose = null;
         }
     });
 
