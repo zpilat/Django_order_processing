@@ -2539,18 +2539,37 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
     }
 
 
-def _vyrovnane_bedny_history_qs():
-    """Skutečné přechody na VY, včetně porovnání s historií mimo zvolené období."""
-    history = Bedna.history.model.objects
-    previous = history.filter(id=OuterRef('id')).filter(
+def _history_transitions_to_qs(*, model, field_name, target_value):
+    """
+    Sleduje přechody pole `field_name` na hodnotu `target_value` v historii zadaného modelu.
+    Vrací queryset obsahující záznamy historie dané instance modelu, kde došlo ke změně pole `field_name` na hodnotu `target_value`.
+    """
+    history = getattr(model, 'history', None)
+
+    if history is None:
+        raise ValueError(f"Model {model.__name__} nemá nakonfigurovanou historii.")
+
+    history_model = getattr(history, 'model', None)
+    if history_model is None or not hasattr(history_model, 'tracked_fields'):
+        raise ValueError(f'Atribut history modelu {model.__name__} není manager django-simple-history.')
+
+    tracked_field_names = {field.name for field in history_model.tracked_fields}
+    if field_name not in tracked_field_names:
+        raise ValueError(f"Pole '{field_name}' není sledováno v historii modelu {model.__name__}.")
+
+    original_pk_field = model._meta.pk.attname
+
+    previous = history.filter(**{original_pk_field: OuterRef(original_pk_field)}).filter(
         Q(history_date__lt=OuterRef('history_date'))
         | Q(history_date=OuterRef('history_date'), history_id__lt=OuterRef('history_id'))
     ).order_by('-history_date', '-history_id')
+
     return history.filter(
-        history_type='~', rovnat=RovnaniChoice.VYROVNANA,
+        history_type='~', **{field_name: target_value},
     ).annotate(
-        previous_rovnat=Subquery(previous.values('rovnat')[:1]),
-    ).filter(previous_rovnat__isnull=False).exclude(previous_rovnat=RovnaniChoice.VYROVNANA)
+        previous_history_id=Subquery(previous.values('history_id')[:1]),
+        previous_field_value=Subquery(previous.values(field_name)[:1]),
+    ).filter(previous_history_id__isnull=False).exclude(previous_field_value=target_value)
 
 
 def _build_rovnani_chart(rows, value_key, title, unit, x_label):
@@ -2586,7 +2605,11 @@ def _build_rovnani_chart(rows, value_key, title, unit, x_label):
 def _build_rovnani_historie_context(year_value=None, month_value=None, today_value=None):
     """Počty unikátních beden za období a průměry přes uplynulé dny Po–Pá."""
     today = today_value or timezone.localdate()
-    transitions = _vyrovnane_bedny_history_qs()
+    transitions = _history_transitions_to_qs(
+        model=Bedna,
+        field_name='rovnat',
+        target_value=RovnaniChoice.VYROVNANA,
+    )
     available_years = sorted({today.year} | {
         value.year for value in transitions.datetimes('history_date', 'year')
         if value.year <= today.year

@@ -6,10 +6,10 @@ from django.urls import reverse
 from django.test import override_settings
 from django.utils import timezone
 
-from orders.choices import RovnaniChoice
-from orders.models import Bedna
+from orders.choices import KamionChoice, RovnaniChoice, TryskaniChoice
+from orders.models import Bedna, Kamion, PoziceZakazkaOrder
 from orders.tests.tests_views import ViewsTestBase
-from orders.views import _build_rovnani_historie_context
+from orders.views import _build_rovnani_historie_context, _history_transitions_to_qs
 
 
 @override_settings(TIME_ZONE='Europe/Prague')
@@ -20,17 +20,72 @@ class RovnaniHistorieTests(ViewsTestBase):
         self.snapshot.pop('history_id')
         Bedna.history.all().delete()
 
-    def history(self, bedna, timestamp, state, kind='~'):
+    def history(self, bedna, timestamp, state, kind='~', **overrides):
         values = dict(self.snapshot)
         values.update(
             id=bedna.pk, cislo_bedny=bedna.cislo_bedny,
             history_date=datetime.fromisoformat(timestamp).replace(tzinfo=ZoneInfo('Europe/Prague')),
             rovnat=state, history_type=kind,
         )
+        values.update(overrides)
         return Bedna.history.model.objects.create(**values)
 
     def context(self, today=date(2026, 1, 11), year=2026, month=1):
         return _build_rovnani_historie_context(year, month, today)['rovnani_historie']
+
+    def test_transition_helper_supports_another_tracked_field(self):
+        bedna = self.b_eur_pr
+        self.history(
+            bedna, '2026-01-04T12:00', RovnaniChoice.NEZADANO, '+',
+            tryskat=TryskaniChoice.SPINAVA,
+        )
+        transition = self.history(
+            bedna, '2026-01-05T12:00', RovnaniChoice.NEZADANO,
+            tryskat=TryskaniChoice.OTRYSKANA,
+        )
+        self.history(
+            bedna, '2026-01-06T12:00', RovnaniChoice.NEZADANO,
+            tryskat=TryskaniChoice.OTRYSKANA,
+        )
+
+        transitions = _history_transitions_to_qs(
+            model=Bedna,
+            field_name='tryskat',
+            target_value=TryskaniChoice.OTRYSKANA,
+        )
+
+        self.assertEqual(list(transitions.values_list('history_id', flat=True)), [transition.history_id])
+
+    def test_transition_helper_supports_another_historical_model(self):
+        kamion = self.k_prijem_abc
+        kamion.prijem_vydej = KamionChoice.VYDEJ
+        kamion.save(update_fields=['prijem_vydej'])
+        transition = kamion.history.first()
+        kamion.poznamka = 'Beze změny sledovaného pole'
+        kamion.save(update_fields=['poznamka'])
+
+        transitions = _history_transitions_to_qs(
+            model=Kamion,
+            field_name='prijem_vydej',
+            target_value=KamionChoice.VYDEJ,
+        )
+
+        self.assertEqual(list(transitions.values_list('history_id', flat=True)), [transition.history_id])
+
+    def test_transition_helper_validates_model_and_field(self):
+        with self.assertRaisesRegex(ValueError, 'nemá nakonfigurovanou historii'):
+            _history_transitions_to_qs(
+                model=PoziceZakazkaOrder,
+                field_name='nasledne',
+                target_value=True,
+            )
+
+        with self.assertRaisesRegex(ValueError, 'není sledováno'):
+            _history_transitions_to_qs(
+                model=Bedna,
+                field_name='neexistujici_pole',
+                target_value='hodnota',
+            )
 
     def test_only_actual_transitions_count_including_previous_year_and_equal_timestamps(self):
         bedna = self.b_eur_pr
