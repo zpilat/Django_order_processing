@@ -3005,7 +3005,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     }
 
     # Parametry pro historii změn
-    history_list_display = ["zakazka_link", "stav_bedny", "rovnat", "tryskat", "poznamka"]
+    history_list_display = ["zakazka_link", "stav_bedny", "rovnat", "tryskat", "zinkovat", "poznamka"]
     history_search_fields = ["zakazka__kamion_prijem__zakaznik__nazev", "cislo_bedny",]
     history_list_filter = ["zakazka__kamion_prijem__zakaznik__nazev", "zakazka__kamion_prijem__datum", "stav_bedny"]
     history_list_per_page = 20
