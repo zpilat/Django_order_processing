@@ -685,7 +685,7 @@ class SarzeAdmin(HistoryPollingAdminMixin, SimpleHistoryAdmin):
 class SarzeKrokAdmin(HistoryPollingAdminMixin, SimpleHistoryAdmin):
     poll_url_name = 'orders_sarzekrok_poll'
     fields = (
-        'sarze', 'poradi', 'datum', 'zarizeni', 'zacatek', 'datum_konce', 'konec',
+        'sarze', 'poradi', 'zarizeni', 'datum', 'zacatek', 'datum_konce', 'konec',
         'operator', 'program', 'alarm', 'poznamka',
     )
     readonly_fields = ('sarze', 'poradi',)
