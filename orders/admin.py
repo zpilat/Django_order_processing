@@ -21,6 +21,7 @@ from django.utils.formats import number_format
 from datetime import datetime
 
 from simple_history.admin import SimpleHistoryAdmin
+from simple_history.template_utils import HistoricalRecordContextHelper
 from decimal import Decimal, ROUND_HALF_UP, ROUND_DOWN
 from django.core.files.storage import default_storage
 import uuid
@@ -87,6 +88,17 @@ logger = logging.getLogger('orders')
 
 CHEMIE_VIEW_PARAM = 'chemie'
 CHEMIE_VIEW_PERMISSION = 'orders.filter_chemistry_bedna'
+
+
+class ChoiceLabelsHistoricalRecordContextHelper(HistoricalRecordContextHelper):
+    """V historii zobrazuje popisky ``choices`` místo databázových hodnot."""
+
+    def prepare_delta_change_value(self, change, value):
+        display_value = super().prepare_delta_change_value(change, value)
+        field = self.model._meta.get_field(change.field)
+        if field.choices:
+            return dict(field.flatchoices).get(display_value, display_value)
+        return display_value
 
 
 class BednaChangeList(ChangeList):
@@ -498,6 +510,9 @@ class SarzeAdmin(HistoryPollingAdminMixin, SimpleHistoryAdmin):
     history_search_fields = ["cislo_sarze", "poznamka"]
     history_list_filter = ["stav_sarze", "datum_zalozeni"]
     history_list_per_page = 20
+
+    def get_historical_record_context_helper(self, request, historical_record):
+        return ChoiceLabelsHistoricalRecordContextHelper(self.model, historical_record)
 
     class Media:
         js = (
@@ -2940,6 +2955,9 @@ class BednaAdmin(SimpleHistoryAdmin):
     ]
     form = BednaAdminForm
 
+    def get_historical_record_context_helper(self, request, historical_record):
+        return ChoiceLabelsHistoricalRecordContextHelper(self.model, historical_record)
+
     # Parametry pro zobrazení detailu v administraci (použijeme get_fieldsets)
     readonly_fields = ('cislo_bedny', 'get_obsah_ca', 'get_obsah_p', 'get_obsah_zn', 'cena_za_kg', 'cena_za_bednu', 'cena_rovnani_za_kg', 'cena_rovnani_za_bednu',
                        'cena_tryskani_za_kg', 'cena_tryskani_za_bednu', 'get_notifikace', 'get_pohyb_v_sarzich')
@@ -2987,7 +3005,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     }
 
     # Parametry pro historii změn
-    history_list_display = ["cislo_bedny", "behalter_nr", "zakazka_link", "stav_bedny", "rovnat", "tryskat",
+    history_list_display = ["cislo_bedny", "zakazka_link", "stav_bedny", "rovnat", "tryskat",
                             "get_prumer", "get_delka_int", "poznamka"]
     history_search_fields = ["zakazka__kamion_prijem__zakaznik__nazev", "cislo_bedny",]
     history_list_filter = ["zakazka__kamion_prijem__zakaznik__nazev", "zakazka__kamion_prijem__datum", "stav_bedny"]

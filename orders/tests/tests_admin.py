@@ -1269,6 +1269,29 @@ class BednaAdminTests(AdminBase):
         self.assertIn('orders/js/bedny_hmotnost_sum.js', media_js)
         self.assertIn('orders/js/bedny_netto_hmotnost_sum.js', media_js)
 
+    def test_history_changes_display_choice_labels(self):
+        self.bedna.stav_bedny = StavBednyChoice.K_NAVEZENI
+        self.bedna.save(update_fields=['stav_bedny'])
+        old_record = self.bedna.history.first()
+
+        self.bedna.stav_bedny = StavBednyChoice.NAVEZENO
+        self.bedna.save(update_fields=['stav_bedny'])
+        new_record = self.bedna.history.first()
+
+        delta = new_record.diff_against(old_record)
+        helper = self.admin.get_historical_record_context_helper(
+            self.get_request(), new_record
+        )
+
+        self.assertIn(
+            {
+                'field': 'Stav bedny',
+                'old': 'K navezení',
+                'new': 'Navezeno',
+            },
+            helper.context_for_delta_changes(delta),
+        )
+
     def get_request(self, params=None):
         req = self.factory.get('/', params or {})
         req.user = self.user
@@ -3270,6 +3293,31 @@ class SarzeAdminCreateBehaviorTests(AdminBase):
         return Bedna.objects.create(
             zakazka=zakazka,
             cislo_bedny=cislo_bedny,
+        )
+
+    def test_history_changes_display_choice_labels(self):
+        sarze = Sarze.objects.create(
+            datum_zalozeni=date.today(),
+            stav_sarze=StavSarzeChoice.ZAPLANOVANA,
+        )
+        old_record = sarze.history.first()
+
+        sarze.stav_sarze = StavSarzeChoice.NALOZENA
+        sarze.save(update_fields=['stav_sarze'])
+        new_record = sarze.history.first()
+
+        delta = new_record.diff_against(old_record)
+        helper = self.admin.get_historical_record_context_helper(
+            self.get_request(), new_record
+        )
+
+        self.assertIn(
+            {
+                'field': 'Stav šarže',
+                'old': 'Zaplánovaná',
+                'new': 'Naložená',
+            },
+            helper.context_for_delta_changes(delta),
         )
 
     def test_poll_changes_view_detects_sarze_update(self):
