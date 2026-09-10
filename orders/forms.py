@@ -538,7 +538,7 @@ class BednaSkenerCteckaForm(forms.Form):
 class SarzeKrokActionInitForm(forms.Form):
     datum = forms.DateField(
         required=True,
-        label='Datum',
+        label='Datum začátku',
         input_formats=['%d.%m.%Y', '%Y-%m-%d'],
         widget=AdminDateWidget(),
     )

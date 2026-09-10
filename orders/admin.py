@@ -729,7 +729,7 @@ class SarzeKrokAdmin(HistoryPollingAdminMixin, SimpleHistoryAdmin):
     def get_sarze(self, obj):
         return obj.sarze
 
-    @admin.display(description='Datum', ordering='datum')
+    @admin.display(description='Datum začátku', ordering='datum')
     def get_datum(self, obj):
         return obj.datum.strftime('%d.%m.%Y') if obj.datum else '-'
 
