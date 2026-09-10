@@ -1639,7 +1639,7 @@ class SarzeKrok(models.Model):
         editable=False,
         verbose_name='Token akce',
     )
-    datum = models.DateField(blank=True, null=True, verbose_name='Datum')
+    datum = models.DateField(blank=True, null=True, verbose_name='Datum začátku')
     zarizeni = models.ForeignKey(
         Zarizeni,
         on_delete=models.PROTECT,
