@@ -1,7 +1,7 @@
 {% load custom_filters %}
 
 <div class="row flex-nowrap justify-content-center overflow-auto">
-  <div class="col-xxl-5 col-xl-6 col-lg-8 col-md-10 col-sm-12 mb-4">
+  <div class="col-xxl-8 col-xl-10 col-lg-12 col-md-12 col-sm-12 mb-4">
     <div class="alert" role="alert" style="background-color: #214290; color: #ffde17; font-family: 'Liberation Sans', Arial;">
       <div class="d-flex align-items-center justify-content-between mb-2">
         <h3 class="mb-0">Přehled měsíčních a ročních příjmů a výdejů dle jednotlivých zákazníků.</h3>
@@ -46,23 +46,28 @@
       </tbody>
     </table>
 
-    <table class="table table-sm align-middle mb-0 text-center">
+    <table class="table table-sm align-middle mb-0 text-center" style="table-layout: fixed; width: 100%;">
+      <colgroup>
+        <col span="7" style="width: 14.2857%;">
+      </colgroup>
       <thead>
         <tr style="font-size: 1.2rem;">
-          <th colspan="5" class="fw-bold" style="background-color: #ffde17; color: #214290;">Příjem a výdej (kg)</th>
+          <th colspan="7" class="fw-bold" style="background-color: #ffde17; color: #214290;">Příjem, výdej a zpracování (kg)</th>
         </tr>
       </thead>
       <tbody>
         {% for mesic, mesicni_data in mesicni_pohyby.items %}
           <tr>
-            <th colspan="5" style="background-color: #ffde17; color: #214290;">{{ mesic }} - {{ rok }}</th>
+            <th colspan="7" style="background-color: #ffde17; color: #214290;">{{ mesic }} - {{ rok }}</th>
           </tr>
           <tr>
             <th style="background-color: #214290; color: #ffde17;">Zákazník</th>
             <th style="background-color: #214290; color: #ffde17;">Příjem&nbsp;(kg)</th>
+            <th style="background-color: #214290; color: #ffde17;">Zpracováno&nbsp;(kg)</th>            
             <th style="background-color: #214290; color: #ffde17;">Výdej&nbsp;(kg)</th>
-            <th style="background-color: #214290; color: #ffde17;">Křivých<br>% z výdeje</th>
-            <th style="background-color: #214290; color: #ffde17;">Rozdíl&nbsp;(kg)</th>
+            <th style="background-color: #214290; color: #ffde17;">Rozdíl (kg)<br>(příjem - výdej)</th>     
+            <th style="background-color: #214290; color: #ffde17;">Křivých % ze<br> zpracovaných</th>                   
+            <th style="background-color: #214290; color: #ffde17;">Křivých %<br>z výdeje</th>
           </tr>
             {% for zakaznik, data in mesicni_data.items %}
               {% if forloop.last %}
@@ -74,9 +79,11 @@
               {% endif %}
                 <td>{{ zakaznik }}</td>
                 <td>{{ data.prijem|floatformat:"0g" }}</td>
+                <td>{{ data.zpracovano|floatformat:"0g" }}</td>                
                 <td>{{ data.vydej|floatformat:"0g" }}</td>
-                <td>{{ data.procento_krivych|floatformat:0|default:"-" }}</td>                
-                <td>{{ data.rozdil|floatformat:"0g" }}</td>
+                <td>{{ data.rozdil|floatformat:"0g" }}</td>                           
+                <td>{{ data.procento_krivych_zpracovanych|floatformat:0|default:"-" }}</td>
+                <td>{{ data.procento_krivych|floatformat:0|default:"-" }}</td>                     
               </tr>
             {% endfor %}
         {% endfor %}

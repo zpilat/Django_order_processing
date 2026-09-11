@@ -2346,6 +2346,101 @@ class DashboardBednyViewTests(ViewsTestBase):
 
 
 class DashboardKamionyViewTests(ViewsTestBase):
+	def test_processed_weights_and_crooked_percentages_use_transition_snapshots(self):
+		month = timezone.localdate().month
+		year = timezone.localdate().year
+
+		# Křivá bedna EUR se má započítat historickou hmotností 5 kg.
+		self.b_eur_pr.stav_bedny = StavBednyChoice.ZKONTROLOVANO
+		self.b_eur_pr.rovnat = RovnaniChoice.KRIVA
+		self.b_eur_pr.save(update_fields=["stav_bedny", "rovnat"])
+		# Pozdější uložení ve stejném stavu není nový přechod a nesmí změnit
+		# historickou hmotnost ani klasifikaci předchozího zpracování.
+		self.b_eur_pr.hmotnost = Decimal("50")
+		self.b_eur_pr.rovnat = RovnaniChoice.ROVNA
+		self.b_eur_pr.save(update_fields=["hmotnost", "rovnat"])
+
+		# Vyrovnaná bedna patří také mezi původně křivé.
+		self.b_vydej.stav_bedny = StavBednyChoice.ZKONTROLOVANO
+		self.b_vydej.save(update_fields=["stav_bedny"])
+
+		# Rovná bedna se započítá pouze do celkové zpracované hmotnosti.
+		self.b_abc_ex.stav_bedny = StavBednyChoice.ZKONTROLOVANO
+		self.b_abc_ex.save(update_fields=["stav_bedny"])
+
+		resp = self.client.get(reverse("dashboard_kamiony"), {"rok": year})
+
+		self.assertEqual(resp.status_code, 200)
+		data = resp.context["mesicni_pohyby"]
+		eur = data[month][self.z_eur.zkratka]
+		abc = data[month][self.z_abc.zkratka]
+		monthly_total = data[month]["CELKEM"]
+		yearly_total = data["CELKEM"]["CELKEM"]
+
+		self.assertEqual(eur["zpracovano"], Decimal("9"))
+		self.assertEqual(eur["hmotnost_krivych_zpracovanych"], Decimal("9"))
+		self.assertEqual(eur["procento_krivych_zpracovanych"], Decimal("100"))
+		self.assertEqual(abc["zpracovano"], Decimal("2"))
+		self.assertEqual(abc["hmotnost_krivych_zpracovanych"], Decimal("0"))
+		self.assertEqual(abc["procento_krivych_zpracovanych"], Decimal("0"))
+		self.assertEqual(monthly_total["zpracovano"], Decimal("11"))
+		self.assertEqual(monthly_total["hmotnost_krivych_zpracovanych"], Decimal("9"))
+		self.assertEqual(
+			monthly_total["procento_krivych_zpracovanych"],
+			Decimal("9") / Decimal("11") * Decimal("100"),
+		)
+		self.assertEqual(yearly_total["zpracovano"], Decimal("11"))
+		self.assertEqual(
+			yearly_total["procento_krivych_zpracovanych"],
+			Decimal("9") / Decimal("11") * Decimal("100"),
+		)
+
+	def test_processed_columns_are_rendered_in_requested_order(self):
+		resp = self.client.get(reverse("dashboard_kamiony"))
+
+		self.assertEqual(resp.status_code, 200)
+		html = resp.content.decode()
+		headings = (
+			"Zákazník",
+			"Příjem&nbsp;(kg)",
+			"Výdej&nbsp;(kg)",
+			"Křivých %<br>z výdeje",
+			"Rozdíl&nbsp;(kg)",
+			"Zpracováno&nbsp;(kg)",
+			"Křivých % ze<br> zpracovaných",
+		)
+		positions = [html.index(heading) for heading in headings]
+		self.assertEqual(positions, sorted(positions))
+		self.assertContains(resp, 'colspan="7"')
+		self.assertContains(resp, '<col span="7" style="width: 14.2857%;">')
+
+	def test_processed_transition_date_selects_year_and_month(self):
+		current_year = timezone.localdate().year
+		historical_year = current_year - 1
+		Bedna.history.filter(id=self.b_eur_pr.pk).update(
+			history_date=timezone.make_aware(datetime(historical_year - 1, 12, 31, 12)),
+		)
+		self.b_eur_pr.stav_bedny = StavBednyChoice.ZKONTROLOVANO
+		self.b_eur_pr.rovnat = RovnaniChoice.KRIVA
+		self.b_eur_pr.save(update_fields=["stav_bedny", "rovnat"])
+		transition = self.b_eur_pr.history.order_by("-history_id").first()
+		Bedna.history.filter(history_id=transition.history_id).update(
+			history_date=timezone.make_aware(datetime(historical_year, 4, 15, 12)),
+		)
+
+		resp = self.client.get(reverse("dashboard_kamiony"), {"rok": historical_year})
+
+		self.assertEqual(resp.status_code, 200)
+		self.assertIn(historical_year, resp.context["dostupne_roky"])
+		self.assertEqual(
+			resp.context["mesicni_pohyby"][4][self.z_eur.zkratka]["zpracovano"],
+			Decimal("5"),
+		)
+		self.assertEqual(
+			resp.context["mesicni_pohyby"][3][self.z_eur.zkratka]["zpracovano"],
+			Decimal("0"),
+		)
+
 	def test_year_selector_filters_historical_data(self):
 		current_year = timezone.localdate().year
 		historical_year = current_year - 1
