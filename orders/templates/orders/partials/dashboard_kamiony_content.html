@@ -73,10 +73,10 @@
                 <tr>
               {% endif %}
                 <td>{{ zakaznik }}</td>
-                <td>{{ data.prijem|floatformat:0 }}</td>
-                <td>{{ data.vydej|floatformat:0 }}</td>
+                <td>{{ data.prijem|floatformat:"0g" }}</td>
+                <td>{{ data.vydej|floatformat:"0g" }}</td>
                 <td>{{ data.procento_krivych|floatformat:0|default:"-" }}</td>                
-                <td>{{ data.rozdil|floatformat:0 }}</td>
+                <td>{{ data.rozdil|floatformat:"0g" }}</td>
               </tr>
             {% endfor %}
         {% endfor %}
