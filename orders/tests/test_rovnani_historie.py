@@ -6,7 +6,7 @@ from django.urls import reverse
 from django.test import override_settings
 from django.utils import timezone
 
-from orders.choices import KamionChoice, RovnaniChoice, TryskaniChoice
+from orders.choices import KamionChoice, RovnaniChoice, StavBednyChoice, TryskaniChoice
 from orders.models import Bedna, Kamion, PoziceZakazkaOrder
 from orders.services.history_service import history_transitions_to_qs
 from orders.tests.tests_views import ViewsTestBase
@@ -73,6 +73,63 @@ class RovnaniHistorieTests(ViewsTestBase):
 
         self.assertEqual(list(transitions.values_list('history_id', flat=True)), [transition.history_id])
 
+    def test_transition_helper_treats_multiple_targets_as_one_target_set(self):
+        bedna = self.b_eur_pr
+        self.history(
+            bedna, '2026-01-01T12:00', RovnaniChoice.NEZADANO, '+',
+            stav_bedny=StavBednyChoice.ZAKALENO,
+        )
+        entered_zkontrolovano = self.history(
+            bedna, '2026-01-02T12:00', RovnaniChoice.NEZADANO,
+            stav_bedny=StavBednyChoice.ZKONTROLOVANO,
+        )
+        self.history(
+            bedna, '2026-01-03T12:00', RovnaniChoice.NEZADANO,
+            stav_bedny=StavBednyChoice.K_EXPEDICI,
+        )
+        self.history(
+            bedna, '2026-01-04T12:00', RovnaniChoice.NEZADANO,
+            stav_bedny=StavBednyChoice.ZKONTROLOVANO,
+        )
+        self.history(
+            bedna, '2026-01-05T12:00', RovnaniChoice.NEZADANO,
+            stav_bedny=StavBednyChoice.ZAKALENO,
+        )
+        reentered_at_k_expedici = self.history(
+            bedna, '2026-01-06T12:00', RovnaniChoice.NEZADANO,
+            stav_bedny=StavBednyChoice.K_EXPEDICI,
+        )
+
+        direct_bedna = self.b_abc_ex
+        self.history(
+            direct_bedna, '2026-01-01T12:00', RovnaniChoice.ROVNA, '+',
+            stav_bedny=StavBednyChoice.ZAKALENO,
+        )
+        direct_to_k_expedici = self.history(
+            direct_bedna, '2026-01-02T12:00', RovnaniChoice.ROVNA,
+            stav_bedny=StavBednyChoice.K_EXPEDICI,
+        )
+
+        expected_ids = {
+            entered_zkontrolovano.history_id,
+            reentered_at_k_expedici.history_id,
+            direct_to_k_expedici.history_id,
+        }
+        for target_value in (
+            (StavBednyChoice.ZKONTROLOVANO, StavBednyChoice.K_EXPEDICI),
+            [StavBednyChoice.ZKONTROLOVANO, StavBednyChoice.K_EXPEDICI],
+        ):
+            with self.subTest(target_type=type(target_value).__name__):
+                transitions = history_transitions_to_qs(
+                    model=Bedna,
+                    field_name='stav_bedny',
+                    target_value=target_value,
+                )
+                self.assertSetEqual(
+                    set(transitions.values_list('history_id', flat=True)),
+                    expected_ids,
+                )
+
     def test_transition_helper_validates_model_and_field(self):
         with self.assertRaisesRegex(ValueError, 'nemá nakonfigurovanou historii'):
             history_transitions_to_qs(
@@ -86,6 +143,13 @@ class RovnaniHistorieTests(ViewsTestBase):
                 model=Bedna,
                 field_name='neexistujici_pole',
                 target_value='hodnota',
+            )
+
+        with self.assertRaisesRegex(ValueError, 'alespoň jedna cílová hodnota'):
+            history_transitions_to_qs(
+                model=Bedna,
+                field_name='stav_bedny',
+                target_value=[],
             )
 
     def test_only_actual_transitions_count_including_previous_year_and_equal_timestamps(self):

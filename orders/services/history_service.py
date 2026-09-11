@@ -2,7 +2,7 @@ from django.db.models import OuterRef, Q, Subquery
 
 
 def history_transitions_to_qs(*, model, field_name, target_value):
-    """Vrátí historické záznamy skutečných přechodů pole na cílovou hodnotu."""
+    """Vrátí skutečné přechody pole do jedné cílové hodnoty nebo množiny hodnot."""
     history = getattr(model, 'history', None)
     if history is None:
         raise ValueError(f"Model {model.__name__} nemá nakonfigurovanou historii.")
@@ -18,6 +18,13 @@ def history_transitions_to_qs(*, model, field_name, target_value):
         raise ValueError(
             f"Pole '{field_name}' není sledováno v historii modelu {model.__name__}."
         )
+
+    if isinstance(target_value, (list, tuple, set, frozenset)):
+        target_values = tuple(target_value)
+    else:
+        target_values = (target_value,)
+    if not target_values:
+        raise ValueError('Musí být zadána alespoň jedna cílová hodnota.')
 
     original_pk_field = model._meta.pk.attname
     previous = (
@@ -35,11 +42,11 @@ def history_transitions_to_qs(*, model, field_name, target_value):
 
     return (
         history
-        .filter(history_type='~', **{field_name: target_value})
+        .filter(history_type='~', **{f'{field_name}__in': target_values})
         .annotate(
             previous_history_id=Subquery(previous.values('history_id')[:1]),
             previous_field_value=Subquery(previous.values(field_name)[:1]),
         )
         .filter(previous_history_id__isnull=False)
-        .exclude(previous_field_value=target_value)
+        .exclude(previous_field_value__in=target_values)
     )

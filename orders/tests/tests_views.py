@@ -2360,12 +2360,14 @@ class DashboardKamionyViewTests(ViewsTestBase):
 		self.b_eur_pr.rovnat = RovnaniChoice.ROVNA
 		self.b_eur_pr.save(update_fields=["hmotnost", "rovnat"])
 
-		# Vyrovnaná bedna patří také mezi původně křivé.
+		# Administrativní návrat z K_EXPEDICI do ZKONTROLOVANO není nové zpracování.
 		self.b_vydej.stav_bedny = StavBednyChoice.ZKONTROLOVANO
 		self.b_vydej.save(update_fields=["stav_bedny"])
 
-		# Rovná bedna se započítá pouze do celkové zpracované hmotnosti.
-		self.b_abc_ex.stav_bedny = StavBednyChoice.ZKONTROLOVANO
+		# Přímý přechod rovné bedny ze zpracování do K_EXPEDICI se započítá.
+		self.b_abc_ex.stav_bedny = StavBednyChoice.ZAKALENO
+		self.b_abc_ex.save(update_fields=["stav_bedny"])
+		self.b_abc_ex.stav_bedny = StavBednyChoice.K_EXPEDICI
 		self.b_abc_ex.save(update_fields=["stav_bedny"])
 
 		resp = self.client.get(reverse("dashboard_kamiony"), {"rok": year})
@@ -2377,25 +2379,25 @@ class DashboardKamionyViewTests(ViewsTestBase):
 		monthly_total = data[month]["CELKEM"]
 		yearly_total = data["CELKEM"]["CELKEM"]
 
-		self.assertEqual(eur["zpracovano"], Decimal("9"))
-		self.assertEqual(eur["hmotnost_krivych_zpracovanych"], Decimal("9"))
+		self.assertEqual(eur["zpracovano"], Decimal("5"))
+		self.assertEqual(eur["hmotnost_krivych_zpracovanych"], Decimal("5"))
 		self.assertEqual(eur["procento_krivych_zpracovanych"], Decimal("100"))
 		self.assertEqual(abc["zpracovano"], Decimal("2"))
 		self.assertEqual(abc["hmotnost_krivych_zpracovanych"], Decimal("0"))
 		self.assertEqual(abc["procento_krivych_zpracovanych"], Decimal("0"))
-		self.assertEqual(monthly_total["zpracovano"], Decimal("11"))
-		self.assertEqual(monthly_total["hmotnost_krivych_zpracovanych"], Decimal("9"))
+		self.assertEqual(monthly_total["zpracovano"], Decimal("7"))
+		self.assertEqual(monthly_total["hmotnost_krivych_zpracovanych"], Decimal("5"))
 		self.assertEqual(
 			monthly_total["procento_krivych_zpracovanych"],
-			Decimal("9") / Decimal("11") * Decimal("100"),
+			Decimal("5") / Decimal("7") * Decimal("100"),
 		)
-		self.assertEqual(yearly_total["zpracovano"], Decimal("11"))
+		self.assertEqual(yearly_total["zpracovano"], Decimal("7"))
 		self.assertEqual(
 			yearly_total["procento_krivych_zpracovanych"],
-			Decimal("9") / Decimal("11") * Decimal("100"),
+			Decimal("5") / Decimal("7") * Decimal("100"),
 		)
 
-	def test_processed_columns_are_rendered_in_requested_order(self):
+	def test_processed_columns_are_rendered_in_table_order(self):
 		resp = self.client.get(reverse("dashboard_kamiony"))
 
 		self.assertEqual(resp.status_code, 200)
@@ -2403,11 +2405,11 @@ class DashboardKamionyViewTests(ViewsTestBase):
 		headings = (
 			"Zákazník",
 			"Příjem&nbsp;(kg)",
-			"Výdej&nbsp;(kg)",
-			"Křivých %<br>z výdeje",
-			"Rozdíl&nbsp;(kg)",
 			"Zpracováno&nbsp;(kg)",
+			"Výdej&nbsp;(kg)",
+			"Rozdíl (kg)<br>(příjem - výdej)",
 			"Křivých % ze<br> zpracovaných",
+			"Křivých %<br>z výdeje",
 		)
 		positions = [html.index(heading) for heading in headings]
 		self.assertEqual(positions, sorted(positions))

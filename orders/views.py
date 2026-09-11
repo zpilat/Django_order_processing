@@ -3356,17 +3356,20 @@ def dashboard_kamiony_view(request):
     """
     zakaznici = Zakaznik.objects.all().order_by('zkratka')
     aktualni_rok = timezone.localdate().year
-    zkontrolovano_transitions = history_transitions_to_qs(
+    zpracovano_transitions = history_transitions_to_qs(
         model=Bedna,
         field_name='stav_bedny',
-        target_value=StavBednyChoice.ZKONTROLOVANO,
+        target_value=(
+            StavBednyChoice.ZKONTROLOVANO,
+            StavBednyChoice.K_EXPEDICI,
+        ),
     )
     dostupne_roky = sorted(
         {aktualni_rok}
         | {datum.year for datum in Kamion.objects.dates('datum', 'year')}
         | {
             datum.year
-            for datum in zkontrolovano_transitions.datetimes('history_date', 'year')
+            for datum in zpracovano_transitions.datetimes('history_date', 'year')
         },
         reverse=True,
     )
@@ -3413,7 +3416,7 @@ def dashboard_kamiony_view(request):
     )
 
     zpracovano_za_mesic = (
-        zkontrolovano_transitions
+        zpracovano_transitions
         .filter(
             history_date__year=rok,
             hmotnost__isnull=False,
