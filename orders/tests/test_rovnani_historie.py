@@ -8,8 +8,9 @@ from django.utils import timezone
 
 from orders.choices import KamionChoice, RovnaniChoice, TryskaniChoice
 from orders.models import Bedna, Kamion, PoziceZakazkaOrder
+from orders.services.history_service import history_transitions_to_qs
 from orders.tests.tests_views import ViewsTestBase
-from orders.views import _build_rovnani_historie_context, _history_transitions_to_qs
+from orders.views import _build_rovnani_historie_context
 
 
 @override_settings(TIME_ZONE='Europe/Prague')
@@ -48,7 +49,7 @@ class RovnaniHistorieTests(ViewsTestBase):
             tryskat=TryskaniChoice.OTRYSKANA,
         )
 
-        transitions = _history_transitions_to_qs(
+        transitions = history_transitions_to_qs(
             model=Bedna,
             field_name='tryskat',
             target_value=TryskaniChoice.OTRYSKANA,
@@ -64,7 +65,7 @@ class RovnaniHistorieTests(ViewsTestBase):
         kamion.poznamka = 'Beze změny sledovaného pole'
         kamion.save(update_fields=['poznamka'])
 
-        transitions = _history_transitions_to_qs(
+        transitions = history_transitions_to_qs(
             model=Kamion,
             field_name='prijem_vydej',
             target_value=KamionChoice.VYDEJ,
@@ -74,14 +75,14 @@ class RovnaniHistorieTests(ViewsTestBase):
 
     def test_transition_helper_validates_model_and_field(self):
         with self.assertRaisesRegex(ValueError, 'nemá nakonfigurovanou historii'):
-            _history_transitions_to_qs(
+            history_transitions_to_qs(
                 model=PoziceZakazkaOrder,
                 field_name='nasledne',
                 target_value=True,
             )
 
         with self.assertRaisesRegex(ValueError, 'není sledováno'):
-            _history_transitions_to_qs(
+            history_transitions_to_qs(
                 model=Bedna,
                 field_name='neexistujici_pole',
                 target_value='hodnota',

@@ -51,6 +51,7 @@ from .services.chemistry_import_service import (
     build_chemistry_import_preview,
 )
 from .services.vanta_probe_service import probe_vanta_exports
+from .services.history_service import history_transitions_to_qs
 from django.urls import reverse
 from .forms import VyberKamionVydejForm, OdberatelForm, KNavezeniForm, NavezenoForm, SarzeKrokActionInitForm
 from .choices import (
@@ -708,6 +709,21 @@ def export_bedny_to_csv_customer_action(modeladmin, request, queryset):
     }
     doba_vyrovnani_bedny_dni = 7
 
+    rovna_se_transition_dates = {}
+    if is_rovnani_export:
+        transition_rows = (
+            history_transitions_to_qs(
+                model=Bedna,
+                field_name='rovnat',
+                target_value=RovnaniChoice.ROVNA_SE,
+            )
+            .filter(id__in=queryset.filter(rovnat=RovnaniChoice.ROVNA_SE).values('id'))
+            .order_by('id', '-history_date', '-history_id')
+            .values_list('id', 'history_date')
+        )
+        for bedna_id, history_date in transition_rows:
+            rovna_se_transition_dates.setdefault(bedna_id, history_date)
+
     for bedna in queryset:
         zakazka = getattr(bedna, 'zakazka', None)
         behalter_nr = getattr(bedna, 'behalter_nr', '') if bedna else ''
@@ -727,19 +743,12 @@ def export_bedny_to_csv_customer_action(modeladmin, request, queryset):
             priorita = bedna.zakazka.priorita if bedna.zakazka.priorita in [PrioritaChoice.VYSOKA, PrioritaChoice.STREDNI] else ''
             datum_vyrovnani = ''
             if bedna.rovnat == RovnaniChoice.ROVNA_SE:
-                hqs = (
-                    bedna.history.order_by('-history_date', '-history_id')
-                )
-                for h in hqs:
-                    if h.rovnat == RovnaniChoice.ROVNA_SE:
-                        prev = h.prev_record
-                        if prev and prev.rovnat != RovnaniChoice.ROVNA_SE:
-                            datum_zmeny_na_rovna_se = h.history_date
-                            datum_vyrovnani_date = (datum_zmeny_na_rovna_se + datetime.timedelta(days=doba_vyrovnani_bedny_dni)).date()
-                            if datum_vyrovnani_date <= timezone.now().date():
-                                datum_vyrovnani_date = timezone.now().date() + datetime.timedelta(days=1)
-                            datum_vyrovnani = datum_vyrovnani_date.strftime('%d.%m.%Y')
-                            break
+                datum_zmeny_na_rovna_se = rovna_se_transition_dates.get(bedna.pk)
+                if datum_zmeny_na_rovna_se:
+                    datum_vyrovnani_date = (datum_zmeny_na_rovna_se + datetime.timedelta(days=doba_vyrovnani_bedny_dni)).date()
+                    if datum_vyrovnani_date <= timezone.now().date():
+                        datum_vyrovnani_date = timezone.now().date() + datetime.timedelta(days=1)
+                    datum_vyrovnani = datum_vyrovnani_date.strftime('%d.%m.%Y')
 
         if zakaznik_zkratka == "SPX":
             row = [artikl, sarze, vyrobni_zakazka, behalter_nr, abm, typ_hlavy, zkraceny_popis]

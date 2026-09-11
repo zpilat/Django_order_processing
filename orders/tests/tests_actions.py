@@ -9,7 +9,8 @@ from django.db import IntegrityError
 
 from decimal import Decimal
 from unittest.mock import patch, Mock
-from datetime import date, time
+from datetime import date, datetime, time
+from zoneinfo import ZoneInfo
 import csv
 import io
 import json
@@ -1633,6 +1634,52 @@ class ExportBednyCsvActionTests(ActionsBase):
                 '1',
             ],
         )
+
+    @patch(
+        'orders.actions.timezone.now',
+        return_value=datetime(2026, 6, 2, 12, 0, tzinfo=ZoneInfo('Europe/Prague')),
+    )
+    def test_rovnani_export_uses_transition_date_not_later_update(self, _mock_now):
+        bedna = self.bedna
+        bedna.rovnat = RovnaniChoice.KRIVA
+        bedna.save(update_fields=['rovnat'])
+        bedna.rovnat = RovnaniChoice.ROVNA_SE
+        bedna.save(update_fields=['rovnat'])
+        transition_history_id = (
+            bedna.history
+            .filter(rovnat=RovnaniChoice.ROVNA_SE, poznamka__isnull=True)
+            .order_by('-history_id')
+            .values_list('history_id', flat=True)
+            .first()
+        )
+        bedna.poznamka = 'Pozdější změna jiného pole'
+        bedna.save(update_fields=['poznamka'])
+        later_history_id = (
+            bedna.history
+            .filter(poznamka='Pozdější změna jiného pole')
+            .values_list('history_id', flat=True)
+            .first()
+        )
+
+        Bedna.history.filter(id=bedna.pk).update(
+            history_date=datetime(2026, 5, 30, 12, 0, tzinfo=ZoneInfo('Europe/Prague')),
+        )
+        Bedna.history.filter(history_id=transition_history_id).update(
+            history_date=datetime(2026, 6, 1, 12, 0, tzinfo=ZoneInfo('Europe/Prague')),
+        )
+        Bedna.history.filter(history_id=later_history_id).update(
+            history_date=datetime(2026, 6, 3, 12, 0, tzinfo=ZoneInfo('Europe/Prague')),
+        )
+
+        response = actions.export_bedny_to_csv_customer_action(
+            self.bedna_admin,
+            self.get_request('get', {'rovnani': 'k_vyrovnani'}),
+            Bedna.objects.filter(pk=bedna.pk),
+        )
+        rows = list(csv.reader(io.StringIO(response.content.decode('utf-8-sig')), delimiter=';'))
+
+        self.assertEqual(rows[1][5], 'Richten')
+        self.assertEqual(rows[1][7], '08.06.2026')
 
     def test_export_bedny_to_csv_customer_action_rot_uses_italian_headers(self):
         self.zakaznik.zkratka = 'ROT'

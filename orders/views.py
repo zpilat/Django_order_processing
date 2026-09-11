@@ -10,7 +10,7 @@ from django.views.generic.detail import DetailView
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 from django.urls import reverse, reverse_lazy
-from django.db.models import Q, Max, Sum, Count, F, Exists, OuterRef, Subquery, DecimalField, ExpressionWrapper, Value, Prefetch
+from django.db.models import Q, Max, Sum, Count, F, Exists, OuterRef, Subquery, DecimalField, ExpressionWrapper, Value, Prefetch, Case, When, DateTimeField
 from django.db.models.functions import Coalesce
 from django.core.exceptions import PermissionDenied
 from django.utils.translation import gettext_lazy as _
@@ -46,6 +46,7 @@ from .services.sarze_print_service import (
     build_tisk_pruvodky_vruty_response,
     get_tisk_pruvodky_vruty_krok,
 )
+from .services.history_service import history_transitions_to_qs
 from .choices import (
     StavBednyChoice, StavSarzeChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice, TypZarizeniChoice,
     ZinkovaniChoice, STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM,
@@ -158,7 +159,11 @@ def _build_kontrola_prehled_context(user, selected_filter='vse'):
     long_wait_before = current_time - timedelta(hours=4)
     items = []
 
-    historical_bedna = Bedna.history.model
+    zakaleno_transitions = history_transitions_to_qs(
+        model=Bedna,
+        field_name='stav_bedny',
+        target_value=StavBednyChoice.ZAKALENO,
+    )
     bedny = (
         Bedna.objects
         .filter(stav_bedny=StavBednyChoice.ZAKALENO)
@@ -169,8 +174,8 @@ def _build_kontrola_prehled_context(user, selected_filter='vse'):
         )
         .annotate(
             kontrola_ceka_od=Subquery(
-                historical_bedna.objects
-                .filter(id=OuterRef('pk'), stav_bedny=StavBednyChoice.ZAKALENO)
+                zakaleno_transitions
+                .filter(id=OuterRef('pk'))
                 .order_by('-history_date', '-history_id')
                 .values('history_date')[:1]
             )
@@ -198,7 +203,16 @@ def _build_kontrola_prehled_context(user, selected_filter='vse'):
             ),
         })
 
-    historical_sarze = Sarze.history.model
+    vylozena_ke_kontrole_transitions = history_transitions_to_qs(
+        model=Sarze,
+        field_name='stav_sarze',
+        target_value=StavSarzeChoice.VYLOZENA_KE_KONTROLE,
+    )
+    zakalena_ke_kontrole_transitions = history_transitions_to_qs(
+        model=Sarze,
+        field_name='stav_sarze',
+        target_value=StavSarzeChoice.ZAKALENA_KE_KONTROLE,
+    )
     zelezo_rows = (
         SarzeKrokBedna.objects
         .filter(popis_mimo_db__isnull=False)
@@ -222,18 +236,31 @@ def _build_kontrola_prehled_context(user, selected_filter='vse'):
             _has_sarze_bedna_mimo_db=True,
         )
         .annotate(
-            kontrola_ceka_od=Subquery(
-                historical_sarze.objects
-                .filter(
-                    id=OuterRef('pk'),
-                    stav_sarze__in=(
-                        StavSarzeChoice.VYLOZENA_KE_KONTROLE,
-                        StavSarzeChoice.ZAKALENA_KE_KONTROLE,
-                    ),
-                )
+            vylozena_ke_kontrole_od=Subquery(
+                vylozena_ke_kontrole_transitions
+                .filter(id=OuterRef('pk'))
                 .order_by('-history_date', '-history_id')
                 .values('history_date')[:1]
-            )
+            ),
+            zakalena_ke_kontrole_od=Subquery(
+                zakalena_ke_kontrole_transitions
+                .filter(id=OuterRef('pk'))
+                .order_by('-history_date', '-history_id')
+                .values('history_date')[:1]
+            ),
+        )
+        .annotate(
+            kontrola_ceka_od=Case(
+                When(
+                    stav_sarze=StavSarzeChoice.VYLOZENA_KE_KONTROLE,
+                    then=F('vylozena_ke_kontrole_od'),
+                ),
+                When(
+                    stav_sarze=StavSarzeChoice.ZAKALENA_KE_KONTROLE,
+                    then=F('zakalena_ke_kontrole_od'),
+                ),
+                output_field=DateTimeField(),
+            ),
         )
         .prefetch_related(Prefetch('kroky', queryset=zelezo_kroky, to_attr='prehled_kroky'))
     )
@@ -2539,39 +2566,6 @@ def _build_vyroba_historie_context(year_value=None, month_value=None, today_valu
     }
 
 
-def _history_transitions_to_qs(*, model, field_name, target_value):
-    """
-    Sleduje přechody pole `field_name` na hodnotu `target_value` v historii zadaného modelu.
-    Vrací queryset obsahující záznamy historie dané instance modelu, kde došlo ke změně pole `field_name` na hodnotu `target_value`.
-    """
-    history = getattr(model, 'history', None)
-
-    if history is None:
-        raise ValueError(f"Model {model.__name__} nemá nakonfigurovanou historii.")
-
-    history_model = getattr(history, 'model', None)
-    if history_model is None or not hasattr(history_model, 'tracked_fields'):
-        raise ValueError(f'Atribut history modelu {model.__name__} není manager django-simple-history.')
-
-    tracked_field_names = {field.name for field in history_model.tracked_fields}
-    if field_name not in tracked_field_names:
-        raise ValueError(f"Pole '{field_name}' není sledováno v historii modelu {model.__name__}.")
-
-    original_pk_field = model._meta.pk.attname
-
-    previous = history.filter(**{original_pk_field: OuterRef(original_pk_field)}).filter(
-        Q(history_date__lt=OuterRef('history_date'))
-        | Q(history_date=OuterRef('history_date'), history_id__lt=OuterRef('history_id'))
-    ).order_by('-history_date', '-history_id')
-
-    return history.filter(
-        history_type='~', **{field_name: target_value},
-    ).annotate(
-        previous_history_id=Subquery(previous.values('history_id')[:1]),
-        previous_field_value=Subquery(previous.values(field_name)[:1]),
-    ).filter(previous_history_id__isnull=False).exclude(previous_field_value=target_value)
-
-
 def _build_rovnani_chart(rows, value_key, title, unit, x_label):
     """Souřadnice spojnicového grafu; SVG funguje i při obnovení přes HTMX."""
     maximum = max((int(row[value_key]) for row in rows), default=0)
@@ -2605,7 +2599,7 @@ def _build_rovnani_chart(rows, value_key, title, unit, x_label):
 def _build_rovnani_historie_context(year_value=None, month_value=None, today_value=None):
     """Počty unikátních beden za období a průměry přes uplynulé dny Po–Pá."""
     today = today_value or timezone.localdate()
-    transitions = _history_transitions_to_qs(
+    transitions = history_transitions_to_qs(
         model=Bedna,
         field_name='rovnat',
         target_value=RovnaniChoice.VYROVNANA,

@@ -312,8 +312,9 @@ class KontrolaPrehledViewTests(ViewsTestBase):
 		sarze = Sarze.objects.create(
 			datum_zalozeni=timezone.localdate(),
 			cislo_pripravku=2,
-			stav_sarze=state,
 		)
+		sarze.stav_sarze = state
+		sarze.save(update_fields=["stav_sarze"])
 		zarizeni = Zarizeni.objects.create(
 			kod_zarizeni=f"KP{sarze.pk}",
 			nazev_zarizeni="Kontrolní zařízení",
@@ -370,14 +371,18 @@ class KontrolaPrehledViewTests(ViewsTestBase):
 		sarze = self._create_iron_batch()
 		old_time = timezone.now() - timedelta(hours=5)
 		new_time = timezone.now() - timedelta(minutes=30)
-		Sarze.history.model.objects.filter(
+		sarze_transition_id = Sarze.history.model.objects.filter(
 			id=sarze.pk,
 			stav_sarze=StavSarzeChoice.ZAKALENA_KE_KONTROLE,
-		).update(history_date=old_time)
-		Bedna.history.model.objects.filter(
+		).values_list("history_id", flat=True).first()
+		bedna_transition_id = Bedna.history.model.objects.filter(
 			id=self.b_eur_pr.pk,
 			stav_bedny=StavBednyChoice.ZAKALENO,
-		).update(history_date=new_time)
+		).values_list("history_id", flat=True).first()
+		Sarze.history.filter(id=sarze.pk).update(history_date=old_time - timedelta(hours=1))
+		Sarze.history.filter(history_id=sarze_transition_id).update(history_date=old_time)
+		Bedna.history.filter(id=self.b_eur_pr.pk).update(history_date=old_time - timedelta(hours=1))
+		Bedna.history.filter(history_id=bedna_transition_id).update(history_date=new_time)
 
 		response = self.client.get(reverse("kontrola_prehled"))
 
@@ -398,6 +403,52 @@ class KontrolaPrehledViewTests(ViewsTestBase):
 		)
 		self.assertContains(response, "Přehled kontroly")
 		self.assertContains(response, "1 položka")
+
+	def test_box_waiting_time_uses_state_transition_not_later_update(self):
+		transition_time = timezone.now() - timedelta(hours=5)
+		Bedna.history.filter(id=self.b_eur_pr.pk).update(
+			history_date=transition_time - timedelta(hours=1)
+		)
+		self.b_eur_pr.stav_bedny = StavBednyChoice.ZAKALENO
+		self.b_eur_pr.save(update_fields=["stav_bedny"])
+		transition_history_id = self.b_eur_pr.history.first().history_id
+		Bedna.history.filter(history_id=transition_history_id).update(
+			history_date=transition_time
+		)
+
+		self.b_eur_pr.material = "10B21"
+		self.b_eur_pr.save(update_fields=["material"])
+
+		response = self.client.get(reverse("kontrola_prehled"))
+		item = next(item for item in response.context["items"] if item["typ"] == "vruty")
+
+		self.assertEqual(item["ceka_od"], transition_time)
+		self.assertTrue(item["dlouho_ceka"])
+
+	def test_batch_waiting_time_uses_state_transition_not_later_update(self):
+		sarze = self._create_iron_batch(StavSarzeChoice.VYLOZENA_KE_KONTROLE)
+		transition_time = timezone.now() - timedelta(hours=5)
+		Sarze.history.filter(id=sarze.pk).exclude(
+			stav_sarze=StavSarzeChoice.VYLOZENA_KE_KONTROLE,
+		).update(history_date=transition_time - timedelta(hours=1))
+		transition_history_id = (
+			Sarze.history
+			.filter(id=sarze.pk, stav_sarze=StavSarzeChoice.VYLOZENA_KE_KONTROLE)
+			.values_list("history_id", flat=True)
+			.first()
+		)
+		Sarze.history.filter(history_id=transition_history_id).update(
+			history_date=transition_time
+		)
+
+		sarze.cislo_pripravku = 3
+		sarze.save(update_fields=["cislo_pripravku"])
+
+		response = self.client.get(reverse("kontrola_prehled"))
+		item = next(item for item in response.context["items"] if item["typ"] == "zelezo")
+
+		self.assertEqual(item["ceka_od"], transition_time)
+		self.assertTrue(item["dlouho_ceka"])
 
 	def test_type_filter_and_non_iron_batch_exclusion(self):
 		self._grant_control_permissions()
