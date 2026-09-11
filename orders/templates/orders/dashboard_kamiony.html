@@ -2,7 +2,7 @@
 
 {% block content %}
   <div id="dashboard-content"
-       hx-get="{% url 'dashboard_kamiony' %}"
+       hx-get="{% url 'dashboard_kamiony' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}"
        hx-trigger="every 60m"
        hx-swap="innerHTML">
     {% include "orders/partials/dashboard_kamiony_content.html" %}

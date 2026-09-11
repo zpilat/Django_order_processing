@@ -3355,7 +3355,18 @@ def dashboard_kamiony_view(request):
     V případě HTMX požadavku vrací pouze část obsahu pro aktualizaci.
     """
     zakaznici = Zakaznik.objects.all().order_by('zkratka')
-    rok = request.GET.get('rok', timezone.now().year)
+    aktualni_rok = timezone.localdate().year
+    dostupne_roky = sorted(
+        {aktualni_rok} | {datum.year for datum in Kamion.objects.dates('datum', 'year')},
+        reverse=True,
+    )
+    try:
+        rok = int(request.GET.get('rok', aktualni_rok))
+    except (TypeError, ValueError):
+        rok = aktualni_rok
+    if rok not in dostupne_roky:
+        rok = aktualni_rok
+
     kamiony_prijem_rok = Kamion.objects.filter(prijem_vydej='P', datum__year=rok)
     kamiony_vydej_rok = Kamion.objects.filter(prijem_vydej='V', datum__year=rok)
 
@@ -3489,6 +3500,7 @@ def dashboard_kamiony_view(request):
     context = {
         'mesicni_pohyby': mesicni_pohyby,
         'rok': rok,
+        'dostupne_roky': dostupne_roky,
         'prumery_14_dni': {
             'start_date': start_date,
             'end_date': end_date,

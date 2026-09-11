@@ -7,7 +7,18 @@
         <h3 class="mb-0">Přehled měsíčních a ročních příjmů a výdejů dle jednotlivých zákazníků.</h3>
         <a class="btn btn-secondary" style="color: #ffde17;" href="{% url 'admin:orders_bedna_changelist' %}">Návrat</a>
       </div>      
-      <h6>Naposledy aktualizováno: {{ current_time|date:"d.m.Y H:i" }}</h6>
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <h6 class="mb-0">Naposledy aktualizováno: {{ current_time|date:"d.m.Y H:i" }}</h6>
+        <form method="get" class="d-flex align-items-center gap-2">
+          <label for="rok" class="mb-0">Rok:</label>
+          <select id="rok" name="rok" class="form-select form-select-sm" style="width: auto;">
+            {% for dostupny_rok in dostupne_roky %}
+              <option value="{{ dostupny_rok }}" {% if dostupny_rok == rok %}selected{% endif %}>{{ dostupny_rok }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="btn btn-sm btn-light">Zobrazit</button>
+        </form>
+      </div>
     </div>
 
     <table class="table table-sm align-middle mb-3 text-center" style="font-family: 'Liberation Sans', Arial;">

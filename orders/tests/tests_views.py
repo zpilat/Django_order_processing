@@ -2346,6 +2346,33 @@ class DashboardBednyViewTests(ViewsTestBase):
 
 
 class DashboardKamionyViewTests(ViewsTestBase):
+	def test_year_selector_filters_historical_data(self):
+		current_year = timezone.localdate().year
+		historical_year = current_year - 1
+		Kamion.objects.filter(pk=self.k_prijem_eur.pk).update(
+			datum=date(historical_year, 4, 15),
+		)
+
+		resp = self.client.get(reverse("dashboard_kamiony"), {"rok": historical_year})
+
+		self.assertEqual(resp.status_code, 200)
+		self.assertEqual(resp.context["rok"], historical_year)
+		self.assertEqual(resp.context["dostupne_roky"], [current_year, historical_year])
+		self.assertEqual(
+			resp.context["mesicni_pohyby"][4][self.z_eur.zkratka]["prijem"],
+			Decimal("9"),
+		)
+		self.assertContains(resp, f'<option value="{historical_year}" selected>')
+		self.assertContains(resp, f'?rok={historical_year}')
+
+	def test_unknown_year_falls_back_to_current_year(self):
+		current_year = timezone.localdate().year
+
+		resp = self.client.get(reverse("dashboard_kamiony"), {"rok": "invalid"})
+
+		self.assertEqual(resp.status_code, 200)
+		self.assertEqual(resp.context["rok"], current_year)
+
 	def test_proforma_po_zakazkach_total_row_is_not_table_footer(self):
 		html = render_to_string(
 			"orders/proforma_faktura_po_zakazkach.html",
