@@ -47,9 +47,21 @@
         {% if perms.orders.view_bedna %}
             <a class="btn btn-outline-secondary w-100 scan-action-button d-flex align-items-center justify-content-center"
                href="{% url 'bedna_skener_ctecka' %}">
-                Skenování bedny
+                Skenování další bedny
             </a>
         {% endif %}
+
+        {% if can_view_kontrola %}
+            <a class="btn btn-outline-primary w-100 scan-action-button d-flex align-items-center justify-content-center"
+               href="{% url 'bedna_kontrola' bedna.cislo_bedny %}">
+                Kontrola bedny
+            </a>
+        {% endif %}
+
+        <a class="btn btn-outline-secondary w-100 scan-action-button d-flex align-items-center justify-content-center"
+           href="{% url 'bedna_scan_udaje' bedna.cislo_bedny %}">
+            Údaje bedny
+        </a>
 
         {% if can_mark_navezeno %}
             <a class="btn btn-success w-100 scan-action-button d-flex align-items-center justify-content-center"
@@ -65,16 +77,9 @@
             </a>
         {% endif %}
 
-        {% if can_mark_zkontrolovano %}
-            <a class="btn btn-warning w-100 scan-action-button d-flex align-items-center justify-content-center"
-               href="{% url 'bedna_scan_zkontrolovano' bedna.cislo_bedny %}">
-                Označit zkontrolováno
-            </a>
-        {% endif %}
-
         <a class="btn btn-outline-primary w-100 scan-action-button d-flex align-items-center justify-content-center"
            href="{% url 'bedna_scan_pohyb' bedna.cislo_bedny %}">
-            Pohyb bedny
+            Pohyby bedny v šaržích
         </a>
 
         {% if request.user.is_staff %}
@@ -90,21 +95,5 @@
             Bedna je pozastavená.
         </div>
     {% endif %}
-
-    {% for title, rows in sections %}
-        <section class="card rounded-2 mt-3 overflow-hidden">
-            <h2 class="card-header h6 mb-0">{{ title }}</h2>
-            <div class="list-group list-group-flush">
-            {% for label, value in rows %}
-                <div class="list-group-item">
-                    <div class="row g-2">
-                        <div class="col-12 col-sm-4 text-muted small">{{ label }}</div>
-                        <div class="col fw-semibold text-break">{{ value }}</div>
-                    </div>
-                </div>
-            {% endfor %}
-            </div>
-        </section>
-    {% endfor %}
 </div>
 {% endblock %}

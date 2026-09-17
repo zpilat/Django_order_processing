@@ -479,9 +479,32 @@ class BednaScanViewTests(ViewsTestBase):
 		self.assertEqual(response.status_code, 200)
 		self.assertContains(response, "Bedna")
 		self.assertContains(response, str(self.b_eur_pr.cislo_bedny))
-		self.assertContains(response, "Pohyb bedny")
+		self.assertContains(response, "Pohyby bedny v šaržích")
 		self.assertContains(response, reverse("bedna_scan_pohyb", args=[self.b_eur_pr.cislo_bedny]))
 		self.assertNotContains(response, "Označit navezeno")
+		udaje_url = reverse("bedna_scan_udaje", args=[self.b_eur_pr.cislo_bedny])
+		self.assertContains(response, udaje_url)
+		self.assertNotIn("sections", response.context)
+
+		udaje_response = self.client.get(udaje_url)
+		self.assertEqual(udaje_response.status_code, 200)
+		self.assertTemplateUsed(udaje_response, "orders/bedna_scan_udaje.html")
+		self.assertContains(udaje_response, reverse("bedna_scan", args=[self.b_eur_pr.cislo_bedny]))
+		for title, rows in udaje_response.context["sections"]:
+			self.assertContains(udaje_response, title)
+			self.assertNotContains(response, f'<h2 class="card-header h6 mb-0">{title}</h2>')
+			for label, _value in rows:
+				self.assertContains(udaje_response, label)
+
+	def test_scan_udaje_requires_login(self):
+		self.client.logout()
+		response = self.client.get(reverse("bedna_scan_udaje", args=[self.b_eur_pr.cislo_bedny]))
+		self.assertEqual(response.status_code, 302)
+		self.assertIn("login", response.url)
+
+	def test_scan_udaje_returns_404_for_unknown_bedna(self):
+		response = self.client.get(reverse("bedna_scan_udaje", args=[99999999]))
+		self.assertEqual(response.status_code, 404)
 
 	def test_scan_detail_shows_bedna_scanner_link_for_view_bedna_user(self):
 		self.user.user_permissions.add(Permission.objects.get(codename="view_bedna"))
@@ -489,7 +512,7 @@ class BednaScanViewTests(ViewsTestBase):
 		response = self.client.get(reverse("bedna_scan", args=[self.b_eur_pr.cislo_bedny]))
 
 		self.assertEqual(response.status_code, 200)
-		self.assertContains(response, "Skenování bedny")
+		self.assertContains(response, "Skenování další bedny")
 		self.assertContains(response, reverse("bedna_skener_ctecka"))
 
 	def test_scan_detail_shows_mark_navezeno_action_with_permission(self):
@@ -550,7 +573,7 @@ class BednaScanViewTests(ViewsTestBase):
 		self.assertContains(response, "Označit zakaleno")
 		self.assertContains(response, reverse("bedna_scan_zakaleno", args=[self.b_eur_pr.cislo_bedny]))
 
-	def test_scan_detail_shows_mark_zkontrolovano_action_with_controller_permission(self):
+	def test_scan_detail_links_to_kontrola_with_mark_zkontrolovano_action(self):
 		self.b_eur_pr.stav_bedny = StavBednyChoice.ZAKALENO
 		self.b_eur_pr.save(update_fields=["stav_bedny"])
 		permission = Permission.objects.get(codename="mark_bedna_zkontrolovano")
@@ -559,7 +582,13 @@ class BednaScanViewTests(ViewsTestBase):
 		response = self.client.get(reverse("bedna_scan", args=[self.b_eur_pr.cislo_bedny]))
 
 		self.assertEqual(response.status_code, 200)
-		self.assertContains(response, "Označit zkontrolováno")
+		self.assertContains(response, reverse("bedna_kontrola", args=[self.b_eur_pr.cislo_bedny]))
+		self.assertNotContains(response, reverse("bedna_scan_zkontrolovano", args=[self.b_eur_pr.cislo_bedny]))
+
+		response = self.client.get(reverse("bedna_kontrola", args=[self.b_eur_pr.cislo_bedny]))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "Označit bednu jako zkontrolovanou")
 		self.assertContains(response, reverse("bedna_scan_zkontrolovano", args=[self.b_eur_pr.cislo_bedny]))
 
 	def test_scan_navezeni_get_renders_position_selection(self):
@@ -2035,6 +2064,7 @@ class BednaScanViewTests(ViewsTestBase):
 
 		self.assertEqual(response.status_code, 200)
 		self.assertTemplateUsed(response, "orders/bedna_scan_zkontrolovano.html")
+		self.assertContains(response, reverse("bedna_kontrola", args=[self.b_eur_pr.cislo_bedny]))
 		self.assertContains(response, str(self.b_eur_pr.cislo_bedny))
 		self.assertIn("form", response.context)
 		self.assertIn("bedna", response.context)
@@ -2099,7 +2129,7 @@ class BednaScanViewTests(ViewsTestBase):
 
 		self.assertRedirects(
 			response,
-			reverse("bedna_scan", args=[self.b_eur_pr.cislo_bedny]),
+			reverse("bedna_kontrola", args=[self.b_eur_pr.cislo_bedny]),
 			fetch_redirect_response=False,
 		)
 		messages_list = list(response.wsgi_request._messages)
@@ -2116,7 +2146,7 @@ class BednaScanViewTests(ViewsTestBase):
 
 		self.assertRedirects(
 			response,
-			reverse("bedna_scan", args=[self.b_eur_pr.cislo_bedny]),
+			reverse("bedna_kontrola", args=[self.b_eur_pr.cislo_bedny]),
 			fetch_redirect_response=False,
 		)
 		messages_list = list(response.wsgi_request._messages)
@@ -2134,7 +2164,7 @@ class BednaScanViewTests(ViewsTestBase):
 
 		self.assertRedirects(
 			response,
-			reverse("provozni_prehledy"),
+			reverse("bedna_kontrola", args=[self.b_eur_pr.cislo_bedny]),
 			fetch_redirect_response=False,
 		)
 		self.b_eur_pr.refresh_from_db()
@@ -2142,8 +2172,11 @@ class BednaScanViewTests(ViewsTestBase):
 		self.assertEqual(self.b_eur_pr.rovnat, RovnaniChoice.ROVNA)
 		self.assertEqual(self.b_eur_pr.tryskat, TryskaniChoice.CISTA)
 		self.assertIsNone(self.b_eur_pr.pozice)
+		kontrola_response = self.client.get(response.url)
+		self.assertEqual(kontrola_response.status_code, 200)
+		self.assertContains(kontrola_response, self.b_eur_pr.get_stav_bedny_display())
 
-	def test_scan_zkontrolovano_post_redirects_mobile_to_loading_overview(self):
+	def test_scan_zkontrolovano_post_redirects_mobile_to_kontrola(self):
 		self._set_bedna_zkontrolovano_ready()
 
 		response = self.client.post(
@@ -2157,7 +2190,7 @@ class BednaScanViewTests(ViewsTestBase):
 
 		self.assertRedirects(
 			response,
-			reverse("provozni_prehledy"),
+			reverse("bedna_kontrola", args=[self.b_eur_pr.cislo_bedny]),
 			fetch_redirect_response=False,
 		)
 		self.b_eur_pr.refresh_from_db()

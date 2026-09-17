@@ -2960,7 +2960,17 @@ class BednaAdmin(SimpleHistoryAdmin):
 
     # Parametry pro zobrazení detailu v administraci (použijeme get_fieldsets)
     readonly_fields = ('cislo_bedny', 'get_obsah_ca', 'get_obsah_p', 'get_obsah_zn', 'cena_za_kg', 'cena_za_bednu', 'cena_rovnani_za_kg', 'cena_rovnani_za_bednu',
-                       'cena_tryskani_za_kg', 'cena_tryskani_za_bednu', 'get_notifikace', 'get_pohyb_v_sarzich')
+                       'cena_tryskani_za_kg', 'cena_tryskani_za_bednu', 'get_notifikace', 'get_pohyb_v_sarzich', 'get_mereni_bedny')
+
+    @admin.display(description='Naměřené hodnoty')
+    def get_mereni_bedny(self, obj):
+        if not obj or not obj.pk:
+            return '-'
+        return format_html(
+            '<a href="{}">Zobrazit kontrolu a naměřené hodnoty</a>',
+            reverse('bedna_kontrola', args=[obj.cislo_bedny]),
+        )
+
     autocomplete_fields = ('zakazka',)
 
     # Parametry pro zobrazení seznamu v administraci
@@ -3686,6 +3696,7 @@ class BednaAdmin(SimpleHistoryAdmin):
         if obj:
             groups.insert(5, ('Chemické složení', ('get_obsah_ca', 'get_obsah_p', 'get_obsah_zn')))
             groups.append(('Pohyb v šaržích', ('get_pohyb_v_sarzich',)))
+            groups.append(('Kontrola kvality', ('get_mereni_bedny',)))
 
         # Logika vyloučení polí z původního get_fields
         exclude_fields = []

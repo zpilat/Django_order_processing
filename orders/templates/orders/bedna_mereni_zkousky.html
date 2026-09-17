@@ -1,0 +1,60 @@
+{% extends "orders/base.html" %}
+{% load static %}
+
+{% block title %}{{ nazev_zkousky }} – bedna {{ bedna.cislo_bedny }}{% endblock %}
+{% block extra_head %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'orders/css/scan_workflows.css' %}">
+<script src="{% static 'orders/js/bedna_mereni_zkousky.js' %}" defer></script>
+{% endblock %}
+
+{% block content %}
+<main class="scan-page scan-page-narrow px-0 px-sm-2 py-2">
+    <section class="card rounded-2">
+        <div class="card-body">
+            <div class="text-muted fw-semibold">Bedna {{ bedna.cislo_bedny }}</div>
+            <h1 class="h3 mt-2">{{ nazev_zkousky }}</h1>
+            <div>{{ bedna.zakazka.kamion_prijem.zakaznik }} · {{ bedna.zakazka.artikl }}</div>
+            <div class="text-muted">{{ bedna.zakazka.prumer }} × {{ bedna.zakazka.delka }}</div>
+        </div>
+    </section>
+    <section class="card rounded-2 mt-3">
+        <h2 class="card-header h6 mb-0">Požadavek z předpisu {{ bedna.zakazka.predpis.nazev }}</h2>
+        <div class="card-body">
+            {% if pozadavek.hodnota %}
+                <div class="fw-bold fs-5">{{ pozadavek.hodnota }}</div>
+            {% else %}
+                <div class="text-muted">Požadavek pro tuto zkoušku není v předpisu uveden.</div>
+            {% endif %}
+            {% for popis in pozadavek.popisy %}<div class="mt-1">{{ popis }}</div>{% endfor %}
+        </div>
+    </section>
+    <section class="card rounded-2 mt-3">
+        <div class="card-body">
+            <form method="post" novalidate id="measurement-form">
+                {% csrf_token %}
+                <input type="hidden" name="snapshot" value="{{ snapshot }}">
+                {{ formset.management_form }}
+                {% if formset.non_form_errors %}
+                    <div class="alert alert-danger" role="alert">{{ formset.non_form_errors }}</div>
+                    <a class="btn btn-outline-secondary mb-3" href="{% url 'bedna_mereni_zkousky' bedna.cislo_bedny typ_zkousky %}">Načíst aktuální hodnoty</a>
+                {% endif %}
+                <p class="text-muted small">Hodnoty zadávejte v jednotkách předpisu, můžete použít desetinnou čárku. Checkbox vlevo označí hodnotu ke smazání. Prázdné řádky se neuloží.</p>
+                <div id="measurement-rows">
+                    {% for form in formset %}
+                        {% include "orders/includes/mereni_bedny_row.html" %}
+                    {% endfor %}
+                </div>
+                <template id="measurement-empty-row">
+                    {% include "orders/includes/mereni_bedny_row.html" with form=formset.empty_form %}
+                </template>
+                <button type="button" class="btn btn-outline-primary mt-2 d-none" id="add-measurement">+ Přidat hodnotu</button>
+                <div class="d-grid gap-2 mt-4">
+                    <button type="submit" class="btn btn-primary scan-action-button">Uložit hodnoty</button>
+                    <a class="btn btn-outline-secondary scan-action-button d-flex align-items-center justify-content-center" href="{% url 'bedna_kontrola' bedna.cislo_bedny %}">Zpět na kontrolu bedny</a>
+                </div>
+            </form>
+        </div>
+    </section>
+</main>
+{% endblock %}

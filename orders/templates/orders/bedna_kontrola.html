@@ -1,0 +1,79 @@
+{% extends "orders/base.html" %}
+{% load static custom_filters %}
+
+{% block title %}Kontrola bedny {{ bedna.cislo_bedny }}{% endblock %}
+{% block extra_head %}{{ block.super }}<link rel="stylesheet" href="{% static 'orders/css/scan_workflows.css' %}">{% endblock %}
+
+{% block content %}
+<main class="scan-page scan-page-narrow px-0 px-sm-2 py-2">
+    <section class="card rounded-2">
+        <div class="card-body">
+            <div class="text-muted fw-semibold">Bedna {{ bedna.cislo_bedny }}</div>
+            <h1 class="h3 mt-2">Kontrola bedny</h1>
+            <div class="text-muted mb-2">Stav bedny: {{ bedna.get_stav_bedny_display }}</div>
+            <div>{{ bedna.zakazka.kamion_prijem.zakaznik }} · {{ bedna.zakazka.artikl }}</div>
+            <div class="text-muted">{{ bedna.zakazka.prumer }} × {{ bedna.zakazka.delka }}</div>
+        </div>
+    </section>
+
+    {% if can_mark_zkontrolovano %}
+        <a class="btn btn-warning w-100 scan-action-button d-flex align-items-center justify-content-center mt-3"
+           href="{% url 'bedna_scan_zkontrolovano' bedna.cislo_bedny %}">Označit bednu jako zkontrolovanou</a>
+    {% endif %}
+
+    <section class="card rounded-2 mt-3" id="mereni-bedny">
+        <h2 class="card-header h6 mb-0">Naměřené hodnoty a jednotlivé zkoušky</h2>
+        <div class="list-group list-group-flush">
+            {% for zkouska in zkousky %}
+                <div class="list-group-item">
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                        <div class="fw-semibold">{{ zkouska.nazev }}</div>
+                        {% if zkouska.can_edit %}
+                            <a class="btn btn-outline-primary btn-sm" href="{% url 'bedna_mereni_zkousky' bedna.cislo_bedny zkouska.typ %}">Zadat / upravit hodnoty</a>
+                        {% endif %}
+                    </div>
+                    <div class="mt-2">
+                        {% for mereni in zkouska.mereni %}
+                            <span class="badge text-bg-light border me-1 mb-1">{{ mereni.hodnota|mereni_hodnota }}</span>
+                        {% empty %}
+                            <span class="text-muted small">Dosud nejsou zadána měření.</span>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="card rounded-2 mt-3">
+        <h2 class="card-header h6 mb-0">Výstupní kontrola</h2>
+        <div class="card-body">
+            {% if not can_edit %}
+                <div class="alert alert-info">Kontrolu můžete zobrazit. K úpravám nemáte potřebné oprávnění.</div>
+            {% endif %}
+            <form method="post" novalidate>
+                {% csrf_token %}
+                <input type="hidden" name="snapshot" value="{{ snapshot }}">
+                {% if form.non_field_errors %}
+                    <div class="alert alert-danger" role="alert">{{ form.non_field_errors }}</div>
+                    <a class="btn btn-outline-secondary mb-3" href="{% url 'bedna_kontrola' bedna.cislo_bedny %}">Načíst aktuální údaje</a>
+                {% endif %}
+                <fieldset {% if not can_edit %}disabled{% endif %}>
+                    {% for field in form %}
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                            {{ field }}
+                            {% for error in field.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                        </div>
+                    {% endfor %}
+                    {% if can_edit %}<button type="submit" class="btn btn-primary w-100 scan-action-button">Uložit kontrolu bedny</button>{% endif %}
+                </fieldset>
+            </form>
+            {% if kontrola.uvolnil or kontrola.uvolneno_at %}
+                <div class="text-muted small mt-3">Uvolnil: {{ kontrola.uvolnil|default:"—" }} · {{ kontrola.uvolneno_at|date:"d. m. Y H:i" }}</div>
+            {% endif %}
+        </div>
+    </section>
+
+    <a class="btn btn-outline-secondary w-100 scan-action-button d-flex align-items-center justify-content-center mt-3" href="{% url 'bedna_scan' bedna.cislo_bedny %}">Zpět na detail bedny</a>
+</main>
+{% endblock %}

@@ -1,9 +1,19 @@
 from django import template
 from decimal import Decimal, ROUND_HALF_UP
+from django.utils.formats import get_format
 
 from orders.utils import format_cislo_bedny
 
 register = template.Library()
+
+@register.filter(name='mereni_hodnota')
+def mereni_hodnota(value):
+    """Display all measured decimal places without padding with trailing zeros."""
+    result = format(value, 'f')
+    if '.' in result:
+        result = result.rstrip('0').rstrip('.')
+    return result.replace('.', get_format('DECIMAL_SEPARATOR'))
+
 
 @register.filter(name='url_remove_param')
 def url_remove_param(querystring, params):

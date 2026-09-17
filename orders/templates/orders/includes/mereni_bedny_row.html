@@ -1,0 +1,16 @@
+<div class="measurement-row mb-2">
+    {{ form.id }}
+    <div class="d-flex align-items-start gap-2">
+        <div class="flex-shrink-0">
+            {{ form.DELETE }}
+            <label for="{{ form.DELETE.id_for_label }}" class="visually-hidden">Smazat při uložení</label>
+        </div>
+        <div class="flex-grow-1">
+            <label for="{{ form.hodnota.id_for_label }}" class="visually-hidden">{{ form.hodnota.label }}</label>
+            {{ form.hodnota }}
+            {% for error in form.hodnota.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+        </div>
+    </div>
+    {% for error in form.id.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+    {% for error in form.non_field_errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+</div>

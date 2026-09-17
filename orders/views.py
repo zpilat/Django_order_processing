@@ -8,7 +8,7 @@ from django.views.generic import ListView
 from django.views.generic.edit import CreateView, UpdateView, DeleteView
 from django.views.generic.detail import DetailView
 from django.views.decorators.cache import never_cache
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_http_methods
 from django.urls import reverse, reverse_lazy
 from django.db.models import Q, Max, Sum, Count, F, Exists, OuterRef, Subquery, DecimalField, ExpressionWrapper, Value, Prefetch, Case, When, DateTimeField
 from django.db.models.functions import Coalesce, ExtractMonth
@@ -30,7 +30,7 @@ from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from .utils import get_verbose_name_for_column, utilita_tisk_dl_a_proforma_faktury, format_cislo_bedny, format_skupina_TZ, build_fake_skupina_TZ_annotation
 from .models import (
     Bedna, Zakazka, Kamion, Zakaznik, TypHlavy, Predpis, Odberatel, Cena, Pozice, PoziceZakazkaOrder,
-    Sarze, SarzeKrok, SarzeKrokBedna, Zarizeni
+    Sarze, SarzeKrok, SarzeKrokBedna, Zarizeni, KontrolaBedny, MereniBedny
 )
 from .forms import (
     BednaScanZkontrolovanoForm,
@@ -40,6 +40,8 @@ from .forms import (
     SarzeScanKrokChangeForm,
     SarzeSkenerCteckaForm,
     get_sarze_krok_patro_formset,
+    MereniBednyFormSet,
+    KontrolaBednyForm,
 )
 from .actions import _build_sarzekrokbedna_preview_rows, _create_sarzekrok_and_copy_rows
 from .services.sarze_print_service import (
@@ -47,10 +49,11 @@ from .services.sarze_print_service import (
     get_tisk_pruvodky_vruty_krok,
 )
 from .services.history_service import history_transitions_to_qs
+from .services.mereni_bedny_service import pozadavek_zkousky, mereni_snapshot, kontrola_snapshot, ulozit_mereni_zkousky
 from .choices import (
     StavBednyChoice, StavSarzeChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice, TypZarizeniChoice,
     ZinkovaniChoice, STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM,
-    STAV_BEDNY_PODMINKA_PRO_ZMENU_NA_ZAKALENO
+    STAV_BEDNY_PODMINKA_PRO_ZMENU_NA_ZAKALENO, TypZkouskyChoice, UvolneniKontrolyChoice
 )
 from weasyprint import HTML, CSS
 
@@ -634,15 +637,12 @@ def bedna_scan_view(request, cislo_bedny: int):
         'zakazka',
         'zakazka__kamion_prijem',
         'zakazka__kamion_prijem__zakaznik',
-        'zakazka__predpis',
-        'zakazka__typ_hlavy',
-        'pozice',
     )
 
     bedna = get_object_or_404(bedna_qs, cislo_bedny=cislo_bedny)
     context = {
         'bedna': bedna,
-        'sections': _bedna_scan_sections(bedna),
+        'can_view_kontrola': _can_view_kontrola_bedny(request.user),
         'can_mark_navezeno': _bedna_scan_can_mark_navezeno(request.user, bedna),
         'has_mark_navezeno_permission': (
             request.user.has_perm('orders.mark_bedna_navezeno')
@@ -653,11 +653,173 @@ def bedna_scan_view(request, cislo_bedny: int):
             request.user.has_perm('orders.scan_mark_bedna_zakaleno')
             or request.user.has_perm('orders.change_bedna')
         ),
-        'can_mark_zkontrolovano': _bedna_scan_can_mark_zkontrolovano(request.user, bedna),
-        'has_mark_zkontrolovano_permission': request.user.has_perm('orders.mark_bedna_zkontrolovano'),
         'db_table': 'bedna_scan',
     }
     return render(request, 'orders/bedna_scan_detail.html', context)
+
+
+@login_required
+@require_http_methods(['GET'])
+def bedna_scan_udaje_view(request, cislo_bedny: int):
+    bedna_qs = Bedna.objects.select_related(
+        'zakazka',
+        'zakazka__kamion_prijem',
+        'zakazka__kamion_prijem__zakaznik',
+        'zakazka__predpis',
+        'zakazka__typ_hlavy',
+        'pozice',
+    )
+    bedna = get_object_or_404(bedna_qs, cislo_bedny=cislo_bedny)
+    return render(request, 'orders/bedna_scan_udaje.html', {
+        'bedna': bedna,
+        'sections': _bedna_scan_sections(bedna),
+        'db_table': 'bedna_scan',
+    })
+
+
+def _can_view_kontrola_bedny(user):
+    return user.has_perm('orders.view_bedna') or user.has_perm('orders.mark_bedna_zkontrolovano')
+
+
+def _can_edit_mereni_bedny(user, bedna):
+    return (
+        user.has_perm('orders.mark_bedna_zkontrolovano')
+        and (not bedna.pozastaveno or user.has_perm('orders.change_pozastavena_bedna'))
+        and (
+            bedna.stav_bedny != StavBednyChoice.EXPEDOVANO
+            or user.has_perm('orders.change_expedovana_bedna')
+        )
+    )
+
+
+def _bedna_zkousky_context(bedna, user):
+    measurements = list(MereniBedny.objects.filter(kontrola__bedna=bedna))
+    can_edit = _can_edit_mereni_bedny(user, bedna)
+    return [
+        {
+            'typ': kind.value, 'nazev': kind.label, 'can_edit': can_edit,
+            'mereni': [item for item in measurements if item.typ_zkousky == kind],
+        }
+        for kind in TypZkouskyChoice
+    ]
+
+
+@login_required
+@require_http_methods(['GET', 'POST'])
+def bedna_kontrola_view(request, cislo_bedny: int):
+    if not _can_view_kontrola_bedny(request.user):
+        raise PermissionDenied
+
+    def load_form(*, lock=False):
+        queryset = Bedna.objects.select_related('zakazka__kamion_prijem__zakaznik')
+        if lock:
+            queryset = queryset.select_for_update(of=('self',))
+        bedna = get_object_or_404(queryset, cislo_bedny=cislo_bedny)
+        can_edit = _can_edit_mereni_bedny(request.user, bedna)
+        if request.method == 'POST' and not can_edit:
+            raise PermissionDenied
+        kontrola = KontrolaBedny.objects.filter(bedna=bedna).select_related('uvolnil').first()
+        current_snapshot = kontrola_snapshot(kontrola)
+        previous_status = kontrola.uvolneni if kontrola else UvolneniKontrolyChoice.NEROZHODNUTO
+        form = KontrolaBednyForm(
+            request.POST if request.method == 'POST' else None,
+            instance=kontrola or KontrolaBedny(bedna=bedna),
+        )
+        return bedna, kontrola, form, can_edit, current_snapshot, previous_status
+
+    if request.method == 'POST':
+        with transaction.atomic():
+            bedna, kontrola, form, can_edit, current_snapshot, previous_status = load_form(lock=True)
+            snapshot = request.POST.get('snapshot', '')
+            valid = form.is_valid()
+            if snapshot != current_snapshot:
+                form.add_error(None, 'Kontrolu mezitím změnil jiný uživatel. Načtěte aktuální údaje znovu.')
+                valid = False
+            if valid:
+                if kontrola is None or form.has_changed():
+                    kontrola = form.save(commit=False)
+                    if kontrola.uvolneni == UvolneniKontrolyChoice.UVOLNENO:
+                        if previous_status != UvolneniKontrolyChoice.UVOLNENO:
+                            kontrola.uvolnil = request.user
+                            kontrola.uvolneno_at = timezone.now()
+                    else:
+                        kontrola.uvolnil = None
+                        kontrola.uvolneno_at = None
+                    kontrola._history_user = request.user
+                    kontrola.save()
+                messages.success(request, 'Kontrola bedny byla uložena.')
+                return redirect('bedna_kontrola', cislo_bedny=bedna.cislo_bedny)
+    else:
+        bedna, kontrola, form, can_edit, current_snapshot, previous_status = load_form()
+        snapshot = current_snapshot
+
+    return render(request, 'orders/bedna_kontrola.html', {
+        'bedna': bedna, 'kontrola': kontrola, 'form': form,
+        'can_edit': can_edit, 'snapshot': snapshot,
+        'can_mark_zkontrolovano': _bedna_scan_can_mark_zkontrolovano(request.user, bedna),
+        'zkousky': _bedna_zkousky_context(bedna, request.user), 'db_table': 'bedna_scan',
+    })
+
+
+@login_required
+@require_http_methods(['GET', 'POST'])
+def bedna_mereni_zkousky_view(request, cislo_bedny: int, typ_zkousky: str):
+    if typ_zkousky not in TypZkouskyChoice.values:
+        raise Http404
+
+    def load_form(*, lock=False):
+        queryset = Bedna.objects.select_related('zakazka__predpis', 'zakazka__kamion_prijem__zakaznik')
+        if lock:
+            queryset = queryset.select_for_update(of=('self',))
+        bedna = get_object_or_404(queryset, cislo_bedny=cislo_bedny)
+        if not _can_edit_mereni_bedny(request.user, bedna):
+            raise PermissionDenied
+        measurements = list(
+            MereniBedny.objects.filter(kontrola__bedna=bedna, typ_zkousky=typ_zkousky)
+            .select_related('zmeril').order_by('poradi')
+        )
+        formset = MereniBednyFormSet(
+            request.POST if request.method == 'POST' else None,
+            measurements=measurements, prefix='mereni',
+        )
+        return bedna, measurements, formset
+
+    if request.method == 'POST':
+        with transaction.atomic():
+            bedna, measurements, formset = load_form(lock=True)
+            valid = formset.is_valid()
+            snapshot = request.POST.get('snapshot', '')
+            if snapshot != mereni_snapshot(measurements):
+                formset.non_form_errors().append(
+                    'Měření mezitím změnil jiný uživatel. Načtěte formulář znovu a zkontrolujte aktuální hodnoty.',
+                )
+                valid = False
+            if valid:
+                has_values = any(
+                    form.cleaned_data.get('hodnota') is not None
+                    and not form.cleaned_data.get('DELETE')
+                    for form in formset.forms
+                )
+                if measurements or has_values:
+                    kontrola = KontrolaBedny.objects.filter(bedna=bedna).first()
+                    if kontrola is None:
+                        kontrola = KontrolaBedny(bedna=bedna)
+                        kontrola._history_user = request.user
+                        kontrola.save()
+                    ulozit_mereni_zkousky(kontrola, typ_zkousky, formset, request.user)
+                messages.success(request, 'Naměřené hodnoty byly uloženy.')
+                return redirect('bedna_kontrola', cislo_bedny=bedna.cislo_bedny)
+    else:
+        bedna, measurements, formset = load_form()
+        snapshot = mereni_snapshot(measurements)
+
+    return render(request, 'orders/bedna_mereni_zkousky.html', {
+        'bedna': bedna, 'typ_zkousky': typ_zkousky,
+        'nazev_zkousky': TypZkouskyChoice(typ_zkousky).label,
+        'pozadavek': pozadavek_zkousky(bedna.zakazka.predpis, typ_zkousky),
+        'formset': formset, 'snapshot': snapshot,
+        'db_table': 'bedna_scan',
+    })
 
 
 @login_required
@@ -822,14 +984,14 @@ def bedna_scan_zkontrolovano_view(request, cislo_bedny: int):
             f"ale bedna je pozastavená."
         )
         messages.error(request, f'Bedna {bedna.cislo_bedny} je pozastavená a nelze ji označit jako zkontrolovanou.')
-        return redirect('bedna_scan', cislo_bedny=bedna.cislo_bedny)
+        return redirect('bedna_kontrola', cislo_bedny=bedna.cislo_bedny)
     if bedna.stav_bedny not in STAV_BEDNY_ROZPRACOVANOST:
         logger.warning(
             f"Uživatel {request.user} se pokusil označit přes scan bednu {bedna.cislo_bedny} jako zkontrolovanou, "
             f"ale bedna není ve stavu rozpracovanosti."
         )
         messages.error(request, f'Bedna {bedna.cislo_bedny} není ve stavu rozpracovanosti.')
-        return redirect('bedna_scan', cislo_bedny=bedna.cislo_bedny)
+        return redirect('bedna_kontrola', cislo_bedny=bedna.cislo_bedny)
 
     if request.method == 'POST':
         if request.POST.get('action') != 'mark_zkontrolovano':
@@ -850,14 +1012,14 @@ def bedna_scan_zkontrolovano_view(request, cislo_bedny: int):
                     f"ale bedna je pozastavená."
                 )
                 messages.error(request, f'Bedna {bedna.cislo_bedny} je pozastavená a nelze ji označit jako zkontrolovanou.')
-                return redirect('bedna_scan', cislo_bedny=bedna.cislo_bedny)
+                return redirect('bedna_kontrola', cislo_bedny=bedna.cislo_bedny)
             if bedna.stav_bedny not in STAV_BEDNY_ROZPRACOVANOST:
                 logger.warning(
                     f"Uživatel {request.user} se pokusil označit přes scan bednu {bedna.cislo_bedny} jako zkontrolovanou, "
                     f"ale bedna není ve stavu rozpracovanosti."
                 )
                 messages.error(request, f'Bedna {bedna.cislo_bedny} není ve stavu rozpracovanosti.')
-                return redirect('bedna_scan', cislo_bedny=bedna.cislo_bedny)
+                return redirect('bedna_kontrola', cislo_bedny=bedna.cislo_bedny)
 
             form = BednaScanZkontrolovanoForm(request.POST, bedna=bedna)
             if form.is_valid():
@@ -904,7 +1066,7 @@ def bedna_scan_zkontrolovano_view(request, cislo_bedny: int):
         logger.info(
             f"Uživatel {request.user} označil přes scan bednu {cislo_bedny} jako ZKONTROLOVANO."
         )
-        return redirect('provozni_prehledy')
+        return redirect('bedna_kontrola', cislo_bedny=bedna.cislo_bedny)
 
     form = BednaScanZkontrolovanoForm(bedna=bedna)
     context = {

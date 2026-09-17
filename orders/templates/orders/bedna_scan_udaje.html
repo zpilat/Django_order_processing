@@ -1,0 +1,37 @@
+{% extends "orders/base.html" %}
+{% load static %}
+
+{% block title %}Údaje bedny {{ bedna.cislo_bedny }}{% endblock %}
+{% block extra_head %}{{ block.super }}<link rel="stylesheet" href="{% static 'orders/css/scan_workflows.css' %}">{% endblock %}
+
+{% block content %}
+<main class="scan-page px-0 px-sm-2 py-2">
+    <section class="card rounded-2">
+        <div class="card-body">
+            <div class="text-muted fw-semibold">Bedna {{ bedna.cislo_bedny }}</div>
+            <h1 class="h3 mt-2">Údaje bedny</h1>
+            <a class="btn btn-outline-secondary w-100 scan-action-button d-flex align-items-center justify-content-center mt-3"
+               href="{% url 'bedna_scan' bedna.cislo_bedny %}">Zpět na detail bedny</a>
+        </div>
+    </section>
+
+    {% for title, rows in sections %}
+        <section class="card rounded-2 mt-3 overflow-hidden">
+            <h2 class="card-header h6 mb-0">{{ title }}</h2>
+            <div class="list-group list-group-flush">
+            {% for label, value in rows %}
+                <div class="list-group-item">
+                    <div class="row g-2">
+                        <div class="col-12 col-sm-4 text-muted small">{{ label }}</div>
+                        <div class="col fw-semibold text-break">{{ value }}</div>
+                    </div>
+                </div>
+            {% endfor %}
+            </div>
+        </section>
+    {% endfor %}
+
+    <a class="btn btn-outline-secondary w-100 scan-action-button d-flex align-items-center justify-content-center mt-3"
+       href="{% url 'bedna_scan' bedna.cislo_bedny %}">Zpět na detail bedny</a>
+</main>
+{% endblock %}

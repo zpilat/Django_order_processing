@@ -85,6 +85,28 @@ class ZinkovaniChoice(models.TextChoices):
     POZINKOVANO = 'PZ', 'Pozinkováno'
     UVOLNENO = 'UV', 'Uvolněno'
 
+class TypZkouskyChoice(models.TextChoices):
+    OHYB = 'ohyb', 'Ohyb'
+    KRUT = 'krut', 'Krut'
+    PROHYB_PO_TZ = 'prohyb_po_tz', 'Prohyb po TZ'
+    PROHYB_PO_KOULENI = 'prohyb_po_kouleni', 'Prohyb po koulení'
+    PROHYB_PO_ROVNANI = 'prohyb_po_rovnani', 'Prohyb po rovnání'
+    TVRDOST_POVRCHU = 'tvrdost_povrchu', 'Tvrdost povrchu'
+    TVRDOST_JADRA = 'tvrdost_jadra', 'Tvrdost jádra'
+
+
+class VysledekKontrolyChoice(models.TextChoices):
+    NEZADANO = '--', 'Nezadáno'
+    OK = 'OK', 'OK'
+    NOK = 'NOK', 'NOK'
+
+
+class UvolneniKontrolyChoice(models.TextChoices):
+    NEROZHODNUTO = '--', 'Nerozhodnuto'
+    POZASTAVENO = 'PO', 'Pozastaveno'
+    UVOLNENO = 'UV', 'Uvolněno'
+
+
 class PrioritaChoice(models.TextChoices):
     VYSOKA = 'P1', 'P1'
     STREDNI = 'P2', 'P2'

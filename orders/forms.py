@@ -3,6 +3,7 @@ from django.db import transaction
 from django.db.models import Exists, OuterRef, Q
 from django.forms import BaseFormSet, formset_factory
 from django.utils import timezone
+from django.utils.formats import get_format
 from django.utils.translation import gettext_lazy as _
 from django.contrib.admin.widgets import AdminDateWidget
 from django.core.exceptions import ValidationError
@@ -11,7 +12,7 @@ from decimal import Decimal, ROUND_HALF_UP
 
 from orders.utils import parse_sarze_search_term
 
-from .models import Sarze, SarzeKrok, Zakaznik, Kamion, Zakazka, Bedna, Predpis, Odberatel, Pozice, Zarizeni
+from .models import Sarze, SarzeKrok, Zakaznik, Kamion, Zakazka, Bedna, Predpis, Odberatel, Pozice, Zarizeni, KontrolaBedny
 from .choices import (
     StavBednyChoice,
     StavSarzeChoice,
@@ -81,6 +82,75 @@ class ZakazkaMeasurementForm(forms.ModelForm):
             "krut": forms.TextInput(attrs={"size": "20"}),
             "hazeni": forms.TextInput(attrs={"size": "20"}),
         }
+
+
+class KontrolaBednyForm(forms.ModelForm):
+    class Meta:
+        model = KontrolaBedny
+        fields = ('cistota', 'ulozeni', 'uvolneni', 'poznamka')
+        widgets = {
+            'cistota': forms.Select(attrs={'class': 'form-select'}),
+            'ulozeni': forms.Select(attrs={'class': 'form-select'}),
+            'uvolneni': forms.Select(attrs={'class': 'form-select'}),
+            'poznamka': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+        }
+
+
+class MereniHodnotaInput(forms.TextInput):
+    def format_value(self, value):
+        formatted = super().format_value(value)
+        if isinstance(value, Decimal):
+            separator = get_format('DECIMAL_SEPARATOR') if self.is_localized else '.'
+            if separator in formatted:
+                formatted = formatted.rstrip('0').rstrip(separator)
+        return formatted
+
+
+class MereniBednyForm(forms.Form):
+    id = forms.IntegerField(required=False, widget=forms.HiddenInput)
+    hodnota = forms.DecimalField(
+        label='Naměřená hodnota', max_digits=12, decimal_places=4, localize=True,
+        widget=MereniHodnotaInput(attrs={'class': 'form-control form-control-sm', 'inputmode': 'decimal'}),
+    )
+
+
+class BaseMereniBednyFormSet(BaseFormSet):
+    def __init__(self, *args, measurements=(), **kwargs):
+        self.measurements = list(measurements)
+        kwargs['initial'] = [
+            {'id': item.pk, 'hodnota': item.hodnota}
+            for item in self.measurements
+        ]
+        super().__init__(*args, **kwargs)
+
+    @classmethod
+    def get_deletion_widget(cls):
+        return forms.CheckboxInput(attrs={
+            'class': 'form-check-input mt-2', 'title': 'Smazat při uložení',
+        })
+
+    def clean(self):
+        super().clean()
+        # Deleted forms must also belong to this bedna and type of test.
+        expected = {item.pk for item in self.measurements}
+        submitted = []
+        for form in self.forms:
+            item_id = form.cleaned_data.get('id')
+            if form.errors and 'id' in form.errors:
+                raise forms.ValidationError('Neplatný odkaz na měření.')
+            if item_id is not None:
+                submitted.append(item_id)
+        if len(submitted) != len(set(submitted)) or set(submitted) != expected:
+            raise forms.ValidationError(
+                'Seznam měření se změnil nebo obsahuje neplatný odkaz. Načtěte formulář znovu.',
+            )
+
+
+MereniBednyFormSet = formset_factory(
+    MereniBednyForm, formset=BaseMereniBednyFormSet, extra=3, can_delete=True,
+    max_num=1000, validate_max=True,
+)
+
 
 class ZakazkaPredpisValidatorMixin:
     """

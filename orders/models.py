@@ -27,6 +27,9 @@ from .choices import (
     KamionChoice,
     AlphabetChoice,
     TypZarizeniChoice,
+    TypZkouskyChoice,
+    VysledekKontrolyChoice,
+    UvolneniKontrolyChoice,
     STAV_BEDNY_SKLADEM,
     STAV_BEDNY_PRO_NAVEZENI,
     STAV_BEDNY_ROZPRACOVANOST,
@@ -1489,6 +1492,81 @@ class Bedna(models.Model):
                 [self],
             )
         return super().delete(using=using, keep_parents=keep_parents)
+
+class KontrolaBedny(models.Model):
+    """Společné výsledky výstupní kontroly a rozhodnutí o uvolnění bedny."""
+
+    bedna = models.OneToOneField(
+        Bedna, on_delete=models.PROTECT, related_name='kontrola', verbose_name='Bedna',
+    )
+    cistota = models.CharField(
+        max_length=3, choices=VysledekKontrolyChoice.choices,
+        default=VysledekKontrolyChoice.NEZADANO, verbose_name='Čistota',
+    )
+    ulozeni = models.CharField(
+        max_length=3, choices=VysledekKontrolyChoice.choices,
+        default=VysledekKontrolyChoice.NEZADANO, verbose_name='Uložení',
+    )
+    uvolneni = models.CharField(
+        max_length=2, choices=UvolneniKontrolyChoice.choices,
+        default=UvolneniKontrolyChoice.NEROZHODNUTO, verbose_name='Uvolnění',
+    )
+    uvolnil = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='uvolnene_kontroly_beden', verbose_name='Uvolnil',
+    )
+    uvolneno_at = models.DateTimeField(null=True, blank=True, verbose_name='Datum uvolnění')
+    poznamka = models.TextField(blank=True, verbose_name='Poznámka')
+    history = HistoricalRecords()
+
+    class Meta:
+        verbose_name = 'Kontrola bedny'
+        verbose_name_plural = 'kontroly beden'
+        ordering = ['bedna__cislo_bedny']
+
+    def __str__(self):
+        return f'Kontrola bedny {self.bedna.cislo_bedny}'
+
+
+class MereniBedny(models.Model):
+    """Jedna naměřená hodnota; počet hodnot pro zkoušku není omezen."""
+
+    kontrola = models.ForeignKey(
+        KontrolaBedny, on_delete=models.CASCADE, related_name='mereni',
+        verbose_name='Kontrola bedny',
+    )
+    typ_zkousky = models.CharField(
+        max_length=20, choices=TypZkouskyChoice.choices, verbose_name='Typ zkoušky',
+    )
+    hodnota = models.DecimalField(max_digits=12, decimal_places=4, verbose_name='Naměřená hodnota')
+    poradi = models.PositiveIntegerField(
+        validators=[MinValueValidator(1)], verbose_name='Pořadí hodnoty',
+        help_text='Pořadí v rámci daného typu zkoušky a kontroly bedny, počínaje 1.',
+    )
+    zmeril = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='mereni_beden', verbose_name='Změřil',
+    )
+    zmereno_at = models.DateTimeField(default=timezone.now, verbose_name='Datum měření')
+    history = HistoricalRecords()
+
+    class Meta:
+        verbose_name = 'Měření bedny'
+        verbose_name_plural = 'měření beden'
+        ordering = ['typ_zkousky', 'poradi']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['kontrola', 'typ_zkousky', 'poradi'],
+                name='uniq_mereni_kontrola_typ_poradi',
+            ),
+            models.CheckConstraint(
+                condition=Q(poradi__gte=1), name='mereni_poradi_gte_1',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.kontrola} – {self.get_typ_zkousky_display()}: {self.hodnota}'
+
 
 # Model je v UI přejmenován na "Pracoviště"
 class Zarizeni(models.Model):
