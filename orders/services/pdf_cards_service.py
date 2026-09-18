@@ -67,7 +67,7 @@ def render_pages(*, bedny_qs, template_paths, context_builder):
     return "".join(html_parts)
 
 
-def build_cards_pdf(*, bedny_qs, template_paths, filename, request=None, generated_at=None, user_display_name=""):
+def build_cards_pdf(*, bedny_qs, template_paths, filename, request=None, generated_at=None, user_display_name="", context_builder=None):
     errors = validate_cards_input(
         bedny_qs=bedny_qs,
         template_paths=template_paths,
@@ -93,12 +93,12 @@ def build_cards_pdf(*, bedny_qs, template_paths, filename, request=None, generat
     html_string = render_pages(
         bedny_qs=bedny_qs,
         template_paths=template_paths,
-        context_builder=lambda bedna: build_context_for_bedna(
+        context_builder=context_builder or (lambda bedna: build_context_for_bedna(
             bedna,
             generated_at,
             user_display_name,
             # barcode_base_url,
-        ),
+        )),
     )
 
     base_url = request.build_absolute_uri("/") if request else None

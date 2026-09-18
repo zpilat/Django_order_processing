@@ -42,6 +42,8 @@ from .actions import (
     expedice_zakazek_action, import_kamionu_action, import_chemickych_mereni_action, tisk_karet_beden_action, tisk_karet_beden_zakazek_action,
     tisk_karet_beden_kamionu_action, tisk_karet_bedny_a_kontroly_kamionu_action, tisk_dodaciho_listu_kamionu_action, vratit_zakazky_z_expedice_action, expedice_zakazek_kamion_action,
     tisk_karet_kontroly_kvality_action, tisk_karet_kontroly_kvality_zakazek_action, tisk_karet_kontroly_kvality_kamionu_action,
+    tisk_vyplnenych_karet_kontroly_kvality_action, tisk_vyplnenych_karet_kontroly_kvality_zakazek_action,
+    tisk_vyplnenych_karet_kontroly_kvality_kamionu_action,
     tisk_karet_bedny_a_kontroly_action, tisk_protokolu_kamionu_vydej_action, tisk_proforma_faktury_kamionu_action,
     oznacit_k_navezeni_action, vratit_bedny_ze_stavu_k_navezeni_do_stavu_prijato_action, oznacit_navezeno_action, oznacit_prijato_do_zakaleno_action,
     oznacit_prijato_navezeno_action, vratit_bedny_z_rozpracovanosti_do_stavu_prijato_action, vratit_bedny_ze_stavu_navezeno_do_stavu_prijato_action,
@@ -1256,6 +1258,7 @@ class KamionAdmin(SimpleHistoryAdmin):
         tisk_karet_beden_kamionu_action,
         tisk_karet_bedny_a_kontroly_kamionu_action,
         tisk_karet_kontroly_kvality_kamionu_action,
+        tisk_vyplnenych_karet_kontroly_kvality_kamionu_action,
         tisk_dodaciho_listu_kamionu_action,
         tisk_proforma_faktury_kamionu_action,
         tisk_protokolu_kamionu_vydej_action,        
@@ -1711,6 +1714,8 @@ class KamionAdmin(SimpleHistoryAdmin):
                 getattr(admin_delete_selected, 'short_description', 'Smazat vybrané'),
             )
 
+        if 'tisk_karet_kontroly_kvality_kamionu_action' in actions_to_remove:
+            actions_to_remove.append('tisk_vyplnenych_karet_kontroly_kvality_kamionu_action')
         for action in actions_to_remove:
             if action in actions:
                 del actions[action]
@@ -1748,6 +1753,7 @@ class KamionAdmin(SimpleHistoryAdmin):
             'tisk_karet_beden_kamionu_action': 'Tisk karet',
             'tisk_karet_bedny_a_kontroly_kamionu_action': 'Tisk karet',
             'tisk_karet_kontroly_kvality_kamionu_action': 'Tisk karet',
+            'tisk_vyplnenych_karet_kontroly_kvality_kamionu_action': 'Tisk karet',
             'tisk_dodaciho_listu_kamionu_action': 'Tisk dokladů',
             'tisk_proforma_faktury_kamionu_action': 'Tisk dokladů',
             'tisk_protokolu_kamionu_vydej_action': 'Tisk dokladů',
@@ -2359,7 +2365,8 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
     inlines = [BednaInline]
     form = ZakazkaAdminForm
     actions = [tisk_karet_beden_zakazek_action, tisk_karet_kontroly_kvality_zakazek_action, expedice_zakazek_action,
-               vratit_zakazky_z_expedice_action, expedice_zakazek_kamion_action, prijmout_zakazku_action]
+               vratit_zakazky_z_expedice_action, expedice_zakazek_kamion_action, prijmout_zakazku_action,
+               tisk_vyplnenych_karet_kontroly_kvality_zakazek_action]
 
     # Parametry pro zobrazení detailu v administraci
     exclude = ('tvrdost_povrchu', 'tvrdost_jadra', 'ohyb', 'krut', 'hazeni')    
@@ -2800,6 +2807,8 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
                         'expedice_zakazek_action', 'prijmout_zakazku_action', 'delete_selected'
                         ]
 
+        if 'tisk_karet_kontroly_kvality_zakazek_action' in actions_to_remove:
+            actions_to_remove.append('tisk_vyplnenych_karet_kontroly_kvality_zakazek_action')
         for action in actions_to_remove:
             if action in actions:
                 del actions[action]
@@ -2823,6 +2832,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
             'prijmout_zakazku_action': 'Příjem',
             'tisk_karet_beden_zakazek_action': 'Tisk',
             'tisk_karet_kontroly_kvality_zakazek_action': 'Tisk',
+            'tisk_vyplnenych_karet_kontroly_kvality_zakazek_action': 'Tisk',
             'expedice_zakazek_action': 'Expedice',
             'expedice_zakazek_kamion_action': 'Expedice',
             'vratit_zakazky_z_expedice_action': 'Expedice',
@@ -2944,6 +2954,7 @@ class BednaAdmin(SimpleHistoryAdmin):
     poll_interval_ms = 30000
     actions = [
         tisk_karet_beden_action, tisk_karet_kontroly_kvality_action, tisk_karet_bedny_a_kontroly_action,
+        tisk_vyplnenych_karet_kontroly_kvality_action,
         export_bedny_to_csv_customer_action, export_bedny_dl_action, export_chemie_beden_action,
         oznacit_k_navezeni_action, oznacit_navezeno_action, oznacit_prijato_navezeno_action, vratit_bedny_ze_stavu_k_navezeni_do_stavu_prijato_action,
         vratit_bedny_ze_stavu_navezeno_do_stavu_prijato_action, vratit_bedny_z_rozpracovanosti_do_stavu_prijato_action,
@@ -4302,6 +4313,7 @@ class BednaAdmin(SimpleHistoryAdmin):
             'export_chemie_beden_action': 'Export',
             'tisk_karet_beden_action': 'Tisk',
             'tisk_karet_kontroly_kvality_action': 'Tisk',
+            'tisk_vyplnenych_karet_kontroly_kvality_action': 'Tisk',
             'tisk_karet_bedny_a_kontroly_action': 'Tisk',
             'prijmout_bedny_action': 'Stav bedny',
             'oznacit_k_navezeni_action': 'Stav bedny',

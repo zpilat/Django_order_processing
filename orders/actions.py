@@ -36,6 +36,7 @@ from .utils import (
     validate_bedny_pripraveny_k_expedici,
 )
 from .services.pdf_cards_service import resolve_customer_templates
+from .services.filled_quality_cards_service import build_filled_quality_cards_pdf
 from .services.expedice_service import (
     expedice_beden_do_noveho_kamionu,
     expedice_zakazek_do_noveho_kamionu,
@@ -912,6 +913,48 @@ def tisk_karet_kontroly_kvality_action(modeladmin, request, queryset):
         logger.error(f"Bedna {queryset.first()} nemá přiřazeného zákazníka nebo zákazník nemá zkratku.")
         modeladmin.message_user(request, "Bedna nemá přiřazeného zákazníka nebo zákazník nemá zkratku.", level=messages.ERROR)
         return None
+
+
+def _tisk_vyplnenych_karet_kontroly(modeladmin, request, bedny):
+    if not bedny.exists():
+        modeladmin.message_user(request, 'Ve výběru nejsou žádné bedny k tisku.', level=messages.ERROR)
+        return None
+    if _abort_if_bedna_has_not_hmotnost_zakazka_predpis(modeladmin, request, bedny, 'tisk vyplněných karet kontroly kvality'):
+        return None
+    try:
+        response = build_filled_quality_cards_pdf(bedny, request)
+    except ServiceValidationError as exc:
+        modeladmin.message_user(request, str(exc), level=messages.ERROR)
+        return None
+    except Exception:
+        logger.exception('Chyba při tisku vyplněných karet kontroly kvality.')
+        modeladmin.message_user(request, 'Došlo k chybě při generování vyplněných karet kontroly kvality.', level=messages.ERROR)
+        return None
+    logger.info(f'Uživatel {request.user} tiskne vyplněné karty kontroly kvality pro {bedny.count()} beden.')
+    return response
+
+
+@admin.action(description='Vytisknout vyplněné KKK (EUR)', permissions=('view',))
+def tisk_vyplnenych_karet_kontroly_kvality_action(modeladmin, request, queryset):
+    return _tisk_vyplnenych_karet_kontroly(modeladmin, request, queryset)
+
+
+@admin.action(description='Vytisknout vyplněné KKK z vybraných zakázek (EUR)', permissions=('view',))
+def tisk_vyplnenych_karet_kontroly_kvality_zakazek_action(modeladmin, request, queryset):
+    bedny = Bedna.objects.filter(zakazka__in=queryset)
+    return _tisk_vyplnenych_karet_kontroly(modeladmin, request, bedny)
+
+
+@admin.action(description='Vytisknout vyplněné KKK z vybraného kamionu příjem (EUR)', permissions=('view',))
+def tisk_vyplnenych_karet_kontroly_kvality_kamionu_action(modeladmin, request, queryset):
+    if queryset.count() != 1:
+        modeladmin.message_user(request, 'Vyberte pouze jeden kamion.', level=messages.ERROR)
+        return None
+    if queryset.first().prijem_vydej != KamionChoice.PRIJEM:
+        modeladmin.message_user(request, 'Tisk vyplněných karet je možný pouze pro kamiony příjem.', level=messages.ERROR)
+        return None
+    bedny = Bedna.objects.filter(zakazka__kamion_prijem__in=queryset).exclude(stav_bedny=StavBednyChoice.EXPEDOVANO)
+    return _tisk_vyplnenych_karet_kontroly(modeladmin, request, bedny)
 
 
 @admin.action(description="Vytisknout karty bedny + KKK")
