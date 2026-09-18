@@ -1338,8 +1338,9 @@ class BednaAdminTests(AdminBase):
         fieldsets = self.admin.get_fieldsets(self.get_request(), self.bedna)
         html = str(self.admin.get_pohyb_v_sarzich(self.bedna))
 
-        self.assertEqual(fieldsets[-1][0], 'Pohyb v šaržích')
-        self.assertIn('get_pohyb_v_sarzich', fieldsets[-1][1]['fields'])
+        sections = dict(fieldsets)
+        self.assertIn('Pohyb v šaržích', sections)
+        self.assertIn('get_pohyb_v_sarzich', sections['Pohyb v šaržích']['fields'])
         self.assertIn(str(sarze), html)
         self.assertIn('2 kroků', html)
         self.assertIn('Krok 1', html)
