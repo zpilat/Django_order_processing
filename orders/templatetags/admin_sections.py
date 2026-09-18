@@ -6,7 +6,7 @@ ORDERS_ADMIN_SECTIONS = (
     {
         'key': 'logistika',
         'title': 'Logistika',
-        'models': ('bedna', 'zakazka', 'kamion'),
+        'models': ('bedna', 'zakazka', 'kamion', 'historicalbedna'),
     },
     {
         'key': 'vyroba',

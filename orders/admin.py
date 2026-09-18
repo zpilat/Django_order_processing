@@ -4483,8 +4483,8 @@ class BednaAdmin(SimpleHistoryAdmin):
         # Pokud nic nepovoleno, jen vrátí – akce skončí s vypsanými hláškami
 
 
-class QualityReadOnlyAdminMixin:
-    """Přehledy kvality; změny se provádějí ve formulářích kontroly bedny."""
+class ReadOnlyAdminMixin:
+    """Přehledy a detaily záznamů pouze ke čtení."""
 
     actions = None
 
@@ -4501,7 +4501,7 @@ class QualityReadOnlyAdminMixin:
         return tuple(field.name for field in self.model._meta.fields) + tuple(self.readonly_fields)
 
 
-class QualityReadOnlyHistoryAdmin(QualityReadOnlyAdminMixin, SimpleHistoryAdmin):
+class ReadOnlySimpleHistoryAdmin(ReadOnlyAdminMixin, SimpleHistoryAdmin):
     def has_change_history_permission(self, request, obj=None):
         return False
 
@@ -4514,8 +4514,74 @@ class QualityReadOnlyHistoryAdmin(QualityReadOnlyAdminMixin, SimpleHistoryAdmin)
         return ChoiceLabelsHistoricalRecordContextHelper(self.model, historical_record)
 
 
+class ReadOnlyHistoryAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
+    """Samostatný přehled historických záznamů s rozdíly vůči předchozí verzi."""
+
+    readonly_fields = ('changes',)
+    history_related_fields = ()
+
+    def get_queryset(self, request):
+        instance_pk = self.model.instance_type._meta.pk.attname
+        previous = self.model._default_manager.filter(
+            **{instance_pk: OuterRef(instance_pk)},
+        ).filter(
+            Q(history_date__lt=OuterRef('history_date'))
+            | Q(history_date=OuterRef('history_date'), history_id__lt=OuterRef('history_id'))
+        ).order_by('-history_date', '-history_id')
+        return super().get_queryset(request).annotate(
+            _previous_history_id=Subquery(previous.values('history_id')[:1]),
+        ).prefetch_related(*self.history_related_fields)
+
+    def changelist_view(self, request, extra_context=None):
+        response = super().changelist_view(request, extra_context)
+        context = getattr(response, 'context_data', None)
+        if context and 'cl' in context:
+            records = list(context['cl'].result_list)
+            previous_ids = {
+                record._previous_history_id for record in records
+                if record._previous_history_id is not None
+            }
+            previous_records = self.model._default_manager.prefetch_related(
+                *self.history_related_fields,
+            ).in_bulk(previous_ids)
+            for record in records:
+                record._previous_history_record = previous_records.get(record._previous_history_id)
+        return response
+
+    @admin.display(description='Změny')
+    def changes(self, obj):
+        if not hasattr(obj, '_previous_history_record'):
+            obj._previous_history_record = self.model._default_manager.filter(
+                pk=obj._previous_history_id,
+            ).prefetch_related(*self.history_related_fields).first()
+        previous = obj._previous_history_record
+        if previous is None:
+            return '—'
+        delta = obj.diff_against(previous, foreign_keys_are_objs=True)
+        helper = ChoiceLabelsHistoricalRecordContextHelper(self.model.instance_type, obj)
+        changes = helper.context_for_delta_changes(delta)
+        return format_html_join(
+            '', '<div><strong>{}:</strong> {} → {}</div>',
+            ((change['field'], change['old'], change['new']) for change in changes),
+        ) or '—'
+
+
+@admin.register(Bedna.history.model)
+class HistoricalBednaAdmin(ReadOnlyHistoryAdmin):
+    list_display = (
+        'cislo_bedny', 'history_date', 'history_user', 'history_type',
+        'stav_bedny', 'rovnat', 'tryskat', 'zinkovat', 'poznamka', 'changes',
+    )
+    list_filter = ('history_type', 'history_user', 'stav_bedny')
+    search_fields = ('=cislo_bedny', 'behalter_nr')
+    date_hierarchy = 'history_date'
+    ordering = ('-history_date', '-history_id')
+    list_select_related = ('history_user',)
+    history_related_fields = ('zakazka__kamion_prijem__zakaznik', 'pozice')
+
+
 @admin.register(KontrolaBedny)
-class KontrolaBednyAdmin(QualityReadOnlyHistoryAdmin):
+class KontrolaBednyAdmin(ReadOnlySimpleHistoryAdmin):
     list_display = ('bedna', 'cistota', 'ulozeni', 'uvolneni', 'uvolnil', 'uvolneno_at', 'pocet_mereni')
     list_filter = ('uvolneni', 'cistota', 'ulozeni', 'bedna__zakazka__kamion_prijem__zakaznik')
     search_fields = ('bedna__cislo_bedny', 'bedna__behalter_nr', 'bedna__zakazka__artikl')
@@ -4539,7 +4605,7 @@ class KontrolaBednyAdmin(QualityReadOnlyHistoryAdmin):
 
 
 @admin.register(MereniBedny)
-class MereniBednyAdmin(QualityReadOnlyHistoryAdmin):
+class MereniBednyAdmin(ReadOnlySimpleHistoryAdmin):
     list_display = ('cislo_bedny', 'typ_zkousky', 'hodnota', 'poradi', 'zmeril', 'zmereno_at')
     list_filter = ('typ_zkousky', 'zmereno_at', 'kontrola__bedna__zakazka__kamion_prijem__zakaznik')
     search_fields = ('kontrola__bedna__cislo_bedny', 'kontrola__bedna__behalter_nr', 'kontrola__bedna__zakazka__artikl')

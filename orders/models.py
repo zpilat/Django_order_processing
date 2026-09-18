@@ -954,7 +954,11 @@ class Bedna(models.Model):
         validators=[MinValueValidator(Decimal('0')), MaxValueValidator(Decimal('100'))],
         verbose_name='Zn [%]',
     )
-    history = HistoricalRecords(excluded_fields=['obsah_ca', 'obsah_p', 'obsah_zn'])
+    history = HistoricalRecords(
+        excluded_fields=['obsah_ca', 'obsah_p', 'obsah_zn'],
+        verbose_name='Historie Beden',
+        verbose_name_plural='Historie Beden',
+    )
 
     class Meta:
         verbose_name = 'Bedna'
