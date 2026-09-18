@@ -104,6 +104,21 @@ class ChoiceLabelsHistoricalRecordContextHelper(HistoricalRecordContextHelper):
         return display_value
 
 
+class HistoryViewOnlyAdmin(SimpleHistoryAdmin):
+    """Běžné úpravy povolené, historické verze pouze k prohlížení."""
+
+    def has_change_history_permission(self, request, obj=None):
+        return False
+
+    def history_form_view(self, request, object_id, version_id, extra_context=None):
+        if request.method == 'POST':
+            raise PermissionDenied
+        return super().history_form_view(request, object_id, version_id, extra_context)
+
+    def get_historical_record_context_helper(self, request, historical_record):
+        return ChoiceLabelsHistoricalRecordContextHelper(self.model, historical_record)
+
+
 class BednaChangeList(ChangeList):
     """ChangeList, který nepovažuje parametr chemického pohledu za databázový lookup."""
 
@@ -409,7 +424,7 @@ class SarzeKrokInline(admin.TabularInline):
 
 
 @admin.register(Zarizeni)
-class ZarizeniAdmin(SimpleHistoryAdmin):
+class ZarizeniAdmin(HistoryViewOnlyAdmin):
     list_display = ('kod_zarizeni', 'nazev_zarizeni', 'zkraceny_nazev_zarizeni', 'umisteni', 'typ_zarizeni')
     search_fields = ('kod_zarizeni', 'nazev_zarizeni',)
     ordering = ('kod_zarizeni',)
@@ -493,7 +508,7 @@ class HistoryPollingAdminMixin:
 
 
 @admin.register(Sarze)
-class SarzeAdmin(HistoryPollingAdminMixin, SimpleHistoryAdmin):
+class SarzeAdmin(HistoryPollingAdminMixin, HistoryViewOnlyAdmin):
     change_list_template = 'admin/orders/sarze/change_list.html'
     poll_url_name = 'orders_sarze_poll'
     fields = ('cislo_sarze', 'datum_zalozeni', 'cislo_pripravku', 'cislo_pracoviste', 'stav_sarze', 'popousteni', 'poznamka',)
@@ -513,9 +528,6 @@ class SarzeAdmin(HistoryPollingAdminMixin, SimpleHistoryAdmin):
     history_search_fields = ["cislo_sarze", "poznamka"]
     history_list_filter = ["stav_sarze", "datum_zalozeni"]
     history_list_per_page = 20
-
-    def get_historical_record_context_helper(self, request, historical_record):
-        return ChoiceLabelsHistoricalRecordContextHelper(self.model, historical_record)
 
     class Media:
         js = (
@@ -685,7 +697,7 @@ class SarzeAdmin(HistoryPollingAdminMixin, SimpleHistoryAdmin):
         return super().response_add(request, obj, post_url_continue)
 
 @admin.register(SarzeKrok)
-class SarzeKrokAdmin(HistoryPollingAdminMixin, SimpleHistoryAdmin):
+class SarzeKrokAdmin(HistoryPollingAdminMixin, HistoryViewOnlyAdmin):
     poll_url_name = 'orders_sarzekrok_poll'
     fields = (
         'sarze', 'poradi', 'zarizeni', 'datum', 'zacatek', 'datum_konce', 'konec',
@@ -781,7 +793,7 @@ class SarzeKrokAdmin(HistoryPollingAdminMixin, SimpleHistoryAdmin):
 
 
 @admin.register(SarzeKrokBedna)
-class SarzeKrokBednaAdmin(HistoryPollingAdminMixin, SimpleHistoryAdmin):
+class SarzeKrokBednaAdmin(HistoryPollingAdminMixin, HistoryViewOnlyAdmin):
     poll_url_name = 'orders_sarzekrokbedna_poll'
     fields = ('krok', 'bedna', 'popis_mimo_db', 'zakaznik_mimo_db', 'zakazka_mimo_db', 'cislo_bedny_mimo_db', 'patro', 'procent_z_patra',)
     readonly_fields = ('krok', 'bedna', 'popis_mimo_db', 'zakaznik_mimo_db', 'zakazka_mimo_db', 'cislo_bedny_mimo_db', 'patro', 'procent_z_patra',)
@@ -956,7 +968,7 @@ class PermissionAdmin(admin.ModelAdmin):
 
 
 @admin.register(Zakaznik)
-class ZakaznikAdmin(SimpleHistoryAdmin):
+class ZakaznikAdmin(HistoryViewOnlyAdmin):
     """
     Správa zákazníků v administraci.
     """
@@ -1245,7 +1257,7 @@ class ZakazkaKamionVydejInline(admin.TabularInline):
 
 
 @admin.register(Kamion)
-class KamionAdmin(SimpleHistoryAdmin):
+class KamionAdmin(HistoryViewOnlyAdmin):
     """
     Správa kamionů v administraci.
     Kamiony mohou být typu příjem nebo výdej.
@@ -2356,7 +2368,7 @@ class BednaInline(admin.TabularInline):
     
 
 @admin.register(Zakazka)
-class ZakazkaAdmin(SimpleHistoryAdmin):
+class ZakazkaAdmin(HistoryViewOnlyAdmin):
     """
     Správa zakázek v administraci.
     Umožňuje správu zakázek, jejich inline beden, tisk karet beden a kontroly kvality,
@@ -2940,7 +2952,7 @@ class ZakazkaAdmin(SimpleHistoryAdmin):
 
 
 @admin.register(Bedna)
-class BednaAdmin(SimpleHistoryAdmin):
+class BednaAdmin(HistoryViewOnlyAdmin):
     """
     Admin pro model Bedna:
     
@@ -2966,9 +2978,6 @@ class BednaAdmin(SimpleHistoryAdmin):
         prijmout_bedny_action, expedice_beden_action, expedice_beden_kamion_action, uvolnit_pozastavene_bedny_action, oznacit_nefakturovat_action,
     ]
     form = BednaAdminForm
-
-    def get_historical_record_context_helper(self, request, historical_record):
-        return ChoiceLabelsHistoricalRecordContextHelper(self.model, historical_record)
 
     # Parametry pro zobrazení detailu v administraci (použijeme get_fieldsets)
     readonly_fields = ('cislo_bedny', 'get_obsah_ca', 'get_obsah_p', 'get_obsah_zn', 'cena_za_kg', 'cena_za_bednu', 'cena_rovnani_za_kg', 'cena_rovnani_za_bednu',
@@ -4501,17 +4510,8 @@ class ReadOnlyAdminMixin:
         return tuple(field.name for field in self.model._meta.fields) + tuple(self.readonly_fields)
 
 
-class ReadOnlySimpleHistoryAdmin(ReadOnlyAdminMixin, SimpleHistoryAdmin):
-    def has_change_history_permission(self, request, obj=None):
-        return False
-
-    def history_form_view(self, request, object_id, version_id, extra_context=None):
-        if request.method == 'POST':
-            raise PermissionDenied
-        return super().history_form_view(request, object_id, version_id, extra_context)
-
-    def get_historical_record_context_helper(self, request, historical_record):
-        return ChoiceLabelsHistoricalRecordContextHelper(self.model, historical_record)
+class ReadOnlySimpleHistoryAdmin(ReadOnlyAdminMixin, HistoryViewOnlyAdmin):
+    """Aktuální záznamy i jejich historie pouze ke čtení."""
 
 
 class ReadOnlyHistoryAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
@@ -4628,7 +4628,7 @@ class MereniBednyAdmin(ReadOnlySimpleHistoryAdmin):
 
 
 @admin.register(Predpis)
-class PredpisAdmin(SimpleHistoryAdmin):
+class PredpisAdmin(HistoryViewOnlyAdmin):
     """
     Správa předpisů v administraci.
     """
@@ -4747,7 +4747,7 @@ class PredpisAdmin(SimpleHistoryAdmin):
 
 
 @admin.register(Odberatel)
-class OdberatelAdmin(SimpleHistoryAdmin):
+class OdberatelAdmin(HistoryViewOnlyAdmin):
     """
     Správa odběratelů v administraci.
     """
@@ -4787,7 +4787,7 @@ class OdberatelAdmin(SimpleHistoryAdmin):
 
 
 @admin.register(TypHlavy)
-class TypHlavyAdmin(SimpleHistoryAdmin):
+class TypHlavyAdmin(HistoryViewOnlyAdmin):
     """
     Správa typů hlav v administraci.
     """
@@ -4802,7 +4802,7 @@ class TypHlavyAdmin(SimpleHistoryAdmin):
     
 
 @admin.register(Cena)    
-class CenaAdmin(SimpleHistoryAdmin):
+class CenaAdmin(HistoryViewOnlyAdmin):
     """
     Správa cen v administraci.
     """
@@ -5005,7 +5005,7 @@ class PoziceAdmin(admin.ModelAdmin):
 
 
 @admin.register(Pletivo)
-class PletivoAdmin(SimpleHistoryAdmin):
+class PletivoAdmin(HistoryViewOnlyAdmin):
     """
     Správa pletiv v administraci.
     """
