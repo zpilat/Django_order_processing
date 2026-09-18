@@ -14,6 +14,11 @@ ORDERS_ADMIN_SECTIONS = (
         'models': ('sarzekrokbedna', 'sarzekrok', 'sarze', 'zarizeni',),
     },
     {
+        'key': 'kontrola_kvality',
+        'title': 'Kontrola kvality',
+        'models': ('kontrolabedny', 'merenibedny'),
+    },
+    {
         'key': 'ciselniky',
         'title': 'Číselníky',
         'models': ('zakaznik', 'odberatel', 'cena', 'typhlavy', 'predpis', 'pletivo', 'pozice'),

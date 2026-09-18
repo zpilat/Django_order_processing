@@ -13,7 +13,7 @@ from django.urls import path, reverse
 from django.shortcuts import redirect, render
 from django.utils.html import format_html, format_html_join
 from django.db.models import Count, Max
-from django.core.exceptions import ValidationError, ObjectDoesNotExist
+from django.core.exceptions import ValidationError, ObjectDoesNotExist, PermissionDenied
 from django.db.models.deletion import ProtectedError
 from django.http import JsonResponse, HttpResponseRedirect
 from django.utils import timezone
@@ -37,6 +37,7 @@ from .import_strategies import BaseImportStrategy, EURImportStrategy, SPXImportS
 from .models import (
     Zakaznik, Kamion, Zakazka, Bedna, Predpis, Odberatel, TypHlavy, Cena, Pozice, Pletivo, PoziceZakazkaOrder, Rozpracovanost,
     Zarizeni, Sarze, SarzeKrok, SarzeKrokBedna, Notification, PriorityNotificationRecipient,
+    KontrolaBedny, MereniBedny,
 )
 from .actions import (
     expedice_zakazek_action, import_kamionu_action, import_chemickych_mereni_action, tisk_karet_beden_action, tisk_karet_beden_zakazek_action,
@@ -4480,6 +4481,84 @@ class BednaAdmin(SimpleHistoryAdmin):
         if allowed_ids:
             super().delete_queryset(request, queryset.filter(pk__in=allowed_ids))
         # Pokud nic nepovoleno, jen vrátí – akce skončí s vypsanými hláškami
+
+
+class QualityReadOnlyAdminMixin:
+    """Přehledy kvality; změny se provádějí ve formulářích kontroly bedny."""
+
+    actions = None
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def get_readonly_fields(self, request, obj=None):
+        return tuple(field.name for field in self.model._meta.fields) + tuple(self.readonly_fields)
+
+
+class QualityReadOnlyHistoryAdmin(QualityReadOnlyAdminMixin, SimpleHistoryAdmin):
+    def has_change_history_permission(self, request, obj=None):
+        return False
+
+    def history_form_view(self, request, object_id, version_id, extra_context=None):
+        if request.method == 'POST':
+            raise PermissionDenied
+        return super().history_form_view(request, object_id, version_id, extra_context)
+
+    def get_historical_record_context_helper(self, request, historical_record):
+        return ChoiceLabelsHistoricalRecordContextHelper(self.model, historical_record)
+
+
+@admin.register(KontrolaBedny)
+class KontrolaBednyAdmin(QualityReadOnlyHistoryAdmin):
+    list_display = ('bedna', 'cistota', 'ulozeni', 'uvolneni', 'uvolnil', 'uvolneno_at', 'pocet_mereni')
+    list_filter = ('uvolneni', 'cistota', 'ulozeni', 'bedna__zakazka__kamion_prijem__zakaznik')
+    search_fields = ('bedna__cislo_bedny', 'bedna__behalter_nr', 'bedna__zakazka__artikl')
+    list_select_related = ('bedna', 'uvolnil')
+    readonly_fields = ('formular_kontroly',)
+    history_list_display = ('cistota', 'ulozeni', 'uvolneni', 'uvolnil', 'uvolneno_at', 'poznamka')
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).annotate(_pocet_mereni=Count('mereni'))
+
+    @admin.display(description='Počet hodnot', ordering='_pocet_mereni')
+    def pocet_mereni(self, obj):
+        return obj._pocet_mereni
+
+    @admin.display(description='Formulář kontroly bedny')
+    def formular_kontroly(self, obj):
+        return format_html(
+            '<a href="{}">Kontrola bedny {}</a>',
+            reverse('bedna_kontrola', args=[obj.bedna.cislo_bedny]), obj.bedna.cislo_bedny,
+        )
+
+
+@admin.register(MereniBedny)
+class MereniBednyAdmin(QualityReadOnlyHistoryAdmin):
+    list_display = ('cislo_bedny', 'typ_zkousky', 'hodnota', 'poradi', 'zmeril', 'zmereno_at')
+    list_filter = ('typ_zkousky', 'zmereno_at', 'kontrola__bedna__zakazka__kamion_prijem__zakaznik')
+    search_fields = ('kontrola__bedna__cislo_bedny', 'kontrola__bedna__behalter_nr', 'kontrola__bedna__zakazka__artikl')
+    list_select_related = ('kontrola__bedna', 'zmeril')
+    ordering = ('kontrola__bedna__cislo_bedny', 'typ_zkousky', 'poradi')
+    readonly_fields = ('formular_mereni',)
+    history_list_display = ('typ_zkousky', 'hodnota', 'poradi', 'zmeril', 'zmereno_at')
+
+    @admin.display(description='Bedna', ordering='kontrola__bedna__cislo_bedny')
+    def cislo_bedny(self, obj):
+        return obj.kontrola.bedna.cislo_bedny
+
+    @admin.display(description='Formulář měření zkoušky')
+    def formular_mereni(self, obj):
+        return format_html(
+            '<a href="{}">{}</a>',
+            reverse('bedna_mereni_zkousky', args=[obj.kontrola.bedna.cislo_bedny, obj.typ_zkousky]),
+            obj.get_typ_zkousky_display(),
+        )
 
 
 @admin.register(Predpis)
