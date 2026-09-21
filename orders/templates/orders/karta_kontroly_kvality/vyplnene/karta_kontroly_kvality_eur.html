@@ -9,12 +9,14 @@
     {% include "orders/_pdf_shared_style.html" %}
     <style>
         .quality-card td, .quality-card tr { padding: 2px 0; }
-        .measurement-row { height: 40px; }
+        .measurement-row { height: 42px; }
         .quality-card .measurement-row td { padding: 3px 2px; }
         .measurement-value { font-size: 14px; text-align: center; font-weight: normal; overflow-wrap: anywhere; }
         .flatness-value { display: block; font-size: 11px; line-height: 12px; }
         .filled-card-person { display: block; font-size: 11px; font-weight: normal; overflow-wrap: anywhere; }
-        .filled-card-footer { margin-top: 2mm; font-size: 10px; overflow-wrap: anywhere; }
+        .filled-card-footer { display: flex; justify-content: space-between; align-items: flex-start; gap: 3mm; margin-top: 2mm; font-size: 10px; overflow-wrap: anywhere; }
+        .filled-card-footer-print { flex-shrink: 0; }
+        .filled-card-footer-note { min-width: 0; text-align: right; }
     </style>
 </head>
 <body>
@@ -134,18 +136,9 @@
                         ULOŽENÍ<br>
                         Einlagerung
                     </td>
-                </tr>     
-                <tr style="height: 1px;">
-                    <td style="padding: 2px 2px; line-height: 1;">                    
-                        OK
-                    </td>
-                    <td style="padding: 2px 2px; line-height: 1;">
-                        NOK
-                    </td>
-                </tr>                
+                </tr>                   
                 <tr>
-                    <td style="height: 30px;">{% if quality_card.kontrola.ulozeni == 'OK' %}×{% endif %}</td>
-                    <td>{% if quality_card.kontrola.ulozeni == 'NOK' %}×{% endif %}</td>
+                    <td colspan="2" style="height: 30px;">{{ quality_card.kontrola.ulozeni }}</td>
                 </tr>                
                 <tr>
                     <td colspan="2">
@@ -257,12 +250,7 @@
         </table>
     </div>    
     <div class="filled-card-footer">
-        <strong>Uvolnění:</strong> {{ quality_card.kontrola.get_uvolneni_display }}
-        · <strong>Čistota:</strong> {{ quality_card.kontrola.get_cistota_display }}
-        · <strong>Uložení:</strong> {{ quality_card.kontrola.get_ulozeni_display }}
-        · <strong>Kontroloval:</strong> {{ quality_card.kontroloval }}
-        {% if quality_card.kontrola.poznamka %}<br><strong>Poznámka:</strong> {{ quality_card.kontrola.poznamka|linebreaksbr }}{% endif %}
-        <br>Vytištěno {{ generated_at|date:"d.m.Y H:i" }}{% if user_last_name %} · {{ user_last_name }}{% endif %}
+        <span class="filled-card-footer-print">Vytištěno {{ generated_at|date:"d.m.Y H:i" }}{% if user_last_name %} · {{ user_last_name }}{% endif %}</span>
     </div>
 </body>
 </html>
