@@ -1,0 +1,84 @@
+{% load custom_filters %}
+<style>
+    .qc-summary { max-width: 1200px; }
+    .qc-statuses { display: grid; grid-template-columns: repeat(4, minmax(130px, 1fr)); gap: 8px; margin-bottom: 14px; }
+    .qc-status { padding: 9px 11px; border: 1px solid var(--hairline-color); border-radius: 4px; background: var(--darkened-bg); }
+    .qc-status.qc-good { background: #dcebdd; color: #14532d; }
+    .qc-status.qc-bad { background: #f4dada; color: #7f1d1d; }
+    .qc-label { display: block; margin-bottom: 3px; color: var(--body-quiet-color); font-size: 11px; font-weight: 600; text-transform: uppercase; }
+    .qc-value { font-size: 14px; font-weight: 700; }
+    .qc-detail { display: block; margin-top: 3px; font-size: 11px; font-weight: 400; }
+    .qc-table { width: 100%; border-collapse: collapse; }
+    .qc-table th, .qc-table td { padding: 8px 10px; border: 1px solid var(--hairline-color); text-align: left; vertical-align: top; }
+    .qc-table th { background: var(--darkened-bg); color: var(--body-quiet-color); font-size: 11px; text-transform: uppercase; }
+    .qc-table td:first-child { font-weight: 700; white-space: nowrap; }
+    .qc-requirement-detail { display: block; margin-top: 2px; color: var(--body-quiet-color); font-size: 11px; }
+    .qc-measurement { display: inline-block; margin: 0 4px 4px 0; padding: 2px 7px; border: 1px solid var(--hairline-color); border-radius: 10px; background: var(--body-bg); font-weight: 600; }
+    .qc-empty { color: var(--body-quiet-color); }
+    .qc-note { margin-top: 12px; padding: 9px 11px; border-left: 3px solid var(--hairline-color); background: var(--darkened-bg); }
+    .qc-actions { margin-top: 14px; }
+    @media (max-width: 900px) {
+        .qc-statuses { grid-template-columns: repeat(2, minmax(130px, 1fr)); }
+        .qc-table { display: block; overflow-x: auto; }
+    }
+</style>
+
+<div class="qc-summary">
+    {% if kontrola %}
+        <div class="qc-statuses">
+            <div class="qc-status {% if kontrola.cistota == 'OK' %}qc-good{% elif kontrola.cistota == 'NOK' %}qc-bad{% endif %}">
+                <span class="qc-label">Čistota</span>
+                <span class="qc-value">{{ kontrola.get_cistota_display }}</span>
+            </div>
+            <div class="qc-status {% if kontrola.ulozeni == 'OK' %}qc-good{% elif kontrola.ulozeni == 'NOK' %}qc-bad{% endif %}">
+                <span class="qc-label">Uložení</span>
+                <span class="qc-value">{{ kontrola.get_ulozeni_display }}</span>
+            </div>
+            <div class="qc-status {% if bedna.tryskat == 'OT' %}qc-good{% endif %}">
+                <span class="qc-label">Otryskaná?</span>
+                <span class="qc-value">{% if bedna.tryskat == 'OT' %}✓ Ano{% else %}× Ne{% endif %}</span>
+            </div>
+            <div class="qc-status {% if kontrola.uvolneni == 'UV' %}qc-good{% elif kontrola.uvolneni == 'PO' %}qc-bad{% endif %}">
+                <span class="qc-label">Uvolnění</span>
+                <span class="qc-value">{{ kontrola.get_uvolneni_display }}</span>
+                {% if kontrola.uvolnil or kontrola.uvolneno_at %}<span class="qc-detail">{{ kontrola.uvolnil|default:"—" }} · {{ kontrola.uvolneno_at|date:"j.n.Y H:i" }}</span>{% endif %}
+            </div>
+        </div>
+
+        <table class="qc-table">
+            <thead>
+                <tr>
+                    <th>Zkouška</th>
+                    <th>Předepsáno</th>
+                    <th>Naměřeno</th>
+                    <th>Kontroloval</th>
+                    <th>Období měření</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                    <tr>
+                        <td>{{ row.nazev }}</td>
+                        <td>
+                            {% if row.pozadavek.hodnota %}<strong>{{ row.pozadavek.hodnota }}</strong>{% else %}<span class="qc-empty">—</span>{% endif %}
+                            {% for description in row.pozadavek.popisy %}<span class="qc-requirement-detail">{{ description }}</span>{% endfor %}
+                        </td>
+                        <td>
+                            {% for measurement in row.mereni %}<span class="qc-measurement">{{ measurement.hodnota|mereni_hodnota }}</span>{% empty %}<span class="qc-empty">Bez měření</span>{% endfor %}
+                        </td>
+                        <td>{% for person in row.kontrolori %}{{ person }}{% if not forloop.last %}, {% endif %}{% empty %}<span class="qc-empty">—</span>{% endfor %}</td>
+                        <td>
+                            {% if row.datum_od %}{{ row.datum_od|date:"j.n.Y" }}{% if row.datum_do != row.datum_od %} – {{ row.datum_do|date:"j.n.Y" }}{% endif %}{% else %}<span class="qc-empty">—</span>{% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        {% if kontrola.poznamka %}<div class="qc-note"><strong>Interní poznámka:</strong> {{ kontrola.poznamka|linebreaksbr }}</div>{% endif %}
+    {% else %}
+        <p class="qc-empty">Kontrola ani měření zatím nejsou zadány.</p>
+    {% endif %}
+
+    <div class="qc-actions"><a class="button" href="{{ control_url }}">Otevřít kontrolu a měření</a></div>
+</div>

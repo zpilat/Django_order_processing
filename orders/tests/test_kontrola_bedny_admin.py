@@ -70,6 +70,29 @@ class KontrolaBednyAdminTests(KontrolaBednyTestBase):
                 self.assertEqual(response.status_code, 200)
                 self.assertContains(response, 'kontrolor')
 
+    def test_bedna_detail_embeds_quality_control_summary(self):
+        predpis = self.bedna.zakazka.predpis
+        predpis.ohyb = 'min. 30°'
+        predpis.popis_ohyb = 'Bez trhlin'
+        predpis.save()
+
+        bedna_admin = admin.site._registry[type(self.bedna)]
+        html = str(bedna_admin.get_mereni_bedny(self.bedna))
+
+        self.assertIn('Předepsáno', html)
+        self.assertIn('Naměřeno', html)
+        self.assertIn('min. 30°', html)
+        self.assertIn('Bez trhlin', html)
+        self.assertIn('12,5', html)
+        self.assertIn('kontrolor', html)
+        self.assertIn('Interní poznámka', html)
+        self.assertIn(reverse('bedna_kontrola', args=[self.bedna.cislo_bedny]), html)
+
+        response = self.client.get(self.url(type(self.bedna), 'change', self.bedna.pk))
+        self.assertContains(response, 'Kontrola kvality')
+        self.assertContains(response, 'min. 30°')
+        self.assertContains(response, '12,5')
+
     def test_live_admin_cannot_modify_or_delete_records(self):
         for obj in (self.kontrola, self.mereni):
             with self.subTest(model=type(obj).__name__):

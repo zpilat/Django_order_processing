@@ -12,6 +12,7 @@ from django.contrib.admin.widgets import RelatedFieldWidgetWrapper
 from django.urls import path, reverse
 from django.shortcuts import redirect, render
 from django.utils.html import format_html, format_html_join
+from django.template.loader import render_to_string
 from django.db.models import Count, Max
 from django.core.exceptions import ValidationError, ObjectDoesNotExist, PermissionDenied
 from django.db.models.deletion import ProtectedError
@@ -78,6 +79,7 @@ from .forms import (
 )
 from .choices import (
     StavBednyChoice, StavSarzeChoice, RovnaniChoice, TryskaniChoice, ZinkovaniChoice, PrioritaChoice, KamionChoice, PrijemVydejChoice, SklademZakazkyChoice,
+    TypZkouskyChoice,
     BARVA_SKUPINY_TZ, STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM, STAV_BEDNY_PRO_NAVEZENI,
     STAV_BEDNY_KONTROLA_ZMENY_PRIORITY,
 )
@@ -85,6 +87,7 @@ from .utils import (
     utilita_validate_excel_upload, build_postup_vyroby_cases, truncate_with_title, parse_sarze_search_term,
     format_decimal_csv, format_cislo_bedny, format_skupina_TZ, build_fake_skupina_TZ_annotation
 )
+from .services.mereni_bedny_service import pozadavek_zkousky
 
 import logging
 logger = logging.getLogger('orders')
@@ -2982,16 +2985,6 @@ class BednaAdmin(HistoryViewOnlyAdmin):
     # Parametry pro zobrazení detailu v administraci (použijeme get_fieldsets)
     readonly_fields = ('cislo_bedny', 'get_obsah_ca', 'get_obsah_p', 'get_obsah_zn', 'cena_za_kg', 'cena_za_bednu', 'cena_rovnani_za_kg', 'cena_rovnani_za_bednu',
                        'cena_tryskani_za_kg', 'cena_tryskani_za_bednu', 'get_notifikace', 'get_pohyb_v_sarzich', 'get_mereni_bedny')
-
-    @admin.display(description='Naměřené hodnoty')
-    def get_mereni_bedny(self, obj):
-        if not obj or not obj.pk:
-            return '-'
-        return format_html(
-            '<a href="{}">Zobrazit kontrolu a naměřené hodnoty</a>',
-            reverse('bedna_kontrola', args=[obj.cislo_bedny]),
-        )
-
     autocomplete_fields = ('zakazka',)
 
     # Parametry pro zobrazení seznamu v administraci
@@ -3183,6 +3176,49 @@ class BednaAdmin(HistoryViewOnlyAdmin):
             ),
         ]
         return custom_urls + urls
+
+    @admin.display(description='Naměřené hodnoty')
+    def get_mereni_bedny(self, obj):
+        if not obj or not obj.pk:
+            return '-'
+
+        kontrola = (
+            KontrolaBedny.objects
+            .filter(bedna=obj)
+            .select_related('uvolnil')
+            .prefetch_related(Prefetch(
+                'mereni',
+                queryset=MereniBedny.objects.select_related('zmeril').order_by('poradi', 'pk'),
+            ))
+            .first()
+        )
+        rows = []
+        if kontrola:
+            measurements = list(kontrola.mereni.all())
+            for kind in TypZkouskyChoice:
+                items = [item for item in measurements if item.typ_zkousky == kind.value]
+                people = []
+                for item in items:
+                    if item.zmeril:
+                        name = item.zmeril.get_full_name() or item.zmeril.get_username()
+                        if name not in people:
+                            people.append(name)
+                dates = [timezone.localdate(item.zmereno_at) for item in items]
+                rows.append({
+                    'nazev': kind.label,
+                    'pozadavek': pozadavek_zkousky(obj.zakazka.predpis, kind.value),
+                    'mereni': items,
+                    'kontrolori': people,
+                    'datum_od': min(dates, default=None),
+                    'datum_do': max(dates, default=None),
+                })
+
+        return mark_safe(render_to_string('admin/orders/bedna/_quality_control_summary.html', {
+            'bedna': obj,
+            'kontrola': kontrola,
+            'rows': rows,
+            'control_url': reverse('bedna_kontrola', args=[obj.cislo_bedny]),
+        }))
 
     @admin.display(description='Pohyb v šaržích')
     def get_pohyb_v_sarzich(self, obj):

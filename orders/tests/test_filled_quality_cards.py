@@ -83,7 +83,7 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
         html = render_to_string(template, self.context())
         self.assertIn('class="measurement-value">592,1234</td>', html)
         self.assertIn('class="measurement-value">12,5</td>', html)
-        self.assertIn('class="status-value status-cross">×</span>', html)
+        self.assertIn('class="status-value status-cross">-</span>', html)
         self.assertEqual(html.count('class="measurement-value"></td>'), 68)
 
     def test_measurement_date_range_uses_earliest_and_latest_day(self):
