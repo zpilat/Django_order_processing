@@ -8,249 +8,132 @@
     <title>Karta kontroly kvality</title>
     {% include "orders/_pdf_shared_style.html" %}
     <style>
-        .quality-card td, .quality-card tr { padding: 2px 0; }
-        .measurement-row { height: 42px; }
-        .quality-card .measurement-row td { padding: 3px 2px; }
-        .measurement-value { font-size: 14px; text-align: center; font-weight: normal; overflow-wrap: anywhere; }
-        .flatness-value { display: block; font-size: 11px; line-height: 12px; }
-        .filled-card-person { display: block; font-size: 11px; font-weight: normal; overflow-wrap: anywhere; }
-        .filled-card-footer { display: flex; justify-content: space-between; align-items: flex-start; gap: 3mm; margin-top: 2mm; font-size: 10px; overflow-wrap: anywhere; }
-        .filled-card-footer-print { flex-shrink: 0; }
-        .filled-card-footer-note { min-width: 0; text-align: right; }
+        :root { --ink: #17212b; --muted: #586573; --line: #89939d; --panel: #eef1f4; --panel-dark: #d8dee4; --ok: #dcebdd; --ok-ink: #16733a; --nok: #f4dada; --pending: #eee9d4; }
+        body { color: var(--ink); font-family: 'Liberation Sans', 'Arial'; }
+        table { page-break-inside: avoid; }
+        .card-header { display: flex; align-items: stretch; border: 1.5px solid var(--ink); margin-bottom: 2mm; }
+        .card-header > div { box-sizing: border-box; }
+        .brand { display: flex; align-items: center; justify-content: center; width: 22%; border-right: 1px solid var(--line); font-size: 20px; font-weight: 700; }
+        .document-title { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 38%; padding: 2.5mm 4mm; }
+        .document-title h1 { margin: 0; font-size: 18px; line-height: 1.15; }
+        .document-title p { margin: 1mm 0 0; color: var(--muted); font-size: 10px; }
+        .customer-field { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 22%; padding: 2mm; border-left: 1px solid var(--line); text-align: center; }
+        .customer-label { margin-bottom: 1mm; color: var(--muted); font-size: 8px; }
+        .customer-name { font-size: 16px; font-weight: 700; line-height: 1.15; overflow-wrap: anywhere; }
+        .document-code { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .5mm; width: 18%; padding: 2mm; border-left: 1px solid var(--line); color: var(--muted); font-size: 9px; line-height: 1.35; text-align: center; }
+        .summary-table, .status-table, .measurements { width: 100%; border-collapse: collapse; table-layout: fixed; }
+        .summary-table { margin-bottom: 2mm; border: 1.5px solid var(--ink); }
+        .summary-table td { height: 15mm; padding: 2mm 2.5mm; border: 1px solid var(--line); vertical-align: top; }
+        .field-label { display: block; margin-bottom: 1mm; color: var(--muted); font-size: 8px; font-weight: 700; letter-spacing: .25px; text-transform: uppercase; }
+        .field-label-de { font-weight: 400; letter-spacing: 0; text-transform: none; }
+        .field-value { display: block; font-size: 14px; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
+        .field-detail { color: var(--muted); font-size: 9px; font-weight: 400; }
+        .container-value { font-size: 17px; }
+        .status-table { margin-bottom: 2mm; border: 1.5px solid var(--ink); }
+        .status-table td { height: 15mm; padding: 2mm 2.5mm; border: 1px solid var(--line); vertical-align: top; }
+        .status-value { display: block; padding-top: .5mm; font-size: 13px; font-weight: 700; line-height: 1.15; }
+        .measurement-dates { font-size: 11px; }
+        .status-check { color: var(--ok-ink); font-size: 20px; line-height: 1; }
+        .status-cross { color: var(--muted); font-size: 20px; line-height: 1; }
+        .status-good { background: var(--ok); }
+        .status-bad { background: var(--nok); }
+        .status-neutral { background: var(--panel); }
+        .status-pending { background: var(--pending); }
+        .release-detail { display: block; margin-top: .8mm; font-size: 8px; font-weight: 400; }
+        .measurements { border: 1.5px solid var(--ink); }
+        .measurements th, .measurements td { border: 1px solid var(--line); text-align: center; }
+        .measurements th { padding: 1.2mm 1mm; }
+        .group-header { height: 10mm; background: var(--panel-dark); font-size: 10px; line-height: 1.15; }
+        .group-header small { display: block; margin-top: .8mm; color: var(--muted); font-size: 7px; font-weight: 400; }
+        .column-header { height: 17mm; background: var(--panel); font-size: 9px; line-height: 1.15; vertical-align: top; }
+        .column-header .de { display: block; margin-top: .5mm; color: var(--muted); font-size: 7px; font-weight: 400; }
+        .requirement { display: block; margin-top: 1.5mm; padding-top: 1mm; border-top: 1px solid #b7bec5; font-size: 9px; font-weight: 700; }
+        .sample-number { width: 5%; background: var(--panel); color: var(--muted); font-size: 8px; font-weight: 700; }
+        .measurement-row { height: 7.2mm; }
+        .measurement-row:nth-child(even) td { background: #f7f8f9; }
+        .measurement-value { padding: 1mm; font-size: 13px; font-weight: 700; overflow-wrap: anywhere; }
+        .controller-row th, .controller-row td { height: 7mm; padding: 1mm; background: var(--panel); }
+        .controller-label { color: var(--muted); font-size: 7px; line-height: 1.15; }
+        .controller-value { font-size: 8px; font-weight: 700; line-height: 1.15; overflow-wrap: anywhere; }
+        .card-footer { margin-top: 2mm; color: var(--muted); font-size: 8px; line-height: 1.3; }
     </style>
 </head>
 <body>
-    <table class="table table-bordered quality-card" style="width: 100%; table-layout: fixed; margin-bottom: 1mm; margin-top: 0;">
-        <tbody>
-            <tr>
-                <td class="text-center fs-20 fw-bold" style="width: 27%;">
-                    HPM HEAT SK
-                </td>
-                <td class="text-center fs-12 fw-bold" style="width: 73%;">
-                    KARTA KONTROLY KVALITY {{ bedna.zakazka.kamion_prijem.zakaznik.zkraceny_nazev }}
-                    <br>
-                    <span class="fs-10">
-                    Qualitätskontrollkarte {{ bedna.zakazka.kamion_prijem.zakaznik.zkraceny_nazev|title }}
-                    </span>
-                </td>
-            </tr>
-        </tbody>
+    <header class="card-header">
+        <div class="brand">HPM HEAT SK</div>
+        <div class="document-title">
+            <h1>Karta kontroly kvality</h1>
+            <p>Qualitätskontrollkarte</p>
+        </div>
+        <div class="customer-field">
+            <span class="customer-label"><strong>ZÁKAZNÍK</strong> / Kunde</span>
+            <span class="customer-name">{{ bedna.zakazka.kamion_prijem.zakaznik.zkraceny_nazev }}</span>
+        </div>
+        <div class="document-code">
+            <span>HPM - F 73c</span>
+            <span>Eurotec - F.3</span>
+        </div>
+    </header>
+
+    <table class="summary-table">
+        <colgroup><col style="width: 22%;"><col style="width: 27%;"><col style="width: 21%;"><col style="width: 14%;"><col style="width: 16%;"></colgroup>
+        <tbody><tr>
+            <td><span class="field-label">Bedna <span class="field-label-de">/ Gebinde</span></span><span class="field-value container-value">{{ bedna.behalter_nr }}</span><span class="field-detail">Interní č. {{ bedna.cislo_bedny }} · {{ bedna.poradi_bedny }}/{{ bedna.zakazka.pocet_beden }}</span></td>
+            <td><span class="field-label">Artikl a šarže <span class="field-label-de">/ Art. Nr. &amp; Charge</span></span><span class="field-value">{{ bedna.zakazka.artikl }}-{{ bedna.sarze }}</span><span class="field-detail">{{ bedna.zakazka.zkraceny_popis }}</span></td>
+            <td><span class="field-label">Rozměr <span class="field-label-de">/ Abmessung</span></span><span class="field-value">ø{{ bedna.zakazka.prumer }} × {{ bedna.zakazka.delka|floatformat:0 }}</span></td>
+            <td><span class="field-label">Netto <span class="field-label-de">/ Netto</span></span><span class="field-value">{{ bedna.hmotnost|floatformat:0 }} kg</span></td>
+            <td><span class="field-label">Ze dne <span class="field-label-de">/ Abholdatum</span></span><span class="field-value">{{ bedna.zakazka.kamion_prijem.datum|date:"d.m.Y" }}</span></td>
+        </tr></tbody>
     </table>
-    <div style="display: flex; width: 100%;">
-        <table class="table table-bordered quality-card text-center fs-09 fw-bold" style="width: 36%; table-layout: fixed; font-family: 'Arial';">
-            <tbody>
-                <tr>
-                    <td  style="width: 50%;">
-                        BEDNA
-                        <br>
-                        Gebinde
-                    </td>
-                    <td style="width: 50%;">
-                        ROZMĚR
-                        <br>
-                        Abmessung
-                    </td>
-                </tr>
-                <tr>
-                    <td class="fs-12 fw-bold">
-                        <div style="display: flex; justify-content: space-between; width: 100%;">
-                            <span style="padding: 0 3px;">{{ bedna.behalter_nr }}
-                                <span class="fs-08 fw-normal">({{ bedna.cislo_bedny }})</span>
-                            </span>
-                            <span class="fs-10" style="padding: 0 3px;">{{ bedna.poradi_bedny }}/{{ bedna.zakazka.pocet_beden }}</span>
-                        </div>
-                    </td>
-                    <td class="text-center fs-12 fw-bold">
-                        ø{{ bedna.zakazka.prumer }}x{{ bedna.zakazka.delka|floatformat:0 }}
-                    </td>
-                </tr>
-                <tr>
-                    <td colspan="2">
-                        ARTIKL<br>
-                        Art. Nr.
-                    </td>
-                </tr>
-                <tr style="height: 50px;">
-                    <td colspan="2" class="fs-10 fw-bold">
-                        <div style="display: flex; justify-content: space-between; width: 100%;">
-                            <span style="padding: 0 5px;">{{ bedna.zakazka.zkraceny_popis|slice:":22" }}</span>
-                            <span style="padding: 0 5px;">{{ bedna.zakazka.artikl }}-{{ bedna.sarze }}</span>
-                        </div>
-                    </td>
-                </tr>           
-                <tr>
-                    <td>
-                        ZE DNE<br>
-                        Abholdatum
-                    </td>
-                    <td>
-                        NETTO<br>
-                        Netto
-                    </td>
-                </tr>
-                <tr>
-                    <td class="fs-12">
-                        {{ bedna.zakazka.kamion_prijem.datum|date:"d.m.Y" }}
-                    </td>
-                    <td class="fs-12">
-                        {{ bedna.hmotnost|floatformat:0 }} kg
-                    </td>
-                </tr>
-                <tr>
-                    <td>
-                        DATUM KONTROLY<br>
-                        Prüfdatum
-                    </td>
-                    <td>
-                        UVOLNIL<br>
-                        Freigabe
-                    </td>
-                </tr>
-                <tr>
-                    <td style="height: 31px;" class="fs-10 fw-normal">{{ quality_card.datum_kontroly|date:"d.m.Y" }}</td>
-                    <td class="fs-08 fw-normal">{% if quality_card.kontrola.uvolneni == 'UV' %}{{ quality_card.uvolnil }}<br>{{ quality_card.kontrola.uvolneno_at|date:"d.m.Y H:i" }}{% endif %}</td>
-                </tr>     
-                <tr>
-                    <td colspan="2">
-                        ČISTOTA<br>
-                        Reinheit
-                    </td>
-                </tr>     
-                <tr style="height: 1px;">
-                    <td style="padding: 2px 2px; line-height: 1;">                    
-                        OTRYSK.
-                        <span class="fs-07 fw-normal">
-                            (Sandgest.)
-                        </span>
-                    </td>
-                    <td style="padding: 2px 2px; line-height: 1;">
-                        OK / NOK
-                    </td>
-                </tr>                
-                <tr>
-                    <td style="height: 31px;" class="fw-normal">{{ bedna.get_tryskat_display }}</td>
-                    <td class="fw-normal">{{ quality_card.kontrola.get_cistota_display }}</td>
-                </tr>
-                <tr>
-                    <td colspan="2">
-                        ULOŽENÍ<br>
-                        Einlagerung
-                    </td>
-                </tr>                   
-                <tr>
-                    <td colspan="2" style="height: 30px;">{{ quality_card.kontrola.ulozeni }}</td>
-                </tr>                
-                <tr>
-                    <td colspan="2">
-                        KONTROLOVAL<br>
-                        Kontrolliert
-                    </td>
-                </tr>                  
-                <tr>
-                    <td colspan="2" style="height: 30px;"><span class="filled-card-person">{{ quality_card.kontroloval }}</span></td>
-                </tr>                  
-                <tr style="height: 1px;">
-                    <td colspan="2" class="text-start fs-07" style="padding: 0px 2px; line-height: 1;">
-                        HPM - F 73c<br>
-                        Eurotec - F.3
-                    </td>             
-                </tr>  
-            </tbody>
-        </table>
-        <table class="table table-bordered quality-card" style="width: 64%; table-layout: fixed; font-family: 'Arial';">
-            <tbody>
-                <tr>
-                    <td rowspan="2" class="text-center fs-08 fw-bold" style="width: 9.8%;">
-                        ZKOUŠKA<br>OHYBEM<br>
-                        Biegewinkel<br>
-                        <span class="fs-06 fw-normal">
-                            Mind. 5 Prüfmuster
-                            <div style="height: 30px;"></div>
-                            {{ bedna.zakazka.predpis.ohyb }}
-                        </span>
-                    </td>
-                    <td rowspan="2" class="text-center fs-08 fw-bold" style="width: 9.8%;">
-                        ZKOUŠKA<br>KRUTEM<br>
-                        Drehmoment<br>
-                        <span class="fs-06 fw-normal">
-                            Mind. 5 Prüfmuster
-                            <div style="height: 30px;"></div>
-                            {{ bedna.zakazka.predpis.krut }}
-                        </span>
-                    </td>
-                    <td colspan="3" class="text-center fs-08 fw-bold" style="width: 19.6%;">
-                        KONTROLA PROHYBU<br>
-                        Abweichung Geradheit<br>
-                        <span class="fs-06 fw-normal">
-                            Mind. 5 Prüfmuster
-                        </span>
-                    </td>
-                    <td colspan="2" class="text-center fs-08 fw-bold" style="width: 20%;">
-                        ZKOUŠKA TVRDOSTI<br>
-                        Härteprüfung
-                    </td>                         
-                </tr>
-                <tr>
-                    <td class="text-center fs-07 fw-bold" style="width: 9.8%;">
-                        PO<br>TZ<br>
-                        <span class="fs-06 fw-normal">
-                            Nach der<br>Wärmebeh.
-                        </span>
-                    </td>
-                    <td class="text-center fs-07 fw-bold" style="width: 9.8%;">
-                        PO<br>KOULENÍ<br>
-                        <span class="fs-06 fw-normal">
-                            Nach dem<br>Sortieren
-                        </span>
-                    </td>                    
-                    <td class="text-center fs-07 fw-bold" style="width: 9.8%;">
-                        PO<br>ROVNÁNÍ<br>
-                        <span class="fs-06 fw-normal">
-                            Nach dem<br>Richten
-                        </span>
-                    </td>                             
-                    <td class="text-center fs-08 fw-bold" style="width: 10%;">
-                        POVRCH<br>
-                        Oberfläche<br>
-                        <span class="fs-06 fw-normal">
-                            Mind. 2 Prüfmuster
-                            <div style="height: 3px;"></div> 
-                            {{ bedna.zakazka.predpis.povrch }}
-                        </span>
-                    </td>                  
-                    <td class="text-center fs-08 fw-bold" style="width: 10%;">
-                        JÁDRO<br>
-                        Kern<br>
-                        <span class="fs-06 fw-normal">
-                            Mind. 2 Prüfmuster<br>
-                            {% if bedna.zakazka.predpis.jadro|length < 18 %}
-                            <div style="height: 3px;"></div>
-                            {% endif %}
-                            {{ bedna.zakazka.predpis.jadro }}
-                        </span>
-                    </td>                                         
-                </tr>
-                {% for row in quality_card.rows %}
-                <tr class="measurement-row">
-                    {% for value in row %}<td class="measurement-value">{% if value != None %}{{ value|mereni_hodnota }}{% endif %}</td>{% endfor %}
-                </tr>
-                {% endfor %}
-                <tr style="height: 1px;">
-                    <td colspan="2" class="text-start fs-10 fw-bold" style="padding: 3px 2px; line-height: 1;">
-                        Kontrolliert
-                        <span class="filled-card-person">{{ quality_card.kontroloval_ohyb_krut }}</span></td>
-                    <td colspan="3" class="text-start fs-10 fw-bold" style="padding: 3px 2px; line-height: 1;">
-                        Kontrolliert
-                        <span class="filled-card-person">{{ quality_card.kontroloval_prohyb }}</span></td>
-                    <td colspan="2" class="text-start fs-10 fw-bold" style="padding: 3px 2px; line-height: 1;">
-                        Kontrolliert
-                        <span class="filled-card-person">{{ quality_card.kontroloval_tvrdost }}</span></td>                
-                </tr>                 
-            </tbody>
-        </table>
-    </div>    
-    <div class="filled-card-footer">
-        <span class="filled-card-footer-print">Vytištěno {{ generated_at|date:"d.m.Y H:i" }}{% if user_last_name %} · {{ user_last_name }}{% endif %}</span>
-    </div>
+
+    <table class="status-table">
+        <colgroup><col style="width: 20%;"><col style="width: 14%;"><col style="width: 14%;"><col style="width: 18%;"><col style="width: 34%;"></colgroup>
+        <tbody><tr>
+            <td><span class="field-label">OBDOBÍ MĚŘENÍ <span class="field-label-de">/ Prüfzeitraum</span></span><span class="status-value measurement-dates">{% if quality_card.datum_mereni_od %}{{ quality_card.datum_mereni_od|date:"j.n.Y" }}{% if quality_card.datum_mereni_do != quality_card.datum_mereni_od %} – {{ quality_card.datum_mereni_do|date:"j.n.Y" }}{% endif %}{% else %}—{% endif %}</span></td>
+            <td class="{% if quality_card.kontrola.cistota == 'OK' %}status-good{% elif quality_card.kontrola.cistota == 'NOK' %}status-bad{% else %}status-pending{% endif %}"><span class="field-label">Čistota <span class="field-label-de">/ Reinheit</span></span><span class="status-value">{{ quality_card.kontrola.get_cistota_display }}</span></td>
+            <td class="{% if quality_card.kontrola.ulozeni == 'OK' %}status-good{% elif quality_card.kontrola.ulozeni == 'NOK' %}status-bad{% else %}status-pending{% endif %}"><span class="field-label">Uložení <span class="field-label-de">/ Einlagerung</span></span><span class="status-value">{{ quality_card.kontrola.get_ulozeni_display }}</span></td>
+            <td class="{% if bedna.tryskat == 'OT' %}status-good{% else %}status-neutral{% endif %}"><span class="field-label">OTRYSKANÁ? <span class="field-label-de">/ Sandgestrahlt?</span></span>{% if bedna.tryskat == 'OT' %}<span class="status-value status-check">✓</span>{% else %}<span class="status-value status-cross">-</span>{% endif %}</td>
+            <td class="{% if quality_card.kontrola.uvolneni == 'UV' %}status-good{% elif quality_card.kontrola.uvolneni == 'PO' %}status-bad{% else %}status-pending{% endif %}"><span class="field-label">Uvolnění <span class="field-label-de">/ Freigabe</span></span><span class="status-value">{{ quality_card.kontrola.get_uvolneni_display }}</span>{% if quality_card.kontrola.uvolneni == 'UV' %}<span class="release-detail">{{ quality_card.uvolnil }} · {{ quality_card.kontrola.uvolneno_at|date:"d.m.Y H:i" }}</span>{% endif %}</td>
+        </tr></tbody>
+    </table>
+
+    <table class="measurements">
+        <colgroup><col style="width: 5%;"><col style="width: 13.57%;"><col style="width: 13.57%;"><col style="width: 13.57%;"><col style="width: 13.57%;"><col style="width: 13.57%;"><col style="width: 13.57%;"><col style="width: 13.58%;"></colgroup>
+        <thead>
+            <tr>
+                <th rowspan="2" class="sample-number">Vzorek<br><span class="field-label-de">Probe</span></th>
+                <th colspan="2" class="group-header">Mechanické zkoušky<small>Mechanische Prüfungen<br>Mind. 5 Prüfmuster</small></th>
+                <th colspan="3" class="group-header">Kontrola prohybu<small>Abweichung Geradheit<br>Mind. 5 Prüfmuster</small></th>
+                <th colspan="2" class="group-header">Zkouška tvrdosti<small>Härteprüfung<br>Mind. 2 Prüfmuster</small></th>
+            </tr>
+            <tr>
+                <th class="column-header">Ohyb<span class="de">Biegewinkel</span><span class="requirement">{{ bedna.zakazka.predpis.ohyb|default:"—" }}</span></th>
+                <th class="column-header">Krut<span class="de">Drehmoment</span><span class="requirement">{{ bedna.zakazka.predpis.krut|default:"—" }}</span></th>
+                <th class="column-header">Po TZ<span class="de">Nach Wärmebeh.</span><span class="requirement">—</span></th>
+                <th class="column-header">Po koulení<span class="de">Nach Sortieren</span><span class="requirement">—</span></th>
+                <th class="column-header">Po rovnání<span class="de">Nach Richten</span><span class="requirement">—</span></th>
+                <th class="column-header">Povrch<span class="de">Oberfläche</span><span class="requirement">{{ bedna.zakazka.predpis.povrch|default:"—" }}</span></th>
+                <th class="column-header">Jádro<span class="de">Kern</span><span class="requirement">{{ bedna.zakazka.predpis.jadro|default:"—" }}</span></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in quality_card.rows %}
+            <tr class="measurement-row">
+                <td class="sample-number">{{ forloop.counter }}</td>
+                {% for value in row %}<td class="measurement-value">{% if value != None %}{{ value|mereni_hodnota }}{% endif %}</td>{% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr class="controller-row">
+                <th class="controller-label">Kontroloval<br>Kontrolliert</th>
+                {% for person in quality_card.kontrolovali %}<td class="controller-value">{{ person|default:"—" }}</td>{% endfor %}
+            </tr>
+        </tfoot>
+    </table>
+
+    <footer class="card-footer">
+        Vytištěno {{ generated_at|date:"d.m.Y H:i" }}{% if user_last_name %} · {{ user_last_name }}{% endif %}
+    </footer>
 </body>
 </html>

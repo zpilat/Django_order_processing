@@ -41,31 +41,19 @@ def build_filled_context(bedna, generated_at, printing_user):
         group = groups[item.typ_zkousky]
         if len(group) < PRINTED_MEASUREMENTS_PER_TEST:
             group.append(item)
-    control_event = kontrola.history.select_related('history_user').first()
-    measurement_event = MereniBedny.history.filter(kontrola_id=kontrola.pk).select_related('history_user').first()
-    latest_event = max(
-        (event for event in (control_event, measurement_event) if event),
-        key=lambda event: event.history_date, default=None,
-    )
+    measurement_dates = [timezone.localdate(item.zmereno_at) for item in measurements]
     context = build_context_for_bedna(bedna, generated_at, printing_user)
     context['quality_card'] = {
         'kontrola': kontrola,
-        'datum_kontroly': latest_event.history_date if latest_event else None,
-        'kontroloval': user_name(latest_event.history_user) if latest_event else '',
+        'datum_mereni_od': min(measurement_dates, default=None),
+        'datum_mereni_do': max(measurement_dates, default=None),
         'uvolnil': user_name(kontrola.uvolnil),
         'rows': [
             [groups[kind][index].hodnota if index < len(groups[kind]) else None
              for kind in MEASUREMENT_COLUMNS]
             for index in range(PRINTED_MEASUREMENTS_PER_TEST)
         ],
-        'kontroloval_ohyb_krut': measuring_people(groups[TypZkouskyChoice.OHYB] + groups[TypZkouskyChoice.KRUT]),
-        'kontroloval_prohyb': measuring_people(
-            groups[TypZkouskyChoice.PROHYB_PO_TZ] + groups[TypZkouskyChoice.PROHYB_PO_KOULENI]
-            + groups[TypZkouskyChoice.PROHYB_PO_ROVNANI]
-        ),
-        'kontroloval_tvrdost': measuring_people(
-            groups[TypZkouskyChoice.TVRDOST_POVRCHU] + groups[TypZkouskyChoice.TVRDOST_JADRA]
-        ),
+        'kontrolovali': [measuring_people(groups[kind]) for kind in MEASUREMENT_COLUMNS],
     }
     return context
 

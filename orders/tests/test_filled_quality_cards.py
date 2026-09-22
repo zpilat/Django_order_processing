@@ -14,7 +14,7 @@ from django.utils import timezone
 from weasyprint import HTML
 
 from orders import actions
-from orders.choices import KamionChoice, PrijemVydejChoice, TypZkouskyChoice, UvolneniKontrolyChoice, VysledekKontrolyChoice
+from orders.choices import KamionChoice, PrijemVydejChoice, TryskaniChoice, TypZkouskyChoice, UvolneniKontrolyChoice, VysledekKontrolyChoice
 from orders.models import Bedna, Kamion, KontrolaBedny, MereniBedny, Zakazka, Zakaznik
 from orders.services.exceptions import ServiceValidationError
 from orders.services.pdf_cards_service import build_cards_pdf
@@ -44,10 +44,10 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
         kontrola.save()
         return kontrola
 
-    def measurement(self, kontrola, kind, value, order=1, user=None):
+    def measurement(self, kontrola, kind, value, order=1, user=None, measured_at=None):
         item = MereniBedny(
             kontrola=kontrola, typ_zkousky=kind, hodnota=Decimal(value),
-            poradi=order, zmeril=user or self.user,
+            poradi=order, zmeril=user or self.user, zmereno_at=measured_at or timezone.now(),
         )
         item._history_user = user or self.user
         item.save()
@@ -83,7 +83,20 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
         html = render_to_string(template, self.context())
         self.assertIn('class="measurement-value">592,1234</td>', html)
         self.assertIn('class="measurement-value">12,5</td>', html)
+        self.assertIn('class="status-value status-cross">×</span>', html)
         self.assertEqual(html.count('class="measurement-value"></td>'), 68)
+
+    def test_measurement_date_range_uses_earliest_and_latest_day(self):
+        kontrola = self.create_control()
+        older = timezone.now() - timedelta(days=2)
+        newer = timezone.now()
+        self.measurement(kontrola, TypZkouskyChoice.OHYB, '12', measured_at=older)
+        self.measurement(kontrola, TypZkouskyChoice.KRUT, '25', measured_at=older)
+        self.measurement(kontrola, TypZkouskyChoice.PROHYB_PO_TZ, '1.5', measured_at=newer)
+
+        card = self.context()['quality_card']
+        self.assertEqual(card['datum_mereni_od'], timezone.localdate(older))
+        self.assertEqual(card['datum_mereni_do'], timezone.localdate(newer))
 
     def test_eur_template_keeps_original_requirements_and_fits_one_a4_page(self):
         self.user.first_name, self.user.last_name = 'Jan', 'Kontrolor'
@@ -96,6 +109,7 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
         self.bedna.vyrobni_zakazka = 'OBJ-123'
         self.bedna.sarze = 'CH-123'
         self.bedna.behalter_nr = 'DEMO-001'
+        self.bedna.tryskat = TryskaniChoice.OTRYSKANA
         self.bedna.save()
         predpis = self.bedna.zakazka.predpis
         predpis.ohyb, predpis.krut = 'min. 30°', 'min. 25 Nm'
@@ -114,25 +128,22 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
             self.assertIn(requirement, html)
         self.assertIn('Jan Kontrolor', html)
         self.assertIn('Uvolněno', html)
-        self.assertIn('Poznámka &lt;kontroly&gt;', html)
+        self.assertIn('class="status-value status-check">✓</span>', html)
+        self.assertNotIn('Poznámka &lt;kontroly&gt;', html)
+        self.assertEqual(html.count('class="controller-value"'), 7)
         self.assertIn('A1-CH-123', html)
         document = HTML(string=html).render()
         self.assertEqual(len(document.pages), 1)
         text_boxes = [box for box in document.pages[0]._page_box.descendants() if getattr(box, 'text', '').strip()]
         self.assertLess(max(box.position_y + box.height for box in text_boxes), document.pages[0].height - 37)
 
-    def test_latest_change_and_measuring_people_are_separate_from_printing_user(self):
+    def test_per_column_measuring_people_are_separate_from_printing_user(self):
         kontrola = self.create_control()
-        item = self.measurement(kontrola, TypZkouskyChoice.OHYB, '12')
+        self.measurement(kontrola, TypZkouskyChoice.OHYB, '12')
         editor = get_user_model().objects.create_user(username='editor')
-        item.hodnota = Decimal('13')
-        item._history_user = editor
-        item._history_date = item.history.first().history_date + timedelta(seconds=1)
-        item.save()
+        self.measurement(kontrola, TypZkouskyChoice.PROHYB_PO_TZ, '1.5', user=editor)
         card = self.context()['quality_card']
-        self.assertEqual(card['datum_kontroly'], item.history.first().history_date)
-        self.assertEqual(card['kontroloval'], 'editor')
-        self.assertEqual(card['kontroloval_ohyb_krut'], 'kontrolor')
+        self.assertEqual(card['kontrolovali'], ['kontrolor', '', 'editor', '', '', '', ''])
 
     def test_new_service_generates_pdf_without_creating_more_history(self):
         kontrola = self.create_control()
