@@ -1,7 +1,7 @@
 {% extends "orders/base.html" %}
 {% load static %}
 
-{% block title %}Skenování bedny{% endblock %}
+{% block title %}{% if kontrola_mode %}Další bedna ke kontrole{% else %}Skenování bedny{% endif %}{% endblock %}
 
 {% block extra_head %}{{ block.super }}<link rel="stylesheet" href="{% static 'orders/css/scan_workflows.css' %}">{% endblock %}
 
@@ -9,12 +9,16 @@
 <div class="scanner-page px-0 px-sm-2 py-2">
     <section class="scanner-panel">
         <div class="mb-3">
-            <p class="scanner-title">Skenování bedny</p>
-            <div class="text-muted">Načtěte kód bedny čtečkou nebo zadejte ručně číslo bedny.</div>
+            <p class="scanner-title">{% if kontrola_mode %}Další bedna ke kontrole{% else %}Skenování bedny{% endif %}</p>
+            <div class="text-muted">
+                Načtěte kód bedny čtečkou nebo zadejte ručně číslo bedny.
+                {% if kontrola_mode %}Poté se otevře přímo její kontrola.{% endif %}
+            </div>
         </div>
 
         <form method="post" class="mt-3" novalidate>
             {% csrf_token %}
+            {% if kontrola_mode %}<input type="hidden" name="cil" value="kontrola">{% endif %}
 
             {% if form.non_field_errors %}
                 <div class="alert alert-danger" role="alert">

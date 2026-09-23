@@ -970,6 +970,39 @@ class BednaScanViewTests(ViewsTestBase):
 		self.assertEqual(response.status_code, 302)
 		self.assertEqual(response["Location"], reverse("bedna_scan", args=[self.b_eur_pr.cislo_bedny]))
 
+	def test_bedna_skener_ctecka_control_mode_redirects_to_bedna_control(self):
+		self.user.user_permissions.add(Permission.objects.get(codename="mark_bedna_zkontrolovano"))
+
+		url = f'{reverse("bedna_skener_ctecka")}?cil=kontrola'
+		response = self.client.get(url)
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "Další bedna ke kontrole")
+		self.assertContains(response, 'name="cil" value="kontrola"', html=False)
+
+		response = self.client.post(
+			url,
+			{"cislo_bedny": str(self.b_eur_pr.cislo_bedny), "cil": "kontrola"},
+		)
+		self.assertRedirects(
+			response,
+			reverse("bedna_kontrola", args=[self.b_eur_pr.cislo_bedny]),
+			fetch_redirect_response=False,
+		)
+
+	def test_bedna_skener_ctecka_control_mode_preserves_mode_for_missing_bedna(self):
+		self.user.user_permissions.add(Permission.objects.get(codename="mark_bedna_zkontrolovano"))
+
+		response = self.client.post(
+			reverse("bedna_skener_ctecka"),
+			{"cislo_bedny": "999999", "cil": "kontrola"},
+		)
+
+		self.assertRedirects(
+			response,
+			f'{reverse("bedna_skener_ctecka")}?cil=kontrola',
+			fetch_redirect_response=False,
+		)
+
 	def test_bedna_skener_ctecka_post_rejects_invalid_code(self):
 		self.user.user_permissions.add(Permission.objects.get(codename="view_bedna"))
 

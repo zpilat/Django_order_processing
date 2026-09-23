@@ -16,10 +16,8 @@
         </div>
     </section>
 
-    {% if can_mark_zkontrolovano %}
-        <a class="btn btn-warning w-100 scan-action-button d-flex align-items-center justify-content-center mt-3"
-           href="{% url 'bedna_scan_zkontrolovano' bedna.cislo_bedny %}">Označit bednu jako zkontrolovanou</a>
-    {% endif %}
+    <a class="btn btn-outline-primary w-100 scan-action-button d-flex align-items-center justify-content-center mt-3"
+       href="{% url 'bedna_skener_ctecka' %}?cil=kontrola">Další bedna ke kontrole</a>
 
     <section class="card rounded-2 mt-3" id="mereni-bedny">
         <h2 class="card-header h6 mb-0">Naměřené hodnoty a jednotlivé zkoušky</h2>
@@ -73,6 +71,11 @@
             {% endif %}
         </div>
     </section>
+
+    {% if can_mark_zkontrolovano %}
+        <a class="btn btn-warning w-100 scan-action-button d-flex align-items-center justify-content-center mt-3"
+           href="{% url 'bedna_scan_zkontrolovano' bedna.cislo_bedny %}">Označit bednu jako zkontrolovanou</a>
+    {% endif %}
 
     <a class="btn btn-outline-secondary w-100 scan-action-button d-flex align-items-center justify-content-center mt-3" href="{% url 'bedna_scan' bedna.cislo_bedny %}">Zpět na detail bedny</a>
 </main>

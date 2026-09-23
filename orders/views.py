@@ -1629,18 +1629,28 @@ def bedna_skener_view(request):
 
 
 @login_required
-@permission_required('orders.view_bedna', raise_exception=True)
 def bedna_skener_ctecka_view(request):
     """
     Zobrazuje stránku pro skenování bedny čtečkou nebo ruční zadání čísla bedny.
     """
+    kontrola_mode = (request.POST.get('cil') or request.GET.get('cil')) == 'kontrola'
+    if kontrola_mode:
+        if not _can_view_kontrola_bedny(request.user):
+            raise PermissionDenied
+    elif not request.user.has_perm('orders.view_bedna'):
+        raise PermissionDenied
+
     if request.method == 'POST':
         form = BednaSkenerCteckaForm(request.POST)
         if form.is_valid():
             cislo_bedny = form.cleaned_data['cislo_bedny']
             if not Bedna.objects.filter(cislo_bedny=cislo_bedny).exists():
                 messages.error(request, f'Bedna {cislo_bedny} neexistuje.')
+                if kontrola_mode:
+                    return redirect(f"{reverse('bedna_skener_ctecka')}?cil=kontrola")
                 return redirect('bedna_skener_ctecka')
+            if kontrola_mode:
+                return redirect('bedna_kontrola', cislo_bedny=cislo_bedny)
             return redirect('bedna_scan', cislo_bedny=cislo_bedny)
         else:
             messages.error(request, 'Neplatné číslo bedny.')
@@ -1653,6 +1663,7 @@ def bedna_skener_ctecka_view(request):
         {
             'db_table': 'bedna_skener_ctecka',
             'form': form,
+            'kontrola_mode': kontrola_mode,
         },
     )
 

@@ -4,7 +4,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
 from django.urls import reverse
 
-from orders.choices import TypZkouskyChoice, UvolneniKontrolyChoice, VysledekKontrolyChoice
+from orders.choices import StavBednyChoice, TypZkouskyChoice, UvolneniKontrolyChoice, VysledekKontrolyChoice
 from orders.models import KontrolaBedny, MereniBedny
 from orders.tests.test_kontrola_bedny import KontrolaBednyTestBase
 
@@ -43,6 +43,31 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
         self.assertLess(html.index('id="mereni-bedny"'), html.index('<form method="post" novalidate>'))
         for kind in TypZkouskyChoice:
             self.assertContains(response, reverse('bedna_mereni_zkousky', args=[self.bedna.cislo_bedny, kind]))
+
+    def test_next_bedna_button_opens_scanner_in_control_mode(self):
+        response = self.client.get(self.url)
+
+        scanner_url = f"{reverse('bedna_skener_ctecka')}?cil=kontrola"
+        self.assertContains(response, 'Další bedna ke kontrole')
+        self.assertContains(response, scanner_url)
+        html = response.content.decode('utf-8')
+        self.assertLess(html.index(scanner_url), html.index('id="mereni-bedny"'))
+
+    def test_mark_checked_button_is_immediately_before_back_to_detail(self):
+        self.bedna.stav_bedny = StavBednyChoice.ZAKALENO
+        self.bedna.hmotnost = Decimal('10')
+        self.bedna.tara = Decimal('1')
+        self.bedna.mnozstvi = 100
+        self.bedna.save(update_fields=['stav_bedny', 'hmotnost', 'tara', 'mnozstvi'])
+        response = self.client.get(self.url)
+
+        mark_url = reverse('bedna_scan_zkontrolovano', args=[self.bedna.cislo_bedny])
+        detail_url = reverse('bedna_scan', args=[self.bedna.cislo_bedny])
+        html = response.content.decode('utf-8')
+        mark_link = f'href="{mark_url}"'
+        detail_link = f'href="{detail_url}"'
+        self.assertLess(html.index('Výstupní kontrola'), html.index(mark_link))
+        self.assertLess(html.index(mark_link), html.index(detail_link))
 
     def test_first_save_creates_control_and_history(self):
         response = self.client.get(self.url)
