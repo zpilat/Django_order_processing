@@ -481,6 +481,8 @@ class BednaScanViewTests(ViewsTestBase):
 		self.assertContains(response, str(self.b_eur_pr.cislo_bedny))
 		self.assertContains(response, "Pohyby bedny v šaržích")
 		self.assertContains(response, reverse("bedna_scan_pohyb", args=[self.b_eur_pr.cislo_bedny]))
+		self.assertContains(response, 'class="col-12 col-sm-6 text-center text-sm-start"')
+		self.assertContains(response, 'class="col-12 col-sm-6 text-center text-sm-end"')
 		self.assertNotContains(response, "Označit navezeno")
 		udaje_url = reverse("bedna_scan_udaje", args=[self.b_eur_pr.cislo_bedny])
 		self.assertContains(response, udaje_url)
