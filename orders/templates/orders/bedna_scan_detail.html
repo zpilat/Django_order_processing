@@ -50,19 +50,7 @@
                 Skenování další bedny
             </a>
         {% endif %}
-
-        {% if can_view_kontrola %}
-            <a class="btn btn-outline-primary w-100 scan-action-button d-flex align-items-center justify-content-center"
-               href="{% url 'bedna_kontrola' bedna.cislo_bedny %}">
-                Kontrola bedny
-            </a>
-        {% endif %}
-
-        <a class="btn btn-outline-secondary w-100 scan-action-button d-flex align-items-center justify-content-center"
-           href="{% url 'bedna_scan_udaje' bedna.cislo_bedny %}">
-            Údaje bedny
-        </a>
-
+        
         {% if can_mark_navezeno %}
             <a class="btn btn-success w-100 scan-action-button d-flex align-items-center justify-content-center"
                href="{% url 'bedna_scan_navezeni' bedna.cislo_bedny %}">
@@ -75,7 +63,19 @@
                href="{% url 'bedna_scan_zakaleno' bedna.cislo_bedny %}">
                 Označit zakaleno
             </a>
+        {% endif %}        
+
+        {% if can_view_kontrola %}
+            <a class="btn btn-outline-primary w-100 scan-action-button d-flex align-items-center justify-content-center"
+               href="{% url 'bedna_kontrola' bedna.cislo_bedny %}">
+                Kontrola bedny
+            </a>
         {% endif %}
+
+        <a class="btn btn-outline-secondary w-100 scan-action-button d-flex align-items-center justify-content-center"
+           href="{% url 'bedna_scan_udaje' bedna.cislo_bedny %}">
+            Údaje bedny
+        </a>
 
         <a class="btn btn-outline-primary w-100 scan-action-button d-flex align-items-center justify-content-center"
            href="{% url 'bedna_scan_pohyb' bedna.cislo_bedny %}">
