@@ -3366,22 +3366,21 @@ def dashboard_bedny_view(request):
         """
         Získává data o stavech beden pro dané filtry.
         """
-        data = Bedna.objects.filter(**filter_kwargs).values(
+        data = list(Bedna.objects.filter(**filter_kwargs).values(
             'zakazka__kamion_prijem__zakaznik__zkraceny_nazev'
         ).annotate(
             pocet=Count('id'),
-            hmotnost=Sum('hmotnost')/1000 # převod na tuny (z kg)
-        )
+            hmotnost_kg=Sum('hmotnost'),
+        ))
         data_dict = {
-            item['zakazka__kamion_prijem__zakaznik__zkraceny_nazev']: (item['pocet'], item['hmotnost']) for item in data
+            item['zakazka__kamion_prijem__zakaznik__zkraceny_nazev']: (
+                item['pocet'], (item['hmotnost_kg'] or Decimal('0')) / Decimal('1000')
+            )
+            for item in data
         }
-        total = Bedna.objects.filter(**filter_kwargs).aggregate(
-            pocet=Count('id'),
-            hmotnost=Sum('hmotnost')/1000  # také převod na tuny pro řádek CELKEM
-        )
         data_dict['CELKEM'] = (
-            total['pocet'] or 0,
-            (total['hmotnost'] or 0)  # už v tunách
+            sum(item['pocet'] for item in data),
+            sum((item['hmotnost_kg'] or Decimal('0')) for item in data) / Decimal('1000'),
         )
         return data_dict
 
@@ -3441,7 +3440,6 @@ def dashboard_bedny_view(request):
             'filters': {'rovnat__in': [RovnaniChoice.KRIVA, RovnaniChoice.KOULENI, RovnaniChoice.ROVNA_SE], 'stav_bedny__in': [StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO]},
             'color': 'blue', 'level': 1,
         },
-
         'Křivé': {
             'filters': {'rovnat': RovnaniChoice.KRIVA, 'stav_bedny__in': [StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO]},
             'color': 'blue', 'level': 2,
@@ -3453,6 +3451,22 @@ def dashboard_bedny_view(request):
         'Rovná se': {
             'filters': {'rovnat': RovnaniChoice.ROVNA_SE, 'stav_bedny__in': [StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO]},
             'color': 'blue', 'level': 2,
+        },
+        'K zinkování': {
+            'filters': {'zinkovat__in': [ZinkovaniChoice.ZINKOVAT, ZinkovaniChoice.V_ZINKOVNE, ZinkovaniChoice.POZINKOVANO], 'stav_bedny__in': [StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO]},
+            'color': 'purple', 'level': 1,
+        },
+        'Zinkovat': {
+            'filters': {'zinkovat': ZinkovaniChoice.ZINKOVAT, 'stav_bedny__in': [StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO]},
+            'color': 'purple', 'level': 2,
+        },
+        'V zinkovně': {
+            'filters': {'zinkovat': ZinkovaniChoice.V_ZINKOVNE, 'stav_bedny__in': [StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO]},
+            'color': 'purple', 'level': 2,
+        },
+        'Pozinkováno – k uvolnění': {
+            'filters': {'zinkovat': ZinkovaniChoice.POZINKOVANO, 'stav_bedny__in': [StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO]},
+            'color': 'purple', 'level': 2,
         },
         'K expedici': {
             'filters': {'stav_bedny': StavBednyChoice.K_EXPEDICI},

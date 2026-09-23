@@ -14,7 +14,7 @@ import json
 from orders.models import (
 	Zakaznik, Odberatel, Kamion, Zakazka, Bedna, Predpis, TypHlavy, Pozice, PoziceZakazkaOrder, Zarizeni, Sarze, SarzeKrok, SarzeKrokBedna, Cena
 )
-from orders.choices import StavBednyChoice, StavSarzeChoice, KamionChoice, TryskaniChoice, RovnaniChoice, PrioritaChoice, TypZarizeniChoice
+from orders.choices import StavBednyChoice, StavSarzeChoice, KamionChoice, TryskaniChoice, RovnaniChoice, ZinkovaniChoice, PrioritaChoice, TypZarizeniChoice
 from orders.views import (
 	_get_bedny_k_navezeni_groups,
 	_split_bedny_k_navezeni_groups_by_nasledne,
@@ -2376,6 +2376,32 @@ class DashboardBednyViewTests(ViewsTestBase):
 		resp = self.client.get(reverse("dashboard_bedny"), HTTP_HX_REQUEST="true")
 		self.assertEqual(resp.status_code, 200)
 		self.assertTemplateUsed(resp, "orders/partials/dashboard_bedny_content.html")
+
+	def test_zincing_rows_cover_all_unfinished_zincing_stages(self):
+		self.b_eur_pr.stav_bedny = StavBednyChoice.ZAKALENO
+		self.b_eur_pr.zinkovat = ZinkovaniChoice.ZINKOVAT
+		self.b_eur_pr.hmotnost = 5
+		self.b_eur_pr.save(update_fields=["stav_bedny", "zinkovat", "hmotnost"])
+		Bedna.objects.create(
+			zakazka=self.zak_eur, stav_bedny=StavBednyChoice.ZKONTROLOVANO,
+			hmotnost=6, tara=1, mnozstvi=1, zinkovat=ZinkovaniChoice.V_ZINKOVNE,
+		)
+		Bedna.objects.create(
+			zakazka=self.zak_eur, stav_bedny=StavBednyChoice.ZKONTROLOVANO,
+			hmotnost=7, tara=1, mnozstvi=1, zinkovat=ZinkovaniChoice.POZINKOVANO,
+		)
+		Bedna.objects.create(
+			zakazka=self.zak_eur, stav_bedny=StavBednyChoice.PRIJATO,
+			hmotnost=20, tara=1, mnozstvi=1, zinkovat=ZinkovaniChoice.ZINKOVAT,
+		)
+
+		response = self.client.get(reverse("dashboard_bedny"))
+		customer = response.context["prehled_beden_zakaznika"][self.z_eur.zkraceny_nazev]
+
+		self.assertEqual(customer["Zinkovat"][:2], (1, Decimal("0.005")))
+		self.assertEqual(customer["V zinkovně"][:2], (1, Decimal("0.006")))
+		self.assertEqual(customer["Pozinkováno – k uvolnění"][:2], (1, Decimal("0.007")))
+		self.assertEqual(customer["K zinkování"][:2], (3, Decimal("0.018")))
 
 
 class DashboardKamionyViewTests(ViewsTestBase):
