@@ -637,6 +637,9 @@ def bedna_scan_view(request, cislo_bedny: int):
         'zakazka',
         'zakazka__kamion_prijem',
         'zakazka__kamion_prijem__zakaznik',
+        'zakazka__predpis',
+        'zakazka__typ_hlavy',
+        'pozice',
     )
 
     bedna = get_object_or_404(bedna_qs, cislo_bedny=cislo_bedny)
@@ -653,28 +656,10 @@ def bedna_scan_view(request, cislo_bedny: int):
             request.user.has_perm('orders.scan_mark_bedna_zakaleno')
             or request.user.has_perm('orders.change_bedna')
         ),
+        'sections': _bedna_scan_sections(bedna),
         'db_table': 'bedna_scan',
     }
     return render(request, 'orders/bedna_scan_detail.html', context)
-
-
-@login_required
-@require_http_methods(['GET'])
-def bedna_scan_udaje_view(request, cislo_bedny: int):
-    bedna_qs = Bedna.objects.select_related(
-        'zakazka',
-        'zakazka__kamion_prijem',
-        'zakazka__kamion_prijem__zakaznik',
-        'zakazka__predpis',
-        'zakazka__typ_hlavy',
-        'pozice',
-    )
-    bedna = get_object_or_404(bedna_qs, cislo_bedny=cislo_bedny)
-    return render(request, 'orders/bedna_scan_udaje.html', {
-        'bedna': bedna,
-        'sections': _bedna_scan_sections(bedna),
-        'db_table': 'bedna_scan',
-    })
 
 
 def _can_view_kontrola_bedny(user):

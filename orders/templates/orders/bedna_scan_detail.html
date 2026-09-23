@@ -72,11 +72,6 @@
             </a>
         {% endif %}
 
-        <a class="btn btn-outline-secondary w-100 scan-action-button d-flex align-items-center justify-content-center"
-           href="{% url 'bedna_scan_udaje' bedna.cislo_bedny %}">
-            Údaje bedny
-        </a>
-
         <a class="btn btn-outline-primary w-100 scan-action-button d-flex align-items-center justify-content-center"
            href="{% url 'bedna_scan_pohyb' bedna.cislo_bedny %}">
             Pohyby bedny v šaržích
@@ -95,5 +90,21 @@
             Bedna je pozastavená.
         </div>
     {% endif %}
+
+    {% for title, rows in sections %}
+        <section class="card rounded-2 mt-3 overflow-hidden">
+            <h2 class="card-header h6 mb-0">{{ title }}</h2>
+            <div class="list-group list-group-flush">
+            {% for label, value in rows %}
+                <div class="list-group-item">
+                    <div class="row g-2">
+                        <div class="col-12 col-sm-4 text-muted small">{{ label }}</div>
+                        <div class="col fw-semibold text-break">{{ value }}</div>
+                    </div>
+                </div>
+            {% endfor %}
+            </div>
+        </section>
+    {% endfor %}
 </div>
 {% endblock %}

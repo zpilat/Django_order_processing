@@ -484,29 +484,10 @@ class BednaScanViewTests(ViewsTestBase):
 		self.assertContains(response, 'class="col-12 col-sm-6 text-center text-sm-start"')
 		self.assertContains(response, 'class="col-12 col-sm-6 text-center text-sm-end"')
 		self.assertNotContains(response, "Označit navezeno")
-		udaje_url = reverse("bedna_scan_udaje", args=[self.b_eur_pr.cislo_bedny])
-		self.assertContains(response, udaje_url)
-		self.assertNotIn("sections", response.context)
-
-		udaje_response = self.client.get(udaje_url)
-		self.assertEqual(udaje_response.status_code, 200)
-		self.assertTemplateUsed(udaje_response, "orders/bedna_scan_udaje.html")
-		self.assertContains(udaje_response, reverse("bedna_scan", args=[self.b_eur_pr.cislo_bedny]))
-		for title, rows in udaje_response.context["sections"]:
-			self.assertContains(udaje_response, title)
-			self.assertNotContains(response, f'<h2 class="card-header h6 mb-0">{title}</h2>')
+		for title, rows in response.context["sections"]:
+			self.assertContains(response, title)
 			for label, _value in rows:
-				self.assertContains(udaje_response, label)
-
-	def test_scan_udaje_requires_login(self):
-		self.client.logout()
-		response = self.client.get(reverse("bedna_scan_udaje", args=[self.b_eur_pr.cislo_bedny]))
-		self.assertEqual(response.status_code, 302)
-		self.assertIn("login", response.url)
-
-	def test_scan_udaje_returns_404_for_unknown_bedna(self):
-		response = self.client.get(reverse("bedna_scan_udaje", args=[99999999]))
-		self.assertEqual(response.status_code, 404)
+				self.assertContains(response, label)
 
 	def test_scan_detail_shows_bedna_scanner_link_for_view_bedna_user(self):
 		self.user.user_permissions.add(Permission.objects.get(codename="view_bedna"))
