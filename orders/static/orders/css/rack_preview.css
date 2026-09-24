@@ -129,6 +129,13 @@ body.app-orders.model-bedna.change-form
     padding: 0;
 }
 
+@media (min-width: 1200px) {
+    body.app-orders.model-bedna.change-form
+        .field-get_pohyb_v_sarzich .readonly {
+        width: 50%;
+    }
+}
+
 .bedna-admin-pohyb .rack-preview {
     min-height: 100px;
 }
