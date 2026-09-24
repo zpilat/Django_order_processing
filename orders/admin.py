@@ -3238,7 +3238,7 @@ class BednaAdmin(HistoryViewOnlyAdmin):
             .order_by(
                 'krok__sarze__cislo_sarze',
                 'krok__poradi',
-                'patro',
+                '-patro',
                 'pk',
             )
         )

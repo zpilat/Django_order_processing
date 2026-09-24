@@ -1068,7 +1068,7 @@ def bedna_scan_pohyb_view(request, cislo_bedny: int):
         SarzeKrokBedna.objects
         .filter(krok_id__in=krok_ids)
         .select_related('krok', 'krok__sarze', 'krok__zarizeni', 'bedna', 'bedna__zakazka')
-        .order_by('krok__datum', 'krok__zacatek', 'krok__sarze__cislo_sarze', 'krok__poradi', 'patro', 'pk')
+        .order_by('krok__datum', 'krok__zacatek', 'krok__sarze__cislo_sarze', 'krok__poradi', '-patro', 'pk')
     )
     for polozka in polozky:
         krok_group = pohyb_by_krok.get(polozka.krok_id)

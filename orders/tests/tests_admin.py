@@ -1340,6 +1340,8 @@ class BednaAdminTests(AdminBase):
         )
         SarzeKrokBedna.objects.create(krok=krok_1, bedna=self.bedna, patro=1, procent_z_patra=40)
         SarzeKrokBedna.objects.create(krok=krok_1, bedna=other_bedna, patro=1, procent_z_patra=60)
+        SarzeKrokBedna.objects.create(krok=krok_1, bedna=self.bedna, patro=2, procent_z_patra=30)
+        SarzeKrokBedna.objects.create(krok=krok_1, bedna=other_bedna, patro=2, procent_z_patra=70)
         SarzeKrokBedna.objects.create(krok=krok_2, bedna=self.bedna, patro=2, procent_z_patra=100)
 
         fieldsets = self.admin.get_fieldsets(self.get_request(), self.bedna)
@@ -1354,19 +1356,22 @@ class BednaAdminTests(AdminBase):
         self.assertIn('Krok 2', html)
         self.assertIn('Patro 1', html)
         self.assertIn('Patro 2', html)
+        self.assertLess(html.index('Patro 2'), html.index('Patro 1'))
         self.assertIn(str(self.bedna.cislo_bedny), html)
         self.assertIn(str(other_bedna.cislo_bedny), html)
         self.assertIn('40 %', html)
         self.assertIn('60 %', html)
         self.assertIn('100 %', html)
         self.assertEqual(html.count('Rozložení beden při nakládání'), 1)
-        self.assertEqual(html.count('class="rack-preview"'), 1)
-        self.assertEqual(html.count('rack-segment-current'), 1)
+        self.assertEqual(html.count('class="rack-preview"'), 2)
+        self.assertEqual(html.count('rack-segment-current'), 2)
         self.assertEqual(html.count('Obsah kroku se liší od nakládání'), 1)
         self.assertEqual(html.count('class="bedna-admin-pohyb-seznam"'), 1)
         self.assertEqual(html.count('bedna-admin-pohyb-aktualni'), 1)
         self.assertIn('width: 40%;', html)
         self.assertIn('width: 60%;', html)
+        self.assertIn('width: 30%;', html)
+        self.assertIn('width: 70%;', html)
 
     def test_change_form_uses_loading_layout_once_and_ignores_item_order(self):
         nakladani = Zarizeni.objects.create(

@@ -778,6 +778,10 @@ class BednaScanViewTests(ViewsTestBase):
 		self.assertContains(response, str(other_bedna.cislo_bedny))
 		self.assertContains(response, "Patro 1")
 		self.assertContains(response, "Patro 2")
+		self.assertLess(
+			response.content.index(b"Patro 2"),
+			response.content.index(b"Patro 1"),
+		)
 		self.assertContains(response, "40 %")
 		self.assertContains(response, "60 %")
 		self.assertContains(response, "30 %")
