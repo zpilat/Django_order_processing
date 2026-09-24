@@ -88,8 +88,7 @@
 }
 
 .scan-note,
-.movement-value,
-.rack-segment {
+.movement-value {
     overflow-wrap: anywhere;
 }
 
@@ -211,6 +210,14 @@
     padding: .75rem 1rem 1rem;
 }
 
+.movement-common-layout {
+    margin-bottom: 1.75rem;
+    padding: .75rem;
+    border: var(--bs-border-width) var(--bs-border-style) var(--bs-border-color);
+    border-radius: var(--bs-border-radius);
+    background: var(--bs-tertiary-bg);
+}
+
 .movement-step-meta + .movement-floor,
 .movement-step > .movement-floor,
 .movement-floor + .movement-floor {
@@ -258,72 +265,6 @@
 .bedna-item-current {
     border-color: #214290 !important;
     background: #eef3ff !important;
-}
-
-.rack-preview {
-    position: relative;
-    display: flex;
-    width: 100%;
-    min-height: 130px;
-    overflow: hidden;
-    border: 2px solid #214290;
-}
-
-.rack-segment {
-    display: flex;
-    position: relative;
-    z-index: 1;
-    min-width: 0;
-    align-items: center;
-    justify-content: center;
-    padding: 2rem .5rem .5rem;
-    border-right: 2px solid #214290;
-    color: #111;
-    font-size: .8rem;
-    font-weight: 600;
-    text-align: center;
-}
-
-.rack-segment:last-child,
-.rack-segment-last {
-    border-right: 0;
-}
-
-.rack-segment:nth-child(10n + 1) { background-color: #ffde17; }
-.rack-segment:nth-child(10n + 2) { background-color: #8ecae6; }
-.rack-segment:nth-child(10n + 3) { background-color: #90be6d; }
-.rack-segment:nth-child(10n + 4) { background-color: #f9844a; }
-.rack-segment:nth-child(10n + 5) { background-color: #cdb4db; }
-.rack-segment:nth-child(10n + 6) { background-color: #f9c74f; }
-.rack-segment:nth-child(10n + 7) { background-color: #43aa8b; }
-.rack-segment:nth-child(10n + 8) { background-color: #adb5bd; }
-.rack-segment:nth-child(10n + 9) { background-color: #f4978e; }
-.rack-segment:nth-child(10n + 10) { background-color: #a9def9; }
-
-.rack-scale {
-    position: absolute;
-    z-index: 3;
-    inset: 0;
-    pointer-events: none;
-    background-image: repeating-linear-gradient(
-        to right,
-        transparent 0,
-        transparent calc(10% - 1px),
-        rgba(33, 66, 144, .7) calc(10% - 1px),
-        rgba(33, 66, 144, .7) 10%
-    );
-}
-
-.rack-mark {
-    position: absolute;
-    top: .3rem;
-    color: #214290;
-    background-color: rgba(255, 255, 255, .9);
-    padding: 0 .2rem;
-    font-size: .7rem;
-    font-weight: 700;
-    line-height: 1.2;
-    transform: translateX(-50%);
 }
 
 .rack-boundary {

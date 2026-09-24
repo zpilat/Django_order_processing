@@ -85,7 +85,8 @@ from .choices import (
 )
 from .utils import (
     utilita_validate_excel_upload, build_postup_vyroby_cases, truncate_with_title, parse_sarze_search_term,
-    format_decimal_csv, format_cislo_bedny, format_skupina_TZ, build_fake_skupina_TZ_annotation
+    format_decimal_csv, format_cislo_bedny, format_skupina_TZ, build_fake_skupina_TZ_annotation,
+    prirad_barvy_polozkam_pater, nastav_spolecne_rozlozeni_pater,
 )
 from .services.mereni_bedny_service import pozadavek_zkousky
 
@@ -3044,7 +3045,11 @@ class BednaAdmin(HistoryViewOnlyAdmin):
             'orders/js/bedny_netto_hmotnost_sum.js',
         )
         css = {
-            'all': ('orders/css/admin_paused_rows.css', 'orders/css/admin_changelist_filters_scroll.css')
+            'all': (
+                'orders/css/admin_paused_rows.css',
+                'orders/css/admin_changelist_filters_scroll.css',
+                'orders/css/rack_preview.css',
+            )
         }
 
     def get_date_hierarchy(self, request):
@@ -3234,7 +3239,6 @@ class BednaAdmin(HistoryViewOnlyAdmin):
                 'krok__sarze__cislo_sarze',
                 'krok__poradi',
                 'patro',
-                'bedna__cislo_bedny',
                 'pk',
             )
         )
@@ -3276,52 +3280,20 @@ class BednaAdmin(HistoryViewOnlyAdmin):
 
             patro_group['polozky'].append(polozka)
 
-        html = ['<div class="bedna-admin-pohyb">']
         for sarze_group in pohyb:
-            sarze = sarze_group['sarze']
-            html.append(format_html(
-                '<details style="margin-bottom: .75rem;">'
-                '<summary><strong>{}</strong> <span style="color: #666;">({} kroků, přípravek {})</span></summary>',
-                sarze,
-                len(sarze_group['kroky']),
-                sarze.cislo_pripravku or '-',
-            ))
             for krok_group in sarze_group['kroky']:
-                krok = krok_group['krok']
-                html.append(format_html(
-                    '<div style="margin: .6rem 0 .4rem 1rem; padding-bottom: .35rem; border-bottom: 1px solid #ddd;">'
-                    '<strong>Krok {}</strong> - {} - {} {}{}</div>',
-                    krok.poradi,
-                    krok.zarizeni or '-',
-                    krok.datum.strftime('%d.%m.%Y') if krok.datum else '-',
-                    krok.zacatek.strftime('%H:%M') if krok.zacatek else '-',
-                    format_html(' - {}', krok.konec.strftime('%H:%M')) if krok.konec else '',
-                ))
                 for patro_group in krok_group['patra']:
-                    html.append(format_html(
-                        '<div style="margin-left: 1.5rem;"><strong>Patro {}</strong></div>',
-                        patro_group['patro'],
-                    ))
-                    html.append('<ul style="margin: .25rem 0 .6rem 2.5rem;">')
-                    for polozka in patro_group['polozky']:
-                        if polozka.bedna:
-                            cislo_bedny = polozka.bedna.cislo_bedny
-                            zakazka = polozka.bedna.zakazka.artikl if polozka.bedna.zakazka else '-'
-                        else:
-                            cislo_bedny = polozka.popis_mimo_db or '-'
-                            zakazka = polozka.zakazka_mimo_db or '-'
+                    prirad_barvy_polozkam_pater(patro_group['polozky'])
+                krok_group.pop('patra_by_number', None)
+        nastav_spolecne_rozlozeni_pater(pohyb)
 
-                        html.append(format_html(
-                            '<li{}>{} <span style="color: #666;">({})</span> - {} %</li>',
-                            mark_safe(' style="font-weight: 700;"') if polozka.bedna_id == obj.pk else '',
-                            cislo_bedny,
-                            zakazka,
-                            polozka.procent_z_patra if polozka.procent_z_patra is not None else '-',
-                        ))
-                    html.append('</ul>')
-            html.append('</details>')
-        html.append('</div>')
-        return mark_safe(''.join(str(part) for part in html))
+        return mark_safe(render_to_string(
+            'admin/orders/bedna/_sarze_movement.html',
+            {
+                'pohyb': pohyb,
+                'highlighted_bedna_id': obj.pk,
+            },
+        ))
 
     def _get_latest_change_marker(self):
         history_model = Bedna.history.model

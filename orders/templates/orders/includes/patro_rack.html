@@ -1,0 +1,23 @@
+<div class="rack-preview" aria-label="Rozložení položek v {{ patro }}. patře">
+    {% for item in polozky %}
+        <div class="rack-segment{% if forloop.last %} rack-segment-last{% endif %}{% if item.bedna_id == highlighted_bedna_id %} rack-segment-current{% endif %}"
+             style="{% if item.procent_z_patra is not None %}width: {{ item.procent_z_patra }}%;{% else %}flex: 1 1 0;{% endif %} background-color: {{ item.barva_patra }};">
+            <div>
+                {% if item.bedna %}
+                    <span class="rack-bedna-number">{{ item.bedna.cislo_bedny }}</span>
+                {% else %}
+                    <span class="rack-bedna-number">{{ item.popis_mimo_db|default:"-" }}</span>
+                {% endif %}
+                {% if item.procent_z_patra >= 15 %}
+                    <br>
+                    ({{ item.procent_z_patra }} %)
+                {% endif %}
+            </div>
+        </div>
+    {% endfor %}
+    <div class="rack-scale" aria-hidden="true">
+        {% for percentage in "123456789" %}
+            <span class="rack-mark" style="left: {{ percentage }}0%;">{{ percentage }}0 %</span>
+        {% endfor %}
+    </div>
+</div>

@@ -3,7 +3,11 @@
 
 {% block title %}{{ patro }}. patro šarže {{ krok.sarze }}{% endblock %}
 
-{% block extra_head %}{{ block.super }}<link rel="stylesheet" href="{% static 'orders/css/scan_workflows.css' %}">{% endblock %}
+{% block extra_head %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'orders/css/scan_workflows.css' %}">
+<link rel="stylesheet" href="{% static 'orders/css/rack_preview.css' %}">
+{% endblock %}
 
 {% block content %}
 <div class="container-fluid py-3">

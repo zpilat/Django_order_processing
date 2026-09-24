@@ -3,7 +3,11 @@
 
 {% block title %}Přehled šarže {{ krok.sarze }}{% endblock %}
 
-{% block extra_head %}{{ block.super }}<link rel="stylesheet" href="{% static 'orders/css/scan_workflows.css' %}">{% endblock %}
+{% block extra_head %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'orders/css/scan_workflows.css' %}">
+<link rel="stylesheet" href="{% static 'orders/css/rack_preview.css' %}">
+{% endblock %}
 
 {% block content %}
 <div class="container py-3">
@@ -46,33 +50,7 @@
                     Upravit patro
                 </a>
             </div>
-            <div class="rack-preview" aria-label="Rozložení položek v {{ floor.grouper }}. patře">
-                {% for item in floor.list %}
-                    <div class="rack-segment{% if forloop.last %} rack-segment-last{% endif %}"
-                         style="width: {{ item.procent_z_patra }}%; background-color: {{ item.barva_patra }};">
-                        <div>
-                            {% if item.bedna %}
-                                <span class="rack-bedna-number fw-bold fs-6">{{ item.bedna.cislo_bedny }}</span>
-                                {% if item.procent_z_patra >= 15 %}
-                                    <br>
-                                    ({{ item.procent_z_patra }} %)
-                                {% endif %}
-                            {% else %}
-                                {{ item.popis_mimo_db }}
-                                {% if item.procent_z_patra >= 15 %}
-                                    <br>
-                                    ({{ item.procent_z_patra }} %)
-                                {% endif %}
-                            {% endif %}
-                        </div>
-                    </div>
-                {% endfor %}
-                <div class="rack-scale" aria-hidden="true">
-                    {% for percentage in "123456789" %}
-                        <span class="rack-mark" style="left: {{ percentage }}0%;">{{ percentage }}0 %</span>
-                    {% endfor %}
-                </div>
-            </div>
+            {% include "orders/includes/patro_rack.html" with polozky=floor.list patro=floor.grouper only %}
         </section>
     {% empty %}
         <div class="alert alert-warning">Šarže zatím nemá uložené žádné položky.</div>

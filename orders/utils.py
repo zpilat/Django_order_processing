@@ -23,6 +23,11 @@ import gc
 import logging
 logger = logging.getLogger('orders')
 
+BARVY_POLOZEK_PATRA = (
+    '#ffde17', '#8ecae6', '#90be6d', '#f9844a', '#cdb4db',
+    '#f9c74f', '#43aa8b', '#adb5bd', '#f4978e', '#a9def9',
+)
+
 from .services.pdf_cards_service import build_cards_pdf
 from .services.expedice_service import (
     expedice_beden_do_existujiciho_kamionu,
@@ -41,6 +46,73 @@ def truncate_with_title(text, max_len=15):
         return text
     short = f"{text[:max_len]}..."
     return format_html('<span title="{}">{}</span>', text, short)
+
+
+def prirad_barvy_polozkam_pater(items):
+    """Přiřadí stejné bedně v rámci jednoho patra vždy stejnou barvu."""
+    barvy_patra = {}
+    aktualni_patro = None
+
+    for item in items:
+        if item.patro != aktualni_patro:
+            aktualni_patro = item.patro
+            barvy_patra = {}
+
+        # Položky mimo databázi nemají společný identifikátor, proto jsou
+        # považované za samostatné položky.
+        klic_bedny = ('bedna', item.bedna_id) if item.bedna_id else ('polozka', item.pk)
+        if klic_bedny not in barvy_patra:
+            barvy_patra[klic_bedny] = BARVY_POLOZEK_PATRA[
+                len(barvy_patra) % len(BARVY_POLOZEK_PATRA)
+            ]
+        item.barva_patra = barvy_patra[klic_bedny]
+
+    return items
+
+
+def nastav_spolecne_rozlozeni_pater(sarze_groups):
+    """Označí šarže, jejichž kroky mají totožné grafické rozložení pater."""
+
+    def podpis_polozky(item):
+        if item.bedna_id:
+            identita = ('bedna', item.bedna_id)
+        else:
+            # Kopie položky mimo DB má jiné PK, její věcná identita je proto
+            # tvořena uloženými textovými údaji.
+            identita = (
+                'mimo_db',
+                item.popis_mimo_db,
+                item.zakaznik_mimo_db,
+                item.zakazka_mimo_db,
+                item.cislo_bedny_mimo_db,
+            )
+        return identita + (item.procent_z_patra,)
+
+    def podpis_kroku(krok_group):
+        return tuple(
+            (
+                patro_group['patro'],
+                tuple(podpis_polozky(item) for item in patro_group['polozky']),
+            )
+            for patro_group in krok_group['patra']
+        )
+
+    for sarze_group in sarze_groups:
+        kroky = sarze_group['kroky']
+        if not kroky:
+            sarze_group['ma_spolecne_rozlozeni_pater'] = False
+            sarze_group['spolecna_patra'] = []
+            continue
+
+        prvni_podpis = podpis_kroku(kroky[0])
+        ma_spolecne_rozlozeni = all(
+            podpis_kroku(krok_group) == prvni_podpis
+            for krok_group in kroky[1:]
+        )
+        sarze_group['ma_spolecne_rozlozeni_pater'] = ma_spolecne_rozlozeni
+        sarze_group['spolecna_patra'] = kroky[0]['patra'] if ma_spolecne_rozlozeni else []
+
+    return sarze_groups
 
 
 def format_cislo_bedny(bedna):

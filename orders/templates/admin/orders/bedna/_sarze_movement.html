@@ -1,0 +1,41 @@
+<div class="bedna-admin-pohyb">
+    {% for sarze_item in pohyb %}
+        <details class="bedna-admin-pohyb-sarze">
+            <summary>
+                <strong>{{ sarze_item.sarze }}</strong>
+                <span class="bedna-admin-pohyb-muted">
+                    ({{ sarze_item.kroky|length }} kroků, přípravek {{ sarze_item.sarze.cislo_pripravku|default:"-" }})
+                </span>
+            </summary>
+            {% if sarze_item.ma_spolecne_rozlozeni_pater %}
+                <section class="bedna-admin-pohyb-spolecne">
+                    <strong>Rozložení beden v šarži</strong>
+                    {% for patro_item in sarze_item.spolecna_patra %}
+                        <div class="bedna-admin-pohyb-patro">
+                            <strong>Patro {{ patro_item.patro }}</strong>
+                            {% include "orders/includes/patro_rack.html" with polozky=patro_item.polozky patro=patro_item.patro highlighted_bedna_id=highlighted_bedna_id only %}
+                        </div>
+                    {% endfor %}
+                </section>
+            {% endif %}
+            {% for krok_item in sarze_item.kroky %}
+                <section class="bedna-admin-pohyb-krok">
+                    <div class="bedna-admin-pohyb-krok-heading">
+                        <strong>Krok {{ krok_item.krok.poradi }}</strong> -
+                        {{ krok_item.krok.zarizeni|default:"-" }} -
+                        {{ krok_item.krok.datum|date:"d.m.Y" }}
+                        {{ krok_item.krok.zacatek|time:"H:i" }}{% if krok_item.krok.konec %} - {{ krok_item.krok.konec|time:"H:i" }}{% endif %}
+                    </div>
+                    {% if not sarze_item.ma_spolecne_rozlozeni_pater %}
+                        {% for patro_item in krok_item.patra %}
+                            <div class="bedna-admin-pohyb-patro">
+                                <strong>Patro {{ patro_item.patro }}</strong>
+                                {% include "orders/includes/patro_rack.html" with polozky=patro_item.polozky patro=patro_item.patro highlighted_bedna_id=highlighted_bedna_id only %}
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                </section>
+            {% endfor %}
+        </details>
+    {% endfor %}
+</div>

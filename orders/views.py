@@ -27,7 +27,15 @@ from django.utils.text import slugify
 from django.utils.http import url_has_allowed_host_and_scheme
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
-from .utils import get_verbose_name_for_column, utilita_tisk_dl_a_proforma_faktury, format_cislo_bedny, format_skupina_TZ, build_fake_skupina_TZ_annotation
+from .utils import (
+    get_verbose_name_for_column,
+    utilita_tisk_dl_a_proforma_faktury,
+    format_cislo_bedny,
+    format_skupina_TZ,
+    build_fake_skupina_TZ_annotation,
+    prirad_barvy_polozkam_pater,
+    nastav_spolecne_rozlozeni_pater,
+)
 from .models import (
     Bedna, Zakazka, Kamion, Zakaznik, TypHlavy, Predpis, Odberatel, Cena, Pozice, PoziceZakazkaOrder,
     Sarze, SarzeKrok, SarzeKrokBedna, Zarizeni, KontrolaBedny, MereniBedny
@@ -59,34 +67,6 @@ from weasyprint import HTML, CSS
 
 import logging
 logger = logging.getLogger('orders')
-
-RYCHLE_ZALOZENI_BARVY = (
-    '#ffde17', '#8ecae6', '#90be6d', '#f9844a', '#cdb4db',
-    '#f9c74f', '#43aa8b', '#adb5bd', '#f4978e', '#a9def9',
-)
-
-
-def _prirad_barvy_polozkam_pater(items):
-    """Přiřadí stejné bedně v rámci jednoho patra vždy stejnou barvu."""
-    barvy_patra = {}
-    aktualni_patro = None
-
-    for item in items:
-        if item.patro != aktualni_patro:
-            aktualni_patro = item.patro
-            barvy_patra = {}
-
-        # Položky mimo databázi nemají společný identifikátor, proto jsou
-        # považované za samostatné položky.
-        klic_bedny = ('bedna', item.bedna_id) if item.bedna_id else ('polozka', item.pk)
-        if klic_bedny not in barvy_patra:
-            barvy_patra[klic_bedny] = RYCHLE_ZALOZENI_BARVY[
-                len(barvy_patra) % len(RYCHLE_ZALOZENI_BARVY)
-            ]
-        item.barva_patra = barvy_patra[klic_bedny]
-
-    return items
-
 
 def _safe_return_url(request, fallback_url):
     next_url = request.POST.get('next') or request.GET.get('next') or request.META.get('HTTP_REFERER')
@@ -1088,7 +1068,7 @@ def bedna_scan_pohyb_view(request, cislo_bedny: int):
         SarzeKrokBedna.objects
         .filter(krok_id__in=krok_ids)
         .select_related('krok', 'krok__sarze', 'krok__zarizeni', 'bedna', 'bedna__zakazka')
-        .order_by('krok__datum', 'krok__zacatek', 'krok__sarze__cislo_sarze', 'krok__poradi', 'patro', 'bedna__cislo_bedny', 'pk')
+        .order_by('krok__datum', 'krok__zacatek', 'krok__sarze__cislo_sarze', 'krok__poradi', 'patro', 'pk')
     )
     for polozka in polozky:
         krok_group = pohyb_by_krok.get(polozka.krok_id)
@@ -1123,7 +1103,10 @@ def bedna_scan_pohyb_view(request, cislo_bedny: int):
 
     for sarze_group in pohyb:
         for krok_group in sarze_group['kroky']:
+            for patro_group in krok_group['patra']:
+                prirad_barvy_polozkam_pater(patro_group['polozky'])
             krok_group.pop('patra_by_number', None)
+    nastav_spolecne_rozlozeni_pater(pohyb)
 
     return render(
         request,
@@ -1921,7 +1904,7 @@ def rychle_zalozeni_sarze_prehled_view(request, krok_id):
         .select_related('bedna')
         .order_by('-patro', 'pk')
     )
-    _prirad_barvy_polozkam_pater(items)
+    prirad_barvy_polozkam_pater(items)
     nove_patro = max((item.patro for item in items), default=0) + 1
     sarze_s_bednami = bool(
         krok.krok_bedny

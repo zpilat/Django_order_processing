@@ -1352,6 +1352,42 @@ class BednaAdminTests(AdminBase):
         self.assertIn('40 %', html)
         self.assertIn('60 %', html)
         self.assertIn('100 %', html)
+        self.assertEqual(html.count('class="rack-preview"'), 2)
+        self.assertEqual(html.count('rack-segment-current'), 2)
+        self.assertIn('width: 40%;', html)
+        self.assertIn('width: 60%;', html)
+        self.assertNotIn('Rozložení beden v šarži', html)
+
+    def test_change_form_renders_identical_floor_layout_only_once(self):
+        zarizeni = Zarizeni.objects.create(
+            kod_zarizeni='ZS',
+            nazev_zarizeni='Společné zařízení',
+            zkraceny_nazev_zarizeni='ZS',
+        )
+        sarze = Sarze.objects.create(datum_zalozeni=timezone.localdate(), cislo_pripravku=1)
+        for poradi, zacatek in ((1, time(6, 0)), (2, time(8, 0))):
+            krok = SarzeKrok.objects.create(
+                sarze=sarze,
+                poradi=poradi,
+                zarizeni=zarizeni,
+                zacatek=zacatek,
+                konec=time(zacatek.hour + 1, 0),
+                operator='Novak',
+            )
+            SarzeKrokBedna.objects.create(
+                krok=krok,
+                bedna=self.bedna,
+                patro=1,
+                procent_z_patra=100,
+            )
+
+        html = str(self.admin.get_pohyb_v_sarzich(self.bedna))
+
+        self.assertEqual(html.count('Rozložení beden v šarži'), 1)
+        self.assertEqual(html.count('class="rack-preview"'), 1)
+        self.assertEqual(html.count('rack-segment-current'), 1)
+        self.assertIn('Krok 1', html)
+        self.assertIn('Krok 2', html)
 
     def test_has_change_permission_regular_user(self):
         """Oprávnění pro expedovanou a pozastavenou bednu."""

@@ -3,7 +3,11 @@
 
 {% block title %}Pohyb bedny {{ bedna.cislo_bedny }}{% endblock %}
 
-{% block extra_head %}{{ block.super }}<link rel="stylesheet" href="{% static 'orders/css/scan_workflows.css' %}">{% endblock %}
+{% block extra_head %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'orders/css/scan_workflows.css' %}">
+<link rel="stylesheet" href="{% static 'orders/css/rack_preview.css' %}">
+{% endblock %}
 
 {% block content %}
 <main class="scan-page px-0 px-sm-2 py-2">
@@ -53,6 +57,17 @@
                     </button>
                     <div class="collapse" id="movement-body-{{ forloop.counter }}">
                         <div class="movement-body">
+                            {% if sarze_item.ma_spolecne_rozlozeni_pater %}
+                                <section class="movement-common-layout">
+                                    <div class="fw-bold mb-2">Rozložení beden v šarži</div>
+                                    {% for patro in sarze_item.spolecna_patra %}
+                                        <div class="movement-floor">
+                                            <div class="movement-label">Patro {{ patro.patro }}</div>
+                                            {% include "orders/includes/patro_rack.html" with polozky=patro.polozky patro=patro.patro highlighted_bedna_id=bedna.id only %}
+                                        </div>
+                                    {% endfor %}
+                                </section>
+                            {% endif %}
                             {% for krok_item in sarze_item.kroky %}
                                 {% with krok=krok_item.krok %}
                                     <section class="movement-step{% if not forloop.first %} mt-4{% endif %}">
@@ -90,38 +105,14 @@
                                         </div>
                                         {% endif %}
 
-                                        {% for patro in krok_item.patra %}
-                                            <div class="movement-floor">
-                                                <div class="movement-label">Patro {{ patro.patro }}</div>
-                                                <div class="bedna-list">
-                                                    {% for polozka in patro.polozky %}
-                                                        <div class="bedna-item{% if polozka.bedna_id == bedna.id %} bedna-item-current{% endif %}">
-                                                            <div>
-                                                                <div class="fw-bold">
-                                                                    {% if polozka.bedna %}
-                                                                        {{ polozka.bedna.cislo_bedny }}
-                                                                    {% else %}
-                                                                        {{ polozka.popis_mimo_db|default:"-" }}
-                                                                    {% endif %}
-                                                                </div>
-                                                                <div class="text-muted small">
-                                                                    {% if polozka.bedna and polozka.bedna.zakazka %}
-                                                                        {{ polozka.bedna.zakazka.artikl }}
-                                                                    {% elif polozka.zakazka_mimo_db %}
-                                                                        {{ polozka.zakazka_mimo_db }}
-                                                                    {% else %}
-                                                                        -
-                                                                    {% endif %}
-                                                                </div>
-                                                            </div>
-                                                            <div class="fw-bold">
-                                                                {{ polozka.procent_z_patra|default:"-" }}{% if polozka.procent_z_patra is not None %} %{% endif %}
-                                                            </div>
-                                                        </div>
-                                                    {% endfor %}
+                                        {% if not sarze_item.ma_spolecne_rozlozeni_pater %}
+                                            {% for patro in krok_item.patra %}
+                                                <div class="movement-floor">
+                                                    <div class="movement-label">Patro {{ patro.patro }}</div>
+                                                    {% include "orders/includes/patro_rack.html" with polozky=patro.polozky patro=patro.patro highlighted_bedna_id=bedna.id only %}
                                                 </div>
-                                            </div>
-                                        {% endfor %}
+                                            {% endfor %}
+                                        {% endif %}
                                     </section>
                                 {% endwith %}
                             {% endfor %}

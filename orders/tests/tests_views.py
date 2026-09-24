@@ -779,6 +779,54 @@ class BednaScanViewTests(ViewsTestBase):
 		self.assertContains(response, "Z1")
 		self.assertContains(response, "Novak")
 		self.assertContains(response, "Svoboda")
+		self.assertContains(response, 'class="rack-preview"', count=3, html=False)
+		self.assertContains(response, "rack-segment-current", count=3)
+		self.assertContains(response, "width: 40%;", html=False)
+		self.assertContains(response, "width: 60%;", html=False)
+		self.assertNotContains(response, "Rozložení beden v šarži")
+
+	def test_scan_pohyb_renders_identical_floor_layout_only_once(self):
+		sarze = Sarze.objects.create(
+			datum_zalozeni=timezone.localdate(),
+			cislo_pripravku=1,
+		)
+		zarizeni = Zarizeni.objects.create(
+			kod_zarizeni="ZS",
+			nazev_zarizeni="Společné zařízení",
+			zkraceny_nazev_zarizeni="ZS",
+		)
+		for poradi, zacatek in ((1, time(6, 0)), (2, time(8, 0))):
+			krok = SarzeKrok.objects.create(
+				sarze=sarze,
+				poradi=poradi,
+				zarizeni=zarizeni,
+				zacatek=zacatek,
+				konec=time(zacatek.hour + 1, 0),
+				operator="Novak",
+			)
+			SarzeKrokBedna.objects.create(
+				krok=krok,
+				bedna=self.b_eur_pr,
+				patro=1,
+				procent_z_patra=40,
+			)
+			SarzeKrokBedna.objects.create(
+				krok=krok,
+				bedna=self.b_abc_ex,
+				patro=1,
+				procent_z_patra=60,
+			)
+
+		response = self.client.get(
+			reverse("bedna_scan_pohyb", args=[self.b_eur_pr.cislo_bedny]),
+		)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "Rozložení beden v šarži", count=1)
+		self.assertContains(response, 'class="rack-preview"', count=1, html=False)
+		self.assertContains(response, "rack-segment-current", count=1)
+		self.assertContains(response, "(krok 1)")
+		self.assertContains(response, "(krok 2)")
 
 	def test_scan_pohyb_requires_login(self):
 		self.client.logout()
