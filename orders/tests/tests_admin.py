@@ -1305,22 +1305,29 @@ class BednaAdminTests(AdminBase):
         self.assertTrue(perm)
 
     def test_change_form_shows_bedna_sarze_movement_summary(self):
-        zarizeni = Zarizeni.objects.create(
+        nakladani = Zarizeni.objects.create(
             kod_zarizeni='Z1',
-            nazev_zarizeni='Zařízení 1',
-            zkraceny_nazev_zarizeni='Z1',
+            nazev_zarizeni='Nakládání',
+            zkraceny_nazev_zarizeni='Nakládání',
+            typ_zarizeni=TypZarizeniChoice.NAKLADANI,
+        )
+        dalsi_zarizeni = Zarizeni.objects.create(
+            kod_zarizeni='Z2',
+            nazev_zarizeni='Popouštění',
+            zkraceny_nazev_zarizeni='Popouštění',
+            typ_zarizeni=TypZarizeniChoice.POPOUSTECKA,
         )
         sarze = Sarze.objects.create(datum_zalozeni=timezone.localdate(), cislo_pripravku=1)
         krok_1 = SarzeKrok.objects.create(
             sarze=sarze,
-            zarizeni=zarizeni,
+            zarizeni=nakladani,
             zacatek=time(6, 0),
             konec=time(7, 0),
             operator='Novak',
         )
         krok_2 = SarzeKrok.objects.create(
             sarze=sarze,
-            zarizeni=zarizeni,
+            zarizeni=dalsi_zarizeni,
             zacatek=time(8, 0),
             konec=time(9, 0),
             operator='Svoboda',
@@ -1352,40 +1359,55 @@ class BednaAdminTests(AdminBase):
         self.assertIn('40 %', html)
         self.assertIn('60 %', html)
         self.assertIn('100 %', html)
-        self.assertEqual(html.count('class="rack-preview"'), 2)
-        self.assertEqual(html.count('rack-segment-current'), 2)
+        self.assertEqual(html.count('Rozložení beden při nakládání'), 1)
+        self.assertEqual(html.count('class="rack-preview"'), 1)
+        self.assertEqual(html.count('rack-segment-current'), 1)
+        self.assertEqual(html.count('Obsah kroku se liší od nakládání'), 1)
+        self.assertEqual(html.count('class="bedna-admin-pohyb-seznam"'), 1)
+        self.assertEqual(html.count('bedna-admin-pohyb-aktualni'), 1)
         self.assertIn('width: 40%;', html)
         self.assertIn('width: 60%;', html)
-        self.assertNotIn('Rozložení beden v šarži', html)
 
-    def test_change_form_renders_identical_floor_layout_only_once(self):
-        zarizeni = Zarizeni.objects.create(
-            kod_zarizeni='ZS',
-            nazev_zarizeni='Společné zařízení',
-            zkraceny_nazev_zarizeni='ZS',
+    def test_change_form_uses_loading_layout_once_and_ignores_item_order(self):
+        nakladani = Zarizeni.objects.create(
+            kod_zarizeni='NK',
+            nazev_zarizeni='Nakládání',
+            zkraceny_nazev_zarizeni='Nakládání',
+            typ_zarizeni=TypZarizeniChoice.NAKLADANI,
+        )
+        dalsi_zarizeni = Zarizeni.objects.create(
+            kod_zarizeni='PP',
+            nazev_zarizeni='Popouštění',
+            zkraceny_nazev_zarizeni='Popouštění',
+            typ_zarizeni=TypZarizeniChoice.POPOUSTECKA,
         )
         sarze = Sarze.objects.create(datum_zalozeni=timezone.localdate(), cislo_pripravku=1)
-        for poradi, zacatek in ((1, time(6, 0)), (2, time(8, 0))):
-            krok = SarzeKrok.objects.create(
-                sarze=sarze,
-                poradi=poradi,
-                zarizeni=zarizeni,
-                zacatek=zacatek,
-                konec=time(zacatek.hour + 1, 0),
-                operator='Novak',
-            )
-            SarzeKrokBedna.objects.create(
-                krok=krok,
-                bedna=self.bedna,
-                patro=1,
-                procent_z_patra=100,
-            )
+        krok_nakladani = SarzeKrok.objects.create(
+            sarze=sarze, poradi=1, zarizeni=nakladani,
+            zacatek=time(6, 0), konec=time(7, 0), operator='Novak',
+        )
+        krok_dalsi = SarzeKrok.objects.create(
+            sarze=sarze, poradi=2, zarizeni=dalsi_zarizeni,
+            zacatek=time(8, 0), konec=time(9, 0), operator='Novak',
+        )
+        other_bedna = Bedna.objects.create(
+            zakazka=self.zakazka,
+            hmotnost=Decimal(3),
+            tara=Decimal(1),
+            mnozstvi=1,
+        )
+        SarzeKrokBedna.objects.create(krok=krok_nakladani, bedna=self.bedna, patro=1, procent_z_patra=40)
+        SarzeKrokBedna.objects.create(krok=krok_nakladani, bedna=other_bedna, patro=1, procent_z_patra=60)
+        SarzeKrokBedna.objects.create(krok=krok_dalsi, bedna=other_bedna, patro=1, procent_z_patra=60)
+        SarzeKrokBedna.objects.create(krok=krok_dalsi, bedna=self.bedna, patro=1, procent_z_patra=40)
 
         html = str(self.admin.get_pohyb_v_sarzich(self.bedna))
 
-        self.assertEqual(html.count('Rozložení beden v šarži'), 1)
+        self.assertEqual(html.count('Rozložení beden při nakládání'), 1)
         self.assertEqual(html.count('class="rack-preview"'), 1)
         self.assertEqual(html.count('rack-segment-current'), 1)
+        self.assertNotIn('Obsah kroku se liší od nakládání', html)
+        self.assertNotIn('bedna-admin-pohyb-seznam', html)
         self.assertIn('Krok 1', html)
         self.assertIn('Krok 2', html)
 

@@ -210,7 +210,7 @@
     padding: .75rem 1rem 1rem;
 }
 
-.movement-common-layout {
+.movement-loading-layout {
     margin-bottom: 1.75rem;
     padding: .75rem;
     border: var(--bs-border-width) var(--bs-border-style) var(--bs-border-color);

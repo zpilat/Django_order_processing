@@ -34,7 +34,7 @@ from .utils import (
     format_skupina_TZ,
     build_fake_skupina_TZ_annotation,
     prirad_barvy_polozkam_pater,
-    nastav_spolecne_rozlozeni_pater,
+    nastav_porovnani_kroku_s_nakladanim,
 )
 from .models import (
     Bedna, Zakazka, Kamion, Zakaznik, TypHlavy, Predpis, Odberatel, Cena, Pozice, PoziceZakazkaOrder,
@@ -1106,7 +1106,7 @@ def bedna_scan_pohyb_view(request, cislo_bedny: int):
             for patro_group in krok_group['patra']:
                 prirad_barvy_polozkam_pater(patro_group['polozky'])
             krok_group.pop('patra_by_number', None)
-    nastav_spolecne_rozlozeni_pater(pohyb)
+    nastav_porovnani_kroku_s_nakladanim(pohyb)
 
     return render(
         request,

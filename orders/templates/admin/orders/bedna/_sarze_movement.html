@@ -7,10 +7,10 @@
                     ({{ sarze_item.kroky|length }} kroků, přípravek {{ sarze_item.sarze.cislo_pripravku|default:"-" }})
                 </span>
             </summary>
-            {% if sarze_item.ma_spolecne_rozlozeni_pater %}
-                <section class="bedna-admin-pohyb-spolecne">
-                    <strong>Rozložení beden v šarži</strong>
-                    {% for patro_item in sarze_item.spolecna_patra %}
+            {% if sarze_item.krok_nakladani %}
+                <section class="bedna-admin-pohyb-nakladani">
+                    <strong>Rozložení beden při nakládání</strong>
+                    {% for patro_item in sarze_item.nakladani_patra %}
                         <div class="bedna-admin-pohyb-patro">
                             <strong>Patro {{ patro_item.patro }}</strong>
                             {% include "orders/includes/patro_rack.html" with polozky=patro_item.polozky patro=patro_item.patro highlighted_bedna_id=highlighted_bedna_id only %}
@@ -26,11 +26,25 @@
                         {{ krok_item.krok.datum|date:"d.m.Y" }}
                         {{ krok_item.krok.zacatek|time:"H:i" }}{% if krok_item.krok.konec %} - {{ krok_item.krok.konec|time:"H:i" }}{% endif %}
                     </div>
-                    {% if not sarze_item.ma_spolecne_rozlozeni_pater %}
+                    {% if krok_item.zobrazit_textovy_obsah %}
+                        <div class="bedna-admin-pohyb-odlisny">Obsah kroku se liší od nakládání</div>
                         {% for patro_item in krok_item.patra %}
                             <div class="bedna-admin-pohyb-patro">
                                 <strong>Patro {{ patro_item.patro }}</strong>
-                                {% include "orders/includes/patro_rack.html" with polozky=patro_item.polozky patro=patro_item.patro highlighted_bedna_id=highlighted_bedna_id only %}
+                                <ul class="bedna-admin-pohyb-seznam">
+                                    {% for polozka in patro_item.polozky %}
+                                        <li{% if polozka.bedna_id == highlighted_bedna_id %} class="bedna-admin-pohyb-aktualni"{% endif %}>
+                                            {% if polozka.bedna %}
+                                                {{ polozka.bedna.cislo_bedny }}
+                                                <span class="bedna-admin-pohyb-muted">({{ polozka.bedna.zakazka.artikl|default:"-" }})</span>
+                                            {% else %}
+                                                {{ polozka.popis_mimo_db|default:"-" }}
+                                                <span class="bedna-admin-pohyb-muted">({{ polozka.zakazka_mimo_db|default:"-" }})</span>
+                                            {% endif %}
+                                            – {{ polozka.procent_z_patra|default:"-" }}{% if polozka.procent_z_patra is not None %} %{% endif %}
+                                        </li>
+                                    {% endfor %}
+                                </ul>
                             </div>
                         {% endfor %}
                     {% endif %}

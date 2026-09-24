@@ -10,8 +10,16 @@ from django.utils.html import format_html
 
 import csv
 import re
+from collections import Counter
 
-from .choices import StavBednyChoice, RovnaniChoice, TryskaniChoice, ZinkovaniChoice, BARVA_SKUPINY_TZ
+from .choices import (
+    StavBednyChoice,
+    RovnaniChoice,
+    TryskaniChoice,
+    ZinkovaniChoice,
+    TypZarizeniChoice,
+    BARVA_SKUPINY_TZ,
+)
 from django.db.models import Case, F, IntegerField, When, Value, Q
 from .models import Zakazka, Bedna
 
@@ -70,8 +78,8 @@ def prirad_barvy_polozkam_pater(items):
     return items
 
 
-def nastav_spolecne_rozlozeni_pater(sarze_groups):
-    """Označí šarže, jejichž kroky mají totožné grafické rozložení pater."""
+def nastav_porovnani_kroku_s_nakladanim(sarze_groups):
+    """Připraví graf nakládání a označí kroky s odlišným obsahem pater."""
 
     def podpis_polozky(item):
         if item.bedna_id:
@@ -88,29 +96,44 @@ def nastav_spolecne_rozlozeni_pater(sarze_groups):
             )
         return identita + (item.procent_z_patra,)
 
-    def podpis_kroku(krok_group):
-        return tuple(
-            (
-                patro_group['patro'],
-                tuple(podpis_polozky(item) for item in patro_group['polozky']),
-            )
+    def obsah_kroku(krok_group):
+        # Pořadí položek v patře není věcný údaj. Counter zároveň zachová
+        # informaci o opakovaném výskytu stejné bedny.
+        return Counter(
+            (patro_group['patro'], podpis_polozky(item))
             for patro_group in krok_group['patra']
+            for item in patro_group['polozky']
         )
 
     for sarze_group in sarze_groups:
         kroky = sarze_group['kroky']
-        if not kroky:
-            sarze_group['ma_spolecne_rozlozeni_pater'] = False
-            sarze_group['spolecna_patra'] = []
-            continue
-
-        prvni_podpis = podpis_kroku(kroky[0])
-        ma_spolecne_rozlozeni = all(
-            podpis_kroku(krok_group) == prvni_podpis
-            for krok_group in kroky[1:]
+        kroky_nakladani = [
+            krok_group
+            for krok_group in kroky
+            if (
+                krok_group['krok'].zarizeni
+                and krok_group['krok'].zarizeni.typ_zarizeni == TypZarizeniChoice.NAKLADANI
+            )
+        ]
+        krok_nakladani = min(
+            kroky_nakladani,
+            key=lambda krok_group: (
+                krok_group['krok'].poradi or 0,
+                krok_group['krok'].pk,
+            ),
+            default=None,
         )
-        sarze_group['ma_spolecne_rozlozeni_pater'] = ma_spolecne_rozlozeni
-        sarze_group['spolecna_patra'] = kroky[0]['patra'] if ma_spolecne_rozlozeni else []
+
+        sarze_group['krok_nakladani'] = krok_nakladani
+        sarze_group['nakladani_patra'] = krok_nakladani['patra'] if krok_nakladani else []
+        obsah_nakladani = obsah_kroku(krok_nakladani) if krok_nakladani else None
+
+        for krok_group in kroky:
+            krok_group['shodny_s_nakladanim'] = bool(
+                krok_nakladani
+                and obsah_kroku(krok_group) == obsah_nakladani
+            )
+            krok_group['zobrazit_textovy_obsah'] = not krok_group['shodny_s_nakladanim']
 
     return sarze_groups
 

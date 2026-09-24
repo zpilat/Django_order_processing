@@ -86,7 +86,7 @@ from .choices import (
 from .utils import (
     utilita_validate_excel_upload, build_postup_vyroby_cases, truncate_with_title, parse_sarze_search_term,
     format_decimal_csv, format_cislo_bedny, format_skupina_TZ, build_fake_skupina_TZ_annotation,
-    prirad_barvy_polozkam_pater, nastav_spolecne_rozlozeni_pater,
+    prirad_barvy_polozkam_pater, nastav_porovnani_kroku_s_nakladanim,
 )
 from .services.mereni_bedny_service import pozadavek_zkousky
 
@@ -3285,7 +3285,7 @@ class BednaAdmin(HistoryViewOnlyAdmin):
                 for patro_group in krok_group['patra']:
                     prirad_barvy_polozkam_pater(patro_group['polozky'])
                 krok_group.pop('patra_by_number', None)
-        nastav_spolecne_rozlozeni_pater(pohyb)
+        nastav_porovnani_kroku_s_nakladanim(pohyb)
 
         return mark_safe(render_to_string(
             'admin/orders/bedna/_sarze_movement.html',

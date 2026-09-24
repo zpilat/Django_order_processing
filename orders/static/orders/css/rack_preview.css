@@ -82,12 +82,26 @@
     margin: .75rem 0 1rem 1rem;
 }
 
-.bedna-admin-pohyb-spolecne {
+.bedna-admin-pohyb-nakladani {
     margin: .75rem 0 1rem 1rem;
     padding: .75rem;
     border: 1px solid var(--hairline-color, #ddd);
     border-radius: 4px;
     background: var(--darkened-bg, #f8f8f8);
+}
+
+.bedna-admin-pohyb-odlisny {
+    margin: .65rem 0 .35rem;
+    color: var(--body-quiet-color, #666);
+    font-weight: 600;
+}
+
+.bedna-admin-pohyb-seznam {
+    margin: .25rem 0 .75rem 1.5rem;
+}
+
+.bedna-admin-pohyb-aktualni {
+    font-weight: 700;
 }
 
 .bedna-admin-pohyb-krok-heading {

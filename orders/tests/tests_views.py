@@ -691,14 +691,21 @@ class BednaScanViewTests(ViewsTestBase):
 
 	def test_scan_pohyb_renders_bedna_processing_history(self):
 		sarze = Sarze.objects.create(datum_zalozeni=timezone.localdate(), cislo_pripravku=1)
-		zarizeni = Zarizeni.objects.create(
+		nakladani = Zarizeni.objects.create(
 			kod_zarizeni="Z1",
-			nazev_zarizeni="Zařízení 1",
-			zkraceny_nazev_zarizeni="Z1",
+			nazev_zarizeni="Nakládání",
+			zkraceny_nazev_zarizeni="Nakládání",
+			typ_zarizeni=TypZarizeniChoice.NAKLADANI,
+		)
+		dalsi_zarizeni = Zarizeni.objects.create(
+			kod_zarizeni="Z2",
+			nazev_zarizeni="Popouštění",
+			zkraceny_nazev_zarizeni="Popouštění",
+			typ_zarizeni=TypZarizeniChoice.POPOUSTECKA,
 		)
 		krok = SarzeKrok.objects.create(
 			sarze=sarze,
-			zarizeni=zarizeni,
+			zarizeni=nakladani,
 			zacatek=time(6, 0),
 			konec=time(7, 0),
 			operator="Novak",
@@ -706,7 +713,7 @@ class BednaScanViewTests(ViewsTestBase):
 		)
 		krok_2 = SarzeKrok.objects.create(
 			sarze=sarze,
-			zarizeni=zarizeni,
+			zarizeni=dalsi_zarizeni,
 			zacatek=time(8, 0),
 			konec=time(9, 0),
 			operator="Svoboda",
@@ -776,45 +783,59 @@ class BednaScanViewTests(ViewsTestBase):
 		self.assertContains(response, "30 %")
 		self.assertContains(response, "70 %")
 		self.assertContains(response, "100 %")
-		self.assertContains(response, "Z1")
+		self.assertContains(response, "Nakládání")
+		self.assertContains(response, "Popouštění")
 		self.assertContains(response, "Novak")
 		self.assertContains(response, "Svoboda")
-		self.assertContains(response, 'class="rack-preview"', count=3, html=False)
-		self.assertContains(response, "rack-segment-current", count=3)
+		self.assertContains(response, "Rozložení beden při nakládání", count=1)
+		self.assertContains(response, 'class="rack-preview"', count=2, html=False)
+		self.assertContains(response, "rack-segment-current", count=2)
+		self.assertContains(response, "Obsah kroku se liší od nakládání", count=1)
+		self.assertContains(response, 'class="bedna-list"', count=1, html=False)
+		self.assertContains(response, "bedna-item-current", count=1)
 		self.assertContains(response, "width: 40%;", html=False)
 		self.assertContains(response, "width: 60%;", html=False)
-		self.assertNotContains(response, "Rozložení beden v šarži")
 
-	def test_scan_pohyb_renders_identical_floor_layout_only_once(self):
+	def test_scan_pohyb_uses_loading_layout_once_and_ignores_item_order(self):
 		sarze = Sarze.objects.create(
 			datum_zalozeni=timezone.localdate(),
 			cislo_pripravku=1,
 		)
-		zarizeni = Zarizeni.objects.create(
-			kod_zarizeni="ZS",
-			nazev_zarizeni="Společné zařízení",
-			zkraceny_nazev_zarizeni="ZS",
+		nakladani = Zarizeni.objects.create(
+			kod_zarizeni="NK",
+			nazev_zarizeni="Nakládání",
+			zkraceny_nazev_zarizeni="Nakládání",
+			typ_zarizeni=TypZarizeniChoice.NAKLADANI,
 		)
-		for poradi, zacatek in ((1, time(6, 0)), (2, time(8, 0))):
-			krok = SarzeKrok.objects.create(
-				sarze=sarze,
-				poradi=poradi,
-				zarizeni=zarizeni,
-				zacatek=zacatek,
-				konec=time(zacatek.hour + 1, 0),
-				operator="Novak",
+		dalsi_zarizeni = Zarizeni.objects.create(
+			kod_zarizeni="PP",
+			nazev_zarizeni="Popouštění",
+			zkraceny_nazev_zarizeni="Popouštění",
+			typ_zarizeni=TypZarizeniChoice.POPOUSTECKA,
+		)
+		krok_nakladani = SarzeKrok.objects.create(
+			sarze=sarze, poradi=1, zarizeni=nakladani,
+			zacatek=time(6, 0), konec=time(7, 0), operator="Novak",
+		)
+		krok_dalsi = SarzeKrok.objects.create(
+			sarze=sarze, poradi=2, zarizeni=dalsi_zarizeni,
+			zacatek=time(8, 0), konec=time(9, 0), operator="Novak",
+		)
+		for krok, bedny in (
+			(krok_nakladani, (self.b_eur_pr, self.b_abc_ex)),
+			(krok_dalsi, (self.b_abc_ex, self.b_eur_pr)),
+		):
+			SarzeKrokBedna.objects.create(
+				krok=krok,
+				bedna=bedny[0],
+				patro=1,
+				procent_z_patra=60 if bedny[0] == self.b_abc_ex else 40,
 			)
 			SarzeKrokBedna.objects.create(
 				krok=krok,
-				bedna=self.b_eur_pr,
+				bedna=bedny[1],
 				patro=1,
-				procent_z_patra=40,
-			)
-			SarzeKrokBedna.objects.create(
-				krok=krok,
-				bedna=self.b_abc_ex,
-				patro=1,
-				procent_z_patra=60,
+				procent_z_patra=60 if bedny[1] == self.b_abc_ex else 40,
 			)
 
 		response = self.client.get(
@@ -822,9 +843,11 @@ class BednaScanViewTests(ViewsTestBase):
 		)
 
 		self.assertEqual(response.status_code, 200)
-		self.assertContains(response, "Rozložení beden v šarži", count=1)
+		self.assertContains(response, "Rozložení beden při nakládání", count=1)
 		self.assertContains(response, 'class="rack-preview"', count=1, html=False)
 		self.assertContains(response, "rack-segment-current", count=1)
+		self.assertNotContains(response, "Obsah kroku se liší od nakládání")
+		self.assertNotContains(response, 'class="bedna-list"', html=False)
 		self.assertContains(response, "(krok 1)")
 		self.assertContains(response, "(krok 2)")
 

@@ -57,10 +57,10 @@
                     </button>
                     <div class="collapse" id="movement-body-{{ forloop.counter }}">
                         <div class="movement-body">
-                            {% if sarze_item.ma_spolecne_rozlozeni_pater %}
-                                <section class="movement-common-layout">
-                                    <div class="fw-bold mb-2">Rozložení beden v šarži</div>
-                                    {% for patro in sarze_item.spolecna_patra %}
+                            {% if sarze_item.krok_nakladani %}
+                                <section class="movement-loading-layout">
+                                    <div class="fw-bold mb-2">Rozložení beden při nakládání</div>
+                                    {% for patro in sarze_item.nakladani_patra %}
                                         <div class="movement-floor">
                                             <div class="movement-label">Patro {{ patro.patro }}</div>
                                             {% include "orders/includes/patro_rack.html" with polozky=patro.polozky patro=patro.patro highlighted_bedna_id=bedna.id only %}
@@ -105,11 +105,38 @@
                                         </div>
                                         {% endif %}
 
-                                        {% if not sarze_item.ma_spolecne_rozlozeni_pater %}
+                                        {% if krok_item.zobrazit_textovy_obsah %}
+                                            <div class="movement-label mt-3">Obsah kroku se liší od nakládání</div>
                                             {% for patro in krok_item.patra %}
                                                 <div class="movement-floor">
                                                     <div class="movement-label">Patro {{ patro.patro }}</div>
-                                                    {% include "orders/includes/patro_rack.html" with polozky=patro.polozky patro=patro.patro highlighted_bedna_id=bedna.id only %}
+                                                    <div class="bedna-list">
+                                                        {% for polozka in patro.polozky %}
+                                                            <div class="bedna-item{% if polozka.bedna_id == bedna.id %} bedna-item-current{% endif %}">
+                                                                <div>
+                                                                    <div class="fw-bold">
+                                                                        {% if polozka.bedna %}
+                                                                            {{ polozka.bedna.cislo_bedny }}
+                                                                        {% else %}
+                                                                            {{ polozka.popis_mimo_db|default:"-" }}
+                                                                        {% endif %}
+                                                                    </div>
+                                                                    <div class="text-muted small">
+                                                                        {% if polozka.bedna and polozka.bedna.zakazka %}
+                                                                            {{ polozka.bedna.zakazka.artikl }}
+                                                                        {% elif polozka.zakazka_mimo_db %}
+                                                                            {{ polozka.zakazka_mimo_db }}
+                                                                        {% else %}
+                                                                            -
+                                                                        {% endif %}
+                                                                    </div>
+                                                                </div>
+                                                                <div class="fw-bold">
+                                                                    {{ polozka.procent_z_patra|default:"-" }}{% if polozka.procent_z_patra is not None %} %{% endif %}
+                                                                </div>
+                                                            </div>
+                                                        {% endfor %}
+                                                    </div>
                                                 </div>
                                             {% endfor %}
                                         {% endif %}
