@@ -70,8 +70,8 @@
                             {% endif %}
                             {% for krok_item in sarze_item.kroky %}
                                 {% with krok=krok_item.krok %}
-                                    <section class="movement-step{% if not forloop.first %} mt-4{% endif %}">
-                                        <div class="d-flex flex-column flex-sm-row justify-content-between gap-2 pb-2 border-bottom">
+                                    <section class="movement-step pb-3 border-bottom{% if not forloop.first %} mt-4{% endif %}">
+                                        <div class="d-flex flex-column flex-sm-row justify-content-between gap-2 pb-2">
                                             <div>
                                                 <div class="fw-bold">{{ krok.zarizeni|default:"-" }}
                                                     <span class="text-muted small">(krok {{ krok.poradi }})</span>

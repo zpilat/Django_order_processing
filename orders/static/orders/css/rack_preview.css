@@ -90,6 +90,11 @@
     background: var(--darkened-bg, #f8f8f8);
 }
 
+.bedna-admin-pohyb-nakladani-heading {
+    display: block;
+    margin-bottom: 1rem;
+}
+
 .bedna-admin-pohyb-odlisny {
     margin: .65rem 0 .35rem;
     color: var(--body-quiet-color, #666);

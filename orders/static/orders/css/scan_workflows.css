@@ -202,6 +202,10 @@
     transform: rotate(225deg);
 }
 
+.movement-step-meta {
+    margin-top: .75rem;
+}
+
 .movement-step-meta:empty {
     display: none;
 }

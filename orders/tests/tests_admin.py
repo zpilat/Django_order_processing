@@ -1352,8 +1352,8 @@ class BednaAdminTests(AdminBase):
         self.assertIn('get_pohyb_v_sarzich', sections['Pohyb v šaržích']['fields'])
         self.assertIn(str(sarze), html)
         self.assertIn('2 kroků', html)
-        self.assertIn('Krok 1', html)
-        self.assertIn('Krok 2', html)
+        self.assertIn('(1)', html)
+        self.assertIn('(2)', html)
         self.assertIn('Patro 1', html)
         self.assertIn('Patro 2', html)
         self.assertLess(html.index('Patro 2'), html.index('Patro 1'))
@@ -1362,7 +1362,7 @@ class BednaAdminTests(AdminBase):
         self.assertIn('40 %', html)
         self.assertIn('60 %', html)
         self.assertIn('100 %', html)
-        self.assertEqual(html.count('Rozložení beden při nakládání'), 1)
+        self.assertEqual(html.count('Rozložení roštu při nakládání'), 1)
         self.assertEqual(html.count('class="rack-preview"'), 2)
         self.assertEqual(html.count('rack-segment-current'), 2)
         self.assertEqual(html.count('Obsah kroku se liší od nakládání'), 1)
@@ -1408,13 +1408,13 @@ class BednaAdminTests(AdminBase):
 
         html = str(self.admin.get_pohyb_v_sarzich(self.bedna))
 
-        self.assertEqual(html.count('Rozložení beden při nakládání'), 1)
+        self.assertEqual(html.count('Rozložení roštu při nakládání'), 1)
         self.assertEqual(html.count('class="rack-preview"'), 1)
         self.assertEqual(html.count('rack-segment-current'), 1)
         self.assertNotIn('Obsah kroku se liší od nakládání', html)
         self.assertNotIn('bedna-admin-pohyb-seznam', html)
-        self.assertIn('Krok 1', html)
-        self.assertIn('Krok 2', html)
+        self.assertIn('(1)', html)
+        self.assertIn('(2)', html)
 
     def test_has_change_permission_regular_user(self):
         """Oprávnění pro expedovanou a pozastavenou bednu."""

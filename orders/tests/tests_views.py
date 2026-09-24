@@ -710,6 +710,8 @@ class BednaScanViewTests(ViewsTestBase):
 			konec=time(7, 0),
 			operator="Novak",
 			program="P1",
+			alarm="A1",
+			poznamka="Poznámka k nakládání",
 		)
 		krok_2 = SarzeKrok.objects.create(
 			sarze=sarze,
@@ -769,6 +771,11 @@ class BednaScanViewTests(ViewsTestBase):
 		self.assertContains(response, 'data-bs-target="#movement-body-1"', html=False)
 		self.assertContains(response, 'aria-expanded="false"', html=False)
 		self.assertContains(response, 'class="collapse"', html=False)
+		self.assertContains(response, 'class="movement-step pb-3 border-bottom"', html=False)
+		self.assertNotContains(response, 'gap-2 pb-2 border-bottom', html=False)
+		first_step_html = response.content.decode().split('<section class="movement-step', 1)[1].split('</section>', 1)[0]
+		self.assertIn("Alarm", first_step_html)
+		self.assertIn("Poznámka kroku", first_step_html)
 		self.assertContains(response, str(sarze))
 		self.assertContains(response, "2 kroků")
 		self.assertContains(response, "(krok 1)")
