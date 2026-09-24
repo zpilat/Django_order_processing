@@ -798,7 +798,7 @@ class BednaScanViewTests(ViewsTestBase):
 		self.assertContains(response, "Popouštění")
 		self.assertContains(response, "Novak")
 		self.assertContains(response, "Svoboda")
-		self.assertContains(response, "Rozložení beden při nakládání", count=1)
+		self.assertContains(response, "Rozložení roštu při nakládání", count=1)
 		self.assertContains(response, 'class="rack-preview"', count=2, html=False)
 		self.assertContains(response, "rack-segment-current", count=2)
 		self.assertContains(response, "Obsah kroku se liší od nakládání", count=1)
@@ -854,7 +854,7 @@ class BednaScanViewTests(ViewsTestBase):
 		)
 
 		self.assertEqual(response.status_code, 200)
-		self.assertContains(response, "Rozložení beden při nakládání", count=1)
+		self.assertContains(response, "Rozložení roštu při nakládání", count=1)
 		self.assertContains(response, 'class="rack-preview"', count=1, html=False)
 		self.assertContains(response, "rack-segment-current", count=1)
 		self.assertNotContains(response, "Obsah kroku se liší od nakládání")
