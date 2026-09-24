@@ -21,8 +21,7 @@
             {% for krok_item in sarze_item.kroky %}
                 <section class="bedna-admin-pohyb-krok">
                     <div class="bedna-admin-pohyb-krok-heading">
-                        <strong>Krok {{ krok_item.krok.poradi }}</strong> -
-                        {{ krok_item.krok.zarizeni|default:"-" }} -
+                        <strong>({{ krok_item.krok.poradi }}) {{ krok_item.krok.zarizeni|default:"-" }}</strong> -
                         {{ krok_item.krok.datum|date:"d.m.Y" }}
                         {{ krok_item.krok.zacatek|time:"H:i" }}{% if krok_item.krok.konec %} - {{ krok_item.krok.konec|time:"H:i" }}{% endif %}
                     </div>
