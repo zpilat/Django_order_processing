@@ -2157,6 +2157,16 @@ class NotificationAdminTests(AdminBase):
             mnozstvi=1,
         )
 
+    def test_notification_relations_use_autocomplete_widgets(self):
+        request = self.factory.get('/')
+        request.user = self.user
+
+        form = self.admin.get_form(request)
+
+        for field_name in ('recipient', 'zakazka', 'bedna'):
+            widget = form.base_fields[field_name].widget
+            self.assertEqual(widget.widget.__class__.__name__, 'AutocompleteSelect')
+
     def test_notification_queryset_filtered_for_user(self):
         User = get_user_model()
         current_user = User.objects.create_user('u_current2', 'current2@example.com', 'pass', is_staff=True)

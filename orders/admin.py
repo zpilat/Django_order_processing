@@ -5089,6 +5089,7 @@ class NotificationAdmin(admin.ModelAdmin):
     search_fields = ('message', 'recipient__username', 'zakazka__artikl', 'bedna__cislo_bedny')
     ordering = ('-created_at',)
     readonly_fields = ('created_at', 'created_by', 'ack_at', 'ack_by')
+    autocomplete_fields = ('recipient', 'zakazka', 'bedna')
     actions = ['potvrdit_notifikace']
 
     def get_queryset(self, request):
