@@ -1,6 +1,9 @@
 {% load custom_filters %}
 <style>
-    .qc-summary { max-width: 1200px; }
+    .field-get_mereni_bedny > div > .flex-container { flex-direction: column; align-items: flex-start; }
+    .field-get_mereni_bedny .flex-container > label { width: auto; min-width: 0; padding: 0 0 8px; }
+    .field-get_mereni_bedny .flex-container > .readonly { box-sizing: border-box; width: 100%; }
+    .qc-summary { width: min(100%, max(750px, 50%)); max-width: 1200px; }
     .qc-statuses { display: grid; grid-template-columns: repeat(4, minmax(130px, 1fr)); gap: 8px; margin-bottom: 14px; }
     .qc-status { padding: 9px 11px; border: 1px solid var(--hairline-color); border-radius: 4px; background: var(--darkened-bg); }
     .qc-status.qc-good { background: #dcebdd; color: #14532d; }
