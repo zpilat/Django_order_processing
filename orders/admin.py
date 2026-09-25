@@ -3628,7 +3628,11 @@ class BednaAdmin(HistoryViewOnlyAdmin):
         if not obj:
             return '-'
 
-        qs = Notification.objects.filter(bedna=obj).select_related('recipient')
+        qs = Notification.objects.filter(
+            bedna=obj,
+            ack_required=True,
+            ack_at__isnull=True,
+        ).select_related('recipient')
         if not qs.exists():
             return '-'
 

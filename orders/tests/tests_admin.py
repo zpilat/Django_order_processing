@@ -1263,6 +1263,35 @@ class BednaAdminTests(AdminBase):
     def setUp(self):
         self.admin = BednaAdmin(Bedna, self.site)
 
+    def test_detail_shows_only_active_unacknowledged_notifications_for_bedna(self):
+        other_bedna = Bedna.objects.create(
+            zakazka=self.zakazka,
+            hmotnost=Decimal(2),
+            tara=Decimal(1),
+            mnozstvi=1,
+        )
+        for message, bedna, ack_required, ack_at in (
+            ('Aktivní notifikace', self.bedna, True, None),
+            ('Potvrzená notifikace', self.bedna, True, timezone.now()),
+            ('Bez potvrzení', self.bedna, False, None),
+            ('Jiná bedna', other_bedna, True, None),
+        ):
+            Notification.objects.create(
+                recipient=self.user,
+                zakazka=self.zakazka,
+                bedna=bedna,
+                message=message,
+                ack_required=ack_required,
+                ack_at=ack_at,
+            )
+
+        html = str(self.admin.get_notifikace(self.bedna))
+
+        self.assertIn('Aktivní notifikace', html)
+        self.assertNotIn('Potvrzená notifikace', html)
+        self.assertNotIn('Bez potvrzení', html)
+        self.assertNotIn('Jiná bedna', html)
+
     def test_media_includes_weight_summary_scripts(self):
         media_js = list(self.admin.media._js)
 
