@@ -203,7 +203,7 @@
                         <span class="fs-07 fw-normal">Oberflächenhärte</span><br>
                         <span class="fs-07 fw-normal">
                             <div style="height: 22px;"></div>
-                            {% if bedna.bedna_k_mereni_tvrdosti_a_povrchu_SSH %} 
+                            {% if bedna.bedna_k_mereni_tvrdosti_a_povrchu %}
                                 {{ bedna.zakazka.predpis.povrch }}
                             {% else %}
                                 Neměří se
@@ -215,7 +215,7 @@
                         <span class="fs-07 fw-normal">Kernhärte</span><br>
                         <span class="fs-07 fw-normal">
                             <div style="height: 22px;"></div>
-                            {% if bedna.bedna_k_mereni_tvrdosti_a_povrchu_SSH %} 
+                            {% if bedna.bedna_k_mereni_tvrdosti_a_povrchu %}
                                 {{ bedna.zakazka.predpis.jadro }}
                             {% else %}
                                 Neměří se

@@ -139,7 +139,7 @@
                                     {{ bedna.zakazka.predpis.popis_krut|default:"Krut" }}<br>
                                     {{ bedna.zakazka.predpis.popis_krut_2|default:"" }}
                                 </td>             
-                                {% if bedna.bedna_k_mereni_tvrdosti_a_povrchu_SSH %}                 
+                                {% if bedna.bedna_k_mereni_tvrdosti_a_povrchu %}
                                     <td class="fs-08">                                    
                                         {{ bedna.zakazka.predpis.popis_povrch|linebreaksbr }}<br>
                                         {{ bedna.zakazka.predpis.popis_povrch_2|default:"" }}
@@ -164,7 +164,7 @@
                                 <td class="fs-08 fw-bold">
                                     {{ bedna.zakazka.predpis.krut }}
                                 </td>
-                                {% if bedna.bedna_k_mereni_tvrdosti_a_povrchu_SSH %}                 
+                                {% if bedna.bedna_k_mereni_tvrdosti_a_povrchu %}
                                     <td class="fs-08 fw-bold">
                                         {{ bedna.zakazka.predpis.povrch|linebreaksbr }}
                                     </td>

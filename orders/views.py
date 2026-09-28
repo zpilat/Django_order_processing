@@ -660,12 +660,16 @@ def _can_edit_mereni_bedny(user, bedna):
 def _bedna_zkousky_context(bedna, user):
     measurements = list(MereniBedny.objects.filter(kontrola__bedna=bedna))
     can_edit = _can_edit_mereni_bedny(user, bedna)
+    merit_tvrdost = bedna.bedna_k_mereni_tvrdosti_a_povrchu
     return [
         {
             'typ': kind.value, 'nazev': kind.label, 'can_edit': can_edit,
             'mereni': [item for item in measurements if item.typ_zkousky == kind],
         }
         for kind in TypZkouskyChoice
+        if merit_tvrdost or kind not in (
+            TypZkouskyChoice.TVRDOST_POVRCHU, TypZkouskyChoice.TVRDOST_JADRA,
+        )
     ]
 
 

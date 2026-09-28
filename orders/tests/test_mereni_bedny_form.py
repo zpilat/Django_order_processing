@@ -217,6 +217,9 @@ class MereniBednyFormTests(KontrolaBednyTestBase):
         self.assertEqual(self.client.get(self.url_for('unknown')).status_code, 404)
 
     def test_detail_shows_values_and_links_without_row_numbers(self):
+        customer = self.bedna.zakazka.kamion_prijem.zakaznik
+        customer.zkratka = 'SSH'
+        customer.save(update_fields=['zkratka'])
         self.create_measurement(value='580.25')
         self.create_measurement(order=3, value='590')
         response = self.client.get(reverse('bedna_kontrola', args=[self.bedna.cislo_bedny]))

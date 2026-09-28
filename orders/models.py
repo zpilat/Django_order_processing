@@ -1139,7 +1139,7 @@ class Bedna(models.Model):
         return sorted(selected)
 
     @property
-    def bedna_k_mereni_tvrdosti_a_povrchu_SSH(self):
+    def bedna_k_mereni_tvrdosti_a_povrchu(self):
         """
         Vrací True, pokud je bedna určena k měření tvrdosti a povrchu pro zákazníka SSH.
         Výběr beden k měření je založen na celkovém počtu beden v zakázce podle pravidel zákazníka SSH:
