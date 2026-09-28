@@ -71,7 +71,7 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
         self.assertEqual(MereniBedny.history.count(), 84)
         template, _ = resolve_filled_customer_template('EUR')
         html = render_to_string(template, context)
-        self.assertEqual(html.count('class="measurement-value"'), 70)
+        self.assertEqual(html.count('class="measurement-value'), 70)
         self.assertIn('class="measurement-value">0</td>', html)
         self.assertNotIn('class="measurement-value">10</td>', html)
         self.assertNotIn('class="measurement-value">11</td>', html)
@@ -112,6 +112,39 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
                     self.assertEqual(html.count(f'QS max. {release} mm'), 3)
                 headers = html.split('<thead>', 1)[1].split('</thead>', 1)[0]
                 self.assertNotIn('None', headers)
+
+    def test_print_colors_only_bending_columns_using_customer_limits(self):
+        kontrola = self.create_control()
+        for kind in (
+            TypZkouskyChoice.PROHYB_PO_TZ, TypZkouskyChoice.PROHYB_PO_KOULENI,
+            TypZkouskyChoice.PROHYB_PO_ROVNANI,
+        ):
+            for order, value in enumerate(('0.4', '0.4001', '0.6', '0.6001'), start=1):
+                self.measurement(kontrola, kind, value, order=order)
+        for kind in (
+            TypZkouskyChoice.OHYB, TypZkouskyChoice.KRUT,
+            TypZkouskyChoice.TVRDOST_POVRCHU, TypZkouskyChoice.TVRDOST_JADRA,
+        ):
+            self.measurement(kontrola, kind, '0.6001')
+        template, _ = resolve_filled_customer_template('eur')
+        for code, states in (
+            ('ROT', ('', 'odchylka', 'odchylka', 'nevyhovuje')),
+            ('EUR', ('', '', '', 'nevyhovuje')),
+            ('TST', ('', '', '', '')),
+        ):
+            with self.subTest(customer=code):
+                self.customer.zkratka = code
+                self.customer.save(update_fields=['zkratka'])
+                html = render_to_string(template, self.context())
+                for value, state in zip(('0,4', '0,4001', '0,6', '0,6001'), states):
+                    suffix = f' prohyb-{state}' if state else ''
+                    expected_count = 7 if value == '0,6001' and not state else 3
+                    self.assertEqual(html.count(f'<td class="measurement-value{suffix}">{value}</td>'), expected_count)
+                self.assertEqual(html.count('<td class="measurement-value">0,6001</td>'), 7 if code == 'TST' else 4)
+                self.assertEqual(html.count(' prohyb-odchylka">'), states.count('odchylka') * 3)
+                self.assertEqual(html.count(' prohyb-nevyhovuje">'), states.count('nevyhovuje') * 3)
+                self.assertEqual(html.count('class="measurement-value'), 70)
+        self.assertEqual(MereniBedny.history.count(), 16)
 
     def test_print_keeps_original_order_and_total_after_partial_shipments(self):
         self.bedna.tara = 1

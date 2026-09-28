@@ -69,6 +69,40 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
                     self.assertContains(response, f'QS max. {release} mm', count=3)
                 self.assertNotContains(response, 'None')
 
+    def test_control_overview_colors_all_bending_types_using_customer_limits(self):
+        kontrola = KontrolaBedny.objects.create(bedna=self.bedna)
+        for kind in (
+            TypZkouskyChoice.PROHYB_PO_TZ, TypZkouskyChoice.PROHYB_PO_KOULENI,
+            TypZkouskyChoice.PROHYB_PO_ROVNANI,
+        ):
+            for order, value in enumerate(('0.4', '0.4001', '0.6', '0.6001'), start=1):
+                MereniBedny.objects.create(
+                    kontrola=kontrola, typ_zkousky=kind, hodnota=Decimal(value),
+                    poradi=order, zmeril=self.user,
+                )
+        MereniBedny.objects.create(
+            kontrola=kontrola, typ_zkousky=TypZkouskyChoice.OHYB,
+            hodnota=Decimal('0.6001'), poradi=1, zmeril=self.user,
+        )
+        customer = self.bedna.zakazka.kamion_prijem.zakaznik
+        for code, states in (
+            ('ROT', ('', 'odchylka', 'odchylka', 'nevyhovuje')),
+            ('EUR', ('', '', '', 'nevyhovuje')),
+            ('TST', ('', '', '', '')),
+        ):
+            with self.subTest(customer=code):
+                customer.zkratka = code
+                customer.save(update_fields=['zkratka'])
+                response = self.client.get(self.url)
+                for value, state in zip(('0,4', '0,4001', '0,6', '0,6001'), states):
+                    suffix = f' prohyb-{state}' if state else ''
+                    expected_count = 4 if value == '0,6001' and not state else 3
+                    self.assertContains(response, f'<span class="badge text-bg-light border me-1 mb-1{suffix}">{value}</span>', count=expected_count)
+                self.assertContains(response, '<span class="badge text-bg-light border me-1 mb-1">0,6001</span>')
+                html = response.content.decode('utf-8')
+                self.assertEqual(html.count(' prohyb-odchylka">'), states.count('odchylka') * 3)
+                self.assertEqual(html.count(' prohyb-nevyhovuje">'), states.count('nevyhovuje') * 3)
+
     def test_other_customers_hide_hardness_for_subsequent_containers(self):
         next_bedna = Bedna.objects.create(zakazka=self.bedna.zakazka)
         response = self.client.get(reverse('bedna_kontrola', args=[next_bedna.cislo_bedny]))

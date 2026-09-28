@@ -2,7 +2,7 @@
 {% load static custom_filters %}
 
 {% block title %}Kontrola bedny {{ bedna.cislo_bedny }}{% endblock %}
-{% block extra_head %}{{ block.super }}<link rel="stylesheet" href="{% static 'orders/css/scan_workflows.css' %}">{% endblock %}
+{% block extra_head %}{{ block.super }}<link rel="stylesheet" href="{% static 'orders/css/scan_workflows.css' %}">{% include "orders/_prohyb_style.html" %}{% endblock %}
 
 {% block content %}
 <main class="scan-page scan-page-narrow px-0 px-sm-2 py-2">
@@ -43,7 +43,7 @@
                     </div>
                     <div class="mt-2">
                         {% for mereni in zkouska.mereni %}
-                            <span class="badge text-bg-light border me-1 mb-1">{{ mereni.hodnota|mereni_hodnota }}</span>
+                            {% with stav=mereni.hodnota|stav_prohybu:zkouska.pozadavek_prohyb %}<span class="badge text-bg-light border me-1 mb-1{% if stav %} prohyb-{{ stav }}{% endif %}">{{ mereni.hodnota|mereni_hodnota }}</span>{% endwith %}
                         {% empty %}
                             <span class="text-muted small">Dosud nejsou zadána měření.</span>
                         {% endfor %}

@@ -121,6 +121,37 @@ class KontrolaBednyAdminTests(KontrolaBednyTestBase):
                 self.assertIn('12,5', html)
                 self.assertNotIn('None', html)
 
+    def test_summary_colors_all_bending_types_using_customer_limits(self):
+        for kind in (
+            TypZkouskyChoice.PROHYB_PO_TZ, TypZkouskyChoice.PROHYB_PO_KOULENI,
+            TypZkouskyChoice.PROHYB_PO_ROVNANI,
+        ):
+            for order, value in enumerate(('0.4', '0.4001', '0.6', '0.6001'), start=1):
+                MereniBedny.objects.create(
+                    kontrola=self.kontrola, typ_zkousky=kind, hodnota=Decimal(value),
+                    poradi=order, zmeril=self.user,
+                )
+        MereniBedny.objects.create(
+            kontrola=self.kontrola, typ_zkousky=TypZkouskyChoice.OHYB,
+            hodnota=Decimal('0.6001'), poradi=2, zmeril=self.user,
+        )
+        customer = self.bedna.zakazka.kamion_prijem.zakaznik
+        for code, states in (
+            ('ROT', ('', 'odchylka', 'odchylka', 'nevyhovuje')),
+            ('EUR', ('', '', '', 'nevyhovuje')),
+            ('TST', ('', '', '', '')),
+        ):
+            with self.subTest(customer=code):
+                customer.zkratka = code
+                html = str(admin.site._registry[Bedna].get_mereni_bedny(self.bedna))
+                for value, state in zip(('0,4', '0,4001', '0,6', '0,6001'), states):
+                    suffix = f' prohyb-{state}' if state else ''
+                    expected_count = 4 if value == '0,6001' and not state else 3
+                    self.assertEqual(html.count(f'<span class="qc-measurement{suffix}">{value}</span>'), expected_count)
+                self.assertIn('<span class="qc-measurement">0,6001</span>', html)
+                self.assertEqual(html.count(' prohyb-odchylka">'), states.count('odchylka') * 3)
+                self.assertEqual(html.count(' prohyb-nevyhovuje">'), states.count('nevyhovuje') * 3)
+
     def test_bedna_summary_shows_hardness_only_for_selected_containers(self):
         bedny = [self.bedna] + [Bedna.objects.create(zakazka=self.bedna.zakazka) for _ in range(2)]
         predpis = self.bedna.zakazka.predpis

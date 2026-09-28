@@ -15,6 +15,19 @@ def mereni_hodnota(value):
     return result.replace('.', get_format('DECIMAL_SEPARATOR'))
 
 
+@register.filter(name='stav_prohybu')
+def stav_prohybu(value, limity):
+    """Vrátí stav překročení prohybu; horní meze jsou včetně krajní hodnoty."""
+    if value is None or not limity or limity.get('bezny') is None:
+        return ''
+    if value <= limity['bezny']:
+        return ''
+    qs_limit = limity.get('pro_uvolneni_s_odchylkou')
+    if qs_limit is not None and value <= qs_limit:
+        return 'odchylka'
+    return 'nevyhovuje'
+
+
 @register.filter(name='url_remove_param')
 def url_remove_param(querystring, params):
     """

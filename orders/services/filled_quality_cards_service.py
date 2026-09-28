@@ -43,9 +43,17 @@ def build_filled_context(bedna, generated_at, printing_user):
             group.append(item)
     measurement_dates = [timezone.localdate(item.zmereno_at) for item in measurements]
     context = build_context_for_bedna(bedna, generated_at, printing_user)
+    limity_prohybu = bedna.limity_prohybu
     context['quality_card'] = {
         'kontrola': kontrola,
-        'limity_prohybu': bedna.limity_prohybu,
+        'limity_prohybu': limity_prohybu,
+        'limity_prohybu_podle_sloupce': {
+            index: limity_prohybu for index, kind in enumerate(MEASUREMENT_COLUMNS)
+            if kind in (
+                TypZkouskyChoice.PROHYB_PO_TZ, TypZkouskyChoice.PROHYB_PO_KOULENI,
+                TypZkouskyChoice.PROHYB_PO_ROVNANI,
+            )
+        },
         'datum_mereni_od': min(measurement_dates, default=None),
         'datum_mereni_do': max(measurement_dates, default=None),
         'uvolnil': user_name(kontrola.uvolnil),

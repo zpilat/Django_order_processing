@@ -7,6 +7,7 @@
     <meta charset="UTF-8">
     <title>Karta kontroly kvality</title>
     {% include "orders/_pdf_shared_style.html" %}
+    {% include "orders/_prohyb_style.html" %}
     <style>
         :root { --ink: #17212b; --muted: #586573; --line: #89939d; --panel: #eef1f4; --panel-dark: #d8dee4; --ok: #dcebdd; --ok-ink: #16733a; --nok: #f4dada; --pending: #eee9d4; }
         body { color: var(--ink); font-family: 'Liberation Sans', 'Arial'; }
@@ -122,7 +123,11 @@
             {% for row in quality_card.rows %}
             <tr class="measurement-row">
                 <td class="sample-number">{{ forloop.counter }}</td>
-                {% for value in row %}<td class="measurement-value">{% if value != None %}{{ value|mereni_hodnota }}{% endif %}</td>{% endfor %}
+                {% for value in row %}
+                {% with limity=quality_card.limity_prohybu_podle_sloupce|dict_get:forloop.counter0 %}
+                {% with stav=value|stav_prohybu:limity %}<td class="measurement-value{% if stav %} prohyb-{{ stav }}{% endif %}">{% if value != None %}{{ value|mereni_hodnota }}{% endif %}</td>{% endwith %}
+                {% endwith %}
+                {% endfor %}
             </tr>
             {% endfor %}
         </tbody>
