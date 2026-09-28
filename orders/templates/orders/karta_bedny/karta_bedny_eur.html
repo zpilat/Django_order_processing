@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 {% load static %}
 {% load i18n %}
+{% load pdf_card_tags %}
 <html lang="cs">
 <head>
     <meta charset="UTF-8">
@@ -66,7 +67,7 @@
                 <tr></tr>
                 <tr></tr>
                 <tr>
-                    <td colspan="8" rowspan="4" class="text-center text-customer fs-25 fw-bold">
+                    <td colspan="8" rowspan="4" class="text-center text-customer fw-bold" style="white-space: nowrap; font-size: {% eur_artikl_sarze_font_size bedna.zakazka.artikl bedna.sarze %}px;">
                         {{ bedna.zakazka.artikl }} - {{ bedna.sarze }}
                     </td>
                     <td colspan="3" rowspan="4" class="text-center no-border-end">
