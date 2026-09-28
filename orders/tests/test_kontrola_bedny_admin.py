@@ -142,6 +142,7 @@ class KontrolaBednyAdminTests(KontrolaBednyTestBase):
         bedna_admin = admin.site._registry[Bedna]
         for code, selected in (
             ('SSH', (True, False, True)), ('SWG', (True, False, True)),
+            ('ROT', (True, False, True)),
             ('SPX', (True, True, True)), ('EUR', (True, False, False)),
         ):
             customer.zkratka = code

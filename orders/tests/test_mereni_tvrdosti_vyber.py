@@ -40,6 +40,20 @@ class MereniTvrdostiVyberTests(KontrolaBednyTestBase):
                     self.set_customer(code)
                     self.assertEqual(self.selected_ids(ids), {ids[position - 1] for position in positions})
 
+    def test_rot_selection_thresholds(self):
+        self.set_customer('ROT')
+        self.assertEqual(self.bedna._containers_for_measurement_ROT(0), [])
+        expected_positions = (
+            (1,), (1, 2), (1, 3), (1, 4), (1, 5),
+            (1, 3, 6), (1, 4, 7), (1, 4, 8), (1, 5, 9), (1, 5, 10),
+        )
+        ids = [self.bedna.pk]
+        for total, positions in enumerate(expected_positions, start=1):
+            if total > 1:
+                ids.append(self.create_bedna().pk)
+            with self.subTest(total=total):
+                self.assertEqual(self.selected_ids(ids), {ids[position - 1] for position in positions})
+
     def assert_selection_survives_expedice(self, code, positions):
         self.set_customer(code)
         self.bedna.hmotnost = 1
@@ -87,6 +101,9 @@ class MereniTvrdostiVyberTests(KontrolaBednyTestBase):
 
     def test_swg_selection_survives_multiple_partial_shipments(self):
         self.assert_selection_survives_expedice('SWG', (1, 5, 6, 10))
+
+    def test_rot_selection_survives_multiple_partial_shipments(self):
+        self.assert_selection_survives_expedice('ROT', (1, 5, 10))
 
     def test_other_customers_measure_only_original_first_container_after_shipments(self):
         self.assert_selection_survives_expedice('EUR', (1,))

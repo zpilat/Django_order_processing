@@ -81,24 +81,25 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
             else:
                 self.assertContains(response, measurement_url)
 
-    def test_ssh_hardness_tests_are_shown_only_for_selected_containers(self):
+    def test_ssh_and_rot_hardness_tests_are_shown_only_for_selected_containers(self):
         customer = self.bedna.zakazka.kamion_prijem.zakaznik
-        customer.zkratka = 'SSH'
-        customer.save(update_fields=['zkratka'])
         middle = Bedna.objects.create(zakazka=self.bedna.zakazka)
         last = Bedna.objects.create(zakazka=self.bedna.zakazka)
 
-        for bedna, selected in [(self.bedna, True), (middle, False), (last, True)]:
-            with self.subTest(container=bedna.cislo_bedny):
-                response = self.client.get(reverse('bedna_kontrola', args=[bedna.cislo_bedny]))
-                self.assertEqual(response.status_code, 200)
-                for kind in TypZkouskyChoice:
-                    measurement_url = reverse('bedna_mereni_zkousky', args=[bedna.cislo_bedny, kind])
-                    if not selected and kind in (TypZkouskyChoice.TVRDOST_POVRCHU, TypZkouskyChoice.TVRDOST_JADRA):
-                        self.assertNotContains(response, measurement_url)
-                        self.assertNotContains(response, kind.label)
-                    else:
-                        self.assertContains(response, measurement_url)
+        for code in ('SSH', 'ROT'):
+            customer.zkratka = code
+            customer.save(update_fields=['zkratka'])
+            for bedna, selected in [(self.bedna, True), (middle, False), (last, True)]:
+                with self.subTest(customer=code, container=bedna.cislo_bedny):
+                    response = self.client.get(reverse('bedna_kontrola', args=[bedna.cislo_bedny]))
+                    self.assertEqual(response.status_code, 200)
+                    for kind in TypZkouskyChoice:
+                        measurement_url = reverse('bedna_mereni_zkousky', args=[bedna.cislo_bedny, kind])
+                        if not selected and kind in (TypZkouskyChoice.TVRDOST_POVRCHU, TypZkouskyChoice.TVRDOST_JADRA):
+                            self.assertNotContains(response, measurement_url)
+                            self.assertNotContains(response, kind.label)
+                        else:
+                            self.assertContains(response, measurement_url)
 
     def test_hardness_visibility_uses_property_for_other_customers(self):
         with patch.object(Bedna, 'bedna_k_mereni_tvrdosti_a_povrchu', new_callable=PropertyMock, return_value=True):

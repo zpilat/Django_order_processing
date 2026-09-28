@@ -1154,6 +1154,18 @@ class Bedna(models.Model):
 
         return sorted(selected)
 
+    def _containers_for_measurement_ROT(self, total):
+        """Vrátí seznam vybraných čísel beden pro měření podle celkového počtu beden u zákazníka ROT."""
+        if total <= 0:
+            return []
+
+        selected = {1, total}
+
+        if total > 5:
+            selected.add((total + 1) // 2)
+
+        return sorted(selected)
+
     @property
     def bedna_k_mereni_tvrdosti_a_povrchu(self):
         """
@@ -1165,6 +1177,10 @@ class Bedna(models.Model):
             - Vždy se měří první a poslední bedna.
             - Pokud je celkový počet beden větší než 8, měří se také dvě střední bedny (dolní a horní střed).
             - Pokud je celkový počet beden mezi 5 a 8 (včetně), měří se prostřední bedna.
+        ROT: Výběr beden k měření je založen na celkovém počtu beden v zakázce podle těchto pravidel:
+            - Pokud je celkový počet beden menší nebo roven 0, žádná bedna není určena k měření.
+            - Vždy se měří první a poslední bedna.
+            - Pokud je celkový počet beden větší než 5, měří se i prostřední bedna.
         SPX: Měří se všechny bedny.
         Ostaní zákazníci: Měří se první bedna ze zakázky.
         """
@@ -1175,9 +1191,11 @@ class Bedna(models.Model):
 
         if self.zakazka.kamion_prijem.zakaznik.zkratka in ('SSH', 'SWG'):
             selected_bedny = self._containers_for_measurement_SSH(total_bedny)
-            return poradi_bedny in selected_bedny
+        elif self.zakazka.kamion_prijem.zakaznik.zkratka == 'ROT':
+            selected_bedny = self._containers_for_measurement_ROT(total_bedny)
         else:
-            return poradi_bedny == 1
+            selected_bedny = [1]
+        return poradi_bedny in selected_bedny
 
     @property
     def limity_prohybu(self):
