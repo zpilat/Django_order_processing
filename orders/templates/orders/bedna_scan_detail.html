@@ -8,7 +8,7 @@
 {% block content %}
 <div class="scan-page px-0 px-sm-2 py-2">
     <section class="card rounded-2">
-        <div class="card-body">
+        <div class="card-body {% if bedna.pozastaveno %}bg-warning{% endif %}">
             <div class="d-flex flex-column flex-sm-row justify-content-between gap-3">
                 <div class="text-center">
                     <div class="text-muted fw-semibold">Bedna</div>
@@ -30,16 +30,22 @@
                 </div>
             </div>
 
-        <div class="row g-2 mt-3">
-            <div class="col-12 col-sm-6 text-center text-sm-start">
-                <div class="text-muted small">Zákazník</div>
-                <div class="fw-bold">{{ bedna.zakazka.kamion_prijem.zakaznik|default:"-" }}</div>
+            <div class="row g-2 mt-3">
+                <div class="col-12 col-sm-6 text-center text-sm-start">
+                    <div class="text-muted small">Zákazník</div>
+                    <div class="fw-bold">{{ bedna.zakazka.kamion_prijem.zakaznik|default:"-" }}</div>
+                </div>
+                <div class="col-12 col-sm-6 text-center text-sm-end">
+                    <div class="text-muted small">Zakázka / rozměr</div>
+                    <div class="fw-bold">{{ bedna.zakazka.artikl }} / {{ bedna.zakazka.prumer }} x {{ bedna.zakazka.delka }}</div>
+                </div>
             </div>
-            <div class="col-12 col-sm-6 text-center text-sm-end">
-                <div class="text-muted small">Zakázka / rozměr</div>
-                <div class="fw-bold">{{ bedna.zakazka.artikl }} / {{ bedna.zakazka.prumer }} x {{ bedna.zakazka.delka }}</div>
-            </div>
-        </div>
+
+            {% if bedna.pozastaveno %}
+                <div class="alert alert-warning mt-3 mb-0">
+                    Bedna je pozastavená.
+                </div>
+            {% endif %}                
         </div>
     </section>
 
@@ -84,12 +90,6 @@
             </a>
         {% endif %}
     </div>
-
-    {% if bedna.pozastaveno %}
-        <div class="alert alert-warning mt-3 mb-0">
-            Bedna je pozastavená.
-        </div>
-    {% endif %}
 
     {% for title, rows in sections %}
         <section class="card rounded-2 mt-3 overflow-hidden">
