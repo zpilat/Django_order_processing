@@ -1123,7 +1123,8 @@ class Bedna(models.Model):
         else:
             return ''  # Pro případ neznámého stavu bedny vrací bez barvy
 
-    def _poradi_a_pocet_beden_v_puvodni_zakazce(self):
+    @property
+    def poradi_a_pocet_beden_v_puvodni_zakazce(self):
         """Pořadí a počet pro měření zahrnují i všechny části oddělené při expedici."""
         puvodni_zakazka_id = self.zakazka.puvodni_zakazka_id or self.zakazka_id
         bedny_ids = list(
@@ -1170,7 +1171,7 @@ class Bedna(models.Model):
         if self.zakazka.kamion_prijem.zakaznik.zkratka == 'SPX':
             return True
 
-        poradi_bedny, total_bedny = self._poradi_a_pocet_beden_v_puvodni_zakazce()
+        poradi_bedny, total_bedny = self.poradi_a_pocet_beden_v_puvodni_zakazce
 
         if self.zakazka.kamion_prijem.zakaznik.zkratka in ('SSH', 'SWG'):
             selected_bedny = self._containers_for_measurement_SSH(total_bedny)

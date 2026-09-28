@@ -14,9 +14,10 @@ from django.utils import timezone
 from weasyprint import HTML
 
 from orders import actions
-from orders.choices import KamionChoice, PrijemVydejChoice, TryskaniChoice, TypZkouskyChoice, UvolneniKontrolyChoice, VysledekKontrolyChoice
+from orders.choices import KamionChoice, PrijemVydejChoice, RovnaniChoice, StavBednyChoice, TryskaniChoice, TypZkouskyChoice, UvolneniKontrolyChoice, VysledekKontrolyChoice, ZinkovaniChoice
 from orders.models import Bedna, Kamion, KontrolaBedny, MereniBedny, Zakazka, Zakaznik
 from orders.services.exceptions import ServiceValidationError
+from orders.services.expedice_service import expedice_beden_do_existujiciho_kamionu
 from orders.services.pdf_cards_service import build_cards_pdf
 from orders.services.filled_quality_cards_service import (
     MEASUREMENT_COLUMNS, build_filled_context, build_filled_quality_cards_pdf,
@@ -85,6 +86,49 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
         self.assertIn('class="measurement-value">12,5</td>', html)
         self.assertIn('class="status-value status-cross">-</span>', html)
         self.assertEqual(html.count('class="measurement-value"></td>'), 68)
+        self.assertIn(f'Interní č. {self.bedna.cislo_bedny} · 1/1', html)
+
+    def test_print_keeps_original_order_and_total_after_partial_shipments(self):
+        self.bedna.tara = 1
+        self.bedna.mnozstvi = 100
+        self.bedna.stav_bedny = StavBednyChoice.K_EXPEDICI
+        self.bedna.rovnat = RovnaniChoice.ROVNA
+        self.bedna.tryskat = TryskaniChoice.CISTA
+        self.bedna.zinkovat = ZinkovaniChoice.NEZINKOVAT
+        self.bedna.save()
+        root = self.bedna.zakazka
+        bedny = [self.bedna] + [Bedna.objects.create(
+            zakazka=root, hmotnost=100, tara=1, mnozstvi=100,
+            stav_bedny=StavBednyChoice.K_EXPEDICI, rovnat=RovnaniChoice.ROVNA,
+            tryskat=TryskaniChoice.CISTA, zinkovat=ZinkovaniChoice.NEZINKOVAT,
+        ) for _ in range(9)]
+
+        for positions in ((1, 2, 3), (5, 6, 9)):
+            truck = Kamion.objects.create(
+                zakaznik=self.customer, datum=root.kamion_prijem.datum,
+                prijem_vydej=KamionChoice.VYDEJ,
+            )
+            expedice_beden_do_existujiciho_kamionu(
+                bedny_qs=Bedna.objects.filter(pk__in=[bedny[position - 1].pk for position in positions]),
+                kamion_vydej=truck,
+            )
+
+        # Print one container from each separated order and one still being measured.
+        printed_positions = (1, 4, 5)
+        printed_ids = [bedny[position - 1].pk for position in printed_positions]
+        for bedna in Bedna.objects.filter(pk__in=printed_ids):
+            KontrolaBedny.objects.create(bedna=bedna)
+            self.assertEqual(bedna.poradi_bedny, 1)
+            self.assertLess(bedna.zakazka.pocet_beden, 10)
+
+        with patch('orders.services.pdf_cards_service.HTML') as renderer:
+            renderer.return_value.write_pdf.return_value = b'%PDF-original-order'
+            response = build_filled_quality_cards_pdf(Bedna.objects.filter(pk__in=printed_ids), self.request)
+
+        html = renderer.call_args.kwargs['string']
+        for position in printed_positions:
+            self.assertIn(f'Interní č. {bedny[position - 1].cislo_bedny} · {position}/10', html)
+        self.assertEqual(response.content, b'%PDF-original-order')
 
     def test_measurement_date_range_uses_earliest_and_latest_day(self):
         kontrola = self.create_control()

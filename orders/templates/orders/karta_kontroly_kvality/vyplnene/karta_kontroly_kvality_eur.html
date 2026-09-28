@@ -78,7 +78,9 @@
     <table class="summary-table">
         <colgroup><col style="width: 22%;"><col style="width: 27%;"><col style="width: 21%;"><col style="width: 14%;"><col style="width: 16%;"></colgroup>
         <tbody><tr>
-            <td><span class="field-label">Bedna <span class="field-label-de">/ Gebinde</span></span><span class="field-value container-value">{{ bedna.behalter_nr }}</span><span class="field-detail">Interní č. {{ bedna.cislo_bedny }} · {{ bedna.poradi_bedny }}/{{ bedna.zakazka.pocet_beden }}</span></td>
+            {% with poradi_a_pocet=bedna.poradi_a_pocet_beden_v_puvodni_zakazce %}
+            <td><span class="field-label">Bedna <span class="field-label-de">/ Gebinde</span></span><span class="field-value container-value">{{ bedna.behalter_nr }}</span><span class="field-detail">Interní č. {{ bedna.cislo_bedny }} · {{ poradi_a_pocet.0 }}/{{ poradi_a_pocet.1 }}</span></td>
+            {% endwith %}
             <td><span class="field-label">Artikl a šarže <span class="field-label-de">/ Art. Nr. &amp; Charge</span></span><span class="field-value">{{ bedna.zakazka.artikl }}-{{ bedna.sarze }}</span><span class="field-detail">{{ bedna.zakazka.zkraceny_popis }}</span></td>
             <td><span class="field-label">Rozměr <span class="field-label-de">/ Abmessung</span></span><span class="field-value">ø{{ bedna.zakazka.prumer }} × {{ bedna.zakazka.delka|floatformat:0 }}</span></td>
             <td><span class="field-label">Netto <span class="field-label-de">/ Netto</span></span><span class="field-value">{{ bedna.hmotnost|floatformat:0 }} kg</span></td>

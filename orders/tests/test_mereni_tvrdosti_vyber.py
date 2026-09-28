@@ -80,7 +80,7 @@ class MereniTvrdostiVyberTests(KontrolaBednyTestBase):
         self.assertEqual(root.pocet_beden, 4)
         remaining_first = Bedna.objects.get(pk=ids[3])
         self.assertEqual(remaining_first.poradi_bedny, 1)
-        self.assertEqual(remaining_first._poradi_a_pocet_beden_v_puvodni_zakazce(), (4, 10))
+        self.assertEqual(remaining_first.poradi_a_pocet_beden_v_puvodni_zakazce, (4, 10))
 
     def test_ssh_selection_survives_multiple_partial_shipments(self):
         self.assert_selection_survives_expedice('SSH', (1, 5, 6, 10))
