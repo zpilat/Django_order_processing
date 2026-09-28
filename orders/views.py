@@ -676,7 +676,7 @@ def bedna_kontrola_view(request, cislo_bedny: int):
         raise PermissionDenied
 
     def load_form(*, lock=False):
-        queryset = Bedna.objects.select_related('zakazka__kamion_prijem__zakaznik')
+        queryset = Bedna.objects.select_related('zakazka__predpis', 'zakazka__kamion_prijem__zakaznik')
         if lock:
             queryset = queryset.select_for_update(of=('self',))
         bedna = get_object_or_404(queryset, cislo_bedny=cislo_bedny)
@@ -718,9 +718,18 @@ def bedna_kontrola_view(request, cislo_bedny: int):
         bedna, kontrola, form, can_edit, current_snapshot, previous_status = load_form()
         snapshot = current_snapshot
 
+    pozadavky_zkousky = {
+        typ_zkousky: pozadavek_zkousky(bedna.zakazka.predpis, typ_zkousky)
+        for typ_zkousky in TypZkouskyChoice.values
+    }
+
     return render(request, 'orders/bedna_kontrola.html', {
-        'bedna': bedna, 'kontrola': kontrola, 'form': form,
-        'can_edit': can_edit, 'snapshot': snapshot,
+        'bedna': bedna,
+        'kontrola': kontrola,
+        'pozadavky': pozadavky_zkousky,
+        'form': form,
+        'can_edit': can_edit,
+        'snapshot': snapshot,
         'can_mark_zkontrolovano': _bedna_scan_can_mark_zkontrolovano(request.user, bedna),
         'zkousky': _bedna_zkousky_context(bedna, request.user), 'db_table': 'bedna_scan',
     })

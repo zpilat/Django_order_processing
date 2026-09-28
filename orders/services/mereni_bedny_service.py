@@ -15,10 +15,11 @@ def pozadavek_zkousky(predpis, typ_zkousky):
         TypZkouskyChoice.TVRDOST_JADRA: ('jadro', 'popis_jadro', 'popis_jadro_2'),
     }.get(typ_zkousky)
     if fields is None:
-        return {'hodnota': '', 'popisy': []}
+        return {'hodnota': '', 'popisy': [], 'popis_2': ''}
     return {
         'hodnota': getattr(predpis, fields[0]) or '',
         'popisy': [getattr(predpis, name) for name in fields[1:] if getattr(predpis, name)],
+        'popis_2': getattr(predpis, fields[2]) or '',
     }
 
 

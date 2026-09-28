@@ -25,7 +25,13 @@
             {% for zkouska in zkousky %}
                 <div class="list-group-item">
                     <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
-                        <div class="fw-semibold">{{ zkouska.nazev }}</div>
+                        <div class="fw-semibold">
+                            {{ zkouska.nazev }}
+                            {% with pozadavek=pozadavky|dict_get:zkouska.typ %}
+                                <span class="fw-normal">{{ pozadavek.hodnota|default_if_none:"" }}</span>
+                                {% if pozadavek.popis_2 %}<div class="text-muted small fw-normal">{{ pozadavek.popis_2 }}</div>{% endif %}
+                            {% endwith %}
+                        </div>
                         {% if zkouska.can_edit %}
                             <a class="btn btn-outline-primary btn-sm" href="{% url 'bedna_mereni_zkousky' bedna.cislo_bedny zkouska.typ %}">Zadat / upravit hodnoty</a>
                         {% endif %}
@@ -46,7 +52,7 @@
         <h2 class="card-header h6 mb-0">Výstupní kontrola</h2>
         <div class="card-body">
             {% if not can_edit %}
-                <div class="alert alert-info">Kontrolu můžete zobrazit. K úpravám nemáte potřebné oprávnění.</div>
+                <div class="alert alert-info">Kontrolu můžete pouze zobrazit. K úpravám nemáte potřebné oprávnění.</div>
             {% endif %}
             <form method="post" novalidate>
                 {% csrf_token %}
