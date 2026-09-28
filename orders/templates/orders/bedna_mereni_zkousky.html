@@ -1,5 +1,5 @@
 {% extends "orders/base.html" %}
-{% load static %}
+{% load static custom_filters %}
 
 {% block title %}{{ nazev_zkousky }} – bedna {{ bedna.cislo_bedny }}{% endblock %}
 {% block extra_head %}
@@ -19,9 +19,16 @@
         </div>
     </section>
     <section class="card rounded-2 mt-3">
-        <h2 class="card-header h6 mb-0">Požadavek z předpisu {{ bedna.zakazka.predpis.nazev }}</h2>
+        <h2 class="card-header h6 mb-0">{% if pozadavek_prohyb %}Požadavek zákazníka{% else %}Požadavek z předpisu {{ bedna.zakazka.predpis.nazev }}{% endif %}</h2>
         <div class="card-body">
-            {% if pozadavek.hodnota %}
+            {% if pozadavek_prohyb %}
+                {% if pozadavek_prohyb.bezny != None %}
+                    <div class="fw-bold fs-5">max. {{ pozadavek_prohyb.bezny|mereni_hodnota }} mm</div>
+                    {% if pozadavek_prohyb.pro_uvolneni_s_odchylkou != None %}<div class="text-muted mt-1">QS max. {{ pozadavek_prohyb.pro_uvolneni_s_odchylkou|mereni_hodnota }} mm</div>{% endif %}
+                {% else %}
+                    <div class="text-muted">Limit prohybu pro tohoto zákazníka není definován.</div>
+                {% endif %}
+            {% elif pozadavek.hodnota %}
                 <div class="fw-bold fs-5">{{ pozadavek.hodnota }}</div>
             {% else %}
                 <div class="text-muted">Požadavek pro tuto zkoušku není v předpisu uveden.</div>
@@ -39,7 +46,7 @@
                     <div class="alert alert-danger" role="alert">{{ formset.non_form_errors }}</div>
                     <a class="btn btn-outline-secondary mb-3" href="{% url 'bedna_mereni_zkousky' bedna.cislo_bedny typ_zkousky %}">Načíst aktuální hodnoty</a>
                 {% endif %}
-                <p class="text-muted small">Hodnoty zadávejte v jednotkách předpisu, můžete použít desetinnou čárku. Checkbox vlevo označí hodnotu ke smazání. Prázdné řádky se neuloží.</p>
+                <p class="text-muted small">Hodnoty zadávejte {% if pozadavek_prohyb %}v mm{% else %}v jednotkách předpisu{% endif %}, můžete použít desetinnou čárku. Checkbox vlevo označí hodnotu ke smazání. Prázdné řádky se neuloží.</p>
                 <div id="measurement-rows">
                     {% for form in formset %}
                         {% include "orders/includes/mereni_bedny_row.html" %}

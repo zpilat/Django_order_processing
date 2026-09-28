@@ -46,6 +46,9 @@ class MereniBednyFormTests(KontrolaBednyTestBase):
         self.assertContains(response, '550–650 HV')
         self.assertContains(response, 'Zkouška na hlavě')
         self.assertContains(response, 'Rozsah měření dle předpisu')
+        self.assertContains(response, f'Požadavek z předpisu {predpis.nazev}')
+        self.assertNotContains(response, 'Požadavek zákazníka')
+        self.assertNotContains(response, 'QS max.')
         self.assertEqual(len(response.context['formset'].forms), 3)
         self.assertFalse(KontrolaBedny.objects.exists())
 
@@ -55,7 +58,40 @@ class MereniBednyFormTests(KontrolaBednyTestBase):
             self.assertEqual(response.status_code, 200)
             self.assertContains(response, kind.label)
         response = self.client.get(self.url_for(TypZkouskyChoice.PROHYB_PO_TZ))
-        self.assertContains(response, 'Požadavek pro tuto zkoušku není v předpisu uveden.')
+        self.assertContains(response, 'Požadavek zákazníka')
+        self.assertContains(response, 'Limit prohybu pro tohoto zákazníka není definován.')
+
+    def test_bending_forms_show_customer_limits_and_optional_release_limit(self):
+        customer = self.bedna.zakazka.kamion_prijem.zakaznik
+        for code, length, normal, release in (
+            ('EUR', '100', '0,6', None), ('ROT', '123.4', '0,4936', '0,7404'),
+            ('SWG', '300', '1,8', None), ('SWG', '400', '1,8', None),
+            ('TST', '100', None, None),
+        ):
+            customer.zkratka = code
+            customer.save(update_fields=['zkratka'])
+            self.bedna.zakazka.delka = Decimal(length)
+            self.bedna.zakazka.save(update_fields=['delka'])
+            for kind in (
+                TypZkouskyChoice.PROHYB_PO_TZ, TypZkouskyChoice.PROHYB_PO_KOULENI,
+                TypZkouskyChoice.PROHYB_PO_ROVNANI,
+            ):
+                with self.subTest(customer=code, length=length, kind=kind):
+                    response = self.client.get(self.url_for(kind))
+                    self.assertContains(response, 'Požadavek zákazníka')
+                    self.assertNotContains(response, 'Požadavek z předpisu')
+                    self.assertContains(response, 'Hodnoty zadávejte v mm')
+                    if normal is None:
+                        self.assertContains(response, 'Limit prohybu pro tohoto zákazníka není definován.')
+                        self.assertNotContains(response, 'max.')
+                    else:
+                        self.assertContains(response, f'max. {normal} mm')
+                    if release is None:
+                        self.assertNotContains(response, 'QS max.')
+                    else:
+                        self.assertContains(response, f'QS max. {release} mm')
+                    self.assertNotContains(response, 'None')
+        self.assertFalse(KontrolaBedny.objects.exists())
 
     def test_decimal_comma_multiple_rows_blanks_and_zero(self):
         response = self.client.get(self.url)

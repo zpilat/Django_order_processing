@@ -661,10 +661,15 @@ def _bedna_zkousky_context(bedna, user):
     measurements = list(MereniBedny.objects.filter(kontrola__bedna=bedna))
     can_edit = _can_edit_mereni_bedny(user, bedna)
     merit_tvrdost = bedna.bedna_k_mereni_tvrdosti_a_povrchu
+    limity_prohybu = bedna.limity_prohybu
     return [
         {
             'typ': kind.value, 'nazev': kind.label, 'can_edit': can_edit,
             'mereni': [item for item in measurements if item.typ_zkousky == kind],
+            'pozadavek_prohyb': limity_prohybu if kind in (
+                TypZkouskyChoice.PROHYB_PO_TZ, TypZkouskyChoice.PROHYB_PO_KOULENI,
+                TypZkouskyChoice.PROHYB_PO_ROVNANI,
+            ) else None,
         }
         for kind in TypZkouskyChoice
         if merit_tvrdost or kind not in (
@@ -795,6 +800,10 @@ def bedna_mereni_zkousky_view(request, cislo_bedny: int, typ_zkousky: str):
         'bedna': bedna, 'typ_zkousky': typ_zkousky,
         'nazev_zkousky': TypZkouskyChoice(typ_zkousky).label,
         'pozadavek': pozadavek_zkousky(bedna.zakazka.predpis, typ_zkousky),
+        'pozadavek_prohyb': bedna.limity_prohybu if typ_zkousky in (
+            TypZkouskyChoice.PROHYB_PO_TZ, TypZkouskyChoice.PROHYB_PO_KOULENI,
+            TypZkouskyChoice.PROHYB_PO_ROVNANI,
+        ) else None,
         'formset': formset, 'snapshot': snapshot,
         'db_table': 'bedna_scan',
     })

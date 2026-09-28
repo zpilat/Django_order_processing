@@ -46,6 +46,29 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
             measurement_url = reverse('bedna_mereni_zkousky', args=[self.bedna.cislo_bedny, kind])
             self.assertContains(response, measurement_url)
 
+    def test_control_overview_shows_customer_bending_limits(self):
+        customer = self.bedna.zakazka.kamion_prijem.zakaznik
+        for code, length, normal, release in (
+            ('EUR', '100', '0,6', None), ('ROT', '123.4', '0,4936', '0,7404'),
+            ('SWG', '300', '1,8', None), ('SWG', '400', '1,8', None),
+            ('TST', '100', None, None),
+        ):
+            with self.subTest(customer=code, length=length):
+                customer.zkratka = code
+                customer.save(update_fields=['zkratka'])
+                self.bedna.zakazka.delka = Decimal(length)
+                self.bedna.zakazka.save(update_fields=['delka'])
+                response = self.client.get(self.url)
+                if normal is None:
+                    self.assertNotContains(response, 'max.')
+                else:
+                    self.assertContains(response, f'max. {normal} mm', count=3)
+                if release is None:
+                    self.assertNotContains(response, 'QS max.')
+                else:
+                    self.assertContains(response, f'QS max. {release} mm', count=3)
+                self.assertNotContains(response, 'None')
+
     def test_other_customers_hide_hardness_for_subsequent_containers(self):
         next_bedna = Bedna.objects.create(zakazka=self.bedna.zakazka)
         response = self.client.get(reverse('bedna_kontrola', args=[next_bedna.cislo_bedny]))
