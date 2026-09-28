@@ -7,7 +7,7 @@ from django.test import RequestFactory
 from django.urls import reverse
 
 from orders.choices import TypZkouskyChoice
-from orders.models import KontrolaBedny, MereniBedny
+from orders.models import Bedna, KontrolaBedny, MereniBedny
 from orders.templatetags.admin_sections import orders_admin_sections
 from orders.tests.test_kontrola_bedny import KontrolaBednyTestBase
 
@@ -96,6 +96,47 @@ class KontrolaBednyAdminTests(KontrolaBednyTestBase):
         self.assertContains(response, 'Kontrola kvality')
         self.assertContains(response, 'min. 30°')
         self.assertContains(response, '12,5')
+
+    def test_bedna_summary_shows_hardness_only_for_selected_containers(self):
+        bedny = [self.bedna] + [Bedna.objects.create(zakazka=self.bedna.zakazka) for _ in range(2)]
+        predpis = self.bedna.zakazka.predpis
+        predpis.povrch = '550-650 HV'
+        predpis.jadro = '300-350 HV'
+        predpis.save(update_fields=['povrch', 'jadro'])
+        hardness = (
+            (TypZkouskyChoice.TVRDOST_POVRCHU, Decimal('580.25'), '580,25', predpis.povrch),
+            (TypZkouskyChoice.TVRDOST_JADRA, Decimal('320.75'), '320,75', predpis.jadro),
+        )
+        for bedna in bedny:
+            kontrola, _ = KontrolaBedny.objects.get_or_create(bedna=bedna)
+            for kind, value, _, _ in hardness:
+                MereniBedny.objects.create(
+                    kontrola=kontrola, typ_zkousky=kind, hodnota=value, poradi=1, zmeril=self.user,
+                )
+
+        customer = self.bedna.zakazka.kamion_prijem.zakaznik
+        bedna_admin = admin.site._registry[Bedna]
+        for code, selected in (
+            ('SSH', (True, False, True)), ('SWG', (True, False, True)),
+            ('SPX', (True, True, True)), ('EUR', (True, False, False)),
+        ):
+            customer.zkratka = code
+            customer.save(update_fields=['zkratka'])
+            for bedna, visible in zip(bedny, selected):
+                with self.subTest(customer=code, container=bedna.cislo_bedny):
+                    html = str(bedna_admin.get_mereni_bedny(bedna))
+                    for kind, _, formatted_value, requirement in hardness:
+                        self.assertEqual(kind.label in html, visible)
+                        self.assertEqual(formatted_value in html, visible)
+                        self.assertEqual(requirement in html, visible)
+                    for kind in TypZkouskyChoice:
+                        if kind not in (TypZkouskyChoice.TVRDOST_POVRCHU, TypZkouskyChoice.TVRDOST_JADRA):
+                            self.assertIn(kind.label, html)
+                    self.assertIn(reverse('bedna_kontrola', args=[bedna.cislo_bedny]), html)
+                    if bedna.pk == self.bedna.pk:
+                        self.assertIn('12,5', html)
+
+        self.assertEqual(MereniBedny.objects.count(), 7)
 
     def test_live_admin_cannot_modify_or_delete_records(self):
         for obj in (self.kontrola, self.mereni):

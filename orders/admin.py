@@ -3200,23 +3200,27 @@ class BednaAdmin(HistoryViewOnlyAdmin):
         rows = []
         if kontrola:
             measurements = list(kontrola.mereni.all())
+            merit_tvrdost = obj.bedna_k_mereni_tvrdosti_a_povrchu
             for kind in TypZkouskyChoice:
-                items = [item for item in measurements if item.typ_zkousky == kind.value]
-                people = []
-                for item in items:
-                    if item.zmeril:
-                        name = item.zmeril.get_full_name() or item.zmeril.get_username()
-                        if name not in people:
-                            people.append(name)
-                dates = [timezone.localdate(item.zmereno_at) for item in items]
-                rows.append({
-                    'nazev': kind.label,
-                    'pozadavek': pozadavek_zkousky(obj.zakazka.predpis, kind.value),
-                    'mereni': items,
-                    'kontrolori': people,
-                    'datum_od': min(dates, default=None),
-                    'datum_do': max(dates, default=None),
-                })
+                if merit_tvrdost or kind not in (
+                    TypZkouskyChoice.TVRDOST_POVRCHU, TypZkouskyChoice.TVRDOST_JADRA,
+                ):
+                    items = [item for item in measurements if item.typ_zkousky == kind.value]
+                    people = []
+                    for item in items:
+                        if item.zmeril:
+                            name = item.zmeril.get_full_name() or item.zmeril.get_username()
+                            if name not in people:
+                                people.append(name)
+                    dates = [timezone.localdate(item.zmereno_at) for item in items]
+                    rows.append({
+                        'nazev': kind.label,
+                        'pozadavek': pozadavek_zkousky(obj.zakazka.predpis, kind.value),
+                        'mereni': items,
+                        'kontrolori': people,
+                        'datum_od': min(dates, default=None),
+                        'datum_do': max(dates, default=None),
+                    })
 
         return mark_safe(render_to_string('admin/orders/bedna/_quality_control_summary.html', {
             'bedna': obj,
