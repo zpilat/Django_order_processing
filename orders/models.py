@@ -1035,7 +1035,7 @@ class Bedna(models.Model):
         if zakazka and getattr(zakazka, "predpis", None) and getattr(zakazka.predpis, "skupina", None):
             skupina = zakazka.predpis.skupina
         
-        # pokud je skupina 1 a materiál 10B21 nebo 17B2, přemapuje na 10, jinak ponechá
+        # pokud je skupina 1 a materiál 10B21, 17B2 nebo C10B21, přemapuje na 10, jinak ponechá
         if skupina == 1 and str(self.material).upper() in ("10B21", "17B2", "C10B21"):
             return 10
         return skupina
