@@ -44,6 +44,14 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
         self.assertLess(html.index('id="mereni-bedny"'), html.index('<form method="post" novalidate>'))
         for kind in TypZkouskyChoice:
             measurement_url = reverse('bedna_mereni_zkousky', args=[self.bedna.cislo_bedny, kind])
+            self.assertContains(response, measurement_url)
+
+    def test_other_customers_hide_hardness_for_subsequent_containers(self):
+        next_bedna = Bedna.objects.create(zakazka=self.bedna.zakazka)
+        response = self.client.get(reverse('bedna_kontrola', args=[next_bedna.cislo_bedny]))
+
+        for kind in TypZkouskyChoice:
+            measurement_url = reverse('bedna_mereni_zkousky', args=[next_bedna.cislo_bedny, kind])
             if kind in (TypZkouskyChoice.TVRDOST_POVRCHU, TypZkouskyChoice.TVRDOST_JADRA):
                 self.assertNotContains(response, measurement_url)
                 self.assertNotContains(response, kind.label)

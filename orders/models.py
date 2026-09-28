@@ -1123,8 +1123,23 @@ class Bedna(models.Model):
         else:
             return ''  # Pro případ neznámého stavu bedny vrací bez barvy
 
+    def _poradi_a_pocet_beden_v_puvodni_zakazce(self):
+        """Pořadí a počet pro měření zahrnují i všechny části oddělené při expedici."""
+        puvodni_zakazka_id = self.zakazka.puvodni_zakazka_id or self.zakazka_id
+        bedny_ids = list(
+            Bedna.objects.filter(
+                Q(zakazka_id=puvodni_zakazka_id)
+                | Q(zakazka__puvodni_zakazka_id=puvodni_zakazka_id)
+            ).order_by('cislo_bedny', 'pk').values_list('pk', flat=True)
+        )
+        try:
+            poradi = bedny_ids.index(self.pk) + 1
+        except ValueError:
+            poradi = 0
+        return poradi, len(bedny_ids)
+
     def _containers_for_measurement_SSH(self, total):
-        """Vrátí seznam vybraných čísel beden pro měření podle celkového počtu beden u zákazníka SSH."""
+        """Vrátí seznam vybraných čísel beden pro měření podle celkového počtu beden u zákazníka SSH a SWG."""
         if total <= 0:
             return []
 
@@ -1141,20 +1156,27 @@ class Bedna(models.Model):
     @property
     def bedna_k_mereni_tvrdosti_a_povrchu(self):
         """
-        Vrací True, pokud je bedna určena k měření tvrdosti a povrchu pro zákazníka SSH.
-        Výběr beden k měření je založen na celkovém počtu beden v zakázce podle pravidel zákazníka SSH:
-        - Pokud je celkový počet beden menší nebo roven 0, žádná bedna není určena k měření.
-        - Vždy se měří první a poslední bedna.
-        - Pokud je celkový počet beden větší než 8, měří se také dvě střední bedny (dolní a horní střed).
-        - Pokud je celkový počet beden mezi 5 a 8 (včetně), měří se prostřední bedna.
+        Vrací True, pokud je bedna určena k měření tvrdosti a povrchu, pro jednotlivé zákazníky se výběr liší.
+        Počet i pořadí se určují v původní zakázce včetně všech oddělených částí
+        a již expedovaných beden, seřazených podle čísla bedny.
+        SSH, SWG: Výběr beden k měření je založen na celkovém počtu beden v zakázce podle těchto pravidel:
+            - Pokud je celkový počet beden menší nebo roven 0, žádná bedna není určena k měření.
+            - Vždy se měří první a poslední bedna.
+            - Pokud je celkový počet beden větší než 8, měří se také dvě střední bedny (dolní a horní střed).
+            - Pokud je celkový počet beden mezi 5 a 8 (včetně), měří se prostřední bedna.
+        SPX: Měří se všechny bedny.
+        Ostaní zákazníci: Měří se první bedna ze zakázky.
         """
-        if self.zakazka.kamion_prijem.zakaznik.zkratka != 'SSH':
-            return False
+        if self.zakazka.kamion_prijem.zakaznik.zkratka == 'SPX':
+            return True
 
-        total_bedny = self.zakazka.pocet_beden
-        selected_bedny = self._containers_for_measurement_SSH(total_bedny)
+        poradi_bedny, total_bedny = self._poradi_a_pocet_beden_v_puvodni_zakazce()
 
-        return self.poradi_bedny in selected_bedny
+        if self.zakazka.kamion_prijem.zakaznik.zkratka in ('SSH', 'SWG'):
+            selected_bedny = self._containers_for_measurement_SSH(total_bedny)
+            return poradi_bedny in selected_bedny
+        else:
+            return poradi_bedny == 1
 
     def clean(self):
         """
