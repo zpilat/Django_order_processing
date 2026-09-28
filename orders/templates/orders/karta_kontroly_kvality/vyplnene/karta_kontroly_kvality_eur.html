@@ -111,9 +111,9 @@
             <tr>
                 <th class="column-header">Ohyb<span class="de">Biegewinkel</span><span class="requirement">{{ bedna.zakazka.predpis.ohyb|default:"—" }}</span></th>
                 <th class="column-header">Krut<span class="de">Drehmoment</span><span class="requirement">{{ bedna.zakazka.predpis.krut|default:"—" }}</span></th>
-                <th class="column-header">Po TZ<span class="de">Nach Wärmebeh.</span><span class="requirement">—</span></th>
-                <th class="column-header">Po koulení<span class="de">Nach Sortieren</span><span class="requirement">—</span></th>
-                <th class="column-header">Po rovnání<span class="de">Nach Richten</span><span class="requirement">—</span></th>
+                <th class="column-header">Po TZ<span class="de">Nach Wärmebeh.</span><span class="requirement">{% include "orders/karta_kontroly_kvality/vyplnene/_pozadavek_prohybu.html" with limity=quality_card.limity_prohybu only %}</span></th>
+                <th class="column-header">Po koulení<span class="de">Nach Sortieren</span><span class="requirement">{% include "orders/karta_kontroly_kvality/vyplnene/_pozadavek_prohybu.html" with limity=quality_card.limity_prohybu only %}</span></th>
+                <th class="column-header">Po rovnání<span class="de">Nach Richten</span><span class="requirement">{% include "orders/karta_kontroly_kvality/vyplnene/_pozadavek_prohybu.html" with limity=quality_card.limity_prohybu only %}</span></th>
                 <th class="column-header">Povrch<span class="de">Oberfläche</span><span class="requirement">{{ bedna.zakazka.predpis.povrch|default:"—" }}</span></th>
                 <th class="column-header">Jádro<span class="de">Kern</span><span class="requirement">{{ bedna.zakazka.predpis.jadro|default:"—" }}</span></th>
             </tr>

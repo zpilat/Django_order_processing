@@ -45,6 +45,7 @@ def build_filled_context(bedna, generated_at, printing_user):
     context = build_context_for_bedna(bedna, generated_at, printing_user)
     context['quality_card'] = {
         'kontrola': kontrola,
+        'limity_prohybu': bedna.limity_prohybu,
         'datum_mereni_od': min(measurement_dates, default=None),
         'datum_mereni_do': max(measurement_dates, default=None),
         'uvolnil': user_name(kontrola.uvolnil),

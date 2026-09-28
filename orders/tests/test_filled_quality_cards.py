@@ -88,6 +88,31 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
         self.assertEqual(html.count('class="measurement-value"></td>'), 68)
         self.assertIn(f'Interní č. {self.bedna.cislo_bedny} · 1/1', html)
 
+    def test_template_shows_bending_limits_and_only_defined_qs_limit(self):
+        self.create_control()
+        template, _ = resolve_filled_customer_template('eur')
+        for code, length, normal, release in (
+            ('EUR', '100', '0,6', None), ('ROT', '123.4', '0,4936', '0,7404'),
+            ('SWG', '300', '1,8', None), ('SWG', '400', '1,8', None),
+            ('TST', '100', None, None),
+        ):
+            with self.subTest(customer=code, length=length):
+                self.customer.zkratka = code
+                self.customer.save(update_fields=['zkratka'])
+                self.bedna.zakazka.delka = Decimal(length)
+                self.bedna.zakazka.save(update_fields=['delka'])
+                html = render_to_string(template, self.context())
+                if normal is None:
+                    self.assertNotIn('max.', html)
+                else:
+                    self.assertEqual(html.count(f'max. {normal} mm'), 3)
+                if release is None:
+                    self.assertNotIn('QS max.', html)
+                else:
+                    self.assertEqual(html.count(f'QS max. {release} mm'), 3)
+                headers = html.split('<thead>', 1)[1].split('</thead>', 1)[0]
+                self.assertNotIn('None', headers)
+
     def test_print_keeps_original_order_and_total_after_partial_shipments(self):
         self.bedna.tara = 1
         self.bedna.mnozstvi = 100
@@ -176,10 +201,15 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
         self.assertNotIn('Poznámka &lt;kontroly&gt;', html)
         self.assertEqual(html.count('class="controller-value"'), 7)
         self.assertIn('A1-CH-123', html)
-        document = HTML(string=html).render()
-        self.assertEqual(len(document.pages), 1)
-        text_boxes = [box for box in document.pages[0]._page_box.descendants() if getattr(box, 'text', '').strip()]
-        self.assertLess(max(box.position_y + box.height for box in text_boxes), document.pages[0].height - 37)
+        for code in ('EUR', 'ROT'):
+            with self.subTest(customer=code):
+                self.customer.zkratka = code
+                self.customer.save(update_fields=['zkratka'])
+                html = render_to_string(template, self.context())
+                document = HTML(string=html).render()
+                self.assertEqual(len(document.pages), 1)
+                text_boxes = [box for box in document.pages[0]._page_box.descendants() if getattr(box, 'text', '').strip()]
+                self.assertLess(max(box.position_y + box.height for box in text_boxes), document.pages[0].height - 37)
 
     def test_per_column_measuring_people_are_separate_from_printing_user(self):
         kontrola = self.create_control()
