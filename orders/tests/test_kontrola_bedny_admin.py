@@ -73,12 +73,14 @@ class KontrolaBednyAdminTests(KontrolaBednyTestBase):
     def test_bedna_detail_embeds_quality_control_summary(self):
         predpis = self.bedna.zakazka.predpis
         predpis.ohyb = 'min. 30°'
-        predpis.popis_ohyb = 'Bez trhlin'
+        predpis.popis_ohyb = 'Nazev typu zkousky'
+        predpis.popis_ohyb_2 = 'Bez trhlin'
         predpis.save()
 
         bedna_admin = admin.site._registry[type(self.bedna)]
         html = str(bedna_admin.get_mereni_bedny(self.bedna))
 
+        self.assertNotIn('Nazev typu zkousky', html)
         self.assertIn('Předepsáno', html)
         self.assertIn('Naměřeno', html)
         self.assertIn('min. 30°', html)
@@ -89,6 +91,8 @@ class KontrolaBednyAdminTests(KontrolaBednyTestBase):
         self.assertIn(reverse('bedna_kontrola', args=[self.bedna.cislo_bedny]), html)
 
         response = self.client.get(self.url(type(self.bedna), 'change', self.bedna.pk))
+        self.assertContains(response, predpis.popis_ohyb_2)
+        self.assertNotContains(response, predpis.popis_ohyb)
         self.assertContains(response, 'Kontrola kvality')
         self.assertContains(response, 'min. 30°')
         self.assertContains(response, '12,5')

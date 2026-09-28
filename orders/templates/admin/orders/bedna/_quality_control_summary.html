@@ -64,7 +64,7 @@
                         <td>{{ row.nazev }}</td>
                         <td>
                             {% if row.pozadavek.hodnota %}<strong>{{ row.pozadavek.hodnota }}</strong>{% else %}<span class="qc-empty">—</span>{% endif %}
-                            {% for description in row.pozadavek.popisy %}<span class="qc-requirement-detail">{{ description }}</span>{% endfor %}
+                            {% if row.pozadavek.popis_2 %}<span class="qc-requirement-detail">{{ row.pozadavek.popis_2 }}</span>{% endif %}
                         </td>
                         <td>
                             {% for measurement in row.mereni %}<span class="qc-measurement">{{ measurement.hodnota|mereni_hodnota }}</span>{% empty %}<span class="qc-empty">Bez měření</span>{% endfor %}
