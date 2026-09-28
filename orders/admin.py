@@ -3692,7 +3692,7 @@ class BednaAdmin(HistoryViewOnlyAdmin):
 
         # Anotace fake_skupina_TZ, která obsahuje fejkovou skupinu tepelného zpracování bedny, 
         # podle logiky z property fake_skupina_TZ v modelu Bedna - standardně je fake_skupina_TZ = zakazka.predpis.skupina,
-        # pouze v případě, že je skupina == 1 a materiál je 10B21 nebo 17B2, se nastaví fake_skupina_TZ na 10.
+        # pouze v případě, že je skupina == 1 a materiál je 10B21, 17B2 nebo C10B21, se nastaví fake_skupina_TZ na 10.
         qs = qs.annotate(
             # Používá se odlišné jméno anotace, aby nedocházelo ke kolizi s property `fake_skupina_TZ`.
             fake_skupina_TZ_ann=build_fake_skupina_TZ_annotation()

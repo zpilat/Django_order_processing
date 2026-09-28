@@ -39,8 +39,11 @@ class FakeSkupinaTZTests(TestCase):
         zak_5 = Zakazka.objects.create(kamion_prijem=self.kamion, artikl='A5', prumer=Decimal('12.0'), delka=Decimal('120.0'), predpis=predpis_5, typ_hlavy=self.typ_hlavy, popis='b')
         bedny = [
             Bedna.objects.create(zakazka=zak_1, material='10B21'),
+            Bedna.objects.create(zakazka=zak_1, material='C10B21'),
+            Bedna.objects.create(zakazka=zak_1, material='c10b21'),
             Bedna.objects.create(zakazka=zak_1, material='S235'),
             Bedna.objects.create(zakazka=zak_5, material='17B2'),
+            Bedna.objects.create(zakazka=zak_5, material='C10B21'),
         ]
 
         annotated = {

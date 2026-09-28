@@ -194,7 +194,7 @@ def build_fake_skupina_TZ_annotation():
     return Case(
         When(
             Q(zakazka__predpis__skupina=1)
-            & (Q(material__iexact='10B21') | Q(material__iexact='17B2')),
+            & (Q(material__iexact='10B21') | Q(material__iexact='17B2') | Q(material__iexact='C10B21')),
             then=Value(10),
         ),
         default=F('zakazka__predpis__skupina'),
