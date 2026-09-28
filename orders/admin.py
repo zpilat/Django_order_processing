@@ -3201,6 +3201,7 @@ class BednaAdmin(HistoryViewOnlyAdmin):
         if kontrola:
             measurements = list(kontrola.mereni.all())
             merit_tvrdost = obj.bedna_k_mereni_tvrdosti_a_povrchu
+            limity_prohybu = obj.limity_prohybu
             for kind in TypZkouskyChoice:
                 if merit_tvrdost or kind not in (
                     TypZkouskyChoice.TVRDOST_POVRCHU, TypZkouskyChoice.TVRDOST_JADRA,
@@ -3213,9 +3214,15 @@ class BednaAdmin(HistoryViewOnlyAdmin):
                             if name not in people:
                                 people.append(name)
                     dates = [timezone.localdate(item.zmereno_at) for item in items]
+                    pozadavek = pozadavek_zkousky(obj.zakazka.predpis, kind.value)
+                    pozadavek_prohyb = limity_prohybu if kind in (
+                        TypZkouskyChoice.PROHYB_PO_TZ, TypZkouskyChoice.PROHYB_PO_KOULENI,
+                        TypZkouskyChoice.PROHYB_PO_ROVNANI,
+                    ) else None
                     rows.append({
                         'nazev': kind.label,
-                        'pozadavek': pozadavek_zkousky(obj.zakazka.predpis, kind.value),
+                        'pozadavek': pozadavek,
+                        'pozadavek_prohyb': pozadavek_prohyb,
                         'mereni': items,
                         'kontrolori': people,
                         'datum_od': min(dates, default=None),

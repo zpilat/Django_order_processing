@@ -1179,6 +1179,31 @@ class Bedna(models.Model):
         else:
             return poradi_bedny == 1
 
+    @property
+    def limity_prohybu(self):
+        """Vrátí horní meze prohybu v mm; hodnota rovná mezi je přípustná.
+
+        U ROT může kontrola uvolnit bednu s odchylkou až do 0,006 x délka.
+        U ostatních zákazníků není samostatná mez pro uvolnění s odchylkou (None).
+        Pro zákazníka bez pravidla vrací obě hodnoty None.
+        """
+        zakaznik = self.zakazka.kamion_prijem.zakaznik.zkratka
+        delka = self.zakazka.delka
+
+        if zakaznik in ('EUR', 'HPM', 'FIS'):
+            bezny = Decimal('0.006') * delka
+        elif zakaznik in ('SPX', 'SSH', 'ROT'):
+            bezny = Decimal('0.004') * delka
+        elif zakaznik == 'SWG':
+            bezny = Decimal('0.006') * delka if delka <= Decimal('300') else Decimal('1.8')
+        else:
+            return {'bezny': None, 'pro_uvolneni_s_odchylkou': None}
+
+        return {
+            'bezny': bezny,
+            'pro_uvolneni_s_odchylkou': Decimal('0.006') * delka if zakaznik == 'ROT' else None,
+        }
+
     def clean(self):
         """
         Validace stavu bedny a tryskání/rovnání/zinkování.

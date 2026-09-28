@@ -97,6 +97,30 @@ class KontrolaBednyAdminTests(KontrolaBednyTestBase):
         self.assertContains(response, 'min. 30°')
         self.assertContains(response, '12,5')
 
+    def test_bedna_summary_shows_bending_limits_and_optional_release_limit(self):
+        customer = self.bedna.zakazka.kamion_prijem.zakaznik
+        bedna_admin = admin.site._registry[Bedna]
+        for code, length, normal, release in (
+            ('EUR', '100', '0,6', None), ('ROT', '100', '0,4', '0,6'),
+            ('ROT', '123.4', '0,4936', '0,7404'), ('SWG', '300', '1,8', None),
+            ('SWG', '400', '1,8', None), ('TST', '100', None, None),
+        ):
+            with self.subTest(customer=code, length=length):
+                customer.zkratka = code
+                self.bedna.zakazka.delka = Decimal(length)
+                html = str(bedna_admin.get_mereni_bedny(self.bedna))
+
+                if normal is None:
+                    self.assertNotIn('<strong>max.', html)
+                else:
+                    self.assertEqual(html.count(f'<strong>max. {normal} mm</strong>'), 3)
+                if release is None:
+                    self.assertNotIn('QS max.', html)
+                else:
+                    self.assertEqual(html.count(f'QS max. {release} mm'), 3)
+                self.assertIn('12,5', html)
+                self.assertNotIn('None', html)
+
     def test_bedna_summary_shows_hardness_only_for_selected_containers(self):
         bedny = [self.bedna] + [Bedna.objects.create(zakazka=self.bedna.zakazka) for _ in range(2)]
         predpis = self.bedna.zakazka.predpis

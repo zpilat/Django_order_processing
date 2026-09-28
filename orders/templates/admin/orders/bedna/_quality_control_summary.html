@@ -63,7 +63,14 @@
                     <tr>
                         <td>{{ row.nazev }}</td>
                         <td>
-                            {% if row.pozadavek.hodnota %}<strong>{{ row.pozadavek.hodnota }}</strong>{% else %}<span class="qc-empty">—</span>{% endif %}
+                            {% if row.pozadavek.hodnota %}
+                                <strong>{{ row.pozadavek.hodnota }}</strong>
+                            {% elif row.pozadavek_prohyb.bezny != None %}
+                                <strong>max. {{ row.pozadavek_prohyb.bezny|mereni_hodnota }} mm</strong>
+                                {% if row.pozadavek_prohyb.pro_uvolneni_s_odchylkou != None %}<span class="qc-requirement-detail">QS max. {{ row.pozadavek_prohyb.pro_uvolneni_s_odchylkou|mereni_hodnota }} mm</span>{% endif %}
+                            {% else %}
+                                <span class="qc-empty">—</span>
+                            {% endif %}
                             {% if row.pozadavek.popis_2 %}<span class="qc-requirement-detail">{{ row.pozadavek.popis_2 }}</span>{% endif %}
                         </td>
                         <td>
