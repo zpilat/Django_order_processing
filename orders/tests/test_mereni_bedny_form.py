@@ -49,7 +49,7 @@ class MereniBednyFormTests(KontrolaBednyTestBase):
         self.assertContains(response, f'Požadavek z předpisu {predpis.nazev}')
         self.assertNotContains(response, 'Požadavek zákazníka')
         self.assertNotContains(response, 'QS max.')
-        self.assertEqual(len(response.context['formset'].forms), 3)
+        self.assertEqual(len(response.context['formset'].forms), 5)
         self.assertFalse(KontrolaBedny.objects.exists())
 
     def test_each_type_has_its_own_form(self):
@@ -111,7 +111,7 @@ class MereniBednyFormTests(KontrolaBednyTestBase):
 
     def test_all_blank_rows_do_not_create_control(self):
         response = self.client.get(self.url)
-        result = self.client.post(self.url, self.payload(response, [{'hodnota': ''}] * 3))
+        result = self.client.post(self.url, self.payload(response, [{'hodnota': ''}] * 5))
         self.assertEqual(result.status_code, 302)
         self.assertFalse(KontrolaBedny.objects.exists())
 
@@ -125,6 +125,7 @@ class MereniBednyFormTests(KontrolaBednyTestBase):
         self.client.force_login(editor)
         response = self.client.get(self.url)
         self.assertEqual(len(response.context['formset'].measurements), 2)
+        self.assertEqual(len(response.context['formset'].forms), 3)
         result = self.client.post(self.url, self.payload(response, [
             {'id': first.pk, 'hodnota': '581'},
             {'id': second.pk, 'hodnota': '', 'DELETE': 'on'},

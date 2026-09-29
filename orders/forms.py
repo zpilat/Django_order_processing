@@ -122,6 +122,7 @@ class MereniBednyForm(forms.Form):
 class BaseMereniBednyFormSet(BaseFormSet):
     def __init__(self, *args, measurements=(), **kwargs):
         self.measurements = list(measurements)
+        self.extra = 1 if self.measurements else 5
         kwargs['initial'] = [
             {'id': item.pk, 'hodnota': item.hodnota}
             for item in self.measurements
@@ -152,7 +153,7 @@ class BaseMereniBednyFormSet(BaseFormSet):
 
 
 MereniBednyFormSet = formset_factory(
-    MereniBednyForm, formset=BaseMereniBednyFormSet, extra=3, can_delete=True,
+    MereniBednyForm, formset=BaseMereniBednyFormSet, extra=5, can_delete=True,
     max_num=1000, validate_max=True,
 )
 
