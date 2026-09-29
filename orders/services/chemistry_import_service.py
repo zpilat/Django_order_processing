@@ -26,7 +26,8 @@ REQUIRED_ELEMENTS = ('Ca', 'P', 'Zn')
 CONCENTRATION_QUANTUM = Decimal('0.000001')
 FILENAME_RE = re.compile(
     r'^chemistry-(?P<device>\d+)-'
-    r'(?P<timestamp>\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2})\.json$',
+    r'(?P<timestamp>\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2})'
+    r'(?: ?\((?P<copy>[1-9]\d*)\))?\.json$',
     re.IGNORECASE,
 )
 ARCHIVE_FILENAME_RE = re.compile(
@@ -74,7 +75,7 @@ class ChemistryImportRow:
 
     @property
     def repeated_measurements(self) -> int:
-        return max(0, len(self.source_files) - 1)
+        return max(0, len({item.measured_at for item in self.source_files}) - 1)
 
 
 @dataclass
@@ -292,7 +293,10 @@ def build_chemistry_import_preview(
         try:
             measured_at = _get_measurement_time(path)
         except ValueError as exc:
-            preview.errors.append(f'{path.name} (bedna {box_number}): {exc}')
+            preview.warnings.append(
+                f'{path.name} (bedna {box_number}): {exc}. '
+                'Soubor byl přeskočen a zůstane ve vstupním adresáři.'
+            )
             continue
 
         candidates[box_number].append(
@@ -348,16 +352,37 @@ def build_chemistry_import_preview(
                 preview.missing_box_numbers.append(box_number)
             continue
 
-        box_candidates.sort(key=lambda item: (item.measured_at, item.file_name))
-        times = [item.measured_at for item in box_candidates]
-        duplicate_times = sorted({item for item in times if times.count(item) > 1})
-        if duplicate_times:
-            duplicate_time = duplicate_times[-1]
+        # Originál má při shodném čase přednost před očíslovanými kopiemi.
+        # Všechny kopie zůstávají v source_files kvůli ověření a archivaci.
+        box_candidates.sort(key=lambda item: (
+            item.measured_at,
+            FILENAME_RE.fullmatch(item.file_name).group('copy') is not None,
+            item.file_name,
+        ))
+        candidates_by_time: dict[datetime, list[ParsedChemistryFile]] = defaultdict(list)
+        for source_file in box_candidates:
+            candidates_by_time[source_file.measured_at].append(source_file)
+        conflicting_times = [
+            measured_at for measured_at, files in candidates_by_time.items()
+            if len({item.digest for item in files}) > 1
+        ]
+        if conflicting_times:
+            conflicting_time = conflicting_times[-1]
             names = ', '.join(
-                item.file_name for item in box_candidates if item.measured_at == duplicate_time
+                item.file_name for item in candidates_by_time[conflicting_time]
             )
-            preview.errors.append(f'Bedna {box_number}: více měření má shodný čas ({names}).')
+            preview.errors.append(
+                f'Bedna {box_number}: více měření má shodný čas, ale jiný obsah ({names}).'
+            )
             continue
+
+        for files in candidates_by_time.values():
+            if len(files) > 1:
+                names = ', '.join(item.file_name for item in files)
+                preview.warnings.append(
+                    f'Bedna {box_number}: shodné kopie měření budou zpracovány jednou '
+                    f'({names}); ve vstupním adresáři po archivaci nezůstanou.'
+                )
 
         archive_conflicts = []
         for source_file in box_candidates:
@@ -371,7 +396,7 @@ def build_chemistry_import_preview(
             )
             continue
 
-        selected = box_candidates[-1]
+        selected = candidates_by_time[box_candidates[-1].measured_at][0]
         try:
             concentrations = _get_concentrations(selected.raw_data, selected.file_name)
         except ValueError as exc:

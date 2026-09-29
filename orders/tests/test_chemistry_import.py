@@ -20,6 +20,7 @@ from orders.admin import KamionAdmin
 from orders.choices import KamionChoice
 from orders.models import Bedna, Kamion, Predpis, TypHlavy, Zakazka, Zakaznik
 from orders.services.chemistry_import_service import (
+    ChemistryImportError,
     apply_chemistry_import,
     build_chemistry_import_preview,
 )
@@ -87,6 +88,7 @@ class ChemistryImportTests(TestCase):
         p='0',
         zn='0',
         missing_element=None,
+        filename_suffix='',
     ):
         elements = {
             'Ca': ca,
@@ -107,7 +109,7 @@ class ChemistryImportTests(TestCase):
             'chemistry': chemistry,
             'testInfo': {'info': str(box_number)},
         }
-        path = self.incoming / f'chemistry-948596-{timestamp}.json'
+        path = self.incoming / f'chemistry-948596-{timestamp}{filename_suffix}.json'
         path.write_text(json.dumps(data), encoding='utf-8')
         return path
 
@@ -133,7 +135,7 @@ class ChemistryImportTests(TestCase):
         )
 
     def test_preview_selects_latest_measurement_without_scaling_percentages(self):
-        self._write_measurement(
+        older = self._write_measurement(
             box_number=self.bedna_1.cislo_bedny,
             timestamp='2026-08-21-13-24-58',
             ca='0.1', p='0.2', zn='0.3',
@@ -143,6 +145,8 @@ class ChemistryImportTests(TestCase):
             timestamp='2026-08-21-13-31-04',
             ca='0.1234567', p='0', zn='1.25',
         )
+        for source in (older, latest):
+            shutil.copyfile(source, source.with_name(f'{source.stem}(2).json'))
         self._write_measurement(
             box_number=self.jina_bedna.cislo_bedny,
             timestamp='2026-08-21-13-32-00',
@@ -164,6 +168,160 @@ class ChemistryImportTests(TestCase):
         self.assertEqual(row.obsah_p, Decimal('0.000000'))
         self.assertEqual(row.obsah_zn, Decimal('1.250000'))
         self.assertEqual(preview.missing_box_numbers, [self.bedna_2.cislo_bedny])
+
+    def test_identical_numbered_copies_are_imported_once_and_cleaned_up(self):
+        timestamp = '2026-09-08-14-31-03'
+        source = self._write_measurement(
+            box_number=self.bedna_1.cislo_bedny,
+            timestamp=timestamp,
+            ca='0.1', p='0.2', zn='0.3',
+        )
+        copies = [self.incoming / f'{source.stem}{suffix}.json' for suffix in ('(2)', ' (3)')]
+        for copy in copies:
+            shutil.copyfile(source, copy)
+        original_bytes = source.read_bytes()
+
+        preview = build_chemistry_import_preview(
+            self.kamion,
+            incoming_dir=self.incoming,
+            archive_root=self.archive,
+        )
+
+        self.assertTrue(preview.can_import, preview.errors)
+        self.assertEqual(len(preview.rows), 1)
+        self.assertEqual(preview.rows[0].selected_file.path, source)
+        self.assertEqual(preview.rows[0].repeated_measurements, 0)
+        self.assertEqual(len(preview.rows[0].source_files), 3)
+        self.assertTrue(any('shodné kopie' in warning for warning in preview.warnings))
+        result = apply_chemistry_import(preview, archive_root=self.archive)
+
+        self.assertEqual(result.updated_count, 1)
+        self.assertEqual(result.processed_file_count, 3)
+        self.assertEqual(result.archive_errors, [])
+        self.bedna_1.refresh_from_db()
+        self.assertEqual(self.bedna_1.obsah_ca, Decimal('0.100000'))
+        archive_dir = self.archive / get_valid_filename(str(self.kamion))
+        archived_paths = list(archive_dir.iterdir())
+        self.assertEqual([path.name for path in archived_paths], [f'{self.bedna_1.cislo_bedny}_{timestamp}.json'])
+        self.assertEqual(archived_paths[0].read_bytes(), original_bytes)
+        self.assertFalse(source.exists())
+        self.assertTrue(all(not copy.exists() for copy in copies))
+
+    def test_numbered_copy_without_original_can_be_imported(self):
+        for suffix in ('(2)', ' (12)'):
+            with self.subTest(suffix=suffix):
+                source = self._write_measurement(
+                    box_number=self.bedna_1.cislo_bedny,
+                    timestamp='2026-09-08-14-31-03',
+                    filename_suffix=suffix,
+                )
+                preview = build_chemistry_import_preview(
+                    self.kamion,
+                    incoming_dir=self.incoming,
+                    archive_root=self.archive,
+                )
+                self.assertTrue(preview.can_import, preview.errors)
+                self.assertEqual(preview.rows[0].selected_file.path, source)
+                source.unlink()
+
+    def test_numbered_copy_of_archived_measurement_does_not_update_values(self):
+        timestamp = '2026-09-08-14-31-03'
+        source = self._write_measurement(
+            box_number=self.bedna_1.cislo_bedny,
+            timestamp=timestamp,
+            ca='0.1', p='0.2', zn='0.3',
+        )
+        original_bytes = source.read_bytes()
+        preview = build_chemistry_import_preview(
+            self.kamion, incoming_dir=self.incoming, archive_root=self.archive,
+        )
+        apply_chemistry_import(preview, archive_root=self.archive)
+        copy = source.with_name(f'{source.stem}(2).json')
+        copy.write_bytes(original_bytes)
+
+        preview = build_chemistry_import_preview(
+            self.kamion, incoming_dir=self.incoming, archive_root=self.archive,
+        )
+        self.assertTrue(preview.can_import, preview.errors)
+        result = apply_chemistry_import(preview, archive_root=self.archive)
+
+        self.assertEqual(result.updated_count, 0)
+        self.assertEqual(result.unchanged_count, 1)
+        self.assertEqual(result.processed_file_count, 1)
+        self.assertEqual(result.archive_errors, [])
+        self.assertFalse(copy.exists())
+
+    def test_numbered_copy_with_different_content_is_conflict(self):
+        timestamp = '2026-09-08-14-31-03'
+        source = self._write_measurement(
+            box_number=self.bedna_1.cislo_bedny,
+            timestamp=timestamp,
+            ca='0.1',
+        )
+        copy = self._write_measurement(
+            box_number=self.bedna_1.cislo_bedny,
+            timestamp=timestamp,
+            ca='0.9',
+            filename_suffix='(2)',
+        )
+        preview = build_chemistry_import_preview(
+            self.kamion, incoming_dir=self.incoming, archive_root=self.archive,
+        )
+
+        self.assertFalse(preview.can_import)
+        self.assertTrue(any('shodný čas, ale jiný obsah' in error for error in preview.errors))
+        with self.assertRaises(ChemistryImportError):
+            apply_chemistry_import(preview, archive_root=self.archive)
+        self.bedna_1.refresh_from_db()
+        self.assertIsNone(self.bedna_1.obsah_ca)
+        self.assertTrue(source.exists())
+        self.assertTrue(copy.exists())
+
+    def test_numbered_copy_changed_after_preview_blocks_import(self):
+        source = self._write_measurement(
+            box_number=self.bedna_1.cislo_bedny,
+            timestamp='2026-09-08-14-31-03',
+        )
+        copy = source.with_name(f'{source.stem}(2).json')
+        shutil.copyfile(source, copy)
+        preview = build_chemistry_import_preview(
+            self.kamion, incoming_dir=self.incoming, archive_root=self.archive,
+        )
+        self.assertTrue(preview.can_import, preview.errors)
+        copy.write_text('{}', encoding='utf-8')
+
+        with self.assertRaisesMessage(ChemistryImportError, 'se během importu změnil'):
+            apply_chemistry_import(preview, archive_root=self.archive)
+        self.bedna_1.refresh_from_db()
+        self.assertIsNone(self.bedna_1.obsah_ca)
+        self.assertTrue(source.exists())
+        self.assertTrue(copy.exists())
+
+    def test_unrecognized_names_warn_and_leave_files_without_blocking_valid_measurement(self):
+        source = self._write_measurement(
+            box_number=self.bedna_1.cislo_bedny,
+            timestamp='2026-09-08-14-31-03',
+            ca='0.1', p='0.2', zn='0.3',
+        )
+        invalid_paths = [
+            self.incoming / 'measurement.json',
+            self.incoming / 'chemistry-948596-2026-99-08-14-31-03.json',
+        ]
+        for path in invalid_paths:
+            shutil.copyfile(source, path)
+        preview = build_chemistry_import_preview(
+            self.kamion, incoming_dir=self.incoming, archive_root=self.archive,
+        )
+
+        self.assertTrue(preview.can_import, preview.errors)
+        for path in invalid_paths:
+            self.assertTrue(any(path.name in warning for warning in preview.warnings))
+        result = apply_chemistry_import(preview, archive_root=self.archive)
+        self.assertEqual(result.updated_count, 1)
+        self.assertEqual(result.processed_file_count, 1)
+        self.assertTrue(all(path.exists() for path in invalid_paths))
+        self.bedna_1.refresh_from_db()
+        self.assertEqual(self.bedna_1.obsah_ca, Decimal('0.100000'))
 
     def test_latest_invalid_measurement_blocks_that_box(self):
         self._write_measurement(
@@ -407,11 +565,13 @@ class ChemistryImportTests(TestCase):
     @patch('orders.actions.probe_vanta_exports')
     def test_admin_action_renders_preview_and_confirmed_import(self, probe_mock):
         probe_mock.return_value = self._probe_result()
-        self._write_measurement(
+        source = self._write_measurement(
             box_number=self.bedna_1.cislo_bedny,
             timestamp='2026-08-21-13-24-58',
             ca='0.1', p='0.2', zn='0.3',
         )
+        copy = source.with_name(f'{source.stem}(2).json')
+        shutil.copyfile(source, copy)
         admin_object = KamionAdmin(Kamion, AdminSite())
         queryset = Kamion.objects.filter(pk=self.kamion.pk)
 
@@ -426,8 +586,10 @@ class ChemistryImportTests(TestCase):
             )
             self.assertIsInstance(response, TemplateResponse)
             self.assertEqual(response.context_data['preview'].rows[0].bedna, self.bedna_1)
+            self.assertTrue(response.context_data['can_confirm_import'])
             response.render()
             self.assertContains(response, str(self.bedna_1.cislo_bedny))
+            self.assertContains(response, 'shodné kopie')
 
             response = actions.import_chemickych_mereni_action(
                 admin_object,
@@ -440,6 +602,8 @@ class ChemistryImportTests(TestCase):
         self.assertEqual(probe_mock.call_count, 2)
         self.bedna_1.refresh_from_db()
         self.assertEqual(self.bedna_1.obsah_ca, Decimal('0.100000'))
+        self.assertFalse(source.exists())
+        self.assertFalse(copy.exists())
 
     @patch('orders.actions.probe_vanta_exports')
     def test_admin_action_blocks_confirmation_while_files_are_waiting(self, probe_mock):
