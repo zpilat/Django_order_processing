@@ -1,9 +1,11 @@
+from datetime import timedelta
 from decimal import Decimal
 from unittest.mock import PropertyMock, patch
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
 from django.urls import reverse
+from django.utils import timezone
 
 from orders.choices import StavBednyChoice, TypZkouskyChoice, UvolneniKontrolyChoice, VysledekKontrolyChoice
 from orders.models import Bedna, KontrolaBedny, MereniBedny
@@ -203,16 +205,17 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
         response = self.client.get(self.url)
         result = self.client.post(self.url, self.payload(
             response, cistota=VysledekKontrolyChoice.OK, ulozeni=VysledekKontrolyChoice.NOK,
-            uvolneni=UvolneniKontrolyChoice.POZASTAVENO, poznamka='Zkontrolovat uložení',
+            uvolneni=UvolneniKontrolyChoice.NESHODA, poznamka='Zkontrolovat uložení',
         ))
         self.assertRedirects(result, self.url)
         kontrola = KontrolaBedny.objects.get(bedna=self.bedna)
         self.assertEqual(kontrola.cistota, VysledekKontrolyChoice.OK)
         self.assertEqual(kontrola.ulozeni, VysledekKontrolyChoice.NOK)
-        self.assertEqual(kontrola.uvolneni, UvolneniKontrolyChoice.POZASTAVENO)
+        self.assertEqual(kontrola.uvolneni, UvolneniKontrolyChoice.NESHODA)
         self.assertEqual(kontrola.poznamka, 'Zkontrolovat uložení')
         self.assertEqual(kontrola.history.first().history_user, self.user)
-        self.assertIsNone(kontrola.uvolnil)
+        self.assertEqual(kontrola.uvolneni_zmenil, self.user)
+        self.assertIsNotNone(kontrola.uvolneni_zmeneno_at)
         self.bedna.refresh_from_db()
         self.assertFalse(self.bedna.pozastaveno)
 
@@ -310,23 +313,126 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
         response = self.client.get(self.url)
         self.client.post(self.url, self.payload(
             response, uvolneni=UvolneniKontrolyChoice.UVOLNENO,
-            uvolnil='999', uvolneno_at='2000-01-01',
+            uvolneni_zmenil='999', uvolneni_zmeneno_at='2000-01-01',
         ))
         kontrola = KontrolaBedny.objects.get()
-        self.assertEqual(kontrola.uvolnil, self.user)
-        self.assertIsNotNone(kontrola.uvolneno_at)
-        release_date = kontrola.uvolneno_at
+        self.assertEqual(kontrola.uvolneni_zmenil, self.user)
+        self.assertIsNotNone(kontrola.uvolneni_zmeneno_at)
+        release_date = kontrola.uvolneni_zmeneno_at
         response = self.client.get(self.url)
         self.client.post(self.url, self.payload(response, poznamka='Doplněná poznámka'))
         kontrola.refresh_from_db()
-        self.assertEqual(kontrola.uvolneno_at, release_date)
-        self.assertEqual(kontrola.uvolnil, self.user)
-        for status in [UvolneniKontrolyChoice.POZASTAVENO, UvolneniKontrolyChoice.NEROZHODNUTO]:
+        self.assertEqual(kontrola.uvolneni_zmeneno_at, release_date)
+        self.assertEqual(kontrola.uvolneni_zmenil, self.user)
+        for status in [UvolneniKontrolyChoice.NEROZHODNUTO]:
             response = self.client.get(self.url)
             self.client.post(self.url, self.payload(response, uvolneni=status))
             kontrola.refresh_from_db()
-            self.assertIsNone(kontrola.uvolnil)
-            self.assertIsNone(kontrola.uvolneno_at)
+            self.assertIsNone(kontrola.uvolneni_zmenil)
+            self.assertIsNone(kontrola.uvolneni_zmeneno_at)
+
+    def test_release_with_deviation_records_metadata_preserves_it_on_edits_and_clears_it(self):
+        for nonreleased in (UvolneniKontrolyChoice.NESHODA, UvolneniKontrolyChoice.NEROZHODNUTO):
+            with self.subTest(nonreleased=nonreleased):
+                response = self.client.get(self.url)
+                self.assertContains(response, '<option value="UO"')
+                self.assertContains(response, '<option value="NE"')
+                self.assertNotContains(response, '<option value="PO">')
+                result = self.client.post(self.url, self.payload(
+                    response, uvolneni=UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU,
+                ))
+                self.assertRedirects(result, self.url)
+                kontrola = KontrolaBedny.objects.get(bedna=self.bedna)
+                released_at = kontrola.uvolneni_zmeneno_at
+                self.assertEqual(kontrola.uvolneni_zmenil, self.user)
+                self.assertIsNotNone(released_at)
+                response = self.client.get(self.url)
+                self.client.post(self.url, self.payload(response, poznamka=f'Odchylka {nonreleased}'))
+                kontrola.refresh_from_db()
+                self.assertEqual(kontrola.uvolneni_zmeneno_at, released_at)
+                self.assertEqual(kontrola.uvolneni_zmenil, self.user)
+                response = self.client.get(self.url)
+                self.client.post(self.url, self.payload(response, uvolneni=nonreleased))
+                kontrola.refresh_from_db()
+                if nonreleased == UvolneniKontrolyChoice.NESHODA:
+                    self.assertEqual(kontrola.uvolneni_zmenil, self.user)
+                    self.assertIsNotNone(kontrola.uvolneni_zmeneno_at)
+                    self.assertNotEqual(kontrola.uvolneni_zmeneno_at, released_at)
+                else:
+                    self.assertIsNone(kontrola.uvolneni_zmenil)
+                    self.assertIsNone(kontrola.uvolneni_zmeneno_at)
+
+    def test_switching_release_type_records_new_user_and_time(self):
+        originally_released_at = timezone.now() - timedelta(days=1)
+        kontrola = KontrolaBedny.objects.create(
+            bedna=self.bedna, uvolneni=UvolneniKontrolyChoice.UVOLNENO,
+            uvolneni_zmenil=self.user, uvolneni_zmeneno_at=originally_released_at,
+        )
+        editor = get_user_model().objects.create_user(username='uvolnujici_odchylku')
+        editor.user_permissions.add(Permission.objects.get(codename='mark_bedna_zkontrolovano'))
+        for index, (status, user) in enumerate((
+            (UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU, editor),
+            (UvolneniKontrolyChoice.UVOLNENO, self.user),
+            (UvolneniKontrolyChoice.NESHODA, editor),
+            (UvolneniKontrolyChoice.UVOLNENO, self.user),
+            (UvolneniKontrolyChoice.NESHODA, self.user),
+        ), start=1):
+            with self.subTest(status=status):
+                self.client.force_login(user)
+                response = self.client.get(self.url)
+                decision_time = timezone.now() + timedelta(hours=index)
+                with patch('orders.views.timezone.now', return_value=decision_time):
+                    result = self.client.post(self.url, self.payload(response, uvolneni=status))
+                self.assertRedirects(result, self.url)
+                kontrola.refresh_from_db()
+                self.assertEqual(kontrola.uvolneni, status)
+                self.assertEqual(kontrola.uvolneni_zmenil, user)
+                self.assertEqual(kontrola.uvolneni_zmeneno_at, decision_time)
+                self.assertEqual(kontrola.history.first().history_user, user)
+
+    def test_nonconformity_note_and_count_edits_preserve_decision_metadata(self):
+        decision_time = timezone.now() - timedelta(hours=1)
+        kontrola = KontrolaBedny.objects.create(
+            bedna=self.bedna, uvolneni=UvolneniKontrolyChoice.NESHODA,
+            uvolneni_zmenil=self.user, uvolneni_zmeneno_at=decision_time,
+        )
+        editor = get_user_model().objects.create_user(username='doplnujici_poznamku')
+        editor.user_permissions.add(Permission.objects.get(codename='mark_bedna_zkontrolovano'))
+        self.client.force_login(editor)
+        response = self.client.get(self.url)
+        self.assertContains(response, 'Stav uvolnění změnil: kontrolor')
+        result = self.client.post(self.url, self.payload(
+            response, poznamka='Doplnění k neshodě', pocet_krivych_vrutu_prvni_mereni=0,
+        ))
+        self.assertRedirects(result, self.url)
+        kontrola.refresh_from_db()
+        self.assertEqual(kontrola.uvolneni_zmenil, self.user)
+        self.assertEqual(kontrola.uvolneni_zmeneno_at, decision_time)
+        self.assertEqual(kontrola.history.first().history_user, editor)
+
+    def test_reset_to_undecided_clears_current_metadata_but_preserves_history(self):
+        decision_time = timezone.now() - timedelta(hours=1)
+        kontrola = KontrolaBedny.objects.create(
+            bedna=self.bedna, uvolneni=UvolneniKontrolyChoice.NESHODA,
+            uvolneni_zmenil=self.user, uvolneni_zmeneno_at=decision_time,
+        )
+        editor = get_user_model().objects.create_user(username='vracejici_na_nerozhodnuto')
+        editor.user_permissions.add(Permission.objects.get(codename='mark_bedna_zkontrolovano'))
+        self.client.force_login(editor)
+        response = self.client.get(self.url)
+        result = self.client.post(self.url, self.payload(response, uvolneni=UvolneniKontrolyChoice.NEROZHODNUTO))
+        self.assertRedirects(result, self.url)
+        kontrola.refresh_from_db()
+        self.assertIsNone(kontrola.uvolneni_zmenil)
+        self.assertIsNone(kontrola.uvolneni_zmeneno_at)
+        latest, original = kontrola.history.all()
+        self.assertEqual(latest.uvolneni, UvolneniKontrolyChoice.NEROZHODNUTO)
+        self.assertEqual(latest.history_user, editor)
+        self.assertIsNotNone(latest.history_date)
+        self.assertEqual(original.uvolneni, UvolneniKontrolyChoice.NESHODA)
+        self.assertEqual(original.uvolneni_zmenil, self.user)
+        self.assertEqual(original.uvolneni_zmeneno_at, decision_time)
+        self.assertNotContains(self.client.get(self.url), 'Stav uvolnění změnil:')
 
     def test_unchanged_save_does_not_add_history(self):
         kontrola = KontrolaBedny.objects.create(
@@ -337,11 +443,13 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
         self.assertEqual(kontrola.history.count(), 1)
 
     def test_invalid_choice_saves_nothing(self):
-        response = self.client.get(self.url)
-        result = self.client.post(self.url, self.payload(response, uvolneni='DZ'))
-        self.assertEqual(result.status_code, 200)
-        self.assertIn('uvolneni', result.context['form'].errors)
-        self.assertFalse(KontrolaBedny.objects.exists())
+        for status in ('DZ', 'PO'):
+            with self.subTest(status=status):
+                response = self.client.get(self.url)
+                result = self.client.post(self.url, self.payload(response, uvolneni=status))
+                self.assertEqual(result.status_code, 200)
+                self.assertIn('uvolneni', result.context['form'].errors)
+                self.assertFalse(KontrolaBedny.objects.exists())
 
     def test_concurrent_edit_and_creation_are_rejected(self):
         response = self.client.get(self.url)

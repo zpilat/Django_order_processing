@@ -5,8 +5,9 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
 from django.test import RequestFactory
 from django.urls import reverse
+from django.utils import timezone
 
-from orders.choices import TypZkouskyChoice
+from orders.choices import TypZkouskyChoice, UvolneniKontrolyChoice
 from orders.models import Bedna, KontrolaBedny, MereniBedny
 from orders.templatetags.admin_sections import orders_admin_sections
 from orders.tests.test_kontrola_bedny import KontrolaBednyTestBase
@@ -96,6 +97,24 @@ class KontrolaBednyAdminTests(KontrolaBednyTestBase):
         self.assertContains(response, 'Kontrola kvality')
         self.assertContains(response, 'min. 30°')
         self.assertContains(response, '12,5')
+
+    def test_summary_displays_release_types_and_nonconformity(self):
+        for status, css, released in (
+            (UvolneniKontrolyChoice.UVOLNENO, 'qc-good', True),
+            (UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU, 'qc-warning', True),
+            (UvolneniKontrolyChoice.NESHODA, 'qc-bad', True),
+            (UvolneniKontrolyChoice.NEROZHODNUTO, '', False),
+        ):
+            with self.subTest(status=status):
+                self.kontrola.uvolneni = status
+                self.kontrola.uvolneni_zmenil = self.user if released else None
+                self.kontrola.uvolneni_zmeneno_at = timezone.now() if released else None
+                self.kontrola.save()
+                html = str(admin.site._registry[Bedna].get_mereni_bedny(self.bedna))
+                self.assertIn(f'<div class="qc-status {css}">', html)
+                details = html.split('<span class="qc-label">Uvolnění</span>', 1)[1].split('</div>', 1)[0]
+                self.assertIn(status.label, details)
+                self.assertEqual('class="qc-detail"' in details, released)
 
     def test_bedna_summary_shows_bending_limits_and_optional_release_limit(self):
         customer = self.bedna.zakazka.kamion_prijem.zakaznik

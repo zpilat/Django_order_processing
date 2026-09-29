@@ -1588,11 +1588,11 @@ class KontrolaBedny(models.Model):
         max_length=2, choices=UvolneniKontrolyChoice.choices,
         default=UvolneniKontrolyChoice.NEROZHODNUTO, verbose_name='Uvolnění',
     )
-    uvolnil = models.ForeignKey(
+    uvolneni_zmenil = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
-        related_name='uvolnene_kontroly_beden', verbose_name='Uvolnil',
+        related_name='zmenene_kontroly_beden', verbose_name='Stav uvolnění změnil',
     )
-    uvolneno_at = models.DateTimeField(null=True, blank=True, verbose_name='Datum uvolnění')
+    uvolneni_zmeneno_at = models.DateTimeField(null=True, blank=True, verbose_name='Datum změny uvolnění')
     poznamka = models.TextField(blank=True, verbose_name='Poznámka')
     pocet_krivych_vrutu_prvni_mereni = models.PositiveSmallIntegerField(
         blank=True, null=True, verbose_name='Počet křivých 1. měření',

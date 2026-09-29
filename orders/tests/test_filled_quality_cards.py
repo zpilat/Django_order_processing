@@ -55,7 +55,7 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
         return item
 
     def context(self):
-        bedna = self.qs.select_related('kontrola__uvolnil', 'zakazka__kamion_prijem__zakaznik', 'zakazka__predpis').prefetch_related(
+        bedna = self.qs.select_related('kontrola__uvolneni_zmenil', 'zakazka__kamion_prijem__zakaznik', 'zakazka__predpis').prefetch_related(
             Prefetch('kontrola__mereni', queryset=MereniBedny.objects.select_related('zmeril').order_by('poradi', 'pk'), to_attr='print_measurements'),
         ).get()
         return build_filled_context(bedna, timezone.now(), 'Tisknoucí uživatel')
@@ -146,6 +146,29 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
                 self.assertEqual(html.count('class="measurement-value'), 70)
         self.assertEqual(MereniBedny.history.count(), 16)
 
+    def test_print_displays_release_with_deviation_and_nonconformity(self):
+        kontrola = self.create_control()
+        template, _ = resolve_filled_customer_template('eur')
+        for status, css, released in (
+            (UvolneniKontrolyChoice.UVOLNENO, 'status-good', True),
+            (UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU, 'status-warning', True),
+            (UvolneniKontrolyChoice.NESHODA, 'status-bad', True),
+            (UvolneniKontrolyChoice.NEROZHODNUTO, 'status-pending', False),
+        ):
+            with self.subTest(status=status):
+                kontrola.uvolneni = status
+                kontrola.uvolneni_zmenil = self.user if released else None
+                kontrola.uvolneni_zmeneno_at = timezone.now() if released else None
+                kontrola.save()
+                html = render_to_string(template, self.context())
+                self.assertIn(f'<td class="{css}"><span class="field-label">Uvolnění ', html)
+                details = html.split('/ Freigabe</span></span>', 1)[1].split('</td>', 1)[0]
+                self.assertIn(status.label, details)
+                self.assertEqual('class="release-detail"' in details, released)
+                if released:
+                    self.assertIn(self.user.username, details)
+                    self.assertIn(timezone.localtime(kontrola.uvolneni_zmeneno_at).strftime('%d.%m.%Y %H:%M'), details)
+
     def test_print_keeps_original_order_and_total_after_partial_shipments(self):
         self.bedna.tara = 1
         self.bedna.mnozstvi = 100
@@ -205,8 +228,8 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
         self.user.save()
         kontrola = self.create_control(
             cistota=VysledekKontrolyChoice.NOK, ulozeni=VysledekKontrolyChoice.OK,
-            uvolneni=UvolneniKontrolyChoice.UVOLNENO, uvolnil=self.user,
-            uvolneno_at=timezone.now(), poznamka='Poznámka <kontroly>',
+            uvolneni=UvolneniKontrolyChoice.UVOLNENO, uvolneni_zmenil=self.user,
+            uvolneni_zmeneno_at=timezone.now(), poznamka='Poznámka <kontroly>',
         )
         self.bedna.vyrobni_zakazka = 'OBJ-123'
         self.bedna.sarze = 'CH-123'
@@ -234,10 +257,16 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
         self.assertNotIn('Poznámka &lt;kontroly&gt;', html)
         self.assertEqual(html.count('class="controller-value"'), 7)
         self.assertIn('A1-CH-123', html)
-        for code in ('EUR', 'ROT'):
-            with self.subTest(customer=code):
+        for code, status in (
+            ('EUR', UvolneniKontrolyChoice.UVOLNENO), ('ROT', UvolneniKontrolyChoice.UVOLNENO),
+            ('EUR', UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU),
+            ('EUR', UvolneniKontrolyChoice.NESHODA),
+        ):
+            with self.subTest(customer=code, status=status):
                 self.customer.zkratka = code
                 self.customer.save(update_fields=['zkratka'])
+                kontrola.uvolneni = status
+                kontrola.save()
                 html = render_to_string(template, self.context())
                 document = HTML(string=html).render()
                 self.assertEqual(len(document.pages), 1)

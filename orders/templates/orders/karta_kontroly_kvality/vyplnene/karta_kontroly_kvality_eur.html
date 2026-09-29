@@ -38,6 +38,7 @@
         .status-cross { color: var(--muted); font-size: 20px; line-height: 1; }
         .status-good { background: var(--ok); }
         .status-bad { background: var(--nok); }
+        .status-warning { background: #fff1d6; }
         .status-neutral { background: var(--panel); }
         .status-pending { background: var(--pending); }
         .release-detail { display: block; margin-top: .8mm; font-size: 8px; font-weight: 400; }
@@ -97,7 +98,7 @@
             <td class="{% if quality_card.kontrola.cistota == 'OK' %}status-good{% elif quality_card.kontrola.cistota == 'NOK' %}status-bad{% else %}status-pending{% endif %}"><span class="field-label">Čistota <span class="field-label-de">/ Reinheit</span></span><span class="status-value">{{ quality_card.kontrola.get_cistota_display }}</span></td>
             <td class="{% if quality_card.kontrola.ulozeni == 'OK' %}status-good{% elif quality_card.kontrola.ulozeni == 'NOK' %}status-bad{% else %}status-pending{% endif %}"><span class="field-label">Uložení <span class="field-label-de">/ Einlagerung</span></span><span class="status-value">{{ quality_card.kontrola.get_ulozeni_display }}</span></td>
             <td class="{% if bedna.tryskat == 'OT' %}status-good{% else %}status-neutral{% endif %}"><span class="field-label">OTRYSKANÁ? <span class="field-label-de">/ Sandgestrahlt?</span></span>{% if bedna.tryskat == 'OT' %}<span class="status-value status-check">✓</span>{% else %}<span class="status-value status-cross">-</span>{% endif %}</td>
-            <td class="{% if quality_card.kontrola.uvolneni == 'UV' %}status-good{% elif quality_card.kontrola.uvolneni == 'PO' %}status-bad{% else %}status-pending{% endif %}"><span class="field-label">Uvolnění <span class="field-label-de">/ Freigabe</span></span><span class="status-value">{{ quality_card.kontrola.get_uvolneni_display }}</span>{% if quality_card.kontrola.uvolneni == 'UV' %}<span class="release-detail">{{ quality_card.uvolnil }} · {{ quality_card.kontrola.uvolneno_at|date:"d.m.Y H:i" }}</span>{% endif %}</td>
+            <td class="{% if quality_card.kontrola.uvolneni == 'UV' %}status-good{% elif quality_card.kontrola.uvolneni == 'UO' %}status-warning{% elif quality_card.kontrola.uvolneni == 'NE' %}status-bad{% else %}status-pending{% endif %}"><span class="field-label">Uvolnění <span class="field-label-de">/ Freigabe</span></span><span class="status-value">{{ quality_card.kontrola.get_uvolneni_display }}</span>{% if quality_card.kontrola.uvolneni != '--' %}<span class="release-detail">{{ quality_card.uvolneni_zmenil|default:"—" }} · {{ quality_card.kontrola.uvolneni_zmeneno_at|date:"d.m.Y H:i" }}</span>{% endif %}</td>
         </tr></tbody>
     </table>
 

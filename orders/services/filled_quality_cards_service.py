@@ -56,7 +56,7 @@ def build_filled_context(bedna, generated_at, printing_user):
         },
         'datum_mereni_od': min(measurement_dates, default=None),
         'datum_mereni_do': max(measurement_dates, default=None),
-        'uvolnil': user_name(kontrola.uvolnil),
+        'uvolneni_zmenil': user_name(kontrola.uvolneni_zmenil),
         'rows': [
             [groups[kind][index].hodnota if index < len(groups[kind]) else None
              for kind in MEASUREMENT_COLUMNS]
@@ -79,7 +79,7 @@ def build_filled_quality_cards_pdf(bedny_qs, request):
         numbers = ', '.join(map(str, missing_controls.values_list('cislo_bedny', flat=True)[:20]))
         raise ServiceValidationError(f'Chybí uložená kontrola u beden: {numbers}.')
     bedny_qs = bedny_qs.select_related(
-        'zakazka__kamion_prijem__zakaznik', 'zakazka__predpis', 'kontrola__uvolnil',
+        'zakazka__kamion_prijem__zakaznik', 'zakazka__predpis', 'kontrola__uvolneni_zmenil',
     ).prefetch_related(Prefetch(
         'kontrola__mereni', queryset=MereniBedny.objects.select_related('zmeril').order_by('poradi', 'pk'),
         to_attr='print_measurements',

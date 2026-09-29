@@ -88,8 +88,8 @@
                     {% if can_edit %}<button type="submit" class="btn btn-primary w-100 scan-action-button">Uložit kontrolu bedny</button>{% endif %}
                 </fieldset>
             </form>
-            {% if kontrola.uvolnil or kontrola.uvolneno_at %}
-                <div class="text-muted small mt-3">Uvolnil: {{ kontrola.uvolnil|default:"—" }} · {{ kontrola.uvolneno_at|date:"d. m. Y H:i" }}</div>
+            {% if kontrola.uvolneni_zmenil or kontrola.uvolneni_zmeneno_at %}
+                <div class="text-muted small mt-3">Stav uvolnění změnil: {{ kontrola.uvolneni_zmenil|default:"—" }} · {{ kontrola.uvolneni_zmeneno_at|date:"d. m. Y H:i" }}</div>
             {% endif %}
         </div>
     </section>

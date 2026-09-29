@@ -35,8 +35,8 @@ def mereni_snapshot(measurements):
 def kontrola_snapshot(kontrola):
     data = None if kontrola is None else [
         kontrola.pk, kontrola.cistota, kontrola.ulozeni, kontrola.uvolneni,
-        kontrola.poznamka, kontrola.uvolnil_id,
-        kontrola.uvolneno_at.isoformat() if kontrola.uvolneno_at else None,
+        kontrola.poznamka, kontrola.uvolneni_zmenil_id,
+        kontrola.uvolneni_zmeneno_at.isoformat() if kontrola.uvolneni_zmeneno_at else None,
         kontrola.pocet_krivych_vrutu_prvni_mereni, kontrola.pocet_krivych_vrutu_druhe_mereni,
     ]
     return hashlib.sha256(json.dumps(data, ensure_ascii=False).encode('utf-8')).hexdigest()

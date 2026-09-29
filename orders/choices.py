@@ -96,15 +96,16 @@ class TypZkouskyChoice(models.TextChoices):
 
 
 class VysledekKontrolyChoice(models.TextChoices):
-    NEZADANO = '--', 'Nezadáno'
+    NEZADANO = '--', '--------'
     OK = 'OK', 'OK'
     NOK = 'NOK', 'NOK'
 
 
 class UvolneniKontrolyChoice(models.TextChoices):
-    NEROZHODNUTO = '--', 'Nerozhodnuto'
-    POZASTAVENO = 'PO', 'Pozastaveno'
+    NEROZHODNUTO = '--', '--------'
+    NESHODA = 'NE', 'Neshoda'
     UVOLNENO = 'UV', 'Uvolněno'
+    UVOLNENO_S_ODCHYLKOU = 'UO', 'Uvolněno s odchylkou'
 
 
 class PrioritaChoice(models.TextChoices):

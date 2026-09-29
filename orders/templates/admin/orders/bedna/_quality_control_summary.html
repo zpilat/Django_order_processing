@@ -9,6 +9,7 @@
     .qc-status { padding: 9px 11px; border: 1px solid var(--hairline-color); border-radius: 4px; background: var(--darkened-bg); }
     .qc-status.qc-good { background: #dcebdd; color: #14532d; }
     .qc-status.qc-bad { background: #f4dada; color: #7f1d1d; }
+    .qc-status.qc-warning { background: #fff1d6; color: #9a4d00; }
     .qc-label { display: block; margin-bottom: 3px; color: var(--body-quiet-color); font-size: 11px; font-weight: 600; text-transform: uppercase; }
     .qc-value { font-size: 14px; font-weight: 700; }
     .qc-detail { display: block; margin-top: 3px; font-size: 11px; font-weight: 400; }
@@ -42,10 +43,10 @@
                 <span class="qc-label">Otryskaná?</span>
                 <span class="qc-value">{% if bedna.tryskat == 'OT' %}✓ Ano{% else %}× Ne{% endif %}</span>
             </div>
-            <div class="qc-status {% if kontrola.uvolneni == 'UV' %}qc-good{% elif kontrola.uvolneni == 'PO' %}qc-bad{% endif %}">
+            <div class="qc-status {% if kontrola.uvolneni == 'UV' %}qc-good{% elif kontrola.uvolneni == 'UO' %}qc-warning{% elif kontrola.uvolneni == 'NE' %}qc-bad{% endif %}">
                 <span class="qc-label">Uvolnění</span>
                 <span class="qc-value">{{ kontrola.get_uvolneni_display }}</span>
-                {% if kontrola.uvolnil or kontrola.uvolneno_at %}<span class="qc-detail">{{ kontrola.uvolnil|default:"—" }} · {{ kontrola.uvolneno_at|date:"j.n.Y H:i" }}</span>{% endif %}
+                {% if kontrola.uvolneni_zmenil or kontrola.uvolneni_zmeneno_at %}<span class="qc-detail">{{ kontrola.uvolneni_zmenil|default:"—" }} · {{ kontrola.uvolneni_zmeneno_at|date:"j.n.Y H:i" }}</span>{% endif %}
             </div>
         </div>
 

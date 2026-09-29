@@ -87,8 +87,9 @@ class KontrolaBednyTests(KontrolaBednyTestBase):
             kontrola.refresh_from_db()
             self.assertEqual(kontrola.uvolneni, status)
         self.assertEqual(
-            UvolneniKontrolyChoice.labels, ['Nerozhodnuto', 'Pozastaveno', 'Uvolněno'],
+            UvolneniKontrolyChoice.labels, ['--------', 'Neshoda', 'Uvolněno', 'Uvolněno s odchylkou'],
         )
+        self.assertEqual(UvolneniKontrolyChoice.values, ['--', 'NE', 'UV', 'UO'])
 
     def test_order_starts_at_one(self):
         kontrola = KontrolaBedny.objects.create(bedna=self.bedna)
@@ -157,12 +158,12 @@ class KontrolaBednyTests(KontrolaBednyTestBase):
         self.assertEqual(original.pocet_krivych_vrutu_druhe_mereni, 1)
 
     def test_deleting_user_preserves_measurements_and_control(self):
-        kontrola = KontrolaBedny.objects.create(bedna=self.bedna, uvolnil=self.user)
+        kontrola = KontrolaBedny.objects.create(bedna=self.bedna, uvolneni_zmenil=self.user)
         value = self.measurement(kontrola)
         self.user.delete()
         kontrola.refresh_from_db()
         value.refresh_from_db()
-        self.assertIsNone(kontrola.uvolnil)
+        self.assertIsNone(kontrola.uvolneni_zmenil)
         self.assertIsNone(value.zmeril)
         self.assertEqual(value.hodnota, Decimal('0.2501'))
 

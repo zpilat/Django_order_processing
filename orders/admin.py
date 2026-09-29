@@ -3193,7 +3193,7 @@ class BednaAdmin(HistoryViewOnlyAdmin):
         kontrola = (
             KontrolaBedny.objects
             .filter(bedna=obj)
-            .select_related('uvolnil')
+            .select_related('uvolneni_zmenil')
             .prefetch_related(Prefetch(
                 'mereni',
                 queryset=MereniBedny.objects.select_related('zmeril').order_by('poradi', 'pk'),
@@ -4608,12 +4608,12 @@ class HistoricalBednaAdmin(ReadOnlyHistoryAdmin):
 
 @admin.register(KontrolaBedny)
 class KontrolaBednyAdmin(ReadOnlySimpleHistoryAdmin):
-    list_display = ('bedna', 'cistota', 'ulozeni', 'uvolneni', 'uvolnil', 'uvolneno_at', 'pocet_mereni')
+    list_display = ('bedna', 'cistota', 'ulozeni', 'uvolneni', 'uvolneni_zmenil', 'uvolneni_zmeneno_at', 'pocet_mereni')
     list_filter = ('uvolneni', 'cistota', 'ulozeni', 'bedna__zakazka__kamion_prijem__zakaznik')
     search_fields = ('bedna__cislo_bedny', 'bedna__behalter_nr', 'bedna__zakazka__artikl')
-    list_select_related = ('bedna', 'uvolnil')
+    list_select_related = ('bedna', 'uvolneni_zmenil')
     readonly_fields = ('formular_kontroly',)
-    history_list_display = ('cistota', 'ulozeni', 'uvolneni', 'uvolnil', 'uvolneno_at', 'poznamka')
+    history_list_display = ('cistota', 'ulozeni', 'uvolneni', 'uvolneni_zmenil', 'uvolneni_zmeneno_at', 'poznamka')
 
     def get_queryset(self, request):
         return super().get_queryset(request).annotate(_pocet_mereni=Count('mereni'))

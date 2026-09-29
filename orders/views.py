@@ -692,7 +692,7 @@ def bedna_kontrola_view(request, cislo_bedny: int):
         can_edit = _can_edit_mereni_bedny(request.user, bedna)
         if request.method == 'POST' and not can_edit:
             raise PermissionDenied
-        kontrola = KontrolaBedny.objects.filter(bedna=bedna).select_related('uvolnil').first()
+        kontrola = KontrolaBedny.objects.filter(bedna=bedna).select_related('uvolneni_zmenil').first()
         current_snapshot = kontrola_snapshot(kontrola)
         previous_status = kontrola.uvolneni if kontrola else UvolneniKontrolyChoice.NEROZHODNUTO
         form = KontrolaBednyForm(
@@ -712,13 +712,13 @@ def bedna_kontrola_view(request, cislo_bedny: int):
             if valid:
                 if kontrola is None or form.has_changed():
                     kontrola = form.save(commit=False)
-                    if kontrola.uvolneni == UvolneniKontrolyChoice.UVOLNENO:
-                        if previous_status != UvolneniKontrolyChoice.UVOLNENO:
-                            kontrola.uvolnil = request.user
-                            kontrola.uvolneno_at = timezone.now()
+                    if kontrola.uvolneni != UvolneniKontrolyChoice.NEROZHODNUTO:
+                        if previous_status != kontrola.uvolneni:
+                            kontrola.uvolneni_zmenil = request.user
+                            kontrola.uvolneni_zmeneno_at = timezone.now()
                     else:
-                        kontrola.uvolnil = None
-                        kontrola.uvolneno_at = None
+                        kontrola.uvolneni_zmenil = None
+                        kontrola.uvolneni_zmeneno_at = None
                     kontrola._history_user = request.user
                     kontrola.save()
                 messages.success(request, 'Kontrola bedny byla uložena.')
