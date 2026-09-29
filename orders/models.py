@@ -1182,16 +1182,18 @@ class Bedna(models.Model):
             - Vždy se měří první a poslední bedna.
             - Pokud je celkový počet beden větší než 5, měří se i prostřední bedna.
         SPX: Měří se všechny bedny.
-        Ostaní zákazníci: Měří se první bedna ze zakázky.
+        EUR: U celozávitových zakázek se měří všechny bedny, jinak první bedna původní zakázky.
+        Ostatní zákazníci: Měří se první bedna původní zakázky.
         """
-        if self.zakazka.kamion_prijem.zakaznik.zkratka == 'SPX':
+        zkratka_zakaznika = self.zakazka.kamion_prijem.zakaznik.zkratka
+        if zkratka_zakaznika == 'SPX' or (zkratka_zakaznika == 'EUR' and self.zakazka.celozavit):
             return True
 
         poradi_bedny, total_bedny = self.poradi_a_pocet_beden_v_puvodni_zakazce
 
-        if self.zakazka.kamion_prijem.zakaznik.zkratka in ('SSH', 'SWG'):
+        if zkratka_zakaznika in ('SSH', 'SWG'):
             selected_bedny = self._containers_for_measurement_SSH(total_bedny)
-        elif self.zakazka.kamion_prijem.zakaznik.zkratka == 'ROT':
+        elif zkratka_zakaznika == 'ROT':
             selected_bedny = self._containers_for_measurement_ROT(total_bedny)
         else:
             selected_bedny = [1]

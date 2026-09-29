@@ -171,15 +171,18 @@ class KontrolaBednyAdminTests(KontrolaBednyTestBase):
 
         customer = self.bedna.zakazka.kamion_prijem.zakaznik
         bedna_admin = admin.site._registry[Bedna]
-        for code, selected in (
-            ('SSH', (True, False, True)), ('SWG', (True, False, True)),
-            ('ROT', (True, False, True)),
-            ('SPX', (True, True, True)), ('EUR', (True, False, False)),
+        for code, full_thread, selected in (
+            ('SSH', False, (True, False, True)), ('SWG', False, (True, False, True)),
+            ('ROT', False, (True, False, True)),
+            ('SPX', False, (True, True, True)), ('EUR', False, (True, False, False)),
+            ('EUR', True, (True, True, True)),
         ):
             customer.zkratka = code
             customer.save(update_fields=['zkratka'])
+            self.bedna.zakazka.celozavit = full_thread
+            self.bedna.zakazka.save(update_fields=['celozavit'])
             for bedna, visible in zip(bedny, selected):
-                with self.subTest(customer=code, container=bedna.cislo_bedny):
+                with self.subTest(customer=code, full_thread=full_thread, container=bedna.cislo_bedny):
                     html = str(bedna_admin.get_mereni_bedny(bedna))
                     for kind, _, formatted_value, requirement in hardness:
                         self.assertEqual(kind.label in html, visible)

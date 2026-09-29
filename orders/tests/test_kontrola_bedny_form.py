@@ -135,6 +135,34 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
                         else:
                             self.assertContains(response, measurement_url)
 
+    def test_eur_full_thread_shows_hardness_for_all_containers(self):
+        customer = self.bedna.zakazka.kamion_prijem.zakaznik
+        customer.zkratka = 'EUR'
+        customer.save(update_fields=['zkratka'])
+        bedny = [self.bedna] + [Bedna.objects.create(zakazka=self.bedna.zakazka) for _ in range(2)]
+        hardness = (TypZkouskyChoice.TVRDOST_POVRCHU, TypZkouskyChoice.TVRDOST_JADRA)
+        for bedna in bedny:
+            kontrola = KontrolaBedny.objects.create(bedna=bedna)
+            for kind, value in zip(hardness, ('580.25', '320.75')):
+                MereniBedny.objects.create(
+                    kontrola=kontrola, typ_zkousky=kind, hodnota=Decimal(value),
+                    poradi=1, zmeril=self.user,
+                )
+        for full_thread in (False, True, False):
+            self.bedna.zakazka.celozavit = full_thread
+            self.bedna.zakazka.save(update_fields=['celozavit'])
+            for index, bedna in enumerate(bedny):
+                with self.subTest(full_thread=full_thread, container=bedna.cislo_bedny):
+                    response = self.client.get(reverse('bedna_kontrola', args=[bedna.cislo_bedny]))
+                    self.assertEqual(response.status_code, 200)
+                    visible = full_thread or index == 0
+                    html = response.content.decode('utf-8')
+                    for kind, value in zip(hardness, ('580,25', '320,75')):
+                        self.assertEqual(kind.label in html, visible)
+                        self.assertEqual(value in html, visible)
+                        self.assertEqual(reverse('bedna_mereni_zkousky', args=[bedna.cislo_bedny, kind]) in html, visible)
+        self.assertEqual(MereniBedny.objects.count(), 6)
+
     def test_hardness_visibility_uses_property_for_other_customers(self):
         with patch.object(Bedna, 'bedna_k_mereni_tvrdosti_a_povrchu', new_callable=PropertyMock, return_value=True):
             response = self.client.get(self.url)

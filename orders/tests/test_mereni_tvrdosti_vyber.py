@@ -54,6 +54,21 @@ class MereniTvrdostiVyberTests(KontrolaBednyTestBase):
             with self.subTest(total=total):
                 self.assertEqual(self.selected_ids(ids), {ids[position - 1] for position in positions})
 
+    def test_full_thread_changes_selection_only_for_eur(self):
+        ids = [self.bedna.pk] + [self.create_bedna().pk for _ in range(4)]
+        for code, ordinary_positions, full_thread_positions in (
+            ('EUR', (1,), (1, 2, 3, 4, 5)),
+            ('SSH', (1, 3, 5), (1, 3, 5)), ('SWG', (1, 3, 5), (1, 3, 5)),
+            ('ROT', (1, 5), (1, 5)), ('SPX', (1, 2, 3, 4, 5), (1, 2, 3, 4, 5)),
+            ('HPM', (1,), (1,)), ('FIS', (1,), (1,)), ('TST', (1,), (1,)),
+        ):
+            self.set_customer(code)
+            for full_thread, positions in ((False, ordinary_positions), (True, full_thread_positions)):
+                with self.subTest(customer=code, full_thread=full_thread):
+                    self.bedna.zakazka.celozavit = full_thread
+                    self.bedna.zakazka.save(update_fields=['celozavit'])
+                    self.assertEqual(self.selected_ids(ids), {ids[position - 1] for position in positions})
+
     def assert_selection_survives_expedice(self, code, positions):
         self.set_customer(code)
         self.bedna.hmotnost = 1
@@ -107,6 +122,11 @@ class MereniTvrdostiVyberTests(KontrolaBednyTestBase):
 
     def test_other_customers_measure_only_original_first_container_after_shipments(self):
         self.assert_selection_survives_expedice('EUR', (1,))
+
+    def test_eur_full_thread_measures_all_containers_after_partial_shipments(self):
+        self.bedna.zakazka.celozavit = True
+        self.bedna.zakazka.save(update_fields=['celozavit'])
+        self.assert_selection_survives_expedice('EUR', tuple(range(1, 11)))
 
     def test_spx_still_measures_all_containers_after_shipments(self):
         self.assert_selection_survives_expedice('SPX', tuple(range(1, 11)))
