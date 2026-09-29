@@ -31,10 +31,10 @@
                             {{ zkouska.nazev }}
                             {% with pozadavek=pozadavky|dict_get:zkouska.typ %}
                                 {% if zkouska.pozadavek_prohyb.bezny != None %}
-                                    <span class="fw-normal">max. {{ zkouska.pozadavek_prohyb.bezny|mereni_hodnota }} mm</span>
+                                    <span class="fw-normal">· max. {{ zkouska.pozadavek_prohyb.bezny|mereni_hodnota }} mm</span>
                                     {% if zkouska.pozadavek_prohyb.pro_uvolneni_s_odchylkou != None %}<div class="text-muted small fw-normal">QS max. {{ zkouska.pozadavek_prohyb.pro_uvolneni_s_odchylkou|mereni_hodnota }} mm</div>{% endif %}
                                 {% else %}
-                                    <span class="fw-normal">{{ pozadavek.hodnota|default_if_none:"" }}</span>
+                                    {% if pozadavek.hodnota %}<span class="fw-normal">· {{ pozadavek.hodnota }}</span>{% endif %}
                                 {% endif %}
                                 {% if pozadavek.popis_2 %}<div class="text-muted small fw-normal">{{ pozadavek.popis_2 }}</div>{% endif %}
                             {% endwith %}
