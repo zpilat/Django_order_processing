@@ -989,7 +989,10 @@ class ZakaznikAdmin(HistoryViewOnlyAdmin):
         }),
         ('Doplňující parametry', {
             'fields': ('zkraceny_nazev', 'zkratka', 'ciselna_rada',)
-        })
+        }),
+        ('Kontrola kvality', {
+            'fields': ('pocet_vrutu_pro_kontrolu_prohybu',)
+        }),
     ]
     readonly_fields = ('zkratka',)
     

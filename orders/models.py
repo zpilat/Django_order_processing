@@ -63,6 +63,11 @@ class Zakaznik(models.Model):
                                              help_text='Zákazníkovi se bude fakturovat rovnání pokud byla bedna vyrovnána.')
     fakturovat_tryskani = models.BooleanField(default=False, verbose_name='Fakturovat tryskání',
                                               help_text='Zákazníkovi se bude fakturovat tryskání pokud byla bedna otryskána.')
+    pocet_vrutu_pro_kontrolu_prohybu = models.PositiveSmallIntegerField(
+        verbose_name='Počet vrutů pro kontrolu prohybu',
+        help_text='Počet vrutů kontrolovaných z každé bedny.',
+        validators=[MinValueValidator(1)], blank=True, null=True,
+    )
     ciselna_rada = models.PositiveIntegerField(verbose_name='Číselná řada', default=100000, unique=True,
                                                help_text='Číselná řada pro automatické číslování beden - např. 100000, 200000, 300000 atd.')
     history = HistoricalRecords()
