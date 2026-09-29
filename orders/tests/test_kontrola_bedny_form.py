@@ -41,6 +41,9 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
         self.assertEqual(response.context['form']['uvolneni'].value(), UvolneniKontrolyChoice.NEROZHODNUTO)
         self.assertFalse(KontrolaBedny.objects.exists())
         html = response.content.decode('utf-8')
+        header = html.split('<section class="card rounded-2">', 1)[1].split('</section>', 1)[0]
+        self.assertIn(f'Bedna {self.bedna.cislo_bedny} · 1/1', header)
+        self.assertIn(self.bedna.zakazka.popis, header)
         self.assertLess(html.index('id="mereni-bedny"'), html.index('<form method="post" novalidate>'))
         for kind in TypZkouskyChoice:
             measurement_url = reverse('bedna_mereni_zkousky', args=[self.bedna.cislo_bedny, kind])

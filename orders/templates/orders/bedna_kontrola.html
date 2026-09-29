@@ -8,11 +8,13 @@
 <main class="scan-page scan-page-narrow px-0 px-sm-2 py-2">
     <section class="card rounded-2">
         <div class="card-body">
-            <div class="text-muted fw-semibold">Bedna {{ bedna.cislo_bedny }}</div>
+            {% with poradi_a_pocet=bedna.poradi_a_pocet_beden_v_puvodni_zakazce %}
+            <div class="text-muted fw-semibold">Bedna {{ bedna.cislo_bedny }} · {{ poradi_a_pocet.0 }}/{{ poradi_a_pocet.1 }}</div>
+            {% endwith %}
             <h1 class="h3 mt-2">Kontrola bedny</h1>
             <div class="text-muted mb-2">Stav bedny: {{ bedna.get_stav_bedny_display }}</div>
             <div>{{ bedna.zakazka.kamion_prijem.zakaznik }} · {{ bedna.zakazka.artikl }}</div>
-            <div class="text-muted">{{ bedna.zakazka.prumer }} × {{ bedna.zakazka.delka }}</div>
+            <div class="text-muted text-break">{{ bedna.zakazka.prumer }} × {{ bedna.zakazka.delka }}{% if bedna.zakazka.popis %} · {{ bedna.zakazka.popis }}{% endif %}</div>
         </div>
     </section>
 
