@@ -115,6 +115,47 @@ class KontrolaBednyTests(KontrolaBednyTestBase):
         kontrola.save()
         self.assertEqual(kontrola.history.last().ulozeni, VysledekKontrolyChoice.NEZADANO)
 
+    def test_bent_screw_counts_distinguish_empty_from_zero(self):
+        value = KontrolaBedny.objects.create(bedna=self.bedna)
+        self.assertIsNone(value.pocet_krivych_vrutu_prvni_mereni)
+        self.assertIsNone(value.pocet_krivych_vrutu_druhe_mereni)
+        value.full_clean()
+        value.pocet_krivych_vrutu_prvni_mereni = 0
+        value.full_clean()
+        value.save()
+        value.refresh_from_db()
+        self.assertEqual(value.pocet_krivych_vrutu_prvni_mereni, 0)
+        self.assertIsNone(value.pocet_krivych_vrutu_druhe_mereni)
+
+    def test_bent_screw_counts_cannot_be_negative(self):
+        for field in ('pocet_krivych_vrutu_prvni_mereni', 'pocet_krivych_vrutu_druhe_mereni'):
+            with self.subTest(field=field):
+                value = KontrolaBedny(bedna=self.bedna)
+                setattr(value, field, -1)
+                with self.assertRaises(ValidationError) as caught:
+                    value.full_clean()
+                self.assertIn(field, caught.exception.message_dict)
+                with self.assertRaises(IntegrityError), transaction.atomic():
+                    value.save()
+
+    def test_bent_screw_counts_are_preserved_in_history(self):
+        value = KontrolaBedny.objects.create(
+            bedna=self.bedna, pocet_krivych_vrutu_prvni_mereni=2, pocet_krivych_vrutu_druhe_mereni=1,
+        )
+        value.pocet_krivych_vrutu_druhe_mereni = 0
+        value._history_user = self.user
+        value.full_clean()
+        value.save()
+        value.refresh_from_db()
+        self.assertEqual(value.pocet_krivych_vrutu_prvni_mereni, 2)
+        self.assertEqual(value.pocet_krivych_vrutu_druhe_mereni, 0)
+        latest, original = value.history.all()
+        self.assertEqual(latest.pocet_krivych_vrutu_prvni_mereni, 2)
+        self.assertEqual(latest.pocet_krivych_vrutu_druhe_mereni, 0)
+        self.assertEqual(latest.history_user, self.user)
+        self.assertEqual(original.pocet_krivych_vrutu_prvni_mereni, 2)
+        self.assertEqual(original.pocet_krivych_vrutu_druhe_mereni, 1)
+
     def test_deleting_user_preserves_measurements_and_control(self):
         kontrola = KontrolaBedny.objects.create(bedna=self.bedna, uvolnil=self.user)
         value = self.measurement(kontrola)

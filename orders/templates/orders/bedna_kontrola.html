@@ -69,13 +69,22 @@
                     <a class="btn btn-outline-secondary mb-3" href="{% url 'bedna_kontrola' bedna.cislo_bedny %}">Načíst aktuální údaje</a>
                 {% endif %}
                 <fieldset {% if not can_edit %}disabled{% endif %}>
-                    {% for field in form %}
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}</label>
-                            {{ field }}
-                            {% for error in field.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
-                        </div>
-                    {% endfor %}
+                    <div class="row">
+                        {% for field in form %}
+                            <div class="mb-3 col-12{% if field.name == 'pocet_krivych_vrutu_prvni_mereni' or field.name == 'pocet_krivych_vrutu_druhe_mereni' %} col-md-6{% endif %}">
+                                <label class="form-label fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                {% if field.name == 'pocet_krivych_vrutu_prvni_mereni' or field.name == 'pocet_krivych_vrutu_druhe_mereni' %}
+                                    <div class="input-group">
+                                        {{ field }}
+                                        <span class="input-group-text">z {{ bedna.zakazka.kamion_prijem.zakaznik.pocet_vrutu_pro_kontrolu_prohybu|default_if_none:"—" }} ks</span>
+                                    </div>
+                                {% else %}
+                                    {{ field }}
+                                {% endif %}
+                                {% for error in field.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                            </div>
+                        {% endfor %}
+                    </div>
                     {% if can_edit %}<button type="submit" class="btn btn-primary w-100 scan-action-button">Uložit kontrolu bedny</button>{% endif %}
                 </fieldset>
             </form>

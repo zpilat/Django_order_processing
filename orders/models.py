@@ -1594,6 +1594,14 @@ class KontrolaBedny(models.Model):
     )
     uvolneno_at = models.DateTimeField(null=True, blank=True, verbose_name='Datum uvolnění')
     poznamka = models.TextField(blank=True, verbose_name='Poznámka')
+    pocet_krivych_vrutu_prvni_mereni = models.PositiveSmallIntegerField(
+        blank=True, null=True, verbose_name='Počet křivých 1. měření',
+        help_text='Počet křivých vrutů z prvního měření u bedny s nevyhovujícím prohybem.',
+    )
+    pocet_krivych_vrutu_druhe_mereni = models.PositiveSmallIntegerField(
+        blank=True, null=True, verbose_name='Počet křivých 2. měření',
+        help_text='Počet křivých vrutů z druhého měření u bedny s nevyhovujícím prohybem.',
+    )
     history = HistoricalRecords()
 
     class Meta:

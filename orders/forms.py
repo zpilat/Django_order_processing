@@ -87,10 +87,15 @@ class ZakazkaMeasurementForm(forms.ModelForm):
 class KontrolaBednyForm(forms.ModelForm):
     class Meta:
         model = KontrolaBedny
-        fields = ('cistota', 'ulozeni', 'uvolneni', 'poznamka')
+        fields = (
+            'cistota', 'ulozeni', 'pocet_krivych_vrutu_prvni_mereni',
+            'pocet_krivych_vrutu_druhe_mereni', 'uvolneni', 'poznamka',
+        )
         widgets = {
             'cistota': forms.Select(attrs={'class': 'form-select'}),
             'ulozeni': forms.Select(attrs={'class': 'form-select'}),
+            'pocet_krivych_vrutu_prvni_mereni': forms.NumberInput(attrs={'class': 'form-control', 'inputmode': 'numeric'}),
+            'pocet_krivych_vrutu_druhe_mereni': forms.NumberInput(attrs={'class': 'form-control', 'inputmode': 'numeric'}),
             'uvolneni': forms.Select(attrs={'class': 'form-select'}),
             'poznamka': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }

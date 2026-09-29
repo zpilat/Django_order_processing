@@ -21,7 +21,7 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
 
     def payload(self, response, **overrides):
         form = response.context['form']
-        data = {name: form[name].value() or '' for name in form.fields}
+        data = {name: '' if form[name].value() is None else form[name].value() for name in form.fields}
         data['snapshot'] = response.context['snapshot']
         data.update(overrides)
         return data
@@ -216,6 +216,75 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
         self.bedna.refresh_from_db()
         self.assertFalse(self.bedna.pozastaveno)
 
+    def test_bent_screw_inputs_are_in_output_control_with_customer_sample_size(self):
+        customer = self.bedna.zakazka.kamion_prijem.zakaznik
+        for total, label in ((25, '25'), (50, '50'), (None, '—')):
+            with self.subTest(total=total):
+                customer.pocet_vrutu_pro_kontrolu_prohybu = total
+                customer.save(update_fields=['pocet_vrutu_pro_kontrolu_prohybu'])
+                response = self.client.get(self.url)
+                self.assertContains(response, f'<span class="input-group-text">z {label} ks</span>', count=2)
+                html = response.content.decode('utf-8')
+                before_form, form_html = html.split('<form method="post" novalidate>', 1)
+                for name in ('pocet_krivych_vrutu_prvni_mereni', 'pocet_krivych_vrutu_druhe_mereni'):
+                    self.assertNotIn(f'name="{name}"', before_form)
+                    self.assertIn(f'name="{name}"', form_html)
+                    model_field = KontrolaBedny._meta.get_field(name)
+                    self.assertEqual(response.context['form'].fields[name].label, model_field.verbose_name)
+                    self.assertEqual(response.context['form'].fields[name].help_text, model_field.help_text)
+        self.assertFalse(KontrolaBedny.objects.exists())
+
+    def test_bent_screw_counts_save_edit_and_clear_independently_with_history(self):
+        for first, second in ((2, 0), (None, 1), (0, None), (None, None)):
+            with self.subTest(first=first, second=second):
+                response = self.client.get(self.url)
+                result = self.client.post(self.url, self.payload(
+                    response,
+                    pocet_krivych_vrutu_prvni_mereni='' if first is None else first,
+                    pocet_krivych_vrutu_druhe_mereni='' if second is None else second,
+                ))
+                self.assertRedirects(result, self.url)
+                kontrola = KontrolaBedny.objects.get(bedna=self.bedna)
+                self.assertEqual(kontrola.pocet_krivych_vrutu_prvni_mereni, first)
+                self.assertEqual(kontrola.pocet_krivych_vrutu_druhe_mereni, second)
+                self.assertEqual(kontrola.history.first().pocet_krivych_vrutu_prvni_mereni, first)
+                self.assertEqual(kontrola.history.first().pocet_krivych_vrutu_druhe_mereni, second)
+                self.assertEqual(kontrola.history.first().history_user, self.user)
+                response = self.client.get(self.url)
+                self.assertEqual(response.context['form']['pocet_krivych_vrutu_prvni_mereni'].value(), first)
+                self.assertEqual(response.context['form']['pocet_krivych_vrutu_druhe_mereni'].value(), second)
+        self.assertEqual(kontrola.history.count(), 4)
+        self.assertFalse(MereniBedny.objects.exists())
+
+    def test_invalid_bent_screw_count_saves_nothing_and_preserves_input(self):
+        for name in ('pocet_krivych_vrutu_prvni_mereni', 'pocet_krivych_vrutu_druhe_mereni'):
+            for value in ('-1', '1.5', 'abc'):
+                with self.subTest(field=name, value=value):
+                    response = self.client.get(self.url)
+                    result = self.client.post(self.url, self.payload(response, **{name: value}))
+                    self.assertEqual(result.status_code, 200)
+                    self.assertIn(name, result.context['form'].errors)
+                    self.assertEqual(result.context['form'][name].value(), value)
+                    self.assertFalse(KontrolaBedny.objects.exists())
+
+    def test_concurrent_bent_screw_count_edit_cannot_be_overwritten(self):
+        kontrola = KontrolaBedny.objects.create(
+            bedna=self.bedna, pocet_krivych_vrutu_prvni_mereni=0, pocet_krivych_vrutu_druhe_mereni=0,
+        )
+        for name in ('pocet_krivych_vrutu_prvni_mereni', 'pocet_krivych_vrutu_druhe_mereni'):
+            with self.subTest(field=name):
+                response = self.client.get(self.url)
+                setattr(kontrola, name, 3)
+                kontrola.save()
+                history_count = kontrola.history.count()
+                result = self.client.post(self.url, self.payload(response, **{name: 5}))
+                self.assertEqual(result.status_code, 200)
+                self.assertTrue(result.context['form'].non_field_errors())
+                self.assertEqual(result.context['form'][name].value(), '5')
+                kontrola.refresh_from_db()
+                self.assertEqual(getattr(kontrola, name), 3)
+                self.assertEqual(kontrola.history.count(), history_count)
+
     def test_explicit_save_of_defaults_creates_control(self):
         response = self.client.get(self.url)
         self.assertEqual(self.client.post(self.url, self.payload(response)).status_code, 302)
@@ -260,7 +329,9 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
             self.assertIsNone(kontrola.uvolneno_at)
 
     def test_unchanged_save_does_not_add_history(self):
-        kontrola = KontrolaBedny.objects.create(bedna=self.bedna)
+        kontrola = KontrolaBedny.objects.create(
+            bedna=self.bedna, pocet_krivych_vrutu_prvni_mereni=0, pocet_krivych_vrutu_druhe_mereni=2,
+        )
         response = self.client.get(self.url)
         self.assertEqual(self.client.post(self.url, self.payload(response)).status_code, 302)
         self.assertEqual(kontrola.history.count(), 1)

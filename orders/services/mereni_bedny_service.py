@@ -37,6 +37,7 @@ def kontrola_snapshot(kontrola):
         kontrola.pk, kontrola.cistota, kontrola.ulozeni, kontrola.uvolneni,
         kontrola.poznamka, kontrola.uvolnil_id,
         kontrola.uvolneno_at.isoformat() if kontrola.uvolneno_at else None,
+        kontrola.pocet_krivych_vrutu_prvni_mereni, kontrola.pocet_krivych_vrutu_druhe_mereni,
     ]
     return hashlib.sha256(json.dumps(data, ensure_ascii=False).encode('utf-8')).hexdigest()
 

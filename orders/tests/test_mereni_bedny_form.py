@@ -57,6 +57,8 @@ class MereniBednyFormTests(KontrolaBednyTestBase):
             response = self.client.get(self.url_for(kind))
             self.assertEqual(response.status_code, 200)
             self.assertContains(response, kind.label)
+            self.assertNotContains(response, 'name="pocet_krivych_vrutu_prvni_mereni"')
+            self.assertNotContains(response, 'name="pocet_krivych_vrutu_druhe_mereni"')
         response = self.client.get(self.url_for(TypZkouskyChoice.PROHYB_PO_TZ))
         self.assertContains(response, 'Požadavek zákazníka')
         self.assertContains(response, 'Limit prohybu pro tohoto zákazníka není definován.')
