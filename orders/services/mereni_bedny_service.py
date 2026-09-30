@@ -4,7 +4,7 @@ import json
 from django.utils import timezone
 
 from orders.choices import TypZkouskyChoice
-from orders.models import MereniBedny
+from orders.models import KontrolaBedny, MereniBedny
 
 
 def pozadavek_zkousky(predpis, typ_zkousky):
@@ -38,6 +38,7 @@ def kontrola_snapshot(kontrola):
         kontrola.poznamka, kontrola.uvolneni_zmenil_id,
         kontrola.uvolneni_zmeneno_at.isoformat() if kontrola.uvolneni_zmeneno_at else None,
         kontrola.pocet_krivych_vrutu_prvni_mereni, kontrola.pocet_krivych_vrutu_druhe_mereni,
+        *(getattr(kontrola, name) for name in KontrolaBedny.NESHODA_FIELDS),
     ]
     return hashlib.sha256(json.dumps(data, ensure_ascii=False).encode('utf-8')).hexdigest()
 

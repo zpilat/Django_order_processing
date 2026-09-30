@@ -2,7 +2,7 @@
 {% load static custom_filters %}
 
 {% block title %}Kontrola bedny {{ bedna.cislo_bedny }}{% endblock %}
-{% block extra_head %}{{ block.super }}<link rel="stylesheet" href="{% static 'orders/css/scan_workflows.css' %}">{% include "orders/_prohyb_style.html" %}{% endblock %}
+{% block extra_head %}{{ block.super }}<link rel="stylesheet" href="{% static 'orders/css/scan_workflows.css' %}">{% include "orders/_prohyb_style.html" %}<script defer src="{% static 'orders/js/bedna_kontrola.js' %}"></script>{% endblock %}
 
 {% block content %}
 <main class="scan-page scan-page-narrow px-0 px-sm-2 py-2">
@@ -71,6 +71,24 @@
                 <fieldset {% if not can_edit %}disabled{% endif %}>
                     <div class="row">
                         {% for field in form %}
+                            {% if field.name == 'poznamka' %}
+                                <div id="duvody-neshody" class="mb-3 col-12{% if not form.zobrazit_duvody_neshody %} d-none{% endif %}">
+                                    <div class="fw-semibold mb-2">Důvody neshody</div>
+                                    <div class="row row-cols-1 row-cols-md-2 g-2">
+                                        {% for duvod in form.duvody_neshody %}
+                                            <div class="col">
+                                                <div class="form-check">
+                                                    {{ duvod }}
+                                                    <label class="form-check-label" for="{{ duvod.id_for_label }}">{{ duvod.label }}</label>
+                                                </div>
+                                                {% for error in duvod.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                    <div class="form-text">Důvod „Jiné“ upřesněte v poli Poznámka.</div>
+                                </div>
+                            {% endif %}
+                            {% if field.name not in form.neshoda_fields %}
                             <div class="mb-3 col-12{% if field.name == 'pocet_krivych_vrutu_prvni_mereni' or field.name == 'pocet_krivych_vrutu_druhe_mereni' %} col-md-6{% endif %}">
                                 <label class="form-label fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}</label>
                                 {% if field.name == 'pocet_krivych_vrutu_prvni_mereni' or field.name == 'pocet_krivych_vrutu_druhe_mereni' %}
@@ -83,6 +101,7 @@
                                 {% endif %}
                                 {% for error in field.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
                             </div>
+                            {% endif %}
                         {% endfor %}
                     </div>
                     {% if can_edit %}<button type="submit" class="btn btn-primary w-100 scan-action-button">Uložit kontrolu bedny</button>{% endif %}

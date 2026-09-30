@@ -23,6 +23,7 @@ from .choices import (
     TypZarizeniChoice,
     ZinkovaniChoice,
     STAV_BEDNY_PRO_NAVEZENI,
+    UvolneniKontrolyChoice,
 )
 
 import logging
@@ -85,11 +86,36 @@ class ZakazkaMeasurementForm(forms.ModelForm):
 
 
 class KontrolaBednyForm(forms.ModelForm):
+    neshoda_fields = KontrolaBedny.NESHODA_FIELDS
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if (
+            cleaned_data.get('uvolneni') == UvolneniKontrolyChoice.NESHODA
+            and not any(cleaned_data.get(name) for name in self.neshoda_fields)
+        ):
+            self.add_error('uvolneni', 'Při neshodě vyberte alespoň jeden důvod neshody.')
+        if cleaned_data.get('neshoda_jine') and not cleaned_data.get('poznamka'):
+            self.add_error('poznamka', 'Při typu neshody "Jiné" uveďte do poznámky, o jakou neshodu se jedná.')
+        return cleaned_data
+
+    @property
+    def duvody_neshody(self):
+        return [self[name] for name in self.neshoda_fields]
+
+    @property
+    def zobrazit_duvody_neshody(self):
+        return (
+            self['uvolneni'].value() == UvolneniKontrolyChoice.NESHODA
+            or any(self[name].value() for name in self.neshoda_fields)
+        )
+
     class Meta:
         model = KontrolaBedny
         fields = (
             'cistota', 'ulozeni', 'pocet_krivych_vrutu_prvni_mereni',
-            'pocet_krivych_vrutu_druhe_mereni', 'uvolneni', 'poznamka',
+            'pocet_krivych_vrutu_druhe_mereni', 'uvolneni',
+            *KontrolaBedny.NESHODA_FIELDS, 'poznamka',
         )
         widgets = {
             'cistota': forms.Select(attrs={'class': 'form-select'}),
@@ -98,6 +124,10 @@ class KontrolaBednyForm(forms.ModelForm):
             'pocet_krivych_vrutu_druhe_mereni': forms.NumberInput(attrs={'class': 'form-control', 'inputmode': 'numeric'}),
             'uvolneni': forms.Select(attrs={'class': 'form-select'}),
             'poznamka': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            **{
+                name: forms.CheckboxInput(attrs={'class': 'form-check-input'})
+                for name in KontrolaBedny.NESHODA_FIELDS
+            },
         }
 
 

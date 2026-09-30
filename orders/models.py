@@ -1573,6 +1573,14 @@ class Bedna(models.Model):
 class KontrolaBedny(models.Model):
     """Společné výsledky výstupní kontroly a rozhodnutí o uvolnění bedny."""
 
+    NESHODA_FIELDS = (
+        'neshoda_cistota', 'neshoda_krut_nizky', 'neshoda_krut_vysoky',
+        'neshoda_ohyb_nizky', 'neshoda_tvrdost_povrchu_nizka',
+        'neshoda_tvrdost_povrchu_vysoka', 'neshoda_tvrdost_jadra_nizka',
+        'neshoda_tvrdost_jadra_vysoka', 'neshoda_krivost',
+        'neshoda_pomichane_vruty', 'neshoda_chyba_v_procesu', 'neshoda_jine',
+    )
+
     bedna = models.OneToOneField(
         Bedna, on_delete=models.PROTECT, related_name='kontrola', verbose_name='Bedna',
     )
@@ -1594,6 +1602,18 @@ class KontrolaBedny(models.Model):
     )
     uvolneni_zmeneno_at = models.DateTimeField(null=True, blank=True, verbose_name='Datum změny uvolnění')
     poznamka = models.TextField(blank=True, verbose_name='Poznámka')
+    neshoda_cistota = models.BooleanField(default=False, verbose_name='Čistota')
+    neshoda_krut_nizky = models.BooleanField(default=False, verbose_name='Krut nízký')
+    neshoda_krut_vysoky = models.BooleanField(default=False, verbose_name='Krut vysoký')
+    neshoda_ohyb_nizky = models.BooleanField(default=False, verbose_name='Ohyb nízký')
+    neshoda_tvrdost_povrchu_nizka = models.BooleanField(default=False, verbose_name='Tvrdost povrchu nízká')
+    neshoda_tvrdost_povrchu_vysoka = models.BooleanField(default=False, verbose_name='Tvrdost povrchu vysoká')
+    neshoda_tvrdost_jadra_nizka = models.BooleanField(default=False, verbose_name='Tvrdost jádra nízká')
+    neshoda_tvrdost_jadra_vysoka = models.BooleanField(default=False, verbose_name='Tvrdost jádra vysoká')
+    neshoda_krivost = models.BooleanField(default=False, verbose_name='Křivost')
+    neshoda_pomichane_vruty = models.BooleanField(default=False, verbose_name='Pomíchané vruty')
+    neshoda_chyba_v_procesu = models.BooleanField(default=False, verbose_name='Chyba v procesu')
+    neshoda_jine = models.BooleanField(default=False, verbose_name='Jiné')
     pocet_krivych_vrutu_prvni_mereni = models.PositiveSmallIntegerField(
         blank=True, null=True, verbose_name='Počet křivých 1. měření',
         help_text='Počet křivých vrutů z prvního měření u bedny s nevyhovujícím prohybem.',
