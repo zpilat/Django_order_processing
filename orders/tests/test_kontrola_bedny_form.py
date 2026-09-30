@@ -346,21 +346,27 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
         html = response.content.decode('utf-8')
         self.assertLess(html.index(scanner_url), html.index('id="mereni-bedny"'))
 
-    def test_mark_checked_button_is_immediately_before_back_to_detail(self):
-        self.bedna.stav_bedny = StavBednyChoice.ZAKALENO
+    def test_mark_checked_button_is_above_measurements_with_label_for_state(self):
         self.bedna.hmotnost = Decimal('10')
         self.bedna.tara = Decimal('1')
         self.bedna.mnozstvi = 100
-        self.bedna.save(update_fields=['stav_bedny', 'hmotnost', 'tara', 'mnozstvi'])
-        response = self.client.get(self.url)
-
+        self.bedna.save(update_fields=['hmotnost', 'tara', 'mnozstvi'])
         mark_url = reverse('bedna_scan_zkontrolovano', args=[self.bedna.cislo_bedny])
-        detail_url = reverse('bedna_scan', args=[self.bedna.cislo_bedny])
-        html = response.content.decode('utf-8')
-        mark_link = f'href="{mark_url}"'
-        detail_link = f'href="{detail_url}"'
-        self.assertLess(html.index('Výstupní kontrola'), html.index(mark_link))
-        self.assertLess(html.index(mark_link), html.index(detail_link))
+        scanner_url = f"{reverse('bedna_skener_ctecka')}?cil=kontrola"
+        for state, label, other_label in (
+            (StavBednyChoice.ZAKALENO, 'Označit bednu jako zkontrolovanou', 'Upravit stav rovnání a tryskání'),
+            (StavBednyChoice.ZKONTROLOVANO, 'Upravit stav rovnání a tryskání', 'Označit bednu jako zkontrolovanou'),
+        ):
+            with self.subTest(state=state):
+                self.bedna.stav_bedny = state
+                self.bedna.save(update_fields=['stav_bedny'])
+                response = self.client.get(self.url)
+                html = response.content.decode('utf-8')
+                self.assertContains(response, mark_url, count=1)
+                self.assertContains(response, label)
+                self.assertNotContains(response, other_label)
+                self.assertLess(html.index(f'href="{mark_url}"'), html.index(scanner_url))
+                self.assertLess(html.index(scanner_url), html.index('id="mereni-bedny"'))
 
     def test_first_save_creates_control_and_history(self):
         response = self.client.get(self.url)

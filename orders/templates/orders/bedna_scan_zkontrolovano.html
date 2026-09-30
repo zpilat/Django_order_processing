@@ -65,7 +65,9 @@
 
                 <div class="d-grid gap-2">
                     <button type="submit" class="btn btn-warning scan-action-button">
-                        Označit bednu jako zkontrolovanou
+                        {% if bedna.stav_bedny == 'ZK' %}Upravit stav rovnání a tryskání
+                        {% else %}Označit bednu jako zkontrolovanou
+                        {% endif %}
                     </button>
                     <a class="btn btn-outline-secondary scan-action-button d-flex align-items-center justify-content-center"
                        href="{% url 'bedna_kontrola' bedna.cislo_bedny %}">

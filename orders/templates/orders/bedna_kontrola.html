@@ -18,6 +18,15 @@
         </div>
     </section>
 
+    {% if can_mark_zkontrolovano %}
+        <a class="btn btn-warning w-100 scan-action-button d-flex align-items-center justify-content-center mt-3"
+            href="{% url 'bedna_scan_zkontrolovano' bedna.cislo_bedny %}">
+            {% if bedna.stav_bedny == 'ZK' %}Upravit stav rovnání a tryskání
+            {% else %}Označit bednu jako zkontrolovanou
+            {% endif %}
+        </a>
+    {% endif %}
+
     <a class="btn btn-outline-primary w-100 scan-action-button d-flex align-items-center justify-content-center mt-3"
        href="{% url 'bedna_skener_ctecka' %}?cil=kontrola">Další bedna ke kontrole</a>
 
@@ -112,11 +121,6 @@
             {% endif %}
         </div>
     </section>
-
-    {% if can_mark_zkontrolovano %}
-        <a class="btn btn-warning w-100 scan-action-button d-flex align-items-center justify-content-center mt-3"
-           href="{% url 'bedna_scan_zkontrolovano' bedna.cislo_bedny %}">Označit bednu jako zkontrolovanou</a>
-    {% endif %}
 
     <a class="btn btn-outline-secondary w-100 scan-action-button d-flex align-items-center justify-content-center mt-3" href="{% url 'bedna_scan' bedna.cislo_bedny %}">Zpět na detail bedny</a>
 </main>

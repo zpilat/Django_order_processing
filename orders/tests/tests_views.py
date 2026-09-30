@@ -2164,8 +2164,23 @@ class BednaScanViewTests(ViewsTestBase):
 		self.assertTemplateUsed(response, "orders/bedna_scan_zkontrolovano.html")
 		self.assertContains(response, reverse("bedna_kontrola", args=[self.b_eur_pr.cislo_bedny]))
 		self.assertContains(response, str(self.b_eur_pr.cislo_bedny))
+		self.assertContains(response, "Označit bednu jako zkontrolovanou")
+		self.assertNotContains(response, "Upravit stav rovnání a tryskání")
 		self.assertIn("form", response.context)
 		self.assertIn("bedna", response.context)
+
+	def test_scan_zkontrolovano_get_uses_edit_label_for_checked_bedna(self):
+		self._set_bedna_zkontrolovano_ready()
+		self.b_eur_pr.stav_bedny = StavBednyChoice.ZKONTROLOVANO
+		self.b_eur_pr.save(update_fields=["stav_bedny"])
+
+		response = self.client.get(
+			reverse("bedna_scan_zkontrolovano", args=[self.b_eur_pr.cislo_bedny])
+		)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "Upravit stav rovnání a tryskání")
+		self.assertNotContains(response, "Označit bednu jako zkontrolovanou")
 
 	def test_scan_zkontrolovano_get_includes_current_disallowed_choices(self):
 		self._set_bedna_zkontrolovano_ready()
@@ -2317,6 +2332,8 @@ class BednaScanViewTests(ViewsTestBase):
 
 		self.assertEqual(response.status_code, 200)
 		self.assertTemplateUsed(response, "orders/bedna_scan_zkontrolovano.html")
+		self.assertContains(response, "Označit bednu jako zkontrolovanou")
+		self.assertNotContains(response, "Upravit stav rovnání a tryskání")
 		self.b_eur_pr.refresh_from_db()
 		self.assertEqual(self.b_eur_pr.stav_bedny, StavBednyChoice.ZAKALENO)
 

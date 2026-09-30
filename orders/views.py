@@ -1011,24 +1011,23 @@ def bedna_scan_zkontrolovano_view(request, cislo_bedny: int):
 
             form = BednaScanZkontrolovanoForm(request.POST, bedna=bedna)
             if form.is_valid():
-                bedna.stav_bedny = StavBednyChoice.ZKONTROLOVANO
-                bedna.rovnat = form.cleaned_data['rovnat']
-                bedna.tryskat = form.cleaned_data['tryskat']
-                rovnat_bool = bedna.rovnat in [RovnaniChoice.KRIVA, RovnaniChoice.ROVNA]
-                tryskat_bool = bedna.tryskat in [TryskaniChoice.SPINAVA, TryskaniChoice.CISTA, TryskaniChoice.OTRYSKANA]
+                rovnat = form.cleaned_data['rovnat']
+                tryskat = form.cleaned_data['tryskat']
+                rovnat_bool = rovnat in [RovnaniChoice.KRIVA, RovnaniChoice.ROVNA]
+                tryskat_bool = tryskat in [TryskaniChoice.SPINAVA, TryskaniChoice.CISTA, TryskaniChoice.OTRYSKANA]
                 if not rovnat_bool or not tryskat_bool:
                     if not rovnat_bool:
                         logger.warning(
                             f"Uživatel {request.user} se pokusil označit přes scan bednu {bedna.cislo_bedny} jako zkontrolovanou, "
-                            f"ale bedna má nastaveno rovnání na hodnotu '{bedna.rovnat}', což není povolená hodnota."
+                            f"ale bedna má nastaveno rovnání na hodnotu '{rovnat}', což není povolená hodnota."
                         )
-                        messages.error(request, f'Bedna {bedna.cislo_bedny} má nastaveno rovnání na hodnotu "{bedna.rovnat}", což není povolená hodnota pro označení bedny jako zkontrolované.')
+                        messages.error(request, f'Bedna {bedna.cislo_bedny} má nastaveno rovnání na hodnotu "{rovnat}", což není povolená hodnota pro označení bedny jako zkontrolované.')
                     if not tryskat_bool:
                         logger.warning(
                             f"Uživatel {request.user} se pokusil označit přes scan bednu {bedna.cislo_bedny} jako zkontrolovanou, "
-                            f"ale bedna má nastaveno tryskání na hodnotu '{bedna.tryskat}', což není povolená hodnota."
+                            f"ale bedna má nastaveno tryskání na hodnotu '{tryskat}', což není povolená hodnota."
                         )
-                        messages.error(request, f'Bedna {bedna.cislo_bedny} má nastaveno tryskání na hodnotu "{bedna.tryskat}", což není povolená hodnota pro označení bedny jako zkontrolované.')
+                        messages.error(request, f'Bedna {bedna.cislo_bedny} má nastaveno tryskání na hodnotu "{tryskat}", což není povolená hodnota pro označení bedny jako zkontrolované.')
                     return render(
                         request,
                         'orders/bedna_scan_zkontrolovano.html',
@@ -1038,6 +1037,9 @@ def bedna_scan_zkontrolovano_view(request, cislo_bedny: int):
                             'db_table': 'bedna_scan_zkontrolovano',
                         }
                     )
+                bedna.stav_bedny = StavBednyChoice.ZKONTROLOVANO
+                bedna.rovnat = rovnat
+                bedna.tryskat = tryskat
                 bedna.save(update_fields=['stav_bedny', 'rovnat', 'tryskat', 'pozice'])
             else:
                 return render(
