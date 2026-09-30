@@ -564,16 +564,9 @@ class NavezenoForm(forms.Form):
 
 
 def _include_current_choice(choices, current_value, all_choices):
-    choice_values = {choice for choice, _label in choices}
-    choice_values.add(current_value)
-    choice_labels = dict(all_choices)
-    choice_labels.update(dict(choices))
-
-    return [
-        (choice, choice_labels[choice])
-        for choice, _label in all_choices
-        if choice in choice_values
-    ]
+    labels = dict(all_choices)
+    values = list(dict.fromkeys((current_value, *(choice for choice, _label in choices))))
+    return [(value, labels[value]) for value in values]
 
 
 class BednaScanZkontrolovanoForm(forms.Form):
@@ -582,26 +575,40 @@ class BednaScanZkontrolovanoForm(forms.Form):
 
     def __init__(self, *args, bedna, **kwargs):
         super().__init__(*args, **kwargs)
-        # Kontrolor má pro označení jako zkontrolované vybrat jen finální hodnotu,
-        # ale aktuální hodnotu zobrazíme, aby bylo vidět, z čeho se mění.
-        allowed_rovnat_choices = [
-            (choice, label)
-            for choice, label in RovnaniChoice.choices
-            if choice in [RovnaniChoice.ROVNA, RovnaniChoice.KRIVA]
-        ]
-        allowed_rovnat_choices = _include_current_choice(allowed_rovnat_choices, bedna.rovnat, RovnaniChoice.choices)
-        self.fields['rovnat'].choices = allowed_rovnat_choices
+
+        if bedna.rovnat in (RovnaniChoice.NEZADANO, RovnaniChoice.ROVNA):
+            rovnat_values = [RovnaniChoice.ROVNA, RovnaniChoice.KRIVA]
+        else:
+            rovnat_values = [RovnaniChoice.KRIVA, RovnaniChoice.VYROVNANA]
+        rovnat_labels = dict(RovnaniChoice.choices)
+        self.fields['rovnat'].choices = _include_current_choice(
+            [(value, rovnat_labels[value]) for value in rovnat_values], bedna.rovnat, RovnaniChoice.choices,
+        )
         self.fields['rovnat'].initial = bedna.rovnat
         self.fields['rovnat'].widget.attrs.update({'class': 'form-select scan-position-select'})
 
-        allowed_tryskat_choices = bedna.get_allowed_tryskat_choices()
-        # Pro kontrolora nechceme, aby mohl nastavit hodnotu NEZADANO,
-        # musí určitě, zda je bedna čistá, špinavá nebo otryskaná.
-        allowed_tryskat_choices = [(choice, label) for choice, label in allowed_tryskat_choices if choice != TryskaniChoice.NEZADANO]
-        allowed_tryskat_choices = _include_current_choice(allowed_tryskat_choices, bedna.tryskat, TryskaniChoice.choices)
-        self.fields['tryskat'].choices = allowed_tryskat_choices
+        if bedna.tryskat in (TryskaniChoice.NEZADANO, TryskaniChoice.CISTA):
+            tryskat_values = [TryskaniChoice.CISTA, TryskaniChoice.SPINAVA]
+        else:
+            tryskat_values = [TryskaniChoice.SPINAVA, TryskaniChoice.OTRYSKANA]
+        tryskat_labels = dict(TryskaniChoice.choices)
+        self.fields['tryskat'].choices = _include_current_choice(
+            [(value, tryskat_labels[value]) for value in tryskat_values], bedna.tryskat, TryskaniChoice.choices,
+        )
         self.fields['tryskat'].initial = bedna.tryskat
         self.fields['tryskat'].widget.attrs.update({'class': 'form-select scan-position-select'})
+
+    def clean_rovnat(self):
+        value = self.cleaned_data['rovnat']
+        if value == RovnaniChoice.NEZADANO:
+            raise ValidationError('Vyberte stav rovnání.')
+        return value
+
+    def clean_tryskat(self):
+        value = self.cleaned_data['tryskat']
+        if value == TryskaniChoice.NEZADANO:
+            raise ValidationError('Vyberte stav tryskání.')
+        return value
 
 
 class SarzeSkenerCteckaForm(forms.Form):
