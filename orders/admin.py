@@ -3245,6 +3245,11 @@ class BednaAdmin(HistoryViewOnlyAdmin):
             'control_url': reverse('bedna_kontrola', args=[obj.cislo_bedny]),
         }))
 
+    @admin.display(description='Uvolnění', ordering='kontrola__uvolneni')
+    def get_uvolneni_kontroly(self, obj):
+        kontrola = getattr(obj, 'kontrola', None)
+        return kontrola.get_uvolneni_display() if kontrola else '—'
+
     @admin.display(description='Pohyb v šaržích')
     def get_pohyb_v_sarzich(self, obj):
         if not obj or not obj.pk:
@@ -3707,6 +3712,9 @@ class BednaAdmin(HistoryViewOnlyAdmin):
             fake_skupina_TZ_ann=build_fake_skupina_TZ_annotation()
         )
 
+        if request.GET.get('stav_bedny') == StavBednyChoice.ZKONTROLOVANO:
+            qs = qs.select_related('kontrola')
+
         return qs
 
     def get_fieldsets(self, request, obj=None):
@@ -4043,7 +4051,8 @@ class BednaAdmin(HistoryViewOnlyAdmin):
             return list_display
 
         removed_columns = {
-            'behalter_nr', 'stav_bedny', 'rovnat', 'tryskat', 'zinkovat', 'pozice', 'kamion_prijem_link',
+            'behalter_nr', 'stav_bedny', 'get_uvolneni_kontroly', 'rovnat', 'tryskat', 'zinkovat',
+            'pozice', 'kamion_prijem_link',
         }
         chemistry_columns = ['get_material', 'get_sarze', 'get_obsah_ca', 'get_obsah_p', 'get_obsah_zn']
         result = [
@@ -4152,6 +4161,12 @@ class BednaAdmin(HistoryViewOnlyAdmin):
         if stav_bedny != StavBednyChoice.PRIJATO:
             if 'get_material' in list_display:
                 list_display.remove('get_material')
+
+        if stav_bedny == StavBednyChoice.ZKONTROLOVANO:
+            for column in ('behalter_nr', 'pozice'):
+                if column in list_display:
+                    list_display.remove(column)
+            list_display.insert(list_display.index('stav_bedny') + 1, 'get_uvolneni_kontroly')
                 
         return self._apply_chemistry_view_columns(request, list_display)
     

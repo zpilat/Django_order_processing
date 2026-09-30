@@ -20,8 +20,8 @@ from orders import actions
 from orders.actions import vytvorit_dalsi_krok_sarze_action, vytvorit_novy_krok_z_kroku_sarze_action
 from orders.forms import ImportZakazekForm
 from orders.import_strategies import EURImportStrategy
-from orders.models import Zakaznik, Kamion, Zakazka, Bedna, Predpis, TypHlavy, Odberatel, Cena, Notification, PriorityNotificationRecipient, Zarizeni, Sarze, SarzeKrok, SarzeKrokBedna
-from orders.choices import StavBednyChoice, StavSarzeChoice, SklademZakazkyChoice, PrijemVydejChoice, KamionChoice, ZinkovaniChoice, PrioritaChoice, TypZarizeniChoice
+from orders.models import Zakaznik, Kamion, Zakazka, Bedna, KontrolaBedny, Predpis, TypHlavy, Odberatel, Cena, Notification, PriorityNotificationRecipient, Zarizeni, Sarze, SarzeKrok, SarzeKrokBedna
+from orders.choices import StavBednyChoice, StavSarzeChoice, SklademZakazkyChoice, PrijemVydejChoice, KamionChoice, ZinkovaniChoice, PrioritaChoice, TypZarizeniChoice, UvolneniKontrolyChoice
 from orders.filters import DelkaFilter, TypSarzeFilter
 
 
@@ -1526,6 +1526,53 @@ class BednaAdminTests(AdminBase):
         ld2 = self.admin.get_list_display(self.get_request({'stav_bedny': 'EX'}))
         self.assertIn('kamion_vydej_link', ld2)
 
+    def test_checked_changelist_replaces_customer_box_number_with_release(self):
+        checked_request = self.get_request({'stav_bedny': StavBednyChoice.ZKONTROLOVANO})
+        columns = self.admin.get_list_display(checked_request)
+        self.assertNotIn('behalter_nr', columns)
+        self.assertNotIn('pozice', columns)
+        self.assertEqual(columns[columns.index('stav_bedny') + 1], 'get_uvolneni_kontroly')
+        self.assertEqual(self.admin.get_uvolneni_kontroly.short_description, 'Uvolnění')
+
+        for state in (StavBednyChoice.PRIJATO, StavBednyChoice.K_EXPEDICI):
+            with self.subTest(state=state):
+                columns = self.admin.get_list_display(self.get_request({'stav_bedny': state}))
+                self.assertIn('behalter_nr', columns)
+                self.assertNotIn('get_uvolneni_kontroly', columns)
+
+        self.bedna.stav_bedny = StavBednyChoice.ZKONTROLOVANO
+        self.bedna.save(update_fields=['stav_bedny'])
+        self.assertEqual(self.admin.get_uvolneni_kontroly(self.bedna), '—')
+        KontrolaBedny.objects.create(
+            bedna=self.bedna, uvolneni=UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU,
+        )
+        self.bedna.refresh_from_db()
+        self.assertEqual(self.admin.get_uvolneni_kontroly(self.bedna), 'Uvolněno s odchylkou')
+
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse('admin:orders_bedna_changelist'),
+            {'stav_bedny': StavBednyChoice.ZKONTROLOVANO},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('get_uvolneni_kontroly', response.context['cl'].list_display)
+        self.assertContains(response, 'Uvolněno s odchylkou')
+
+    def test_checked_changelist_loads_release_without_query_per_bedna(self):
+        self.bedna.stav_bedny = StavBednyChoice.ZKONTROLOVANO
+        self.bedna.save(update_fields=['stav_bedny'])
+        other = Bedna.objects.create(
+            zakazka=self.zakazka, stav_bedny=StavBednyChoice.ZKONTROLOVANO,
+            hmotnost=Decimal(2), tara=Decimal(1), mnozstvi=1,
+        )
+        KontrolaBedny.objects.create(bedna=self.bedna, uvolneni=UvolneniKontrolyChoice.UVOLNENO)
+        request = self.get_request({'stav_bedny': StavBednyChoice.ZKONTROLOVANO})
+
+        with self.assertNumQueries(1):
+            rows = list(self.admin.get_queryset(request).filter(pk__in=(self.bedna.pk, other.pk)))
+            releases = [self.admin.get_uvolneni_kontroly(row) for row in rows]
+        self.assertCountEqual(releases, ['Uvolněno', '—'])
+
     def test_list_display_is_not_reduced_for_mobile_user_agent(self):
         desktop_request = self.get_request()
         mobile_request = self.factory.get(
@@ -1541,11 +1588,11 @@ class BednaAdminTests(AdminBase):
 
     def test_chemistry_view_replaces_columns_for_multiple_states(self):
         removed_columns = {
-            'behalter_nr', 'stav_bedny', 'rovnat', 'tryskat', 'zinkovat', 'pozice',
+            'behalter_nr', 'stav_bedny', 'get_uvolneni_kontroly', 'rovnat', 'tryskat', 'zinkovat', 'pozice',
         }
         chemistry_columns = {'get_material', 'get_sarze', 'get_obsah_ca', 'get_obsah_p', 'get_obsah_zn'}
 
-        for state in (StavBednyChoice.PRIJATO, StavBednyChoice.EXPEDOVANO):
+        for state in (StavBednyChoice.PRIJATO, StavBednyChoice.ZKONTROLOVANO, StavBednyChoice.EXPEDOVANO):
             with self.subTest(state=state):
                 request = self.get_request({'stav_bedny': state, CHEMIE_VIEW_PARAM: '1'})
                 list_display = self.admin.get_list_display(request)
