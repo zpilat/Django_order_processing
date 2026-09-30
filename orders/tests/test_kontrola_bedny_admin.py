@@ -116,6 +116,33 @@ class KontrolaBednyAdminTests(KontrolaBednyTestBase):
                 self.assertIn(status.label, details)
                 self.assertEqual('class="qc-detail"' in details, released)
 
+    def test_summary_shows_selected_nonconformity_reasons_before_note_only_for_nonconformity(self):
+        bedna_admin = admin.site._registry[Bedna]
+        self.kontrola.uvolneni = UvolneniKontrolyChoice.NESHODA
+        self.kontrola.neshoda_cistota = True
+        self.kontrola.neshoda_tvrdost_povrchu_nizka = True
+        self.kontrola.neshoda_jine = True
+        self.kontrola.save()
+
+        html = str(bedna_admin.get_mereni_bedny(self.bedna))
+        reasons = '<strong>Důvody neshody:</strong> Čistota, Tvrdost povrchu nízká, Jiné'
+        self.assertIn(reasons, html)
+        self.assertLess(html.index(reasons), html.index('<strong>Interní poznámka:</strong>'))
+        self.assertNotIn('Krut nízký', html)
+
+        self.kontrola.uvolneni = UvolneniKontrolyChoice.UVOLNENO
+        self.kontrola.save()
+        html = str(bedna_admin.get_mereni_bedny(self.bedna))
+        self.assertNotIn('Důvody neshody:', html)
+        self.assertIn('<strong>Interní poznámka:</strong>', html)
+
+        self.kontrola.uvolneni = UvolneniKontrolyChoice.NESHODA
+        for name in KontrolaBedny.NESHODA_FIELDS:
+            setattr(self.kontrola, name, False)
+        self.kontrola.save()
+        html = str(bedna_admin.get_mereni_bedny(self.bedna))
+        self.assertNotIn('Důvody neshody:', html)
+
     def test_bedna_summary_shows_bending_limits_and_optional_release_limit(self):
         customer = self.bedna.zakazka.kamion_prijem.zakaznik
         bedna_admin = admin.site._registry[Bedna]

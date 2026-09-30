@@ -3232,10 +3232,16 @@ class BednaAdmin(HistoryViewOnlyAdmin):
                         'datum_do': max(dates, default=None),
                     })
 
+        duvody_neshody = [
+            str(KontrolaBedny._meta.get_field(name).verbose_name)
+            for name in KontrolaBedny.NESHODA_FIELDS
+            if kontrola and getattr(kontrola, name)
+        ]
         return mark_safe(render_to_string('admin/orders/bedna/_quality_control_summary.html', {
             'bedna': obj,
             'kontrola': kontrola,
             'rows': rows,
+            'duvody_neshody': duvody_neshody,
             'control_url': reverse('bedna_kontrola', args=[obj.cislo_bedny]),
         }))
 
