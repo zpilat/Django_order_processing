@@ -116,7 +116,7 @@ class KontrolaBednyAdminTests(KontrolaBednyTestBase):
                 self.assertIn(status.label, details)
                 self.assertEqual('class="qc-detail"' in details, released)
 
-    def test_summary_shows_selected_nonconformity_reasons_before_note_only_for_nonconformity(self):
+    def test_summary_shows_selected_reasons_inside_release_status_only_for_nonconformity(self):
         bedna_admin = admin.site._registry[Bedna]
         self.kontrola.uvolneni = UvolneniKontrolyChoice.NESHODA
         self.kontrola.neshoda_cistota = True
@@ -126,7 +126,9 @@ class KontrolaBednyAdminTests(KontrolaBednyTestBase):
 
         html = str(bedna_admin.get_mereni_bedny(self.bedna))
         reasons = '<strong>Důvody neshody:</strong> Čistota, Tvrdost povrchu nízká, Jiné'
-        self.assertIn(reasons, html)
+        release_status = html.split('<div class="qc-status qc-bad">', 1)[1].split('</div>', 1)[0]
+        self.assertIn(f'<span class="qc-detail qc-reasons">{reasons}</span>', release_status)
+        self.assertEqual(html.count('Důvody neshody:'), 1)
         self.assertLess(html.index(reasons), html.index('<strong>Interní poznámka:</strong>'))
         self.assertNotIn('Krut nízký', html)
 

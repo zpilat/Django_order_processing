@@ -46,6 +46,7 @@
             <div class="qc-status {% if kontrola.uvolneni == 'UV' %}qc-good{% elif kontrola.uvolneni == 'UO' %}qc-warning{% elif kontrola.uvolneni == 'NE' %}qc-bad{% endif %}">
                 <span class="qc-label">Uvolnění</span>
                 <span class="qc-value">{{ kontrola.get_uvolneni_display }}</span>
+                {% if kontrola.uvolneni == 'NE' and duvody_neshody %}<span class="qc-detail qc-reasons"><strong>Důvody neshody:</strong> {{ duvody_neshody|join:", " }}</span>{% endif %}
                 {% if kontrola.uvolneni_zmenil or kontrola.uvolneni_zmeneno_at %}<span class="qc-detail">{{ kontrola.uvolneni_zmenil|default:"—" }} · {{ kontrola.uvolneni_zmeneno_at|date:"j.n.Y H:i" }}</span>{% endif %}
             </div>
         </div>
@@ -87,7 +88,6 @@
             </tbody>
         </table>
 
-        {% if kontrola.uvolneni == 'NE' and duvody_neshody %}<div class="qc-note"><strong>Důvody neshody:</strong> {{ duvody_neshody|join:", " }}</div>{% endif %}
         {% if kontrola.poznamka %}<div class="qc-note"><strong>Interní poznámka:</strong> {{ kontrola.poznamka|linebreaksbr }}</div>{% endif %}
     {% else %}
         <p class="qc-empty">Kontrola ani měření zatím nejsou zadány.</p>

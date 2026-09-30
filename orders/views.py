@@ -723,6 +723,7 @@ def bedna_kontrola_view(request, cislo_bedny: int):
                     kontrola.save()
                 messages.success(request, 'Kontrola bedny byla uložena.')
                 return redirect('bedna_kontrola', cislo_bedny=bedna.cislo_bedny)
+            messages.error(request, 'Kontrolu bedny se nepodařilo uložit. Příčinu najdete ve formuláři Výstupní kontrola.')
     else:
         bedna, kontrola, form, can_edit, current_snapshot, previous_status = load_form()
         snapshot = current_snapshot

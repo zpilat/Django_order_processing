@@ -97,6 +97,9 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
         ))
         self.assertEqual(result.status_code, 200)
         self.assertContains(result, 'Při neshodě vyberte alespoň jeden důvod neshody.')
+        self.assertContains(result, 'Kontrolu bedny se nepodařilo uložit. Příčinu najdete ve formuláři Výstupní kontrola.', count=1)
+        html = result.content.decode('utf-8')
+        self.assertLess(html.index('Kontrolu bedny se nepodařilo uložit.'), html.index('<form method="post" novalidate>'))
         self.assertTrue(result.context['form'].zobrazit_duvody_neshody)
         self.assertFalse(KontrolaBedny.objects.exists())
 
@@ -180,6 +183,7 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
         result = self.client.post(self.url, self.payload(response, neshoda_krivost='on'))
         self.assertEqual(result.status_code, 200)
         self.assertTrue(result.context['form'].non_field_errors())
+        self.assertContains(result, 'Kontrolu bedny se nepodařilo uložit. Příčinu najdete ve formuláři Výstupní kontrola.')
         self.assertTrue(result.context['form'].zobrazit_duvody_neshody)
         kontrola.refresh_from_db()
         self.assertTrue(kontrola.neshoda_cistota)
