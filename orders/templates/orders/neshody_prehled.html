@@ -1,0 +1,95 @@
+{% extends "orders/base.html" %}
+
+{% block title %}Přehled neshod{% endblock %}
+
+{% block extra_head %}
+    {{ block.super }}
+    <meta http-equiv="refresh" content="60">
+    <style>
+        .nonconformity-row { color: inherit; transition: background-color .15s ease-in-out; }
+        .nonconformity-row:hover, .nonconformity-row:focus { background-color: #fff3f3; color: inherit; }
+        .nonconformity-table-head { background-color: #f8f9fa; }
+        @media (max-width: 767.98px) {
+            .nonconformity-table-head { display: none; }
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<main class="container-fluid py-3">
+<div class="row justify-content-center">
+<div class="col-12 col-lg-10 col-xl-8 col-xxl-6">
+    <div class="alert d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3"
+         style="background-color: #214290; color: #ffde17;" role="status">
+        <div>
+            <h1 class="h4 mb-1">Přehled neshod</h1>
+            <div>Bedny s aktuálním stavem uvolnění Neshoda.</div>
+        </div>
+        <div class="text-sm-end">
+            <div class="fw-bold">Celkem: {{ items|length }}</div>
+            <div class="small">Aktualizováno: {{ current_time|date:"d.m.Y H:i" }}</div>
+        </div>
+    </div>
+
+    {% if items %}
+        <div class="border rounded-2 overflow-hidden">
+            <div class="row g-0 px-3 py-2 border-bottom fw-semibold small nonconformity-table-head">
+                <div class="col-md-2">Bedna</div>
+                <div class="col-md-3">Zákazník / zakázka</div>
+                <div class="col-md-4">Důvody neshody</div>
+                <div class="col-md-1">Křivých</div>
+                <div class="col-md-2 text-md-end">Označeno</div>
+            </div>
+            {% for item in items %}
+                {% if item.url %}
+                    <a class="nonconformity-row d-block text-decoration-none border-bottom px-3 py-3"
+                       href="{{ item.url }}" aria-label="Otevřít kontrolu bedny {{ item.cislo_bedny }}">
+                {% else %}
+                    <div class="d-block border-bottom px-3 py-3">
+                {% endif %}
+                    <div class="row g-2 align-items-start">
+                        <div class="col-12 col-md-2">
+                            <div class="fw-bold">{{ item.cislo_bedny }}</div>
+                            <div class="small text-muted">{{ item.stav_bedny }}</div>
+                        </div>
+                        <div class="col-12 col-md-3">
+                            <div class="fw-semibold">{{ item.zakaznik.zkraceny_nazev }}</div>
+                            <div class="small text-muted">{{ item.zakazka.artikl }} · Ø{{ item.zakazka.prumer }} × {{ item.zakazka.delka }}</div>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            {% if item.duvody %}
+                                <div class="fw-semibold text-danger">{{ item.duvody|join:", " }}</div>
+                            {% else %}
+                                <div class="text-muted">Bez zadaného důvodu</div>
+                            {% endif %}
+                            {% if item.poznamka %}<div class="small text-muted mt-1">Poznámka: {{ item.poznamka|linebreaksbr }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-1 small">
+                            {% if item.pomer_krivych_vrutu_prvni_mereni %}
+                                <div>{{ item.pomer_krivych_vrutu_prvni_mereni }}</div>
+                                {% if item.pomer_krivych_vrutu_druhe_mereni %}
+                                    <div>{{ item.pomer_krivych_vrutu_druhe_mereni }}</div>
+                                {% endif %}
+                            {% else %}
+                                <div class="text-muted">—</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-12 col-md-2 text-md-end small">
+                            {% if item.oznaceno_at %}
+                                <div class="fw-semibold">{{ item.oznaceno_at|date:"d.m.y H:i" }}</div>
+                                <div class="text-muted">{{ item.oznacil|default:"—" }}</div>
+                            {% else %}
+                                <span class="text-muted">Čas nezjištěn</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% if item.url %}</a>{% else %}</div>{% endif %}
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="alert alert-success text-center mb-0">Momentálně není evidována žádná bedna ve stavu Neshoda.</div>
+    {% endif %}
+</div>
+</div>
+</main>
+{% endblock %}

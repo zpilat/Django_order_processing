@@ -462,6 +462,54 @@ def kontrola_prehled_view(request):
     )
 
 
+@login_required
+@never_cache
+def neshody_prehled_view(request):
+    """Zobrazí aktuálně neshodné bedny od nejnovějšího rozhodnutí."""
+    kontroly = (
+        KontrolaBedny.objects
+        .filter(uvolneni=UvolneniKontrolyChoice.NESHODA)
+        .select_related('bedna__zakazka__kamion_prijem__zakaznik', 'uvolneni_zmenil')
+        .order_by(F('uvolneni_zmeneno_at').desc(nulls_last=True), '-pk')
+    )
+    popisky_duvodu = {
+        name: str(KontrolaBedny._meta.get_field(name).verbose_name)
+        for name in KontrolaBedny.NESHODA_FIELDS
+    }
+    can_view_kontrola = _can_view_kontrola_bedny(request.user)
+    items = []
+    for kontrola in kontroly:
+        bedna = kontrola.bedna
+        zakazka = bedna.zakazka
+        pocet_vrutu_pro_kontrolu_prohybu = zakazka.kamion_prijem.zakaznik.pocet_vrutu_pro_kontrolu_prohybu
+        velikost_vzorku = pocet_vrutu_pro_kontrolu_prohybu if pocet_vrutu_pro_kontrolu_prohybu is not None else '—'
+        oznacil = kontrola.uvolneni_zmenil
+        pomer_krivych_vrutu_prvni_mereni = f'{kontrola.pocet_krivych_vrutu_prvni_mereni} / {velikost_vzorku}' if kontrola.pocet_krivych_vrutu_prvni_mereni is not None else None
+        pomer_krivych_vrutu_druhe_mereni = f'{kontrola.pocet_krivych_vrutu_druhe_mereni} / {velikost_vzorku}' if kontrola.pocet_krivych_vrutu_druhe_mereni is not None else None
+        items.append({
+            'cislo_bedny': bedna.cislo_bedny,
+            'zakazka': zakazka,
+            'zakaznik': zakazka.kamion_prijem.zakaznik,
+            'stav_bedny': bedna.get_stav_bedny_display(),
+            'pomer_krivych_vrutu_prvni_mereni': pomer_krivych_vrutu_prvni_mereni,
+            'pomer_krivych_vrutu_druhe_mereni': pomer_krivych_vrutu_druhe_mereni,
+            'duvody': [
+                popisky_duvodu[name]
+                for name in KontrolaBedny.NESHODA_FIELDS
+                if getattr(kontrola, name)
+            ],
+            'poznamka': kontrola.poznamka,
+            'oznaceno_at': kontrola.uvolneni_zmeneno_at,
+            'oznacil': (oznacil.get_full_name() or oznacil.get_username()) if oznacil else None,
+            'url': reverse('bedna_kontrola', args=[bedna.cislo_bedny]) if can_view_kontrola else None,
+        })
+    return render(request, 'orders/neshody_prehled.html', {
+        'items': items,
+        'current_time': timezone.now(),
+        'db_table': 'neshody_prehled',
+    })
+
+
 def _yes_no(value):
     return 'Ano' if value else 'Ne'
 

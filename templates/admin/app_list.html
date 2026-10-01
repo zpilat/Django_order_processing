@@ -202,12 +202,29 @@
         <td></td>
         <td></td>
       </tr>
+    </tbody>
+  </table>
+</div>
+
+{# --- Vlastní sekce Přehledy kontroly --- #}
+<div class="app-prehledy module">
+  <table>
+    <caption><span class="section">Přehledy kontroly</span></caption>
+    <thead class="visually-hidden">
+      <tr>
+        <th scope="col">{% translate 'Model name' %}</th>
+        <th scope="col">{% translate 'Add link' %}</th>
+        <th scope="col">{% translate 'Change or view list link' %}</th>
+      </tr>
+    </thead>
+    <tbody>
       <tr class="model-dashboard">
-        <th scope="row">
-          <a href="{% url 'kontrola_prehled' %}" target="_blank" rel="noopener">
-            Přehled kontroly
-          </a>
-        </th>
+        <th scope="row"><a href="{% url 'kontrola_prehled' %}" target="_blank" rel="noopener">Přehled kontroly</a></th>
+        <td></td>
+        <td></td>
+      </tr>
+      <tr class="model-dashboard">
+        <th scope="row"><a href="{% url 'neshody_prehled' %}" target="_blank" rel="noopener">Přehled neshod</a></th>
         <td></td>
         <td></td>
       </tr>
