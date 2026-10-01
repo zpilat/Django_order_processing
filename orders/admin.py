@@ -991,14 +991,21 @@ class ZakaznikAdmin(HistoryViewOnlyAdmin):
             'fields': ('zkraceny_nazev', 'zkratka', 'ciselna_rada',)
         }),
         ('Kontrola kvality', {
-            'fields': ('pocet_vrutu_pro_kontrolu_prohybu',)
+            'fields': (
+                'pocet_vrutu_pro_kontrolu_prohybu',
+                'max_krivych_vrutu',
+            )
         }),
     ]
     readonly_fields = ('zkratka',)
     
     # Parametry pro zobrazení seznamu v administraci
-    list_display = ('nazev', 'zkraceny_nazev', 'zkratka', 'adresa', 'mesto', 'psc', 'stat', 'kontaktni_osoba', 'telefon',
-                    'email', 'get_proforma_po_bednach', 'vse_tryskat', 'pouze_komplet', 'get_fakturovat_rovnani', 'get_fakturovat_tryskani', 'ciselna_rada',)
+    list_display = (
+        'nazev', 'zkraceny_nazev', 'zkratka', 'adresa', 'mesto', 'psc', 'stat',
+        'get_proforma_po_bednach', 'vse_tryskat', 'pouze_komplet',
+        'get_fakturovat_rovnani', 'get_fakturovat_tryskani',
+        'get_vzorek_prohybu', 'get_max_krivych_vrutu', 'ciselna_rada',
+    )
     ordering = ('nazev',)
     list_per_page = 20
 
@@ -1006,6 +1013,14 @@ class ZakaznikAdmin(HistoryViewOnlyAdmin):
     history_list_display = ["id", "nazev", "zkratka", "adresa", "mesto", "psc", "stat", "zkratka_statu", "kontaktni_osoba", "telefon", "email"]
     history_search_fields = ["nazev"]
     history_list_per_page = 20
+
+    @admin.display(description='Vzorek (ks)', ordering='pocet_vrutu_pro_kontrolu_prohybu')
+    def get_vzorek_prohybu(self, obj):
+        return obj.pocet_vrutu_pro_kontrolu_prohybu
+
+    @admin.display(description='Max. křivých', ordering='max_krivych_vrutu')
+    def get_max_krivych_vrutu(self, obj):
+        return obj.max_krivych_vrutu
 
     @admin.display(boolean=True, description='Fakt. rovn.')
     def get_fakturovat_rovnani(self, obj):

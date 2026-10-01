@@ -68,6 +68,11 @@ class Zakaznik(models.Model):
         help_text='Počet vrutů kontrolovaných z každé bedny.',
         validators=[MinValueValidator(1)], blank=True, null=True,
     )
+    max_krivych_vrutu = models.PositiveSmallIntegerField(
+        verbose_name='Maximální počet křivých vrutů při kontrole prohybu',
+        help_text='Nejvyšší povolený počet křivých vrutů z kontrolovaného vzorku.',
+        blank=True, null=True,
+    )
     ciselna_rada = models.PositiveIntegerField(verbose_name='Číselná řada', default=100000, unique=True,
                                                help_text='Číselná řada pro automatické číslování beden - např. 100000, 200000, 300000 atd.')
     history = HistoricalRecords()
