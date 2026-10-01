@@ -85,18 +85,39 @@ class KontrolaBednyAdminTests(KontrolaBednyTestBase):
         self.assertIn('Předepsáno', html)
         self.assertIn('Naměřeno', html)
         self.assertIn('min. 30°', html)
-        self.assertIn('Bez trhlin', html)
+        self.assertNotIn('Bez trhlin', html)
         self.assertIn('12,5', html)
         self.assertIn('kontrolor', html)
         self.assertIn('Interní poznámka', html)
         self.assertIn(reverse('bedna_kontrola', args=[self.bedna.cislo_bedny]), html)
 
         response = self.client.get(self.url(type(self.bedna), 'change', self.bedna.pk))
-        self.assertContains(response, predpis.popis_ohyb_2)
+        self.assertNotContains(response, predpis.popis_ohyb_2)
         self.assertNotContains(response, predpis.popis_ohyb)
         self.assertContains(response, 'Kontrola kvality')
         self.assertContains(response, 'min. 30°')
         self.assertContains(response, '12,5')
+
+    def test_bedna_detail_shows_layer_measurement_and_both_requirements(self):
+        predpis = self.bedna.zakazka.predpis
+        predpis.vrstva = '7–10 µm'
+        predpis.vrstva_2 = '15–20 µm'
+        predpis.popis_vrstva = 'Místo měření'
+        predpis.popis_vrstva_2 = 'Druhý popis vrstvy'
+        predpis.save(update_fields=['vrstva', 'vrstva_2', 'popis_vrstva', 'popis_vrstva_2'])
+        MereniBedny.objects.create(
+            kontrola=self.kontrola, typ_zkousky=TypZkouskyChoice.VRSTVA,
+            hodnota=Decimal('8.5'), poradi=1, zmeril=self.user,
+        )
+
+        html = str(admin.site._registry[Bedna].get_mereni_bedny(self.bedna))
+        self.assertIn('<td>Vrstva</td>', html)
+        self.assertIn('7–10 µm', html)
+        self.assertIn('15–20 µm', html)
+        self.assertIn('<strong>7–10 µm</strong> <strong>15–20 µm</strong>', html)
+        self.assertIn('<span class="qc-measurement">8,5</span>', html)
+        self.assertNotIn('Místo měření', html)
+        self.assertNotIn('Druhý popis vrstvy', html)
 
     def test_summary_displays_release_types_and_nonconformity(self):
         for status, css, released in (

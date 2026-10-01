@@ -66,15 +66,14 @@
                     <tr>
                         <td>{{ row.nazev }}</td>
                         <td>
-                            {% if row.pozadavek.hodnota %}
-                                <strong>{{ row.pozadavek.hodnota }}</strong>
+                            {% if row.pozadavek.hodnota or row.pozadavek.hodnota_2 %}
+                                {% if row.pozadavek.hodnota %}<strong>{{ row.pozadavek.hodnota }}</strong>{% endif %}{% if row.pozadavek.hodnota_2 %}{% if row.pozadavek.hodnota %} {% endif %}<strong>{{ row.pozadavek.hodnota_2 }}</strong>{% endif %}
                             {% elif row.pozadavek_prohyb.bezny != None %}
                                 <strong>max. {{ row.pozadavek_prohyb.bezny|mereni_hodnota }} mm</strong>
                                 {% if row.pozadavek_prohyb.pro_uvolneni_s_odchylkou != None %}<span class="qc-requirement-detail">QS max. {{ row.pozadavek_prohyb.pro_uvolneni_s_odchylkou|mereni_hodnota }} mm</span>{% endif %}
                             {% else %}
                                 <span class="qc-empty">—</span>
                             {% endif %}
-                            {% if row.pozadavek.popis_2 %}<span class="qc-requirement-detail">{{ row.pozadavek.popis_2 }}</span>{% endif %}
                         </td>
                         <td>
                             {% for measurement in row.mereni %}{% with stav=measurement.hodnota|stav_prohybu:row.pozadavek_prohyb %}<span class="qc-measurement{% if stav %} prohyb-{{ stav }}{% endif %}">{{ measurement.hodnota|mereni_hodnota }}</span>{% endwith %}{% empty %}<span class="qc-empty">Bez měření</span>{% endfor %}

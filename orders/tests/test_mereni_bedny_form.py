@@ -52,6 +52,33 @@ class MereniBednyFormTests(KontrolaBednyTestBase):
         self.assertEqual(len(response.context['formset'].forms), 5)
         self.assertFalse(KontrolaBedny.objects.exists())
 
+    def test_both_prescription_descriptions_appear_in_requirement_card(self):
+        predpis = self.bedna.zakazka.predpis
+        description_fields = (
+            (TypZkouskyChoice.OHYB, 'popis_ohyb', 'popis_ohyb_2'),
+            (TypZkouskyChoice.KRUT, 'popis_krut', 'popis_krut_2'),
+            (TypZkouskyChoice.TVRDOST_POVRCHU, 'popis_povrch', 'popis_povrch_2'),
+            (TypZkouskyChoice.TVRDOST_JADRA, 'popis_jadro', 'popis_jadro_2'),
+            (TypZkouskyChoice.VRSTVA, 'popis_vrstva', 'popis_vrstva_2'),
+        )
+        for kind, first_field, second_field in description_fields:
+            first = f'První popis {kind.value}'
+            second = f'Druhý popis {kind.value}'
+            setattr(predpis, first_field, first)
+            setattr(predpis, second_field, second)
+        predpis.save(update_fields=[field for _, first, second in description_fields for field in (first, second)])
+
+        for kind, _, _ in description_fields:
+            with self.subTest(kind=kind):
+                response = self.client.get(self.url_for(kind))
+                html = response.content.decode('utf-8')
+                header = html.split('<h1 class="h3 mt-2">', 1)[1].split('</section>', 1)[0]
+                requirement = html.split('Požadavek z předpisu', 1)[1].split('</section>', 1)[0]
+                self.assertNotIn(f'První popis {kind.value}', header)
+                self.assertNotIn(f'Druhý popis {kind.value}', header)
+                self.assertIn(f'První popis {kind.value}', requirement)
+                self.assertIn(f'Druhý popis {kind.value}', requirement)
+
     def test_each_type_has_its_own_form(self):
         for kind in TypZkouskyChoice:
             response = self.client.get(self.url_for(kind))
@@ -62,6 +89,36 @@ class MereniBednyFormTests(KontrolaBednyTestBase):
         response = self.client.get(self.url_for(TypZkouskyChoice.PROHYB_PO_TZ))
         self.assertContains(response, 'Požadavek zákazníka')
         self.assertContains(response, 'Limit prohybu pro tohoto zákazníka není definován.')
+
+    def test_layer_form_shows_both_requirements_and_saves_measurement(self):
+        predpis = self.bedna.zakazka.predpis
+        predpis.vrstva = '7–10 µm'
+        predpis.vrstva_2 = '15–20 µm'
+        predpis.popis_vrstva = 'Měření A'
+        predpis.popis_vrstva_2 = 'Měření B'
+        predpis.save(update_fields=['vrstva', 'vrstva_2', 'popis_vrstva', 'popis_vrstva_2'])
+        url = self.url_for(TypZkouskyChoice.VRSTVA)
+
+        response = self.client.get(url)
+        self.assertContains(response, '7–10 µm')
+        self.assertContains(response, '15–20 µm')
+        self.assertContains(response, 'Měření A')
+        self.assertContains(response, 'Měření B')
+        self.assertNotContains(response, 'Požadavek pro tuto zkoušku není v předpisu uveden.')
+        requirement = response.content.decode('utf-8').split('Požadavek z předpisu', 1)[1].split('</section>', 1)[0]
+        self.assertLess(requirement.index('Měření A'), requirement.index('7–10 µm'))
+        self.assertLess(requirement.index('Měření B'), requirement.index('7–10 µm'))
+        self.assertNotContains(self.client.get(self.url_for(TypZkouskyChoice.TVRDOST_POVRCHU)), '15–20 µm')
+        result = self.client.post(url, self.payload(response, [{'hodnota': '8,5'}]))
+        self.assertRedirects(result, reverse('bedna_kontrola', args=[self.bedna.cislo_bedny]))
+        measurement = MereniBedny.objects.get(typ_zkousky=TypZkouskyChoice.VRSTVA)
+        self.assertEqual(measurement.hodnota, Decimal('8.5'))
+
+        predpis.vrstva = None
+        predpis.save(update_fields=['vrstva'])
+        response = self.client.get(url)
+        self.assertContains(response, '15–20 µm')
+        self.assertNotContains(response, 'Požadavek pro tuto zkoušku není v předpisu uveden.')
 
     def test_bending_forms_show_customer_limits_and_optional_release_limit(self):
         customer = self.bedna.zakazka.kamion_prijem.zakaznik

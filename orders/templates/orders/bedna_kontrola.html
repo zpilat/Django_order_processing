@@ -43,9 +43,8 @@
                                     <span class="fw-normal">· max. {{ zkouska.pozadavek_prohyb.bezny|mereni_hodnota }} mm</span>
                                     {% if zkouska.pozadavek_prohyb.pro_uvolneni_s_odchylkou != None %}<div class="text-muted small fw-normal">QS max. {{ zkouska.pozadavek_prohyb.pro_uvolneni_s_odchylkou|mereni_hodnota }} mm</div>{% endif %}
                                 {% else %}
-                                    {% if pozadavek.hodnota %}<span class="fw-normal">· {{ pozadavek.hodnota }}</span>{% endif %}
+                                    {% if pozadavek.hodnota or pozadavek.hodnota_2 %}<span class="fw-normal">· {% if pozadavek.hodnota %}{{ pozadavek.hodnota }}{% endif %}{% if pozadavek.hodnota_2 %}{% if pozadavek.hodnota %} {% endif %}{{ pozadavek.hodnota_2 }}{% endif %}</span>{% endif %}
                                 {% endif %}
-                                {% if pozadavek.popis_2 %}<div class="text-muted small fw-normal">{{ pozadavek.popis_2 }}</div>{% endif %}
                             {% endwith %}
                         </div>
                         {% if zkouska.can_edit %}

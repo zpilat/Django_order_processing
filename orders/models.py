@@ -1582,7 +1582,7 @@ class KontrolaBedny(models.Model):
         'neshoda_cistota', 'neshoda_krut_nizky', 'neshoda_krut_vysoky',
         'neshoda_ohyb_nizky', 'neshoda_tvrdost_povrchu_nizka',
         'neshoda_tvrdost_povrchu_vysoka', 'neshoda_tvrdost_jadra_nizka',
-        'neshoda_tvrdost_jadra_vysoka', 'neshoda_krivost',
+        'neshoda_tvrdost_jadra_vysoka', 'neshoda_vrstva', 'neshoda_krivost',
         'neshoda_pomichane_vruty', 'neshoda_chyba_v_procesu', 'neshoda_jine',
     )
 
@@ -1615,6 +1615,7 @@ class KontrolaBedny(models.Model):
     neshoda_tvrdost_povrchu_vysoka = models.BooleanField(default=False, verbose_name='Tvrdost povrchu vysoká')
     neshoda_tvrdost_jadra_nizka = models.BooleanField(default=False, verbose_name='Tvrdost jádra nízká')
     neshoda_tvrdost_jadra_vysoka = models.BooleanField(default=False, verbose_name='Tvrdost jádra vysoká')
+    neshoda_vrstva = models.BooleanField(default=False, verbose_name='Vrstva')
     neshoda_krivost = models.BooleanField(default=False, verbose_name='Křivost')
     neshoda_pomichane_vruty = models.BooleanField(default=False, verbose_name='Pomíchané vruty')
     neshoda_chyba_v_procesu = models.BooleanField(default=False, verbose_name='Chyba v procesu')

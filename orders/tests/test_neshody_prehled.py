@@ -76,6 +76,7 @@ class NeshodyPrehledTests(KontrolaBednyTestBase):
             uvolneni_zmeneno_at=older,
             uvolneni_zmenil=self.user,
             neshoda_krivost=True,
+            neshoda_vrstva=True,
             neshoda_jine=True,
             poznamka='Poškozený závit',
         )
@@ -108,7 +109,7 @@ class NeshodyPrehledTests(KontrolaBednyTestBase):
             [item['cislo_bedny'] for item in items],
             [newest_bedna.cislo_bedny, self.bedna.cislo_bedny, without_time_bedna.cislo_bedny],
         )
-        self.assertEqual(items[1]['duvody'], ['Křivost', 'Jiné'])
+        self.assertEqual(items[1]['duvody'], ['Vrstva', 'Křivost', 'Jiné'])
         self.assertEqual(items[1]['poznamka'], 'Poškozený závit · doplněno')
         self.assertEqual(items[1]['oznaceno_at'], older)
         self.assertEqual(items[1]['oznacil'], 'Jan Novák')

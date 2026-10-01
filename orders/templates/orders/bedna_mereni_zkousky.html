@@ -21,6 +21,7 @@
     <section class="card rounded-2 mt-3">
         <h2 class="card-header h6 mb-0">{% if pozadavek_prohyb %}Požadavek zákazníka{% else %}Požadavek z předpisu {{ bedna.zakazka.predpis.nazev }}{% endif %}</h2>
         <div class="card-body">
+            {% for popis in pozadavek.popisy %}<div class="mb-1">{{ popis }}</div>{% endfor %}
             {% if pozadavek_prohyb %}
                 {% if pozadavek_prohyb.bezny != None %}
                     <div class="fw-bold fs-5">max. {{ pozadavek_prohyb.bezny|mereni_hodnota }} mm</div>
@@ -28,12 +29,12 @@
                 {% else %}
                     <div class="text-muted">Limit prohybu pro tohoto zákazníka není definován.</div>
                 {% endif %}
-            {% elif pozadavek.hodnota %}
-                <div class="fw-bold fs-5">{{ pozadavek.hodnota }}</div>
+            {% elif pozadavek.hodnota or pozadavek.hodnota_2 %}
+                {% if pozadavek.hodnota %}<div class="fw-bold fs-5">{{ pozadavek.hodnota }}</div>{% endif %}
+                {% if pozadavek.hodnota_2 %}<div class="fw-bold fs-5">{{ pozadavek.hodnota_2 }}</div>{% endif %}
             {% else %}
                 <div class="text-muted">Požadavek pro tuto zkoušku není v předpisu uveden.</div>
             {% endif %}
-            {% for popis in pozadavek.popisy %}<div class="mt-1">{{ popis }}</div>{% endfor %}
         </div>
     </section>
     <section class="card rounded-2 mt-3">

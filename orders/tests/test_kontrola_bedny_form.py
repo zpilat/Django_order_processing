@@ -59,6 +59,40 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
                 self.assertTrue(response.context['form'].zobrazit_duvody_neshody)
                 self.assertContains(response, 'id="duvody-neshody" class="mb-3 col-12"')
 
+    def test_layer_nonconformity_reason_is_saved_in_history(self):
+        response = self.client.get(self.url)
+        self.assertContains(response, 'name="neshoda_vrstva"')
+        result = self.client.post(self.url, self.payload(
+            response, uvolneni=UvolneniKontrolyChoice.NESHODA, neshoda_vrstva='on',
+        ))
+        self.assertRedirects(result, self.url)
+        kontrola = KontrolaBedny.objects.get(bedna=self.bedna)
+        self.assertTrue(kontrola.neshoda_vrstva)
+        self.assertTrue(kontrola.history.first().neshoda_vrstva)
+
+    def test_layer_measurement_and_requirements_appear_in_control_overview(self):
+        predpis = self.bedna.zakazka.predpis
+        predpis.vrstva = '7–10 µm'
+        predpis.vrstva_2 = '15–20 µm'
+        predpis.popis_vrstva = 'Místo měření'
+        predpis.popis_vrstva_2 = 'Druhý popis vrstvy'
+        predpis.save(update_fields=['vrstva', 'vrstva_2', 'popis_vrstva', 'popis_vrstva_2'])
+        kontrola = KontrolaBedny.objects.create(bedna=self.bedna)
+        MereniBedny.objects.create(
+            kontrola=kontrola, typ_zkousky=TypZkouskyChoice.VRSTVA,
+            hodnota=Decimal('8.5'), poradi=1, zmeril=self.user,
+        )
+
+        response = self.client.get(self.url)
+        section = self.measurement_html(response)
+        self.assertIn('Vrstva', section)
+        self.assertIn('7–10 µm', section)
+        self.assertIn('15–20 µm', section)
+        self.assertIn('<span class="fw-normal">· 7–10 µm 15–20 µm</span>', section)
+        self.assertIn('8,5', section)
+        self.assertNotIn('Místo měření', section)
+        self.assertNotIn('Druhý popis vrstvy', section)
+
     def test_multiple_nonconformity_reasons_save_edit_and_history(self):
         response = self.client.get(self.url)
         result = self.client.post(self.url, self.payload(

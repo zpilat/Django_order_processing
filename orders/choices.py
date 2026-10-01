@@ -93,6 +93,7 @@ class TypZkouskyChoice(models.TextChoices):
     PROHYB_PO_ROVNANI = 'prohyb_po_rovnani', 'Prohyb po rovnání'
     TVRDOST_POVRCHU = 'tvrdost_povrchu', 'Tvrdost povrchu'
     TVRDOST_JADRA = 'tvrdost_jadra', 'Tvrdost jádra'
+    VRSTVA = 'vrstva', 'Vrstva'
 
 
 class VysledekKontrolyChoice(models.TextChoices):

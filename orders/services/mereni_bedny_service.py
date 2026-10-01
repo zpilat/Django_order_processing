@@ -13,13 +13,14 @@ def pozadavek_zkousky(predpis, typ_zkousky):
         TypZkouskyChoice.KRUT: ('krut', 'popis_krut', 'popis_krut_2'),
         TypZkouskyChoice.TVRDOST_POVRCHU: ('povrch', 'popis_povrch', 'popis_povrch_2'),
         TypZkouskyChoice.TVRDOST_JADRA: ('jadro', 'popis_jadro', 'popis_jadro_2'),
+        TypZkouskyChoice.VRSTVA: ('vrstva', 'popis_vrstva', 'popis_vrstva_2'),
     }.get(typ_zkousky)
     if fields is None:
-        return {'hodnota': '', 'popisy': [], 'popis_2': ''}
+        return {'hodnota': '', 'hodnota_2': '', 'popisy': []}
     return {
         'hodnota': getattr(predpis, fields[0]) or '',
+        'hodnota_2': (predpis.vrstva_2 or '') if typ_zkousky == TypZkouskyChoice.VRSTVA else '',
         'popisy': [getattr(predpis, name) for name in fields[1:] if getattr(predpis, name)],
-        'popis_2': getattr(predpis, fields[2]) or '',
     }
 
 
