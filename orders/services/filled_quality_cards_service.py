@@ -36,16 +36,28 @@ def resolve_filled_customer_template(customer_code):
 def build_filled_context(bedna, generated_at, printing_user):
     kontrola = bedna.kontrola
     measurements = kontrola.print_measurements
+    layer_measurement = next(
+        (item for item in measurements if item.typ_zkousky == TypZkouskyChoice.VRSTVA),
+        None,
+    )
     groups = {kind: [] for kind in MEASUREMENT_COLUMNS}
     for item in measurements:
-        group = groups[item.typ_zkousky]
+        group = groups.get(item.typ_zkousky)
+        if group is None:
+            continue
         if len(group) < PRINTED_MEASUREMENTS_PER_TEST:
             group.append(item)
     measurement_dates = [timezone.localdate(item.zmereno_at) for item in measurements]
     context = build_context_for_bedna(bedna, generated_at, printing_user)
     limity_prohybu = bedna.limity_prohybu
+    predpis = bedna.zakazka.predpis
     context['quality_card'] = {
         'kontrola': kontrola,
+        'vrstva': {
+            'pozadavek': ' '.join(value for value in (predpis.vrstva, predpis.vrstva_2) if value),
+            'hodnota': layer_measurement.hodnota if layer_measurement else None,
+            'kontroloval': user_name(layer_measurement.zmeril) if layer_measurement else '',
+        },
         'limity_prohybu': limity_prohybu,
         'limity_prohybu_podle_sloupce': {
             index: limity_prohybu for index, kind in enumerate(MEASUREMENT_COLUMNS)

@@ -42,6 +42,13 @@
         .status-neutral { background: var(--panel); }
         .status-pending { background: var(--pending); }
         .release-detail { display: block; margin-top: .8mm; font-size: 8px; font-weight: 400; }
+        .layer-table { width: 100%; margin-bottom: 2mm; border: 1.5px solid var(--ink); border-collapse: collapse; table-layout: fixed; }
+        .layer-table th, .layer-table td { padding: 1mm 2mm; border: 1px solid var(--line); text-align: left; vertical-align: top; }
+        .layer-table .field-label { margin-bottom: .5mm; }
+        .layer-table .layer-title { background: var(--panel-dark); text-align: center; vertical-align: middle; }
+        .layer-table .layer-requirement, .layer-table .layer-controller { background: var(--panel); }
+        .layer-title, .layer-value { font-size: 11px; font-weight: 700; line-height: 1.15; overflow-wrap: anywhere; }
+        .layer-title small { color: var(--muted); font-size: 8px; font-weight: 400; }
         .measurements { border: 1.5px solid var(--ink); }
         .measurements th, .measurements td { border: 1px solid var(--line); text-align: center; }
         .measurements th { padding: 1.2mm 1mm; }
@@ -51,7 +58,7 @@
         .column-header .de { display: block; margin-top: .5mm; color: var(--muted); font-size: 7px; font-weight: 400; }
         .requirement { display: block; margin-top: 1.5mm; padding-top: 1mm; border-top: 1px solid #b7bec5; font-size: 9px; font-weight: 700; }
         .sample-number { width: 5%; background: var(--panel); color: var(--muted); font-size: 8px; font-weight: 700; }
-        .measurement-row { height: 7.2mm; }
+        .measurement-row { height: 6.2mm; }
         .measurement-row:nth-child(even) td { background: #f7f8f9; }
         .measurement-row:nth-child(even) .measurement-value { background: #fafbfc; }
         .measurement-value { padding: 1mm; font-size: 13px; font-weight: 700; overflow-wrap: anywhere; }
@@ -101,6 +108,18 @@
             <td class="{% if quality_card.kontrola.uvolneni == 'UV' %}status-good{% elif quality_card.kontrola.uvolneni == 'UO' %}status-warning{% elif quality_card.kontrola.uvolneni == 'NE' %}status-bad{% else %}status-pending{% endif %}"><span class="field-label">Uvolnění <span class="field-label-de">/ Freigabe</span></span><span class="status-value">{{ quality_card.kontrola.get_uvolneni_display }}</span>{% if quality_card.kontrola.uvolneni != '--' %}<span class="release-detail">{{ quality_card.uvolneni_zmenil|default:"—" }} · {{ quality_card.kontrola.uvolneni_zmeneno_at|date:"d.m.Y H:i" }}</span>{% endif %}</td>
         </tr></tbody>
     </table>
+
+    {% if quality_card.vrstva.hodnota != None %}
+    <table class="layer-table">
+        <colgroup><col style="width: 20%;"><col style="width: 38%;"><col style="width: 18%;"><col style="width: 24%;"></colgroup>
+        <tbody><tr>
+            <th scope="row" class="layer-title">Vrstva<br><small>Schicht</small></th>
+            <td class="layer-requirement"><span class="field-label">Požadavek <span class="field-label-de">/ Anforderung</span></span><span class="layer-value">{{ quality_card.vrstva.pozadavek|default:"—" }}</span></td>
+            <td><span class="field-label">Naměřeno <span class="field-label-de">/ Gemessen</span></span><span class="layer-value">{{ quality_card.vrstva.hodnota|mereni_hodnota }}</span></td>
+            <td class="layer-controller"><span class="field-label">Kontroloval <span class="field-label-de">/ Kontrolliert</span></span><span class="layer-value">{{ quality_card.vrstva.kontroloval|default:"—" }}</span></td>
+        </tr></tbody>
+    </table>
+    {% endif %}
 
     <table class="measurements">
         <colgroup><col style="width: 5%;"><col style="width: 13.57%;"><col style="width: 13.57%;"><col style="width: 13.57%;"><col style="width: 13.57%;"><col style="width: 13.57%;"><col style="width: 13.57%;"><col style="width: 13.58%;"></colgroup>

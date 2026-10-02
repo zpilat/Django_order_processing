@@ -88,6 +88,45 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
         self.assertEqual(html.count('class="measurement-value"></td>'), 68)
         self.assertIn(f'Interní č. {self.bedna.cislo_bedny} · 1/1', html)
 
+    def test_layer_has_its_own_row_with_requirement_optional_value_and_measurer(self):
+        kontrola = self.create_control()
+        predpis = self.bedna.zakazka.predpis
+        predpis.vrstva = '7–10 µm'
+        predpis.vrstva_2 = '15–20 µm'
+        predpis.save(update_fields=['vrstva', 'vrstva_2'])
+        template, _ = resolve_filled_customer_template('eur')
+
+        empty_card = self.context()['quality_card']
+        self.assertEqual(empty_card['vrstva'], {
+            'pozadavek': '7–10 µm 15–20 µm', 'hodnota': None, 'kontroloval': '',
+        })
+        html = render_to_string(template, self.context())
+        self.assertNotIn('<table class="layer-table">', html)
+
+        self.user.first_name = 'Jan'
+        self.user.last_name = 'Novák'
+        self.user.save(update_fields=['first_name', 'last_name'])
+        layer_measurement = self.measurement(kontrola, TypZkouskyChoice.VRSTVA, '8.5')
+        card = self.context()['quality_card']
+        self.assertEqual(card['vrstva'], {
+            'pozadavek': '7–10 µm 15–20 µm', 'hodnota': Decimal('8.5'), 'kontroloval': 'Jan Novák',
+        })
+        self.assertEqual(len(card['rows'][0]), 7)
+        html = render_to_string(template, self.context())
+        layer_row = html.split('<table class="layer-table">', 1)[1].split('</table>', 1)[0]
+        self.assertIn('Vrstva<br><small>Schicht</small>', layer_row)
+        self.assertIn('class="layer-requirement"', layer_row)
+        self.assertIn('class="layer-controller"', layer_row)
+        self.assertIn('7–10 µm 15–20 µm', layer_row)
+        self.assertIn('class="layer-value">8,5</span>', layer_row)
+        self.assertIn('class="layer-value">Jan Novák</span>', layer_row)
+
+        layer_measurement.hodnota = Decimal('0')
+        layer_measurement.save(update_fields=['hodnota'])
+        html = render_to_string(template, self.context())
+        layer_row = html.split('<table class="layer-table">', 1)[1].split('</table>', 1)[0]
+        self.assertIn('class="layer-value">0</span>', layer_row)
+
     def test_template_shows_bending_limits_and_only_defined_qs_limit(self):
         self.create_control()
         template, _ = resolve_filled_customer_template('eur')
@@ -239,10 +278,12 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
         predpis = self.bedna.zakazka.predpis
         predpis.ohyb, predpis.krut = 'min. 30°', 'min. 25 Nm'
         predpis.povrch, predpis.jadro = '550-650 HV', '300-400 HV'
+        predpis.vrstva, predpis.vrstva_2 = '7–10 µm', '15–20 µm'
         predpis.save()
         for kind in MEASUREMENT_COLUMNS:
             for order in range(1, 11):
                 self.measurement(kontrola, kind, '580.2500', order=order)
+        self.measurement(kontrola, TypZkouskyChoice.VRSTVA, '8.5')
         template, _ = resolve_filled_customer_template('eur')
         html = render_to_string(template, self.context())
         for text in ('Mind. 5 Prüfmuster', 'Eurotec - F.3', 'HPM - F 73c'):
@@ -284,6 +325,7 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
     def test_new_service_generates_pdf_without_creating_more_history(self):
         kontrola = self.create_control()
         self.measurement(kontrola, TypZkouskyChoice.KRUT, '25')
+        self.measurement(kontrola, TypZkouskyChoice.VRSTVA, '8.5')
         before = (KontrolaBedny.history.count(), MereniBedny.history.count())
         response = build_filled_quality_cards_pdf(self.qs, self.request)
         self.assertEqual(response['Content-Type'], 'application/pdf')
