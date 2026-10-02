@@ -359,9 +359,27 @@ class KontrolaPrehledViewTests(ViewsTestBase):
 		self.assertContains(response, str(sarze))
 		self.assertNotContains(
 			response,
-			reverse("bedna_scan_zkontrolovano", args=[self.b_eur_pr.cislo_bedny]),
+			reverse("bedna_kontrola", args=[self.b_eur_pr.cislo_bedny]),
 		)
 		self.assertNotContains(response, reverse("sarze_scan", args=[sarze.cislo_sarze]))
+
+	def test_view_permission_links_box_to_read_only_control(self):
+		self.user.user_permissions.add(Permission.objects.get(
+			content_type__app_label="orders",
+			codename="view_bedna",
+		))
+		self.b_eur_pr.stav_bedny = StavBednyChoice.ZAKALENO
+		self.b_eur_pr.save(update_fields=["stav_bedny"])
+
+		response = self.client.get(reverse("kontrola_prehled"))
+		control_url = reverse("bedna_kontrola", args=[self.b_eur_pr.cislo_bedny])
+
+		self.assertContains(response, control_url)
+		self.assertEqual(self.client.get(control_url).status_code, 200)
+		self.assertNotContains(
+			response,
+			reverse("bedna_scan_zkontrolovano", args=[self.b_eur_pr.cislo_bedny]),
+		)
 
 	def test_combines_boxes_and_iron_batches_in_oldest_first_order(self):
 		self._grant_control_permissions()
@@ -399,7 +417,7 @@ class KontrolaPrehledViewTests(ViewsTestBase):
 		self.assertContains(response, reverse("sarze_scan", args=[sarze.cislo_sarze]))
 		self.assertContains(
 			response,
-			reverse("bedna_scan_zkontrolovano", args=[self.b_eur_pr.cislo_bedny]),
+			reverse("bedna_kontrola", args=[self.b_eur_pr.cislo_bedny]),
 		)
 		self.assertContains(response, "Přehled kontroly")
 		self.assertContains(response, "1 položka")

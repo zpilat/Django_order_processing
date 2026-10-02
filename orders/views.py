@@ -164,7 +164,7 @@ def _build_kontrola_prehled_context(user, selected_filter='vse'):
             )
         )
     )
-    can_control_boxes = user.has_perm('orders.mark_bedna_zkontrolovano')
+    can_view_box_controls = _can_view_kontrola_bedny(user)
     for bedna in bedny:
         zakaznik = bedna.zakazka.kamion_prijem.zakaznik
         items.append({
@@ -181,8 +181,8 @@ def _build_kontrola_prehled_context(user, selected_filter='vse'):
                 bedna.kontrola_ceka_od and bedna.kontrola_ceka_od <= long_wait_before
             ),
             'url': (
-                reverse('bedna_scan_zkontrolovano', args=[bedna.cislo_bedny])
-                if can_control_boxes else None
+                reverse('bedna_kontrola', args=[bedna.cislo_bedny])
+                if can_view_box_controls else None
             ),
         })
 
