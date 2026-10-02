@@ -36,6 +36,24 @@ Systém pro správu zakázek od příjmu přes zpracování až po expedici, vč
 
 Poznámka k PDF: WeasyPrint je součástí závislostí. Na Windows většinou funguje bez dalších kroků. Pokud chybí systémové knihovny (Cairo/Pango), postupujte podle oficiální dokumentace WeasyPrint.
 
+### Přepínání lokální databáze
+
+Volba databáze je nezávislá na `DJANGO_DEBUG`. Při `DJANGO_DEBUG=True` zůstává výchozí SQLite, při `DJANGO_DEBUG=False` PostgreSQL. Pro ruční přepínání nastavte v lokálním souboru `.env` (je ignorovaný Gitem):
+
+```dotenv
+DJANGO_DEBUG=True
+DJANGO_DB_ENGINE=sqlite
+POSTGRES_DB=orders_test
+POSTGRES_USER=uzivatel
+POSTGRES_PASSWORD=vaše_lokální_heslo
+POSTGRES_HOST=127.0.0.1
+POSTGRES_PORT=5432
+```
+
+Pro práci s lokální kopií produkční databáze změňte `DJANGO_DB_ENGINE` na `postgres` a znovu spusťte Django. Zpět na SQLite přepnete hodnotou `sqlite`. Jméno PostgreSQL databáze lze změnit pomocí `POSTGRES_DB`. Heslo role `uzivatel` se v `psql` nastavuje příkazem `\password uzivatel`.
+
+Při spuštění `python manage.py test` nad PostgreSQL vytváří Django samostatnou testovací databázi. Databázová role k tomu potřebuje oprávnění `CREATEDB`.
+
 ## 📥 Import XLSX
 
 - Přístup: v Django adminu přes stránku importu zakázek (náhled + potvrzení importu).

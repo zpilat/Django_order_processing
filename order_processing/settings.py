@@ -116,15 +116,16 @@ WSGI_APPLICATION = 'order_processing.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-if DEBUG:
+DB_ENGINE = os.getenv('DJANGO_DB_ENGINE', 'sqlite' if DEBUG else 'postgres').strip().lower()
+
+if DB_ENGINE == 'sqlite':
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': BASE_DIR / 'db.sqlite3',
         }
     }
-else:
-    # PostgreSQL v produkci – nastavte env proměnné POSTGRES_*
+elif DB_ENGINE == 'postgres':
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
@@ -136,7 +137,10 @@ else:
             'CONN_MAX_AGE': int(os.getenv('POSTGRES_CONN_MAX_AGE', '60')),
         }
     }
+else:
+    raise ValueError('DJANGO_DB_ENGINE musí být sqlite nebo postgres')
 
+if not DEBUG:
     # Security settings for production (DEBUG=False)
     # HSTS: enable only if your entire site is served over HTTPS
     SECURE_HSTS_SECONDS = int(os.getenv('DJANGO_SECURE_HSTS_SECONDS', '0'))  # později postupně navyšovat a nakonec '31536000' = 1 year
