@@ -4559,7 +4559,7 @@ class ReadOnlyAdminMixin:
 
     actions = None
 
-    def has_add_permission(self, request):
+    def has_add_permission(self, request, obj=None):
         return False
 
     def has_change_permission(self, request, obj=None):
@@ -4642,8 +4642,21 @@ class HistoricalBednaAdmin(ReadOnlyHistoryAdmin):
     history_related_fields = ('zakazka__kamion_prijem__zakaznik', 'pozice')
 
 
+class MereniBednyInline(ReadOnlyAdminMixin, admin.TabularInline):
+    model = MereniBedny
+    fields = ('typ_zkousky', 'poradi', 'hodnota', 'zmeril', 'zmereno_at')
+    ordering = ('typ_zkousky', 'poradi')
+    extra = 0
+    can_delete = False
+    show_change_link = True
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('kontrola__bedna', 'zmeril')
+
+
 @admin.register(KontrolaBedny)
 class KontrolaBednyAdmin(ReadOnlySimpleHistoryAdmin):
+    inlines = [MereniBednyInline]
     list_display = ('bedna', 'cistota', 'ulozeni', 'uvolneni', 'uvolneni_zmenil', 'uvolneni_zmeneno_at', 'pocet_mereni')
     list_filter = ('uvolneni', 'cistota', 'ulozeni', 'bedna__zakazka__kamion_prijem__zakaznik')
     search_fields = ('bedna__cislo_bedny', 'bedna__behalter_nr', 'bedna__zakazka__artikl')
