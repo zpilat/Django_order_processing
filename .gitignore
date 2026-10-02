@@ -48,3 +48,6 @@ tmp/
 
 # archivní adresář
 archive/
+
+# soubory dump
+*.dump
