@@ -9,6 +9,8 @@
         .nonconformity-row { color: inherit; transition: background-color .15s ease-in-out; }
         .nonconformity-row:hover, .nonconformity-row:focus { background-color: #fff3f3; color: inherit; }
         .nonconformity-table-head { background-color: #f8f9fa; }
+        .nonconformity-day { background-color: var(--bs-secondary-bg, #e9ecef); }
+        .nonconformity-day:not(:first-of-type) { border-top: 2px solid var(--bs-secondary-color, #6c757d); }
         @media (max-width: 767.98px) {
             .nonconformity-table-head { display: none; }
         }
@@ -41,6 +43,11 @@
                 <div class="col-md-2 text-md-end">Označeno</div>
             </div>
             {% for item in items %}
+                {% ifchanged item.oznaceno_at|date:"Y-m-d" %}
+                    <h2 class="nonconformity-day px-3 py-2 border-bottom h6 mb-0">
+                        {% if item.oznaceno_at %}{{ item.oznaceno_at|date:"d.m.Y" }}{% else %}Datum označení nezjištěno{% endif %}
+                    </h2>
+                {% endifchanged %}
                 {% if item.url %}
                     <a class="nonconformity-row d-block text-decoration-none border-bottom px-3 py-3"
                        href="{{ item.url }}" aria-label="Otevřít kontrolu bedny {{ item.cislo_bedny }}">

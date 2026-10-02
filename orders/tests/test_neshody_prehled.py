@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from django.contrib.auth.models import Permission
 from django.urls import reverse
@@ -63,6 +63,31 @@ class NeshodyPrehledTests(KontrolaBednyTestBase):
         self.assertIsNone(item['pomer_krivych_vrutu_prvni_mereni'])
         self.assertIsNone(item['pomer_krivych_vrutu_druhe_mereni'])
         self.assertContains(response, '<div class="text-muted">—</div>')
+
+    def test_separates_nonconformities_by_day_and_groups_missing_dates(self):
+        dates = (
+            timezone.make_aware(datetime(2026, 10, 2, 15)),
+            timezone.make_aware(datetime(2026, 10, 2, 9)),
+            timezone.make_aware(datetime(2026, 10, 1, 16)),
+            None,
+            None,
+        )
+        for index, marked_at in enumerate(dates):
+            bedna = self.bedna if index == 0 else Bedna.objects.create(zakazka=self.bedna.zakazka)
+            KontrolaBedny.objects.create(
+                bedna=bedna,
+                uvolneni=UvolneniKontrolyChoice.NESHODA,
+                uvolneni_zmeneno_at=marked_at,
+            )
+
+        response = self.client.get(self.url)
+        html = response.content.decode('utf-8')
+        self.assertEqual(len(response.context['items']), 5)
+        headings = [
+            section.split('>', 1)[1].split('</h2>', 1)[0].strip()
+            for section in html.split('<h2 class="nonconformity-day')[1:]
+        ]
+        self.assertEqual(headings, ['02.10.2026', '01.10.2026', 'Datum označení nezjištěno'])
 
     def test_shows_only_current_nonconformities_newest_first_with_missing_times_last(self):
         self.user.first_name = 'Jan'
