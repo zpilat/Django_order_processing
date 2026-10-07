@@ -476,6 +476,33 @@ def neshody_prehled_view(request):
         name: str(KontrolaBedny._meta.get_field(name).verbose_name)
         for name in KontrolaBedny.NESHODA_FIELDS
     }
+    zakaznik_filter = request.GET.get('zakaznik_filter', '')
+    duvod_filter = request.GET.get('duvod_filter', '')
+    den_filter = request.GET.get('den_filter', '')
+    den_choices = [('', 'VŠE')] + [
+        (den.isoformat(), den.strftime('%d.%m.%Y'))
+        for den in kontroly.dates('uvolneni_zmeneno_at', 'day', order='DESC')
+    ]
+    if kontroly.filter(uvolneni_zmeneno_at__isnull=True).exists():
+        den_choices.append(('nezjisteno', 'Datum nezjištěno'))
+
+    if zakaznik_filter:
+        kontroly = kontroly.filter(bedna__zakazka__kamion_prijem__zakaznik__zkratka=zakaznik_filter)
+    if duvod_filter in popisky_duvodu:
+        kontroly = kontroly.filter(**{duvod_filter: True})
+    else:
+        duvod_filter = ''
+    if den_filter == 'nezjisteno':
+        kontroly = kontroly.filter(uvolneni_zmeneno_at__isnull=True)
+    elif den_filter:
+        try:
+            den = date.fromisoformat(den_filter)
+        except ValueError:
+            den_filter = ''
+        else:
+            den_filter = den.isoformat()
+            kontroly = kontroly.filter(uvolneni_zmeneno_at__date=den)
+
     can_view_kontrola = _can_view_kontrola_bedny(request.user)
     items = []
     for kontrola in kontroly:
@@ -503,10 +530,20 @@ def neshody_prehled_view(request):
             'oznacil': (oznacil.get_full_name() or oznacil.get_username()) if oznacil else None,
             'url': reverse('bedna_kontrola', args=[bedna.cislo_bedny]) if can_view_kontrola else None,
         })
-    return render(request, 'orders/neshody_prehled.html', {
+    template_name = 'orders/neshody_prehled.html'
+    if request.htmx and not request.htmx.history_restore_request:
+        template_name = 'orders/partials/neshody_prehled_content.html'
+    return render(request, template_name, {
         'items': items,
         'current_time': timezone.now(),
         'db_table': 'neshody_prehled',
+        'zakaznik_filter': zakaznik_filter,
+        'zakaznik_choices': [('', 'VŠE')] + list(Zakaznik.objects.values_list('zkratka', 'zkraceny_nazev')),
+        'duvod_filter': duvod_filter,
+        'duvod_choices': [('', 'VŠE')] + list(popisky_duvodu.items()),
+        'den_filter': den_filter,
+        'den_choices': den_choices,
+        'has_filters': bool(zakaznik_filter or duvod_filter or den_filter),
     })
 
 
