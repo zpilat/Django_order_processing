@@ -45,7 +45,7 @@
                             <span style="padding: 0 3px;">{{ bedna.behalter_nr }}
                                 <span class="fs-08 fw-normal">({{ bedna.cislo_bedny }})</span>
                             </span>
-                            <span style="padding: 0 5px;">{{ bedna.poradi_bedny }}/{{ bedna.zakazka.pocet_beden }}</span>
+                            <span style="padding: 0 5px;">{% include "orders/_poradi_bedny_v_puvodni_zakazce.html" %}</span>
                         </div>
                     </td>
                     <td class="text-center fs-12 fw-bold">

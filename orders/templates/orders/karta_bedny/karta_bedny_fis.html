@@ -63,7 +63,7 @@
                         Počet beden:
                     </td>
                     <td colspan="2" rowspan="3" class="text-center text-customer-color fs-20 fw-bold no-border-start">
-                        {{ bedna.poradi_bedny }}/{{ bedna.zakazka.pocet_beden }}
+                        {% include "orders/_poradi_bedny_v_puvodni_zakazce.html" %}
                     </td>
                 </tr>
                 <tr></tr>
