@@ -1573,7 +1573,7 @@ class KamionAdmin(HistoryViewOnlyAdmin):
 
     @admin.display(description='Struktura kamionu')
     def get_struktura_kamionu(self, obj):
-        """Vrátí HTML strukturu kamionu s podřízenými zakázkami a bednami."""
+        """Zobrazí bedny kamionu seskupené podle jejich původních zakázek."""
         if not obj:
             return _('Struktura bude dostupná po uložení kamionu.')
 
@@ -1581,7 +1581,7 @@ class KamionAdmin(HistoryViewOnlyAdmin):
         zakazky_qs = (
             getattr(obj, relation_name)
             .all()
-            .select_related('predpis')
+            .select_related('predpis', 'puvodni_zakazka__predpis')
             .order_by('id')
             .prefetch_related(
                 Prefetch('bedny', queryset=Bedna.objects.select_related('pozice').order_by('cislo_bedny'))
@@ -1591,6 +1591,16 @@ class KamionAdmin(HistoryViewOnlyAdmin):
         if not zakazky:
             return _('Kamion neobsahuje žádné zakázky.')
 
+        puvodni_zakazky = {}
+        for zakazka in zakazky:
+            puvodni_zakazka = zakazka.puvodni_zakazka or zakazka
+            if puvodni_zakazka.pk not in puvodni_zakazky:
+                puvodni_zakazky[puvodni_zakazka.pk] = {
+                    'zakazka': puvodni_zakazka,
+                    'bedny': [],
+                }
+            puvodni_zakazky[puvodni_zakazka.pk]['bedny'].extend(zakazka.bedny.all())
+
         def fmt_decimal(value):
             if value is None:
                 return '–'
@@ -1599,8 +1609,9 @@ class KamionAdmin(HistoryViewOnlyAdmin):
 
         order_blocks = []
         total_bedny = 0
-        for zakazka in zakazky:
-            bedny = list(zakazka.bedny.all())
+        for group in puvodni_zakazky.values():
+            zakazka = group['zakazka']
+            bedny = sorted(group['bedny'], key=lambda bedna: (bedna.cislo_bedny, bedna.pk))
             total_bedny += len(bedny)
             if bedny:
                 bedny_list = format_html_join(
@@ -1648,7 +1659,7 @@ class KamionAdmin(HistoryViewOnlyAdmin):
             format_html_join('', '{}', ((block,) for block in order_blocks))
         )
         summary = _('Zobrazit strukturu kamionu ({orders} zakázek / {boxes} beden / {netto} kg netto / {brutto} kg brutto)').format(
-            orders=len(zakazky),
+            orders=len(puvodni_zakazky),
             boxes=total_bedny,
             netto=fmt_decimal(obj.celkova_hmotnost_netto),
             brutto=fmt_decimal(obj.celkova_hmotnost_brutto),

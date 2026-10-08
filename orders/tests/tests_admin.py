@@ -21,7 +21,8 @@ from orders.actions import vytvorit_dalsi_krok_sarze_action, vytvorit_novy_krok_
 from orders.forms import ImportZakazekForm
 from orders.import_strategies import EURImportStrategy
 from orders.models import Zakaznik, Kamion, Zakazka, Bedna, KontrolaBedny, Predpis, TypHlavy, Odberatel, Cena, Notification, PriorityNotificationRecipient, Zarizeni, Sarze, SarzeKrok, SarzeKrokBedna
-from orders.choices import StavBednyChoice, StavSarzeChoice, SklademZakazkyChoice, PrijemVydejChoice, KamionChoice, ZinkovaniChoice, PrioritaChoice, TypZarizeniChoice, UvolneniKontrolyChoice
+from orders.choices import StavBednyChoice, StavSarzeChoice, SklademZakazkyChoice, PrijemVydejChoice, KamionChoice, RovnaniChoice, TryskaniChoice, ZinkovaniChoice, PrioritaChoice, TypZarizeniChoice, UvolneniKontrolyChoice
+from orders.services.expedice_service import expedice_beden_do_existujiciho_kamionu
 from orders.filters import DelkaFilter, TypSarzeFilter
 
 
@@ -85,6 +86,40 @@ class KamionAdminTests(AdminBase):
             popis='Test zakázka',
         )
         return kamion_vydej, zakazka
+
+    def test_structure_groups_partially_shipped_boxes_by_original_order(self):
+        original_order = Zakazka.objects.create(
+            kamion_prijem=self.kamion,
+            artikl='ART1', prumer=Decimal('10.0'), delka=Decimal('50.0'),
+            predpis=self.predpis, typ_hlavy=self.typ_hlavy, popis='Test zakázka',
+        )
+        boxes = [Bedna.objects.create(
+            zakazka=original_order, hmotnost=1, tara=1, mnozstvi=1,
+            stav_bedny=StavBednyChoice.K_EXPEDICI,
+            rovnat=RovnaniChoice.ROVNA, tryskat=TryskaniChoice.CISTA,
+            zinkovat=ZinkovaniChoice.NEZINKOVAT,
+        ) for _ in range(3)]
+        departure = Kamion.objects.create(
+            zakaznik=self.zakaznik, datum=date.today(), prijem_vydej=KamionChoice.VYDEJ,
+        )
+        for box in (boxes[0], boxes[2]):
+            expedice_beden_do_existujiciho_kamionu(
+                bedny_qs=Bedna.objects.filter(pk=box.pk), kamion_vydej=departure,
+            )
+
+        self.assertEqual(original_order.oddelene_zakazky.count(), 2)
+        incoming_html = str(self.admin.get_struktura_kamionu(self.kamion))
+        self.assertIn('1 zakázek / 3 beden', incoming_html)
+        self.assertEqual(incoming_html.count(original_order.get_admin_url()), 1)
+        for box in boxes:
+            self.assertIn(box.get_admin_url(), incoming_html)
+
+        outgoing_html = str(self.admin.get_struktura_kamionu(departure))
+        self.assertIn('1 zakázek / 2 beden', outgoing_html)
+        self.assertEqual(outgoing_html.count(original_order.get_admin_url()), 1)
+        self.assertIn(boxes[0].get_admin_url(), outgoing_html)
+        self.assertIn(boxes[2].get_admin_url(), outgoing_html)
+        self.assertNotIn(boxes[1].get_admin_url(), outgoing_html)
 
     def test_eur_import_reads_sarze_as_text_and_strips_whitespace(self):
         predpis_column_name = 'n. Zg. / \n' 'as drg'
