@@ -2425,7 +2425,7 @@ class SarzeKrokBednaInlineAdminTests(AdminBase):
         zakaznik = Zakaznik.objects.create(
             nazev='AutoSearch',
             zkraceny_nazev='AS',
-            zkratka='ZKRTEST',
+            zkratka='ZKT',
             ciselna_rada=200000,
         )
         kamion = Kamion.objects.create(zakaznik=zakaznik, datum=date.today())
@@ -2475,7 +2475,7 @@ class SarzeKrokBednaInlineAdminTests(AdminBase):
                 'app_label': 'orders',
                 'model_name': 'sarzekrokbedna',
                 'field_name': 'bedna',
-                'term': 'ZKRTEST',
+                'term': 'ZKT AUT-1',
             },
         )
 

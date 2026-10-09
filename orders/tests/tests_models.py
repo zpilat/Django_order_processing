@@ -866,7 +866,7 @@ class TestSarzeModels(ModelsBase):
             zacatek=time(10, 0),
             operator="Operátor",
         )
-        pozice = Pozice.objects.create(kod="TEST-NAKLADANI")
+        pozice = Pozice.objects.create(kod="A")
         self.bedna1.stav_bedny = StavBednyChoice.PRIJATO
         self.bedna1.pozice = pozice
         self.bedna1.save(update_fields=['stav_bedny', 'pozice'])
@@ -899,7 +899,7 @@ class TestSarzeModels(ModelsBase):
 
     def test_editing_existing_row_does_not_reset_bedna_state(self):
         nakladani = Zarizeni.objects.create(
-            kod_zarizeni="NAKLADANI-EDIT",
+            kod_zarizeni="NAKL-EDIT",
             nazev_zarizeni="Nakládání editace",
             typ_zarizeni=TypZarizeniChoice.NAKLADANI,
         )
