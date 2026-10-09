@@ -67,6 +67,13 @@ Typické akce:
 - `Zadat / upravit měření vybraného kamionu výdej`.
 - `Importovat chemická měření beden` pro kamion příjem s bednami.
 - `Vytisknout vyplněné KKK z vybraného kamionu příjem (EUR)`.
+- `Vytisknout vyplněné KKK z vybraného kamionu výdej (EUR)`.
+
+Pro tisk vyplněných karet výdeje vyberte právě jeden kamion ve filtru `Výdej`.
+PDF obsahuje karty všech jeho beden s uloženou kontrolou kvality, včetně expedovaných beden,
+ve stejném vzoru jako tisk vyplněných KKK v administraci beden.
+Bedny bez uložené kontroly se přeskočí a systém zobrazí varování s jejich počtem a čísly
+(nejvýše prvních 20). Pokud žádná bedna nemá kontrolu, PDF se nevytvoří a zobrazí se chyba.
 
 Výroba a přesuny šarží se řeší samostatně v [deníku](manual_denik_pece.md) a [rychlém založení šarže](manual_rychle_zalozeni_sarze.md).
 

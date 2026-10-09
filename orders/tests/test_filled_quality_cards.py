@@ -2,7 +2,7 @@ from datetime import timedelta
 from decimal import Decimal
 from unittest.mock import patch
 
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
 from django.contrib.messages.storage.fallback import FallbackStorage
@@ -410,3 +410,126 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
             request.user = self.request.user
             available = admin.site._registry[Kamion].get_actions(request)
             self.assertEqual('tisk_karet_kontroly_kvality_kamionu_action' in available, 'tisk_vyplnenych_karet_kontroly_kvality_kamionu_action' in available)
+
+    def outgoing_truck(self):
+        truck = Kamion.objects.create(
+            zakaznik=self.customer, datum=timezone.localdate(), prijem_vydej=KamionChoice.VYDEJ,
+        )
+        self.bedna.zakazka.kamion_vydej = truck
+        self.bedna.zakazka.save(update_fields=['kamion_vydej'])
+        return truck
+
+    def print_outgoing_truck(self, trucks):
+        return actions.tisk_vyplnenych_karet_kontroly_kvality_kamionu_vydej_action(
+            admin.site._registry[Kamion], self.request, trucks,
+        )
+
+    def test_outgoing_truck_prints_all_its_controlled_bedny_and_warns_about_skipped_bedny(self):
+        truck = self.outgoing_truck()
+        kontrola = self.create_control(uvolneni=UvolneniKontrolyChoice.UVOLNENO)
+        self.measurement(kontrola, TypZkouskyChoice.OHYB, '12.5')
+        self.bedna.stav_bedny = StavBednyChoice.EXPEDOVANO
+        self.bedna.tara = 1
+        self.bedna.mnozstvi = 100
+        self.bedna.save(update_fields=['stav_bedny', 'tara', 'mnozstvi'])
+        second_order = Zakazka.objects.create(
+            kamion_prijem=self.bedna.zakazka.kamion_prijem, kamion_vydej=truck,
+            predpis=self.bedna.zakazka.predpis, typ_hlavy=self.bedna.zakazka.typ_hlavy,
+            artikl='B', prumer=10, delka=100,
+        )
+        second_bedna = Bedna.objects.create(zakazka=second_order, hmotnost=100)
+        KontrolaBedny.objects.create(bedna=second_bedna, uvolneni=UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU)
+        # Missing weight on a skipped bedna must not block printing the controlled bedny.
+        skipped = Bedna.objects.create(zakazka=second_order)
+        unshipped_order = Zakazka.objects.create(
+            kamion_prijem=self.bedna.zakazka.kamion_prijem,
+            predpis=self.bedna.zakazka.predpis, typ_hlavy=self.bedna.zakazka.typ_hlavy,
+            artikl='C', prumer=10, delka=100,
+        )
+        unshipped = Bedna.objects.create(zakazka=unshipped_order, hmotnost=100)
+        KontrolaBedny.objects.create(bedna=unshipped)
+        another_truck = Kamion.objects.create(
+            zakaznik=self.customer, datum=timezone.localdate(), prijem_vydej=KamionChoice.VYDEJ,
+        )
+        other_order = Zakazka.objects.create(
+            kamion_prijem=self.bedna.zakazka.kamion_prijem, kamion_vydej=another_truck,
+            predpis=self.bedna.zakazka.predpis, typ_hlavy=self.bedna.zakazka.typ_hlavy,
+            artikl='D', prumer=10, delka=100,
+        )
+        other_bedna = Bedna.objects.create(zakazka=other_order, hmotnost=100)
+        KontrolaBedny.objects.create(bedna=other_bedna)
+        before = (KontrolaBedny.history.count(), MereniBedny.history.count())
+
+        with patch('orders.services.pdf_cards_service.HTML') as renderer:
+            renderer.return_value.write_pdf.return_value = b'%PDF-outgoing'
+            response = self.print_outgoing_truck(Kamion.objects.filter(pk=truck.pk))
+
+        self.assertEqual(response.content, b'%PDF-outgoing')
+        self.assertEqual(response['Content-Type'], 'application/pdf')
+        html = renderer.call_args.kwargs['string']
+        for bedna in (self.bedna, second_bedna):
+            self.assertIn(f'Interní č. {bedna.cislo_bedny} ·', html)
+        for bedna in (skipped, unshipped, other_bedna):
+            self.assertNotIn(f'Interní č. {bedna.cislo_bedny} ·', html)
+        self.assertIn('class="measurement-value">12,5</td>', html)
+        notices = list(self.request._messages)
+        self.assertEqual(len(notices), 1)
+        self.assertEqual(notices[0].level, messages.WARNING)
+        self.assertIn(f'(1): {skipped.cislo_bedny}.', str(notices[0]))
+        self.assertEqual(before, (KontrolaBedny.history.count(), MereniBedny.history.count()))
+        self.assertFalse(KontrolaBedny.objects.filter(bedna=skipped).exists())
+
+    def test_outgoing_truck_prints_without_warning_when_all_bedny_have_control(self):
+        truck = self.outgoing_truck()
+        self.create_control()
+        with patch('orders.actions.build_filled_quality_cards_pdf', return_value=HttpResponse(b'%PDF-demo')):
+            self.assertIsNotNone(self.print_outgoing_truck(Kamion.objects.filter(pk=truck.pk)))
+        self.assertEqual(list(self.request._messages), [])
+
+    def test_outgoing_truck_rejects_invalid_selection_and_empty_or_uncontrolled_truck(self):
+        truck = self.outgoing_truck()
+        incoming = self.bedna.zakazka.kamion_prijem
+        empty = Kamion.objects.create(
+            zakaznik=self.customer, datum=timezone.localdate(), prijem_vydej=KamionChoice.VYDEJ,
+        )
+        for trucks, text in (
+            (Kamion.objects.none(), 'Vyberte pouze jeden kamion'),
+            (Kamion.objects.filter(pk__in=[truck.pk, empty.pk]), 'Vyberte pouze jeden kamion'),
+            (Kamion.objects.filter(pk=incoming.pk), 'pouze pro kamiony výdej'),
+            (Kamion.objects.filter(pk=empty.pk), 'nejsou žádné bedny'),
+            (Kamion.objects.filter(pk=truck.pk), 'nemá žádná bedna uloženou kontrolu'),
+        ):
+            with self.subTest(message=text), patch('orders.actions.build_filled_quality_cards_pdf') as builder:
+                self.request._messages = FallbackStorage(self.request)
+                self.assertIsNone(self.print_outgoing_truck(trucks))
+                builder.assert_not_called()
+                notices = list(self.request._messages)
+                self.assertEqual(notices[0].level, messages.ERROR)
+                self.assertIn(text, str(notices[0]))
+
+    def test_outgoing_truck_reports_unsupported_customer(self):
+        truck = self.outgoing_truck()
+        self.create_control()
+        self.customer.zkratka = 'SPX'
+        self.customer.save(update_fields=['zkratka'])
+        self.assertIsNone(self.print_outgoing_truck(Kamion.objects.filter(pk=truck.pk)))
+        notices = list(self.request._messages)
+        self.assertEqual(notices[0].level, messages.ERROR)
+        self.assertIn('pouze pro zákazníka EUR', str(notices[0]))
+
+    def test_outgoing_print_requires_view_permission_and_is_available_under_outgoing_filter(self):
+        action_name = 'tisk_vyplnenych_karet_kontroly_kvality_kamionu_vydej_action'
+        self.user.is_staff = True
+        self.user.save(update_fields=['is_staff'])
+        kamion_admin = admin.site._registry[Kamion]
+        self.assertNotIn(action_name, kamion_admin.get_actions(self.request))
+        self.user.user_permissions.add(Permission.objects.get(codename='view_kamion'))
+        for filter_value in (None, '', *PrijemVydejChoice):
+            with self.subTest(filter=filter_value):
+                request = RequestFactory().get('/', {} if filter_value is None else {'prijem_vydej': filter_value})
+                request.user = get_user_model().objects.get(pk=self.user.pk)
+                available = kamion_admin.get_actions(request)
+                self.assertEqual(action_name in available, filter_value in (None, '', PrijemVydejChoice.VYDEJ))
+                if action_name in available:
+                    choices = dict(kamion_admin.get_action_choices(request))
+                    self.assertIn(action_name, dict(choices['Tisk karet']))

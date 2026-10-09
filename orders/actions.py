@@ -957,6 +957,37 @@ def tisk_vyplnenych_karet_kontroly_kvality_kamionu_action(modeladmin, request, q
     return _tisk_vyplnenych_karet_kontroly(modeladmin, request, bedny)
 
 
+@admin.action(description='Vytisknout vyplněné KKK z vybraného kamionu výdej (EUR)', permissions=('view',))
+def tisk_vyplnenych_karet_kontroly_kvality_kamionu_vydej_action(modeladmin, request, queryset):
+    if queryset.count() != 1:
+        modeladmin.message_user(request, 'Vyberte pouze jeden kamion.', level=messages.ERROR)
+        return None
+    if queryset.first().prijem_vydej != KamionChoice.VYDEJ:
+        modeladmin.message_user(request, 'Tisk vyplněných karet je možný pouze pro kamiony výdej.', level=messages.ERROR)
+        return None
+    bedny = Bedna.objects.filter(zakazka__kamion_vydej__in=queryset)
+    if not bedny.exists():
+        modeladmin.message_user(request, 'V označeném kamionu nejsou žádné bedny.', level=messages.ERROR)
+        return None
+    bedny_s_kontrolou = bedny.filter(kontrola__isnull=False)
+    if not bedny_s_kontrolou.exists():
+        modeladmin.message_user(request, 'V označeném kamionu nemá žádná bedna uloženou kontrolu kvality.', level=messages.ERROR)
+        return None
+    response = _tisk_vyplnenych_karet_kontroly(modeladmin, request, bedny_s_kontrolou)
+    if response is not None:
+        missing_controls = bedny.filter(kontrola__isnull=True)
+        missing_count = missing_controls.count()
+        if missing_count:
+            numbers = ', '.join(map(str, missing_controls.order_by('cislo_bedny').values_list('cislo_bedny', flat=True)[:20]))
+            if missing_count > 20:
+                numbers += ', …'
+            modeladmin.message_user(
+                request, f'Nevytištěny bedny bez uložené kontroly kvality ({missing_count}): {numbers}.',
+                level=messages.WARNING,
+            )
+    return response
+
+
 @admin.action(description="Vytisknout karty bedny + KKK")
 def tisk_karet_bedny_a_kontroly_action(modeladmin, request, queryset):
     """
