@@ -45,7 +45,6 @@ from .actions import (
     tisk_karet_beden_kamionu_action, tisk_karet_bedny_a_kontroly_kamionu_action, tisk_dodaciho_listu_kamionu_action, vratit_zakazky_z_expedice_action, expedice_zakazek_kamion_action,
     tisk_karet_kontroly_kvality_action, tisk_karet_kontroly_kvality_zakazek_action, tisk_karet_kontroly_kvality_kamionu_action,
     tisk_vyplnenych_karet_kontroly_kvality_action, tisk_vyplnenych_karet_kontroly_kvality_zakazek_action,
-    tisk_vyplnenych_karet_kontroly_kvality_kamionu_action,
     tisk_vyplnenych_karet_kontroly_kvality_kamionu_vydej_action,
     tisk_karet_bedny_a_kontroly_action, tisk_protokolu_kamionu_vydej_action, tisk_proforma_faktury_kamionu_action,
     oznacit_k_navezeni_action, vratit_bedny_ze_stavu_k_navezeni_do_stavu_prijato_action, oznacit_navezeno_action, oznacit_prijato_do_zakaleno_action,
@@ -1294,7 +1293,6 @@ class KamionAdmin(HistoryViewOnlyAdmin):
         tisk_karet_beden_kamionu_action,
         tisk_karet_bedny_a_kontroly_kamionu_action,
         tisk_karet_kontroly_kvality_kamionu_action,
-        tisk_vyplnenych_karet_kontroly_kvality_kamionu_action,
         tisk_vyplnenych_karet_kontroly_kvality_kamionu_vydej_action,
         tisk_dodaciho_listu_kamionu_action,
         tisk_proforma_faktury_kamionu_action,
@@ -1762,8 +1760,6 @@ class KamionAdmin(HistoryViewOnlyAdmin):
                 getattr(admin_delete_selected, 'short_description', 'Smazat vybrané'),
             )
 
-        if 'tisk_karet_kontroly_kvality_kamionu_action' in actions_to_remove:
-            actions_to_remove.append('tisk_vyplnenych_karet_kontroly_kvality_kamionu_action')
         if request.GET.get('prijem_vydej') not in (None, '', PrijemVydejChoice.VYDEJ):
             actions_to_remove.append('tisk_vyplnenych_karet_kontroly_kvality_kamionu_vydej_action')
         for action in actions_to_remove:
@@ -1803,7 +1799,6 @@ class KamionAdmin(HistoryViewOnlyAdmin):
             'tisk_karet_beden_kamionu_action': 'Tisk karet',
             'tisk_karet_bedny_a_kontroly_kamionu_action': 'Tisk karet',
             'tisk_karet_kontroly_kvality_kamionu_action': 'Tisk karet',
-            'tisk_vyplnenych_karet_kontroly_kvality_kamionu_action': 'Tisk karet',
             'tisk_vyplnenych_karet_kontroly_kvality_kamionu_vydej_action': 'Tisk karet',
             'tisk_dodaciho_listu_kamionu_action': 'Tisk dokladů',
             'tisk_proforma_faktury_kamionu_action': 'Tisk dokladů',

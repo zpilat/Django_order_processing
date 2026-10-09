@@ -945,18 +945,6 @@ def tisk_vyplnenych_karet_kontroly_kvality_zakazek_action(modeladmin, request, q
     return _tisk_vyplnenych_karet_kontroly(modeladmin, request, bedny)
 
 
-@admin.action(description='Vytisknout vyplněné KKK z vybraného kamionu příjem (EUR)', permissions=('view',))
-def tisk_vyplnenych_karet_kontroly_kvality_kamionu_action(modeladmin, request, queryset):
-    if queryset.count() != 1:
-        modeladmin.message_user(request, 'Vyberte pouze jeden kamion.', level=messages.ERROR)
-        return None
-    if queryset.first().prijem_vydej != KamionChoice.PRIJEM:
-        modeladmin.message_user(request, 'Tisk vyplněných karet je možný pouze pro kamiony příjem.', level=messages.ERROR)
-        return None
-    bedny = Bedna.objects.filter(zakazka__kamion_prijem__in=queryset).exclude(stav_bedny=StavBednyChoice.EXPEDOVANO)
-    return _tisk_vyplnenych_karet_kontroly(modeladmin, request, bedny)
-
-
 @admin.action(description='Vytisknout vyplněné KKK z vybraného kamionu výdej (EUR)', permissions=('view',))
 def tisk_vyplnenych_karet_kontroly_kvality_kamionu_vydej_action(modeladmin, request, queryset):
     if queryset.count() != 1:

@@ -66,7 +66,6 @@ Typické akce:
 - `Vytisknout proforma fakturu vybraného kamionu výdej`.
 - `Zadat / upravit měření vybraného kamionu výdej`.
 - `Importovat chemická měření beden` pro kamion příjem s bednami.
-- `Vytisknout vyplněné KKK z vybraného kamionu příjem (EUR)`.
 - `Vytisknout vyplněné KKK z vybraného kamionu výdej (EUR)`.
 
 Pro tisk vyplněných karet výdeje vyberte právě jeden kamion ve filtru `Výdej`.

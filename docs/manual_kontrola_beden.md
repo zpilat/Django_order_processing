@@ -71,7 +71,7 @@ Uložení měření nebo uvolnění samo výrobní stav nezmění. Označení Zk
 
 Administrace **Kontroly beden** a **Měření beden** slouží k prohlížení záznamů a historie. Údaje se upravují provozním formulářem, na který vede odkaz v poli **Formulář kontroly bedny**; detail měření má obdobný odkaz v poli **Formulář měření zkoušky**.
 
-Pro EUR lze z administrace beden, zakázek nebo kamionů příjem použít akci **Vytisknout vyplněné KKK (EUR)**, případně variantu pro zakázky či kamion. Výběr musí patřit jednomu zákazníkovi a každá bedna musí mít uloženou kontrolu. Prázdné KKK mají vlastní akci. Před tiskem ověřte měření a uvolnění; u jiných zákazníků vyplněná varianta zatím není podporovaná.
+Pro EUR lze z administrace beden či zakázek použít akci **Vytisknout vyplněné KKK (EUR)**, případně variantu pro zakázky. Výběr musí patřit jednomu zákazníkovi a každá bedna musí mít uloženou kontrolu. V administraci kamionů je tisk vyplněných KKK dostupný pouze pro kamion výdej; bedny bez kontroly se přeskočí s varováním. Prázdné KKK mají vlastní akci. Před tiskem ověřte měření a uvolnění; u jiných zákazníků vyplněná varianta zatím není podporovaná.
 
 Vyplněná karta tiskne nejvýše prvních 10 hodnot jednotlivých zkoušek; pro vrstvu použije první uloženou hodnotu. Úplný seznam měření je dostupný v aplikaci.
 

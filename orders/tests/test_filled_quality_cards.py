@@ -374,7 +374,6 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
             for action, model, pk in (
                 (actions.tisk_vyplnenych_karet_kontroly_kvality_action, Bedna, self.bedna.pk),
                 (actions.tisk_vyplnenych_karet_kontroly_kvality_zakazek_action, Zakazka, self.bedna.zakazka.pk),
-                (actions.tisk_vyplnenych_karet_kontroly_kvality_kamionu_action, Kamion, self.bedna.zakazka.kamion_prijem_id),
             ):
                 self.assertEqual(action(admin.site._registry[model], self.request, model.objects.filter(pk=pk)).status_code, 200)
                 self.assertEqual(list(builder.call_args.args[0].values_list('pk', flat=True)), [self.bedna.pk])
@@ -384,17 +383,7 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
         self.assertIsNone(response)
         self.assertTrue(any('Chybí uložená kontrola' in str(message) for message in self.request._messages))
 
-    def test_truck_action_rejects_multiple_trucks_and_outgoing_truck(self):
-        kamion = self.bedna.zakazka.kamion_prijem
-        kamion_admin = admin.site._registry[Kamion]
-        with patch('orders.actions.build_filled_quality_cards_pdf') as builder:
-            self.assertIsNone(actions.tisk_vyplnenych_karet_kontroly_kvality_kamionu_action(kamion_admin, self.request, Kamion.objects.none()))
-            kamion.prijem_vydej = KamionChoice.VYDEJ
-            kamion.save()
-            self.assertIsNone(actions.tisk_vyplnenych_karet_kontroly_kvality_kamionu_action(kamion_admin, self.request, Kamion.objects.filter(pk=kamion.pk)))
-        builder.assert_not_called()
-
-    def test_actions_available_to_staff_with_view_permission_and_truck_filters_match_original(self):
+    def test_actions_available_to_staff_with_view_permission_and_truck_print_is_outgoing_only(self):
         self.user.is_staff = True
         self.user.save()
         self.user.user_permissions.add(Permission.objects.get(codename='view_bedna'))
@@ -409,7 +398,9 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
             request = RequestFactory().get('/', {'prijem_vydej': filter_value})
             request.user = self.request.user
             available = admin.site._registry[Kamion].get_actions(request)
-            self.assertEqual('tisk_karet_kontroly_kvality_kamionu_action' in available, 'tisk_vyplnenych_karet_kontroly_kvality_kamionu_action' in available)
+            filled_actions = [name for name in available if name.startswith('tisk_vyplnenych_karet_kontroly_kvality')]
+            expected = ['tisk_vyplnenych_karet_kontroly_kvality_kamionu_vydej_action'] if filter_value == PrijemVydejChoice.VYDEJ else []
+            self.assertEqual(filled_actions, expected)
 
     def outgoing_truck(self):
         truck = Kamion.objects.create(
