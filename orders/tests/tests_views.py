@@ -2518,6 +2518,60 @@ class SarzeLimitedMoveTests(ViewsTestBase):
 
 
 class DashboardBednyViewTests(ViewsTestBase):
+	def test_chart_stages_do_not_double_count_operations_or_ready_crates(self):
+		Bedna.objects.create(
+			zakazka=self.zak_eur, stav_bedny=StavBednyChoice.ZAKALENO,
+			hmotnost=7, tara=1, mnozstvi=1,
+			tryskat=TryskaniChoice.SPINAVA, rovnat=RovnaniChoice.KRIVA,
+			zinkovat=ZinkovaniChoice.ZINKOVAT,
+		)
+		Bedna.objects.create(
+			zakazka=self.zak_eur, stav_bedny=StavBednyChoice.NEPRIJATO,
+			hmotnost=100, tara=1, mnozstvi=1,
+		)
+
+		response = self.client.get(reverse("dashboard_bedny"))
+		summary = response.context["souhrn_beden"]
+		self.assertEqual(summary["count"], 3)
+		self.assertEqual(summary["weight"], Decimal("0.016"))
+		self.assertEqual(summary["unreceived_count"], 1)
+		self.assertEqual([stage["count"] for stage in summary["stages"]], [1, 1, 1])
+		self.assertEqual([stage["weight"] for stage in summary["stages"]], [
+			Decimal("0.005"), Decimal("0.007"), Decimal("0.004"),
+		])
+		self.assertEqual([stage["width"] for stage in summary["stages"]], ["33.333"] * 3)
+		self.assertEqual([operation["count"] for operation in summary["operations"]], [1] * 4)
+		self.assertEqual(len(response.context["zakaznicke_karty"]), 1)
+		self.assertContains(response, 'width: 33.333%;')
+
+	def test_empty_warehouse_chart(self):
+		Bedna.objects.exclude(stav_bedny=StavBednyChoice.EXPEDOVANO).update(
+			stav_bedny=StavBednyChoice.NEPRIJATO,
+		)
+		response = self.client.get(reverse("dashboard_bedny"), HTTP_HX_REQUEST="true")
+		summary = response.context["souhrn_beden"]
+		self.assertEqual(summary["count"], 0)
+		self.assertEqual(summary["unreceived_count"], 2)
+		self.assertEqual([stage["width"] for stage in summary["stages"]], ["0"] * 3)
+		self.assertContains(response, "Žádné bedny na skladě")
+		self.assertNotContains(response, 'class="dashboard-stage-segment')
+
+	def test_no_active_customers_shows_empty_state(self):
+		Bedna.objects.all().update(stav_bedny=StavBednyChoice.EXPEDOVANO)
+		response = self.client.get(reverse("dashboard_bedny"))
+		self.assertEqual(response.context["zakaznicke_karty"], [])
+		self.assertEqual(response.context["souhrn_beden"]["count"], 0)
+		self.assertContains(response, "Žádný zákazník aktuálně nemá neexpedované bedny.")
+
+	def test_expired_crates_are_highlighted_without_adding_to_chart_total(self):
+		self.k_prijem_eur.datum = timezone.localdate() - timedelta(days=29)
+		self.k_prijem_eur.save(update_fields=["datum"])
+		response = self.client.get(reverse("dashboard_bedny"))
+		self.assertEqual(response.context["souhrn_beden"]["count"], 2)
+		self.assertEqual(response.context["souhrn_beden"]["expired_count"], 2)
+		self.assertContains(response, "Po exspiraci: 2 beden")
+		self.assertContains(response, "dashboard-badge--expired")
+
 	def test_requires_login(self):
 		self.client.logout()
 		resp = self.client.get(reverse("dashboard_bedny"))

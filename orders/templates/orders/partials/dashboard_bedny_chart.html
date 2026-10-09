@@ -1,0 +1,15 @@
+<div class="dashboard-stage-chart" aria-hidden="true">
+  {% for stage in summary.stages %}
+    {% if stage.count %}<span class="dashboard-stage-segment dashboard-stage--{{ stage.key }}" style="width: {{ stage.width }}%;" title="{{ stage.label }}: {{ stage.count }} beden"></span>{% endif %}
+  {% endfor %}
+</div>
+{% if not summary.count %}<p class="dashboard-chart-empty">Žádné bedny na skladě</p>{% endif %}
+<div class="dashboard-stage-legend">
+  {% for stage in summary.stages %}
+    <div class="dashboard-legend-item">
+      <span class="dashboard-legend-label"><span class="dashboard-stage-dot dashboard-stage--{{ stage.key }}" aria-hidden="true"></span>{{ stage.label }}</span>
+      <strong>{{ stage.count }} <small>beden</small></strong>
+      <span class="dashboard-legend-weight">{{ stage.weight|floatformat:1 }} t</span>
+    </div>
+  {% endfor %}
+</div>

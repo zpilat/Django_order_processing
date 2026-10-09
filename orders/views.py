@@ -57,6 +57,7 @@ from .services.sarze_print_service import (
     get_tisk_pruvodky_vruty_krok,
 )
 from .services.history_service import history_transitions_to_qs
+from .services.dashboard_bedny_service import build_bedny_visual_summary
 from .services.mereni_bedny_service import pozadavek_zkousky, mereni_snapshot, kontrola_snapshot, ulozit_mereni_zkousky
 from .choices import (
     StavBednyChoice, StavSarzeChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice, TypZarizeniChoice,
@@ -3575,7 +3576,19 @@ def dashboard_bedny_view(request):
         for stav, definition in stavy.items()
     ]
 
+    souhrn_beden = build_bedny_visual_summary(prehled_beden_zakaznika['CELKEM'])
+    zakaznicke_karty = [
+        {
+            'name': zak,
+            'statuses': prehled_beden_zakaznika[zak],
+            **build_bedny_visual_summary(prehled_beden_zakaznika[zak]),
+        }
+        for zak in zakaznici if zak != 'CELKEM'
+    ]
+
     context = {
+        'souhrn_beden': souhrn_beden,
+        'zakaznicke_karty': zakaznicke_karty,
         'prehled_beden_zakaznika': prehled_beden_zakaznika,
         'stavy_bedny_list': stavy_bedny_list,
         'db_table': 'dashboard_bedny',

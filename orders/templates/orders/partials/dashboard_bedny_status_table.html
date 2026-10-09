@@ -1,0 +1,23 @@
+{% load custom_filters %}
+<div class="dashboard-table-wrap">
+  <table class="table table-sm align-middle mb-0 dashboard-status-table">
+    <caption class="visually-hidden">Stavy beden a hmotnost v tunách: {{ table_name }}</caption>
+    <thead>
+      <tr><th scope="col">Stav bedny</th><th scope="col">Beden</th><th scope="col">Váha (t)</th></tr>
+    </thead>
+    <tbody>
+      {% for stav in stavy_bedny_list %}
+        {% with bedna_row=bedny_stavy|dict_get:stav.key %}
+          <tr class="status-row status-row--level-{{ stav.level }}{% if stav.is_group %} status-row--group{% endif %}{% if not bedna_row.0 %} status-row--empty{% endif %}">
+            <th scope="row" class="status-label">
+              {% if stav.level > 0 %}<span class="status-branch" aria-hidden="true">↳</span>{% endif %}
+              <span class="dashboard-status-dot" style="background-color: {{ bedna_row.2|default:'#64748b' }};" aria-hidden="true"></span>{{ stav.label }}
+            </th>
+            <td>{{ bedna_row.0|default:0 }}</td>
+            <td>{{ bedna_row.1|default:0|floatformat:1 }}</td>
+          </tr>
+        {% endwith %}
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

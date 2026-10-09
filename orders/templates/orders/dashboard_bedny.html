@@ -1,8 +1,15 @@
 {% extends "orders/base.html" %}
 {% load static %}
 
+{% block title %}Přehled beden | HPM{% endblock %}
+
 {% block extra_head %}{{ block.super }}
   <link rel="stylesheet" href="{% static 'orders/css/dashboard_bedny.css' %}">
+{% endblock %}
+
+{% block script %}
+  {{ block.super }}
+  <script src="{% static 'orders/js/dashboard_bedny.js' %}" defer></script>
 {% endblock %}
 
 {% block content %}

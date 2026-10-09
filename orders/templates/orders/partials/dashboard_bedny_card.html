@@ -1,0 +1,28 @@
+<article class="dashboard-customer-card{% if is_total %} dashboard-customer-card--total{% endif %}" aria-labelledby="customer-title-{{ card_id }}">
+  <header class="dashboard-customer-header">
+    <h3 id="customer-title-{{ card_id }}">{{ card_name }}</h3>
+    {% if card.expired_count %}<span class="dashboard-badge dashboard-badge--expired" title="Na skladě déle než 28 dní od příjmu · {{ card.expired_weight|floatformat:1 }} t">Po exspiraci: {{ card.expired_count }} beden</span>{% endif %}
+  </header>
+  <div class="dashboard-customer-body">
+    <div class="dashboard-customer-total">
+      <div><strong>{{ card.count }}</strong><span>beden na skladě</span></div>
+      <span class="dashboard-customer-weight">{{ card.weight|floatformat:1 }} <small>t</small></span>
+    </div>
+    {% include "orders/partials/dashboard_bedny_chart.html" with summary=card %}
+    {% if card.unreceived_count %}<div class="dashboard-unreceived">Mimo sklad · nepřijaté: <strong>{{ card.unreceived_count }}</strong></div>{% endif %}
+    {% if card.operations %}
+      <div class="dashboard-operations">
+        <h4>Navazující operace</h4>
+        <div class="dashboard-operation-list">
+          {% for operation in card.operations %}
+            <span class="dashboard-operation dashboard-operation--{{ operation.key }}">{{ operation.label }} <strong>{{ operation.count }}</strong></span>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+  </div>
+  <section id="bedny-detail-{{ card_id }}" class="dashboard-details" aria-label="Detail stavů a hmotností: {{ card_name }}" hidden>
+    <h4>{{ card_name }} · Detail stavů a hmotností</h4>
+    {% include "orders/partials/dashboard_bedny_status_table.html" with bedny_stavy=statuses table_name=card_name %}
+  </section>
+</article>
