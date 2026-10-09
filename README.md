@@ -110,6 +110,10 @@ Testy standardně spouštějte na PostgreSQL. Django vytváří samostatnou test
 
 ## Nasazení
 
+Hodinové zálohování produkční PostgreSQL s uchováním tří dnů je připravené ve
+skriptu [deploy/backup-orders.sh](deploy/backup-orders.sh). Nastavení hesla,
+cronu a ověření obnovy popisuje [návod na zálohy](docs/zalohy.md).
+
 Nastavte vlastní `DJANGO_SECRET_KEY`, `DJANGO_DEBUG=False`, `DJANGO_ALLOWED_HOSTS` a připojení PostgreSQL. Pro HTTPS za reverzní proxy nastavte podle prostředí `DJANGO_CSRF_TRUSTED_ORIGINS`; proxy musí správně předávat a řídit hlavičku `X-Forwarded-Proto`. Produkční nastavení zapíná zabezpečené cookies a standardně přesměrovává HTTP na HTTPS. HSTS se řídí samostatnými proměnnými, výchozí délka je 0.
 
 Před nasazením proveďte zálohu databáze, migrace, `collectstatic` a `check --deploy`. Aplikaci provozujte pomocí WSGI/ASGI serveru a reverzní proxy. Podrobnosti jsou v [bezpečnostním přehledu](docs/security.md).

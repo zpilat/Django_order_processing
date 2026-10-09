@@ -107,6 +107,10 @@ Use PostgreSQL for normal tests. Django creates a separate test database; the da
 
 ## Deployment
 
+For hourly PostgreSQL production backups with three-day retention, use
+[deploy/backup-orders.sh](deploy/backup-orders.sh). See the Czech
+[backup setup guide](docs/zalohy.md) for credentials, cron and restore checks.
+
 Set `DJANGO_SECRET_KEY`, `DJANGO_DEBUG=False`, `DJANGO_ALLOWED_HOSTS` and PostgreSQL credentials. Configure `DJANGO_CSRF_TRUSTED_ORIGINS` for the deployment and ensure the reverse proxy controls `X-Forwarded-Proto`. Production settings enable secure cookies and HTTPS redirection by default. HSTS is configured separately and defaults to a duration of 0.
 
 Back up the database, apply migrations, run `collectstatic` and `check --deploy`, and serve the application through a WSGI/ASGI server and reverse proxy. See [security settings](docs/security.md).
