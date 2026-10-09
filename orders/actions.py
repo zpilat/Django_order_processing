@@ -961,19 +961,24 @@ def tisk_vyplnenych_karet_kontroly_kvality_kamionu_vydej_action(modeladmin, requ
     if not bedny_s_kontrolou.exists():
         modeladmin.message_user(request, 'V označeném kamionu nemá žádná bedna uloženou kontrolu kvality.', level=messages.ERROR)
         return None
-    response = _tisk_vyplnenych_karet_kontroly(modeladmin, request, bedny_s_kontrolou)
-    if response is not None:
-        missing_controls = bedny.filter(kontrola__isnull=True)
-        missing_count = missing_controls.count()
-        if missing_count:
-            numbers = ', '.join(map(str, missing_controls.order_by('cislo_bedny').values_list('cislo_bedny', flat=True)[:20]))
-            if missing_count > 20:
-                numbers += ', …'
-            modeladmin.message_user(
-                request, f'Nevytištěny bedny bez uložené kontroly kvality ({missing_count}): {numbers}.',
-                level=messages.WARNING,
-            )
-    return response
+    missing_controls = bedny.filter(kontrola__isnull=True)
+    missing_count = missing_controls.count()
+    if missing_count and request.POST.get('print_available') != '1':
+        numbers = ', '.join(map(str, missing_controls.order_by('cislo_bedny').values_list('cislo_bedny', flat=True)[:20]))
+        if missing_count > 20:
+            numbers += ', …'
+        context = {
+            **modeladmin.admin_site.each_context(request),
+            'title': 'Tisk vyplněných karet kontroly kvality',
+            'opts': modeladmin.model._meta,
+            'kamion': queryset.first(),
+            'warning': f'Nevytištěny bedny bez uložené kontroly kvality ({missing_count}): {numbers}.',
+            'available_count': bedny_s_kontrolou.count(),
+            'action': 'tisk_vyplnenych_karet_kontroly_kvality_kamionu_vydej_action',
+            'return_url': request.get_full_path(),
+        }
+        return TemplateResponse(request, 'admin/orders/kamion/filled_quality_cards_print.html', context)
+    return _tisk_vyplnenych_karet_kontroly(modeladmin, request, bedny_s_kontrolou)
 
 
 @admin.action(description="Vytisknout karty bedny + KKK")

@@ -1,0 +1,18 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<ul class="messagelist">
+  <li class="warning">{{ warning }}</li>
+</ul>
+<p>Kamion: <strong>{{ kamion }}</strong></p>
+<p>PDF bude obsahovat pouze bedny s uloženou kontrolou kvality. Počet karet: <strong>{{ available_count }}</strong>.</p>
+<form method="post" action="{{ return_url }}">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="{{ action }}">
+  <input type="hidden" name="_selected_action" value="{{ kamion.pk }}">
+  <input type="hidden" name="index" value="0">
+  <input type="hidden" name="print_available" value="1">
+  <input type="submit" value="Otevřít PDF dostupných karet" class="default">
+  <a href="{{ return_url }}" class="button">Zpět na seznam kamionů</a>
+</form>
+{% endblock %}

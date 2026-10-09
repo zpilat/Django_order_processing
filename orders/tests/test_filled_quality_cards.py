@@ -10,6 +10,8 @@ from django.db.models import Prefetch
 from django.http import HttpResponse
 from django.template.loader import render_to_string
 from django.test import RequestFactory
+from django.test import override_settings
+from django.urls import reverse
 from django.utils import timezone
 from weasyprint import HTML
 
@@ -453,6 +455,11 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
 
         with patch('orders.services.pdf_cards_service.HTML') as renderer:
             renderer.return_value.write_pdf.return_value = b'%PDF-outgoing'
+            preview = self.print_outgoing_truck(Kamion.objects.filter(pk=truck.pk))
+            self.assertEqual(preview.context_data['available_count'], 2)
+            self.assertIn(f'(1): {skipped.cislo_bedny}.', preview.context_data['warning'])
+            renderer.assert_not_called()
+            self.request.POST = {'print_available': '1'}
             response = self.print_outgoing_truck(Kamion.objects.filter(pk=truck.pk))
 
         self.assertEqual(response.content, b'%PDF-outgoing')
@@ -464,11 +471,38 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
             self.assertNotIn(f'Interní č. {bedna.cislo_bedny} ·', html)
         self.assertIn('class="measurement-value">12,5</td>', html)
         notices = list(self.request._messages)
-        self.assertEqual(len(notices), 1)
-        self.assertEqual(notices[0].level, messages.WARNING)
-        self.assertIn(f'(1): {skipped.cislo_bedny}.', str(notices[0]))
+        self.assertEqual(notices, [])
         self.assertEqual(before, (KontrolaBedny.history.count(), MereniBedny.history.count()))
         self.assertFalse(KontrolaBedny.objects.filter(bedna=skipped).exists())
+
+    @override_settings(SECURE_SSL_REDIRECT=False, ALLOWED_HOSTS=['testserver'])
+    def test_outgoing_print_shows_warning_in_action_response_before_opening_pdf(self):
+        truck = self.outgoing_truck()
+        self.create_control()
+        skipped = Bedna.objects.create(zakazka=self.bedna.zakazka)
+        self.user.is_staff = True
+        self.user.is_superuser = True
+        self.user.save(update_fields=['is_staff', 'is_superuser'])
+        self.client.force_login(self.user)
+        url = reverse('admin:orders_kamion_changelist') + f'?prijem_vydej={PrijemVydejChoice.VYDEJ}'
+        data = {
+            'action': 'tisk_vyplnenych_karet_kontroly_kvality_kamionu_vydej_action',
+            '_selected_action': str(truck.pk), 'index': '0',
+        }
+        with patch('orders.actions.build_filled_quality_cards_pdf', return_value=HttpResponse(b'%PDF-demo', content_type='application/pdf')) as builder:
+            preview = self.client.post(url, data)
+            self.assertTemplateUsed(preview, 'admin/orders/kamion/filled_quality_cards_print.html')
+            self.assertContains(preview, '<li class="warning">')
+            self.assertContains(preview, f'(1): {skipped.cislo_bedny}.')
+            self.assertContains(preview, 'Otevřít PDF dostupných karet')
+            self.assertContains(preview, 'name="csrfmiddlewaretoken"')
+            self.assertEqual(list(preview.context['messages']), [])
+            builder.assert_not_called()
+
+            pdf = self.client.post(url, {**data, 'print_available': '1'})
+            self.assertEqual(pdf['Content-Type'], 'application/pdf')
+            self.assertEqual(pdf.content, b'%PDF-demo')
+            self.assertEqual(list(builder.call_args.args[0].values_list('pk', flat=True)), [self.bedna.pk])
 
     def test_outgoing_truck_prints_without_warning_when_all_bedny_have_control(self):
         truck = self.outgoing_truck()
