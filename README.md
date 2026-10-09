@@ -1,109 +1,119 @@
 # Django Order Processing
 
-Systém pro správu zakázek od příjmu přes zpracování až po expedici, včetně práce s bednami, kamiony, importu z XLSX a tisku PDF dokumentů. Postaveno na Django, pandas a WeasyPrint.
+Interní aplikace pro správu zakázek od příjmu přes tepelné zpracování a kontrolu kvality až po expedici. Eviduje zákazníky, kamiony, zakázky, bedny, šarže a jejich průchody pracovišti. Obsluha pracuje v Django administraci nebo v provozních obrazovkách se skenováním kódů.
 
-## ✨ Funkce
+## Funkce
 
-- Dashboardy:
-  - stav beden podle zákazníka,
-  - měsíční přehled příjmu/výdeje kamionů,
-  - přehled „Bedny k navezení“ s tiskem a PDF exportem.
-- Import zakázek z XLSX:
-  - náhled před importem (bez zápisu do DB),
-  - robustní normalizace pole artiklu (vždy text, bez koncovky `.0`),
-  - validace a atomický import (all-or-nothing),
-  - zachování nahraného souboru mezi náhledem a potvrzením.
-- Tisk a PDF (WeasyPrint):
-  - karty beden a KKK,
-  - dodací listy a proforma faktury,
-  - PDF export přehledu „Bedny k navezení“.
-- Admin akce a workflow:
-  - expedice zakázek (včetně rozdělení nepřipravených beden do nové zakázky),
-  - označení beden k navezení s kontrolou kapacit,
-  - deník beden v krocích šarže: akce „Přesunout šarži do dalšího kroku z vybraných beden“ a „Přesunout šarži do dalšího kroku“,
-  - bohaté filtry podle stavu, délky, tryskání, rovnání, priority, zákazníka atd.
-- Historie změn přes `django-simple-history`.
+- Import dodacích listů z XLSX s náhledem, validací a atomickým uložením; artikly zůstávají textem.
+- Evidence beden, technologických stavů, pozic, priorit, pozastavení a historie změn.
+- Rychlé založení šarže pro pracoviště 1–6, zadání beden do pater roštu a tisk průvodky.
+- Deník kroků šarže, přesuny mezi pracovišti a začátek i konec včetně data.
+- Skenování beden kamerou nebo čtečkou, provozní změny stavů a zobrazení pohybu.
+- Kontrola beden: jednotlivá měření, čistota, uložení, počty křivých vrutů, uvolnění a důvody neshody.
+- Import chemických měření z JSON exportů analyzátoru Vanta s náhledem a archivací souborů.
+- Přehledy nakládání, pracovišť, kontroly a neshod; dashboardy beden, kamionů, výroby a rovnání včetně historie.
+- Expedice zakázek a vybraných beden, rozdělení nehotové části zakázky a přiřazení do existujícího kamionu výdej.
+- PDF karty beden, KKK, průvodky šarží, dodací listy, certifikáty a proforma faktury. Vyplněné KKK jsou podporované pro EUR.
+- Oprávnění podle úkolu a audit přes `django-simple-history`.
 
-## 🚀 Rychlý start
+## Lokální spuštění na Windows
 
-- Požadavky: Python 3.11+, pip. Databáze: SQLite (výchozí). Podporováno na Linux a Windows.
-- Instalace a spuštění:
-  1. Vytvořte a aktivujte virtuální prostředí.
-  2. Nainstalujte závislosti: `pip install -r requirements.txt`.
-  3. Proveďte migrace: `python manage.py migrate`.
-  4. Vytvořte administrátora: `python manage.py createsuperuser`.
-  5. Spusťte server: `python manage.py runserver` a otevřete `http://127.0.0.1:8000/admin/`.
+Projekt používá **PostgreSQL v produkci i při běžném lokálním vývoji**. Připravte lokální databázi a roli s přístupem k ní. Závislosti jsou v [requirements.txt](requirements.txt), včetně Django 5.2, pandas, openpyxl, psycopg a WeasyPrint.
 
-Poznámka k PDF: WeasyPrint je součástí závislostí. Na Windows většinou funguje bez dalších kroků. Pokud chybí systémové knihovny (Cairo/Pango), postupujte podle oficiální dokumentace WeasyPrint.
+Použijte existující virtuální prostředí `venv`. Při prvním založení vytvořte prostředí dostupným interpretem Pythonu:
 
-### Přepínání lokální databáze
+```powershell
+python -m venv venv
+```
 
-Volba databáze je nezávislá na `DJANGO_DEBUG`. Při `DJANGO_DEBUG=True` zůstává výchozí SQLite, při `DJANGO_DEBUG=False` PostgreSQL. Pro ruční přepínání nastavte v lokálním souboru `.env` (je ignorovaný Gitem):
+Další příkazy spouštějte z kořene repozitáře přes toto prostředí:
+
+```powershell
+.\venv\Scripts\python.exe -m pip install -r requirements.txt
+```
+
+Vytvořte lokální `.env` (je ignorovaný Gitem). Zástupné hodnoty nahraďte vlastními:
 
 ```dotenv
+DJANGO_SECRET_KEY=nahraďte-vlastním-náhodným-tajným-klíčem
 DJANGO_DEBUG=True
-DJANGO_DB_ENGINE=sqlite
-POSTGRES_DB=orders_test
-POSTGRES_USER=uzivatel
+DJANGO_ALLOWED_HOSTS=127.0.0.1,localhost
+DJANGO_DB_ENGINE=postgres
+POSTGRES_DB=orders_local
+POSTGRES_USER=orders_local_user
 POSTGRES_PASSWORD=vaše_lokální_heslo
 POSTGRES_HOST=127.0.0.1
 POSTGRES_PORT=5432
 ```
 
-Pro práci s lokální kopií produkční databáze změňte `DJANGO_DB_ENGINE` na `postgres` a znovu spusťte Django. Zpět na SQLite přepnete hodnotou `sqlite`. Jméno PostgreSQL databáze lze změnit pomocí `POSTGRES_DB`. Heslo role `uzivatel` se v `psql` nastavuje příkazem `\password uzivatel`.
+```powershell
+.\venv\Scripts\python.exe manage.py migrate
+.\venv\Scripts\python.exe manage.py createsuperuser
+.\venv\Scripts\python.exe manage.py runserver
+```
 
-Při spuštění `python manage.py test` nad PostgreSQL vytváří Django samostatnou testovací databázi. Databázová role k tomu potřebuje oprávnění `CREATEDB`.
+Otevřete `http://127.0.0.1:8000/` nebo `/admin/`. Účet s příznakem staff se z úvodní stránky přesměruje do administrace; ostatní přihlášení uživatelé dostanou provozní rozcestník. Operace vyžadují přidělená oprávnění. Naplňte číselníky zákazníků, předpisů, pozic a pracovišť. Rychlé založení šarže potřebuje jednoznačně určené pracoviště typu **Nakládání**.
 
-## 📥 Import XLSX
+WeasyPrint potřebuje také systémové knihovny pro vykreslování textu. Při selhání PDF ověřte jejich instalaci a načítání statických souborů podle `WEASYPRINT_BASEURL` v [settings.py](order_processing/settings.py).
 
-- Přístup: v Django adminu přes stránku importu zakázek (náhled + potvrzení importu).
-- Podporovaný formát: `.xlsx` (openpyxl).
-- Náhled: zobrazí zpracovaná data bez zápisu do databáze.
-- Import: atomický (buď vše, nebo nic) s hlášením chyb/varování.
-- Pole „artikl“: vždy se ukládá jako text. Čistě číselné buňky se nepřevádí na float (`902925.0` -> `902925`).
+### Volba databáze
 
-Tipy:
+`DJANGO_DB_ENGINE=postgres` nastavte výslovně i lokálně. Bez této proměnné současný kód vybírá při `DJANGO_DEBUG=True` SQLite a při vypnutém debug režimu PostgreSQL. Explicitní volba má přednost.
 
-- Pokud Excel míchá čísla a texty v artiklu, import zůstává stabilní a výsledek je vždy text.
-- Pokud import selže, zkontrolujte hlavičky a že jde opravdu o `.xlsx`.
+SQLite (`DJANGO_DB_ENGINE=sqlite`, soubor `db.sqlite3`) je jen volitelná náhrada; její použití při ověřování vždy uveďte. Migrace transformující existující data před předáním ověřte v celém migračním sledu na PostgreSQL, ideálně na stagingu nebo obnovené anonymizované kopii produkce. Data měnící `RunPython` a následnou změnu schématu stejné tabulky rozdělte do samostatných migrací. U migrací měnících pouze schéma postačuje běžné lokální ověření i na SQLite.
 
-## 🖨️ Tisk a PDF
+## Uživatelská dokumentace
 
-- Karty beden a KKK: dostupné jako admin akce nad vybranými záznamy.
-- Dodací list a proforma: dostupné jako akce nad vybraným kamionem.
-- „Bedny k navezení“: vlastní tisková stránka a PDF export.
+Manuály jsou v češtině a obsahují postupy, omezení a řešení běžných chyb.
 
-## 🧭 Struktura projektu (výběr)
+| Agenda | Návod |
+| --- | --- |
+| Stručný postup od příjmu po expedici pro obsluhu | [Provozní tahák](docs/provozni_tahak.md) |
+| Celý průchod šarže pracovišti, kontrola a ukončení | [Průchod šarže výrobou](docs/manual_pruchod_sarze.md) |
+| Bedny, stavy, filtry, akce a skenování | [Bedny](docs/manual_bedna.md) |
+| Nakládání, patra, rozdělení roštu a průvodka | [Rychlé založení šarže s bednami](docs/manual_rychle_zalozeni_sarze.md) |
+| Měření, výstupní kontrola, uvolnění a neshody | [Kontrola beden](docs/manual_kontrola_beden.md) |
+| Příjem, kompletnost a expedice zakázek | [Zakázky](docs/manual_zakazka.md) |
+| Importy, příjem a výdej kamionů, doklady | [Kamiony](docs/manual_kamion.md) |
+| Šarže, kroky, deník a přesuny | [Deník beden v krocích šarže](docs/manual_denik_pece.md) |
+| Představení aplikace týmu | [Prezentace](docs/prezentace.md) |
+| Oprávnění, audit a provozní nastavení | [Bezpečnost](docs/security.md) |
 
-- `order_processing/` - nastavení projektu a URL.
-- `orders/` - hlavní aplikace (modely, admin, akce, filtry, formuláře, views, utils).
-- `templates/` a `orders/templates/` - šablony včetně tiskových výstupů.
-- `static/` a `staticfiles/` - statické soubory.
-- `requirements.txt` - závislosti (Django, pandas, openpyxl, WeasyPrint, django-simple-history, ...).
+## Importy a tisk
 
-## 📚 Uživatelské manuály
+Import XLSX spouštějte nad právě jedním kamionem příjem bez zakázek. Nejprve zkontrolujte náhled a potom potvrďte import. Formát se řídí strategií zákazníka (například EUR nebo SPX); limit velikosti souboru nastavuje `EXCEL_UPLOAD_MAX_SIZE_MB` (výchozí 10 MB). Nahraný soubor se zachová mezi náhledem a potvrzením.
 
-- [Bedny](docs/manual_bedna.md) - manuál práce s bednami (`Bedna`, `BednaAdmin`).
-- [Zakázky](docs/manual_zakazka.md) - manuál práce se zakázkami (`Zakazka`, `ZakazkaAdmin`).
-- [Kamióny](docs/manual_kamion.md) - manuál práce s kamiony (`Kamion`, `KamionAdmin`).
-- [Deník beden v krocích šarže](docs/manual_denik_pece.md) - manuál práce s deníkem beden v krocích šarže (`SarzeKrokBedna`, `SarzeKrokBednaAdmin`).
+Chemická měření se importují samostatnou akcí nad jedním kamionem příjem s bednami. Import čte JSONy z `CHEMISTRY_INCOMING_DIR`, kontroluje dostupnost exportů Vanta a archivuje zpracované soubory do `CHEMISTRY_ARCHIVE_DIR`. Postup je v [manuálu kamionů](docs/manual_kamion.md).
 
-## 🧪 Testy
+Tiskové akce jsou dostupné v seznamech beden, zakázek a kamionů podle kontextu a oprávnění. Prázdné KKK a vyplněné KKK (EUR) mají samostatné akce. Přehled rychlého založení poskytuje náhled průvodky; „Bedny k navezení“ mají vlastní tisk a PDF.
 
-- Spuštění testů: `python manage.py test`
-- Doporučení: při rozšíření funkcí doplnit testy hlavně pro import a klíčové admin akce.
+## Struktura projektu
 
-## 🚢 Nasazení
+- `order_processing/`: nastavení, hlavní URL a middleware.
+- `orders/`: modely, admin, akce, filtry, formuláře, views a importní strategie.
+- `orders/services/`: expedice, PDF, měření, chemické importy a historie.
+- `orders/tests/`: testy modelů, formulářů, akcí, adminu a provozních postupů.
+- `orders/management/commands/`: provozní příkazy, například `rozpracovanost`.
+- `templates/`, `orders/templates/`: administrační, provozní a tiskové šablony.
+- `orders/static/`: zdrojové styly a skripty; `staticfiles/`: výstup `collectstatic`.
+- `deploy/`: podpůrné skripty včetně synchronizace exportů Vanta.
+- `docs/`: uživatelská a provozní dokumentace.
 
-- Vypněte `DEBUG` a nastavte `ALLOWED_HOSTS`.
-- Pro statické soubory spusťte `collectstatic`.
-- Pro produkci zvažte PostgreSQL a WSGI/ASGI server (např. gunicorn/uvicorn + reverse proxy).
+## Ověření a testy
 
-## 🛠️ Řešení problémů
+```powershell
+.\venv\Scripts\python.exe manage.py check
+.\venv\Scripts\python.exe manage.py test
+```
 
-- Problémy s PDF: ověřte verzi WeasyPrint a dostupnost systémových knihoven.
-- Problémy s importem: ověřte `.xlsx`, očekávané hlavičky a chybová hlášení z náhledu.
+Testy standardně spouštějte na PostgreSQL. Django vytváří samostatnou testovací databázi; databázová role potřebuje oprávnění `CREATEDB`. Při změně funkce ověřte zejména validaci, oprávnění, stavové přechody a souběžné úpravy.
 
-## 📜 Licence
+## Nasazení
 
-Projekt je licencován pod GNU General Public License v3.0 (GPL-3.0). Kompletní text je v souboru `LICENSE` nebo na https://www.gnu.org/licenses/gpl-3.0.en.html.
+Nastavte vlastní `DJANGO_SECRET_KEY`, `DJANGO_DEBUG=False`, `DJANGO_ALLOWED_HOSTS` a připojení PostgreSQL. Pro HTTPS za reverzní proxy nastavte podle prostředí `DJANGO_CSRF_TRUSTED_ORIGINS`; proxy musí správně předávat a řídit hlavičku `X-Forwarded-Proto`. Produkční nastavení zapíná zabezpečené cookies a standardně přesměrovává HTTP na HTTPS. HSTS se řídí samostatnými proměnnými, výchozí délka je 0.
+
+Před nasazením proveďte zálohu databáze, migrace, `collectstatic` a `check --deploy`. Aplikaci provozujte pomocí WSGI/ASGI serveru a reverzní proxy. Podrobnosti jsou v [bezpečnostním přehledu](docs/security.md).
+
+## Licence
+
+GNU General Public License v3.0 (GPL-3.0), viz [LICENSE](LICENSE).

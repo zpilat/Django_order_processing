@@ -1,91 +1,116 @@
 # Django Order Processing
 
-Order management system for receiving, processing, and shipping orders, including crates management, trucks, and PDF printing. Built with Django, XLSX import via pandas, and PDF via WeasyPrint.
+Internal application for receiving, heat treating, inspecting and shipping orders. It tracks customers, inbound/outbound trucks, orders, crates, batches and workstation steps. Users work in Django Admin or operational pages with code scanning.
 
-## ✨ Features
+## Features
 
-- Dashboards:
-  - Crates status per customer.
-  - Monthly truck inbound/outbound with aggregates.
-  - "Crates to be moved" view with clean print and PDF export.
-- XLSX order import:
-  - Preview before import (no DB writes).
-  - Robust normalization of "article number" (always a string, no trailing ".0").
-  - Strict `.xlsx` (openpyxl), validation, and atomic import (all-or-nothing).
-  - Persist selected file between preview and import.
-- Printing and PDF (WeasyPrint):
-  - Crate production cards and Quality Control cards (KKK).
-  - Delivery notes and proforma invoices for trucks.
-  - PDF for the "crates to be moved" dashboard.
-- Admin actions and workflow:
-  - Expedite orders (with split of non-ready crates into a new order).
-  - Mark crates "to be moved" with position selection and capacity checks.
-  - Furnace log: actions "Přesunout šarži do dalšího kroku z vybraných beden" and "Přesunout šarži do dalšího kroku".
-  - Rich admin filters (state, length, blasting, straightening, priority, customer, ...).
-- See / change history with django-simple-history.
+- XLSX delivery note import with preview, validation and atomic saving; article numbers remain strings.
+- Crate states, warehouse positions, priorities, paused items and change history.
+- Quick batch creation for workstations 1–6, crates arranged into rack floors and traveler printing.
+- Batch step logs, workstation transfers and start/end dates and times.
+- Camera and reader scanning, operational state changes and crate movement history.
+- Crate inspection: individual measurements, cleanliness, placement, bent screw counts, release decisions and nonconformity reasons.
+- Chemical measurement import from Vanta JSON exports, with preview and processed file archiving.
+- Loading, workstation, inspection and nonconformity overviews; production, straightening, crate and truck dashboards with history.
+- Shipment of orders or selected crates, splitting unfinished crates into another order and adding shipments to an existing outbound truck.
+- PDF crate cards, quality control cards (KKK), batch travelers, delivery notes, certificates and proforma invoices. Filled KKK are supported for EUR.
+- Task permissions and auditing through `django-simple-history`.
 
-## 🚀 Quick start
+## Local setup on Windows
 
-- Requirements: Python 3.11+, pip. DB: SQLite (default). Windows supported.
-- Install and run:
-  1. Create and activate a virtual environment.
-  2. Install dependencies: `pip install -r requirements.txt`.
-  3. Migrate: `python manage.py migrate`.
-  4. Create superuser: `python manage.py createsuperuser`.
-  5. Start: `python manage.py runserver` and open `http://127.0.0.1:8000/admin/`.
+**PostgreSQL is used both locally and in production.** Prepare a local database and database role. Dependencies are pinned in [requirements.txt](requirements.txt), including Django 5.2, pandas, openpyxl, psycopg and WeasyPrint.
 
-PDF note: WeasyPrint ships as a dependency. On Windows it usually works out of the box. If system libs (Cairo/Pango) are missing, follow WeasyPrint docs.
+Use the existing `venv`. For a fresh checkout, create it with an available Python interpreter:
 
-## 📥 XLSX import
+```powershell
+python -m venv venv
+.\venv\Scripts\python.exe -m pip install -r requirements.txt
+```
 
-- Access: in Django Admin, open the orders import page (preview + import flow).
-- Supported files: `.xlsx` (openpyxl only).
-- Preview: shows normalized data without writing to DB.
-- Import: atomic (all-or-nothing) with errors/warnings reporting.
-- Field "article number" (artikl): always stored as text. Numeric-only cells are not converted to floats (e.g., `902925.0` -> `902925`).
+Create a local `.env` (ignored by Git), replacing the placeholders:
 
-Tips:
+```dotenv
+DJANGO_SECRET_KEY=replace-with-your-own-random-secret
+DJANGO_DEBUG=True
+DJANGO_ALLOWED_HOSTS=127.0.0.1,localhost
+DJANGO_DB_ENGINE=postgres
+POSTGRES_DB=orders_local
+POSTGRES_USER=orders_local_user
+POSTGRES_PASSWORD=your_local_password
+POSTGRES_HOST=127.0.0.1
+POSTGRES_PORT=5432
+```
 
-- If Excel mixes numbers and texts in "Artikel-nummer", import is robust and the final value is always a string.
-- If import fails, double-check headers and `.xlsx` format.
+Run commands from the repository root using its virtual environment:
 
-## 🖨️ Printing & PDF
+```powershell
+.\venv\Scripts\python.exe manage.py migrate
+.\venv\Scripts\python.exe manage.py createsuperuser
+.\venv\Scripts\python.exe manage.py runserver
+```
 
-- Crate production cards and KKK: available as admin actions for selected objects.
-- Truck delivery note and proforma: actions on the chosen truck.
-- "Crates to be moved": dedicated print page and PDF export (clean print styles).
+Open `http://127.0.0.1:8000/` or `/admin/`. Staff accounts are redirected from the home page to Admin; other authenticated users see the operational menu. Assign task permissions and populate customer, specification, position and workstation records. Quick batch creation requires an unambiguous workstation of type **Nakládání** (loading).
 
-## 🧭 Project structure (selected)
+WeasyPrint also needs system text rendering libraries. If PDF generation fails, check those libraries and static asset loading through `WEASYPRINT_BASEURL` in [settings.py](order_processing/settings.py).
 
-- `order_processing/` - project settings and URLs.
-- `orders/` - main app (models, admin, actions, filters, forms, views, utils).
-- `templates/` and `orders/templates/` - templates including printing.
-- `static/` and `staticfiles/` - static assets.
-- `requirements.txt` - dependencies (Django, pandas, openpyxl, WeasyPrint, django-simple-history, ...).
+### Database selection
 
-## 📚 User manuals
+Set `DJANGO_DB_ENGINE=postgres` explicitly for local development. In the current settings, omitting it selects SQLite when `DJANGO_DEBUG=True`, and PostgreSQL otherwise. An explicit engine overrides that fallback.
 
-- [Crates](docs/manual_bedna.md) - working guide for crates (`Bedna`, `BednaAdmin`).
-- [Orders](docs/manual_zakazka.md) - working guide for orders (`Zakazka`, `ZakazkaAdmin`).
-- [Trucks](docs/manual_kamion.md) - working guide for trucks (`Kamion`, `KamionAdmin`).
-- [Furnace log](docs/manual_denik_pece.md) - working guide for furnace log (`SarzeKrokBedna`, `SarzeKrokBednaAdmin`).
+SQLite (`DJANGO_DB_ENGINE=sqlite`, `db.sqlite3`) is optional; always report its use when validating changes. Migrations that transform existing data must be tested through the complete migration path on PostgreSQL, preferably staging or a restored anonymized production copy. Separate data-changing `RunPython` from later schema alterations on the same table. Schema-only migrations may be handed off after normal local checks on SQLite.
 
-## 🧪 Tests
+## Documentation
 
-- Run tests: `python manage.py test`
-- Recommendation: add tests for import and key admin actions when extending features.
+User manuals are in Czech:
 
-## 🚢 Deployment
+| Topic | Manual |
+| --- | --- |
+| Printable guide from receipt to shipment | [Operational quick reference](docs/provozni_tahak.md) |
+| Batch workstation steps, inspection and completion | [Batch production workflow](docs/manual_pruchod_sarze.md) |
+| Crates, states, actions and scanning | [Crates](docs/manual_bedna.md) |
+| Loading a batch, rack floors and traveler printing | [Quick batch creation with crates](docs/manual_rychle_zalozeni_sarze.md) |
+| Measurements, release and nonconformities | [Crate inspection](docs/manual_kontrola_beden.md) |
+| Order receipt, completeness and shipment | [Orders](docs/manual_zakazka.md) |
+| Truck imports, receipt, shipment and documents | [Trucks](docs/manual_kamion.md) |
+| Batch steps, logs and transfers | [Batch step log](docs/manual_denik_pece.md) |
+| Application overview | [Presentation](docs/prezentace.md) |
+| Permissions, auditing and deployment settings | [Security](docs/security.md) |
 
-- Disable DEBUG and set `ALLOWED_HOSTS`.
-- For static assets run `collectstatic`.
-- Consider production DB (PostgreSQL) and a WSGI/ASGI server (gunicorn/uvicorn + reverse proxy).
+## Imports and printing
 
-## 🛠️ Troubleshooting
+Start XLSX import for exactly one inbound truck without orders. Review the preview before confirming. Customer strategies (such as EUR and SPX) define the file layout. `EXCEL_UPLOAD_MAX_SIZE_MB` controls file size (10 MB by default); the uploaded file is retained between preview and confirmation.
 
-- PDF issues: check WeasyPrint version and system libraries as per docs.
-- Import issues: ensure the file is `.xlsx` and contains expected headers; check preview error messages.
+Chemical import is a separate action for an inbound truck with crates. It reads JSON files from `CHEMISTRY_INCOMING_DIR`, checks Vanta export availability and archives processed files to `CHEMISTRY_ARCHIVE_DIR`. See the [truck manual](docs/manual_kamion.md).
 
-## 📜 License
+Printing actions depend on selected objects, filters and permissions. Blank KKK and filled KKK (EUR) are separate actions. The quick batch overview provides a traveler print preview; the crates to be moved overview has dedicated print and PDF outputs.
 
-This project is licensed under the GNU General Public License v3.0 (GPL-3.0). See the `LICENSE` file for the full text or visit https://www.gnu.org/licenses/gpl-3.0.en.html.
+## Project structure
+
+- `order_processing/`: settings, root URLs and middleware.
+- `orders/`: models, admin, actions, filters, forms, views and import strategies.
+- `orders/services/`: shipping, PDF, measurements, chemical import and history.
+- `orders/tests/`: model, form, action, admin and workflow tests.
+- `orders/management/commands/`: operational commands, including `rozpracovanost`.
+- `templates/`, `orders/templates/`: admin, operational and print templates.
+- `orders/static/`: source assets; `staticfiles/`: `collectstatic` output.
+- `deploy/`: supporting scripts, including Vanta export synchronization.
+- `docs/`: user and operational documentation.
+
+## Checks and tests
+
+```powershell
+.\venv\Scripts\python.exe manage.py check
+.\venv\Scripts\python.exe manage.py test
+```
+
+Use PostgreSQL for normal tests. Django creates a separate test database; the database role needs `CREATEDB`. Validate permissions, state transitions, input validation and concurrent edits when changing a workflow.
+
+## Deployment
+
+Set `DJANGO_SECRET_KEY`, `DJANGO_DEBUG=False`, `DJANGO_ALLOWED_HOSTS` and PostgreSQL credentials. Configure `DJANGO_CSRF_TRUSTED_ORIGINS` for the deployment and ensure the reverse proxy controls `X-Forwarded-Proto`. Production settings enable secure cookies and HTTPS redirection by default. HSTS is configured separately and defaults to a duration of 0.
+
+Back up the database, apply migrations, run `collectstatic` and `check --deploy`, and serve the application through a WSGI/ASGI server and reverse proxy. See [security settings](docs/security.md).
+
+## License
+
+GNU General Public License v3.0 (GPL-3.0), see [LICENSE](LICENSE).

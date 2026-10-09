@@ -1,111 +1,99 @@
-# Uživatelský návod: Deník beden v krocích šarže
+# Uživatelský manuál: Deník beden v krocích šarže
 
-Tento návod je určen pro běžnou obsluhu v administraci. Popisuje praktický postup práce se šarží, krokem šarže a deníkem pece.
+Deník sleduje, co se zpracovávalo v jednotlivých krocích šarže, na jakém pracovišti a s jakým rozložením pater. Pro běžné nakládání beden je připravený [samostatný návod rychlého založení šarže](manual_rychle_zalozeni_sarze.md).
+
+Celý pracovní postup popisuje [Průchod šarže výrobou](manual_pruchod_sarze.md); stručný přehled pro směnu je v [provozním taháku](provozni_tahak.md).
 
 ## 1. Co je co
 
-1. Šarže: výrobní celek, který má své číslo a datum.
-2. Krok šarže: konkrétní průchod šarže přes pracoviště.
-3. Deník beden v krocích šarže: jednotlivé řádky v kroku šarže (bedny nebo položky mimo DB) s patrem a procentem využití.
+- **Šarže**: výrobní celek s číslem, datem založení, přípravkem, číslem pracoviště a stavem.
+- **Krok šarže**: průchod přes konkrétní pracoviště, s pořadím, operátorem a začátkem i koncem.
+- **Deník / Bedna v kroku šarže**: položka roštu s bednou nebo údaji mimo databázi, patrem a podílem využití.
 
-## 2. Běžný pracovní postup
+Číslo pracoviště šarže pro nakládání (1–6) a pracoviště konkrétního kroku jsou dva související údaje. Při přesunu na další pracoviště zůstává zachovaná šarže a vzniká nový krok.
 
-1. Otevřete Deník beden v krocích šarže.
-2. Klikněte na rychlý odkaz Šarže: Přidat.
-3. Uložte šarži tlačítkem Uložit a přidat bedny do kroku šarže.
-4. Otevře se detail prvního kroku šarže.
-5. Doplňte údaje kroku (zejména pracoviště, začátek, operátor).
-6. Přidejte řádky deníku beden v krocích šarže.
-7. Pokud potřebujete navazující krok, použijte jednu z akcí Přesunout šarži do dalšího kroku.
-8. Na novém kroku doplňte pracoviště, začátek, operátora a uložte.
+## 2. Běžný postup v administraci
 
-## 3. Vyplnění šarže
+1. Otevřete Deník a použijte rychlý odkaz **Šarže: Přidat**.
+2. Vyplňte šarži a v inline prvního kroku datum začátku, pracoviště, čas začátku a operátora.
+3. Uložte tlačítkem **Uložit a přidat bedny do kroku šarže**; otevře se detail prvního kroku.
+4. Přidejte řádky deníku s patry a procenty.
+5. Po dokončení kroku doplňte datum a čas konce.
+6. Pro pokračování použijte přesun z vybraných řádků deníku nebo přesun celého kroku.
+7. Na novém kroku zadejte pracoviště, datum, začátek a operátora.
 
-1. Při vytvoření šarže se datum založení doplní automaticky.
-2. Filtr v seznamu šarží je zaměřený na aktivní šarže.
-3. Po uložení šarže můžete pokračovat rovnou do kroku šarže.
+Pro nakládání existujících beden na pracovištích 1–6 lze místo ručního zadávání použít [rychlé založení](manual_rychle_zalozeni_sarze.md). Položky mimo databázi zadávejte v administraci.
 
-## 4. Vyplnění kroku šarže
+## 3. Šarže a krok
 
-1. Pole pracoviště, operátor a začátek:
-	- při založení kroku mohou být prázdná,
-	- při editaci existujícího kroku jsou povinná.
-2. Pole konec doporučujeme vyplnit hned po dokončení kroku.
-3. Pokud konec není vyplněn a provedete přesun do dalšího kroku, systém zobrazí varování.
+Datum založení šarže se při vytvoření doplní automaticky. Seznam šarží umožňuje filtrovat aktivní šarže.
 
-## 5. Vyplnění řádku deníku beden v krocích šarže
+Při založení šarže v administraci vyplňte povinné údaje prvního kroku. Při vytváření dalšího kroku přes přesun se datum začátku, pracoviště, začátek a operátor zadávají v navazujícím formuláři před uložením.
 
-Pro každý řádek platí:
+**Datum konce** a **Konec** vyplňujte společně. Konec nesmí předcházet datu a času začátku. U práce přes půlnoc zadejte datum následujícího dne. Přesun z kroku bez konce zobrazí varování; konec doplňte na původním kroku.
 
-1. Vyplňte buď bednu z databáze, nebo popis mimo DB.
-2. Není možné vyplnit bednu i data mimo DB současně.
-3. Pokud vyplníte popis mimo DB, vyplňte i zákazníka mimo DB a zakázku mimo DB.
-4. U bedny z databáze musí být bedna ve stavu skladem.
-5. Kombinace krok + bedna + patro musí být unikátní.
-6. V rámci jednoho kroku a jednoho patra nesmí součet procent přesáhnout 100 %.
+## 4. Řádky deníku a rozložení patra
 
-## 6. Akce pro navazující krok
+Každý řádek představuje buď bednu z databáze, nebo položku mimo databázi:
 
-### 6.1 Přesunout šarži do dalšího kroku z vybraných beden
+| Větev zadání | Povinné údaje |
+| --- | --- |
+| Bedna z databáze | Vybraná bedna a patro. |
+| Položka mimo databázi | Popis mimo DB, zákazník mimo DB, zakázka mimo DB a patro; číslo bedny mimo DB je volitelné. |
 
-Použití:
+Bednu a údaje mimo databázi nelze kombinovat v jednom řádku. Samotný zákazník, zakázka nebo číslo bedny mimo DB bez popisu nestačí.
 
-1. Označte vybrané řádky v deníku beden v krocích šarže.
-2. Spusťte akci Přesunout šarži do dalšího kroku z vybraných beden.
+Bedna z databáze musí být nepozastavená a ve stavu Přijato, K navezení, Navezeno, Ve zpracování, Zakaleno nebo Zkontrolováno. Bedny Nepřijato, K expedici a Expedováno nejsou pro tento postup povolené.
 
-Co se stane:
+Procenta v deníku mohou být nevyplněná; vyplněný podíl má rozsah 0–100 %. Součet v jednom kroku a patře nesmí přesáhnout 100 %. Rychlé zadávání pater má přísnější pravidla: podíl 5–100 %, nejvýše 5 položek a patra 1–6.
 
-1. Všechny vybrané řádky musí patřit do jednoho zdrojového kroku.
-2. Vytvoří se nový krok stejné šarže.
-3. Do nového kroku se přenese jen vazba na šarži, ostatní údaje kroku se nekopírují.
-4. Zkopírují se vybrané řádky deníku.
-5. Systém vás přesměruje na detail nového kroku.
+Stejná bedna se smí v jednom patře i ve více patrech opakovat, pokud je její obsah rozdělený do více částí roštu. Kombinace krok + bedna + patro proto nemusí být jedinečná.
 
-### 6.2 Přesunout šarži do dalšího kroku
+Při přidání bedny do kroku typu Nakládání se její výrobní stav automaticky nastaví na **Ve zpracování** a vymaže se skladová pozice. Odebrání položky z deníku samo výrobní stav bedny zpět nevrací.
 
-Použití:
+## 5. Přesun do dalšího kroku
 
-1. V přehledu kroků šarže označte právě jeden krok.
-2. Spusťte akci Přesunout šarži do dalšího kroku.
+### Z vybraných řádků deníku
 
-Co se stane:
+1. Označte řádky z jednoho zdrojového kroku.
+2. Spusťte **Přesunout šarži do dalšího kroku z vybraných beden**.
+3. Ve formuláři cílového kroku vyplňte pracoviště, datum začátku, čas a operátora a potvrďte vytvoření.
 
-1. Vytvoří se nový krok stejné šarže.
-2. Do nového kroku se přenese jen vazba na šarži.
-3. Zkopírují se všechny řádky deníku ze zdrojového kroku.
-4. Systém vás přesměruje na detail nového kroku.
+Vznikne nový krok stejné šarže, do kterého se zkopírují pouze vybrané řádky. Údaje pracoviště a obsluhy zdrojového kroku se nepřenášejí.
 
-## 7. Filtry, které se hodí v praxi
+### Z přehledu kroků
 
-1. Přehled Krok šarže:
-	- Pracoviště
-	- Typ pracoviště
-	- Konec: Ano/Ne
-2. Přehled Deník beden v krocích šarže:
-	- Pracoviště
-	- Typ pracoviště
-	- Konec: Ano/Ne
+1. Označte právě jeden krok.
+2. Spusťte **Přesunout šarži do dalšího kroku**.
+3. Ve formuláři vyplňte údaje cílového kroku a potvrďte vytvoření.
 
-Tip: Filtr Konec: Ne pomáhá najít nedokončené kroky.
+Do nového kroku stejné šarže se zkopírují všechny řádky zdrojového kroku. Původní krok a jeho deník zůstávají zachované jako evidence předchozího průchodu.
 
-## 8. Nejčastější hlášky a co s nimi
+## 6. Provozní přehledy a skenování
 
-1. Vyberte záznamy pouze z jednoho kroku šarže.
-	- Označili jste řádky z více kroků. Vyberte jen jeden krok.
-2. Vyberte právě jeden krok šarže.
-	- Pro akci z přehledu kroků musí být označený přesně jeden krok.
-3. Musí být vyplněna buď bedna, nebo popis mimo DB.
-	- Vyplňte jen jednu větev zadání.
-4. Nelze vyplnit současně bednu i pole mimo DB.
-	- Pokud je vybraná bedna, smažte mimo-DB pole.
-5. Původní krok šarže nemá vyplněný konec, nezapomeňte jej vyplnit.
-	- Doplňte konec na zdrojovém kroku, aby evidence byla kompletní.
-6. Součet procent v rámci jednoho patra nesmí překročit 100 %.
-	- Upravte procenta řádků ve stejném patře.
+- **Přehled nakládání** (`/provozni-prehledy/`) ukazuje otevřené nakládání na číslech pracovišť 1–6.
+- **Ostatní pracoviště** (`/prehled-pracovist/`) ukazují otevřené šarže mimo Nakládání.
+- Čtečka šarží (`/sarze/skener-ctecka/`) otevře provozní detail šarže. Nabízené stavové operace, přesun a úprava kroku závisejí na stavu a oprávněních.
+- **Přehled kontroly** (`/prehled-kontroly/`) obsahuje také šarže s položkami mimo databázi čekající na kontrolu; jejich řízení vyžaduje oprávnění `orders.change_stav_sarze_kontrolor`.
 
-## 9. Doporučení pro čistá data
+Skenování ani přesun nenahrazují vyplnění skutečného začátku a konce kroku. Výrobní stav šarže a výrobní stav jednotlivé bedny jsou samostatné údaje.
 
-1. Po dokončení každého kroku doplňte pole konec.
-2. Používejte poznámku jen pro opravdu důležité provozní informace.
-3. Průběžně kontrolujte krokové přehledy filtrem Konec: Ne.
-4. Před přesunem do dalšího kroku zkontrolujte, že řádky patří do správného zdrojového kroku.
+## 7. Filtry a běžné chyby
+
+V přehledu kroků i deníku použijte filtry **Pracoviště**, **Typ pracoviště** a **Konec: Ano/Ne**. Hodnota Konec: Ne pomáhá dohledat neuzavřené kroky.
+
+| Hlášení nebo problém | Řešení |
+| --- | --- |
+| Vyberte záznamy pouze z jednoho kroku šarže | Zúžte výběr deníku na jeden zdrojový krok. |
+| Vyberte právě jeden krok šarže | Pro přesun celého kroku označte jen jeden záznam. |
+| Musí být vyplněna buď bedna, nebo popis mimo DB | Vyplňte jednu větev zadání. |
+| Nelze vyplnit současně bednu i pole mimo DB | Odstraňte údaje druhé větve. |
+| Součet procent v patře překračuje 100 % | Opravte všechny podíly v příslušném kroku a patře. |
+| Původní krok nemá vyplněný konec | Na původním kroku doplňte datum a čas konce. |
+| Bednu nelze zařadit | Ověřte její výrobní stav a pozastavení. |
+
+## 8. Související dokumentace a kód
+
+[Bedny](manual_bedna.md) · [Rychlé založení šarže](manual_rychle_zalozeni_sarze.md) · [Kontrola beden](manual_kontrola_beden.md) · [README](../README.md)
+
+Implementace: `orders/models.py` (`Sarze`, `SarzeKrok`, `SarzeKrokBedna`), `orders/admin.py` (`SarzeAdmin`, `SarzeKrokAdmin`, `SarzeKrokBednaAdmin`), `orders/actions.py`, `orders/forms.py` a `orders/views.py`.

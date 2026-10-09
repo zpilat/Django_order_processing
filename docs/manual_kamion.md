@@ -65,10 +65,10 @@ Typické akce:
 - `Vytisknout certifikát 3.1 kamionu výdej`.
 - `Vytisknout proforma fakturu vybraného kamionu výdej`.
 - `Zadat / upravit měření vybraného kamionu výdej`.
+- `Importovat chemická měření beden` pro kamion příjem s bednami.
+- `Vytisknout vyplněné KKK z vybraného kamionu příjem (EUR)`.
 
-Speciální akce v `SarzeAdmin` (ne v KamionAdmin):
-
-- přesun šarže na jiné zařízení.
+Výroba a přesuny šarží se řeší samostatně v [deníku](manual_denik_pece.md) a [rychlém založení šarže](manual_rychle_zalozeni_sarze.md).
 
 ## 7. Jak systém zpřístupňuje akce
 
@@ -88,10 +88,26 @@ Importní workflow:
 3. Potvrzení importu.
 4. Atomické uložení (all-or-nothing).
 
+Vyberte právě jeden kamion příjem bez zakázek a spusťte import dodacího listu. V náhledu zkontrolujte hlavičky, artikly, rozměry, předpisy a rozdělení do beden. Soubor zůstává dostupný mezi náhledem a potvrzením; po opravě vstupního Excelu nahrajte jeho novou verzi.
+
 Poznámky:
 
 - Používají se importní strategie podle zákazníka (např. EUR, SPX).
 - Pokud se objeví chyby, import se neuloží.
+- Podporovaný formát je `.xlsx`; výchozí limit souboru je 10 MB, měnit jej může správce pomocí `EXCEL_UPLOAD_MAX_SIZE_MB`.
+- Artikl se normalizuje na text bez nežádoucí koncovky `.0`. Počet načítaných řádků závisí na strategii zákazníka.
+
+### Import chemických měření beden
+
+1. Vyberte právě jeden kamion příjem, který už obsahuje bedny.
+2. Spusťte **Importovat chemická měření beden**.
+3. Zkontrolujte dostupnost exportů Vanta a náhled přiřazení JSONů k bednám, včetně chyb a varování.
+4. Pokud náhled dovolí import, potvrďte jej.
+5. Zkontrolujte hlášení o aktualizovaných bednách, záznamech beze změny a zpracovaných souborech.
+
+Tato akce čte soubory z adresáře exportů na počítači/serveru aplikace; není to další nahrání dodacího listu. Po zpracování se JSONy přesouvají do archivu. Pokud se objeví chyba archivace, ověřte se správcem stav souborů; výsledky už mohly být uložené.
+
+Adresáře určuje `CHEMISTRY_INCOMING_DIR` a `CHEMISTRY_ARCHIVE_DIR` v nastavení. V debug režimu se používá lokální adresář, v produkci adresář serveru. Dostupnost analyzátoru kontroluje služba Vanta podle proměnných `VANTA_SMB_*`. Přístup k adresářům a synchronizaci řeší správce.
 
 ## 9. Zadání měření (výdej)
 
@@ -103,6 +119,10 @@ Workflow:
 2. Spusťte akci zadání měření.
 3. Vyplňte hodnoty ve formuláři.
 4. Uložte.
+
+Jde o souhrnné hodnoty zakázek pro výdejové doklady. Jednotlivá měření a rozhodnutí o uvolnění bedny zapisujte podle [manuálu kontroly beden](manual_kontrola_beden.md); oba formuláře mají jiný účel.
+
+Vyplněné KKK pro EUR tiskněte až po uložení kontrol všech příslušných beden. Samostatné akce pro prázdné KKK zůstávají dostupné podle kontextu.
 
 ## 10. Mazání kamionů - omezení
 
@@ -151,3 +171,10 @@ Zkontrolujte, zda neobsahuje nepovolené návaznosti (zakázky/bedny ve stavu mi
 
 - `orders/actions.py`
   - import, příjem kamionu, tisk dokladů a navazující akce
+
+- `orders/services/chemistry_import_service.py`, `orders/services/vanta_probe_service.py`
+  - náhled, import, archivace a dostupnost chemických exportů
+- `orders/services/filled_quality_cards_service.py`
+  - vyplněné KKK pro EUR
+
+[Zakázky](manual_zakazka.md) · [Bedny](manual_bedna.md) · [README](../README.md)

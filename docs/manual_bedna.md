@@ -13,6 +13,8 @@ Používá se pro:
 - průběžné úpravy tryskání, rovnání a zinkování,
 - přípravu exportů/tisku a expedici.
 
+Pro nakládání existujících beden použijte [Rychlé založení šarže s bednami](manual_rychle_zalozeni_sarze.md). Zápis měření a rozhodnutí o uvolnění popisuje [Kontrola beden](manual_kontrola_beden.md).
+
 ## 2. Kde v administraci pracovat
 
 Primární obrazovka je seznam `Bedny` (`BednaAdmin`).
@@ -44,6 +46,8 @@ Pokud bedna není ve stavu `NEPRIJATO`, musí být vyplněno a > 0:
 - `hmotnost`,
 - `tara`,
 - `mnozstvi`.
+
+Zakázka musí mít také platný předpis; předpis s názvem `Neznámý předpis` pro tyto stavy nestačí.
 
 ### 4.2 Omezení pro stavy K_EXPEDICI / EXPEDOVANO
 
@@ -88,6 +92,8 @@ Zjednodušeně:
 - Ve stavu `K_EXPEDICI` se naopak některá pole (hmotnost/rovnat/tryskat) z inline editace schválně odeberou.
 
 Poznámka: seznam také obsahuje polling změn (automatická kontrola nových změn v intervalu).
+
+Rozpracované změny v seznamu nejprve uložte tlačítkem Uložit. Při odchodu ze seznamu může aplikace upozornit na neuložené úpravy; samotná změna filtru nebo spuštění jiné obrazovky údaje neukládá.
 
 ## 7. Filtry v BednaAdmin
 
@@ -144,6 +150,8 @@ Tisk a export:
 
 - Export do CSV (interní, pro zákazníka, pro vložení do DL).
 - Tisk karet bedny, KKK a kombinovaný tisk.
+- Tisk vyplněných KKK (EUR): výběr musí patřit jednomu zákazníkovi a všechny bedny musí mít uloženou kontrolu.
+- Chemický pohled umožňuje prohlížet chemická měření a použít jejich export.
 
 ## 9. Jak systém zpřístupňuje akce
 
@@ -190,7 +198,20 @@ Bedna není ve stavu `NEPRIJATO`.
 
 Upravte filtr `Stav bedny` na odpovídající kontext a ověřte oprávnění uživatele.
 
-## 12. Technická mapa (kde je logika v kódu)
+## 12. Skenování a návazné provozní postupy
+
+1. Otevřete kamerový skener na `/bedny/skener/` nebo čtečku na `/bedny/skener-ctecka/`.
+2. Načtěte kód z karty bedny, případně zadejte interní číslo ručně.
+3. V detailu ověřte bednu a zvolte dostupnou operaci: navezení, označení jako zakalené, kontrolu nebo pohyb bedny.
+4. Pro kontrolu přejděte do formuláře měření a uvolnění podle [samostatného návodu](manual_kontrola_beden.md).
+
+Navezení přes sken je dostupné s `orders.mark_bedna_navezeno` nebo `orders.change_bedna` pro nepozastavené bedny ve stavech Přijato a K navezení. Označení jako zakalené vyžaduje `orders.scan_mark_bedna_zakaleno` a stav Navezeno nebo Ve zpracování. Další podmínky a povinné údaje kontroluje navazující formulář.
+
+Zařazením do kroku Nakládání přejde bedna automaticky na Ve zpracování a vymaže se její skladová pozice. Opakovaný výskyt bedny v roštu představuje rozdělení jejího obsahu, nikoli vytvoření nové bedny.
+
+Výrobní stav Zkontrolováno, uvolnění v kontrole a stav zinkování jsou samostatné údaje. Uložení kontroly automaticky nezmění výrobní stav ani zinkování. Při filtru Zkontrolováno se v seznamu zobrazuje také uvolnění kontroly.
+
+## 13. Technická mapa (kde je logika v kódu)
 
 - `orders/models.py`
   - `Bedna`
@@ -214,3 +235,10 @@ Upravte filtr `Stav bedny` na odpovídající kontext a ověřte oprávnění u�
 
 - `orders/templates/admin/orders/bedna/change_list.html`
   - konfigurace pollingu změn v seznamu
+
+- `orders/views.py`, `orders/forms.py`
+  - skenování, kontrola bedny a jednotlivá měření
+- `orders/services/filled_quality_cards_service.py`
+  - tisk vyplněných KKK pro EUR
+
+[Zakázky](manual_zakazka.md) · [Kamiony](manual_kamion.md) · [Deník](manual_denik_pece.md) · [README](../README.md)

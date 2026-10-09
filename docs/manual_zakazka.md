@@ -14,6 +14,8 @@ Používá se pro:
 - expedici zakázek (včetně expedice do existujícího kamionu),
 - tisk karet beden a KKK.
 
+Nakládání beden do výroby popisuje [Rychlé založení šarže](manual_rychle_zalozeni_sarze.md); měření a uvolnění jednotlivých beden řeší [Kontrola beden](manual_kontrola_beden.md).
+
 ## 2. Kde v administraci pracovat
 
 Primární obrazovka je seznam `Zakázky` (`ZakazkaAdmin`).
@@ -69,6 +71,7 @@ Typicky dostupné akce:
 - `Vrácení vybraných zakázek z expedice`.
 - `Vytisknout karty beden z vybraných zakázek`.
 - `Vytisknout KKK z vybraných zakázek`.
+- `Vytisknout vyplněné KKK z vybraných zakázek (EUR)` – pro bedny jednoho zákazníka EUR s uloženou kontrolou.
 
 Akce jsou seskupené v UI podle typu (Příjem, Tisk, Expedice).
 
@@ -85,10 +88,14 @@ Praktický dopad:
 
 1. Po příjmu kamionu filtrujte zakázky podle `Skladem`.
 2. Přijměte zakázky na sklad.
-3. Pracujte s bednami v inline tabulce zakázky (technologické stavy, hmotnosti).
-4. Před expedicí ověřte `Komplet`.
+3. Pracujte s bednami v inline tabulce zakázky nebo v seznamu Bedny; pro nakládání použijte rychlé založení šarže.
+4. Před expedicí ověřte `Komplet`, výsledky kontroly a skutečné technologické stavy beden.
 5. Spusťte expedici zakázek.
 6. Tiskněte potřebné karty/KKK.
+
+Při expedici části zakázky může systém nepřipravené bedny přesunout do nové zakázky. Po rozdělení ověřte její bedny a vazby na kamiony. Pořadí bedny pro kontrolu a vzorkování se dál vztahuje k původní zakázce.
+
+Indikátor Komplet vychází z výrobních stavů beden; sám nehodnotí jednotlivá měření ani rozhodnutí o uvolnění v kontrole.
 
 ## 9. Nejčastější problémy a řešení
 
@@ -121,3 +128,10 @@ Může být expedovaná a uživatel nemá potřebné oprávnění pro změnu exp
 
 - `orders/actions.py`
   - příjem, expedice, tisk a návratové akce pro zakázky
+
+- `orders/services/expedice_service.py`
+  - expedice a rozdělení zakázek
+- `orders/services/filled_quality_cards_service.py`
+  - vyplněné KKK
+
+[Bedny](manual_bedna.md) · [Kamiony](manual_kamion.md) · [README](../README.md)
