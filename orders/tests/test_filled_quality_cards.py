@@ -220,7 +220,7 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
                 html = render_to_string(template, self.context())
                 number = str(self.bedna.cislo_bedny)
                 if customer_number:
-                    number += f' / {customer_number}'
+                    number = f'{customer_number} <span class="container-internal-number">({number})</span>'
                 self.assertIn(
                     f'<span class="field-value container-value">{number}</span>'
                     '<span class="field-detail">1/1</span>', html,
@@ -446,7 +446,10 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
         self.measurement(kontrola, TypZkouskyChoice.VRSTVA, '8.5')
         template = TEMPLATE_PATH
         html = render_to_string(template, self.context())
-        self.assertIn(f'class="field-value container-value">{self.bedna.cislo_bedny} / DEMO-001</span>', html)
+        self.assertIn(
+            'class="field-value container-value">DEMO-001 '
+            f'<span class="container-internal-number">({self.bedna.cislo_bedny})</span></span>', html,
+        )
         for text in ('Mind. 5 Prüfmuster', 'Eurotec - F.3', 'HPM - F 73c'):
             self.assertIn(text, html)
         self.assertNotIn('{% extends', html)

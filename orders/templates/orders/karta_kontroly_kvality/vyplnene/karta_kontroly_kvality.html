@@ -28,6 +28,7 @@
         .field-value { display: block; font-size: 14px; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
         .field-detail { color: var(--muted); font-size: 9px; font-weight: 400; }
         .container-value { font-size: 17px; }
+        .container-internal-number { font-size: 14px; }
         .status-table { margin-bottom: 2mm; border: 1.5px solid var(--ink); }
         .status-table td { height: 15mm; padding: 2mm 2.5mm; border: 1px solid var(--line); vertical-align: top; }
         .status-value { display: block; padding-top: .5mm; font-size: 13px; font-weight: 700; line-height: 1.15; }
@@ -87,9 +88,9 @@
         <colgroup><col style="width: 22%;"><col style="width: 27%;"><col style="width: 21%;"><col style="width: 14%;"><col style="width: 16%;"></colgroup>
         <tbody><tr>
             {% with poradi_a_pocet=bedna.poradi_a_pocet_beden_v_puvodni_zakazce %}
-            <td><span class="field-label">Bedna {% if quality_card.helper_labels.container %}<span class="field-label-secondary">/ {{ quality_card.helper_labels.container }}</span>{% endif %}</span><span class="field-value container-value">{{ bedna.cislo_bedny }}{% if bedna.behalter_nr %} / {{ bedna.behalter_nr }}{% endif %}</span><span class="field-detail">{{ poradi_a_pocet.0 }}/{{ poradi_a_pocet.1 }}</span></td>
+            <td><span class="field-label">Bedna {% if quality_card.helper_labels.container %}<span class="field-label-secondary">/ {{ quality_card.helper_labels.container }}</span>{% endif %}</span><span class="field-value container-value">{% if bedna.behalter_nr %}{{ bedna.behalter_nr }} <span class="container-internal-number">({{ bedna.cislo_bedny }})</span>{% else %}{{ bedna.cislo_bedny }}{% endif %}</span><span class="field-detail">{{ poradi_a_pocet.0 }}/{{ poradi_a_pocet.1 }}</span></td>
             {% endwith %}
-            <td><span class="field-label">Artikl a šarže {% if quality_card.helper_labels.article_batch %}<span class="field-label-secondary">/ {{ quality_card.helper_labels.article_batch }}</span>{% endif %}</span><span class="field-value">{{ bedna.zakazka.artikl }}-{{ bedna.sarze }}</span><span class="field-detail">{{ bedna.zakazka.zkraceny_popis }}</span></td>
+            <td><span class="field-label">Artikl {% if quality_card.helper_labels.article_batch %}<span class="field-label-secondary">/ {{ quality_card.helper_labels.article_batch }}</span>{% endif %}</span><span class="field-value">{{ bedna.zakazka.artikl }}-{{ bedna.sarze }}</span><span class="field-detail">{{ bedna.zakazka.zkraceny_popis }}</span></td>
             <td><span class="field-label">Rozměr {% if quality_card.helper_labels.dimension %}<span class="field-label-secondary">/ {{ quality_card.helper_labels.dimension }}</span>{% endif %}</span><span class="field-value">ø{{ bedna.zakazka.prumer }} × {{ bedna.zakazka.delka|floatformat:0 }}</span></td>
             <td><span class="field-label">Netto {% if quality_card.helper_labels.net_weight %}<span class="field-label-secondary">/ {{ quality_card.helper_labels.net_weight }}</span>{% endif %}</span><span class="field-value">{{ bedna.hmotnost|floatformat:0 }} kg</span></td>
             <td><span class="field-label">Ze dne {% if quality_card.helper_labels.collection_date %}<span class="field-label-secondary">/ {{ quality_card.helper_labels.collection_date }}</span>{% endif %}</span><span class="field-value">{{ bedna.zakazka.kamion_prijem.datum|date:"d.m.Y" }}</span></td>
