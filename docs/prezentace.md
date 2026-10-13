@@ -59,7 +59,7 @@ Uložení výsledků a potvrzení výrobního stavu Zkontrolováno jsou samostat
 
 Expedovat lze zakázky nebo vybrané bedny do nového či existujícího kamionu výdej. Nepřipravená část zakázky se může oddělit do nové zakázky.
 
-Tisk zahrnuje karty beden, prázdné KKK, vyplněné KKK pro EUR, průvodky šarží, dodací listy, certifikáty a proforma faktury. Přehled Bedny k navezení má vlastní tisk a PDF export.
+Tisk zahrnuje karty beden, prázdné KKK, vyplněné KKK pro všechny zákazníky, průvodky šarží, dodací listy, certifikáty a proforma faktury. Přehled Bedny k navezení má vlastní tisk a PDF export.
 
 ## Technologie, oprávnění a provoz
 

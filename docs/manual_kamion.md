@@ -66,7 +66,7 @@ Typické akce:
 - `Vytisknout proforma fakturu vybraného kamionu výdej`.
 - `Zadat / upravit měření vybraného kamionu výdej`.
 - `Importovat chemická měření beden` pro kamion příjem s bednami.
-- `Vytisknout vyplněné KKK z vybraného kamionu výdej (EUR)`.
+- `Vytisknout vyplněné KKK z vybraného kamionu výdej` – pro všechny zákazníky, s pomocnými popisy podle zkratky státu zákazníka (D/A německy, I italsky, CZ pouze česky).
 
 Pro tisk vyplněných karet výdeje vyberte právě jeden kamion ve filtru `Výdej`.
 PDF obsahuje karty všech jeho beden s uloženou kontrolou kvality, včetně expedovaných beden,
@@ -183,6 +183,6 @@ Zkontrolujte, zda neobsahuje nepovolené návaznosti (zakázky/bedny ve stavu mi
 - `orders/services/chemistry_import_service.py`, `orders/services/vanta_probe_service.py`
   - náhled, import, archivace a dostupnost chemických exportů
 - `orders/services/filled_quality_cards_service.py`
-  - vyplněné KKK pro EUR
+  - vyplněné KKK pro všechny zákazníky
 
 [Zakázky](manual_zakazka.md) · [Bedny](manual_bedna.md) · [README](../README.md)

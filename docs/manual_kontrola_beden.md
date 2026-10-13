@@ -71,9 +71,13 @@ Uložení měření nebo uvolnění samo výrobní stav nezmění. Označení Zk
 
 Administrace **Kontroly beden** a **Měření beden** slouží k prohlížení záznamů a historie. Údaje se upravují provozním formulářem, na který vede odkaz v poli **Formulář kontroly bedny**; detail měření má obdobný odkaz v poli **Formulář měření zkoušky**.
 
-Pro EUR lze z administrace beden či zakázek použít akci **Vytisknout vyplněné KKK (EUR)**, případně variantu pro zakázky. Výběr musí patřit jednomu zákazníkovi a každá bedna musí mít uloženou kontrolu. V administraci kamionů je tisk vyplněných KKK dostupný pouze pro kamion výdej; bedny bez kontroly se přeskočí s varováním. Prázdné KKK mají vlastní akci. Před tiskem ověřte měření a uvolnění; u jiných zákazníků vyplněná varianta zatím není podporovaná.
+Z administrace beden či zakázek lze pro všechny zákazníky použít akci **Vytisknout vyplněné KKK**, případně variantu pro zakázky. Výběr musí patřit jednomu zákazníkovi a každá bedna musí mít uloženou kontrolu. V administraci kamionů je tisk vyplněných KKK dostupný pouze pro kamion výdej; bedny bez kontroly se přeskočí s varováním. Prázdné KKK mají vlastní akci a zákaznické šablony. Před tiskem ověřte měření a uvolnění.
 
-Vyplněná karta tiskne nejvýše prvních 10 hodnot jednotlivých zkoušek; pro vrstvu použije první uloženou hodnotu. Úplný seznam měření je dostupný v aplikaci.
+Vyplněné KKK používají jednu společnou šablonu. Hlavní popisy jsou vždy česky, pomocné popisy se řídí polem **Zkratka státu** zákazníka: **D** a **A** přidají němčinu, **I** italštinu, **CZ** zobrazí pouze češtinu. U nevyplněné nebo neznámé zkratky státu se zobrazí pouze čeština. Mezery kolem zkratky a velikost písmen výběr jazyka neovlivňují. Vedle českého stavu uvolnění se za lomítkem zobrazí pomocný překlad stavů Uvolněno, Uvolněno s odchylkou a Neshoda. Nerozhodnutý stav pomocný překlad nemá.
+
+Minimální počty vzorků se čtou z dočasného slovníku `QUALITY_CARD_CONFIG_BY_CUSTOMER` v `orders/quality_card_config.py`. Každý zákazník má čtyři pojmenované položky: `mechanicka_zkouska`, `prohyb`, `tvrdost` a `nazev_protokolu`. Výchozí hodnoty jsou převzaté z požadavků dosavadních zákaznických karet a zobrazují se česky i ve zvoleném pomocném jazyce. Hodnota `None` znamená neuvedené minimum; pomocný text pro takovou skupinu se netiskne. Toto nastavení určuje popis požadovaného minima, nikoli počet vytištěných hodnot. Název protokolu se tiskne v záhlaví: EUR má na dvou řádcích HPM - F 73c a Eurotec - F.3, SSH má HPM - F 11b, HPM má HPM - F 86a a ostatní zákazníci zatím HPM - F XXX. Více řádků názvu se ve slovníku odděluje znakem nového řádku (`\n`).
+
+Vyplněná karta tiskne nejvýše prvních 10 hodnot jednotlivých zkoušek; pro vrstvu použije první uloženou hodnotu. Úplný seznam měření je dostupný v aplikaci. Pokud bedna podle zákaznických pravidel není určena k měření tvrdosti a povrchu, karta místo minimálního počtu vzorků tvrdosti i předpisu pro povrch a jádro vytiskne pomlčku (—).
 
 ## 7. Oprávnění a souběžné změny
 
@@ -95,7 +99,8 @@ Pokud jiný uživatel mezitím změnil kontrolu nebo měření, systém odmítne
 - **Chybí požadavek zkoušky:** zkontrolujte předpis zakázky; prázdný požadavek neznamená automatické vyhovění zkoušky.
 - **Chybí tlačítko Zkontrolováno:** ověřte výrobní stav, pozastavení a oprávnění.
 - **Bedna stále čeká v přehledu kontroly:** uložení výsledků ji nepřepne ze stavu Zakaleno; potvrďte výrobní stav.
-- **Vyplněná KKK nejde vytisknout:** ověřte zákazníka EUR, jednotný výběr a uloženou kontrolu u každé bedny.
+- **Vyplněná KKK nejde vytisknout:** ověřte výběr jednoho zákazníka, uloženou kontrolu u každé bedny, hmotnost a předpis zakázky. U kamionu musí jít o jeden kamion výdej.
+- **Chybí pomocné popisy na vyplněné KKK:** ověřte pole Zkratka státu zákazníka; pro CZ, nevyplněnou nebo neznámou zkratku se pomocné popisy netisknou.
 
 ## 9. Související dokumentace a kód
 
@@ -103,4 +108,4 @@ Pokud jiný uživatel mezitím změnil kontrolu nebo měření, systém odmítne
 
 [Provozní tahák](provozni_tahak.md) · [Průchod šarže výrobou](manual_pruchod_sarze.md)
 
-Implementace: `orders/models.py` (`KontrolaBedny`, `MereniBedny`, `Bedna.limity_prohybu`), `orders/forms.py` (`KontrolaBednyForm`, `MereniBednyFormSet`), `orders/views.py` (`bedna_kontrola_view`, `bedna_mereni_zkousky_view`, `bedna_scan_zkontrolovano_view`), `orders/services/mereni_bedny_service.py` a `orders/services/filled_quality_cards_service.py`.
+Implementace: `orders/models.py` (`KontrolaBedny`, `MereniBedny`, `Bedna.limity_prohybu`), `orders/forms.py` (`KontrolaBednyForm`, `MereniBednyFormSet`), `orders/views.py` (`bedna_kontrola_view`, `bedna_mereni_zkousky_view`, `bedna_scan_zkontrolovano_view`), `orders/services/mereni_bedny_service.py` a `orders/services/filled_quality_cards_service.py`. Pomocné překlady vyplněných KKK jsou ve slovnících `HELPER_LABELS` v `orders/quality_card_labels.py`; minimální počty vzorků a názvy protokolů jsou nastavené v `orders/quality_card_config.py`.

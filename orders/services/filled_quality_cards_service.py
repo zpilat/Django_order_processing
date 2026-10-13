@@ -3,14 +3,16 @@ from django.utils import timezone
 
 from orders.choices import TypZkouskyChoice
 from orders.models import MereniBedny
+from orders.quality_card_config import QUALITY_CARD_CONFIG_BY_CUSTOMER
+from orders.quality_card_labels import get_helper_labels, minimum_samples_labels
 
 from .exceptions import ServiceValidationError
 from .pdf_cards_service import build_cards_pdf, build_context_for_bedna
 
 
 PRINTED_MEASUREMENTS_PER_TEST = 10
-TEMPLATE_DIRECTORY = 'orders/karta_kontroly_kvality/vyplnene'
-SUPPORTED_CUSTOMERS = ('eur',)
+TEMPLATE_PATH = 'orders/karta_kontroly_kvality/vyplnene/karta_kontroly_kvality.html'
+PDF_FILENAME = 'vyplnene_karty_kontroly_kvality.pdf'
 MEASUREMENT_COLUMNS = (
     TypZkouskyChoice.OHYB, TypZkouskyChoice.KRUT, TypZkouskyChoice.PROHYB_PO_TZ,
     TypZkouskyChoice.PROHYB_PO_KOULENI, TypZkouskyChoice.PROHYB_PO_ROVNANI,
@@ -24,13 +26,6 @@ def user_name(user):
 
 def measuring_people(items):
     return ', '.join(dict.fromkeys(user_name(item.zmeril) for item in items if item.zmeril))
-
-
-def resolve_filled_customer_template(customer_code):
-    code = (customer_code or '').lower()
-    if code not in SUPPORTED_CUSTOMERS:
-        raise ServiceValidationError('Tisk vyplněných karet kontroly kvality je zatím dostupný pouze pro zákazníka EUR.')
-    return f'{TEMPLATE_DIRECTORY}/karta_kontroly_kvality_{code}.html', f'vyplnene_karty_kontroly_kvality_{code}.pdf'
 
 
 def build_filled_context(bedna, generated_at, printing_user):
@@ -51,7 +46,23 @@ def build_filled_context(bedna, generated_at, printing_user):
     context = build_context_for_bedna(bedna, generated_at, printing_user)
     limity_prohybu = bedna.limity_prohybu
     predpis = bedna.zakazka.predpis
+    customer = bedna.zakazka.kamion_prijem.zakaznik
+    customer_code = (customer.zkratka or '').strip().upper()
+    helper_labels = get_helper_labels(customer.zkratka_statu)
+    customer_config = QUALITY_CARD_CONFIG_BY_CUSTOMER.get(customer_code, {})
     context['quality_card'] = {
+        'merit_tvrdost': bedna.bedna_k_mereni_tvrdosti_a_povrchu,
+        'helper_labels': helper_labels,
+        'uvolneni_pomocny_popis': helper_labels.get('release_status', {}).get(kontrola.uvolneni, ''),
+        'minimum_samples': {
+            group: minimum_samples_labels(customer_config.get(setting), helper_labels)
+            for group, setting in (
+                ('mechanical', 'mechanicka_zkouska'),
+                ('bending', 'prohyb'),
+                ('hardness', 'tvrdost'),
+            )
+        },
+        'document_codes': customer_config.get('nazev_protokolu', 'HPM - F XXX').splitlines(),
         'kontrola': kontrola,
         'vrstva': {
             'pozadavek': ' '.join(value for value in (predpis.vrstva, predpis.vrstva_2) if value),
@@ -84,8 +95,6 @@ def build_filled_quality_cards_pdf(bedny_qs, request):
         raise ServiceValidationError('Není vybrána žádná bedna k tisku.')
     if bedny_qs.values('zakazka__kamion_prijem__zakaznik').distinct().count() != 1:
         raise ServiceValidationError('Pro tisk vyplněných karet musí být bedny od jednoho zákazníka.')
-    customer_code = bedny_qs.first().zakazka.kamion_prijem.zakaznik.zkratka
-    template, filename = resolve_filled_customer_template(customer_code)
     missing_controls = bedny_qs.filter(kontrola__isnull=True)
     if missing_controls.exists():
         numbers = ', '.join(map(str, missing_controls.values_list('cislo_bedny', flat=True)[:20]))
@@ -99,7 +108,7 @@ def build_filled_quality_cards_pdf(bedny_qs, request):
     generated_at = timezone.now()
     printing_user = user_name(request.user)
     return build_cards_pdf(
-        bedny_qs=bedny_qs, template_paths=[template], filename=filename,
+        bedny_qs=bedny_qs, template_paths=[TEMPLATE_PATH], filename=PDF_FILENAME,
         request=request, generated_at=generated_at, user_display_name=printing_user,
         context_builder=lambda bedna: build_filled_context(bedna, generated_at, printing_user),
     )

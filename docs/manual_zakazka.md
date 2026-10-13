@@ -71,7 +71,7 @@ Typicky dostupné akce:
 - `Vrácení vybraných zakázek z expedice`.
 - `Vytisknout karty beden z vybraných zakázek`.
 - `Vytisknout KKK z vybraných zakázek`.
-- `Vytisknout vyplněné KKK z vybraných zakázek (EUR)` – pro bedny jednoho zákazníka EUR s uloženou kontrolou.
+- `Vytisknout vyplněné KKK z vybraných zakázek` – pro bedny jednoho zákazníka s uloženou kontrolou, dostupné pro všechny zákazníky. Společná šablona má české popisy a pomocné popisy podle zkratky státu zákazníka (D/A německy, I italsky, CZ pouze česky).
 
 Akce jsou seskupené v UI podle typu (Příjem, Tisk, Expedice).
 

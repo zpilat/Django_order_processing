@@ -150,7 +150,7 @@ Tisk a export:
 
 - Export do CSV (interní, pro zákazníka, pro vložení do DL).
 - Tisk karet bedny, KKK a kombinovaný tisk.
-- Tisk vyplněných KKK (EUR): výběr musí patřit jednomu zákazníkovi a všechny bedny musí mít uloženou kontrolu.
+- Tisk vyplněných KKK: dostupný pro všechny zákazníky; výběr musí patřit jednomu zákazníkovi a všechny bedny musí mít uloženou kontrolu. Společná šablona má české popisy a pomocné popisy podle zkratky státu zákazníka (D/A německy, I italsky, CZ pouze česky).
 - Chemický pohled umožňuje prohlížet chemická měření a použít jejich export.
 
 ## 9. Jak systém zpřístupňuje akce
@@ -239,6 +239,6 @@ Výrobní stav Zkontrolováno, uvolnění v kontrole a stav zinkování jsou sam
 - `orders/views.py`, `orders/forms.py`
   - skenování, kontrola bedny a jednotlivá měření
 - `orders/services/filled_quality_cards_service.py`
-  - tisk vyplněných KKK pro EUR
+  - tisk vyplněných KKK pro všechny zákazníky
 
 [Zakázky](manual_zakazka.md) · [Kamiony](manual_kamion.md) · [Deník](manual_denik_pece.md) · [README](../README.md)

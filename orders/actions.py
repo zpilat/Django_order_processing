@@ -934,18 +934,18 @@ def _tisk_vyplnenych_karet_kontroly(modeladmin, request, bedny):
     return response
 
 
-@admin.action(description='Vytisknout vyplněné KKK (EUR)', permissions=('view',))
+@admin.action(description='Vytisknout vyplněné KKK', permissions=('view',))
 def tisk_vyplnenych_karet_kontroly_kvality_action(modeladmin, request, queryset):
     return _tisk_vyplnenych_karet_kontroly(modeladmin, request, queryset)
 
 
-@admin.action(description='Vytisknout vyplněné KKK z vybraných zakázek (EUR)', permissions=('view',))
+@admin.action(description='Vytisknout vyplněné KKK z vybraných zakázek', permissions=('view',))
 def tisk_vyplnenych_karet_kontroly_kvality_zakazek_action(modeladmin, request, queryset):
     bedny = Bedna.objects.filter(zakazka__in=queryset)
     return _tisk_vyplnenych_karet_kontroly(modeladmin, request, bedny)
 
 
-@admin.action(description='Vytisknout vyplněné KKK z vybraného kamionu výdej (EUR)', permissions=('view',))
+@admin.action(description='Vytisknout vyplněné KKK z vybraného kamionu výdej', permissions=('view',))
 def tisk_vyplnenych_karet_kontroly_kvality_kamionu_vydej_action(modeladmin, request, queryset):
     if queryset.count() != 1:
         modeladmin.message_user(request, 'Vyberte pouze jeden kamion.', level=messages.ERROR)

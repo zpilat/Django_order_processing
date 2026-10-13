@@ -23,7 +23,7 @@ from orders.services.expedice_service import expedice_beden_do_existujiciho_kami
 from orders.services.pdf_cards_service import build_cards_pdf
 from orders.services.filled_quality_cards_service import (
     MEASUREMENT_COLUMNS, build_filled_context, build_filled_quality_cards_pdf,
-    resolve_filled_customer_template,
+    TEMPLATE_PATH,
 )
 from orders.tests.test_kontrola_bedny import KontrolaBednyTestBase
 
@@ -32,6 +32,7 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
     def setUp(self):
         self.customer = self.bedna.zakazka.kamion_prijem.zakaznik
         self.customer.zkratka = 'EUR'
+        self.customer.zkratka_statu = 'D'
         self.customer.save()
         self.bedna.hmotnost = Decimal('100')
         self.bedna.save()
@@ -62,6 +63,85 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
         ).get()
         return build_filled_context(bedna, timezone.now(), 'Tisknoucí uživatel')
 
+    def test_helper_labels_follow_customer_country_including_missing_and_unknown_countries(self):
+        kontrola = self.create_control()
+        self.measurement(kontrola, TypZkouskyChoice.VRSTVA, '8.5')
+        for country, title, dimension, layer, minimum in (
+            ('D', 'Qualitätskontrollkarte', 'Abmessung', 'Schicht', 'Mind. 5 Prüfmuster'),
+            ('A', 'Qualitätskontrollkarte', 'Abmessung', 'Schicht', 'Mind. 5 Prüfmuster'),
+            (' d ', 'Qualitätskontrollkarte', 'Abmessung', 'Schicht', 'Mind. 5 Prüfmuster'),
+            ('I', 'Scheda di controllo della qualità', 'Dimensione', 'Strato', 'Minimo 5 campioni di prova'),
+            (' i ', 'Scheda di controllo della qualità', 'Dimensione', 'Strato', 'Minimo 5 campioni di prova'),
+            ('CZ', None, None, None, None), (' cz ', None, None, None, None),
+            (None, None, None, None, None), ('', None, None, None, None),
+            ('SK', None, None, None, None),
+        ):
+            with self.subTest(country=country):
+                self.customer.zkratka_statu = country
+                self.customer.save(update_fields=['zkratka_statu'])
+                context = self.context()
+                html = render_to_string(TEMPLATE_PATH, context)
+                for main in ('Karta kontroly kvality', 'Rozměr', 'Vrstva', 'Kontroloval', 'Min. 5 vzorků', 'Min. 2 vzorky'):
+                    self.assertIn(main, html)
+                if title:
+                    for label in (title, dimension, layer, minimum):
+                        self.assertIn(label, html)
+                    other_title = 'Scheda di controllo della qualità' if country.strip().upper() in ('D', 'A') else 'Qualitätskontrollkarte'
+                    self.assertNotIn(other_title, html)
+                else:
+                    self.assertEqual(context['quality_card']['helper_labels'], {})
+                    self.assertNotIn('<p>', html)
+                    self.assertNotIn('<span class="field-label-secondary">', html)
+                    self.assertNotIn('<span class="secondary">', html)
+                    self.assertIn('Vrstva</th>', html)
+                    self.assertIn('Vzorek</th>', html)
+                    self.assertIn('class="controller-label">Kontroloval</th>', html)
+                    self.assertIn('class="field-label">Rozměr </span>', html)
+
+    def test_all_customers_use_common_template_with_their_original_sample_minimums(self):
+        self.create_control()
+        for code, country, minimums, form_code in (
+            ('EUR', 'D', ('Min. 5 vzorků', 'Min. 5 vzorků', 'Min. 2 vzorky'), 'HPM - F 73c'),
+            ('FIS', 'D', ('Min. 5 vzorků', 'Min. 25 vzorků', 'Min. 2 vzorky'), 'HPM - F XXX'),
+            ('HPM', 'CZ', ('Min. 5 vzorků', 'Min. 25 vzorků', 'Min. 3 vzorky'), 'HPM - F 86a'),
+            ('ROT', 'I', ('Min. 10 vzorků', None, 'Min. 3 vzorky'), 'HPM - F XXX'),
+            ('SPX', 'A', ('Min. 5 vzorků', 'Min. 3 vzorky', 'Min. 1 vzorek'), 'HPM - F XXX'),
+            ('SSH', 'D', (None, None, None), 'HPM - F 11b'),
+            ('SWG', 'D', ('Min. 5 vzorků', None, 'Min. 5 vzorků'), 'HPM - F XXX'),
+            ('XXX', None, (None, None, None), 'HPM - F XXX'),
+        ):
+            with self.subTest(customer=code):
+                self.customer.zkratka = code
+                self.customer.zkratka_statu = country
+                self.customer.save(update_fields=['zkratka', 'zkratka_statu'])
+                with patch('orders.services.pdf_cards_service.HTML') as renderer:
+                    renderer.return_value.write_pdf.return_value = b'%PDF-common'
+                    response = build_filled_quality_cards_pdf(self.qs, self.request)
+                self.assertEqual(response.content, b'%PDF-common')
+                html = renderer.call_args.kwargs['string']
+                group_headers = html.split('<thead>', 1)[1].split('<tr>', 2)[1]
+                groups = group_headers.split('class="group-header">')[1:]
+                self.assertEqual(len(groups), 3)
+                for group, minimum in zip(groups, minimums):
+                    if minimum:
+                        self.assertIn(minimum, group)
+                    else:
+                        self.assertNotIn('Min.', group)
+                self.assertEqual('Eurotec - F.3' in html, code == 'EUR')
+                self.assertEqual('HPM - F 73c' in html, code == 'EUR')
+                self.assertIn(f'<span>{form_code}</span>', html)
+                self.assertNotIn('HPM - F 104a', html)
+                if code == 'EUR':
+                    self.assertEqual(self.context()['quality_card']['document_codes'], ['HPM - F 73c', 'Eurotec - F.3'])
+                if country == 'I':
+                    self.assertIn('Minimo 10 campioni di prova', html)
+                    self.assertIn('Minimo 3 campioni di prova', html)
+                if code == 'SPX':
+                    self.assertIn('Mind. 1 Prüfmuster', html)
+                if code == 'XXX':
+                    self.assertNotIn('Prüfmuster', html)
+                    self.assertNotIn('Minimo', html)
+
     def test_first_ten_per_type_follow_order_with_gaps_and_preserve_all_stored_values(self):
         kontrola = self.create_control()
         for kind in MEASUREMENT_COLUMNS:
@@ -71,24 +151,81 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
         self.assertEqual(context['quality_card']['rows'], [[Decimal(index)] * 7 for index in range(10)])
         self.assertEqual(MereniBedny.objects.count(), 84)
         self.assertEqual(MereniBedny.history.count(), 84)
-        template, _ = resolve_filled_customer_template('EUR')
+        template = TEMPLATE_PATH
         html = render_to_string(template, context)
         self.assertEqual(html.count('class="measurement-value'), 70)
         self.assertIn('class="measurement-value">0</td>', html)
         self.assertNotIn('class="measurement-value">10</td>', html)
         self.assertNotIn('class="measurement-value">11</td>', html)
 
+    def test_hardness_minimum_and_requirements_follow_container_selection(self):
+        self.create_control()
+        second = Bedna.objects.create(zakazka=self.bedna.zakazka, hmotnost=100)
+        Bedna.objects.create(zakazka=self.bedna.zakazka, hmotnost=100)
+        KontrolaBedny.objects.create(bedna=second)
+        predpis = self.bedna.zakazka.predpis
+        predpis.povrch, predpis.jadro = '550-650 HV', '300-400 HV'
+        predpis.save(update_fields=['povrch', 'jadro'])
+        for code, country, full_thread, second_selected, minimum in (
+            ('EUR', 'D', False, False, 'Min. 2 vzorky'),
+            ('EUR', 'D', True, True, 'Min. 2 vzorky'),
+            ('ROT', 'I', False, False, 'Min. 3 vzorky'),
+            ('SWG', 'D', False, False, 'Min. 5 vzorků'),
+            ('SSH', 'D', False, False, None),
+            ('HPM', 'CZ', False, False, 'Min. 3 vzorky'),
+            ('FIS', 'CZ', False, False, 'Min. 2 vzorky'),
+            ('SPX', 'A', False, True, 'Min. 1 vzorek'),
+        ):
+            self.customer.zkratka, self.customer.zkratka_statu = code, country
+            self.customer.save(update_fields=['zkratka', 'zkratka_statu'])
+            self.bedna.zakazka.celozavit = full_thread
+            self.bedna.zakazka.save(update_fields=['celozavit'])
+            for bedna, selected in ((self.bedna, True), (second, second_selected)):
+                with self.subTest(customer=code, full_thread=full_thread, bedna=bedna.pk):
+                    self.qs = Bedna.objects.filter(pk=bedna.pk)
+                    context = self.context()
+                    self.assertEqual(context['quality_card']['merit_tvrdost'], selected)
+                    html = render_to_string(TEMPLATE_PATH, context)
+                    headers = html.split('<thead>', 1)[1].split('</thead>', 1)[0]
+                    hardness_group = headers.split('class="group-header">')[3].split('</th>', 1)[0]
+                    self.assertEqual('<small>—</small>' in hardness_group, not selected)
+                    if selected and minimum:
+                        self.assertIn(minimum, hardness_group)
+                    else:
+                        for text in ('Min.', 'Mind.', 'Minimo'):
+                            self.assertNotIn(text, hardness_group)
+                    hardness_columns = headers.split('class="column-header">')[-2:]
+                    for column, requirement in zip(hardness_columns, ('550-650 HV', '300-400 HV')):
+                        if selected:
+                            self.assertIn(f'<span class="requirement">{requirement}</span>', column)
+                        else:
+                            self.assertNotIn(requirement, column)
+                            self.assertIn('<span class="requirement">—</span>', column)
+                    self.assertEqual(html.count('class="measurement-value'), 70)
+
     def test_short_test_has_blank_cells_and_decimal_precision_is_preserved(self):
         kontrola = self.create_control()
         self.measurement(kontrola, TypZkouskyChoice.TVRDOST_POVRCHU, '592.1234')
         self.measurement(kontrola, TypZkouskyChoice.OHYB, '12.5000')
-        template, _ = resolve_filled_customer_template('eur')
+        template = TEMPLATE_PATH
         html = render_to_string(template, self.context())
         self.assertIn('class="measurement-value">592,1234</td>', html)
         self.assertIn('class="measurement-value">12,5</td>', html)
         self.assertIn('class="status-value status-cross">-</span>', html)
         self.assertEqual(html.count('class="measurement-value"></td>'), 68)
-        self.assertIn(f'Interní č. {self.bedna.cislo_bedny} · 1/1', html)
+        for customer_number in (None, '', '2314'):
+            with self.subTest(customer_number=customer_number):
+                self.bedna.behalter_nr = customer_number
+                self.bedna.save(update_fields=['behalter_nr'])
+                html = render_to_string(template, self.context())
+                number = str(self.bedna.cislo_bedny)
+                if customer_number:
+                    number += f' / {customer_number}'
+                self.assertIn(
+                    f'<span class="field-value container-value">{number}</span>'
+                    '<span class="field-detail">1/1</span>', html,
+                )
+                self.assertNotIn('Interní č.', html)
 
     def test_layer_has_its_own_row_with_requirement_optional_value_and_measurer(self):
         kontrola = self.create_control()
@@ -96,7 +233,7 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
         predpis.vrstva = '7–10 µm'
         predpis.vrstva_2 = '15–20 µm'
         predpis.save(update_fields=['vrstva', 'vrstva_2'])
-        template, _ = resolve_filled_customer_template('eur')
+        template = TEMPLATE_PATH
 
         empty_card = self.context()['quality_card']
         self.assertEqual(empty_card['vrstva'], {
@@ -131,7 +268,7 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
 
     def test_template_shows_bending_limits_and_only_defined_qs_limit(self):
         self.create_control()
-        template, _ = resolve_filled_customer_template('eur')
+        template = TEMPLATE_PATH
         for code, length, normal, release in (
             ('EUR', '100', '0,6', None), ('ROT', '123.4', '0,4936', '0,7404'),
             ('SWG', '300', '1,8', None), ('SWG', '400', '1,8', None),
@@ -167,7 +304,7 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
             TypZkouskyChoice.TVRDOST_POVRCHU, TypZkouskyChoice.TVRDOST_JADRA,
         ):
             self.measurement(kontrola, kind, '0.6001')
-        template, _ = resolve_filled_customer_template('eur')
+        template = TEMPLATE_PATH
         for code, states in (
             ('ROT', ('', 'odchylka', 'odchylka', 'nevyhovuje')),
             ('EUR', ('', '', '', 'nevyhovuje')),
@@ -189,26 +326,44 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
 
     def test_print_displays_release_with_deviation_and_nonconformity(self):
         kontrola = self.create_control()
-        template, _ = resolve_filled_customer_template('eur')
-        for status, css, released in (
-            (UvolneniKontrolyChoice.UVOLNENO, 'status-good', True),
-            (UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU, 'status-warning', True),
-            (UvolneniKontrolyChoice.NESHODA, 'status-bad', True),
-            (UvolneniKontrolyChoice.NEROZHODNUTO, 'status-pending', False),
+        template = TEMPLATE_PATH
+        for country, translations in (
+            ('D', ('Freigegeben', 'Freigegeben mit Abweichung', 'Nichtkonformität')),
+            ('A', ('Freigegeben', 'Freigegeben mit Abweichung', 'Nichtkonformität')),
+            ('I', ('Rilasciato', 'Rilasciato con deroga', 'Non conformità')),
+            ('CZ', ('', '', '')), (None, ('', '', '')), ('SK', ('', '', '')),
         ):
-            with self.subTest(status=status):
-                kontrola.uvolneni = status
-                kontrola.uvolneni_zmenil = self.user if released else None
-                kontrola.uvolneni_zmeneno_at = timezone.now() if released else None
-                kontrola.save()
-                html = render_to_string(template, self.context())
-                self.assertIn(f'<td class="{css}"><span class="field-label">Uvolnění ', html)
-                details = html.split('/ Freigabe</span></span>', 1)[1].split('</td>', 1)[0]
-                self.assertIn(status.label, details)
-                self.assertEqual('class="release-detail"' in details, released)
-                if released:
-                    self.assertIn(self.user.username, details)
-                    self.assertIn(timezone.localtime(kontrola.uvolneni_zmeneno_at).strftime('%d.%m.%Y %H:%M'), details)
+            self.customer.zkratka_statu = country
+            self.customer.save(update_fields=['zkratka_statu'])
+            for status, css, released, translation in (
+                (UvolneniKontrolyChoice.UVOLNENO, 'status-good', True, translations[0]),
+                (UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU, 'status-warning', True, translations[1]),
+                (UvolneniKontrolyChoice.NESHODA, 'status-bad', True, translations[2]),
+                (UvolneniKontrolyChoice.NEROZHODNUTO, 'status-pending', False, ''),
+            ):
+                with self.subTest(country=country, status=status):
+                    kontrola.uvolneni = status
+                    kontrola.uvolneni_zmenil = self.user if released else None
+                    kontrola.uvolneni_zmeneno_at = timezone.now() if released else None
+                    kontrola.save()
+                    context = self.context()
+                    html = render_to_string(template, context)
+                    cell = f'<td class="{css}"><span class="field-label">Uvolnění '
+                    self.assertIn(cell, html)
+                    details = html.split(cell, 1)[1].split('</td>', 1)[0]
+                    self.assertEqual(context['quality_card']['uvolneni_pomocny_popis'], translation)
+                    if translation:
+                        self.assertIn(
+                            f'<span class="status-value">{status.label} '
+                            f'<span class="status-secondary">/ {translation}</span></span>', details,
+                        )
+                    else:
+                        self.assertIn(f'<span class="status-value">{status.label}</span>', details)
+                        self.assertNotIn('class="status-secondary"', details)
+                    self.assertEqual('class="release-detail"' in details, released)
+                    if released:
+                        self.assertIn(self.user.username, details)
+                        self.assertIn(timezone.localtime(kontrola.uvolneni_zmeneno_at).strftime('%d.%m.%Y %H:%M'), details)
 
     def test_print_keeps_original_order_and_total_after_partial_shipments(self):
         self.bedna.tara = 1
@@ -249,7 +404,10 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
 
         html = renderer.call_args.kwargs['string']
         for position in printed_positions:
-            self.assertIn(f'Interní č. {bedny[position - 1].cislo_bedny} · {position}/10', html)
+            self.assertIn(
+                f'<span class="field-value container-value">{bedny[position - 1].cislo_bedny}</span>'
+                f'<span class="field-detail">{position}/10</span>', html,
+            )
         self.assertEqual(response.content, b'%PDF-original-order')
 
     def test_measurement_date_range_uses_earliest_and_latest_day(self):
@@ -264,7 +422,7 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
         self.assertEqual(card['datum_mereni_od'], timezone.localdate(older))
         self.assertEqual(card['datum_mereni_do'], timezone.localdate(newer))
 
-    def test_eur_template_keeps_original_requirements_and_fits_one_a4_page(self):
+    def test_common_template_keeps_requirements_and_fits_one_a4_page_in_all_languages(self):
         self.user.first_name, self.user.last_name = 'Jan', 'Kontrolor'
         self.user.save()
         kontrola = self.create_control(
@@ -286,8 +444,9 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
             for order in range(1, 11):
                 self.measurement(kontrola, kind, '580.2500', order=order)
         self.measurement(kontrola, TypZkouskyChoice.VRSTVA, '8.5')
-        template, _ = resolve_filled_customer_template('eur')
+        template = TEMPLATE_PATH
         html = render_to_string(template, self.context())
+        self.assertIn(f'class="field-value container-value">{self.bedna.cislo_bedny} / DEMO-001</span>', html)
         for text in ('Mind. 5 Prüfmuster', 'Eurotec - F.3', 'HPM - F 73c'):
             self.assertIn(text, html)
         self.assertNotIn('{% extends', html)
@@ -300,17 +459,29 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
         self.assertNotIn('Poznámka &lt;kontroly&gt;', html)
         self.assertEqual(html.count('class="controller-value"'), 7)
         self.assertIn('A1-CH-123', html)
-        for code, status in (
-            ('EUR', UvolneniKontrolyChoice.UVOLNENO), ('ROT', UvolneniKontrolyChoice.UVOLNENO),
-            ('EUR', UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU),
-            ('EUR', UvolneniKontrolyChoice.NESHODA),
+        for code, country, status in (
+            ('EUR', 'D', UvolneniKontrolyChoice.UVOLNENO),
+            ('EUR', 'A', UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU),
+            ('EUR', 'D', UvolneniKontrolyChoice.NESHODA),
+            ('ROT', 'I', UvolneniKontrolyChoice.UVOLNENO),
+            ('ROT', 'I', UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU),
+            ('ROT', 'I', UvolneniKontrolyChoice.NESHODA),
+            ('SPX', 'I', UvolneniKontrolyChoice.UVOLNENO),
+            ('HPM', 'CZ', UvolneniKontrolyChoice.UVOLNENO),
+            ('FIS', 'D', UvolneniKontrolyChoice.UVOLNENO),
+            ('SSH', 'D', UvolneniKontrolyChoice.UVOLNENO),
+            ('SWG', 'D', UvolneniKontrolyChoice.UVOLNENO),
+            ('XXX', None, UvolneniKontrolyChoice.UVOLNENO),
         ):
-            with self.subTest(customer=code, status=status):
+            with self.subTest(customer=code, country=country, status=status):
                 self.customer.zkratka = code
-                self.customer.save(update_fields=['zkratka'])
+                self.customer.zkratka_statu = country
+                self.customer.save(update_fields=['zkratka', 'zkratka_statu'])
                 kontrola.uvolneni = status
                 kontrola.save()
                 html = render_to_string(template, self.context())
+                if code == 'SPX' and country == 'I':
+                    self.assertIn('Minimo 1 campione di prova', html)
                 document = HTML(string=html).render()
                 self.assertEqual(len(document.pages), 1)
                 text_boxes = [box for box in document.pages[0]._page_box.descendants() if getattr(box, 'text', '').strip()]
@@ -331,7 +502,7 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
         before = (KontrolaBedny.history.count(), MereniBedny.history.count())
         response = build_filled_quality_cards_pdf(self.qs, self.request)
         self.assertEqual(response['Content-Type'], 'application/pdf')
-        self.assertIn('vyplnene_karty_kontroly_kvality_eur.pdf', response['Content-Disposition'])
+        self.assertIn('vyplnene_karty_kontroly_kvality.pdf', response['Content-Disposition'])
         self.assertTrue(response.content.startswith(b'%PDF-'))
         self.assertEqual(before, (KontrolaBedny.history.count(), MereniBedny.history.count()))
 
@@ -350,17 +521,10 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
         self.assertIn('Eurotec - F.3', html)
         self.assertEqual(response.content, b'%PDF-original')
 
-    def test_missing_control_and_unsupported_customers_report_validation_errors(self):
+    def test_missing_control_reports_validation_error_without_creating_control(self):
         with self.assertRaisesMessage(ServiceValidationError, 'Chybí uložená kontrola'):
             build_filled_quality_cards_pdf(self.qs, self.request)
         self.assertFalse(KontrolaBedny.objects.exists())
-        self.create_control()
-        for code in ('FIS', 'HPM', 'ROT', 'SPX', 'SSH', 'SWG', 'XXX'):
-            with self.subTest(customer=code):
-                self.customer.zkratka = code
-                self.customer.save()
-                with self.assertRaisesMessage(ServiceValidationError, 'pouze pro zákazníka EUR'):
-                    build_filled_quality_cards_pdf(self.qs, self.request)
 
     def test_mixed_customers_are_rejected(self):
         customer = Zakaznik.objects.create(nazev='Druhý', zkraceny_nazev='DR', zkratka='SPX', ciselna_rada=200000)
@@ -377,6 +541,7 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
                 (actions.tisk_vyplnenych_karet_kontroly_kvality_action, Bedna, self.bedna.pk),
                 (actions.tisk_vyplnenych_karet_kontroly_kvality_zakazek_action, Zakazka, self.bedna.zakazka.pk),
             ):
+                self.assertNotIn('(EUR)', action.short_description)
                 self.assertEqual(action(admin.site._registry[model], self.request, model.objects.filter(pk=pk)).status_code, 200)
                 self.assertEqual(list(builder.call_args.args[0].values_list('pk', flat=True)), [self.bedna.pk])
 
@@ -466,9 +631,9 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
         self.assertEqual(response['Content-Type'], 'application/pdf')
         html = renderer.call_args.kwargs['string']
         for bedna in (self.bedna, second_bedna):
-            self.assertIn(f'Interní č. {bedna.cislo_bedny} ·', html)
+            self.assertIn(f'class="field-value container-value">{bedna.cislo_bedny}</span>', html)
         for bedna in (skipped, unshipped, other_bedna):
-            self.assertNotIn(f'Interní č. {bedna.cislo_bedny} ·', html)
+            self.assertNotIn(f'class="field-value container-value">{bedna.cislo_bedny}</span>', html)
         self.assertIn('class="measurement-value">12,5</td>', html)
         notices = list(self.request._messages)
         self.assertEqual(notices, [])
@@ -532,15 +697,21 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
                 self.assertEqual(notices[0].level, messages.ERROR)
                 self.assertIn(text, str(notices[0]))
 
-    def test_outgoing_truck_reports_unsupported_customer(self):
+    def test_outgoing_truck_prints_for_non_eur_customer_using_its_country(self):
         truck = self.outgoing_truck()
         self.create_control()
         self.customer.zkratka = 'SPX'
-        self.customer.save(update_fields=['zkratka'])
-        self.assertIsNone(self.print_outgoing_truck(Kamion.objects.filter(pk=truck.pk)))
-        notices = list(self.request._messages)
-        self.assertEqual(notices[0].level, messages.ERROR)
-        self.assertIn('pouze pro zákazníka EUR', str(notices[0]))
+        self.customer.zkratka_statu = 'A'
+        self.customer.save(update_fields=['zkratka', 'zkratka_statu'])
+        with patch('orders.services.pdf_cards_service.HTML') as renderer:
+            renderer.return_value.write_pdf.return_value = b'%PDF-spx'
+            response = self.print_outgoing_truck(Kamion.objects.filter(pk=truck.pk))
+        self.assertEqual(response.content, b'%PDF-spx')
+        html = renderer.call_args.kwargs['string']
+        self.assertIn('Qualitätskontrollkarte', html)
+        self.assertNotIn('Eurotec - F.3', html)
+        self.assertEqual(list(self.request._messages), [])
+        self.assertNotIn('(EUR)', actions.tisk_vyplnenych_karet_kontroly_kvality_kamionu_vydej_action.short_description)
 
     def test_outgoing_print_requires_view_permission_and_is_available_under_outgoing_filter(self):
         action_name = 'tisk_vyplnenych_karet_kontroly_kvality_kamionu_vydej_action'
