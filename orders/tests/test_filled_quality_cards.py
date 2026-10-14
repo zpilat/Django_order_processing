@@ -144,19 +144,49 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
 
     def test_first_ten_per_type_follow_order_with_gaps_and_preserve_all_stored_values(self):
         kontrola = self.create_control()
-        for kind in MEASUREMENT_COLUMNS:
+        for kind in (*MEASUREMENT_COLUMNS, TypZkouskyChoice.PROHYB_PO_KOULENI):
             for index in reversed(range(12)):
                 self.measurement(kontrola, kind, str(index), order=index * 2 + 1)
         context = self.context()
-        self.assertEqual(context['quality_card']['rows'], [[Decimal(index)] * 7 for index in range(10)])
+        self.assertEqual(context['quality_card']['rows'], [[Decimal(index)] * 6 for index in range(10)])
         self.assertEqual(MereniBedny.objects.count(), 84)
         self.assertEqual(MereniBedny.history.count(), 84)
         template = TEMPLATE_PATH
         html = render_to_string(template, context)
-        self.assertEqual(html.count('class="measurement-value'), 70)
+        self.assertEqual(html.count('class="measurement-value'), 60)
         self.assertIn('class="measurement-value">0</td>', html)
         self.assertNotIn('class="measurement-value">10</td>', html)
         self.assertNotIn('class="measurement-value">11</td>', html)
+
+    def test_internal_sorting_measurements_are_not_printed_and_other_columns_keep_order(self):
+        kontrola = self.create_control()
+        for kind, value in (
+            (TypZkouskyChoice.OHYB, '35'), (TypZkouskyChoice.KRUT, '28'),
+            (TypZkouskyChoice.PROHYB_PO_TZ, '0.15'), (TypZkouskyChoice.PROHYB_PO_ROVNANI, '0.25'),
+            (TypZkouskyChoice.TVRDOST_POVRCHU, '592'), (TypZkouskyChoice.TVRDOST_JADRA, '350'),
+        ):
+            self.measurement(kontrola, kind, value)
+        internal_user = get_user_model().objects.create_user(username='interni-kouleni')
+        self.measurement(kontrola, TypZkouskyChoice.PROHYB_PO_KOULENI, '999.5432', user=internal_user)
+        before = (MereniBedny.objects.count(), MereniBedny.history.count())
+        for country in ('D', 'I', 'CZ'):
+            with self.subTest(country=country):
+                self.customer.zkratka_statu = country
+                self.customer.save(update_fields=['zkratka_statu'])
+                card = self.context()['quality_card']
+                self.assertEqual(card['rows'][0], [Decimal(value) for value in ('35', '28', '0.15', '0.25', '592', '350')])
+                self.assertEqual(set(card['limity_prohybu_podle_sloupce']), {2, 3})
+                with patch('orders.services.pdf_cards_service.HTML') as renderer:
+                    renderer.return_value.write_pdf.return_value = b'%PDF-without-sorting'
+                    response = build_filled_quality_cards_pdf(self.qs, self.request)
+                self.assertEqual(response.content, b'%PDF-without-sorting')
+                html = renderer.call_args.kwargs['string']
+                for internal_text in ('Po koulení', 'Nach dem Sortieren', 'Dopo lo smistamento', '999,5432', internal_user.username):
+                    self.assertNotIn(internal_text, html)
+                self.assertEqual(html.count('class="column-header"'), 6)
+                self.assertEqual(html.count('class="measurement-value'), 60)
+                self.assertEqual(html.count('class="controller-value"'), 6)
+                self.assertEqual(before, (MereniBedny.objects.count(), MereniBedny.history.count()))
 
     def test_hardness_minimum_and_requirements_follow_container_selection(self):
         self.create_control()
@@ -201,7 +231,7 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
                         else:
                             self.assertNotIn(requirement, column)
                             self.assertIn('<span class="requirement">—</span>', column)
-                    self.assertEqual(html.count('class="measurement-value'), 70)
+                    self.assertEqual(html.count('class="measurement-value'), 60)
 
     def test_short_test_has_blank_cells_and_decimal_precision_is_preserved(self):
         kontrola = self.create_control()
@@ -212,7 +242,7 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
         self.assertIn('class="measurement-value">592,1234</td>', html)
         self.assertIn('class="measurement-value">12,5</td>', html)
         self.assertIn('class="status-value status-cross">-</span>', html)
-        self.assertEqual(html.count('class="measurement-value"></td>'), 68)
+        self.assertEqual(html.count('class="measurement-value"></td>'), 58)
         for customer_number in (None, '', '2314'):
             with self.subTest(customer_number=customer_number):
                 self.bedna.behalter_nr = customer_number
@@ -250,21 +280,21 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
         self.assertEqual(card['vrstva'], {
             'pozadavek': '7–10 µm 15–20 µm', 'hodnota': Decimal('8.5'), 'kontroloval': 'Jan Novák',
         })
-        self.assertEqual(len(card['rows'][0]), 7)
+        self.assertEqual(len(card['rows'][0]), 6)
         html = render_to_string(template, self.context())
         layer_row = html.split('<table class="layer-table">', 1)[1].split('</table>', 1)[0]
         self.assertIn('Vrstva<br><small>Schicht</small>', layer_row)
         self.assertIn('class="layer-requirement"', layer_row)
         self.assertIn('class="layer-controller"', layer_row)
         self.assertIn('7–10 µm 15–20 µm', layer_row)
-        self.assertIn('class="layer-value">8,5</span>', layer_row)
+        self.assertIn('class="layer-value">8,5 mm</span>', layer_row)
         self.assertIn('class="layer-value">Jan Novák</span>', layer_row)
 
         layer_measurement.hodnota = Decimal('0')
         layer_measurement.save(update_fields=['hodnota'])
         html = render_to_string(template, self.context())
         layer_row = html.split('<table class="layer-table">', 1)[1].split('</table>', 1)[0]
-        self.assertIn('class="layer-value">0</span>', layer_row)
+        self.assertIn('class="layer-value">0 mm</span>', layer_row)
 
     def test_template_shows_bending_limits_and_only_defined_qs_limit(self):
         self.create_control()
@@ -283,11 +313,11 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
                 if normal is None:
                     self.assertNotIn('max.', html)
                 else:
-                    self.assertEqual(html.count(f'max. {normal} mm'), 3)
+                    self.assertEqual(html.count(f'max. {normal} mm'), 2)
                 if release is None:
                     self.assertNotIn('QS max.', html)
                 else:
-                    self.assertEqual(html.count(f'QS max. {release} mm'), 3)
+                    self.assertEqual(html.count(f'QS max. {release} mm'), 2)
                 headers = html.split('<thead>', 1)[1].split('</thead>', 1)[0]
                 self.assertNotIn('None', headers)
 
@@ -316,13 +346,40 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
                 html = render_to_string(template, self.context())
                 for value, state in zip(('0,4', '0,4001', '0,6', '0,6001'), states):
                     suffix = f' prohyb-{state}' if state else ''
-                    expected_count = 7 if value == '0,6001' and not state else 3
+                    expected_count = 6 if value == '0,6001' and not state else 2
                     self.assertEqual(html.count(f'<td class="measurement-value{suffix}">{value}</td>'), expected_count)
-                self.assertEqual(html.count('<td class="measurement-value">0,6001</td>'), 7 if code == 'TST' else 4)
-                self.assertEqual(html.count(' prohyb-odchylka">'), states.count('odchylka') * 3)
-                self.assertEqual(html.count(' prohyb-nevyhovuje">'), states.count('nevyhovuje') * 3)
-                self.assertEqual(html.count('class="measurement-value'), 70)
+                self.assertEqual(html.count('<td class="measurement-value">0,6001</td>'), 6 if code == 'TST' else 4)
+                self.assertEqual(html.count(' prohyb-odchylka">'), states.count('odchylka') * 2)
+                self.assertEqual(html.count(' prohyb-nevyhovuje">'), states.count('nevyhovuje') * 2)
+                self.assertEqual(html.count('class="measurement-value'), 60)
         self.assertEqual(MereniBedny.history.count(), 16)
+
+    def test_straightened_status_follows_completed_straightening_only(self):
+        self.create_control()
+        for country, helper in (('D', 'Gerichtet?'), ('I', 'Raddrizzata?'), ('CZ', None)):
+            self.customer.zkratka_statu = country
+            self.customer.save(update_fields=['zkratka_statu'])
+            for status in RovnaniChoice:
+                with self.subTest(country=country, status=status):
+                    straightened = status == RovnaniChoice.VYROVNANA
+                    self.bedna.rovnat = status
+                    self.bedna.tryskat = TryskaniChoice.CISTA if straightened else TryskaniChoice.OTRYSKANA
+                    self.bedna.save(update_fields=['rovnat', 'tryskat'])
+                    html = render_to_string(TEMPLATE_PATH, self.context())
+                    status_table = html.split('<table class="status-table">', 1)[1].split('</table>', 1)[0]
+                    cells = status_table.split('<td')[1:]
+                    self.assertEqual(len(cells), 6)
+                    self.assertIn('OTRYSKANÁ?', cells[3])
+                    self.assertIn('VYROVNANÁ?', cells[4])
+                    self.assertIn('Uvolnění', cells[5])
+                    expected_css = 'status-good' if straightened else 'status-neutral'
+                    self.assertIn(f'class="{expected_css}"', cells[4])
+                    expected_value = '<span class="status-value status-check">✓</span>' if straightened else '<span class="status-value status-cross">-</span>'
+                    self.assertIn(expected_value, cells[4])
+                    if helper:
+                        self.assertIn(f'<span class="field-label-secondary">/ {helper}</span>', cells[4])
+                    else:
+                        self.assertNotIn('field-label-secondary', cells[4])
 
     def test_print_displays_release_with_deviation_and_nonconformity(self):
         kontrola = self.create_control()
@@ -434,6 +491,7 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
         self.bedna.sarze = 'CH-123'
         self.bedna.behalter_nr = 'DEMO-001'
         self.bedna.tryskat = TryskaniChoice.OTRYSKANA
+        self.bedna.rovnat = RovnaniChoice.VYROVNANA
         self.bedna.save()
         predpis = self.bedna.zakazka.predpis
         predpis.ohyb, predpis.krut = 'min. 30°', 'min. 25 Nm'
@@ -459,8 +517,9 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
         self.assertIn('Jan Kontrolor', html)
         self.assertIn('Uvolněno', html)
         self.assertIn('class="status-value status-check">✓</span>', html)
+        self.assertEqual(html.count('class="status-value status-check">✓</span>'), 2)
         self.assertNotIn('Poznámka &lt;kontroly&gt;', html)
-        self.assertEqual(html.count('class="controller-value"'), 7)
+        self.assertEqual(html.count('class="controller-value"'), 6)
         self.assertIn('A1-CH-123', html)
         for code, country, status in (
             ('EUR', 'D', UvolneniKontrolyChoice.UVOLNENO),
@@ -496,7 +555,7 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
         editor = get_user_model().objects.create_user(username='editor')
         self.measurement(kontrola, TypZkouskyChoice.PROHYB_PO_TZ, '1.5', user=editor)
         card = self.context()['quality_card']
-        self.assertEqual(card['kontrolovali'], ['kontrolor', '', 'editor', '', '', '', ''])
+        self.assertEqual(card['kontrolovali'], ['kontrolor', '', 'editor', '', '', ''])
 
     def test_new_service_generates_pdf_without_creating_more_history(self):
         kontrola = self.create_control()

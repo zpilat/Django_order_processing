@@ -15,7 +15,7 @@ TEMPLATE_PATH = 'orders/karta_kontroly_kvality/vyplnene/karta_kontroly_kvality.h
 PDF_FILENAME = 'vyplnene_karty_kontroly_kvality.pdf'
 MEASUREMENT_COLUMNS = (
     TypZkouskyChoice.OHYB, TypZkouskyChoice.KRUT, TypZkouskyChoice.PROHYB_PO_TZ,
-    TypZkouskyChoice.PROHYB_PO_KOULENI, TypZkouskyChoice.PROHYB_PO_ROVNANI,
+    TypZkouskyChoice.PROHYB_PO_ROVNANI,
     TypZkouskyChoice.TVRDOST_POVRCHU, TypZkouskyChoice.TVRDOST_JADRA,
 )
 
@@ -73,7 +73,7 @@ def build_filled_context(bedna, generated_at, printing_user):
         'limity_prohybu_podle_sloupce': {
             index: limity_prohybu for index, kind in enumerate(MEASUREMENT_COLUMNS)
             if kind in (
-                TypZkouskyChoice.PROHYB_PO_TZ, TypZkouskyChoice.PROHYB_PO_KOULENI,
+                TypZkouskyChoice.PROHYB_PO_TZ,
                 TypZkouskyChoice.PROHYB_PO_ROVNANI,
             )
         },

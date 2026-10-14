@@ -22,6 +22,7 @@ HELPER_LABELS = {
         'cleanliness': 'Reinheit',
         'arrangement': 'Einlagerung',
         'blasted': 'Sandgestrahlt?',
+        'straightened': 'Gerichtet?',
         'release': 'Freigabe',
         'release_status': {
             UvolneniKontrolyChoice.UVOLNENO: 'Freigegeben',
@@ -58,6 +59,7 @@ HELPER_LABELS = {
         'cleanliness': 'Pulizia',
         'arrangement': 'Disposizione',
         'blasted': 'Sabbiata?',
+        'straightened': 'Raddrizzata?',
         'release': 'Rilascio',
         'release_status': {
             UvolneniKontrolyChoice.UVOLNENO: 'Rilasciato',
