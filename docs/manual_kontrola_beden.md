@@ -15,6 +15,8 @@ Před zápisem ověřte číslo, zákazníka, artikl a rozměr. Pořadí bedny s
 
 Sekce **Naměřené hodnoty a jednotlivé zkoušky** nabízí Ohyb, Krut, Prohyb po TZ, Prohyb po koulení, Prohyb po rovnání, Tvrdost povrchu, Tvrdost jádra a Vrstva.
 
+Pod názvem a limitem zkoušky se zobrazuje samostatný řádek s rozsahem měření, například **Min. 5 vzorků**. Ohyb a krut používají minimum mechanických zkoušek, povrch a jádro minimum tvrdosti. Všechny fáze prohybu používají minimum hodnot a celkový počet odebraných vrutů, například **Min. 5 hodnot z 25 vzorků**. V detailu zkoušky je stejný údaj nad zadáváním hodnot doplněný popiskem **Rozsah měření podle zákazníka**. Konkrétní pokyny k odběru z předpisu zůstávají v části **Požadavek z předpisu**. Nevyplněné minimum se nezobrazuje; u vrstvy se nadále používají pouze pokyny z předpisu.
+
 1. U zkoušky klikněte na **Zadat / upravit hodnoty**.
 2. Zkontrolujte požadavek. Běžné zkoušky čerpají požadavky z předpisu zakázky; prohyb má meze podle zákazníka a délky.
 3. Zadejte jednotlivé hodnoty. Prohyb se zadává v mm, ostatní hodnoty v jednotkách předpisu. Lze použít desetinnou čárku, nejvýše čtyři desetinná místa.

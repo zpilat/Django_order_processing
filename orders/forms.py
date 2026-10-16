@@ -120,10 +120,10 @@ class KontrolaBednyForm(forms.ModelForm):
         widgets = {
             'cistota': forms.Select(attrs={'class': 'form-select'}),
             'ulozeni': forms.Select(attrs={'class': 'form-select'}),
-            'pocet_krivych_vrutu_prvni_mereni': forms.NumberInput(attrs={'class': 'form-control', 'inputmode': 'numeric'}),
-            'pocet_krivych_vrutu_druhe_mereni': forms.NumberInput(attrs={'class': 'form-control', 'inputmode': 'numeric'}),
+            'pocet_krivych_vrutu_prvni_mereni': forms.NumberInput(attrs={'class': 'form-control', 'inputmode': 'numeric', 'autocomplete': 'off'}),
+            'pocet_krivych_vrutu_druhe_mereni': forms.NumberInput(attrs={'class': 'form-control', 'inputmode': 'numeric', 'autocomplete': 'off'}),
             'uvolneni': forms.Select(attrs={'class': 'form-select'}),
-            'poznamka': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'poznamka': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'autocomplete': 'off'}),
             **{
                 name: forms.CheckboxInput(attrs={'class': 'form-check-input'})
                 for name in KontrolaBedny.NESHODA_FIELDS
@@ -145,7 +145,7 @@ class MereniBednyForm(forms.Form):
     id = forms.IntegerField(required=False, widget=forms.HiddenInput)
     hodnota = forms.DecimalField(
         label='Naměřená hodnota', max_digits=12, decimal_places=4, localize=True,
-        widget=MereniHodnotaInput(attrs={'class': 'form-control form-control-sm', 'inputmode': 'decimal'}),
+        widget=MereniHodnotaInput(attrs={'class': 'form-control form-control-sm', 'inputmode': 'decimal', 'autocomplete': 'off'}),
     )
 
 
@@ -158,6 +158,12 @@ class BaseMereniBednyFormSet(BaseFormSet):
             for item in self.measurements
         ]
         super().__init__(*args, **kwargs)
+        for form in self.forms:
+            value = form['hodnota'].value()
+            deleted = self.can_delete and form['DELETE'].value()
+            if not deleted and (value is None or str(value).strip() == ''):
+                form.fields['hodnota'].widget.attrs['autofocus'] = True
+                break
 
     @classmethod
     def get_deletion_widget(cls):

@@ -5,6 +5,29 @@ from django.utils import timezone
 
 from orders.choices import TypZkouskyChoice
 from orders.models import KontrolaBedny, MereniBedny
+from orders.quality_card_labels import minimum_samples_labels, minimum_values_labels
+
+
+def rozsah_mereni_zakaznika(zakaznik, typ_zkousky):
+    if typ_zkousky in (
+        TypZkouskyChoice.PROHYB_PO_TZ, TypZkouskyChoice.PROHYB_PO_KOULENI,
+        TypZkouskyChoice.PROHYB_PO_ROVNANI,
+    ):
+        labels = minimum_values_labels(
+            zakaznik.min_hodnot_prohyb, {},
+            sample_count=zakaznik.pocet_vrutu_pro_kontrolu_prohybu,
+        )
+    else:
+        field = {
+            TypZkouskyChoice.OHYB: 'min_hodnot_mechanicke',
+            TypZkouskyChoice.KRUT: 'min_hodnot_mechanicke',
+            TypZkouskyChoice.TVRDOST_POVRCHU: 'min_hodnot_tvrdost',
+            TypZkouskyChoice.TVRDOST_JADRA: 'min_hodnot_tvrdost',
+        }.get(typ_zkousky)
+        if field is None:
+            return ''
+        labels = minimum_samples_labels(getattr(zakaznik, field), {})
+    return labels.get('main', '')
 
 
 def pozadavek_zkousky(predpis, typ_zkousky):

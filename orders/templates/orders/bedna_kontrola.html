@@ -51,6 +51,7 @@
                             <a class="btn btn-outline-primary btn-sm" href="{% url 'bedna_mereni_zkousky' bedna.cislo_bedny zkouska.typ %}">Zadat / upravit hodnoty</a>
                         {% endif %}
                     </div>
+                    {% include "orders/includes/rozsah_mereni_zakaznika.html" with rozsah_mereni=zkouska.rozsah_mereni bez_popisu=True %}
                     <div class="mt-2">
                         {% for mereni in zkouska.mereni %}
                             {% with stav=mereni.hodnota|stav_prohybu:zkouska.pozadavek_prohyb %}<span class="badge text-bg-light border me-1 mb-1{% if stav %} prohyb-{{ stav }}{% endif %}">{{ mereni.hodnota|mereni_hodnota }}</span>{% endwith %}
@@ -69,7 +70,7 @@
             {% if not can_edit %}
                 <div class="alert alert-info">Kontrolu můžete pouze zobrazit. K úpravám nemáte potřebné oprávnění.</div>
             {% endif %}
-            <form method="post" novalidate>
+            <form method="post" novalidate autocomplete="off">
                 {% csrf_token %}
                 <input type="hidden" name="snapshot" value="{{ snapshot }}">
                 {% if form.non_field_errors %}

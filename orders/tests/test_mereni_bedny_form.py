@@ -36,21 +36,33 @@ class MereniBednyFormTests(KontrolaBednyTestBase):
         return data
 
     def test_get_shows_requirement_and_descriptions_without_creating_control(self):
+        customer = self.bedna.zakazka.kamion_prijem.zakaznik
+        customer.min_hodnot_tvrdost = 2
+        customer.save(update_fields=['min_hodnot_tvrdost'])
         predpis = self.bedna.zakazka.predpis
         predpis.povrch = '550–650 HV'
         predpis.popis_povrch = 'Zkouška na hlavě'
-        predpis.popis_povrch_2 = 'Rozsah měření dle předpisu'
+        predpis.popis_povrch_2 = '[3 ks z první bedny ze zakázky]'
         predpis.save()
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, '550–650 HV')
         self.assertContains(response, 'Zkouška na hlavě')
-        self.assertContains(response, 'Rozsah měření dle předpisu')
+        self.assertContains(response, '[3 ks z první bedny ze zakázky]')
         self.assertContains(response, f'Požadavek z předpisu {predpis.nazev}')
         self.assertNotContains(response, 'Požadavek zákazníka')
         self.assertNotContains(response, 'QS max.')
         self.assertEqual(len(response.context['formset'].forms), 5)
         self.assertFalse(KontrolaBedny.objects.exists())
+        html = response.content.decode('utf-8')
+        requirement = html.split('Požadavek z předpisu', 1)[1].split('</section>', 1)[0]
+        form = html.split('id="measurement-form"', 1)[1]
+        self.assertIn('[3 ks z první bedny ze zakázky]', requirement)
+        self.assertNotIn('Rozsah měření podle zákazníka', requirement)
+        self.assertIn('Rozsah měření podle zákazníka:', form)
+        self.assertIn('Min. 2 vzorky', form)
+        self.assertNotIn('[3 ks z první bedny ze zakázky]', form)
+        self.assertLess(form.index('Min. 2 vzorky'), form.index('id="measurement-rows"'))
 
     def test_both_prescription_descriptions_appear_in_requirement_card(self):
         predpis = self.bedna.zakazka.predpis
@@ -80,15 +92,85 @@ class MereniBednyFormTests(KontrolaBednyTestBase):
                 self.assertIn(f'Druhý popis {kind.value}', requirement)
 
     def test_each_type_has_its_own_form(self):
-        for kind in TypZkouskyChoice:
+        customer = self.bedna.zakazka.kamion_prijem.zakaznik
+        customer.min_hodnot_mechanicke = 5
+        customer.min_hodnot_tvrdost = 2
+        customer.min_hodnot_prohyb = 3
+        customer.pocet_vrutu_pro_kontrolu_prohybu = 25
+        fields = ('min_hodnot_mechanicke', 'min_hodnot_tvrdost', 'min_hodnot_prohyb', 'pocet_vrutu_pro_kontrolu_prohybu')
+        customer.save(update_fields=fields)
+        expected = {
+            TypZkouskyChoice.OHYB: 'Min. 5 vzorků',
+            TypZkouskyChoice.KRUT: 'Min. 5 vzorků',
+            TypZkouskyChoice.PROHYB_PO_TZ: 'Min. 3 hodnoty z 25 vzorků',
+            TypZkouskyChoice.PROHYB_PO_KOULENI: 'Min. 3 hodnoty z 25 vzorků',
+            TypZkouskyChoice.PROHYB_PO_ROVNANI: 'Min. 3 hodnoty z 25 vzorků',
+            TypZkouskyChoice.TVRDOST_POVRCHU: 'Min. 2 vzorky',
+            TypZkouskyChoice.TVRDOST_JADRA: 'Min. 2 vzorky',
+            TypZkouskyChoice.VRSTVA: '',
+        }
+        overview_url = reverse('bedna_kontrola', args=[self.bedna.cislo_bedny])
+        overview = self.client.get(overview_url)
+        self.assertEqual({item['typ']: item['rozsah_mereni'] for item in overview.context['zkousky']}, expected)
+        overview_rows = overview.content.decode('utf-8').split('<div class="list-group-item">')[1:]
+        for (kind, scope), row in zip(expected.items(), overview_rows, strict=True):
             response = self.client.get(self.url_for(kind))
             self.assertEqual(response.status_code, 200)
             self.assertContains(response, kind.label)
+            self.assertContains(response, 'autofocus', count=1)
+            self.assertContains(response, '<form method="post" novalidate autocomplete="off" id="measurement-form">')
+            self.assertEqual(response.context['formset'].empty_form.fields['hodnota'].widget.attrs['autocomplete'], 'off')
+            self.assertEqual(response.context['rozsah_mereni'], scope)
+            if scope:
+                self.assertNotIn('Rozsah měření podle zákazníka:', row)
+                self.assertIn(scope, row)
+                self.assertContains(response, scope)
+                self.assertContains(response, 'Rozsah měření podle zákazníka:')
+            else:
+                self.assertNotIn('Rozsah měření podle zákazníka:', row)
+                self.assertNotContains(response, 'Rozsah měření podle zákazníka:')
             self.assertNotContains(response, 'name="pocet_krivych_vrutu_prvni_mereni"')
             self.assertNotContains(response, 'name="pocet_krivych_vrutu_druhe_mereni"')
         response = self.client.get(self.url_for(TypZkouskyChoice.PROHYB_PO_TZ))
         self.assertContains(response, 'Požadavek zákazníka')
         self.assertContains(response, 'Limit prohybu pro tohoto zákazníka není definován.')
+        customer.pocet_vrutu_pro_kontrolu_prohybu = None
+        customer.save(update_fields=['pocet_vrutu_pro_kontrolu_prohybu'])
+        response = self.client.get(self.url_for(TypZkouskyChoice.PROHYB_PO_TZ))
+        self.assertEqual(response.context['rozsah_mereni'], 'Min. 3 hodnoty')
+        for field in fields:
+            setattr(customer, field, None)
+        customer.pocet_vrutu_pro_kontrolu_prohybu = 25
+        customer.save(update_fields=fields)
+        self.assertNotContains(self.client.get(overview_url), 'Rozsah měření podle zákazníka:')
+        for kind in TypZkouskyChoice:
+            self.assertNotContains(self.client.get(self.url_for(kind)), 'Rozsah měření podle zákazníka:')
+
+    def test_native_autofocus_skips_filled_zero_values_and_deleted_rows(self):
+        first = self.create_measurement(value='0')
+        second = self.create_measurement(order=2)
+        response = self.client.get(self.url)
+        self.assertContains(response, 'autofocus', count=1)
+        formset = response.context['formset']
+        self.assertEqual([
+            form.fields['hodnota'].widget.attrs.get('autofocus', False)
+            for form in formset.forms
+        ], [False, False, True])
+        self.assertNotIn('autofocus', formset.empty_form.fields['hodnota'].widget.attrs)
+
+        result = self.client.post(self.url, self.payload(response, [
+            {'id': first.pk, 'hodnota': '0'},
+            {'id': second.pk, 'hodnota': '', 'DELETE': 'on'},
+            {'hodnota': ''},
+            {'hodnota': 'abc'},
+        ]))
+        self.assertEqual(result.status_code, 200)
+        self.assertContains(result, 'autofocus', count=1)
+        self.assertEqual([
+            form.fields['hodnota'].widget.attrs.get('autofocus', False)
+            for form in result.context['formset'].forms
+        ], [False, False, True, False])
+        self.assertTrue(MereniBedny.objects.filter(pk=second.pk).exists())
 
     def test_layer_form_shows_both_requirements_and_saves_measurement(self):
         predpis = self.bedna.zakazka.predpis

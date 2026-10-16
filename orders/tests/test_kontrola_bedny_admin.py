@@ -7,7 +7,7 @@ from django.test import RequestFactory
 from django.urls import reverse
 from django.utils import timezone
 
-from orders.choices import TypZkouskyChoice, UvolneniKontrolyChoice
+from orders.choices import RovnaniChoice, TypZkouskyChoice, UvolneniKontrolyChoice
 from orders.models import Bedna, KontrolaBedny, MereniBedny
 from orders.templatetags.admin_sections import orders_admin_sections
 from orders.tests.test_kontrola_bedny import KontrolaBednyTestBase
@@ -72,6 +72,14 @@ class KontrolaBednyAdminTests(KontrolaBednyTestBase):
                 self.assertContains(response, 'kontrolor')
 
     def test_bedna_detail_embeds_quality_control_summary(self):
+        customer = self.bedna.zakazka.kamion_prijem.zakaznik
+        customer.min_hodnot_mechanicke = 5
+        customer.min_hodnot_prohyb = 5
+        customer.min_hodnot_tvrdost = 2
+        customer.pocet_vrutu_pro_kontrolu_prohybu = 25
+        customer.save(update_fields=(
+            'min_hodnot_mechanicke', 'min_hodnot_prohyb', 'min_hodnot_tvrdost', 'pocet_vrutu_pro_kontrolu_prohybu',
+        ))
         predpis = self.bedna.zakazka.predpis
         predpis.ohyb = 'min. 30°'
         predpis.popis_ohyb = 'Nazev typu zkousky'
@@ -83,6 +91,23 @@ class KontrolaBednyAdminTests(KontrolaBednyTestBase):
 
         self.assertNotIn('Nazev typu zkousky', html)
         self.assertIn('Předepsáno', html)
+        self.assertLess(html.index('<th>Předepsáno</th>'), html.index('<th>Rozsah měření</th>'))
+        self.assertLess(html.index('<th>Rozsah měření</th>'), html.index('<th>Naměřeno</th>'))
+        expected = {
+            TypZkouskyChoice.OHYB: 'Min. 5 vzorků',
+            TypZkouskyChoice.KRUT: 'Min. 5 vzorků',
+            TypZkouskyChoice.PROHYB_PO_TZ: 'Min. 5 hodnot z 25 vzorků',
+            TypZkouskyChoice.PROHYB_PO_KOULENI: 'Min. 5 hodnot z 25 vzorků',
+            TypZkouskyChoice.PROHYB_PO_ROVNANI: 'Min. 5 hodnot z 25 vzorků',
+            TypZkouskyChoice.TVRDOST_POVRCHU: 'Min. 2 vzorky',
+            TypZkouskyChoice.TVRDOST_JADRA: 'Min. 2 vzorky',
+            TypZkouskyChoice.VRSTVA: '<span class="qc-empty">—</span>',
+        }
+        for kind, scope in expected.items():
+            row = html.split(f'<td>{kind.label}</td>', 1)[1].split('</tr>', 1)[0]
+            cells = row.split('<td>')[1:]
+            self.assertIn(scope, cells[1])
+            self.assertNotIn('Rozsah měření podle zákazníka:', row)
         self.assertIn('Naměřeno', html)
         self.assertIn('min. 30°', html)
         self.assertNotIn('Bez trhlin', html)
@@ -97,6 +122,19 @@ class KontrolaBednyAdminTests(KontrolaBednyTestBase):
         self.assertContains(response, 'Kontrola kvality')
         self.assertContains(response, 'min. 30°')
         self.assertContains(response, '12,5')
+
+    def test_straightening_status_follows_blasting_and_matches_quality_card(self):
+        bedna_admin = admin.site._registry[Bedna]
+        for state in RovnaniChoice:
+            with self.subTest(state=state):
+                self.bedna.rovnat = state
+                html = str(bedna_admin.get_mereni_bedny(self.bedna))
+                self.assertLess(html.index('Otryskaná?'), html.index('Vyrovnaná?'))
+                self.assertLess(html.index('Vyrovnaná?'), html.index('Uvolnění'))
+                status = html.split('<span class="qc-label">Vyrovnaná?</span>', 1)[1].split('</div>', 1)[0]
+                self.assertIn(f'<span class="qc-value">{"✓" if state == RovnaniChoice.VYROVNANA else "-"}</span>', status)
+                opening = html.split('<span class="qc-label">Vyrovnaná?</span>', 1)[0].rsplit('<div class="qc-status', 1)[1]
+                self.assertEqual('qc-good' in opening, state == RovnaniChoice.VYROVNANA)
 
     def test_bedna_detail_shows_layer_measurement_and_both_requirements(self):
         predpis = self.bedna.zakazka.predpis

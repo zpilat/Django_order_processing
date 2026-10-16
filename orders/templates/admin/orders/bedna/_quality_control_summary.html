@@ -4,8 +4,8 @@
     .field-get_mereni_bedny > div > .flex-container { flex-direction: column; align-items: flex-start; }
     .field-get_mereni_bedny .flex-container > label { width: auto; min-width: 0; padding: 0 0 8px; }
     .field-get_mereni_bedny .flex-container > .readonly { box-sizing: border-box; width: 100%; }
-    .qc-summary { width: min(100%, max(750px, 50%)); max-width: 1200px; }
-    .qc-statuses { display: grid; grid-template-columns: repeat(4, minmax(130px, 1fr)); gap: 8px; margin-bottom: 14px; }
+    .qc-summary { width: min(100%, max(950px, 65%)); max-width: 1400px; }
+    .qc-statuses { display: grid; grid-template-columns: repeat(5, minmax(130px, 1fr)); gap: 8px; margin-bottom: 14px; }
     .qc-status { padding: 9px 11px; border: 1px solid var(--hairline-color); border-radius: 4px; background: var(--darkened-bg); }
     .qc-status.qc-good { background: #dcebdd; color: #14532d; }
     .qc-status.qc-bad { background: #f4dada; color: #7f1d1d; }
@@ -41,7 +41,11 @@
             </div>
             <div class="qc-status {% if bedna.tryskat == 'OT' %}qc-good{% endif %}">
                 <span class="qc-label">Otryskaná?</span>
-                <span class="qc-value">{% if bedna.tryskat == 'OT' %}✓ Ano{% else %}× Ne{% endif %}</span>
+                <span class="qc-value">{% if bedna.tryskat == 'OT' %}✓{% else %}-{% endif %}</span>
+            </div>
+            <div class="qc-status {% if bedna.rovnat == 'VY' %}qc-good{% endif %}">
+                <span class="qc-label">Vyrovnaná?</span>
+                <span class="qc-value">{% if bedna.rovnat == 'VY' %}✓{% else %}-{% endif %}</span>
             </div>
             <div class="qc-status {% if kontrola.uvolneni == 'UV' %}qc-good{% elif kontrola.uvolneni == 'UO' %}qc-warning{% elif kontrola.uvolneni == 'NE' %}qc-bad{% endif %}">
                 <span class="qc-label">Uvolnění</span>
@@ -56,6 +60,7 @@
                 <tr>
                     <th>Zkouška</th>
                     <th>Předepsáno</th>
+                    <th>Rozsah měření</th>
                     <th>Naměřeno</th>
                     <th>Kontroloval</th>
                     <th>Období měření</th>
@@ -74,6 +79,9 @@
                             {% else %}
                                 <span class="qc-empty">—</span>
                             {% endif %}
+                        </td>
+                        <td>
+                            {% if row.rozsah_mereni %}{{ row.rozsah_mereni }}{% else %}<span class="qc-empty">—</span>{% endif %}
                         </td>
                         <td>
                             {% for measurement in row.mereni %}{% with stav=measurement.hodnota|stav_prohybu:row.pozadavek_prohyb %}<span class="qc-measurement{% if stav %} prohyb-{{ stav }}{% endif %}">{{ measurement.hodnota|mereni_hodnota }}</span>{% endwith %}{% empty %}<span class="qc-empty">Bez měření</span>{% endfor %}

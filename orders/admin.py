@@ -88,7 +88,7 @@ from .utils import (
     format_decimal_csv, format_cislo_bedny, format_skupina_TZ, build_fake_skupina_TZ_annotation,
     prirad_barvy_polozkam_pater, nastav_porovnani_kroku_s_nakladanim,
 )
-from .services.mereni_bedny_service import pozadavek_zkousky
+from .services.mereni_bedny_service import pozadavek_zkousky, rozsah_mereni_zakaznika
 
 import logging
 logger = logging.getLogger('orders')
@@ -3261,6 +3261,7 @@ class BednaAdmin(HistoryViewOnlyAdmin):
                     rows.append({
                         'nazev': kind.label,
                         'pozadavek': pozadavek,
+                        'rozsah_mereni': rozsah_mereni_zakaznika(obj.zakazka.kamion_prijem.zakaznik, kind),
                         'pozadavek_prohyb': pozadavek_prohyb,
                         'mereni': items,
                         'kontrolori': people,

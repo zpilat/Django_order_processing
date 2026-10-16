@@ -37,6 +37,8 @@ Prakticky:
 - `pozastaveno`: blokace práce s bednou.
 - `fakturovat`: zda se bedna započítává do fakturace.
 
+Část **Kontrola kvality** v detailu bedny zobrazuje uložené výsledky a stavy kontroly. Za údajem **Otryskaná?** je **Vyrovnaná?**: zelená fajfka znamená stav Vyrovnaná, ostatní stavy zobrazují pomlčku. Tabulka obsahuje za sloupcem **Předepsáno** samostatný sloupec **Rozsah měření** s minimem vzorků nebo hodnot podle nastavení zákazníka, například **Min. 5 vzorků** či **Min. 5 hodnot z 25 vzorků**. Zápis a úpravy se otevírají odkazem **Otevřít kontrolu a měření**.
+
 ## 4. Důležitá validační pravidla
 
 ### 4.1 Povinnosti mimo stav NEPRIJATO

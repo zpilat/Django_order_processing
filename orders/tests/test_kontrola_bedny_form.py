@@ -133,7 +133,7 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
         self.assertContains(result, 'Při neshodě vyberte alespoň jeden důvod neshody.')
         self.assertContains(result, 'Kontrolu bedny se nepodařilo uložit. Příčinu najdete ve formuláři Výstupní kontrola.', count=1)
         html = result.content.decode('utf-8')
-        self.assertLess(html.index('Kontrolu bedny se nepodařilo uložit.'), html.index('<form method="post" novalidate>'))
+        self.assertLess(html.index('Kontrolu bedny se nepodařilo uložit.'), html.index('<form method="post" novalidate'))
         self.assertTrue(result.context['form'].zobrazit_duvody_neshody)
         self.assertFalse(KontrolaBedny.objects.exists())
 
@@ -235,13 +235,14 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'orders/bedna_kontrola.html')
+        self.assertContains(response, '<form method="post" novalidate autocomplete="off">')
         self.assertEqual(response.context['form']['uvolneni'].value(), UvolneniKontrolyChoice.NEROZHODNUTO)
         self.assertFalse(KontrolaBedny.objects.exists())
         html = response.content.decode('utf-8')
         header = html.split('<section class="card rounded-2">', 1)[1].split('</section>', 1)[0]
         self.assertIn(f'Bedna {self.bedna.cislo_bedny} · 1/1', header)
         self.assertIn(self.bedna.zakazka.popis, header)
-        self.assertLess(html.index('id="mereni-bedny"'), html.index('<form method="post" novalidate>'))
+        self.assertLess(html.index('id="mereni-bedny"'), html.index('<form method="post" novalidate'))
         for kind in TypZkouskyChoice:
             measurement_url = reverse('bedna_mereni_zkousky', args=[self.bedna.cislo_bedny, kind])
             self.assertContains(response, measurement_url)
@@ -430,13 +431,14 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
                 response = self.client.get(self.url)
                 self.assertContains(response, f'<span class="input-group-text">z {label} ks</span>', count=2)
                 html = response.content.decode('utf-8')
-                before_form, form_html = html.split('<form method="post" novalidate>', 1)
+                before_form, form_html = html.split('<form method="post" novalidate', 1)
                 for name in ('pocet_krivych_vrutu_prvni_mereni', 'pocet_krivych_vrutu_druhe_mereni'):
                     self.assertNotIn(f'name="{name}"', before_form)
                     self.assertIn(f'name="{name}"', form_html)
                     model_field = KontrolaBedny._meta.get_field(name)
                     self.assertEqual(response.context['form'].fields[name].label, model_field.verbose_name)
                     self.assertEqual(response.context['form'].fields[name].help_text, model_field.help_text)
+                    self.assertEqual(response.context['form'].fields[name].widget.attrs['autocomplete'], 'off')
         self.assertFalse(KontrolaBedny.objects.exists())
 
     def test_bent_screw_counts_save_edit_and_clear_independently_with_history(self):

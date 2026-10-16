@@ -58,7 +58,9 @@ from .services.sarze_print_service import (
 )
 from .services.history_service import history_transitions_to_qs
 from .services.dashboard_bedny_service import build_bedny_visual_summary
-from .services.mereni_bedny_service import pozadavek_zkousky, mereni_snapshot, kontrola_snapshot, ulozit_mereni_zkousky
+from .services.mereni_bedny_service import (
+    pozadavek_zkousky, rozsah_mereni_zakaznika, mereni_snapshot, kontrola_snapshot, ulozit_mereni_zkousky,
+)
 from .choices import (
     StavBednyChoice, StavSarzeChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice, TypZarizeniChoice,
     ZinkovaniChoice, STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM,
@@ -751,6 +753,7 @@ def _bedna_zkousky_context(bedna, user):
     return [
         {
             'typ': kind.value, 'nazev': kind.label, 'can_edit': can_edit,
+            'rozsah_mereni': rozsah_mereni_zakaznika(bedna.zakazka.kamion_prijem.zakaznik, kind),
             'mereni': [item for item in measurements if item.typ_zkousky == kind],
             'pozadavek_prohyb': limity_prohybu if kind in (
                 TypZkouskyChoice.PROHYB_PO_TZ, TypZkouskyChoice.PROHYB_PO_KOULENI,
@@ -886,6 +889,7 @@ def bedna_mereni_zkousky_view(request, cislo_bedny: int, typ_zkousky: str):
     return render(request, 'orders/bedna_mereni_zkousky.html', {
         'bedna': bedna, 'typ_zkousky': typ_zkousky,
         'nazev_zkousky': TypZkouskyChoice(typ_zkousky).label,
+        'rozsah_mereni': rozsah_mereni_zakaznika(bedna.zakazka.kamion_prijem.zakaznik, typ_zkousky),
         'pozadavek': pozadavek_zkousky(bedna.zakazka.predpis, typ_zkousky),
         'pozadavek_prohyb': bedna.limity_prohybu if typ_zkousky in (
             TypZkouskyChoice.PROHYB_PO_TZ, TypZkouskyChoice.PROHYB_PO_KOULENI,
