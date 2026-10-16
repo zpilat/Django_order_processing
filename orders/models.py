@@ -64,14 +64,33 @@ class Zakaznik(models.Model):
     fakturovat_tryskani = models.BooleanField(default=False, verbose_name='Fakturovat tryskání',
                                               help_text='Zákazníkovi se bude fakturovat tryskání pokud byla bedna otryskána.')
     pocet_vrutu_pro_kontrolu_prohybu = models.PositiveSmallIntegerField(
-        verbose_name='Počet vrutů pro kontrolu prohybu',
-        help_text='Počet vrutů kontrolovaných z každé bedny.',
+        verbose_name='Celkový počet vrutů odebraných pro kontrolu prohybu',
+        help_text='Celkový počet vrutů odebraných z každé bedny. Minimum hodnot zapisovaných do KKK se nastavuje samostatně.',
         validators=[MinValueValidator(1)], blank=True, null=True,
     )
     max_krivych_vrutu = models.PositiveSmallIntegerField(
         verbose_name='Maximální počet křivých vrutů při kontrole prohybu',
         help_text='Nejvyšší povolený počet křivých vrutů z kontrolovaného vzorku.',
         blank=True, null=True,
+    )
+    min_hodnot_mechanicke = models.PositiveSmallIntegerField(
+        verbose_name='Minimum hodnot mechanických zkoušek',
+        help_text='Minimální počet zapsaných hodnot pro každou zkoušku zvlášť: ohyb a krut. Prázdné pole znamená neuvedené minimum.',
+        validators=[MinValueValidator(1)], blank=True, null=True,
+    )
+    min_hodnot_prohyb = models.PositiveSmallIntegerField(
+        verbose_name='Minimum hodnot prohybu',
+        help_text='Minimální počet zapsaných hodnot pro každou prováděnou fázi kontroly prohybu. Liší se od celkového počtu odebraných vrutů. Prázdné pole znamená neuvedené minimum.',
+        validators=[MinValueValidator(1)], blank=True, null=True,
+    )
+    min_hodnot_tvrdost = models.PositiveSmallIntegerField(
+        verbose_name='Minimum hodnot tvrdosti',
+        help_text='Minimální počet zapsaných hodnot zvlášť pro povrch a jádro u beden určených k měření tvrdosti. Prázdné pole znamená neuvedené minimum.',
+        validators=[MinValueValidator(1)], blank=True, null=True,
+    )
+    nazev_protokolu = models.TextField(
+        verbose_name='Název protokolu', blank=True, default='',
+        help_text='Označení v záhlaví vyplněné KKK. Více označení zadejte na samostatné řádky. Při nevyplnění se použije HPM - F XXX.',
     )
     ciselna_rada = models.PositiveIntegerField(verbose_name='Číselná řada', default=100000, unique=True,
                                                help_text='Číselná řada pro automatické číslování beden - např. 100000, 200000, 300000 atd.')
@@ -81,6 +100,13 @@ class Zakaznik(models.Model):
         verbose_name = 'Zákazník'
         verbose_name_plural = 'zákazníci'
         ordering = ['nazev']
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(**{f'{field}__isnull': True}) | Q(**{f'{field}__gte': 1}),
+                name=f'{field}_gte_1',
+            )
+            for field in ('min_hodnot_mechanicke', 'min_hodnot_prohyb', 'min_hodnot_tvrdost')
+        ]
 
     def __str__(self):
         return self.zkraceny_nazev

@@ -994,6 +994,10 @@ class ZakaznikAdmin(HistoryViewOnlyAdmin):
             'fields': (
                 'pocet_vrutu_pro_kontrolu_prohybu',
                 'max_krivych_vrutu',
+                'min_hodnot_mechanicke',
+                'min_hodnot_prohyb',
+                'min_hodnot_tvrdost',
+                'nazev_protokolu',
             )
         }),
     ]
@@ -1013,6 +1017,12 @@ class ZakaznikAdmin(HistoryViewOnlyAdmin):
     history_list_display = ["id", "nazev", "zkratka", "adresa", "mesto", "psc", "stat", "zkratka_statu", "kontaktni_osoba", "telefon", "email"]
     history_search_fields = ["nazev"]
     history_list_per_page = 20
+
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
+        formfield = super().formfield_for_dbfield(db_field, request, **kwargs)
+        if db_field.name == 'nazev_protokolu' and formfield is not None:
+            formfield.widget.attrs['rows'] = 2
+        return formfield
 
     @admin.display(description='Vzorek (ks)', ordering='pocet_vrutu_pro_kontrolu_prohybu')
     def get_vzorek_prohybu(self, obj):

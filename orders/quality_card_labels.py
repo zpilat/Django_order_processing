@@ -45,6 +45,10 @@ HELPER_LABELS = {
         'surface': 'Oberfläche',
         'core': 'Kern',
         'minimum_samples': 'Mind. {count} Prüfmuster',
+        'minimum_values': 'Mind. {count} Messwerte',
+        'minimum_value': 'Mind. {count} Messwert',
+        'from_samples': ' aus {sample_count} Prüfmustern',
+        'from_sample': ' aus {sample_count} Prüfmuster',
     },
     # Based on the blank ROT card, with additional labels for the filled card.
     'it': {
@@ -81,7 +85,12 @@ HELPER_LABELS = {
         'after_straightening': 'Dopo il livellamento',
         'surface': 'Superficie',
         'core': 'Nucleo',
-        'minimum_samples': 'Minimo {count} campion{suffix} di prova',
+        'minimum_samples': 'Minimo {count} campioni di prova',
+        'minimum_sample': 'Minimo {count} campione di prova',
+        'minimum_values': 'Minimo {count} valori',
+        'minimum_value': 'Minimo {count} valore',
+        'from_samples': ' da {sample_count} campioni',
+        'from_sample': ' da {sample_count} campione',
     },
 }
 
@@ -96,8 +105,22 @@ def minimum_samples_labels(count, helper_labels):
     if count is None:
         return {}
     noun = 'vzorek' if count == 1 else 'vzorky' if 2 <= count <= 4 else 'vzorků'
-    secondary = helper_labels.get('minimum_samples', '')
-    return {
-        'main': f'Min. {count} {noun}',
-        'secondary': secondary.format(count=count, suffix='e' if count == 1 else 'i'),
-    }
+    secondary = helper_labels.get('minimum_sample' if count == 1 else 'minimum_samples')
+    if secondary is None:
+        secondary = helper_labels.get('minimum_samples', '')
+    return {'main': f'Min. {count} {noun}', 'secondary': secondary.format(count=count)}
+
+
+def minimum_values_labels(count, helper_labels, *, sample_count=None):
+    if count is None:
+        return {}
+    noun = 'hodnota' if count == 1 else 'hodnoty' if 2 <= count <= 4 else 'hodnot'
+    main = f'Min. {count} {noun}'
+    secondary = helper_labels.get('minimum_value' if count == 1 else 'minimum_values', '')
+    secondary = secondary.format(count=count)
+    if sample_count is not None:
+        sample_noun = 'vzorku' if sample_count == 1 else 'vzorků'
+        main += f' z {sample_count} {sample_noun}'
+        if secondary:
+            secondary += helper_labels.get('from_sample' if sample_count == 1 else 'from_samples', '').format(sample_count=sample_count)
+    return {'main': main, 'secondary': secondary}

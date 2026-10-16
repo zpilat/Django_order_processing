@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
+from django.db import IntegrityError, transaction
 from django.test import TestCase
 from django.urls import reverse
 
@@ -45,11 +46,52 @@ class ZakaznikKontrolaKvalityTests(TestCase):
     def test_admin_displays_quality_fieldset_and_help(self):
         response = self.client.get(self.url)
         self.assertContains(response, 'Kontrola kvality')
-        self.assertContains(response, 'Počet vrutů pro kontrolu prohybu')
-        self.assertContains(response, 'Počet vrutů kontrolovaných z každé bedny.')
+        self.assertContains(response, 'Celkový počet vrutů odebraných pro kontrolu prohybu')
+        self.assertContains(response, 'Celkový počet vrutů odebraných z každé bedny.')
         self.assertContains(response, 'name="pocet_vrutu_pro_kontrolu_prohybu"')
         self.assertContains(response, 'Maximální počet křivých vrutů při kontrole prohybu')
         self.assertContains(response, 'name="max_krivych_vrutu"')
+        fieldsets = dict(response.context['adminform'].fieldsets)
+        for field in ('min_hodnot_mechanicke', 'min_hodnot_prohyb', 'min_hodnot_tvrdost', 'nazev_protokolu'):
+            self.assertIn(field, fieldsets['Kontrola kvality']['fields'])
+            self.assertContains(response, f'name="{field}"')
+
+    def test_kkk_minimums_are_optional_positive_and_enforced_in_database(self):
+        for field in ('min_hodnot_mechanicke', 'min_hodnot_prohyb', 'min_hodnot_tvrdost'):
+            for value in (None, 1, 25):
+                with self.subTest(field=field, value=value):
+                    setattr(self.customer, field, value)
+                    self.customer.full_clean()
+            for value in (0, -1):
+                with self.subTest(field=field, value=value):
+                    setattr(self.customer, field, value)
+                    with self.assertRaises(ValidationError):
+                        self.customer.full_clean()
+                    with self.assertRaises(IntegrityError), transaction.atomic():
+                        Zakaznik.objects.filter(pk=self.customer.pk).update(**{field: value})
+            setattr(self.customer, field, None)
+
+    def test_admin_saves_kkk_settings_and_history_independently_of_sample_size(self):
+        settings = {
+            'min_hodnot_mechanicke': '5', 'min_hodnot_prohyb': '3',
+            'min_hodnot_tvrdost': '2', 'nazev_protokolu': 'HPM - F 73c\nEurotec - F.3',
+        }
+        response = self.client.post(self.url, {**self.payload('32', '2'), **settings})
+        self.assertEqual(response.status_code, 302)
+        self.customer.refresh_from_db()
+        self.assertEqual(self.customer.pocet_vrutu_pro_kontrolu_prohybu, 32)
+        for field, expected in settings.items():
+            expected = expected if field == 'nazev_protokolu' else int(expected)
+            self.assertEqual(getattr(self.customer, field), expected)
+            self.assertEqual(getattr(self.customer.history.first(), field), expected)
+        response = self.client.post(self.url, {**self.payload('32', '2'), 'nazev_protokolu': ''})
+        self.assertEqual(response.status_code, 302)
+        self.customer.refresh_from_db()
+        self.assertEqual(self.customer.pocet_vrutu_pro_kontrolu_prohybu, 32)
+        for field in settings:
+            expected = '' if field == 'nazev_protokolu' else None
+            self.assertEqual(getattr(self.customer, field), expected)
+            self.assertEqual(getattr(self.customer.history.first(), field), expected)
 
     def test_admin_changelist_shows_quality_counts_instead_of_contact_details(self):
         self.customer.pocet_vrutu_pro_kontrolu_prohybu = 25

@@ -29,11 +29,31 @@ from orders.tests.test_kontrola_bedny import KontrolaBednyTestBase
 
 
 class FilledQualityCardsTests(KontrolaBednyTestBase):
+    CUSTOMER_SETTINGS = {
+        'EUR': (5, 5, 2, 'HPM - F 73c\nEurotec - F.3'),
+        'ROT': (10, 5, 3, 'HPM - F XXX'),
+        'SPX': (5, 3, 1, 'HPM - F XXX'),
+        'SSH': (5, 5, 3, 'HPM - F 11b'),
+        'HPM': (5, 5, 3, 'HPM - F 86a'),
+        'SWG': (5, 5, 5, 'HPM - F XXX'),
+        'FIS': (5, 25, 2, 'HPM - F XXX'),
+    }
+    CUSTOMER_SAMPLE_SIZES = {'EUR': 25, 'ROT': 32, 'SPX': 32, 'SSH': 32, 'HPM': 25, 'SWG': 32}
+
+    def configure_quality_settings(self):
+        fields = ('min_hodnot_mechanicke', 'min_hodnot_prohyb', 'min_hodnot_tvrdost', 'nazev_protokolu')
+        values = self.CUSTOMER_SETTINGS.get(self.customer.zkratka, (None, None, None, ''))
+        for field, value in zip(fields, values):
+            setattr(self.customer, field, value)
+        self.customer.pocet_vrutu_pro_kontrolu_prohybu = self.CUSTOMER_SAMPLE_SIZES.get(self.customer.zkratka)
+        self.customer.save(update_fields=(*fields, 'pocet_vrutu_pro_kontrolu_prohybu'))
+
     def setUp(self):
         self.customer = self.bedna.zakazka.kamion_prijem.zakaznik
         self.customer.zkratka = 'EUR'
         self.customer.zkratka_statu = 'D'
         self.customer.save()
+        self.configure_quality_settings()
         self.bedna.hmotnost = Decimal('100')
         self.bedna.save()
         self.request = RequestFactory().get('/')
@@ -81,7 +101,7 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
                 self.customer.save(update_fields=['zkratka_statu'])
                 context = self.context()
                 html = render_to_string(TEMPLATE_PATH, context)
-                for main in ('Karta kontroly kvality', 'Rozměr', 'Vrstva', 'Kontroloval', 'Min. 5 vzorků', 'Min. 2 vzorky'):
+                for main in ('Karta kontroly kvality', 'Rozměr', 'Vrstva', 'Kontroloval', 'Min. 5 vzorků', 'Min. 5 hodnot z 25 vzorků', 'Min. 2 vzorky'):
                     self.assertIn(main, html)
                 if title:
                     for label in (title, dimension, layer, minimum):
@@ -101,19 +121,20 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
     def test_all_customers_use_common_template_with_their_original_sample_minimums(self):
         self.create_control()
         for code, country, minimums, form_code in (
-            ('EUR', 'D', ('Min. 5 vzorků', 'Min. 5 vzorků', 'Min. 2 vzorky'), 'HPM - F 73c'),
-            ('FIS', 'D', ('Min. 5 vzorků', 'Min. 25 vzorků', 'Min. 2 vzorky'), 'HPM - F XXX'),
-            ('HPM', 'CZ', ('Min. 5 vzorků', 'Min. 25 vzorků', 'Min. 3 vzorky'), 'HPM - F 86a'),
-            ('ROT', 'I', ('Min. 10 vzorků', None, 'Min. 3 vzorky'), 'HPM - F XXX'),
-            ('SPX', 'A', ('Min. 5 vzorků', 'Min. 3 vzorky', 'Min. 1 vzorek'), 'HPM - F XXX'),
-            ('SSH', 'D', (None, None, None), 'HPM - F 11b'),
-            ('SWG', 'D', ('Min. 5 vzorků', None, 'Min. 5 vzorků'), 'HPM - F XXX'),
+            ('EUR', 'D', ('Min. 5 vzorků', 'Min. 5 hodnot z 25 vzorků', 'Min. 2 vzorky'), 'HPM - F 73c'),
+            ('FIS', 'D', ('Min. 5 vzorků', 'Min. 25 hodnot', 'Min. 2 vzorky'), 'HPM - F XXX'),
+            ('HPM', 'CZ', ('Min. 5 vzorků', 'Min. 5 hodnot z 25 vzorků', 'Min. 3 vzorky'), 'HPM - F 86a'),
+            ('ROT', 'I', ('Min. 10 vzorků', 'Min. 5 hodnot z 32 vzorků', 'Min. 3 vzorky'), 'HPM - F XXX'),
+            ('SPX', 'A', ('Min. 5 vzorků', 'Min. 3 hodnoty z 32 vzorků', 'Min. 1 vzorek'), 'HPM - F XXX'),
+            ('SSH', 'D', ('Min. 5 vzorků', 'Min. 5 hodnot z 32 vzorků', 'Min. 3 vzorky'), 'HPM - F 11b'),
+            ('SWG', 'D', ('Min. 5 vzorků', 'Min. 5 hodnot z 32 vzorků', 'Min. 5 vzorků'), 'HPM - F XXX'),
             ('XXX', None, (None, None, None), 'HPM - F XXX'),
         ):
             with self.subTest(customer=code):
                 self.customer.zkratka = code
                 self.customer.zkratka_statu = country
                 self.customer.save(update_fields=['zkratka', 'zkratka_statu'])
+                self.configure_quality_settings()
                 with patch('orders.services.pdf_cards_service.HTML') as renderer:
                     renderer.return_value.write_pdf.return_value = b'%PDF-common'
                     response = build_filled_quality_cards_pdf(self.qs, self.request)
@@ -136,10 +157,11 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
                 if country == 'I':
                     self.assertIn('Minimo 10 campioni di prova', html)
                     self.assertIn('Minimo 3 campioni di prova', html)
+                    self.assertIn('Minimo 5 valori da 32 campioni', html)
                 if code == 'SPX':
                     self.assertIn('Mind. 1 Prüfmuster', html)
                 if code == 'XXX':
-                    self.assertNotIn('Prüfmuster', html)
+                    self.assertNotIn('Messwerte', html)
                     self.assertNotIn('Minimo', html)
 
     def test_first_ten_per_type_follow_order_with_gaps_and_preserve_all_stored_values(self):
@@ -157,6 +179,56 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
         self.assertIn('class="measurement-value">0</td>', html)
         self.assertNotIn('class="measurement-value">10</td>', html)
         self.assertNotIn('class="measurement-value">11</td>', html)
+
+    def test_customer_settings_drive_print_without_customer_code_defaults(self):
+        self.create_control()
+        self.customer.min_hodnot_mechanicke = None
+        self.customer.min_hodnot_prohyb = 7
+        self.customer.min_hodnot_tvrdost = 4
+        self.customer.nazev_protokolu = 'Vlastní protokol\nDruhý řádek'
+        self.customer.pocet_vrutu_pro_kontrolu_prohybu = 32
+        self.customer.save()
+        html = render_to_string(TEMPLATE_PATH, self.context())
+        self.assertIn('Min. 7 hodnot z 32 vzorků', html)
+        self.assertIn('Mind. 7 Messwerte aus 32 Prüfmustern', html)
+        self.assertIn('Min. 4 vzorky', html)
+        self.assertNotIn('Min. 5 vzorků', html)
+        self.assertNotIn('Min. 32', html)
+        self.assertIn('<span>Vlastní protokol</span>', html)
+        self.assertIn('<span>Druhý řádek</span>', html)
+        self.assertNotIn('Eurotec - F.3', html)
+        self.customer.nazev_protokolu = '  \n '
+        self.customer.save(update_fields=['nazev_protokolu'])
+        self.assertEqual(self.context()['quality_card']['document_codes'], ['HPM - F XXX'])
+        self.customer.pocet_vrutu_pro_kontrolu_prohybu = None
+        self.customer.save(update_fields=['pocet_vrutu_pro_kontrolu_prohybu'])
+        self.assertEqual(self.context()['quality_card']['minimum_values']['bending'], {
+            'main': 'Min. 7 hodnot', 'secondary': 'Mind. 7 Messwerte',
+        })
+        self.customer.min_hodnot_prohyb = None
+        self.customer.pocet_vrutu_pro_kontrolu_prohybu = 25
+        self.customer.save(update_fields=['min_hodnot_prohyb', 'pocet_vrutu_pro_kontrolu_prohybu'])
+        self.assertEqual(self.context()['quality_card']['minimum_values']['bending'], {})
+
+    def test_minimum_above_ten_keeps_print_limited_to_first_ten_values(self):
+        kontrola = self.create_control()
+        self.customer.min_hodnot_prohyb = 25
+        self.customer.save(update_fields=['min_hodnot_prohyb'])
+        for order in range(1, 26):
+            self.measurement(kontrola, TypZkouskyChoice.PROHYB_PO_TZ, str(order), order=order * 2)
+        before = (MereniBedny.objects.count(), MereniBedny.history.count())
+        context = self.context()
+        card = context['quality_card']
+        self.assertEqual([row[2] for row in card['rows']], list(map(Decimal, range(1, 11))))
+        html = render_to_string(TEMPLATE_PATH, context)
+        self.assertIn('Min. 25 hodnot z 25 vzorků', html)
+        for order in range(1, 11):
+            self.assertIn(f'class="sample-number">{order}</td>', html)
+        self.assertNotIn('class="sample-number">11</td>', html)
+        self.assertEqual(html.count('class="measurement-row"'), 10)
+        document = HTML(string=html).render()
+        self.assertEqual(len(document.pages), 1)
+        self.assertEqual(before, (MereniBedny.objects.count(), MereniBedny.history.count()))
 
     def test_internal_sorting_measurements_are_not_printed_and_other_columns_keep_order(self):
         kontrola = self.create_control()
@@ -201,13 +273,14 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
             ('EUR', 'D', True, True, 'Min. 2 vzorky'),
             ('ROT', 'I', False, False, 'Min. 3 vzorky'),
             ('SWG', 'D', False, False, 'Min. 5 vzorků'),
-            ('SSH', 'D', False, False, None),
+            ('SSH', 'D', False, False, 'Min. 3 vzorky'),
             ('HPM', 'CZ', False, False, 'Min. 3 vzorky'),
             ('FIS', 'CZ', False, False, 'Min. 2 vzorky'),
             ('SPX', 'A', False, True, 'Min. 1 vzorek'),
         ):
             self.customer.zkratka, self.customer.zkratka_statu = code, country
             self.customer.save(update_fields=['zkratka', 'zkratka_statu'])
+            self.configure_quality_settings()
             self.bedna.zakazka.celozavit = full_thread
             self.bedna.zakazka.save(update_fields=['celozavit'])
             for bedna, selected in ((self.bedna, True), (second, second_selected)):
@@ -539,6 +612,7 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
                 self.customer.zkratka = code
                 self.customer.zkratka_statu = country
                 self.customer.save(update_fields=['zkratka', 'zkratka_statu'])
+                self.configure_quality_settings()
                 kontrola.uvolneni = status
                 kontrola.save()
                 html = render_to_string(template, self.context())
@@ -546,8 +620,9 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
                     self.assertIn('Minimo 1 campione di prova', html)
                 document = HTML(string=html).render()
                 self.assertEqual(len(document.pages), 1)
-                text_boxes = [box for box in document.pages[0]._page_box.descendants() if getattr(box, 'text', '').strip()]
-                self.assertLess(max(box.position_y + box.height for box in text_boxes), document.pages[0].height - 37)
+                for page in document.pages:
+                    text_boxes = [box for box in page._page_box.descendants() if getattr(box, 'text', '').strip()]
+                    self.assertLess(max(box.position_y + box.height for box in text_boxes), page.height - 37)
 
     def test_per_column_measuring_people_are_separate_from_printing_user(self):
         kontrola = self.create_control()
@@ -765,6 +840,7 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
         self.customer.zkratka = 'SPX'
         self.customer.zkratka_statu = 'A'
         self.customer.save(update_fields=['zkratka', 'zkratka_statu'])
+        self.configure_quality_settings()
         with patch('orders.services.pdf_cards_service.HTML') as renderer:
             renderer.return_value.write_pdf.return_value = b'%PDF-spx'
             response = self.print_outgoing_truck(Kamion.objects.filter(pk=truck.pk))

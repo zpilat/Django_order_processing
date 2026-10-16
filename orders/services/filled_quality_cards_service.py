@@ -3,8 +3,7 @@ from django.utils import timezone
 
 from orders.choices import TypZkouskyChoice
 from orders.models import MereniBedny
-from orders.quality_card_config import QUALITY_CARD_CONFIG_BY_CUSTOMER
-from orders.quality_card_labels import get_helper_labels, minimum_samples_labels
+from orders.quality_card_labels import get_helper_labels, minimum_samples_labels, minimum_values_labels
 
 from .exceptions import ServiceValidationError
 from .pdf_cards_service import build_cards_pdf, build_context_for_bedna
@@ -35,6 +34,8 @@ def build_filled_context(bedna, generated_at, printing_user):
         (item for item in measurements if item.typ_zkousky == TypZkouskyChoice.VRSTVA),
         None,
     )
+    customer = bedna.zakazka.kamion_prijem.zakaznik
+    merit_tvrdost = bedna.bedna_k_mereni_tvrdosti_a_povrchu
     groups = {kind: [] for kind in MEASUREMENT_COLUMNS}
     for item in measurements:
         group = groups.get(item.typ_zkousky)
@@ -46,23 +47,25 @@ def build_filled_context(bedna, generated_at, printing_user):
     context = build_context_for_bedna(bedna, generated_at, printing_user)
     limity_prohybu = bedna.limity_prohybu
     predpis = bedna.zakazka.predpis
-    customer = bedna.zakazka.kamion_prijem.zakaznik
-    customer_code = (customer.zkratka or '').strip().upper()
     helper_labels = get_helper_labels(customer.zkratka_statu)
-    customer_config = QUALITY_CARD_CONFIG_BY_CUSTOMER.get(customer_code, {})
+    rows = [
+        [groups[kind][index].hodnota if index < len(groups[kind]) else None
+         for kind in MEASUREMENT_COLUMNS]
+        for index in range(PRINTED_MEASUREMENTS_PER_TEST)
+    ]
     context['quality_card'] = {
-        'merit_tvrdost': bedna.bedna_k_mereni_tvrdosti_a_povrchu,
+        'merit_tvrdost': merit_tvrdost,
         'helper_labels': helper_labels,
         'uvolneni_pomocny_popis': helper_labels.get('release_status', {}).get(kontrola.uvolneni, ''),
-        'minimum_samples': {
-            group: minimum_samples_labels(customer_config.get(setting), helper_labels)
-            for group, setting in (
-                ('mechanical', 'mechanicka_zkouska'),
-                ('bending', 'prohyb'),
-                ('hardness', 'tvrdost'),
-            )
+        'minimum_values': {
+            'mechanical': minimum_samples_labels(customer.min_hodnot_mechanicke, helper_labels),
+            'bending': minimum_values_labels(
+                customer.min_hodnot_prohyb, helper_labels,
+                sample_count=customer.pocet_vrutu_pro_kontrolu_prohybu,
+            ),
+            'hardness': minimum_samples_labels(customer.min_hodnot_tvrdost if merit_tvrdost else None, helper_labels),
         },
-        'document_codes': customer_config.get('nazev_protokolu', 'HPM - F XXX').splitlines(),
+        'document_codes': (customer.nazev_protokolu.strip() or 'HPM - F XXX').splitlines(),
         'kontrola': kontrola,
         'vrstva': {
             'pozadavek': ' '.join(value for value in (predpis.vrstva, predpis.vrstva_2) if value),
@@ -80,11 +83,7 @@ def build_filled_context(bedna, generated_at, printing_user):
         'datum_mereni_od': min(measurement_dates, default=None),
         'datum_mereni_do': max(measurement_dates, default=None),
         'uvolneni_zmenil': user_name(kontrola.uvolneni_zmenil),
-        'rows': [
-            [groups[kind][index].hodnota if index < len(groups[kind]) else None
-             for kind in MEASUREMENT_COLUMNS]
-            for index in range(PRINTED_MEASUREMENTS_PER_TEST)
-        ],
+        'rows': rows,
         'kontrolovali': [measuring_people(groups[kind]) for kind in MEASUREMENT_COLUMNS],
     }
     return context
