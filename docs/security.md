@@ -2,7 +2,7 @@
 
 Tento dokument popisuje ochrany použité v projektu a nastavení pro jeho provoz. Zdrojové nastavení je v [settings.py](../order_processing/settings.py), řízení operací v adminu, views a formulářích aplikace `orders`.
 
-Aktualizováno 21. října 2026 podle repozitáře a provozních ověření z 6.–7. října 2026. Nastavení v kódu, skutečné nasazení a plánované změny jsou níže rozlišené. Aktuální konfiguraci serveru, distribuci CA na všechna zařízení ani běh naplánovaných úloh nelze potvrdit jen z repozitáře.
+Aktualizováno 21. října 2026 podle repozitáře a provozních ověření z 6.–7. a 21. října 2026. Nastavení v kódu, skutečné nasazení a plánované změny jsou níže rozlišené. Aktuální konfiguraci serveru, distribuci CA na všechna zařízení ani běh naplánovaných úloh nelze potvrdit jen z repozitáře.
 
 ## Přihlášení a oprávnění
 
@@ -55,8 +55,8 @@ Výchozí hodnoty v této tabulce nejsou potvrzením aktuálního serverového `
 - Dne 6. října 2026 byl původní prošlý self-signed certifikát pro `srv-warehouse` nahrazen serverovým certifikátem podepsaným interní Root CA. Proběhl test a reload Nginxu, ověření serverového certifikátu proti CA i kontrola jména; živé TLS spojení skončilo `Verify return code: 0 (ok)`.
 - HTTPS ukončuje Nginx. Aplikace Django Orders je podle posledního popsaného nasazení dostupná za proxy na `127.0.0.1:8050`. Samotná výměna certifikátu vyžaduje reload Nginxu, nikoli restart Djanga.
 - Přístupový název je `https://srv-warehouse/`; certifikát obsahuje SAN `DNS:srv-warehouse`. Nepokrývá přístup přes IP adresu ani jméno `django-warehouse`. Klientská zařízení musí název správně přeložit na adresu serveru, typicky pomocí interního DNS.
-- HTTP na portu 80 bylo ponecháno přechodně dostupné pro zařízení bez CA. Přepnutí celého provozu na přesměrování HTTP → HTTPS nebylo potvrzeno; před změnou ověřte skutečné chování proxy i zabezpečených cookies popsané výše. HTTP nechrání přenášená data.
-- Cílový stav po distribuci CA je přesměrování `http://srv-warehouse/` na `https://srv-warehouse/`. Port 80 pak pouze vrací přesměrování.
+- HTTP na portu 80 mělo původně sloužit jako přechodný přístup pro zařízení bez CA. Dne 21. října 2026 však `curl -I http://srv-warehouse/` vrátil `301 Moved Permanently` a `Location: https://srv-warehouse/`. Pro tento požadavek tedy HTTP již přesměrovává; nejde o ověření všech cest nebo přístupu přes IP adresu.
+- Výpis `nginx -T` ze stejného dne ukázal v `/etc/nginx/sites-enabled/django-orders` HTTP blok s `server_name srv-warehouse`, `proxy_pass http://127.0.0.1:8050` a `X-Forwarded-Proto $scheme`. Přesměrování podle tohoto výpisu pravděpodobně zajišťuje Django, nikoli přímo Nginx. Doporučená další úprava je po kontrole celého bloku nahradit HTTP proxy přímým přesměrováním Nginxu na pevný název `https://srv-warehouse` se zachováním cesty a parametrů. Port 80 pak zůstane jen pro přesměrování; provedení této úpravy zatím nebylo potvrzeno.
 - Druhá aplikace byla popsaná na `http://192.168.1.207:8000/`. Jméno `django-warehouse`, samostatný certifikát ze stejné CA a proxy z HTTPS na `127.0.0.1:8000` jsou plán. Jejich nasazení ani uzavření přímého přístupu z LAN na port 8000 nebylo potvrzeno.
 
 ### Evidence certifikátů a klíčů
