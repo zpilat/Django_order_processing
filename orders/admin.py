@@ -2285,6 +2285,9 @@ class BednaInline(admin.TabularInline):
         models.IntegerField: {'widget': TextInput(attrs={'size': '5'})},
     }
 
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('zakazka__kamion_prijem__zakaznik')
+
     def formfield_for_dbfield(self, db_field, request, **kwargs):
         """
         Přizpůsobení widgetů pro pole v administraci.
@@ -2426,7 +2429,7 @@ class ZakazkaAdmin(HistoryViewOnlyAdmin):
 
     # Parametry pro zobrazení detailu v administraci
     exclude = ('tvrdost_povrchu', 'tvrdost_jadra', 'ohyb', 'krut', 'hazeni')    
-    readonly_fields = ('expedovano', 'get_komplet',)
+    readonly_fields = ('expedovano', 'get_komplet', 'puvodni_zakazka')
     autocomplete_fields = ('predpis',)
     
     # Parametry pro zobrazení seznamu v administraci

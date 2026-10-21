@@ -6,6 +6,8 @@ from django.contrib.auth.models import Permission, Group
 from django.contrib.messages.storage.fallback import FallbackStorage
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.http import HttpResponse
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 from decimal import Decimal
@@ -1176,6 +1178,60 @@ class ZakazkaAdminTests(AdminBase):
         self.assertNotIn('kamion_vydej_link', ld)
         ld2 = self.admin.get_list_display(self.get_request({'skladem': SklademZakazkyChoice.EXPEDOVANO}))
         self.assertIn('kamion_vydej_link', ld2)
+
+    def test_original_order_cannot_be_overwritten_by_submitted_value(self):
+        original = Zakazka.objects.create(
+            kamion_prijem=self.kamion,
+            artikl='ORIGINAL', prumer=1, delka=1,
+            predpis=self.predpis, typ_hlavy=self.typ_hlavy, popis='p',
+        )
+        self.zakazka.puvodni_zakazka = original
+        self.zakazka.save(update_fields=['puvodni_zakazka'])
+        data = {
+            'kamion_prijem': self.kamion.pk,
+            'artikl': self.zakazka.artikl,
+            'typ_hlavy': self.typ_hlavy.pk,
+            'prumer': '1', 'delka': '1',
+            'predpis': self.predpis.pk,
+            'priorita': self.zakazka.priorita,
+            'popis': self.zakazka.popis,
+            'puvodni_zakazka': self.zakazka.pk,
+        }
+        for shipped in (False, True):
+            with self.subTest(shipped=shipped):
+                self.zakazka.expedovano = shipped
+                form_class = self.admin.get_form(self.get_request(), self.zakazka)
+                form = form_class(data=data, instance=self.zakazka)
+                self.assertNotIn('puvodni_zakazka', form.fields)
+                self.assertTrue(form.is_valid(), form.errors)
+                saved = form.save()
+                saved.refresh_from_db()
+                self.assertEqual(saved.puvodni_zakazka_id, original.pk)
+
+    def test_change_view_queries_do_not_grow_with_boxes_or_order_choices(self):
+        def render_detail():
+            request = self.with_session_and_messages(self.get_request())
+            with CaptureQueriesContext(connection) as queries:
+                response = self.admin.change_view(request, str(self.zakazka.pk))
+                response.render()
+            self.assertEqual(response.status_code, 200)
+            self.assertNotContains(response, 'name="puvodni_zakazka"')
+            return len(queries)
+
+        initial_queries = render_detail()
+        for index in range(5):
+            truck = Kamion.objects.create(zakaznik=self.zakaznik, datum=date.today())
+            Zakazka.objects.create(
+                kamion_prijem=truck,
+                artikl=f'OTHER-{index}', prumer=1, delka=1,
+                predpis=self.predpis, typ_hlavy=self.typ_hlavy, popis='p',
+            )
+            Bedna.objects.create(
+                zakazka=self.zakazka,
+                hmotnost=2, tara=1, mnozstvi=1,
+            )
+
+        self.assertLessEqual(render_detail(), initial_queries)
 
     def test_has_change_permission_regular_user(self):
         """Uživatel bez práv nesmí měnit expedovanou zakázku."""

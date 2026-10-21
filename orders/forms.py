@@ -253,6 +253,8 @@ class ZakazkaAdminForm(ZakazkaPredpisValidatorMixin, forms.ModelForm):
             zakazka_qs = Zakazka.objects.filter(kamion_prijem=OuterRef('pk'), expedovano=False)
             self.fields['kamion_prijem'].queryset = Kamion.objects.filter(
                 prijem_vydej=KamionChoice.PRIJEM,
+            ).select_related(
+                'zakaznik',
             ).annotate(
                 ma_neexpedovanou=Exists(zakazka_qs)
             ).filter(
