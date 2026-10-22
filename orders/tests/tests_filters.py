@@ -1,5 +1,7 @@
 from django.test import TestCase, RequestFactory
 from django.utils import timezone
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AnonymousUser, Group
 
 from orders.models import (
 	Zakaznik, Odberatel, Kamion, Zakazka, Bedna, Predpis, TypHlavy, Zarizeni, Sarze, SarzeKrok, SarzeBedna
@@ -159,8 +161,9 @@ class FilterTestBase(TestCase):
 			rovnat=RovnaniChoice.VYROVNANA,
 		)
 
-	def _make_filter(self, cls, model, params):
+	def _make_filter(self, cls, model, params, user=None):
 		request = self.rf.get("/admin/", data=params)
+		request.user = user if user is not None else AnonymousUser()
 		# SimpleListFilter očekává mutovatelný QueryDict (ChangeList předává request.GET.copy())
 		return cls(request, request.GET.copy(), model, None)
 
@@ -392,6 +395,10 @@ class PredpisFiltersTests(FilterTestBase):
 class SarzeBednaFiltersTests(FilterTestBase):
 	def setUp(self):
 		super().setUp()
+		self.filter_user = get_user_model().objects.create_user(username="tz-filter-user")
+		self.extended_filter_group = Group.objects.create(
+			name=F.SkupinaSarzeBednaFilter.skupina_rozsireneho_filtru,
+		)
 		today = timezone.localdate()
 
 		self.zar_pp = Zarizeni.objects.create(
@@ -608,6 +615,7 @@ class SarzeBednaFiltersTests(FilterTestBase):
 			F.SkupinaSarzeBednaFilter,
 			SarzeBedna,
 			params={"skupina": "2"},
+			user=self.filter_user,
 		)
 
 		self.assertEqual(
@@ -618,6 +626,126 @@ class SarzeBednaFiltersTests(FilterTestBase):
 			f.queryset(None, SarzeBedna.objects.all()),
 			[sb_skupina_2],
 			ordered=False,
+		)
+
+	def test_skupina_sarze_bedna_filter_extended_used_groups(self):
+		self.filter_user.groups.add(self.extended_filter_group)
+		self.p1.skupina = 10
+		self.p1.save(update_fields=["skupina"])
+		self.p2.skupina = 3
+		self.p2.save(update_fields=["skupina"])
+		self.zak_old.predpis = self.p2
+		self.zak_old.save(update_fields=["predpis"])
+
+		expedovany_predpis = Predpis.objects.create(
+			nazev="Expedovany", skupina=1, zakaznik=self.z1, aktivni=False,
+		)
+		self.zak_exp.predpis = expedovany_predpis
+		self.zak_exp.save(update_fields=["predpis"])
+		Bedna.objects.create(
+			zakazka=self.zak_exp, stav_bedny=StavBednyChoice.EXPEDOVANO,
+			hmotnost=1, tara=1, mnozstvi=1,
+			tryskat=TryskaniChoice.CISTA, rovnat=RovnaniChoice.ROVNA,
+		)
+
+		# A prescription assigned only to an order without boxes is not used.
+		self.zak_empty.predpis = Predpis.objects.create(
+			nazev="Bez beden", skupina=4, zakaznik=self.z1,
+		)
+		self.zak_empty.save(update_fields=["predpis"])
+		Predpis.objects.create(nazev="Nepouzity", skupina=5, zakaznik=self.z1)
+
+		self.zak_pk.predpis = Predpis.objects.create(
+			nazev="Bez skupiny", skupina=None, zakaznik=self.z1,
+		)
+		self.zak_pk.save(update_fields=["predpis"])
+
+		f = self._make_filter(
+			F.SkupinaSarzeBednaFilter, SarzeBedna, params={}, user=self.filter_user,
+		)
+		self.assertEqual(
+			list(f.lookups(None, None)),
+			[("1", "SK1"), ("3", "SK3"), ("10", "SK10")],
+		)
+
+	def test_skupina_sarze_bedna_filter_extended_filters_stock_and_expedited_rows(self):
+		self.filter_user.groups.add(self.extended_filter_group)
+		stock_row = SarzeBedna.objects.create(krok=self.krok_pp, bedna=self.b_pr, patro=2)
+		expedited_bedna = Bedna.objects.create(
+			zakazka=self.zak_exp, stav_bedny=StavBednyChoice.EXPEDOVANO,
+			hmotnost=1, tara=1, mnozstvi=1,
+			tryskat=TryskaniChoice.CISTA, rovnat=RovnaniChoice.ROVNA,
+		)
+		expedited_row = SarzeBedna.objects.create(
+			krok=self.krok_pp, bedna=expedited_bedna, patro=3,
+		)
+		self.zak_pk.predpis = self.p2
+		self.zak_pk.save(update_fields=["predpis"])
+		SarzeBedna.objects.create(krok=self.krok_pp, bedna=self.b_pk, patro=4)
+
+		f = self._make_filter(
+			F.SkupinaSarzeBednaFilter, SarzeBedna,
+			params={"skupina": "1"}, user=self.filter_user,
+		)
+		self.assertQuerySetEqual(
+			f.queryset(None, SarzeBedna.objects.all()),
+			[stock_row, expedited_row], ordered=False,
+		)
+		self.assertEqual(f.title, "Skupina TZ: SK1")
+
+	def test_skupina_sarze_bedna_filter_rejects_values_outside_offered_groups(self):
+		SarzeBedna.objects.create(krok=self.krok_pp, bedna=self.b_pr, patro=2)
+		for extended in (False, True):
+			if extended:
+				self.filter_user.groups.add(self.extended_filter_group)
+			values = ("999", "invalid") if extended else ("1", "999", "invalid")
+			for value in values:
+				with self.subTest(extended=extended, value=value):
+					f = self._make_filter(
+						F.SkupinaSarzeBednaFilter, SarzeBedna,
+						params={"skupina": value}, user=self.filter_user,
+					)
+					self.assertFalse(f.queryset(None, SarzeBedna.objects.all()).exists())
+
+	def test_skupina_sarze_bedna_filter_all_preserves_rows_in_both_modes(self):
+		SarzeBedna.objects.create(krok=self.krok_pp, bedna=self.b_pr, patro=2)
+		for extended in (False, True):
+			if extended:
+				self.filter_user.groups.add(self.extended_filter_group)
+			with self.subTest(extended=extended):
+				f = self._make_filter(
+					F.SkupinaSarzeBednaFilter, SarzeBedna, params={}, user=self.filter_user,
+				)
+				self.assertQuerySetEqual(
+					f.queryset(None, SarzeBedna.objects.all()),
+					SarzeBedna.objects.all(), ordered=False,
+				)
+
+	def test_skupina_sarze_bedna_filter_membership_changes_variant(self):
+		self.filter_user.groups.add(self.extended_filter_group)
+		extended_filter = self._make_filter(
+			F.SkupinaSarzeBednaFilter, SarzeBedna, params={}, user=self.filter_user,
+		)
+		self.filter_user.groups.remove(self.extended_filter_group)
+		self.filter_user.groups.add(Group.objects.create(name="Jina skupina"))
+		original_filter = self._make_filter(
+			F.SkupinaSarzeBednaFilter, SarzeBedna, params={}, user=self.filter_user,
+		)
+		self.assertEqual(list(extended_filter.lookups(None, None)), [("1", "SK1")])
+		self.assertEqual(
+			list(original_filter.lookups(None, None)),
+			[("2", "SK2"), ("9", "SK9"), ("14", "SK14"), ("16", "SK16"), ("19", "SK19")],
+		)
+
+	def test_skupina_sarze_bedna_filter_superuser_requires_group_membership(self):
+		self.filter_user.is_superuser = True
+		self.filter_user.save(update_fields=["is_superuser"])
+		f = self._make_filter(
+			F.SkupinaSarzeBednaFilter, SarzeBedna, params={}, user=self.filter_user,
+		)
+		self.assertEqual(
+			list(f.lookups(None, None)),
+			[("2", "SK2"), ("9", "SK9"), ("14", "SK14"), ("16", "SK16"), ("19", "SK19")],
 		)
 
 

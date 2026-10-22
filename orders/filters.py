@@ -1183,9 +1183,21 @@ class SkupinaSarzeBednaFilter(DynamicTitleFilter):
     parameter_name = "skupina"
     vse = "Vše"
     povolene_skupiny = (2, 9, 14, 16, 19)
+    skupina_rozsireneho_filtru = "Rozšířený filtr TZ"
 
     def __init__(self, request, params, model, model_admin):
-        self.label_dict = {str(skupina): f"SK{skupina}" for skupina in self.povolene_skupiny}
+        skupiny = self.povolene_skupiny
+
+        if request.user.groups.filter(name=self.skupina_rozsireneho_filtru,).exists():
+            skupiny = (
+                Bedna.objects
+                .exclude(zakazka__predpis__skupina__isnull=True)
+                .order_by("zakazka__predpis__skupina")
+                .values_list("zakazka__predpis__skupina", flat=True)
+                .distinct()
+            )
+
+        self.label_dict = {str(skupina): f"SK{skupina}" for skupina in skupiny}
         super().__init__(request, params, model, model_admin)
 
     def lookups(self, request, model_admin):
