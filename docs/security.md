@@ -2,7 +2,7 @@
 
 Tento dokument popisuje ochrany použité v projektu a nastavení pro jeho provoz. Zdrojové nastavení je v [settings.py](../order_processing/settings.py), řízení operací v adminu, views a formulářích aplikace `orders`.
 
-Aktualizováno 21. října 2026 podle repozitáře a provozních ověření z 6.–7. a 21. října 2026. Nastavení v kódu, skutečné nasazení a plánované změny jsou níže rozlišené. Aktuální konfiguraci serveru, distribuci CA na všechna zařízení ani běh naplánovaných úloh nelze potvrdit jen z repozitáře.
+Aktualizováno 23. října 2026 podle repozitáře, provozních ověření z 6.–7. a 21. října 2026 a následné dohody o ponechání konfigurace. Nastavení v kódu, skutečné nasazení a plánované změny jsou níže rozlišené. Aktuální konfiguraci serveru, distribuci CA na všechna zařízení ani běh naplánovaných úloh nelze potvrdit jen z repozitáře.
 
 ## Přihlášení a oprávnění
 
@@ -56,8 +56,24 @@ Výchozí hodnoty v této tabulce nejsou potvrzením aktuálního serverového `
 - HTTPS ukončuje Nginx. Aplikace Django Orders je podle posledního popsaného nasazení dostupná za proxy na `127.0.0.1:8050`. Samotná výměna certifikátu vyžaduje reload Nginxu, nikoli restart Djanga.
 - Přístupový název je `https://srv-warehouse/`; certifikát obsahuje SAN `DNS:srv-warehouse`. Nepokrývá přístup přes IP adresu ani jméno `django-warehouse`. Klientská zařízení musí název správně přeložit na adresu serveru, typicky pomocí interního DNS.
 - HTTP na portu 80 mělo původně sloužit jako přechodný přístup pro zařízení bez CA. Dne 21. října 2026 však `curl -I http://srv-warehouse/` vrátil `301 Moved Permanently` a `Location: https://srv-warehouse/`. Pro tento požadavek tedy HTTP již přesměrovává; nejde o ověření všech cest nebo přístupu přes IP adresu.
-- Výpis `nginx -T` ze stejného dne ukázal v `/etc/nginx/sites-enabled/django-orders` HTTP blok s `server_name srv-warehouse`, `proxy_pass http://127.0.0.1:8050` a `X-Forwarded-Proto $scheme`. Přesměrování podle tohoto výpisu pravděpodobně zajišťuje Django, nikoli přímo Nginx. Doporučená další úprava je po kontrole celého bloku nahradit HTTP proxy přímým přesměrováním Nginxu na pevný název `https://srv-warehouse` se zachováním cesty a parametrů. Port 80 pak zůstane jen pro přesměrování; provedení této úpravy zatím nebylo potvrzeno.
+- Výpis `nginx -T` a následně celý `/etc/nginx/sites-enabled/django-orders` ukázaly HTTP blok s `server_name srv-warehouse`, `proxy_pass http://127.0.0.1:8050` a `X-Forwarded-Proto $scheme`. Běžné HTTP požadavky tedy Nginx předává Djangu, které zajišťuje přesměrování. Samostatná HTTP cesta `/.well-known/acme-challenge/` obsluhuje soubory z `/var/www/html`.
+- Dne 23. října 2026 bylo dohodnuto současnou konfiguraci ponechat. Přesměrování přes Django je podporovaný postup; zachovejte zapnuté `SECURE_SSL_REDIRECT` a správné předávání schématu z proxy. Přesun přesměrování přímo do Nginxu je volitelné provozní zjednodušení, nikoli nutná oprava ověřeného stavu. Viz [SECURE_SSL_REDIRECT](https://docs.djangoproject.com/en/5.2/ref/settings/#secure-ssl-redirect).
 - Druhá aplikace byla popsaná na `http://192.168.1.207:8000/`. Jméno `django-warehouse`, samostatný certifikát ze stejné CA a proxy z HTTPS na `127.0.0.1:8000` jsou plán. Jejich nasazení ani uzavření přímého přístupu z LAN na port 8000 nebylo potvrzeno.
+
+### Přístup z internetu přes OpenVPN
+
+Podle informace správce z 23. října 2026 se k interní aplikaci z internetu přistupuje z Androidu přes OpenVPN Connect. VPN zajišťuje Sophos spravovaný externím správcem sítě Calyx; konkrétní produkt, verze a konfigurace nebyly ověřeny. Na Androidu přes VPN funguje přístup pomocí IP adresy `192.168.1.207`, ale jméno `srv-warehouse` se nepřeloží. Na notebooku přes VPN přístup pomocí jména podle správce funguje.
+
+Výstup `nslookup srv-warehouse` z notebooku ukázal DNS server `VM-DC.hpmheat.local` na `192.168.1.202` a překlad `srv-warehouse.hpmheat.local` na `192.168.1.207`. DNS záznam tedy existuje a na notebooku funguje dohledání krátkého jména v doméně `hpmheat.local`. Je potřeba ověřit rozdíl v předávání a používání DNS a vyhledávací přípony na Androidu; jeho aktuální DNS nastavení a dostupnost DNS serveru přes tunel zatím nebyly ověřeny.
+
+VPN musí zajistit jak cestu k serveru, tak překlad používaného jména. Prohlížeč má dál otevírat `https://srv-warehouse/`: současný certifikát má SAN pouze pro toto DNS jméno a při použití IP adresy neodpovídá adrese v prohlížeči. Samotná instalace Root CA tento nesoulad jména nevyřeší.
+
+Možnosti řešení před změnou konfigurace:
+
+- **Centrálně přes DNS pro VPN:** interní DNS musí umět přeložit `srv-warehouse` na adresu dostupnou přes tunel; OpenVPN předá vhodné DNS nastavení klientům. DNS server musí být přes VPN dostupný a klient musí nastavení skutečně používat. U krátkého jména ověřte také DNS příponu a vyhledávání domén. Konkrétní možnosti závisejí na VPN serveru a klientovi; [OpenVPN popisuje předávání DNS pomocí DHCP options](https://openvpn.net/community-docs/pushing-dhcp-options-to-clients.html).
+- **Místně pro jednotlivý počítač s Windows:** soubor `C:\Windows\System32\drivers\etc\hosts` může mapovat skutečnou, přes VPN dostupnou IP serveru na `srv-warehouse`. Nevyžaduje změnu aplikace ani certifikátu, ale mapování se spravuje na každém počítači a při změně IP se musí opravit. Zápis vyžaduje práva správce; [postup Microsoftu](https://learn.microsoft.com/en-us/troubleshoot/windows-server/networking/cannot-modify-hosts-lmhosts-files). Na běžném Androidu nejde o standardní uživatelský postup.
+
+Oprava překladu jména na Androidu zatím nebyla potvrzena. Správci Calyx předejte požadavek na ověření předávání a použití DNS serveru `192.168.1.202` a vyhledávací domény `hpmheat.local` v OpenVPN Connect na Androidu a na povolení DNS dotazů přes VPN. Konkrétní nastavení a podporu vyhledávací domény ověřte na používaném klientovi. Výsledek ověřte otevřením přesného jména `https://srv-warehouse/` z mobilní sítě po připojení VPN; správce podle konfigurace určí, zda je potřeba nový profil `.ovpn`. Aplikace má zůstat dostupná z internetu přes VPN. Na vzdáleném zařízení musí být důvěryhodná také Warehouse Internal Root CA. Samotné doplnění DNS přípony při vyhledávání nemění jméno v HTTPS adrese. Pokud se později začne v prohlížeči používat plné jméno `srv-warehouse.hpmheat.local`, musí být zahrnuto v SAN serverového certifikátu a v odpovídajícím nastavení Nginxu a Djanga; současný certifikát ho nepokrývá.
 
 ### Evidence certifikátů a klíčů
 
