@@ -8,7 +8,7 @@
     <style>
         .control-row { color: inherit; transition: background-color .15s ease-in-out; }
         .control-row:hover, .control-row:focus { background-color: #f1f5ff; color: inherit; }
-        .control-row-long { border-left: .35rem solid var(--bs-danger) !important; }
+        .control-row-started { border-left: .35rem solid var(--bs-danger) !important; }
         .control-type-screws { background-color: #214290; color: #ffde17; }
         .control-type-iron { background-color: #495057; color: #fff; }
         .control-status-vk { background-color: #ffc107; color: #212529; }
@@ -43,8 +43,9 @@
            href="{% url 'kontrola_prehled' %}?filtr=vruty">Vruty: {{ counts.vruty }}</a>
         <a class="btn btn-sm {% if selected_filter == 'zelezo' %}btn-primary{% else %}btn-outline-primary{% endif %}"
            href="{% url 'kontrola_prehled' %}?filtr=zelezo">Železo: {{ counts.zelezo }}</a>
-        <a class="btn btn-sm {% if selected_filter == 'dlouho' %}btn-danger{% else %}btn-outline-danger{% endif %}"
-           href="{% url 'kontrola_prehled' %}?filtr=dlouho">Čeká přes 4 hodiny: {{ counts.dlouho }}</a>
+        <span class="small text-muted align-self-center border-start border-danger border-4 ps-2 ms-sm-2">
+            <span class="fw-semibold text-danger">Právě probíhá kontrola</span>
+        </span>
     </nav>
 
     {% if items %}
@@ -55,14 +56,14 @@
                 <div class="col-md-3">Zákazník / obsah</div>
                 <div class="col-md-2">Materiál</div>
                 <div class="col-md-2">Stav</div>
-                <div class="col-md-2 text-md-end">Čeká od</div>
+                <div class="col-md-2 text-md-end">Ke kontrole od</div>
             </div>
             {% for item in items %}
                 {% if item.url %}
-                    <a class="control-row d-block text-decoration-none border-bottom px-3 py-3{% if item.dlouho_ceka %} control-row-long{% endif %}"
+                    <a class="control-row d-block text-decoration-none border-bottom px-3 py-3{% if item.rozkontrolovano %} control-row-started{% endif %}"
                        href="{{ item.url }}" aria-label="Otevřít {{ item.identifikace }}">
                 {% else %}
-                    <div class="d-block border-bottom px-3 py-3{% if item.dlouho_ceka %} control-row-long{% endif %}">
+                    <div class="d-block border-bottom px-3 py-3{% if item.rozkontrolovano %} control-row-started{% endif %}">
                 {% endif %}
                     <div class="row g-2 align-items-center">
                         <div class="col-5 col-md-1">
@@ -93,7 +94,7 @@
                         </div>
                         <div class="col-12 col-md-2 text-md-end small">
                             {% if item.ceka_od %}
-                                <span class="{% if item.dlouho_ceka %}text-danger fw-bold{% endif %}">
+                                <span class="{% if item.rozkontrolovano %}text-danger fw-bold{% endif %}">
                                     {{ item.ceka_od|date:"d.m.Y H:i" }}
                                 </span>
                                 <div class="text-muted">{{ item.ceka_od|timesince }} čekání</div>

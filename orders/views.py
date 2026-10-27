@@ -140,9 +140,8 @@ def _build_pracoviste_prehled_context():
 
 
 def _build_kontrola_prehled_context(user, selected_filter='vse'):
-    """Sestaví jednu chronologickou frontu beden a železných šarží ke kontrole."""
+    """Sestaví frontu ke kontrole s rozkontrolovanými bednami na začátku."""
     current_time = timezone.now()
-    long_wait_before = current_time - timedelta(hours=4)
     items = []
 
     zakaleno_transitions = history_transitions_to_qs(
@@ -164,7 +163,10 @@ def _build_kontrola_prehled_context(user, selected_filter='vse'):
                 .filter(id=OuterRef('pk'))
                 .order_by('-history_date', '-history_id')
                 .values('history_date')[:1]
-            )
+            ),
+            kontrola_zapocata=Exists(
+                MereniBedny.objects.filter(kontrola__bedna_id=OuterRef('pk'))
+            ),
         )
     )
     can_view_box_controls = _can_view_kontrola_bedny(user)
@@ -180,9 +182,7 @@ def _build_kontrola_prehled_context(user, selected_filter='vse'):
             'detail': f'{bedna.zakazka.artikl} · {bedna.zakazka.prumer} × {bedna.zakazka.delka}',
             'material': bedna.material or '-',
             'ceka_od': bedna.kontrola_ceka_od,
-            'dlouho_ceka': bool(
-                bedna.kontrola_ceka_od and bedna.kontrola_ceka_od <= long_wait_before
-            ),
+            'rozkontrolovano': bedna.kontrola_zapocata,
             'url': (
                 reverse('bedna_kontrola', args=[bedna.cislo_bedny])
                 if can_view_box_controls else None
@@ -267,22 +267,21 @@ def _build_kontrola_prehled_context(user, selected_filter='vse'):
             'detail': item_count_label,
             'material': '-',
             'ceka_od': sarze.kontrola_ceka_od,
-            'dlouho_ceka': bool(
-                sarze.kontrola_ceka_od and sarze.kontrola_ceka_od <= long_wait_before
-            ),
+            'rozkontrolovano': False,
             'url': reverse('sarze_scan', args=[sarze.cislo_sarze]) if can_control_batches else None,
         })
 
-    items.sort(key=lambda item: (item['ceka_od'] is None, item['ceka_od'] or current_time))
+    items.sort(key=lambda item: (
+        not item['rozkontrolovano'],
+        item['ceka_od'] is None,
+        item['ceka_od'] or current_time,
+    ))
     counts = {
         'vse': len(items),
         'vruty': sum(item['typ'] == 'vruty' for item in items),
         'zelezo': sum(item['typ'] == 'zelezo' for item in items),
-        'dlouho': sum(item['dlouho_ceka'] for item in items),
     }
-    if selected_filter == 'dlouho':
-        filtered_items = [item for item in items if item['dlouho_ceka']]
-    elif selected_filter in ('vruty', 'zelezo'):
+    if selected_filter in ('vruty', 'zelezo'):
         filtered_items = [item for item in items if item['typ'] == selected_filter]
     else:
         selected_filter = 'vse'

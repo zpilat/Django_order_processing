@@ -12,9 +12,10 @@ from unittest.mock import patch
 import json
 
 from orders.models import (
-	Zakaznik, Odberatel, Kamion, Zakazka, Bedna, Predpis, TypHlavy, Pozice, PoziceZakazkaOrder, Zarizeni, Sarze, SarzeKrok, SarzeKrokBedna, Cena
+	Zakaznik, Odberatel, Kamion, Zakazka, Bedna, Predpis, TypHlavy, Pozice, PoziceZakazkaOrder, Zarizeni, Sarze, SarzeKrok, SarzeKrokBedna, Cena,
+	KontrolaBedny, MereniBedny,
 )
-from orders.choices import StavBednyChoice, StavSarzeChoice, KamionChoice, TryskaniChoice, RovnaniChoice, ZinkovaniChoice, PrioritaChoice, TypZarizeniChoice
+from orders.choices import StavBednyChoice, StavSarzeChoice, KamionChoice, TryskaniChoice, RovnaniChoice, ZinkovaniChoice, PrioritaChoice, TypZarizeniChoice, TypZkouskyChoice
 from orders.views import (
 	_get_bedny_k_navezeni_groups,
 	_split_bedny_k_navezeni_groups_by_nasledne,
@@ -412,8 +413,12 @@ class KontrolaPrehledViewTests(ViewsTestBase):
 			"vse": 2,
 			"vruty": 1,
 			"zelezo": 1,
-			"dlouho": 1,
 		})
+		self.assertFalse(any(item["rozkontrolovano"] for item in items))
+		self.assertContains(response, "Ke kontrole od")
+		self.assertNotContains(response, "?filtr=dlouho")
+		self.assertNotContains(response, "Čeká přes 4 hodiny")
+		self.assertNotContains(response, " control-row-started")
 		self.assertContains(response, reverse("sarze_scan", args=[sarze.cislo_sarze]))
 		self.assertContains(
 			response,
@@ -421,6 +426,67 @@ class KontrolaPrehledViewTests(ViewsTestBase):
 		)
 		self.assertContains(response, "Přehled kontroly")
 		self.assertContains(response, "1 položka")
+		legacy_filter = self.client.get(reverse("kontrola_prehled"), {"filtr": "dlouho"})
+		self.assertEqual(legacy_filter.context["selected_filter"], "vse")
+		self.assertEqual(legacy_filter.context["items"], items)
+
+	def test_started_controls_sort_first_by_time_waiting_for_control(self):
+		self._grant_control_permissions()
+		current_time = timezone.now()
+		boxes = []
+		for hours, started in ((1, True), (3, False), (2, True), (5, False)):
+			box = Bedna.objects.create(zakazka=self.zak_eur, hmotnost=5, tara=1, mnozstvi=1)
+			control_time = current_time - timedelta(hours=hours)
+			Bedna.history.filter(id=box.pk).update(history_date=control_time - timedelta(hours=1))
+			box.stav_bedny = StavBednyChoice.ZAKALENO
+			box.save(update_fields=["stav_bedny"])
+			Bedna.history.filter(history_id=box.history.first().history_id).update(history_date=control_time)
+			if started:
+				control = KontrolaBedny.objects.create(bedna=box)
+				MereniBedny.objects.create(
+					kontrola=control, typ_zkousky=TypZkouskyChoice.OHYB,
+					hodnota=0, poradi=1, zmeril=self.user,
+				)
+			boxes.append(box)
+		sarze = self._create_iron_batch()
+		batch_time = current_time - timedelta(hours=4)
+		transition_id = sarze.history.first().history_id
+		Sarze.history.filter(id=sarze.pk).update(history_date=batch_time - timedelta(hours=1))
+		Sarze.history.filter(history_id=transition_id).update(history_date=batch_time)
+
+		response = self.client.get(reverse("kontrola_prehled"))
+		items = response.context["items"]
+		self.assertEqual([item["identifikace"] for item in items], [
+			boxes[2].cislo_bedny, boxes[0].cislo_bedny,
+			boxes[3].cislo_bedny, str(sarze), boxes[1].cislo_bedny,
+		])
+		self.assertEqual([item["rozkontrolovano"] for item in items], [True, True, False, False, False])
+		self.assertContains(response, " control-row-started", count=2)
+
+	def test_any_measurement_including_zero_starts_control_but_empty_control_does_not(self):
+		self.b_eur_pr.stav_bedny = StavBednyChoice.ZAKALENO
+		self.b_eur_pr.save(update_fields=["stav_bedny"])
+		control = KontrolaBedny.objects.create(bedna=self.b_eur_pr)
+		url = reverse("kontrola_prehled")
+		response = self.client.get(url)
+		self.assertFalse(response.context["items"][0]["rozkontrolovano"])
+		self.assertNotContains(response, " control-row-started")
+
+		for kind in TypZkouskyChoice:
+			with self.subTest(kind=kind):
+				measurement = MereniBedny.objects.create(
+					kontrola=control, typ_zkousky=kind, hodnota=0,
+					poradi=1, zmeril=self.user,
+				)
+				response = self.client.get(url)
+				self.assertEqual(len(response.context["items"]), 1)
+				self.assertTrue(response.context["items"][0]["rozkontrolovano"])
+				self.assertContains(response, " control-row-started", count=1)
+				measurement.delete()
+
+		response = self.client.get(url)
+		self.assertFalse(response.context["items"][0]["rozkontrolovano"])
+		self.assertNotContains(response, " control-row-started")
 
 	def test_box_waiting_time_uses_state_transition_not_later_update(self):
 		transition_time = timezone.now() - timedelta(hours=5)
@@ -441,7 +507,7 @@ class KontrolaPrehledViewTests(ViewsTestBase):
 		item = next(item for item in response.context["items"] if item["typ"] == "vruty")
 
 		self.assertEqual(item["ceka_od"], transition_time)
-		self.assertTrue(item["dlouho_ceka"])
+		self.assertFalse(item["rozkontrolovano"])
 
 	def test_batch_waiting_time_uses_state_transition_not_later_update(self):
 		sarze = self._create_iron_batch(StavSarzeChoice.VYLOZENA_KE_KONTROLE)
@@ -466,7 +532,7 @@ class KontrolaPrehledViewTests(ViewsTestBase):
 		item = next(item for item in response.context["items"] if item["typ"] == "zelezo")
 
 		self.assertEqual(item["ceka_od"], transition_time)
-		self.assertTrue(item["dlouho_ceka"])
+		self.assertFalse(item["rozkontrolovano"])
 
 	def test_type_filter_and_non_iron_batch_exclusion(self):
 		self._grant_control_permissions()
