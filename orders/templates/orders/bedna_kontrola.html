@@ -37,7 +37,7 @@
         <h2 class="card-header h6 mb-0">Naměřené hodnoty a jednotlivé zkoušky</h2>
         <div class="list-group list-group-flush">
             {% for zkouska in zkousky %}
-                <div class="list-group-item">
+                <div class="list-group-item{% if zkouska.typ == 'tvrdost_jadra' or zkouska.typ == 'tvrdost_povrchu' %} list-group-item-warning{% endif %}">
                     <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
                         <div class="fw-semibold">
                             {{ zkouska.nazev }}
