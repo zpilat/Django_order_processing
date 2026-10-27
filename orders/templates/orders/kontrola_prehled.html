@@ -71,7 +71,7 @@
                                 {{ item.typ_label }}
                             </span>
                         </div>
-                        <div class="col-7 col-md-2 fw-bold text-md-start text-end">{{ item.identifikace }}</div>
+                        <div class="col-7 col-md-2 fw-bold text-md-start text-end{% if item.rozkontrolovano %} text-danger{% endif %}">{{ item.identifikace }}</div>
                         <div class="col-12 col-md-3">
                             <div class="fw-semibold">{{ item.zakaznik }}</div>
                             <div class="small text-muted">{{ item.detail }}</div>
@@ -94,9 +94,7 @@
                         </div>
                         <div class="col-12 col-md-2 text-md-end small">
                             {% if item.ceka_od %}
-                                <span class="{% if item.rozkontrolovano %}text-danger fw-bold{% endif %}">
-                                    {{ item.ceka_od|date:"d.m.Y H:i" }}
-                                </span>
+                                {{ item.ceka_od|date:"d.m.Y H:i" }}
                                 <div class="text-muted">{{ item.ceka_od|timesince }} čekání</div>
                             {% else %}
                                 <span class="text-muted">Čas nezjištěn</span>
