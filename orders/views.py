@@ -750,6 +750,25 @@ def _bedna_zkousky_context(bedna, user):
     can_edit = _can_edit_mereni_bedny(user, bedna)
     merit_tvrdost = bedna.bedna_k_mereni_tvrdosti_a_povrchu
     limity_prohybu = bedna.limity_prohybu
+    preferovane_poradi = [
+        'prohyb_po_tz',
+        'ohyb',
+        'krut',
+        'tvrdost_povrchu',
+        'tvrdost_jadra',
+        'vrstva',
+        'prohyb_po_kouleni',
+        'prohyb_po_rovnani',
+    ]
+    priority = {
+        hodnota: index
+        for index, hodnota in enumerate(preferovane_poradi)
+    }
+    serazene_typy = sorted(
+        TypZkouskyChoice,
+        key=lambda typ: priority.get(typ.value, len(priority))
+    )
+
     return [
         {
             'typ': kind.value, 'nazev': kind.label, 'can_edit': can_edit,
@@ -760,7 +779,7 @@ def _bedna_zkousky_context(bedna, user):
                 TypZkouskyChoice.PROHYB_PO_ROVNANI,
             ) else None,
         }
-        for kind in TypZkouskyChoice
+        for kind in serazene_typy
         if merit_tvrdost or kind not in (
             TypZkouskyChoice.TVRDOST_POVRCHU, TypZkouskyChoice.TVRDOST_JADRA,
         )
