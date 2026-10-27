@@ -113,7 +113,9 @@ class MereniBednyFormTests(KontrolaBednyTestBase):
         overview = self.client.get(overview_url)
         self.assertEqual({item['typ']: item['rozsah_mereni'] for item in overview.context['zkousky']}, expected)
         overview_rows = overview.content.decode('utf-8').split('<div class="list-group-item">')[1:]
-        for (kind, scope), row in zip(expected.items(), overview_rows, strict=True):
+        for item, row in zip(overview.context['zkousky'], overview_rows, strict=True):
+            kind = TypZkouskyChoice(item['typ'])
+            scope = expected[kind]
             response = self.client.get(self.url_for(kind))
             self.assertEqual(response.status_code, 200)
             self.assertContains(response, kind.label)
