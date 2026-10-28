@@ -15,6 +15,11 @@ from orders.tests.test_kontrola_bedny import KontrolaBednyTestBase
 
 class KontrolaBednyFormTests(KontrolaBednyTestBase):
     def setUp(self):
+        self.bedna.stav_bedny = StavBednyChoice.ZAKALENO
+        self.bedna.hmotnost = Decimal('10')
+        self.bedna.tara = Decimal('1')
+        self.bedna.mnozstvi = 100
+        self.bedna.save(update_fields=['stav_bedny', 'hmotnost', 'tara', 'mnozstvi'])
         self.user.user_permissions.add(
             Permission.objects.get(codename='mark_bedna_zkontrolovano'),
             Permission.objects.get(codename='view_bedna'),
@@ -38,6 +43,12 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
 
     def measurement_html(self, response):
         return response.content.decode('utf-8').split('id="mereni-bedny">', 1)[1].split('</section>', 1)[0]
+
+    def create_bedna_for_control(self):
+        return Bedna.objects.create(
+            zakazka=self.bedna.zakazka, stav_bedny=StavBednyChoice.ZAKALENO,
+            hmotnost=Decimal('10'), tara=Decimal('1'), mnozstvi=100,
+        )
 
     def test_nonconformity_reasons_render_only_when_relevant(self):
         response = self.client.get(self.url)
@@ -318,7 +329,7 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
                 self.assertEqual(html.count(' prohyb-nevyhovuje">'), states.count('nevyhovuje') * 3)
 
     def test_other_customers_hide_hardness_for_subsequent_containers(self):
-        next_bedna = Bedna.objects.create(zakazka=self.bedna.zakazka)
+        next_bedna = self.create_bedna_for_control()
         response = self.client.get(reverse('bedna_kontrola', args=[next_bedna.cislo_bedny]))
 
         for kind in TypZkouskyChoice:
@@ -331,8 +342,8 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
 
     def test_ssh_and_rot_hardness_tests_are_shown_only_for_selected_containers(self):
         customer = self.bedna.zakazka.kamion_prijem.zakaznik
-        middle = Bedna.objects.create(zakazka=self.bedna.zakazka)
-        last = Bedna.objects.create(zakazka=self.bedna.zakazka)
+        middle = self.create_bedna_for_control()
+        last = self.create_bedna_for_control()
 
         for code in ('SSH', 'ROT'):
             customer.zkratka = code
@@ -353,7 +364,7 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
         customer = self.bedna.zakazka.kamion_prijem.zakaznik
         customer.zkratka = 'EUR'
         customer.save(update_fields=['zkratka'])
-        bedny = [self.bedna] + [Bedna.objects.create(zakazka=self.bedna.zakazka) for _ in range(2)]
+        bedny = [self.bedna] + [self.create_bedna_for_control() for _ in range(2)]
         hardness = (TypZkouskyChoice.TVRDOST_POVRCHU, TypZkouskyChoice.TVRDOST_JADRA)
         for bedna in bedny:
             kontrola = KontrolaBedny.objects.create(bedna=bedna)
@@ -395,6 +406,7 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
         self.assertLess(html.index(scanner_url), html.index('id="mereni-bedny"'))
 
     def test_mark_checked_button_is_above_measurements_with_label_for_state(self):
+        KontrolaBedny.objects.create(bedna=self.bedna, uvolneni=UvolneniKontrolyChoice.UVOLNENO)
         self.bedna.hmotnost = Decimal('10')
         self.bedna.tara = Decimal('1')
         self.bedna.mnozstvi = 100
@@ -415,6 +427,70 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
                 self.assertNotContains(response, other_label)
                 self.assertLess(html.index(f'href="{mark_url}"'), html.index(scanner_url))
                 self.assertLess(html.index(scanner_url), html.index('id="mereni-bedny"'))
+
+    def test_editing_and_marking_checked_follow_manufacturing_state(self):
+        kontrola = KontrolaBedny.objects.create(
+            bedna=self.bedna, uvolneni=UvolneniKontrolyChoice.UVOLNENO,
+        )
+        mark_url = reverse('bedna_scan_zkontrolovano', args=[self.bedna.cislo_bedny])
+        for state in StavBednyChoice:
+            with self.subTest(state=state):
+                Bedna.objects.filter(pk=self.bedna.pk).update(stav_bedny=state)
+                response = self.client.get(self.url)
+                self.assertEqual(response.status_code, 200)
+                editable = state in (
+                    StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO,
+                    StavBednyChoice.K_EXPEDICI,
+                )
+                markable = state in (StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO)
+                self.assertEqual(response.context['can_edit'], editable)
+                self.assertEqual(response.context['can_mark_zkontrolovano'], markable)
+                if editable:
+                    self.assertContains(response, 'Zadat / upravit hodnoty')
+                else:
+                    self.assertContains(response, '<fieldset disabled>')
+                    self.assertNotContains(response, 'Zadat / upravit hodnoty')
+                if markable:
+                    self.assertContains(response, mark_url)
+                else:
+                    self.assertNotContains(response, mark_url)
+                result = self.client.post(self.url, self.payload(response))
+                self.assertEqual(result.status_code, 302 if editable else 403)
+        self.assertEqual(kontrola.history.count(), 1)
+
+    def test_special_permissions_do_not_allow_editing_before_hardening(self):
+        self.user.user_permissions.add(
+            Permission.objects.get(codename='change_expedovana_bedna'),
+            Permission.objects.get(codename='change_pozastavena_bedna'),
+        )
+        for state in (
+            StavBednyChoice.NEPRIJATO, StavBednyChoice.PRIJATO,
+            StavBednyChoice.K_NAVEZENI, StavBednyChoice.NAVEZENO,
+            StavBednyChoice.DO_ZPRACOVANI,
+        ):
+            with self.subTest(state=state):
+                Bedna.objects.filter(pk=self.bedna.pk).update(stav_bedny=state, pozastaveno=True)
+                response = self.client.get(self.url)
+                self.assertFalse(response.context['can_edit'])
+                self.assertEqual(self.client.post(self.url, self.payload(response)).status_code, 403)
+        self.assertFalse(KontrolaBedny.objects.exists())
+
+    def test_dispatched_control_requires_special_permission(self):
+        Bedna.objects.filter(pk=self.bedna.pk).update(stav_bedny=StavBednyChoice.EXPEDOVANO)
+        response = self.client.get(self.url)
+        self.assertFalse(response.context['can_edit'])
+        self.assertEqual(self.client.post(self.url, self.payload(response)).status_code, 403)
+        self.user.user_permissions.add(Permission.objects.get(codename='change_expedovana_bedna'))
+        response = self.client.get(self.url)
+        self.assertTrue(response.context['can_edit'])
+        self.assertFalse(response.context['can_mark_zkontrolovano'])
+        self.assertEqual(self.client.post(self.url, self.payload(response)).status_code, 302)
+
+    def test_control_cannot_be_saved_after_manufacturing_state_changes(self):
+        response = self.client.get(self.url)
+        Bedna.objects.filter(pk=self.bedna.pk).update(stav_bedny=StavBednyChoice.DO_ZPRACOVANI)
+        self.assertEqual(self.client.post(self.url, self.payload(response)).status_code, 403)
+        self.assertFalse(KontrolaBedny.objects.exists())
 
     def test_first_save_creates_control_and_history(self):
         response = self.client.get(self.url)

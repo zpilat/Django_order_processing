@@ -15,7 +15,7 @@ from orders.models import (
 	Zakaznik, Odberatel, Kamion, Zakazka, Bedna, Predpis, TypHlavy, Pozice, PoziceZakazkaOrder, Zarizeni, Sarze, SarzeKrok, SarzeKrokBedna, Cena,
 	KontrolaBedny, MereniBedny,
 )
-from orders.choices import StavBednyChoice, StavSarzeChoice, KamionChoice, TryskaniChoice, RovnaniChoice, ZinkovaniChoice, PrioritaChoice, TypZarizeniChoice, TypZkouskyChoice
+from orders.choices import StavBednyChoice, StavSarzeChoice, KamionChoice, TryskaniChoice, RovnaniChoice, ZinkovaniChoice, PrioritaChoice, TypZarizeniChoice, TypZkouskyChoice, UvolneniKontrolyChoice
 from orders.views import (
 	_get_bedny_k_navezeni_groups,
 	_split_bedny_k_navezeni_groups_by_nasledne,
@@ -641,6 +641,7 @@ class BednaScanViewTests(ViewsTestBase):
 		self.assertContains(response, reverse("bedna_scan_zakaleno", args=[self.b_eur_pr.cislo_bedny]))
 
 	def test_scan_detail_links_to_kontrola_with_mark_zkontrolovano_action(self):
+		KontrolaBedny.objects.create(bedna=self.b_eur_pr, uvolneni=UvolneniKontrolyChoice.UVOLNENO)
 		self.b_eur_pr.stav_bedny = StavBednyChoice.ZAKALENO
 		self.b_eur_pr.save(update_fields=["stav_bedny"])
 		permission = Permission.objects.get(codename="mark_bedna_zkontrolovano")
@@ -2098,7 +2099,10 @@ class BednaScanViewTests(ViewsTestBase):
 		self.assertContains(response, reverse("rychle_zalozeni_sarze_pracoviste_prehled", args=[0]))
 
 	def _set_bedna_zkontrolovano_ready(self):
-		"""Nastaví b_eur_pr do stavu ZAKALENO a přidá oprávnění kontrolora."""
+		"""Nastaví bednu do stavu ZAKALENO s rozhodnutou kontrolou a oprávněním kontrolora."""
+		KontrolaBedny.objects.update_or_create(
+			bedna=self.b_eur_pr, defaults={'uvolneni': UvolneniKontrolyChoice.UVOLNENO},
+		)
 		self.b_eur_pr.stav_bedny = StavBednyChoice.ZAKALENO
 		self.b_eur_pr.rovnat = RovnaniChoice.NEZADANO
 		self.b_eur_pr.tryskat = TryskaniChoice.NEZADANO
@@ -2354,8 +2358,7 @@ class BednaScanViewTests(ViewsTestBase):
 		messages_list = list(response.wsgi_request._messages)
 		self.assertTrue(any("pozastavená" in str(m) for m in messages_list))
 
-	def test_scan_zkontrolovano_get_redirects_if_not_in_rozpracovanost(self):
-		# b_eur_pr je ve stavu PRIJATO, který není v STAV_BEDNY_ROZPRACOVANOST
+	def test_scan_zkontrolovano_get_redirects_if_state_not_allowed(self):
 		permission = Permission.objects.get(codename="mark_bedna_zkontrolovano")
 		self.user.user_permissions.add(permission)
 
@@ -2369,7 +2372,7 @@ class BednaScanViewTests(ViewsTestBase):
 			fetch_redirect_response=False,
 		)
 		messages_list = list(response.wsgi_request._messages)
-		self.assertTrue(any("rozpracovanosti" in str(m) for m in messages_list))
+		self.assertTrue(any("Zakaleno nebo Zkontrolováno" in str(m) for m in messages_list))
 
 	def test_scan_zkontrolovano_post_marks_bedna_zkontrolovano(self):
 		self._set_bedna_zkontrolovano_ready()

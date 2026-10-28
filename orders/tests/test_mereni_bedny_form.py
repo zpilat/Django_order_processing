@@ -5,12 +5,17 @@ from django.contrib.auth.models import Permission
 from django.urls import reverse
 
 from orders.choices import StavBednyChoice, TypZkouskyChoice, UvolneniKontrolyChoice
-from orders.models import KontrolaBedny, MereniBedny
+from orders.models import Bedna, KontrolaBedny, MereniBedny
 from orders.tests.test_kontrola_bedny import KontrolaBednyTestBase
 
 
 class MereniBednyFormTests(KontrolaBednyTestBase):
     def setUp(self):
+        self.bedna.stav_bedny = StavBednyChoice.ZAKALENO
+        self.bedna.hmotnost = Decimal('10')
+        self.bedna.tara = Decimal('1')
+        self.bedna.mnozstvi = 100
+        self.bedna.save(update_fields=['stav_bedny', 'hmotnost', 'tara', 'mnozstvi'])
         self.user.user_permissions.add(Permission.objects.get(codename='mark_bedna_zkontrolovano'))
         self.client.force_login(self.user)
         self.url = self.url_for(TypZkouskyChoice.TVRDOST_POVRCHU)
@@ -392,6 +397,35 @@ class MereniBednyFormTests(KontrolaBednyTestBase):
         self.assertEqual(self.client.get(self.url).status_code, 403)
         self.user.user_permissions.add(Permission.objects.get(codename='change_expedovana_bedna'))
         self.assertEqual(self.client.get(self.url).status_code, 200)
+
+    def test_manufacturing_state_is_checked_for_every_measurement_type(self):
+        self.user.user_permissions.add(Permission.objects.get(codename='change_expedovana_bedna'))
+        for state in StavBednyChoice:
+            Bedna.objects.filter(pk=self.bedna.pk).update(stav_bedny=state)
+            editable = state in (
+                StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO,
+                StavBednyChoice.K_EXPEDICI, StavBednyChoice.EXPEDOVANO,
+            )
+            for kind in TypZkouskyChoice:
+                with self.subTest(state=state, kind=kind):
+                    url = self.url_for(kind)
+                    response = self.client.get(url)
+                    self.assertEqual(response.status_code, 200 if editable else 403)
+                    if editable:
+                        result = self.client.post(url, self.payload(response, []))
+                        self.assertEqual(result.status_code, 302)
+                    else:
+                        self.assertEqual(self.client.post(url, {}).status_code, 403)
+        self.assertFalse(MereniBedny.objects.exists())
+        self.assertFalse(KontrolaBedny.objects.exists())
+
+    def test_measurements_cannot_be_saved_after_manufacturing_state_changes(self):
+        response = self.client.get(self.url)
+        Bedna.objects.filter(pk=self.bedna.pk).update(stav_bedny=StavBednyChoice.DO_ZPRACOVANI)
+        result = self.client.post(self.url, self.payload(response, [{'hodnota': '580'}]))
+        self.assertEqual(result.status_code, 403)
+        self.assertFalse(MereniBedny.objects.exists())
+        self.assertFalse(KontrolaBedny.objects.exists())
 
     def test_unknown_type_is_not_found(self):
         self.assertEqual(self.client.get(self.url_for('unknown')).status_code, 404)

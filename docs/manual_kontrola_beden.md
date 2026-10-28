@@ -63,7 +63,7 @@ Po uložení výsledků použijte **Označit bednu jako zkontrolovanou**:
 2. Nastavte stav rovnání a tryskání podle skutečného výsledku.
 3. Potvrďte změnu. Bedna přejde do stavu **Zkontrolováno**.
 
-U již zkontrolované bedny se odkaz jmenuje **Upravit stav rovnání a tryskání**. Operace je dostupná pro nepozastavené bedny ve stavech Navezeno, Ve zpracování, Zakaleno a Zkontrolováno s oprávněním `orders.mark_bedna_zkontrolovano`.
+U již zkontrolované bedny se odkaz jmenuje **Upravit stav rovnání a tryskání**. Odkaz i samotná operace jsou dostupné pouze pro nepozastavené bedny ve stavech **Zakaleno a Zkontrolováno** s oprávněním `orders.mark_bedna_zkontrolovano`. Ve výstupní kontrole musí být uložené rozhodnutí o uvolnění jiné než výchozí nerozhodnuto: **Uvolněno, Uvolněno QS s odchylkou nebo Neshoda**. Bez uložené kontroly nebo s nerozhodnutým uvolněním se odkaz nezobrazuje a změnu nelze provést ani přímým otevřením adresy formuláře.
 
 Uložení měření nebo uvolnění samo výrobní stav nezmění. Označení Zkontrolováno samo nezapisuje měření ani uvolnění. Před pokračováním zkontrolujte obě části evidence.
 
@@ -90,11 +90,13 @@ Vyplněná karta tiskne nejvýše prvních 10 hodnot jednotlivých zkoušek bez 
 | Úkol | Potřebné oprávnění |
 | --- | --- |
 | Zobrazení kontroly | `orders.view_bedna` nebo `orders.mark_bedna_zkontrolovano` |
-| Zápis kontroly a měření | `orders.mark_bedna_zkontrolovano` |
+| Zápis kontroly a měření | `orders.mark_bedna_zkontrolovano`; běžně pouze ve stavech Zakaleno, Zkontrolováno a K expedici |
 | Zápis u pozastavené bedny | Navíc `orders.change_pozastavena_bedna` |
 | Zápis u expedované bedny | Navíc `orders.change_expedovana_bedna` |
 
 Oprávnění k úpravě pozastavené bedny umožňuje zápis výsledků, ale její označení jako Zkontrolováno přes tento postup zůstává blokované.
+
+Ve stavu Expedováno lze kontrolu a měření upravit pouze s dodatečným oprávněním `orders.change_expedovana_bedna`. Ve stavech Nepřijato, Přijato, K navezení, Navezeno a Ve zpracování lze kontrolu pouze zobrazit; zápis není povolen ani se zvláštními oprávněními pro expedované či pozastavené bedny. Podmínky se znovu ověřují při ukládání.
 
 Pokud jiný uživatel mezitím změnil kontrolu nebo měření, systém odmítne přepsat jeho údaje. Použijte **Načíst aktuální údaje / hodnoty**, zkontrolujte změny a zadejte úpravu znovu.
 
@@ -103,7 +105,7 @@ Pokud jiný uživatel mezitím změnil kontrolu nebo měření, systém odmítne
 - **Kontrola je jen pro čtení:** ověřte oprávnění, pozastavení a expedici bedny.
 - **Neshoda nejde uložit:** vyberte důvod; u Jiné doplňte poznámku.
 - **Chybí požadavek zkoušky:** zkontrolujte předpis zakázky; prázdný požadavek neznamená automatické vyhovění zkoušky.
-- **Chybí tlačítko Zkontrolováno:** ověřte výrobní stav, pozastavení a oprávnění.
+- **Chybí tlačítko Zkontrolováno:** ověřte stav Zakaleno nebo Zkontrolováno, pozastavení, oprávnění a uložené rozhodnutí o uvolnění jiné než nerozhodnuto.
 - **Bedna stále čeká v přehledu kontroly:** uložení výsledků ji nepřepne ze stavu Zakaleno; potvrďte výrobní stav.
 - **Vyplněná KKK nejde vytisknout:** ověřte výběr jednoho zákazníka, uloženou kontrolu u každé bedny, hmotnost a předpis zakázky. U kamionu musí jít o jeden kamion výdej.
 - **Chybí pomocné popisy na vyplněné KKK:** ověřte pole Zkratka státu zákazníka; pro CZ, nevyplněnou nebo neznámou zkratku se pomocné popisy netisknou.

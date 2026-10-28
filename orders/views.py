@@ -64,7 +64,8 @@ from .services.mereni_bedny_service import (
 from .choices import (
     StavBednyChoice, StavSarzeChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice, TypZarizeniChoice,
     ZinkovaniChoice, STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM,
-    STAV_BEDNY_PODMINKA_PRO_ZMENU_NA_ZAKALENO, TypZkouskyChoice, UvolneniKontrolyChoice
+    STAV_BEDNY_PODMINKA_PRO_ZMENU_NA_ZAKALENO,
+    STAV_BEDNY_PODMINKA_PRO_ZMENU_NA_ZKONTROLOVANO, TypZkouskyChoice, UvolneniKontrolyChoice
 )
 from weasyprint import HTML, CSS
 
@@ -574,6 +575,12 @@ def _bedna_scan_can_mark_navezeno(user, bedna):
     )
 
 
+def _bedna_ma_rozhodnuti_kontroly(bedna):
+    return KontrolaBedny.objects.filter(bedna=bedna).exclude(
+        uvolneni=UvolneniKontrolyChoice.NEROZHODNUTO,
+    ).exists()
+
+
 def _bedna_scan_can_mark_zkontrolovano(user, bedna):
     """
     Kontroluje, zda má uživatel oprávnění označit bednu jako zkontrolovanou.
@@ -581,7 +588,8 @@ def _bedna_scan_can_mark_zkontrolovano(user, bedna):
     return (
         user.has_perm('orders.mark_bedna_zkontrolovano')
         and not bedna.pozastaveno
-        and bedna.stav_bedny in STAV_BEDNY_ROZPRACOVANOST
+        and bedna.stav_bedny in STAV_BEDNY_PODMINKA_PRO_ZMENU_NA_ZKONTROLOVANO
+        and _bedna_ma_rozhodnuti_kontroly(bedna)
     )
 
 
@@ -738,8 +746,14 @@ def _can_edit_mereni_bedny(user, bedna):
         user.has_perm('orders.mark_bedna_zkontrolovano')
         and (not bedna.pozastaveno or user.has_perm('orders.change_pozastavena_bedna'))
         and (
-            bedna.stav_bedny != StavBednyChoice.EXPEDOVANO
-            or user.has_perm('orders.change_expedovana_bedna')
+            bedna.stav_bedny in (
+                StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO,
+                StavBednyChoice.K_EXPEDICI,
+            )
+            or (
+                bedna.stav_bedny == StavBednyChoice.EXPEDOVANO
+                and user.has_perm('orders.change_expedovana_bedna')
+            )
         )
     )
 
@@ -1081,12 +1095,16 @@ def bedna_scan_zkontrolovano_view(request, cislo_bedny: int):
         )
         messages.error(request, f'Bedna {bedna.cislo_bedny} je pozastavená a nelze ji označit jako zkontrolovanou.')
         return redirect('bedna_kontrola', cislo_bedny=bedna.cislo_bedny)
-    if bedna.stav_bedny not in STAV_BEDNY_ROZPRACOVANOST:
+    if bedna.stav_bedny not in STAV_BEDNY_PODMINKA_PRO_ZMENU_NA_ZKONTROLOVANO:
         logger.warning(
             f"Uživatel {request.user} se pokusil označit přes scan bednu {bedna.cislo_bedny} jako zkontrolovanou, "
-            f"ale bedna není ve stavu rozpracovanosti."
+            f"ale bedna není ve stavu Zakaleno nebo Zkontrolováno."
         )
-        messages.error(request, f'Bedna {bedna.cislo_bedny} není ve stavu rozpracovanosti.')
+        messages.error(request, f'Bedna {bedna.cislo_bedny} není ve stavu Zakaleno nebo Zkontrolováno.')
+        return redirect('bedna_kontrola', cislo_bedny=bedna.cislo_bedny)
+
+    if not _bedna_ma_rozhodnuti_kontroly(bedna):
+        messages.error(request, 'Před označením bedny jako zkontrolované uložte rozhodnutí o uvolnění ve výstupní kontrole.')
         return redirect('bedna_kontrola', cislo_bedny=bedna.cislo_bedny)
 
     if request.method == 'POST':
@@ -1109,12 +1127,16 @@ def bedna_scan_zkontrolovano_view(request, cislo_bedny: int):
                 )
                 messages.error(request, f'Bedna {bedna.cislo_bedny} je pozastavená a nelze ji označit jako zkontrolovanou.')
                 return redirect('bedna_kontrola', cislo_bedny=bedna.cislo_bedny)
-            if bedna.stav_bedny not in STAV_BEDNY_ROZPRACOVANOST:
+            if bedna.stav_bedny not in STAV_BEDNY_PODMINKA_PRO_ZMENU_NA_ZKONTROLOVANO:
                 logger.warning(
                     f"Uživatel {request.user} se pokusil označit přes scan bednu {bedna.cislo_bedny} jako zkontrolovanou, "
-                    f"ale bedna není ve stavu rozpracovanosti."
+                    f"ale bedna není ve stavu Zakaleno nebo Zkontrolováno."
                 )
-                messages.error(request, f'Bedna {bedna.cislo_bedny} není ve stavu rozpracovanosti.')
+                messages.error(request, f'Bedna {bedna.cislo_bedny} není ve stavu Zakaleno nebo Zkontrolováno.')
+                return redirect('bedna_kontrola', cislo_bedny=bedna.cislo_bedny)
+
+            if not _bedna_ma_rozhodnuti_kontroly(bedna):
+                messages.error(request, 'Před označením bedny jako zkontrolované uložte rozhodnutí o uvolnění ve výstupní kontrole.')
                 return redirect('bedna_kontrola', cislo_bedny=bedna.cislo_bedny)
 
             form = BednaScanZkontrolovanoForm(request.POST, bedna=bedna)

@@ -71,7 +71,7 @@
         <h2 class="card-header h6 mb-0">Výstupní kontrola</h2>
         <div class="card-body">
             {% if not can_edit %}
-                <div class="alert alert-info">Kontrolu můžete pouze zobrazit. K úpravám nemáte potřebné oprávnění.</div>
+                <div class="alert alert-info">Kontrolu můžete pouze zobrazit. Úpravy vyžadují příslušné oprávnění a stav Zakaleno, Zkontrolováno nebo K expedici. U expedované bedny je nutné zvláštní oprávnění, stejně jako u pozastavené bedny.</div>
             {% endif %}
             <form method="post" novalidate autocomplete="off">
                 {% csrf_token %}
