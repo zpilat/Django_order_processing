@@ -50,7 +50,7 @@ Kamerový skener nebo čtečka otevře bednu či šarži a příslušné provozn
 - Zápis ohybu, krutu, prohybu po jednotlivých operacích, tvrdosti a vrstvy.
 - Zobrazení požadavků předpisu a zákaznických mezí prohybu.
 - Výstupní kontrola čistoty, uložení a počtů křivých vrutů.
-- Rozhodnutí Neshoda, Uvolněno nebo Uvolněno s odchylkou a evidence autora rozhodnutí.
+- Rozhodnutí Neshoda, Uvolněno nebo Uvolněno QS s odchylkou a evidence autora rozhodnutí.
 - Přehled čekajících kontrol a aktuálních neshod s důvody a filtry.
 
 Uložení výsledků a potvrzení výrobního stavu Zkontrolováno jsou samostatné operace. Barevné zvýraznění hodnot podporuje rozhodování obsluhy.

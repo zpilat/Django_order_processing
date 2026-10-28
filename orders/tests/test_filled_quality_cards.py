@@ -458,9 +458,9 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
         kontrola = self.create_control()
         template = TEMPLATE_PATH
         for country, translations in (
-            ('D', ('Freigegeben', 'Freigegeben mit Abweichung', 'Nichtkonformität')),
-            ('A', ('Freigegeben', 'Freigegeben mit Abweichung', 'Nichtkonformität')),
-            ('I', ('Rilasciato', 'Rilasciato con deroga', 'Non conformità')),
+            ('D', ('Freigegeben', 'Von QS mit Abweichung freigegeben', 'Nichtkonformität')),
+            ('A', ('Freigegeben', 'Von QS mit Abweichung freigegeben', 'Nichtkonformität')),
+            ('I', ('Rilasciato', 'Rilasciato da QS con deroga', 'Non conformità')),
             ('CZ', ('', '', '')), (None, ('', '', '')), ('SK', ('', '', '')),
         ):
             self.customer.zkratka_statu = country

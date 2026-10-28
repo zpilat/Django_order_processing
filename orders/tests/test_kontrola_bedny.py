@@ -87,9 +87,9 @@ class KontrolaBednyTests(KontrolaBednyTestBase):
             kontrola.refresh_from_db()
             self.assertEqual(kontrola.uvolneni, status)
         self.assertEqual(
-            UvolneniKontrolyChoice.labels, ['--------', 'Neshoda', 'Uvolněno', 'Uvolněno s odchylkou'],
+            UvolneniKontrolyChoice.labels, ['--------', 'Uvolněno', 'Uvolněno QS s odchylkou', 'Neshoda'],
         )
-        self.assertEqual(UvolneniKontrolyChoice.values, ['--', 'NE', 'UV', 'UO'])
+        self.assertEqual(UvolneniKontrolyChoice.values, ['--', 'UV', 'UO', 'NE'])
 
     def test_order_starts_at_one(self):
         kontrola = KontrolaBedny.objects.create(bedna=self.bedna)

@@ -48,10 +48,10 @@ Vyplňte:
 
 - **Čistota** a **Uložení**: nezadáno, OK nebo NOK.
 - **Počet křivých 1. měření / 2. měření**: počty křivých vrutů z kontrolního vzorku. U pole je velikost vzorku nastavená pro zákazníka.
-- **Uvolnění**: nerozhodnuto (`--------`), Neshoda, Uvolněno nebo Uvolněno s odchylkou.
+- **Uvolnění**: nerozhodnuto (`--------`), Neshoda, Uvolněno nebo Uvolněno QS s odchylkou.
 - **Poznámka**: vysvětlení výsledku nebo provozní informace.
 
-Při **Neshodě** vyberte alespoň jeden důvod. Lze vybrat více důvodů: čistota, nízký/vysoký krut, nízký ohyb, nízká/vysoká tvrdost povrchu či jádra, vrstva, křivost, pomíchané vruty, chyba v procesu nebo Jiné. U **Jiné** je povinné upřesnění v poznámce.
+Při **Neshodě** nebo **Uvolněno QS s odchylkou** vyberte alespoň jeden důvod. Lze vybrat více důvodů: čistota, nízký/vysoký krut, nízký ohyb, nízká/vysoká tvrdost povrchu či jádra, vrstva, křivost, pomíchané vruty, chyba v procesu nebo Jiné. U **Jiné** je povinné upřesnění v poznámce.
 
 Klikněte na **Uložit kontrolu bedny**. U rozhodnutí se eviduje, kdo a kdy stav uvolnění změnil; návrat na nerozhodnuto tyto aktuální údaje vymaže, historie zůstává.
 
@@ -75,7 +75,7 @@ Administrace **Kontroly beden** a **Měření beden** slouží k prohlížení z
 
 Z administrace beden či zakázek lze pro všechny zákazníky použít akci **Vytisknout vyplněné KKK**, případně variantu pro zakázky. Výběr musí patřit jednomu zákazníkovi a každá bedna musí mít uloženou kontrolu. V administraci kamionů je tisk vyplněných KKK dostupný pouze pro kamion výdej; bedny bez kontroly se přeskočí s varováním. Prázdné KKK mají vlastní akci a zákaznické šablony. Před tiskem ověřte měření a uvolnění.
 
-Vyplněné KKK používají jednu společnou šablonu. Hlavní popisy jsou vždy česky, pomocné popisy se řídí polem **Zkratka státu** zákazníka: **D** a **A** přidají němčinu, **I** italštinu, **CZ** zobrazí pouze češtinu. U nevyplněné nebo neznámé zkratky státu se zobrazí pouze čeština. Mezery kolem zkratky a velikost písmen výběr jazyka neovlivňují. Vedle českého stavu uvolnění se za lomítkem zobrazí pomocný překlad stavů Uvolněno, Uvolněno s odchylkou a Neshoda. Nerozhodnutý stav pomocný překlad nemá. Za polem OTRYSKANÁ? je pole VYROVNANÁ?: pouze stav Vyrovnaná se zobrazuje jako fajfka v zeleném poli, ostatní stavy rovnání jako pomlčka v šedém poli.
+Vyplněné KKK používají jednu společnou šablonu. Hlavní popisy jsou vždy česky, pomocné popisy se řídí polem **Zkratka státu** zákazníka: **D** a **A** přidají němčinu, **I** italštinu, **CZ** zobrazí pouze češtinu. U nevyplněné nebo neznámé zkratky státu se zobrazí pouze čeština. Mezery kolem zkratky a velikost písmen výběr jazyka neovlivňují. Vedle českého stavu uvolnění se za lomítkem zobrazí pomocný překlad stavů Uvolněno, Uvolněno QS s odchylkou a Neshoda. Nerozhodnutý stav pomocný překlad nemá. Za polem OTRYSKANÁ? je pole VYROVNANÁ?: pouze stav Vyrovnaná se zobrazuje jako fajfka v zeleném poli, ostatní stavy rovnání jako pomlčka v šedém poli.
 
 Minimální počty zapsaných hodnot a název protokolu se nastavují v detailu zákazníka v části **Kontrola kvality**: **Minimum hodnot mechanických zkoušek**, **Minimum hodnot prohybu**, **Minimum hodnot tvrdosti** a **Název protokolu**. Minimum platí pro každou příslušnou zkoušku zvlášť: ohyb a krut, prováděné fáze prohybu, povrch a jádro. Prázdné minimum znamená, že se popisek netiskne; vyplněné minimum musí být alespoň 1. Popisky se zobrazují česky i ve zvoleném pomocném jazyce. Celkový počet vrutů odebraných z bedny pro kontrolu prohybu je samostatný údaj a může být vyšší než minimum hodnot zapisovaných do KKK. Nastavení minima zatím neblokuje uložení měření, uvolnění ani tisk neúplné karty.
 

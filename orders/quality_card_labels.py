@@ -26,7 +26,7 @@ HELPER_LABELS = {
         'release': 'Freigabe',
         'release_status': {
             UvolneniKontrolyChoice.UVOLNENO: 'Freigegeben',
-            UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU: 'Freigegeben mit Abweichung',
+            UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU: 'Von QS mit Abweichung freigegeben',
             UvolneniKontrolyChoice.NESHODA: 'Nichtkonformität',
         },
         'layer': 'Schicht',
@@ -67,7 +67,7 @@ HELPER_LABELS = {
         'release': 'Rilascio',
         'release_status': {
             UvolneniKontrolyChoice.UVOLNENO: 'Rilasciato',
-            UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU: 'Rilasciato con deroga',
+            UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU: 'Rilasciato da QS con deroga',
             UvolneniKontrolyChoice.NESHODA: 'Non conformità',
         },
         'layer': 'Strato',

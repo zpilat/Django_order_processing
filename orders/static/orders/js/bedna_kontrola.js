@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const checkboxes = Array.from(duvody.querySelectorAll('input[type="checkbox"]'));
     const aktualizovatViditelnost = () => {
-        const zobrazit = uvolneni.value === 'NE' || checkboxes.some(checkbox => checkbox.checked);
+        const zobrazit = ['NE', 'UO'].includes(uvolneni.value) || checkboxes.some(checkbox => checkbox.checked);
         duvody.classList.toggle('d-none', !zobrazit);
     };
 

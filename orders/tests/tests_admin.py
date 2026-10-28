@@ -1638,7 +1638,7 @@ class BednaAdminTests(AdminBase):
             bedna=self.bedna, uvolneni=UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU,
         )
         self.bedna.refresh_from_db()
-        self.assertEqual(self.admin.get_uvolneni_kontroly(self.bedna), 'Uvolněno s odchylkou')
+        self.assertEqual(self.admin.get_uvolneni_kontroly(self.bedna), 'Uvolněno QS s odchylkou')
 
         self.client.force_login(self.user)
         response = self.client.get(
@@ -1647,7 +1647,7 @@ class BednaAdminTests(AdminBase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertIn('get_uvolneni_kontroly', response.context['cl'].list_display)
-        self.assertContains(response, 'Uvolněno s odchylkou')
+        self.assertContains(response, 'Uvolněno QS s odchylkou')
 
     def test_checked_changelist_loads_release_without_query_per_bedna(self):
         self.bedna.stav_bedny = StavBednyChoice.ZKONTROLOVANO

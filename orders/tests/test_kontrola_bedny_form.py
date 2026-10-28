@@ -48,6 +48,7 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
 
         for status, selected in (
             (UvolneniKontrolyChoice.NESHODA, False),
+            (UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU, False),
             (UvolneniKontrolyChoice.UVOLNENO, True),
         ):
             with self.subTest(status=status):
@@ -124,18 +125,21 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
         self.assertTrue(kontrola.neshoda_krivost)
         self.assertTrue(self.client.get(self.url).context['form'].zobrazit_duvody_neshody)
 
-    def test_nonconformity_requires_a_reason_but_other_statuses_do_not(self):
-        response = self.client.get(self.url)
-        result = self.client.post(self.url, self.payload(
-            response, uvolneni=UvolneniKontrolyChoice.NESHODA,
-        ))
-        self.assertEqual(result.status_code, 200)
-        self.assertContains(result, 'Při neshodě vyberte alespoň jeden důvod neshody.')
-        self.assertContains(result, 'Kontrolu bedny se nepodařilo uložit. Příčinu najdete ve formuláři Výstupní kontrola.', count=1)
-        html = result.content.decode('utf-8')
-        self.assertLess(html.index('Kontrolu bedny se nepodařilo uložit.'), html.index('<form method="post" novalidate'))
-        self.assertTrue(result.context['form'].zobrazit_duvody_neshody)
-        self.assertFalse(KontrolaBedny.objects.exists())
+    def test_nonconformity_and_deviation_require_a_reason_but_other_statuses_do_not(self):
+        for status, message in (
+            (UvolneniKontrolyChoice.NESHODA, 'Při neshodě vyberte alespoň jeden důvod neshody.'),
+            (UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU, 'Při uvolnění QS s odchylkou vyberte alespoň jeden důvod odchylky.'),
+        ):
+            with self.subTest(status=status):
+                response = self.client.get(self.url)
+                result = self.client.post(self.url, self.payload(response, uvolneni=status))
+                self.assertEqual(result.status_code, 200)
+                self.assertContains(result, message)
+                self.assertContains(result, 'Kontrolu bedny se nepodařilo uložit. Příčinu najdete ve formuláři Výstupní kontrola.', count=1)
+                html = result.content.decode('utf-8')
+                self.assertLess(html.index('Kontrolu bedny se nepodařilo uložit.'), html.index('<form method="post" novalidate'))
+                self.assertTrue(result.context['form'].zobrazit_duvody_neshody)
+                self.assertFalse(KontrolaBedny.objects.exists())
 
         response = self.client.get(self.url)
         self.assertRedirects(self.client.post(self.url, self.payload(
@@ -157,36 +161,45 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
         self.assertFalse(kontrola.neshoda_cistota)
 
     def test_other_nonconformity_reason_requires_nonblank_note(self):
-        for note in ('', ' \t\n '):
-            with self.subTest(note=note):
+        statuses = (UvolneniKontrolyChoice.NESHODA, UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU)
+        for status in statuses:
+            for note in ('', ' \t\n '):
+                with self.subTest(status=status, note=note):
+                    response = self.client.get(self.url)
+                    result = self.client.post(self.url, self.payload(
+                        response, uvolneni=status,
+                        neshoda_jine='on', poznamka=note,
+                    ))
+                    self.assertEqual(result.status_code, 200)
+                    self.assertIn('poznamka', result.context['form'].errors)
+                    self.assertNotIn('uvolneni', result.context['form'].errors)
+                    self.assertTrue(result.context['form']['neshoda_jine'].value())
+                    self.assertTrue(result.context['form'].zobrazit_duvody_neshody)
+                    self.assertFalse(KontrolaBedny.objects.exists())
+
+        for status in statuses:
+            with self.subTest(status=status, valid_note=True):
                 response = self.client.get(self.url)
                 result = self.client.post(self.url, self.payload(
-                    response, uvolneni=UvolneniKontrolyChoice.NESHODA,
-                    neshoda_jine='on', poznamka=note,
+                    response, uvolneni=status,
+                    neshoda_jine='on', poznamka='Poškozený závit',
                 ))
-                self.assertEqual(result.status_code, 200)
-                self.assertIn('poznamka', result.context['form'].errors)
-                self.assertNotIn('uvolneni', result.context['form'].errors)
-                self.assertTrue(result.context['form']['neshoda_jine'].value())
-                self.assertTrue(result.context['form'].zobrazit_duvody_neshody)
-                self.assertFalse(KontrolaBedny.objects.exists())
-
-        response = self.client.get(self.url)
-        result = self.client.post(self.url, self.payload(
-            response, uvolneni=UvolneniKontrolyChoice.NESHODA,
-            neshoda_jine='on', poznamka='Poškozený závit',
-        ))
-        self.assertRedirects(result, self.url)
-        kontrola = KontrolaBedny.objects.get(bedna=self.bedna)
-        self.assertTrue(kontrola.neshoda_jine)
-        self.assertEqual(kontrola.poznamka, 'Poškozený závit')
+                self.assertRedirects(result, self.url)
+                kontrola = KontrolaBedny.objects.get(bedna=self.bedna)
+                self.assertEqual(kontrola.uvolneni, status)
+                self.assertTrue(kontrola.neshoda_jine)
+                self.assertEqual(kontrola.poznamka, 'Poškozený závit')
 
     def test_other_reason_note_on_edit_and_after_status_change(self):
         kontrola = KontrolaBedny.objects.create(
             bedna=self.bedna, uvolneni=UvolneniKontrolyChoice.NESHODA,
             neshoda_jine=True, poznamka='Původní důvod',
         )
-        for status in (UvolneniKontrolyChoice.NESHODA, UvolneniKontrolyChoice.UVOLNENO):
+        for status in (
+            UvolneniKontrolyChoice.NESHODA,
+            UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU,
+            UvolneniKontrolyChoice.UVOLNENO,
+        ):
             with self.subTest(status=status):
                 response = self.client.get(self.url)
                 result = self.client.post(self.url, self.payload(
@@ -544,6 +557,7 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
                 self.assertNotContains(response, '<option value="PO">')
                 result = self.client.post(self.url, self.payload(
                     response, uvolneni=UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU,
+                    neshoda_cistota='on',
                 ))
                 self.assertRedirects(result, self.url)
                 kontrola = KontrolaBedny.objects.get(bedna=self.bedna)
@@ -591,7 +605,10 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
                 with patch('orders.views.timezone.now', return_value=decision_time):
                     result = self.client.post(self.url, self.payload(
                         response, uvolneni=status,
-                        **({'neshoda_cistota': 'on'} if status == UvolneniKontrolyChoice.NESHODA else {}),
+                        **({'neshoda_cistota': 'on'} if status in (
+                            UvolneniKontrolyChoice.NESHODA,
+                            UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU,
+                        ) else {}),
                     ))
                 self.assertRedirects(result, self.url)
                 kontrola.refresh_from_db()

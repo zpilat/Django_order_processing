@@ -104,9 +104,9 @@ class VysledekKontrolyChoice(models.TextChoices):
 
 class UvolneniKontrolyChoice(models.TextChoices):
     NEROZHODNUTO = '--', '--------'
-    NESHODA = 'NE', 'Neshoda'
     UVOLNENO = 'UV', 'Uvolněno'
-    UVOLNENO_S_ODCHYLKOU = 'UO', 'Uvolněno s odchylkou'
+    UVOLNENO_S_ODCHYLKOU = 'UO', 'Uvolněno QS s odchylkou'
+    NESHODA = 'NE', 'Neshoda'    
 
 
 class PrioritaChoice(models.TextChoices):

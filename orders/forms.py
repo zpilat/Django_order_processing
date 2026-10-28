@@ -90,11 +90,19 @@ class KontrolaBednyForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
+        uvolneni = cleaned_data.get('uvolneni')
         if (
-            cleaned_data.get('uvolneni') == UvolneniKontrolyChoice.NESHODA
+            uvolneni in (
+                UvolneniKontrolyChoice.NESHODA,
+                UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU,
+            )
             and not any(cleaned_data.get(name) for name in self.neshoda_fields)
         ):
-            self.add_error('uvolneni', 'Při neshodě vyberte alespoň jeden důvod neshody.')
+            self.add_error('uvolneni', (
+                'Při neshodě vyberte alespoň jeden důvod neshody.'
+                if uvolneni == UvolneniKontrolyChoice.NESHODA
+                else 'Při uvolnění QS s odchylkou vyberte alespoň jeden důvod odchylky.'
+            ))
         if cleaned_data.get('neshoda_jine') and not cleaned_data.get('poznamka'):
             self.add_error('poznamka', 'Při typu neshody "Jiné" uveďte do poznámky, o jakou neshodu se jedná.')
         return cleaned_data
@@ -106,7 +114,10 @@ class KontrolaBednyForm(forms.ModelForm):
     @property
     def zobrazit_duvody_neshody(self):
         return (
-            self['uvolneni'].value() == UvolneniKontrolyChoice.NESHODA
+            self['uvolneni'].value() in (
+                UvolneniKontrolyChoice.NESHODA,
+                UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU,
+            )
             or any(self[name].value() for name in self.neshoda_fields)
         )
 
