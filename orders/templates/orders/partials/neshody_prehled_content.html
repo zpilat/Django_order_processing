@@ -26,7 +26,7 @@
               hx-trigger="change, submit"
               hx-sync="this:replace"
               class="row align-items-end small g-2 p-3 bg-light">
-            <div class="col-12 col-md-4">
+            <div class="col-12 col-md-2">
                 <label for="zakaznik_filter" class="form-label small fw-semibold mb-1">Zákazník</label>
                 <select name="zakaznik_filter" id="zakaznik_filter" class="form-select form-select-sm">
                     {% for value, label in zakaznik_choices %}
@@ -52,6 +52,14 @@
                 <input type="date" name="den_filter_do" id="den_filter_do" value="{{ den_filter_do }}"
                        class="form-control form-control-sm">
             </div>
+            <div class="col-12 col-md-2 d-flex justify-content-end">
+                {% if date_filter_errors %}
+                    <span class="btn btn-primary btn-sm disabled" aria-disabled="true">Tisk do PDF</span>
+                {% else %}
+                    <a href="{{ pdf_url }}" target="_blank" rel="noopener" hx-boost="false"
+                       class="btn btn-primary btn-sm">Tisk do PDF</a>
+                {% endif %}
+            </div>
             {% if date_filter_errors %}
             <div class="col-12" role="alert">
                 {% for error in date_filter_errors %}
@@ -59,14 +67,6 @@
                 {% endfor %}
             </div>
             {% endif %}
-            <div class="col-12 d-flex justify-content-end">
-                {% if date_filter_errors %}
-                    <span class="btn btn-outline-secondary btn-sm disabled" aria-disabled="true">Tisk do PDF</span>
-                {% else %}
-                    <a href="{{ pdf_url }}" target="_blank" rel="noopener" hx-boost="false"
-                       class="btn btn-outline-secondary btn-sm">Tisk do PDF</a>
-                {% endif %}
-            </div>
         </form>
     </section>
 
