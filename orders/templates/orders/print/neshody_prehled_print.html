@@ -48,10 +48,11 @@
         <colgroup>
             <col style="width: 17%;">
             <col style="width: 9%;">
+            <col style="width: 17%;">
             <col style="width: 21%;">
-            <col style="width: 25%;">
             <col style="width: 7%;">
             <col style="width: 13%;">
+            <col style="width: 8%;">
             <col style="width: 8%;">
         </colgroup>
         <thead>
@@ -63,13 +64,14 @@
                 <th>Křivých</th>
                 <th>Označeno</th>
                 <th class="number">Netto kg</th>
+                <th class="number">Skut. kg</th>
             </tr>
         </thead>
         <tbody>
             {% for item in items %}
                 {% ifchanged item.oznaceno_at|date:"Y-m-d" %}
                 <tr class="day-header">
-                    <th colspan="7">
+                    <th colspan="8">
                         {% if item.oznaceno_at %}{{ item.oznaceno_at|date:"d.m.Y" }}{% else %}Datum označení nezjištěno{% endif %}
                     </th>
                 </tr>
@@ -101,6 +103,7 @@
                         {% else %}Čas nezjištěn{% endif %}
                     </td>
                     <td class="number">{% if item.bedna.hmotnost != None %}{{ item.bedna.hmotnost|floatformat:1 }}{% else %}—{% endif %}</td>
+                    <td></td>
                 </tr>
             {% endfor %}
         </tbody>

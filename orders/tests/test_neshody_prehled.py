@@ -477,7 +477,7 @@ class NeshodyPrehledPdfTests(KontrolaBednyTestBase):
         self.assertEqual(soup.h1.get_text(), 'Přehled neshod')
         self.assertIn('28.10.2026 13:00', soup.get_text())
         self.assertIn('Celkem beden: 1', soup.get_text())
-        self.assertEqual(len(soup.select('thead th')), 7)
+        self.assertEqual(len(soup.select('thead th')), 8)
         filters = soup.select_one('.filters').get_text()
         for text in ('TEST', 'Vrstva', '2.10.2026 - 2.10.2026'):
             self.assertIn(text, filters)
@@ -493,6 +493,7 @@ class NeshodyPrehledPdfTests(KontrolaBednyTestBase):
         self.assertIn('Jan Novák', cells[5].get_text())
         self.assertIn('02.10.26 00:30', cells[5].get_text())
         self.assertEqual(cells[6].get_text(), '432,1')
+        self.assertEqual(cells[7].get_text(), '')
 
     @patch('orders.views.HTML')
     def test_pdf_handles_missing_dates_and_missing_or_zero_weight(self, renderer):
@@ -505,9 +506,9 @@ class NeshodyPrehledPdfTests(KontrolaBednyTestBase):
         self.assertIn('Datum označení nezjištěno', soup.get_text())
         self.assertEqual(soup.select_one('.filters').get_text().count('Bez omezení'), 2)
         rows = soup.select('tbody tr:not(.day-header)')
-        self.assertEqual(rows[0].find_all('td')[-1].get_text(), '—')
-        self.assertEqual(rows[1].find_all('td')[-1].get_text(), '0,0')
-        self.assertEqual(rows[-1].find_all('td')[-2].get_text().strip(), 'Čas nezjištěn')
+        self.assertEqual(rows[0].find_all('td')[6].get_text(), '—')
+        self.assertEqual(rows[1].find_all('td')[6].get_text(), '0,0')
+        self.assertEqual(rows[-1].find_all('td')[5].get_text().strip(), 'Čas nezjištěn')
 
     @patch('orders.views.HTML')
     def test_invalid_dates_block_pdf_generation(self, renderer):
