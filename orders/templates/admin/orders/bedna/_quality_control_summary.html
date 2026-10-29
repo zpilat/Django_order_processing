@@ -50,7 +50,7 @@
             <div class="qc-status {% if kontrola.uvolneni == 'UV' %}qc-good{% elif kontrola.uvolneni == 'UO' %}qc-warning{% elif kontrola.uvolneni == 'NE' %}qc-bad{% endif %}">
                 <span class="qc-label">Uvolnění</span>
                 <span class="qc-value">{{ kontrola.get_uvolneni_display }}</span>
-                {% if kontrola.uvolneni == 'NE' and duvody_neshody %}<span class="qc-detail qc-reasons"><strong>Důvody neshody:</strong> {{ duvody_neshody|join:", " }}</span>{% endif %}
+                {% if duvody_neshody and kontrola.uvolneni == 'NE' or duvody_neshody and kontrola.uvolneni == 'UO' %}<span class="qc-detail qc-reasons"><strong>Důvody neshody:</strong> {{ duvody_neshody|join:", " }}</span>{% endif %}
                 {% if kontrola.uvolneni_zmenil or kontrola.uvolneni_zmeneno_at %}<span class="qc-detail">{{ kontrola.uvolneni_zmenil|default:"—" }} · {{ kontrola.uvolneni_zmeneno_at|date:"j.n.Y H:i" }}</span>{% endif %}
             </div>
         </div>
