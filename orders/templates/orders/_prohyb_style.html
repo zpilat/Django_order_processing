@@ -1,4 +1,11 @@
 <style>
     .prohyb-odchylka { color: #bf5b00 !important; }
-    .prohyb-nevyhovuje { color: #c62828 !important; }
+    .prohyb-nevyhovuje {
+        {% if pouze_text %}
+        color: #c62828 !important;
+        {% else %}
+        background-color: #c62828 !important;
+        color: #fff !important;
+        {% endif %}
+    }
 </style>

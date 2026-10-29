@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <title>Karta kontroly kvality</title>
     {% include "orders/_pdf_shared_style.html" %}
-    {% include "orders/_prohyb_style.html" %}
+    {% include "orders/_prohyb_style.html" with pouze_text=True only %}
     <style>
         :root { --ink: #17212b; --muted: #586573; --line: #89939d; --panel: #eef1f4; --panel-dark: #d8dee4; --ok: #dcebdd; --ok-ink: #16733a; --nok: #f4dada; --pending: #eee9d4; }
         body { color: var(--ink); font-family: 'Liberation Sans', 'Arial'; }

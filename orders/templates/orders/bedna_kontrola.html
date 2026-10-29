@@ -37,7 +37,7 @@
         <h2 class="card-header h6 mb-0">Naměřené hodnoty a jednotlivé zkoušky</h2>
         <div class="list-group list-group-flush">
             {% for zkouska in zkousky %}
-                <div class="list-group-item{% if zkouska.typ == 'tvrdost_jadra' or zkouska.typ == 'tvrdost_povrchu' %} list-group-item-warning{% endif %}">
+                <div class="list-group-item{% if zkouska.typ == 'tvrdost_jadra' or zkouska.typ == 'tvrdost_povrchu' %} mereni-tvrdost{% endif %}{% if zkouska.stav_prohybu %} mereni-{{ zkouska.stav_prohybu }}{% endif %}">
                     <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
                         <div class="fw-semibold">
                             {{ zkouska.nazev }}
@@ -55,6 +55,9 @@
                         {% endif %}
                     </div>
                     {% include "orders/includes/rozsah_mereni_zakaznika.html" with rozsah_mereni=zkouska.rozsah_mereni bez_popisu=True %}
+                    {% if zkouska.pozadavek_prohyb != None %}
+                        <div class="small mt-2">Max. počet křivých vrutů ve vzorku: <strong>{{ bedna.zakazka.kamion_prijem.zakaznik.max_krivych_vrutu|default_if_none:"nenastaven" }}</strong></div>
+                    {% endif %}
                     <div class="mt-2">
                         {% for mereni in zkouska.mereni %}
                             {% with stav=mereni.hodnota|stav_prohybu:zkouska.pozadavek_prohyb %}<span class="badge text-bg-light border me-1 mb-1{% if stav %} prohyb-{{ stav }}{% endif %}">{{ mereni.hodnota|mereni_hodnota }}</span>{% endwith %}
@@ -72,6 +75,9 @@
         <div class="card-body">
             {% if not can_edit %}
                 <div class="alert alert-info">Kontrolu můžete pouze zobrazit. Úpravy vyžadují příslušné oprávnění a stav Zakaleno, Zkontrolováno nebo K expedici. U expedované bedny je nutné zvláštní oprávnění, stejně jako u pozastavené bedny.</div>
+            {% endif %}
+            {% if form.omezeni_prohybu %}
+                <div class="alert alert-warning" role="alert">{{ form.omezeni_prohybu.zprava }}</div>
             {% endif %}
             <form method="post" novalidate autocomplete="off">
                 {% csrf_token %}

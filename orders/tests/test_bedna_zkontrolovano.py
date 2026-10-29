@@ -4,7 +4,7 @@ from django.contrib.auth.models import Permission
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
 
-from orders.choices import RovnaniChoice, StavBednyChoice, TryskaniChoice, UvolneniKontrolyChoice
+from orders.choices import RovnaniChoice, StavBednyChoice, TryskaniChoice, UvolneniKontrolyChoice, VysledekKontrolyChoice
 from orders.models import Bedna, KontrolaBedny
 from orders.tests.test_kontrola_bedny import KontrolaBednyTestBase
 
@@ -26,13 +26,22 @@ class BednaZkontrolovanoTests(KontrolaBednyTestBase):
             'tryskat': TryskaniChoice.CISTA,
         }
 
+    def create_control(self, **overrides):
+        values = {
+            'cistota': VysledekKontrolyChoice.OK,
+            'ulozeni': VysledekKontrolyChoice.OK,
+            'uvolneni': UvolneniKontrolyChoice.UVOLNENO,
+        }
+        values.update(overrides)
+        return KontrolaBedny.objects.create(bedna=self.bedna, **values)
+
     def test_missing_or_undecided_release_hides_button_and_blocks_get_and_post(self):
         for state in (StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO):
             for has_control in (False, True):
                 with self.subTest(state=state, has_control=has_control):
                     KontrolaBedny.objects.filter(bedna=self.bedna).delete()
                     if has_control:
-                        KontrolaBedny.objects.create(bedna=self.bedna)
+                        self.create_control(uvolneni=UvolneniKontrolyChoice.NEROZHODNUTO)
                     Bedna.objects.filter(pk=self.bedna.pk).update(stav_bedny=state)
                     history_count = self.bedna.history.count()
                     overview = self.client.get(self.control_url)
@@ -58,7 +67,10 @@ class BednaZkontrolovanoTests(KontrolaBednyTestBase):
             ):
                 with self.subTest(state=state, release=release):
                     kontrola, _ = KontrolaBedny.objects.update_or_create(
-                        bedna=self.bedna, defaults={'uvolneni': release, 'neshoda_cistota': True},
+                        bedna=self.bedna, defaults={
+                            'uvolneni': release, 'neshoda_cistota': True,
+                            'cistota': VysledekKontrolyChoice.OK, 'ulozeni': VysledekKontrolyChoice.OK,
+                        },
                     )
                     Bedna.objects.filter(pk=self.bedna.pk).update(stav_bedny=state)
                     self.assertContains(self.client.get(self.control_url), self.url)
@@ -71,7 +83,7 @@ class BednaZkontrolovanoTests(KontrolaBednyTestBase):
                     self.assertEqual(kontrola.uvolneni, release)
 
     def test_other_manufacturing_states_block_direct_get_and_post(self):
-        KontrolaBedny.objects.create(bedna=self.bedna, uvolneni=UvolneniKontrolyChoice.UVOLNENO)
+        self.create_control()
         for state in StavBednyChoice:
             if state in (StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO):
                 continue
@@ -86,7 +98,7 @@ class BednaZkontrolovanoTests(KontrolaBednyTestBase):
                 self.assertEqual(self.bedna.history.count(), history_count)
 
     def test_paused_bedna_cannot_be_marked_even_with_special_permission(self):
-        KontrolaBedny.objects.create(bedna=self.bedna, uvolneni=UvolneniKontrolyChoice.UVOLNENO)
+        self.create_control()
         Bedna.objects.filter(pk=self.bedna.pk).update(pozastaveno=True)
         self.user.user_permissions.add(Permission.objects.get(codename='change_pozastavena_bedna'))
         response = self.client.get(self.control_url)
@@ -96,12 +108,24 @@ class BednaZkontrolovanoTests(KontrolaBednyTestBase):
         self.bedna.refresh_from_db()
         self.assertEqual(self.bedna.stav_bedny, StavBednyChoice.ZAKALENO)
 
-    def test_state_and_release_are_rechecked_after_acquiring_bedna_lock(self):
-        kontrola = KontrolaBedny.objects.create(bedna=self.bedna, uvolneni=UvolneniKontrolyChoice.UVOLNENO)
-        for change in ('state', 'release'):
+    def test_state_and_control_are_rechecked_after_acquiring_bedna_lock(self):
+        kontrola = self.create_control()
+        control_changes = {
+            'release': {'uvolneni': UvolneniKontrolyChoice.NEROZHODNUTO},
+            'cistota': {'cistota': VysledekKontrolyChoice.NEZADANO},
+            'ulozeni': {'ulozeni': VysledekKontrolyChoice.NEZADANO},
+            'first_count': {'pocet_krivych_vrutu_prvni_mereni': None},
+            'second_count': {'pocet_krivych_vrutu_druhe_mereni': None},
+        }
+        for change in ('state', *control_changes):
             with self.subTest(change=change):
                 Bedna.objects.filter(pk=self.bedna.pk).update(stav_bedny=StavBednyChoice.ZAKALENO)
-                KontrolaBedny.objects.filter(pk=kontrola.pk).update(uvolneni=UvolneniKontrolyChoice.UVOLNENO)
+                KontrolaBedny.objects.filter(pk=kontrola.pk).update(
+                    uvolneni=UvolneniKontrolyChoice.NESHODA,
+                    cistota=VysledekKontrolyChoice.OK, ulozeni=VysledekKontrolyChoice.OK,
+                    neshoda_krivost=True,
+                    pocet_krivych_vrutu_prvni_mereni=0, pocet_krivych_vrutu_druhe_mereni=0,
+                )
                 history_count = self.bedna.history.count()
                 loads = 0
 
@@ -112,9 +136,7 @@ class BednaZkontrolovanoTests(KontrolaBednyTestBase):
                         if change == 'state':
                             Bedna.objects.filter(pk=self.bedna.pk).update(stav_bedny=StavBednyChoice.K_EXPEDICI)
                         else:
-                            KontrolaBedny.objects.filter(pk=kontrola.pk).update(
-                                uvolneni=UvolneniKontrolyChoice.NEROZHODNUTO,
-                            )
+                            KontrolaBedny.objects.filter(pk=kontrola.pk).update(**control_changes[change])
                     return get_object_or_404(*args, **kwargs)
 
                 with patch('orders.views.get_object_or_404', side_effect=load_with_change):
@@ -126,3 +148,61 @@ class BednaZkontrolovanoTests(KontrolaBednyTestBase):
                     StavBednyChoice.K_EXPEDICI if change == 'state' else StavBednyChoice.ZAKALENO
                 ))
                 self.assertEqual(self.bedna.history.count(), history_count)
+
+    def test_incomplete_control_hides_button_and_blocks_direct_get_and_post(self):
+        cases = (
+            {'cistota': VysledekKontrolyChoice.NEZADANO},
+            {'ulozeni': VysledekKontrolyChoice.NEZADANO},
+            {'neshoda_krivost': True},
+            {'neshoda_krivost': True, 'pocet_krivych_vrutu_prvni_mereni': 0},
+            {'neshoda_krivost': True, 'pocet_krivych_vrutu_druhe_mereni': 0},
+        )
+        for state in (StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO):
+            for missing in cases:
+                with self.subTest(state=state, missing=missing):
+                    KontrolaBedny.objects.filter(bedna=self.bedna).delete()
+                    kontrola = self.create_control(**missing)
+                    Bedna.objects.filter(pk=self.bedna.pk).update(stav_bedny=state)
+                    history_count = self.bedna.history.count()
+                    overview = self.client.get(self.control_url)
+                    self.assertFalse(overview.context['can_mark_zkontrolovano'])
+                    self.assertNotContains(overview, self.url)
+                    for method in ('get', 'post'):
+                        response = getattr(self.client, method)(self.url, self.payload if method == 'post' else {})
+                        self.assertRedirects(response, self.control_url, fetch_redirect_response=False)
+                        self.assertTrue(any(
+                            'čistotu, uložení' in str(message) and 'oba počty křivých' in str(message)
+                            for message in response.wsgi_request._messages
+                        ))
+                    self.bedna.refresh_from_db()
+                    self.assertEqual(self.bedna.stav_bedny, state)
+                    self.assertEqual(self.bedna.history.count(), history_count)
+                    self.assertEqual(kontrola.history.count(), 1)
+
+    def test_curvature_with_both_counts_including_zero_allows_marking(self):
+        for first, second in ((0, 0), (0, 2), (2, 0), (2, 3)):
+            with self.subTest(first=first, second=second):
+                KontrolaBedny.objects.filter(bedna=self.bedna).delete()
+                self.create_control(
+                    uvolneni=UvolneniKontrolyChoice.NESHODA, neshoda_krivost=True,
+                    pocet_krivych_vrutu_prvni_mereni=first, pocet_krivych_vrutu_druhe_mereni=second,
+                )
+                Bedna.objects.filter(pk=self.bedna.pk).update(stav_bedny=StavBednyChoice.ZAKALENO)
+                self.assertContains(self.client.get(self.control_url), self.url)
+                self.assertEqual(self.client.get(self.url).status_code, 200)
+                self.assertRedirects(self.client.post(self.url, self.payload), self.control_url)
+                self.bedna.refresh_from_db()
+                self.assertEqual(self.bedna.stav_bedny, StavBednyChoice.ZKONTROLOVANO)
+
+    def test_nok_is_a_completed_result_for_cleanliness_and_storage(self):
+        for cleanliness, storage in (
+            (VysledekKontrolyChoice.NOK, VysledekKontrolyChoice.OK),
+            (VysledekKontrolyChoice.OK, VysledekKontrolyChoice.NOK),
+            (VysledekKontrolyChoice.NOK, VysledekKontrolyChoice.NOK),
+        ):
+            with self.subTest(cleanliness=cleanliness, storage=storage):
+                KontrolaBedny.objects.filter(bedna=self.bedna).delete()
+                self.create_control(cistota=cleanliness, ulozeni=storage)
+                Bedna.objects.filter(pk=self.bedna.pk).update(stav_bedny=StavBednyChoice.ZAKALENO)
+                self.assertContains(self.client.get(self.control_url), self.url)
+                self.assertRedirects(self.client.post(self.url, self.payload), self.control_url)

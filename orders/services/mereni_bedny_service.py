@@ -1,11 +1,72 @@
 import hashlib
 import json
+from dataclasses import dataclass
 
 from django.utils import timezone
 
-from orders.choices import TypZkouskyChoice
+from orders.choices import TypZkouskyChoice, UvolneniKontrolyChoice
 from orders.models import KontrolaBedny, MereniBedny
 from orders.quality_card_labels import minimum_samples_labels, minimum_values_labels
+
+
+@dataclass(frozen=True)
+class OmezeniUvolneniProhybem:
+    typ_zkousky: TypZkouskyChoice
+    povolene_stavy: tuple
+    zprava: str
+
+    @property
+    def stav(self):
+        if self.povolene_stavy == (UvolneniKontrolyChoice.NESHODA,):
+            return 'nevyhovuje'
+        return 'odchylka'
+
+
+def omezeni_uvolneni_prohybem(bedna):
+    """Vyhodnotí uložený prohyb po rovnání, jinak po TZ; koulení ignoruje."""
+    maximum = bedna.zakazka.kamion_prijem.zakaznik.max_krivych_vrutu
+    limity = bedna.limity_prohybu
+    bezny_limit = limity['bezny']
+    if maximum is None or bezny_limit is None:
+        return None
+
+    hodnoty = {
+        TypZkouskyChoice.PROHYB_PO_TZ: [],
+        TypZkouskyChoice.PROHYB_PO_ROVNANI: [],
+    }
+    for typ, hodnota in MereniBedny.objects.filter(
+        kontrola__bedna=bedna, typ_zkousky__in=hodnoty,
+    ).values_list('typ_zkousky', 'hodnota'):
+        hodnoty[typ].append(hodnota)
+    typ = (
+        TypZkouskyChoice.PROHYB_PO_ROVNANI
+        if hodnoty[TypZkouskyChoice.PROHYB_PO_ROVNANI]
+        else TypZkouskyChoice.PROHYB_PO_TZ
+    )
+    qs_limit = limity['pro_uvolneni_s_odchylkou']
+    horni_limit = qs_limit if qs_limit is not None else bezny_limit
+    nad_hornim = sum(hodnota > horni_limit for hodnota in hodnoty[typ])
+    nad_beznym = sum(hodnota > bezny_limit for hodnota in hodnoty[typ])
+    if nad_hornim > maximum:
+        pocet = nad_hornim
+        hranice = 'QS limitem' if qs_limit is not None else 'běžným limitem'
+        stavy = (UvolneniKontrolyChoice.NESHODA,)
+        pokyn = 'Lze uložit pouze Neshodu s důvodem Křivost.'
+    elif qs_limit is not None and nad_beznym > maximum:
+        pocet = nad_beznym
+        hranice = 'běžným limitem'
+        stavy = (UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU, UvolneniKontrolyChoice.NESHODA)
+        pokyn = 'Lze uložit Uvolněno QS s odchylkou nebo Neshodu, vždy s důvodem Křivost.'
+    else:
+        return None
+    return OmezeniUvolneniProhybem(
+        typ_zkousky=typ,
+        povolene_stavy=stavy,
+        zprava=(
+            f'{typ.label}: počet hodnot nad {hranice} je {pocet}, '
+            f'povolený počet křivých vrutů je {maximum}. {pokyn}'
+        ),
+    )
 
 
 def rozsah_mereni_zakaznika(zakaznik, typ_zkousky):

@@ -92,6 +92,18 @@
     overflow-wrap: anywhere;
 }
 
+.mereni-tvrdost {
+    box-shadow: inset 4px 0 0 #ffc107;
+}
+
+.mereni-odchylka {
+    --bs-list-group-bg: #fff0df;
+}
+
+.mereni-nevyhovuje {
+    --bs-list-group-bg: #fde6e6;
+}
+
 .scanner-title {
     font-size: clamp(1.6rem, 7vw, 2.6rem);
     font-weight: 800;

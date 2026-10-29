@@ -11,6 +11,7 @@ from django.core.exceptions import ValidationError
 from decimal import Decimal, ROUND_HALF_UP
 
 from orders.utils import parse_sarze_search_term
+from orders.services.mereni_bedny_service import omezeni_uvolneni_prohybem
 
 from .models import Sarze, SarzeKrok, Zakaznik, Kamion, Zakazka, Bedna, Predpis, Odberatel, Pozice, Zarizeni, KontrolaBedny
 from .choices import (
@@ -88,8 +89,28 @@ class ZakazkaMeasurementForm(forms.ModelForm):
 class KontrolaBednyForm(forms.ModelForm):
     neshoda_fields = KontrolaBedny.NESHODA_FIELDS
 
+    def __init__(self, *args, can_edit=True, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.omezeni_prohybu = (
+            omezeni_uvolneni_prohybem(self.instance.bedna)
+            if self.instance.bedna_id else None
+        )
+        if self.omezeni_prohybu is not None and (can_edit or self.is_bound):
+            field = self.fields['uvolneni']
+            field.choices = [
+                (value, label) for value, label in UvolneniKontrolyChoice.choices
+                if value in self.omezeni_prohybu.povolene_stavy
+            ]
+            field.error_messages['invalid_choice'] = self.omezeni_prohybu.zprava
+            if not self.is_bound:
+                self.initial['neshoda_krivost'] = True
+                if self.initial.get('uvolneni') not in self.omezeni_prohybu.povolene_stavy:
+                    self.initial['uvolneni'] = self.omezeni_prohybu.povolene_stavy[0]
+
     def clean(self):
         cleaned_data = super().clean()
+        if self.omezeni_prohybu is not None and not cleaned_data.get('neshoda_krivost'):
+            self.add_error('neshoda_krivost', 'Při překročení povoleného počtu křivých vrutů musí být vybrán důvod Křivost.')
         uvolneni = cleaned_data.get('uvolneni')
         if (
             uvolneni in (

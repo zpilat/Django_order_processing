@@ -15,7 +15,7 @@ from orders.models import (
 	Zakaznik, Odberatel, Kamion, Zakazka, Bedna, Predpis, TypHlavy, Pozice, PoziceZakazkaOrder, Zarizeni, Sarze, SarzeKrok, SarzeKrokBedna, Cena,
 	KontrolaBedny, MereniBedny,
 )
-from orders.choices import StavBednyChoice, StavSarzeChoice, KamionChoice, TryskaniChoice, RovnaniChoice, ZinkovaniChoice, PrioritaChoice, TypZarizeniChoice, TypZkouskyChoice, UvolneniKontrolyChoice
+from orders.choices import StavBednyChoice, StavSarzeChoice, KamionChoice, TryskaniChoice, RovnaniChoice, ZinkovaniChoice, PrioritaChoice, TypZarizeniChoice, TypZkouskyChoice, UvolneniKontrolyChoice, VysledekKontrolyChoice
 from orders.views import (
 	_get_bedny_k_navezeni_groups,
 	_split_bedny_k_navezeni_groups_by_nasledne,
@@ -641,7 +641,10 @@ class BednaScanViewTests(ViewsTestBase):
 		self.assertContains(response, reverse("bedna_scan_zakaleno", args=[self.b_eur_pr.cislo_bedny]))
 
 	def test_scan_detail_links_to_kontrola_with_mark_zkontrolovano_action(self):
-		KontrolaBedny.objects.create(bedna=self.b_eur_pr, uvolneni=UvolneniKontrolyChoice.UVOLNENO)
+		KontrolaBedny.objects.create(
+			bedna=self.b_eur_pr, uvolneni=UvolneniKontrolyChoice.UVOLNENO,
+			cistota=VysledekKontrolyChoice.OK, ulozeni=VysledekKontrolyChoice.OK,
+		)
 		self.b_eur_pr.stav_bedny = StavBednyChoice.ZAKALENO
 		self.b_eur_pr.save(update_fields=["stav_bedny"])
 		permission = Permission.objects.get(codename="mark_bedna_zkontrolovano")
@@ -2101,7 +2104,10 @@ class BednaScanViewTests(ViewsTestBase):
 	def _set_bedna_zkontrolovano_ready(self):
 		"""Nastaví bednu do stavu ZAKALENO s rozhodnutou kontrolou a oprávněním kontrolora."""
 		KontrolaBedny.objects.update_or_create(
-			bedna=self.b_eur_pr, defaults={'uvolneni': UvolneniKontrolyChoice.UVOLNENO},
+			bedna=self.b_eur_pr, defaults={
+				'uvolneni': UvolneniKontrolyChoice.UVOLNENO,
+				'cistota': VysledekKontrolyChoice.OK, 'ulozeni': VysledekKontrolyChoice.OK,
+			},
 		)
 		self.b_eur_pr.stav_bedny = StavBednyChoice.ZAKALENO
 		self.b_eur_pr.rovnat = RovnaniChoice.NEZADANO

@@ -25,7 +25,7 @@ Pod názvem a limitem zkoušky se zobrazuje samostatný řádek s rozsahem měř
 
 Měření se ukládá samostatně pro každou zkoušku, včetně uživatele a času měření. Při prvním zápisu vznikne kontrola, pokud dosud neexistovala. Odkaz **Zpět na kontrolu bedny** neuloží rozpracované hodnoty.
 
-Tvrdost povrchu a jádra se nabízí jen u beden vybraných pravidly vzorkování. Pro SSH, SWG a ROT se výběr řídí počtem beden původní zakázky; pro ostatní zákazníky se vybírá první bedna. Chybějící sekce tvrdosti proto může být očekávaná.
+Tvrdost povrchu a jádra se nabízí jen u beden vybraných pravidly vzorkování. Pro SSH, SWG a ROT se výběr řídí počtem beden původní zakázky; pro ostatní zákazníky se vybírá první bedna. Chybějící sekce tvrdosti proto může být očekávaná. Položky tvrdosti mají žlutý proužek na levém okraji místo žlutého pozadí. Proužek označuje typ zkoušky, nikoli výsledek posouzení tvrdosti.
 
 ## 3. Meze a zvýraznění prohybu
 
@@ -38,20 +38,42 @@ Tvrdost povrchu a jádra se nabízí jen u beden vybraných pravidly vzorkován�
 | SWG, délka do 300 mm včetně | `0,006 × L` mm |
 | SWG, délka nad 300 mm | `1,8` mm |
 
-ROT má navíc mez pro uvolnění s odchylkou `0,006 × L` mm. Hodnoty se zvýrazňují podle běžné meze, meze odchylky a překročení. U zákazníka bez pravidla se mez nezobrazuje.
+ROT má navíc mez pro uvolnění QS s odchylkou `0,006 × L` mm. Jednotlivé hodnoty nad běžnou mezí až do QS meze včetně mají oranžový text. Při překročení QS meze má celé políčko s hodnotou červené pozadí a bílý text. Pokud QS mez není zadaná, červené pozadí s bílým textem označuje hodnoty nad běžnou mezí. Toto označení jednotlivých hodnot zůstává viditelné i u starších fází prohybu. Stejný styl používá přehled měření v administraci. **Ve vyplněné KKK se nevyhovující hodnoty označují pouze červeným písmem bez červeného pozadí**; hodnoty v pásmu QS mají i zde oranžový text. U zákazníka bez pravidla se mez nezobrazuje.
 
-Zvýraznění pomáhá s posouzením. Automaticky nevolí uvolnění ani nemění výrobní stav bedny. Rozhodnutí zaznamenejte podle výsledků kontroly a příslušného předpisu.
+Maximální povolený počet křivých vrutů se nastavuje v **Administrace → Zákazníci → konkrétní zákazník → Kontrola kvality**, v poli **Maximální počet křivých vrutů při kontrole prohybu**. Nula znamená, že není povolen žádný křivý vrut; prázdné pole znamená, že se omezení uvolnění podle počtu neuplatní. Samotné meze prohybu v mm jsou definované v kódu podle zákazníka a délky, v `Bedna.limity_prohybu`.
+
+V přehledu kontroly bedny se ve všech třech položkách prohybu (po TZ, po koulení a po rovnání) zobrazuje **Max. počet křivých vrutů ve vzorku** podle nastavení zákazníka, včetně hodnoty **0**. Pokud zákazník maximum nemá zadané, zobrazí se **nenastaven**. Údaj je viditelný i před zadáním měření.
+
+Pro omezení uvolnění a barevné pozadí celé položky se posuzují pouze uložené jednotlivé hodnoty rozhodující fáze:
+
+1. Pokud existuje alespoň jedna hodnota **Prohybu po rovnání**, použije se tato fáze a hodnoty po TZ se již nezapočítávají.
+2. Jinak se použije **Prohyb po TZ**.
+3. **Prohyb po koulení** se do tohoto rozhodnutí nezapočítává.
+
+| Výsledek rozhodujícího měření | Dostupné uvolnění | Pozadí položky měření |
+| --- | --- | --- |
+| Počet hodnot nad QS mezí překročí povolený počet křivých; bez QS meze se počítají hodnoty nad běžnou mezí | Pouze **Neshoda**, povinný důvod **Křivost** | Červené |
+| Předchozí podmínka neplatí, QS mez existuje a počet hodnot nad běžnou mezí překročí povolený počet křivých | **Uvolněno QS s odchylkou** nebo **Neshoda**, povinný důvod **Křivost** | Oranžové |
+| Počty nepřekročí povolené maximum | Prohyb výběr uvolnění neomezuje; dostupné je i **Uvolněno** | Bez zvýraznění |
+
+Hodnota přesně na mezi se nepočítá jako překročení. Počet křivých přesně rovný povolenému maximu je přípustný. Pokud chybí maximální povolený počet, zákaznická mez prohybu nebo měření rozhodující fáze, toto omezení se neuplatní a položka nemá barevné pozadí.
+
+Barevné pozadí má vždy nejvýše jedna položka prohybu. Odchylka a neshoda se zvýrazňují pouze barvou pozadí, bez proužku; žlutý proužek vlevo patří pouze položkám tvrdosti. Po zadání měření po rovnání zmizí pozadí položky po TZ; pokud měření po rovnání vyhovuje, nezvýrazní se ani jedna položka. Po smazání všech hodnot po rovnání se znovu posuzuje měření po TZ.
 
 ## 4. Výstupní kontrola a rozhodnutí
 
 Vyplňte:
 
 - **Čistota** a **Uložení**: nezadáno, OK nebo NOK.
-- **Počet křivých 1. měření / 2. měření**: počty křivých vrutů z kontrolního vzorku. U pole je velikost vzorku nastavená pro zákazníka.
-- **Uvolnění**: nerozhodnuto (`--------`), Neshoda, Uvolněno nebo Uvolněno QS s odchylkou.
+- **Počet křivých 1. měření / 2. měření**: ručně evidované počty křivých vrutů z kontrolního vzorku. U pole je velikost vzorku nastavená pro zákazníka. Tyto údaje nenahrazují počítání překročených jednotlivých hodnot pro omezení uvolnění.
+- **Uvolnění**: nerozhodnuto (`--------`), Neshoda, Uvolněno nebo Uvolněno QS s odchylkou. Při překročení povoleného počtu křivých vrutů se nabídka omezí podle tabulky výše.
 - **Poznámka**: vysvětlení výsledku nebo provozní informace.
 
 Při **Neshodě** nebo **Uvolněno QS s odchylkou** vyberte alespoň jeden důvod. Lze vybrat více důvodů: čistota, nízký/vysoký krut, nízký ohyb, nízká/vysoká tvrdost povrchu či jádra, vrstva, křivost, pomíchané vruty, chyba v procesu nebo Jiné. U **Jiné** je povinné upřesnění v poznámce.
+
+Při omezení kvůli prohybu formulář zobrazí rozhodující fázi, počet překročených hodnot a povolený počet křivých. V editovatelném formuláři předvyplní **Křivost**; pokud dosavadní rozhodnutí není přípustné, předvyplní první povolenou volbu uvolnění. Samotné otevření formuláře tyto změny neukládá. Při pouhém prohlížení bez možnosti editace se zobrazí skutečně uložené rozhodnutí a důvody.
+
+Při uložení server znovu vyhodnotí aktuálně uložená měření. Nepovolené uvolnění nebo chybějící **Křivost** odmítne, i když je vybraný jiný důvod neshody. Uložení samotných naměřených hodnot toto omezení neblokuje a automaticky nepřepisuje dříve uložené rozhodnutí o uvolnění.
 
 Klikněte na **Uložit kontrolu bedny**. U rozhodnutí se eviduje, kdo a kdy stav uvolnění změnil; návrat na nerozhodnuto tyto aktuální údaje vymaže, historie zůstává.
 
@@ -63,7 +85,15 @@ Po uložení výsledků použijte **Označit bednu jako zkontrolovanou**:
 2. Nastavte stav rovnání a tryskání podle skutečného výsledku.
 3. Potvrďte změnu. Bedna přejde do stavu **Zkontrolováno**.
 
-U již zkontrolované bedny se odkaz jmenuje **Upravit stav rovnání a tryskání**. Odkaz i samotná operace jsou dostupné pouze pro nepozastavené bedny ve stavech **Zakaleno a Zkontrolováno** s oprávněním `orders.mark_bedna_zkontrolovano`. Ve výstupní kontrole musí být uložené rozhodnutí o uvolnění jiné než výchozí nerozhodnuto: **Uvolněno, Uvolněno QS s odchylkou nebo Neshoda**. Bez uložené kontroly nebo s nerozhodnutým uvolněním se odkaz nezobrazuje a změnu nelze provést ani přímým otevřením adresy formuláře.
+U již zkontrolované bedny se odkaz jmenuje **Upravit stav rovnání a tryskání**. Odkaz i samotná operace jsou dostupné pouze pro nepozastavené bedny ve stavech **Zakaleno a Zkontrolováno** s oprávněním `orders.mark_bedna_zkontrolovano`.
+
+Ve výstupní kontrole musí být předem uložené tyto údaje:
+
+- **Čistota** a **Uložení**: obě pole musí mít vybranou hodnotu **OK nebo NOK**; výchozí nezadáno nestačí.
+- **Uvolnění**: **Uvolněno, Uvolněno QS s odchylkou nebo Neshoda**; výchozí nerozhodnuto nestačí.
+- Při vybraném důvodu neshody **Křivost** také **Počet křivých 1. měření i Počet křivých 2. měření**. Obě pole musí být vyplněná; **nula je přípustná vyplněná hodnota**. Bez důvodu Křivost se jejich vyplnění pro tuto akci nevyžaduje.
+
+Pokud některý z potřebných údajů chybí, tlačítko se nezobrazí. Přímé otevření adresy ani odeslání akce podmínku neobejde: aplikace vrátí uživatele do kontroly bedny s vysvětlením, co má doplnit. Podmínky se znovu ověřují před změnou stavu. Rozpracovanou kontrolu s těmito chybějícími údaji lze dál ukládat, ale nejprve je nutné údaje doplnit a uložit, aby se označení Zkontrolováno zpřístupnilo.
 
 Uložení měření nebo uvolnění samo výrobní stav nezmění. Označení Zkontrolováno samo nezapisuje měření ani uvolnění. Před pokračováním zkontrolujte obě části evidence.
 
@@ -104,8 +134,10 @@ Pokud jiný uživatel mezitím změnil kontrolu nebo měření, systém odmítne
 
 - **Kontrola je jen pro čtení:** ověřte oprávnění, pozastavení a expedici bedny.
 - **Neshoda nejde uložit:** vyberte důvod; u Jiné doplňte poznámku.
+- **Nelze vybrat Uvolněno nebo nerozhodnuto:** zkontrolujte upozornění na překročený počet křivých vrutů. Přípustné volby určuje měření po rovnání, případně po TZ; při tomto omezení musí zůstat vybraná Křivost.
+- **Po rovnání zmizelo červené/oranžové pozadí u prohybu po TZ:** posouzení přešlo na měření po rovnání. Jednotlivé starší hodnoty si své barevné označení ponechávají.
 - **Chybí požadavek zkoušky:** zkontrolujte předpis zakázky; prázdný požadavek neznamená automatické vyhovění zkoušky.
-- **Chybí tlačítko Zkontrolováno:** ověřte stav Zakaleno nebo Zkontrolováno, pozastavení, oprávnění a uložené rozhodnutí o uvolnění jiné než nerozhodnuto.
+- **Chybí tlačítko Zkontrolováno:** ověřte stav Zakaleno nebo Zkontrolováno, pozastavení, oprávnění a uloženou Čistotu, Uložení a rozhodnutí o Uvolnění. Při důvodu Křivost musí být uložené také oba počty křivých; prázdné pole nestačí, nula ano.
 - **Bedna stále čeká v přehledu kontroly:** uložení výsledků ji nepřepne ze stavu Zakaleno; potvrďte výrobní stav.
 - **Vyplněná KKK nejde vytisknout:** ověřte výběr jednoho zákazníka, uloženou kontrolu u každé bedny, hmotnost a předpis zakázky. U kamionu musí jít o jeden kamion výdej.
 - **Chybí pomocné popisy na vyplněné KKK:** ověřte pole Zkratka státu zákazníka; pro CZ, nevyplněnou nebo neznámou zkratku se pomocné popisy netisknou.

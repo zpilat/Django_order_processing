@@ -406,7 +406,10 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
         self.assertLess(html.index(scanner_url), html.index('id="mereni-bedny"'))
 
     def test_mark_checked_button_is_above_measurements_with_label_for_state(self):
-        KontrolaBedny.objects.create(bedna=self.bedna, uvolneni=UvolneniKontrolyChoice.UVOLNENO)
+        KontrolaBedny.objects.create(
+            bedna=self.bedna, uvolneni=UvolneniKontrolyChoice.UVOLNENO,
+            cistota=VysledekKontrolyChoice.OK, ulozeni=VysledekKontrolyChoice.OK,
+        )
         self.bedna.hmotnost = Decimal('10')
         self.bedna.tara = Decimal('1')
         self.bedna.mnozstvi = 100
@@ -431,6 +434,7 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
     def test_editing_and_marking_checked_follow_manufacturing_state(self):
         kontrola = KontrolaBedny.objects.create(
             bedna=self.bedna, uvolneni=UvolneniKontrolyChoice.UVOLNENO,
+            cistota=VysledekKontrolyChoice.OK, ulozeni=VysledekKontrolyChoice.OK,
         )
         mark_url = reverse('bedna_scan_zkontrolovano', args=[self.bedna.cislo_bedny])
         for state in StavBednyChoice:

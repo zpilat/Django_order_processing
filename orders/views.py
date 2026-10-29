@@ -66,7 +66,8 @@ from .choices import (
     StavBednyChoice, StavSarzeChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice, TypZarizeniChoice,
     ZinkovaniChoice, STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM,
     STAV_BEDNY_PODMINKA_PRO_ZMENU_NA_ZAKALENO,
-    STAV_BEDNY_PODMINKA_PRO_ZMENU_NA_ZKONTROLOVANO, TypZkouskyChoice, UvolneniKontrolyChoice
+    STAV_BEDNY_PODMINKA_PRO_ZMENU_NA_ZKONTROLOVANO, TypZkouskyChoice, UvolneniKontrolyChoice,
+    VysledekKontrolyChoice,
 )
 from weasyprint import HTML, CSS
 
@@ -622,9 +623,20 @@ def _bedna_scan_can_mark_navezeno(user, bedna):
     )
 
 
-def _bedna_ma_rozhodnuti_kontroly(bedna):
-    return KontrolaBedny.objects.filter(bedna=bedna).exclude(
-        uvolneni=UvolneniKontrolyChoice.NEROZHODNUTO,
+def _bedna_ma_vyplnenou_kontrolu(bedna):
+    """Ověří uložené údaje nutné k označení bedny jako zkontrolované."""
+    vysledky = (VysledekKontrolyChoice.OK, VysledekKontrolyChoice.NOK)
+    return KontrolaBedny.objects.filter(
+        bedna=bedna, cistota__in=vysledky, ulozeni__in=vysledky,
+        uvolneni__in=(
+            UvolneniKontrolyChoice.UVOLNENO, UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU,
+            UvolneniKontrolyChoice.NESHODA,
+        ),
+    ).filter(
+        Q(neshoda_krivost=False) | Q(
+            pocet_krivych_vrutu_prvni_mereni__isnull=False,
+            pocet_krivych_vrutu_druhe_mereni__isnull=False,
+        ),
     ).exists()
 
 
@@ -636,7 +648,7 @@ def _bedna_scan_can_mark_zkontrolovano(user, bedna):
         user.has_perm('orders.mark_bedna_zkontrolovano')
         and not bedna.pozastaveno
         and bedna.stav_bedny in STAV_BEDNY_PODMINKA_PRO_ZMENU_NA_ZKONTROLOVANO
-        and _bedna_ma_rozhodnuti_kontroly(bedna)
+        and _bedna_ma_vyplnenou_kontrolu(bedna)
     )
 
 
@@ -805,7 +817,7 @@ def _can_edit_mereni_bedny(user, bedna):
     )
 
 
-def _bedna_zkousky_context(bedna, user):
+def _bedna_zkousky_context(bedna, user, omezeni_prohybu):
     measurements = list(MereniBedny.objects.filter(kontrola__bedna=bedna))
     can_edit = _can_edit_mereni_bedny(user, bedna)
     merit_tvrdost = bedna.bedna_k_mereni_tvrdosti_a_povrchu
@@ -834,6 +846,11 @@ def _bedna_zkousky_context(bedna, user):
             'typ': kind.value, 'nazev': kind.label, 'can_edit': can_edit,
             'rozsah_mereni': rozsah_mereni_zakaznika(bedna.zakazka.kamion_prijem.zakaznik, kind),
             'mereni': [item for item in measurements if item.typ_zkousky == kind],
+            'stav_prohybu': (
+                omezeni_prohybu.stav
+                if omezeni_prohybu is not None and omezeni_prohybu.typ_zkousky == kind
+                else ''
+            ),
             'pozadavek_prohyb': limity_prohybu if kind in (
                 TypZkouskyChoice.PROHYB_PO_TZ, TypZkouskyChoice.PROHYB_PO_KOULENI,
                 TypZkouskyChoice.PROHYB_PO_ROVNANI,
@@ -866,6 +883,7 @@ def bedna_kontrola_view(request, cislo_bedny: int):
         form = KontrolaBednyForm(
             request.POST if request.method == 'POST' else None,
             instance=kontrola or KontrolaBedny(bedna=bedna),
+            can_edit=can_edit,
         )
         return bedna, kontrola, form, can_edit, current_snapshot, previous_status
 
@@ -909,7 +927,7 @@ def bedna_kontrola_view(request, cislo_bedny: int):
         'can_edit': can_edit,
         'snapshot': snapshot,
         'can_mark_zkontrolovano': _bedna_scan_can_mark_zkontrolovano(request.user, bedna),
-        'zkousky': _bedna_zkousky_context(bedna, request.user), 'db_table': 'bedna_scan',
+        'zkousky': _bedna_zkousky_context(bedna, request.user, form.omezeni_prohybu), 'db_table': 'bedna_scan',
     })
 
 
@@ -1150,8 +1168,11 @@ def bedna_scan_zkontrolovano_view(request, cislo_bedny: int):
         messages.error(request, f'Bedna {bedna.cislo_bedny} není ve stavu Zakaleno nebo Zkontrolováno.')
         return redirect('bedna_kontrola', cislo_bedny=bedna.cislo_bedny)
 
-    if not _bedna_ma_rozhodnuti_kontroly(bedna):
-        messages.error(request, 'Před označením bedny jako zkontrolované uložte rozhodnutí o uvolnění ve výstupní kontrole.')
+    if not _bedna_ma_vyplnenou_kontrolu(bedna):
+        messages.error(request, (
+            'Před označením bedny jako zkontrolované uložte ve výstupní kontrole čistotu, uložení '
+            'a rozhodnutí o uvolnění. Při důvodu Křivost vyplňte také oba počty křivých vrutů.'
+        ))
         return redirect('bedna_kontrola', cislo_bedny=bedna.cislo_bedny)
 
     if request.method == 'POST':
@@ -1182,8 +1203,11 @@ def bedna_scan_zkontrolovano_view(request, cislo_bedny: int):
                 messages.error(request, f'Bedna {bedna.cislo_bedny} není ve stavu Zakaleno nebo Zkontrolováno.')
                 return redirect('bedna_kontrola', cislo_bedny=bedna.cislo_bedny)
 
-            if not _bedna_ma_rozhodnuti_kontroly(bedna):
-                messages.error(request, 'Před označením bedny jako zkontrolované uložte rozhodnutí o uvolnění ve výstupní kontrole.')
+            if not _bedna_ma_vyplnenou_kontrolu(bedna):
+                messages.error(request, (
+                    'Před označením bedny jako zkontrolované uložte ve výstupní kontrole čistotu, uložení '
+                    'a rozhodnutí o uvolnění. Při důvodu Křivost vyplňte také oba počty křivých vrutů.'
+                ))
                 return redirect('bedna_kontrola', cislo_bedny=bedna.cislo_bedny)
 
             form = BednaScanZkontrolovanoForm(request.POST, bedna=bedna)
