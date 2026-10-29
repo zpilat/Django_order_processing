@@ -91,7 +91,7 @@ Ve výstupní kontrole musí být předem uložené tyto údaje:
 
 - **Čistota** a **Uložení**: obě pole musí mít vybranou hodnotu **OK nebo NOK**; výchozí nezadáno nestačí.
 - **Uvolnění**: **Uvolněno, Uvolněno QS s odchylkou nebo Neshoda**; výchozí nerozhodnuto nestačí.
-- Při vybraném důvodu neshody **Křivost** také **Počet křivých 1. měření i Počet křivých 2. měření**. Obě pole musí být vyplněná; **nula je přípustná vyplněná hodnota**. Bez důvodu Křivost se jejich vyplnění pro tuto akci nevyžaduje.
+- Při vybraném důvodu neshody **Křivost** také **Počet křivých 1. měření i Počet křivých 2. měření**. Obě pole musí být vyplněná; **nula je přípustná vyplněná hodnota**. Výjimkou je **oranžově zvýrazněná položka Prohyb po TZ**: oba počty mohou zůstat prázdné a pro označení Zkontrolováno není nutné rovnání ani měření po rovnání. Výjimka platí pro všechny zákazníky s příslušnou QS mezí, při kterémkoli uloženém rozhodnutí uvedeném výše a bez ohledu na další důvody neshody. Čistota a Uložení zůstávají povinné. Bez důvodu Křivost se vyplnění počtů pro tuto akci nevyžaduje.
 
 Pokud některý z potřebných údajů chybí, tlačítko se nezobrazí. Přímé otevření adresy ani odeslání akce podmínku neobejde: aplikace vrátí uživatele do kontroly bedny s vysvětlením, co má doplnit. Podmínky se znovu ověřují před změnou stavu. Rozpracovanou kontrolu s těmito chybějícími údaji lze dál ukládat, ale nejprve je nutné údaje doplnit a uložit, aby se označení Zkontrolováno zpřístupnilo.
 
@@ -143,7 +143,7 @@ Pokud jiný uživatel mezitím změnil kontrolu nebo měření, systém odmítne
 - **Nelze vybrat Uvolněno nebo nerozhodnuto:** zkontrolujte upozornění na překročený počet křivých vrutů. Přípustné volby určuje měření po rovnání, případně po TZ; při tomto omezení musí zůstat vybraná Křivost.
 - **Po rovnání zmizelo červené/oranžové pozadí u prohybu po TZ:** posouzení přešlo na měření po rovnání. Jednotlivé starší hodnoty si své barevné označení ponechávají.
 - **Chybí požadavek zkoušky:** zkontrolujte předpis zakázky; prázdný požadavek neznamená automatické vyhovění zkoušky.
-- **Chybí tlačítko Zkontrolováno:** ověřte stav Zakaleno nebo Zkontrolováno, pozastavení, oprávnění a uloženou Čistotu, Uložení a rozhodnutí o Uvolnění. Při důvodu Křivost musí být uložené také oba počty křivých; prázdné pole nestačí, nula ano.
+- **Chybí tlačítko Zkontrolováno:** ověřte stav Zakaleno nebo Zkontrolováno, pozastavení, oprávnění a uloženou Čistotu, Uložení a rozhodnutí o Uvolnění. Při důvodu Křivost musí být uložené také oba počty křivých; prázdné pole nestačí, nula ano. Oba počty se nevyžadují, pokud je položka Prohyb po TZ oranžová; oranžový prohyb po rovnání tuto výjimku neposkytuje.
 - **Bedna stále čeká v přehledu kontroly:** uložení výsledků ji nepřepne ze stavu Zakaleno; potvrďte výrobní stav.
 - **Vyplněná KKK nejde vytisknout:** ověřte výběr jednoho zákazníka, uloženou kontrolu u každé bedny, hmotnost a předpis zakázky. U kamionu musí jít o jeden kamion výdej.
 - **Chybí pomocné popisy na vyplněné KKK:** ověřte pole Zkratka státu zákazníka; pro CZ, nevyplněnou nebo neznámou zkratku se pomocné popisy netisknou.

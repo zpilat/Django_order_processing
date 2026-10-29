@@ -1,11 +1,12 @@
-from unittest.mock import patch
+from decimal import Decimal
+from unittest.mock import PropertyMock, patch
 
 from django.contrib.auth.models import Permission
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
 
-from orders.choices import RovnaniChoice, StavBednyChoice, TryskaniChoice, UvolneniKontrolyChoice, VysledekKontrolyChoice
-from orders.models import Bedna, KontrolaBedny
+from orders.choices import RovnaniChoice, StavBednyChoice, TryskaniChoice, TypZkouskyChoice, UvolneniKontrolyChoice, VysledekKontrolyChoice
+from orders.models import Bedna, KontrolaBedny, MereniBedny
 from orders.tests.test_kontrola_bedny import KontrolaBednyTestBase
 
 
@@ -206,3 +207,106 @@ class BednaZkontrolovanoTests(KontrolaBednyTestBase):
                 Bedna.objects.filter(pk=self.bedna.pk).update(stav_bedny=StavBednyChoice.ZAKALENO)
                 self.assertContains(self.client.get(self.control_url), self.url)
                 self.assertRedirects(self.client.post(self.url, self.payload), self.control_url)
+
+    def configure_curvature_customer(self, code='ROT', maximum=0):
+        customer = self.bedna.zakazka.kamion_prijem.zakaznik
+        customer.zkratka = code
+        customer.max_krivych_vrutu = maximum
+        customer.save(update_fields=['zkratka', 'max_krivych_vrutu'])
+
+    def create_curvature_measurement(self, kontrola, value='0.5', kind=TypZkouskyChoice.PROHYB_PO_TZ):
+        return MereniBedny.objects.create(
+            kontrola=kontrola, typ_zkousky=kind, hodnota=Decimal(value), poradi=1,
+        )
+
+    def test_orange_heat_treatment_allows_marking_without_counts_or_straightening(self):
+        self.configure_curvature_customer()
+        for release in (
+            UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU,
+            UvolneniKontrolyChoice.NESHODA,
+            UvolneniKontrolyChoice.UVOLNENO,
+        ):
+            with self.subTest(release=release):
+                KontrolaBedny.objects.filter(bedna=self.bedna).delete()
+                kontrola = self.create_control(
+                    uvolneni=release, neshoda_krivost=True, neshoda_krut_nizky=True,
+                )
+                self.create_curvature_measurement(kontrola)
+                Bedna.objects.filter(pk=self.bedna.pk).update(
+                    stav_bedny=StavBednyChoice.ZAKALENO, rovnat=RovnaniChoice.KRIVA,
+                )
+                self.assertContains(self.client.get(self.control_url), self.url)
+                self.assertEqual(self.client.get(self.url).status_code, 200)
+                response = self.client.post(self.url, {**self.payload, 'rovnat': RovnaniChoice.KRIVA})
+                self.assertRedirects(response, self.control_url)
+                self.bedna.refresh_from_db()
+                kontrola.refresh_from_db()
+                self.assertEqual(self.bedna.stav_bedny, StavBednyChoice.ZKONTROLOVANO)
+                self.assertEqual(self.bedna.rovnat, RovnaniChoice.KRIVA)
+                self.assertEqual(kontrola.uvolneni, release)
+                self.assertIsNone(kontrola.pocet_krivych_vrutu_prvni_mereni)
+                self.assertIsNone(kontrola.pocet_krivych_vrutu_druhe_mereni)
+                self.assertFalse(kontrola.mereni.filter(typ_zkousky=TypZkouskyChoice.PROHYB_PO_ROVNANI).exists())
+
+    def test_orange_exception_uses_qs_limits_for_any_customer(self):
+        self.configure_curvature_customer(code='TST')
+        kontrola = self.create_control(uvolneni=UvolneniKontrolyChoice.NESHODA, neshoda_krivost=True)
+        self.create_curvature_measurement(kontrola, value='0.6')
+        with patch.object(Bedna, 'limity_prohybu', new_callable=PropertyMock, return_value={
+            'bezny': Decimal('0.4'), 'pro_uvolneni_s_odchylkou': Decimal('0.6'),
+        }):
+            self.assertContains(self.client.get(self.control_url), self.url)
+            self.assertRedirects(self.client.post(self.url, self.payload), self.control_url)
+
+    def test_orange_exception_preserves_other_control_requirements_and_measurement_limits(self):
+        cases = (
+            {'value': '0.6001'},
+            {'value': '0.4'},
+            {'code': 'EUR', 'value': '0.7'},
+            {'maximum': None},
+            {'value': None},
+            {'after_straightening': True},
+            {'cistota': VysledekKontrolyChoice.NEZADANO},
+            {'ulozeni': VysledekKontrolyChoice.NEZADANO},
+            {'uvolneni': UvolneniKontrolyChoice.NEROZHODNUTO},
+        )
+        for case in cases:
+            with self.subTest(case=case):
+                self.configure_curvature_customer(code=case.get('code', 'ROT'), maximum=case.get('maximum', 0))
+                KontrolaBedny.objects.filter(bedna=self.bedna).delete()
+                kontrola = self.create_control(**{
+                    'uvolneni': UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU, 'neshoda_krivost': True,
+                    **{key: case[key] for key in ('cistota', 'ulozeni', 'uvolneni') if key in case},
+                })
+                if case.get('value', '0.5') is not None:
+                    self.create_curvature_measurement(kontrola, value=case.get('value', '0.5'))
+                if case.get('after_straightening'):
+                    self.create_curvature_measurement(kontrola, kind=TypZkouskyChoice.PROHYB_PO_ROVNANI)
+                self.assertNotContains(self.client.get(self.control_url), self.url)
+                for method in ('get', 'post'):
+                    self.assertRedirects(
+                        getattr(self.client, method)(self.url, self.payload if method == 'post' else {}),
+                        self.control_url, fetch_redirect_response=False,
+                    )
+                self.bedna.refresh_from_db()
+                self.assertEqual(self.bedna.stav_bedny, StavBednyChoice.ZAKALENO)
+
+    def test_orange_measurement_is_rechecked_after_acquiring_bedna_lock(self):
+        self.configure_curvature_customer()
+        kontrola = self.create_control(uvolneni=UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU, neshoda_krivost=True)
+        measurement = self.create_curvature_measurement(kontrola)
+        loads = 0
+
+        def load_with_change(*args, **kwargs):
+            nonlocal loads
+            loads += 1
+            if loads == 2:
+                MereniBedny.objects.filter(pk=measurement.pk).update(hodnota=Decimal('0.7'))
+            return get_object_or_404(*args, **kwargs)
+
+        with patch('orders.views.get_object_or_404', side_effect=load_with_change):
+            response = self.client.post(self.url, self.payload)
+        self.assertEqual(loads, 2)
+        self.assertRedirects(response, self.control_url, fetch_redirect_response=False)
+        self.bedna.refresh_from_db()
+        self.assertEqual(self.bedna.stav_bedny, StavBednyChoice.ZAKALENO)

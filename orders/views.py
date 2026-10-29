@@ -61,6 +61,7 @@ from .services.history_service import history_transitions_to_qs
 from .services.dashboard_bedny_service import build_bedny_visual_summary
 from .services.mereni_bedny_service import (
     pozadavek_zkousky, rozsah_mereni_zakaznika, mereni_snapshot, kontrola_snapshot, ulozit_mereni_zkousky,
+    omezeni_uvolneni_prohybem,
 )
 from .choices import (
     StavBednyChoice, StavSarzeChoice, RovnaniChoice, TryskaniChoice, PrioritaChoice, KamionChoice, TypZarizeniChoice,
@@ -626,18 +627,27 @@ def _bedna_scan_can_mark_navezeno(user, bedna):
 def _bedna_ma_vyplnenou_kontrolu(bedna):
     """Ověří uložené údaje nutné k označení bedny jako zkontrolované."""
     vysledky = (VysledekKontrolyChoice.OK, VysledekKontrolyChoice.NOK)
-    return KontrolaBedny.objects.filter(
+    kontrola = KontrolaBedny.objects.filter(
         bedna=bedna, cistota__in=vysledky, ulozeni__in=vysledky,
         uvolneni__in=(
             UvolneniKontrolyChoice.UVOLNENO, UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU,
             UvolneniKontrolyChoice.NESHODA,
         ),
-    ).filter(
-        Q(neshoda_krivost=False) | Q(
-            pocet_krivych_vrutu_prvni_mereni__isnull=False,
-            pocet_krivych_vrutu_druhe_mereni__isnull=False,
-        ),
-    ).exists()
+    ).first()
+    if kontrola is None:
+        return False
+    if not kontrola.neshoda_krivost or (
+        kontrola.pocet_krivych_vrutu_prvni_mereni is not None
+        and kontrola.pocet_krivych_vrutu_druhe_mereni is not None
+    ):
+        return True
+
+    omezeni = omezeni_uvolneni_prohybem(bedna)
+    return bool(
+        omezeni
+        and omezeni.typ_zkousky == TypZkouskyChoice.PROHYB_PO_TZ
+        and omezeni.stav == 'odchylka'
+    )
 
 
 def _bedna_scan_can_mark_zkontrolovano(user, bedna):
@@ -1164,7 +1174,8 @@ def bedna_scan_zkontrolovano_view(request, cislo_bedny: int):
     if not _bedna_ma_vyplnenou_kontrolu(bedna):
         messages.error(request, (
             'Před označením bedny jako zkontrolované uložte ve výstupní kontrole čistotu, uložení '
-            'a rozhodnutí o uvolnění. Při důvodu Křivost vyplňte také oba počty křivých vrutů.'
+            'a rozhodnutí o uvolnění. Při důvodu Křivost vyplňte také oba počty křivých vrutů, '
+            'pokud prohyb po TZ není oranžový.'
         ))
         return redirect('bedna_kontrola', cislo_bedny=bedna.cislo_bedny)
 
@@ -1199,7 +1210,8 @@ def bedna_scan_zkontrolovano_view(request, cislo_bedny: int):
             if not _bedna_ma_vyplnenou_kontrolu(bedna):
                 messages.error(request, (
                     'Před označením bedny jako zkontrolované uložte ve výstupní kontrole čistotu, uložení '
-                    'a rozhodnutí o uvolnění. Při důvodu Křivost vyplňte také oba počty křivých vrutů.'
+                    'a rozhodnutí o uvolnění. Při důvodu Křivost vyplňte také oba počty křivých vrutů, '
+                    'pokud prohyb po TZ není oranžový.'
                 ))
                 return redirect('bedna_kontrola', cislo_bedny=bedna.cislo_bedny)
 
