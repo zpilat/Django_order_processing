@@ -444,7 +444,6 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
                 self.assertEqual(response.status_code, 200)
                 editable = state in (
                     StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO,
-                    StavBednyChoice.K_EXPEDICI,
                 )
                 markable = state in (StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO)
                 self.assertEqual(response.context['can_edit'], editable)
@@ -479,22 +478,53 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
                 self.assertEqual(self.client.post(self.url, self.payload(response)).status_code, 403)
         self.assertFalse(KontrolaBedny.objects.exists())
 
-    def test_dispatched_control_requires_special_permission(self):
+    def test_dispatched_control_is_readonly_even_with_special_permission(self):
         Bedna.objects.filter(pk=self.bedna.pk).update(stav_bedny=StavBednyChoice.EXPEDOVANO)
         response = self.client.get(self.url)
         self.assertFalse(response.context['can_edit'])
         self.assertEqual(self.client.post(self.url, self.payload(response)).status_code, 403)
         self.user.user_permissions.add(Permission.objects.get(codename='change_expedovana_bedna'))
         response = self.client.get(self.url)
-        self.assertTrue(response.context['can_edit'])
+        self.assertFalse(response.context['can_edit'])
         self.assertFalse(response.context['can_mark_zkontrolovano'])
-        self.assertEqual(self.client.post(self.url, self.payload(response)).status_code, 302)
+        self.assertEqual(self.client.post(self.url, self.payload(response)).status_code, 403)
+
+    def test_shipping_states_preserve_control_and_measurements_even_for_superuser(self):
+        kontrola = KontrolaBedny.objects.create(bedna=self.bedna, poznamka='Původní kontrola')
+        item = MereniBedny.objects.create(
+            kontrola=kontrola, typ_zkousky=TypZkouskyChoice.KRUT,
+            poradi=1, hodnota=Decimal('12.5'), zmeril=self.user,
+        )
+        admin = get_user_model().objects.create_superuser('spravce_kontroly', 'test@example.com', 'test')
+        self.client.force_login(admin)
+        for state in (StavBednyChoice.K_EXPEDICI, StavBednyChoice.EXPEDOVANO):
+            with self.subTest(state=state):
+                Bedna.objects.filter(pk=self.bedna.pk).update(stav_bedny=state)
+                response = self.client.get(self.url)
+                self.assertContains(response, '>12,5</span>')
+                self.assertContains(response, '<fieldset disabled>')
+                self.assertNotContains(response, 'Zadat / upravit hodnoty')
+                self.assertFalse(any(row['can_edit'] for row in response.context['zkousky']))
+                self.assertEqual(self.client.post(self.url, self.payload(response, poznamka='Změna')).status_code, 403)
+                measurement_url = reverse('bedna_mereni_zkousky', args=[self.bedna.cislo_bedny, item.typ_zkousky])
+                self.assertEqual(self.client.post(measurement_url, {
+                    'mereni-TOTAL_FORMS': '1', 'mereni-INITIAL_FORMS': '1',
+                    'mereni-0-hodnota': '99', 'mereni-0-DELETE': 'on',
+                }).status_code, 403)
+                kontrola.refresh_from_db()
+                item.refresh_from_db()
+                self.assertEqual(kontrola.poznamka, 'Původní kontrola')
+                self.assertEqual(kontrola.history.count(), 1)
+                self.assertEqual(item.hodnota, Decimal('12.5'))
+                self.assertEqual(item.history.count(), 1)
 
     def test_control_cannot_be_saved_after_manufacturing_state_changes(self):
         response = self.client.get(self.url)
-        Bedna.objects.filter(pk=self.bedna.pk).update(stav_bedny=StavBednyChoice.DO_ZPRACOVANI)
-        self.assertEqual(self.client.post(self.url, self.payload(response)).status_code, 403)
-        self.assertFalse(KontrolaBedny.objects.exists())
+        for state in (StavBednyChoice.DO_ZPRACOVANI, StavBednyChoice.K_EXPEDICI, StavBednyChoice.EXPEDOVANO):
+            with self.subTest(state=state):
+                Bedna.objects.filter(pk=self.bedna.pk).update(stav_bedny=state)
+                self.assertEqual(self.client.post(self.url, self.payload(response)).status_code, 403)
+                self.assertFalse(KontrolaBedny.objects.exists())
 
     def test_first_save_creates_control_and_history(self):
         response = self.client.get(self.url)

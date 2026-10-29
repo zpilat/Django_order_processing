@@ -804,15 +804,8 @@ def _can_edit_mereni_bedny(user, bedna):
     return (
         user.has_perm('orders.mark_bedna_zkontrolovano')
         and (not bedna.pozastaveno or user.has_perm('orders.change_pozastavena_bedna'))
-        and (
-            bedna.stav_bedny in (
-                StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO,
-                StavBednyChoice.K_EXPEDICI,
-            )
-            or (
-                bedna.stav_bedny == StavBednyChoice.EXPEDOVANO
-                and user.has_perm('orders.change_expedovana_bedna')
-            )
+        and bedna.stav_bedny in (
+            StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO,
         )
     )
 

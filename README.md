@@ -10,6 +10,7 @@ Interní aplikace pro správu zakázek od příjmu přes tepelné zpracování a
 - Deník kroků šarže, přesuny mezi pracovišti a začátek i konec včetně data.
 - Skenování beden kamerou nebo čtečkou, provozní změny stavů a zobrazení pohybu.
 - Kontrola beden: jednotlivá měření, čistota, uložení, počty křivých vrutů, uvolnění a důvody neshody.
+- Uvolnění Neshoda blokuje přípravu k expedici i expedici; od stavu K expedici jsou kontrola a měření pouze pro čtení.
 - Import chemických měření z JSON exportů analyzátoru Vanta s náhledem a archivací souborů.
 - Přehledy nakládání, pracovišť, kontroly a neshod; dashboardy beden, kamionů, výroby a rovnání včetně historie.
 - Expedice zakázek a vybraných beden, rozdělení nehotové části zakázky a přiřazení do existujícího kamionu výdej.

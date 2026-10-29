@@ -97,6 +97,10 @@ Při expedici části zakázky může systém nepřipravené bedny přesunout do
 
 Indikátor Komplet vychází z výrobních stavů beden; sám nehodnotí jednotlivá měření ani rozhodnutí o uvolnění v kontrole.
 
+Při expedici do nového i existujícího kamionu se navíc ověřuje, že žádná expedovaná bedna nemá ve výstupní kontrole **Uvolnění = Neshoda**. Neshoda u některé expedované bedny odmítne celý výběr bez založení kamionu nebo rozdělení zakázek. Neshody u beden, které zůstávají ve výrobě, částečnou expedici ostatních beden neblokují.
+
+Od stavu **K expedici** jsou kontrola a měření pouze pro čtení. Pro opravu vraťte bednu na Zkontrolováno; u expedované zakázky nejprve použijte **Vrácení vybraných zakázek z expedice** a potom vraťte příslušnou bednu z K expedici na Zkontrolováno. Vrácení zakázky z expedice rovněž nesmí vytvořit kombinaci K expedici s Neshodou; pokud ji starší data obsahují, zakázka se nevrátí a je potřeba řešení se správcem.
+
 ## 9. Nejčastější problémy a řešení
 
 ### Akce expedice není dostupná

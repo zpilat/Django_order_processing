@@ -40,6 +40,7 @@ from .services.pdf_cards_service import build_cards_pdf
 from .services.expedice_service import (
     expedice_beden_do_existujiciho_kamionu,
     expedice_zakazek_do_existujiciho_kamionu,
+    validate_bedny_bez_neshody,
 )
 from .services.exceptions import ServiceValidationError, ServiceOperationError
 
@@ -386,10 +387,17 @@ def utilita_export_beden_zinkovani_csv(bedny_qs, filename_prefix="bedny_zinkovan
 def validate_bedny_pripraveny_k_expedici(modeladmin, request, bedny_qs, message=None):
     """Ověří, že bedny ve stavu K_EXPEDICI splňují podmínky pro expedici.
 
-    Podmínky: rovnat v {ROVNA, VYROVNANA}, tryskat v {CISTA, OTRYSKANA}, zinkovat v {NEZINKOVAT, UVOLNENO}.
+    Podmínky: rovnat v {ROVNA, VYROVNANA}, tryskat v {CISTA, OTRYSKANA}, zinkovat v {NEZINKOVAT, UVOLNENO};
+    kontrola nesmí mít uvolnění NESHODA.
     Vrací True/False; při porušení zapíše chybovou hlášku a zaloguje.
     """
     bedny_ke_kontrole = bedny_qs.filter(stav_bedny=StavBednyChoice.K_EXPEDICI)
+    try:
+        validate_bedny_bez_neshody(bedny_ke_kontrole)
+    except ServiceValidationError as exc:
+        modeladmin.message_user(request, str(exc), level=messages.ERROR)
+        logger.warning(str(exc))
+        return False
     if not bedny_ke_kontrole.exists():
         return True
 

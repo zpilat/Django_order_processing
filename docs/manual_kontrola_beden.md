@@ -97,6 +97,8 @@ Pokud některý z potřebných údajů chybí, tlačítko se nezobrazí. Přím�
 
 Uložení měření nebo uvolnění samo výrobní stav nezmění. Označení Zkontrolováno samo nezapisuje měření ani uvolnění. Před pokračováním zkontrolujte obě části evidence.
 
+Bednu s uloženým **Uvolnění = Neshoda** nelze označit K expedici ani expedovat. Zkontrolováno s Neshodou zůstává přípustné: znamená provedenou kontrolu, ale další postup je potřeba vyřešit před expedicí. Samotný zákaz Neshody nevyžaduje existenci kontroly ani výslovné uvolnění; jiné podmínky pro označení Zkontrolováno uvedené výše tím nejsou dotčeny.
+
 ## 6. Přehled neshod, audit a tisk
 
 **Přehled neshod** (`/prehled-neshod/`) ukazuje bedny s aktuálním rozhodnutím Neshoda, důvody, poznámku a autora i datum rozhodnutí. Filtruje se podle zákazníka, důvodu a dne. Po změně uvolnění na jinou hodnotu bedna z přehledu zmizí; starší rozhodnutí zůstává v historii.
@@ -120,13 +122,17 @@ Vyplněná karta tiskne nejvýše prvních 10 hodnot jednotlivých zkoušek bez 
 | Úkol | Potřebné oprávnění |
 | --- | --- |
 | Zobrazení kontroly | `orders.view_bedna` nebo `orders.mark_bedna_zkontrolovano` |
-| Zápis kontroly a měření | `orders.mark_bedna_zkontrolovano`; běžně pouze ve stavech Zakaleno, Zkontrolováno a K expedici |
+| Zápis kontroly a měření | `orders.mark_bedna_zkontrolovano`; pouze ve stavech Zakaleno a Zkontrolováno |
 | Zápis u pozastavené bedny | Navíc `orders.change_pozastavena_bedna` |
-| Zápis u expedované bedny | Navíc `orders.change_expedovana_bedna` |
+| Zápis u bedny K expedici nebo Expedováno | Není povolen ani se zvláštními oprávněními |
 
 Oprávnění k úpravě pozastavené bedny umožňuje zápis výsledků, ale její označení jako Zkontrolováno přes tento postup zůstává blokované.
 
-Ve stavu Expedováno lze kontrolu a měření upravit pouze s dodatečným oprávněním `orders.change_expedovana_bedna`. Ve stavech Nepřijato, Přijato, K navezení, Navezeno a Ve zpracování lze kontrolu pouze zobrazit; zápis není povolen ani se zvláštními oprávněními pro expedované či pozastavené bedny. Podmínky se znovu ověřují při ukládání.
+Ve stavech **K expedici a Expedováno** jsou kontrola i naměřené hodnoty uzamčené. Uložené údaje lze nadále prohlížet v přehledu kontroly bedny, ale nelze je přidávat, měnit ani mazat; neobchází to ani `orders.change_expedovana_bedna` nebo oprávnění správce. Přímé otevření formuláře pro zápis měření ani odeslání dříve otevřeného formuláře změnu nepovolí. Podmínky se znovu ověřují při ukládání.
+
+Pro opravu bedny **K expedici** ji nejprve vraťte na **Zkontrolováno**. U **expedované bedny** nejprve vraťte zakázku z expedice (bedny přejdou na K expedici) a poté příslušnou bednu na Zkontrolováno. Opravte kontrolu a měření a před novým označením K expedici vyřešte případnou Neshodu. Pokud starší data již obsahují expedovanou bednu s Neshodou, návrat zakázky na K expedici se odmítne; tuto nekonzistenci musí individuálně vyřešit správce.
+
+Ve stavech Nepřijato, Přijato, K navezení, Navezeno a Ve zpracování lze kontrolu rovněž pouze zobrazit; zápis není povolen ani se zvláštními oprávněními pro expedované či pozastavené bedny.
 
 Pokud jiný uživatel mezitím změnil kontrolu nebo měření, systém odmítne přepsat jeho údaje. Použijte **Načíst aktuální údaje / hodnoty**, zkontrolujte změny a zadejte úpravu znovu.
 

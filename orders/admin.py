@@ -3957,6 +3957,7 @@ class BednaAdmin(HistoryViewOnlyAdmin):
         """
         return BednaChangeListForm
 
+    @transaction.atomic
     def changelist_view(self, request, extra_context=None):
         """
         Přizpůsobení zobrazení seznamu beden podle aktivního filtru.

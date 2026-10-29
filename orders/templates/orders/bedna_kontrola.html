@@ -74,7 +74,7 @@
         <h2 class="card-header h6 mb-0">Výstupní kontrola</h2>
         <div class="card-body">
             {% if not can_edit %}
-                <div class="alert alert-info">Kontrolu můžete pouze zobrazit. Úpravy vyžadují příslušné oprávnění a stav Zakaleno, Zkontrolováno nebo K expedici. U expedované bedny je nutné zvláštní oprávnění, stejně jako u pozastavené bedny.</div>
+                <div class="alert alert-info">Kontrolu a měření můžete pouze zobrazit. Úpravy vyžadují příslušné oprávnění a stav Zakaleno nebo Zkontrolováno; u pozastavené bedny také zvláštní oprávnění. Pro opravu bedny K expedici ji nejprve vraťte na Zkontrolováno. U expedované bedny nejprve vraťte zakázku z expedice a poté bednu na Zkontrolováno.</div>
             {% endif %}
             {% if form.omezeni_prohybu %}
                 <div class="alert alert-warning" role="alert">{{ form.omezeni_prohybu.zprava }}</div>

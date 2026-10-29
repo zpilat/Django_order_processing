@@ -91,6 +91,8 @@ Při uložení konce kroku na pracovišti typu **Vykládání** nebo **Tryskač*
 
 Po uzavření ověřte stav šarže i dokončení jednotlivých beden. Připravené bedny se následně označují K expedici a expedují podle [manuálu beden](manual_bedna.md) a [zakázek](manual_zakazka.md).
 
+Uvolnění **Neshoda** označení K expedici i expedici blokuje. Od K expedici jsou kontrola a naměřené hodnoty uzamčené pro zápis. Pro opravu vraťte bednu na Zkontrolováno; u expedované bedny nejprve vraťte zakázku z expedice.
+
 ### Šarže obsahující železo mimo databázi
 
 Provozní detail nabízí samostatné stavové operace podle aktuálního stavu a oprávnění:

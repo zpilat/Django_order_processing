@@ -1,5 +1,5 @@
 from django import forms
-from django.db import transaction
+from django.db import connection, transaction
 from django.db.models import Exists, OuterRef, Q
 from django.forms import BaseFormSet, formset_factory
 from django.utils import timezone
@@ -367,7 +367,17 @@ class ZakazkaInlineForm(ZakazkaPredpisValidatorMixin, forms.ModelForm):
             self.fields['predpis'].queryset = Predpis.objects.filter(aktivni=True)
 
 
-class BednaAdminForm(forms.ModelForm):
+class BednaModelForm(forms.ModelForm):
+    def clean(self):
+        cleaned = super().clean()
+        # Admin ukládá v transakci. Zámek držíme od validace do uložení,
+        # aby kontrola nemohla souběžně uložit Neshodu před přechodem K expedici.
+        if self.instance.pk and connection.in_atomic_block:
+            Bedna.objects.select_for_update().filter(pk=self.instance.pk).exists()
+        return cleaned
+
+
+class BednaAdminForm(BednaModelForm):
     """
     Formulář pro model Bedna v Django Adminu. Použití v detailu bedny i v inline bedny.
 
@@ -491,7 +501,7 @@ class BednaAdminForm(forms.ModelForm):
         return cleaned
 
 
-class BednaChangeListForm(forms.ModelForm):
+class BednaChangeListForm(BednaModelForm):
     """
     Formulář pro model Bedna v Changelistu Django Adminu.
 

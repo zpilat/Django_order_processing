@@ -11,7 +11,7 @@ Stručný postup pro obsluhu, vhodný k vytištění. Výrobní operace a jejich
 | **3. Rozložení roštu** | Vybrat či naskenovat bedny, nastavit podíly a uložit patra. Zkontrolovat průvodku, doplnit datum a čas konce nakládání. | Rychlé zadání: patra 1–6, nejvýše 5 položek na patro, každá 5–100 %, součet nejvýše 100 %. Uložením beden do Nakládání přejdou na Ve zpracování. |
 | **4. Průchod výrobou** | V detailu šarže uzavřít dokončený krok a použít Přesunout do dalšího kroku. Vybrat cílové pracoviště, zadat začátek a operátora, ověřit kopírované položky. | Nový krok odpovídá skutečnému průchodu. Každý dokončený krok má datum i čas konce; při práci přes půlnoc správný den. |
 | **5. Kontrola** | Po dokončení příslušného zpracování označit bedny jako Zakaleno. Otevřít kontrolu, uložit měření, výstupní kontrolu a rozhodnutí o uvolnění. Poté samostatně potvrdit Zkontrolováno a stav rovnání/tryskání. | Správné číslo bedny, požadavky a výsledky. Při Neshodě vybrat důvod, u Jiné doplnit poznámku. Před označením Zkontrolováno musí být uložená Čistota a Uložení (OK/NOK), rozhodnutí o Uvolnění a při důvodu Křivost oba počty křivých (nula platí jako vyplněná). |
-| **6. Dokončení beden** | Dokončit požadované rovnání, tryskání či zinkování a zapsat skutečné stavy. Připravené bedny označit K expedici. | Pro K expedici musí být tryskání Čistá/Otryskaná, rovnání Rovná/Vyrovnaná a zinkování Nezinkovat/Uvolněno. Ověřit také výsledky kontroly. |
+| **6. Dokončení beden** | Dokončit požadované rovnání, tryskání či zinkování a zapsat skutečné stavy. Připravené bedny označit K expedici. | Pro K expedici musí být tryskání Čistá/Otryskaná, rovnání Rovná/Vyrovnaná a zinkování Nezinkovat/Uvolněno. Uvolnění nesmí být Neshoda; od K expedici jsou kontrola a měření pouze pro čtení. |
 | **7. Expedice** | Vybrat připravené bedny nebo zakázky, provést expedici do kamionu výdej a vytisknout potřebné doklady. | Správný zákazník, výběr a kamion. Po částečné expedici ověřit zbývající bedny a případnou novou zakázku. |
 
 ## Pět pravidel při každé směně
@@ -19,7 +19,7 @@ Stručný postup pro obsluhu, vhodný k vytištění. Výrobní operace a jejich
 1. **Nejdřív ověřit číslo bedny nebo šarže.** Při kopírování zkontrolovat také zdrojový krok a vybrané řádky roštu.
 2. **Změny vždy uložit.** Přechod na jinou stránku ani tlačítko Zrušit neukládá rozpracovaný formulář.
 3. **Konec zapisovat s datem.** Přesun sám neuzavře předchozí krok.
-4. **Rozlišovat evidované údaje.** Stav šarže, stav bedny, uvolnění kontroly a zinkování jsou samostatné. Uložení kontroly samo neoznačí bednu jako Zkontrolováno.
+4. **Rozlišovat evidované údaje.** Stav šarže, stav bedny, uvolnění kontroly a zinkování jsou samostatné. Uložení kontroly samo neoznačí bednu jako Zkontrolováno. Uvolnění Neshoda blokuje K expedici i expedici. Od K expedici jsou kontrola a měření pouze pro čtení; pro opravu vraťte bednu na Zkontrolováno, u expedované nejprve vraťte zakázku z expedice.
 5. **Na konci směny zkontrolovat otevřené kroky a čekající kontrolu.** Pro předání uvést číslo šarže, aktuální pracoviště a nedokončenou operaci.
 
 ## Když se práce zastaví

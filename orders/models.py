@@ -943,6 +943,11 @@ class PoziceZakazkaOrder(models.Model):
 hmotnost_validator = MinValueValidator(Decimal('0.0'), message='Hmotnost a tára musí být kladné číslo.')
 
 class Bedna(models.Model):
+    NESHODA_EXPEDICE_MESSAGE = _(
+        "Bednu nelze uložit ve stavu K expedici nebo Expedováno, "
+        "pokud má ve výstupní kontrole uvolnění Neshoda."
+    )
+
     zakazka = models.ForeignKey(Zakazka, on_delete=models.CASCADE, related_name='bedny', verbose_name='Zakázka')
     pozice = models.ForeignKey(Pozice, on_delete=models.SET_NULL, null=True, blank=True, related_name='bedny', verbose_name='Pozice')
     cislo_bedny = models.PositiveIntegerField(blank=True, verbose_name='Číslo bedny', unique=True,)
@@ -1262,9 +1267,12 @@ class Bedna(models.Model):
 
     def clean(self):
         """
-        Validace stavu bedny a tryskání/rovnání/zinkování.
-                - Pokud je stav bedny K_EXPEDICI nebo EXPEDOVANO, musí být tryskání buď Čistá nebo Otryskaná,
-                    rovnání buď Rovná nebo Vyrovnaná a zinkování buď Nezinkovat nebo Uvolněno (pozinkováno).
+        Validace stavu bedny, technologických stavů a uvolnění výstupní kontroly.
+
+        - Pokud je stav bedny K_EXPEDICI nebo EXPEDOVANO, musí být tryskání buď Čistá nebo Otryskaná,
+          rovnání buď Rovná nebo Vyrovnaná a zinkování buď Nezinkovat nebo Uvolněno (pozinkováno).
+          Příslušná uložená kontrola nesmí mít uvolnění NESHODA; chybějící kontrola ani
+          uvolnění NEROZHODNUTO se tímto pravidlem neblokují.
         - Pokud je stav bedny K_NAVEZENI nebo NAVEZENO, musí být zadána pozice.
         - Pokud je stav bedny jakýkoliv jiný než NEPRIJATO, musí být zadána hmotnost, tára a množství a tyto nesmí být nula
           a musí existovat předpis a jeho hodnota nesmí být 'Neznámý předpis'.
@@ -1272,6 +1280,11 @@ class Bedna(models.Model):
         """
         super().clean()    
         if self.stav_bedny in [StavBednyChoice.K_EXPEDICI, StavBednyChoice.EXPEDOVANO]:
+            if self.pk and KontrolaBedny.objects.filter(
+                bedna_id=self.pk, uvolneni=UvolneniKontrolyChoice.NESHODA,
+            ).exists():
+                logger.warning(f'Uzivatel se pokusil uložit bednu ve stavu {self.stav_bedny} s neshodou')
+                raise ValidationError(self.NESHODA_EXPEDICE_MESSAGE)
             text = _("Pro zadání stavu 'K expedici' nebo 'Expedováno' musí být tryskání buď Čistá nebo Otryskaná, rovnání buď Rovná nebo Vyrovnaná a zinkování buď Nezinkovat nebo Uvolněno (pozinkováno).")
             if self.tryskat not in [TryskaniChoice.CISTA, TryskaniChoice.OTRYSKANA]:
                 logger.warning(f'Uzivatel se pokusil uložit bednu ve stavu {self.stav_bedny} s neplatným stavem tryskání: {self.tryskat}')

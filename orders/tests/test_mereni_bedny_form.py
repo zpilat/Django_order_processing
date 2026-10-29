@@ -382,7 +382,7 @@ class MereniBednyFormTests(KontrolaBednyTestBase):
         self.assertEqual(self.client.get(self.url).status_code, 403)
         self.assertEqual(self.client.post(self.url, {}).status_code, 403)
 
-    def test_paused_and_dispatched_bedna_require_special_permissions(self):
+    def test_paused_requires_permission_but_dispatched_measurements_stay_locked(self):
         self.bedna.pozastaveno = True
         self.bedna.save()
         self.assertEqual(self.client.get(self.url).status_code, 403)
@@ -396,7 +396,8 @@ class MereniBednyFormTests(KontrolaBednyTestBase):
         )
         self.assertEqual(self.client.get(self.url).status_code, 403)
         self.user.user_permissions.add(Permission.objects.get(codename='change_expedovana_bedna'))
-        self.assertEqual(self.client.get(self.url).status_code, 200)
+        self.assertEqual(self.client.get(self.url).status_code, 403)
+        self.assertEqual(self.client.post(self.url, {}).status_code, 403)
 
     def test_manufacturing_state_is_checked_for_every_measurement_type(self):
         self.user.user_permissions.add(Permission.objects.get(codename='change_expedovana_bedna'))
@@ -404,7 +405,6 @@ class MereniBednyFormTests(KontrolaBednyTestBase):
             Bedna.objects.filter(pk=self.bedna.pk).update(stav_bedny=state)
             editable = state in (
                 StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO,
-                StavBednyChoice.K_EXPEDICI, StavBednyChoice.EXPEDOVANO,
             )
             for kind in TypZkouskyChoice:
                 with self.subTest(state=state, kind=kind):
@@ -421,11 +421,13 @@ class MereniBednyFormTests(KontrolaBednyTestBase):
 
     def test_measurements_cannot_be_saved_after_manufacturing_state_changes(self):
         response = self.client.get(self.url)
-        Bedna.objects.filter(pk=self.bedna.pk).update(stav_bedny=StavBednyChoice.DO_ZPRACOVANI)
-        result = self.client.post(self.url, self.payload(response, [{'hodnota': '580'}]))
-        self.assertEqual(result.status_code, 403)
-        self.assertFalse(MereniBedny.objects.exists())
-        self.assertFalse(KontrolaBedny.objects.exists())
+        for state in (StavBednyChoice.DO_ZPRACOVANI, StavBednyChoice.K_EXPEDICI, StavBednyChoice.EXPEDOVANO):
+            with self.subTest(state=state):
+                Bedna.objects.filter(pk=self.bedna.pk).update(stav_bedny=state)
+                result = self.client.post(self.url, self.payload(response, [{'hodnota': '580'}]))
+                self.assertEqual(result.status_code, 403)
+                self.assertFalse(MereniBedny.objects.exists())
+                self.assertFalse(KontrolaBedny.objects.exists())
 
     def test_unknown_type_is_not_found(self):
         self.assertEqual(self.client.get(self.url_for('unknown')).status_code, 404)

@@ -40,6 +40,7 @@ from .services.filled_quality_cards_service import build_filled_quality_cards_pd
 from .services.expedice_service import (
     expedice_beden_do_noveho_kamionu,
     expedice_zakazek_do_noveho_kamionu,
+    validate_bedny_bez_neshody,
 )
 from .services.exceptions import ServiceValidationError
 from .services.sarze_print_service import (
@@ -1803,6 +1804,7 @@ def oznacit_k_expedici_action(modeladmin, request, queryset):
     with transaction.atomic():
         locked_qs = Bedna.objects.select_for_update().filter(pk__in=selected_ids)
 
+        list(locked_qs.order_by('pk').values_list('pk', flat=True))
         if _abort_if_paused_bedny(modeladmin, request, locked_qs, "Změna stavu bedny na K EXPEDICI"):
             return None
 
@@ -1834,6 +1836,11 @@ def oznacit_k_expedici_action(modeladmin, request, queryset):
             )
             return None
 
+        try:
+            validate_bedny_bez_neshody(locked_qs)
+        except ServiceValidationError as exc:
+            modeladmin.message_user(request, str(exc), level=messages.ERROR)
+            return None
         zmeneno = locked_qs.update(stav_bedny=StavBednyChoice.K_EXPEDICI)
 
     modeladmin.message_user(request, f"Změněno na K EXPEDICI: {zmeneno} beden.", level=messages.SUCCESS)
@@ -2937,6 +2944,12 @@ def vratit_zakazky_z_expedice_action(modeladmin, request, queryset):
                     continue
 
                 locked_bedny_qs = Bedna.objects.select_for_update().filter(zakazka=locked_zakazka)
+                list(locked_bedny_qs.order_by('pk').values_list('pk', flat=True))
+                try:
+                    validate_bedny_bez_neshody(locked_bedny_qs)
+                except ServiceValidationError as exc:
+                    modeladmin.message_user(request, str(exc), level=messages.ERROR)
+                    continue
                 if locked_bedny_qs.exclude(stav_bedny=StavBednyChoice.EXPEDOVANO).exists():
                     logger.error(
                         f"Uživatel {request.user} se pokusil vrátit zakázku {locked_zakazka}, ale ne všechny bedny jsou ve stavu EXPEDOVANO."

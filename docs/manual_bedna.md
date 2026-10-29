@@ -59,6 +59,12 @@ Pro tyto stavy musí být:
 - `rovnat` = Rovná nebo Vyrovnaná,
 - `zinkovat` = Nezinkovat nebo Uvolněno.
 
+Příslušná výstupní kontrola nesmí mít **Uvolnění = Neshoda**. Pravidlo platí také pro hromadné označení K expedici, expedici beden i zakázek do nového či existujícího kamionu a vrácení z expedice na K expedici. Pokud vybrané bedny obsahují neshodu, označení K expedici ani expedice se neprovede; hlášení uvede čísla nevyhovujících beden. Při vracení z expedice se odmítne příslušná zakázka.
+
+Toto pravidlo samo nevyžaduje existenci kontroly ani výslovné uvolnění: chybějící kontrola nebo nerozhodnuté uvolnění jím nejsou blokovány. Uvolněno i Uvolněno QS s odchylkou jsou přípustné.
+
+Ve stavech **K expedici a Expedováno** jsou kontrola i naměřené hodnoty pouze pro čtení, a to i se zvláštním oprávněním pro expedované bedny. Pro opravu vraťte bednu K expedici na Zkontrolováno; u expedované bedny nejprve vraťte zakázku z expedice a poté bednu na Zkontrolováno. Podrobnosti jsou v [manuálu kontroly beden](manual_kontrola_beden.md).
+
 ### 4.3 Omezení pro K_NAVEZENI / NAVEZENO
 
 Pro stavy `K_NAVEZENI` a `NAVEZENO` musí být vyplněna `pozice`.
@@ -186,7 +192,7 @@ Zkontrolujte vyplnění `hmotnost`, `tara`, `mnozstvi` a vazbu na platný předp
 
 ### Chyba: nelze přepnout na K_EXPEDICI / EXPEDOVANO
 
-Zkontrolujte kombinaci `tryskat`, `rovnat`, `zinkovat`.
+Zkontrolujte kombinaci `tryskat`, `rovnat`, `zinkovat` a rozhodnutí o uvolnění v kontrole bedny. **Neshoda** přechod i expedici blokuje.
 
 ### Chyba: nelze přepnout na K_NAVEZENI / NAVEZENO
 
