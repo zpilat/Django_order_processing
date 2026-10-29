@@ -3795,9 +3795,9 @@ class BednaAdmin(HistoryViewOnlyAdmin):
             )),
         ]
         if obj:
-            groups.insert(5, ('Chemické složení', ('get_obsah_ca', 'get_obsah_p', 'get_obsah_zn')))
+            groups.insert(2, ('Kontrola kvality', ('get_mereni_bedny',)))
+            groups.insert(6, ('Chemické složení', ('get_obsah_ca', 'get_obsah_p', 'get_obsah_zn')))
             groups.append(('Pohyb v šaržích', ('get_pohyb_v_sarzich',)))
-            groups.append(('Kontrola kvality', ('get_mereni_bedny',)))
 
         # Logika vyloučení polí z původního get_fields
         exclude_fields = []
