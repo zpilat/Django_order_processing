@@ -42,13 +42,30 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-12 col-md-4">
-                <label for="den_filter" class="form-label small fw-semibold mb-1">Den vzniku neshody</label>
-                <select name="den_filter" id="den_filter" class="form-select form-select-sm">
-                    {% for value, label in den_choices %}
-                        <option value="{{ value }}" {% if den_filter == value %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                </select>
+            <div class="col-6 col-md-2">
+                <label for="den_filter_od" class="form-label small fw-semibold mb-1">Datum od</label>
+                <input type="date" name="den_filter_od" id="den_filter_od" value="{{ den_filter_od }}"
+                       class="form-control form-control-sm">
+            </div>
+            <div class="col-6 col-md-2">
+                <label for="den_filter_do" class="form-label small fw-semibold mb-1">Datum do</label>
+                <input type="date" name="den_filter_do" id="den_filter_do" value="{{ den_filter_do }}"
+                       class="form-control form-control-sm">
+            </div>
+            {% if date_filter_errors %}
+            <div class="col-12" role="alert">
+                {% for error in date_filter_errors %}
+                    <div class="text-danger">{{ error }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            <div class="col-12 d-flex justify-content-end">
+                {% if date_filter_errors %}
+                    <span class="btn btn-outline-secondary btn-sm disabled" aria-disabled="true">Tisk do PDF</span>
+                {% else %}
+                    <a href="{{ pdf_url }}" target="_blank" rel="noopener" hx-boost="false"
+                       class="btn btn-outline-secondary btn-sm">Tisk do PDF</a>
+                {% endif %}
             </div>
         </form>
     </section>
@@ -113,6 +130,8 @@
                 {% if item.url %}</a>{% else %}</div>{% endif %}
             {% endfor %}
         </div>
+    {% elif date_filter_errors %}
+        <div class="alert alert-info text-center mb-0">Opravte datumové filtry.</div>
     {% elif has_filters %}
         <div class="alert alert-info text-center mb-0">Zvoleným filtrům neodpovídá žádná neshoda.</div>
     {% else %}

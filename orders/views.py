@@ -18,6 +18,7 @@ import django.utils.timezone as timezone
 from datetime import datetime, timedelta, time, date
 import calendar
 import uuid
+from urllib.parse import urlencode
 from django.db import transaction
 from django.contrib import messages
 from django.contrib.staticfiles import finders
@@ -465,10 +466,8 @@ def kontrola_prehled_view(request):
     )
 
 
-@login_required
-@never_cache
-def neshody_prehled_view(request):
-    """Zobrazí aktuálně neshodné bedny od nejnovějšího rozhodnutí."""
+def _build_neshody_prehled_context(request):
+    """Společná data a filtry pro přehled neshod i jeho PDF."""
     kontroly = (
         KontrolaBedny.objects
         .filter(uvolneni=UvolneniKontrolyChoice.NESHODA)
@@ -481,13 +480,22 @@ def neshody_prehled_view(request):
     }
     zakaznik_filter = request.GET.get('zakaznik_filter', '')
     duvod_filter = request.GET.get('duvod_filter', '')
-    den_filter = request.GET.get('den_filter', '')
-    den_choices = [('', 'VŠE')] + [
-        (den.isoformat(), den.strftime('%d.%m.%Y'))
-        for den in kontroly.dates('uvolneni_zmeneno_at', 'day', order='DESC')
-    ]
-    if kontroly.filter(uvolneni_zmeneno_at__isnull=True).exists():
-        den_choices.append(('nezjisteno', 'Datum nezjištěno'))
+    nejstarsi_den = kontroly.dates('uvolneni_zmeneno_at', 'day', order='ASC').first()
+    den_filter_od = request.GET.get('den_filter_od', nejstarsi_den.isoformat() if nejstarsi_den else '')
+    den_filter_do = request.GET.get('den_filter_do', timezone.localdate().isoformat())
+    dny = {}
+    date_filter_errors = []
+    for name, value, label in (
+        ('od', den_filter_od, 'Datum od'),
+        ('do', den_filter_do, 'Datum do'),
+    ):
+        try:
+            dny[name] = date.fromisoformat(value) if value else None
+        except ValueError:
+            dny[name] = None
+            date_filter_errors.append(f'{label}: zadejte platné datum.')
+    if dny['od'] and dny['do'] and dny['od'] > dny['do']:
+        date_filter_errors.append('Datum od nesmí být pozdější než datum do.')
 
     if zakaznik_filter:
         kontroly = kontroly.filter(bedna__zakazka__kamion_prijem__zakaznik__zkratka=zakaznik_filter)
@@ -495,16 +503,15 @@ def neshody_prehled_view(request):
         kontroly = kontroly.filter(**{duvod_filter: True})
     else:
         duvod_filter = ''
-    if den_filter == 'nezjisteno':
-        kontroly = kontroly.filter(uvolneni_zmeneno_at__isnull=True)
-    elif den_filter:
-        try:
-            den = date.fromisoformat(den_filter)
-        except ValueError:
-            den_filter = ''
-        else:
-            den_filter = den.isoformat()
-            kontroly = kontroly.filter(uvolneni_zmeneno_at__date=den)
+    if date_filter_errors:
+        kontroly = kontroly.none()
+    else:
+        if dny['od']:
+            den_filter_od = dny['od'].isoformat()
+            kontroly = kontroly.filter(uvolneni_zmeneno_at__date__gte=dny['od'])
+        if dny['do']:
+            den_filter_do = dny['do'].isoformat()
+            kontroly = kontroly.filter(uvolneni_zmeneno_at__date__lte=dny['do'])
 
     can_view_kontrola = _can_view_kontrola_bedny(request.user)
     items = []
@@ -517,6 +524,7 @@ def neshody_prehled_view(request):
         pomer_krivych_vrutu_prvni_mereni = f'{kontrola.pocet_krivych_vrutu_prvni_mereni} / {velikost_vzorku}' if kontrola.pocet_krivych_vrutu_prvni_mereni is not None else None
         pomer_krivych_vrutu_druhe_mereni = f'{kontrola.pocet_krivych_vrutu_druhe_mereni} / {velikost_vzorku}' if kontrola.pocet_krivych_vrutu_druhe_mereni is not None else None
         items.append({
+            'bedna': bedna,
             'cislo_bedny': bedna.cislo_bedny,
             'zakazka': zakazka,
             'zakaznik': zakazka.kamion_prijem.zakaznik,
@@ -533,21 +541,60 @@ def neshody_prehled_view(request):
             'oznacil': (oznacil.get_full_name() or oznacil.get_username()) if oznacil else None,
             'url': reverse('bedna_kontrola', args=[bedna.cislo_bedny]) if can_view_kontrola else None,
         })
-    template_name = 'orders/neshody_prehled.html'
-    if request.htmx and not request.htmx.history_restore_request:
-        template_name = 'orders/partials/neshody_prehled_content.html'
-    return render(request, template_name, {
+    zakaznik_choices = [('', 'VŠE')] + list(Zakaznik.objects.values_list('zkratka', 'zkraceny_nazev'))
+    duvod_choices = [('', 'VŠE')] + list(popisky_duvodu.items())
+    return {
         'items': items,
         'current_time': timezone.now(),
         'db_table': 'neshody_prehled',
         'zakaznik_filter': zakaznik_filter,
-        'zakaznik_choices': [('', 'VŠE')] + list(Zakaznik.objects.values_list('zkratka', 'zkraceny_nazev')),
+        'zakaznik_choices': zakaznik_choices,
+        'zakaznik_filter_label': dict(zakaznik_choices).get(zakaznik_filter, zakaznik_filter),
         'duvod_filter': duvod_filter,
-        'duvod_choices': [('', 'VŠE')] + list(popisky_duvodu.items()),
-        'den_filter': den_filter,
-        'den_choices': den_choices,
-        'has_filters': bool(zakaznik_filter or duvod_filter or den_filter),
+        'duvod_choices': duvod_choices,
+        'duvod_filter_label': dict(duvod_choices)[duvod_filter],
+        'den_filter_od': den_filter_od,
+        'den_filter_do': den_filter_do,
+        'den_od': dny['od'],
+        'den_do': dny['do'],
+        'date_filter_errors': date_filter_errors,
+        'has_filters': bool(zakaznik_filter or duvod_filter or den_filter_od or den_filter_do),
+    }
+
+
+@login_required
+@never_cache
+def neshody_prehled_view(request):
+    """Zobrazí aktuálně neshodné bedny od nejnovějšího rozhodnutí."""
+    context = _build_neshody_prehled_context(request)
+    # Explicitní hodnoty zachovají i výchozí data a ručně vymazané hranice.
+    pdf_params = urlencode({
+        name: context[name]
+        for name in ('zakaznik_filter', 'duvod_filter', 'den_filter_od', 'den_filter_do')
     })
+    context['pdf_url'] = f"{reverse('neshody_prehled_pdf')}?{pdf_params}"
+    template_name = 'orders/neshody_prehled.html'
+    if request.htmx and not request.htmx.history_restore_request:
+        template_name = 'orders/partials/neshody_prehled_content.html'
+    return render(request, template_name, context)
+
+
+@login_required
+@never_cache
+def neshody_prehled_pdf_view(request):
+    """Vytiskne přehled neshod se stejnými filtry jako na stránce."""
+    context = _build_neshody_prehled_context(request)
+    if context['date_filter_errors']:
+        return HttpResponseBadRequest(
+            '\n'.join(context['date_filter_errors']),
+            content_type='text/plain; charset=utf-8',
+        )
+    html_string = render_to_string('orders/print/neshody_prehled_print.html', context)
+    pdf_bytes = HTML(string=html_string).write_pdf()
+    response = HttpResponse(pdf_bytes, content_type='application/pdf')
+    response['Content-Disposition'] = 'inline; filename="prehled_neshod.pdf"'
+    response['Content-Length'] = str(len(pdf_bytes))
+    return response
 
 
 def _yes_no(value):

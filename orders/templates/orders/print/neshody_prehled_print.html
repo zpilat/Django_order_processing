@@ -1,0 +1,112 @@
+{% load barcode_tags %}
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="utf-8">
+    <title>Přehled neshod</title>
+    <style>
+        @page {
+            size: A4 landscape;
+            margin: 12mm;
+            @bottom-right {
+                content: "Strana " counter(page) " / " counter(pages);
+                font-family: "DejaVu Sans", Arial, sans-serif;
+                font-size: 8pt;
+            }
+        }
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: "DejaVu Sans", Arial, sans-serif; font-size: 9pt; color: #111; }
+        h1 { margin: 0 0 3mm; font-size: 18pt; }
+        .meta { margin: 0 0 2mm; }
+        .filters { margin: 2mm 0 3mm; padding: 2mm; border: 0.2mm solid #aaa; font-size: 8pt; line-height: 1.3; }
+        .date-range { white-space: nowrap; }
+        table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+        thead { display: table-header-group; }
+        th, td { border: 0.2mm solid #aaa; padding: 2mm; vertical-align: top; overflow-wrap: break-word; }
+        thead th { background: #e9ecef; text-align: left; font-size: 8pt; }
+        tr { break-inside: avoid; }
+        .day-header { break-after: avoid; }
+        .day-header th { background: #f3f3f3; text-align: left; }
+        .secondary { margin-top: 1mm; font-size: 8pt; color: #444; }
+        .barcode { vertical-align: middle; }
+        .barcode svg { display: block; width: 100%; height: auto; }
+        .number { text-align: right; white-space: nowrap; }
+        .ratio { white-space: nowrap; }
+    </style>
+</head>
+<body>
+    <h1>Přehled neshod</h1>
+    <p class="meta">Vytvořeno: {{ current_time|date:"d.m.Y H:i" }} · Celkem beden: {{ items|length }}</p>
+    <div class="filters">
+        <strong>Zákazník:</strong> {{ zakaznik_filter_label }} &nbsp; · &nbsp;
+        <strong>Důvod neshody:</strong> {{ duvod_filter_label }} &nbsp; · &nbsp;
+        <strong>Datum označení:</strong>
+        <span class="date-range">{{ den_od|date:"j.m.Y"|default:"Bez omezení" }} - {{ den_do|date:"j.m.Y"|default:"Bez omezení" }}</span>
+    </div>
+    {% if items %}
+    <table>
+        <colgroup>
+            <col style="width: 17%;">
+            <col style="width: 9%;">
+            <col style="width: 21%;">
+            <col style="width: 25%;">
+            <col style="width: 7%;">
+            <col style="width: 13%;">
+            <col style="width: 8%;">
+        </colgroup>
+        <thead>
+            <tr>
+                <th>Čárový kód bedny</th>
+                <th>Bedna / stav</th>
+                <th>Zákazník / zakázka</th>
+                <th>Důvody neshody / poznámka</th>
+                <th>Křivých</th>
+                <th>Označeno</th>
+                <th class="number">Netto kg</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+                {% ifchanged item.oznaceno_at|date:"Y-m-d" %}
+                <tr class="day-header">
+                    <th colspan="7">
+                        {% if item.oznaceno_at %}{{ item.oznaceno_at|date:"d.m.Y" }}{% else %}Datum označení nezjištěno{% endif %}
+                    </th>
+                </tr>
+                {% endifchanged %}
+                <tr>
+                    <td class="barcode">{% bedna_code128_svg item.bedna %}</td>
+                    <td>
+                        <strong>{{ item.cislo_bedny }}</strong>
+                        <div class="secondary">{{ item.stav_bedny }}</div>
+                    </td>
+                    <td>
+                        <strong>{{ item.zakaznik.zkraceny_nazev }}</strong>
+                        <div class="secondary">{{ item.zakazka.artikl }} · Ø{{ item.zakazka.prumer }} × {{ item.zakazka.delka }}</div>
+                    </td>
+                    <td>
+                        {% if item.duvody %}{{ item.duvody|join:", " }}{% else %}Bez zadaného důvodu{% endif %}
+                        {% if item.poznamka %}<div class="secondary">Poznámka: {{ item.poznamka|linebreaksbr }}</div>{% endif %}
+                    </td>
+                    <td class="ratio">
+                        {% if item.pomer_krivych_vrutu_prvni_mereni %}
+                            <div>{{ item.pomer_krivych_vrutu_prvni_mereni }}</div>
+                            {% if item.pomer_krivych_vrutu_druhe_mereni %}<div>{{ item.pomer_krivych_vrutu_druhe_mereni }}</div>{% endif %}
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>
+                        {% if item.oznaceno_at %}
+                            <strong>{{ item.oznaceno_at|date:"d.m.y H:i" }}</strong>
+                            <div class="secondary">{{ item.oznacil|default:"—" }}</div>
+                        {% else %}Čas nezjištěn{% endif %}
+                    </td>
+                    <td class="number">{% if item.bedna.hmotnost != None %}{{ item.bedna.hmotnost|floatformat:1 }}{% else %}—{% endif %}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+        <p>Zvoleným filtrům neodpovídá žádná neshoda.</p>
+    {% endif %}
+</body>
+</html>
