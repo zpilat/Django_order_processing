@@ -16,7 +16,7 @@ ORDERS_ADMIN_SECTIONS = (
     {
         'key': 'kontrola_kvality',
         'title': 'Kontrola kvality',
-        'models': ('kontrolabedny', 'merenibedny'),
+        'models': ('kontrolabedny', 'merenibedny', 'zaznamneshody'),
     },
     {
         'key': 'ciselniky',

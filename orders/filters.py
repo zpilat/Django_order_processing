@@ -6,7 +6,7 @@ from django.utils import timezone
 from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 
-from .models import Zakazka, Bedna, Zakaznik, Kamion, TypHlavy, Predpis, Odberatel, Zarizeni, Sarze, SarzeKrokBedna, Notification
+from .models import Zakazka, Bedna, Zakaznik, Kamion, TypHlavy, Predpis, Odberatel, Zarizeni, Sarze, SarzeKrokBedna, Notification, KontrolaBedny
 from .choices import (
     StavBednyChoice, TryskaniChoice, RovnaniChoice, ZinkovaniChoice, PrioritaChoice, PrijemVydejChoice, SklademZakazkyChoice,
     StavSarzeChoice, TypZarizeniChoice, STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM,
@@ -1210,3 +1210,118 @@ class SkupinaSarzeBednaFilter(DynamicTitleFilter):
         if value not in self.label_dict:
             return queryset.none()
         return queryset.filter(bedna__zakazka__predpis__skupina=int(value))
+
+
+# Filtry pro Evidenci neshod
+
+class SkupinaDiluZaznamuNeshodyFilter(DynamicTitleFilter):
+    title = 'Skupina dílů'
+    parameter_name = 'skupina_dilu__exact'
+
+    def __init__(self, request, params, model, model_admin):
+        self.label_dict = dict(model._meta.get_field('skupina_dilu').choices)
+        super().__init__(request, params, model, model_admin)
+
+    def lookups(self, request, model_admin):
+        return self.label_dict.items()
+
+    def queryset(self, request, queryset):
+        if self.value() in self.label_dict:
+            return queryset.filter(skupina_dilu=self.value())
+        return queryset
+
+
+class ZakaznikZaznamuNeshodyFilter(DynamicTitleFilter):
+    title = 'Zákazník'
+    parameter_name = 'zakaznik_zkratka__exact'
+
+    def __init__(self, request, params, model, model_admin):
+        codes = (
+            model_admin.get_queryset(request)
+            .exclude(zakaznik_zkratka='')
+            .order_by('zakaznik_zkratka')
+            .values_list('zakaznik_zkratka', flat=True)
+            .distinct()
+        )
+        self.label_dict = {code: code for code in codes}
+        super().__init__(request, params, model, model_admin)
+
+    def lookups(self, request, model_admin):
+        return self.label_dict.items()
+
+    def queryset(self, request, queryset):
+        if self.value():
+            return queryset.filter(zakaznik_zkratka=self.value())
+        return queryset
+
+
+class DuvodZaznamuNeshodyFilter(DynamicTitleFilter):
+    title = 'Důvod neshody'
+    parameter_name = 'duvod'
+
+    def __init__(self, request, params, model, model_admin):
+        self.label_dict = {
+            name: str(KontrolaBedny._meta.get_field(name).verbose_name)
+            for name in KontrolaBedny.NESHODA_FIELDS
+        }
+        super().__init__(request, params, model, model_admin)
+
+    def lookups(self, request, model_admin):
+        return self.label_dict.items()
+
+    def queryset(self, request, queryset):
+        if self.value() in self.label_dict:
+            return queryset.filter(duvody__contains=[{'kod': self.value()}])
+        return queryset
+
+
+class DatumZaznamuNeshodyFilter(DynamicTitleFilter):
+    title = 'Datum zjištění'
+    parameter_name = 'datum_zjisteni'
+
+    def __init__(self, request, params, model, model_admin):
+        self.label_dict = {
+            'dnes': 'Dnes',
+            '7_dni': 'Posledních 7 dní',
+            'mesic': 'Tento měsíc',
+            'rok': 'Tento rok',
+        }
+        super().__init__(request, params, model, model_admin)
+
+    def lookups(self, request, model_admin):
+        return self.label_dict.items()
+
+    def queryset(self, request, queryset):
+        if self.value() not in self.label_dict:
+            return queryset
+        now = timezone.now()
+        if timezone.is_aware(now):
+            now = timezone.localtime(now)
+        today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        tomorrow = today + timedelta(days=1)
+        next_month = (
+            today.replace(year=today.year + 1, month=1, day=1)
+            if today.month == 12 else today.replace(month=today.month + 1, day=1)
+        )
+        ranges = {
+            'dnes': (today, tomorrow),
+            '7_dni': (today - timedelta(days=7), tomorrow),
+            'mesic': (today.replace(day=1), next_month),
+            'rok': (today.replace(month=1, day=1), today.replace(year=today.year + 1, month=1, day=1)),
+        }
+        start, end = ranges[self.value()]
+        return queryset.filter(zjisteno_at__gte=start, zjisteno_at__lt=end)
+
+    def choices(self, changelist):
+        # Volba období nahradí také datum dříve vybrané v horní liště adminu.
+        yield {
+            'selected': self.value() is None,
+            'query_string': changelist.get_query_string(remove=[self.parameter_name, 'zjisteno_at__']),
+            'display': self.vse,
+        }
+        for value, label in self.lookup_choices:
+            yield {
+                'selected': self.value() == str(value),
+                'query_string': changelist.get_query_string({self.parameter_name: value}, ['zjisteno_at__']),
+                'display': label,
+            }

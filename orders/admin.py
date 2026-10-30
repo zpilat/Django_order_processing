@@ -38,8 +38,9 @@ from .import_strategies import BaseImportStrategy, EURImportStrategy, SPXImportS
 from .models import (
     Zakaznik, Kamion, Zakazka, Bedna, Predpis, Odberatel, TypHlavy, Cena, Pozice, Pletivo, PoziceZakazkaOrder, Rozpracovanost,
     Zarizeni, Sarze, SarzeKrok, SarzeKrokBedna, Notification, PriorityNotificationRecipient,
-    KontrolaBedny, MereniBedny,
+    KontrolaBedny, MereniBedny, ZaznamNeshody,
 )
+from .services.evidence_neshod_service import snapshot_zkousky_pro_zobrazeni
 from .actions import (
     expedice_zakazek_action, import_kamionu_action, import_chemickych_mereni_action, tisk_karet_beden_action, tisk_karet_beden_zakazek_action,
     tisk_karet_beden_kamionu_action, tisk_karet_bedny_a_kontroly_kamionu_action, tisk_dodaciho_listu_kamionu_action, vratit_zakazky_z_expedice_action, expedice_zakazek_kamion_action,
@@ -68,6 +69,8 @@ from .filters import (
     ZarizeniSarzeBednaFilter, TypZarizeniSarzeBednaFilter, KonecSarzeBednaFilter, StavSarzeBednaFilter,
     SkupinaSarzeBednaFilter,
     FakturovatFilter,
+    SkupinaDiluZaznamuNeshodyFilter, ZakaznikZaznamuNeshodyFilter,
+    DuvodZaznamuNeshodyFilter, DatumZaznamuNeshodyFilter,
 )
 from .forms import (
     BednaAdminForm,
@@ -4678,6 +4681,39 @@ class MereniBednyInline(ReadOnlyAdminMixin, admin.TabularInline):
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('kontrola__bedna', 'zmeril')
+
+
+@admin.register(ZaznamNeshody)
+class ZaznamNeshodyAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
+    change_form_template = 'admin/orders/zaznamneshody/change_form.html'
+    list_display = (
+        'id', 'zjisteno_at', 'oznaceni_bedny', 'zakaznik_zkratka', 'zakazka',
+        'dil', 'sarze_materialu', 'popis_duvodu', 'popis', 'zjistil_jmeno', 'skupina_dilu',
+    )
+    list_display_links = ('oznaceni_bedny',)
+    list_filter = (
+        SkupinaDiluZaznamuNeshodyFilter, ZakaznikZaznamuNeshodyFilter,
+        DuvodZaznamuNeshodyFilter, DatumZaznamuNeshodyFilter,
+    )
+    search_fields = ('oznaceni_bedny', 'zakazka', 'zakaznik', 'sarze_materialu', 'popis')
+    search_help_text = 'Hledejte označení bedny, zakázku, zákazníka, šarži materiálu nebo popis neshody.'
+    date_hierarchy = 'zjisteno_at'
+    list_per_page = 50
+    fields = ()
+    view_on_site = False
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).defer('snapshot')
+
+    def render_change_form(self, request, context, add=False, change=False, form_url='', obj=None):
+        if obj is not None:
+            context.update({
+                'title': f'Neshoda {obj.pk} · {obj.oznaceni_bedny or obj.zakazka}',
+                'snapshot': obj.snapshot,
+                'zkousky': snapshot_zkousky_pro_zobrazeni(obj.snapshot),
+                'can_view_kontrola': request.user.has_perm('orders.view_bedna') or request.user.has_perm('orders.mark_bedna_zkontrolovano'),
+            })
+        return super().render_change_form(request, context, add, change, form_url, obj)
 
 
 @admin.register(KontrolaBedny)

@@ -1,0 +1,122 @@
+.neshoda-detail {
+    clear: both;
+    margin-bottom: 20px;
+}
+
+.neshoda-intro {
+    padding: 16px 20px;
+    margin-bottom: 20px;
+    border-left: 5px solid var(--primary);
+    background: var(--darkened-bg);
+}
+
+.neshoda-intro > span {
+    display: block;
+    margin-top: 5px;
+}
+
+.neshoda-intro p {
+    margin: 8px 0 0;
+    color: var(--body-quiet-color);
+}
+
+.neshoda-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+    align-items: start;
+}
+
+.neshoda-grid .module {
+    margin-bottom: 0;
+    border: 1px solid var(--hairline-color);
+    border-radius: 4px;
+    overflow: hidden;
+    min-width: 0;
+}
+
+.neshoda-facts {
+    display: grid;
+    grid-template-columns: minmax(130px, 1fr) 2fr;
+    margin: 0;
+    padding: 10px 16px;
+}
+
+.neshoda-facts dt,
+.neshoda-facts dd {
+    margin: 0;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--hairline-color);
+    overflow-wrap: anywhere;
+}
+
+.neshoda-facts dt {
+    font-weight: 600;
+    padding-right: 16px;
+    color: var(--body-quiet-color);
+}
+
+.neshoda-reasons {
+    margin: 16px 16px 10px;
+    padding: 10px 12px;
+    border-left: 4px solid var(--error-fg);
+    background: var(--darkened-bg);
+    font-weight: 600;
+}
+
+.neshoda-note {
+    padding: 0 16px 12px;
+    overflow-wrap: anywhere;
+}
+
+.neshoda-section-title {
+    margin: 24px 0 14px;
+}
+
+.neshoda-test summary {
+    padding: 12px 16px;
+    background: var(--darkened-bg);
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.neshoda-test summary span {
+    float: right;
+    font-weight: normal;
+    color: var(--body-quiet-color);
+}
+
+.neshoda-test-content {
+    padding: 14px 16px;
+}
+
+.neshoda-requirement {
+    font-weight: 600;
+    margin: 5px 0;
+}
+
+.neshoda-muted {
+    color: var(--body-quiet-color);
+    margin: 5px 0;
+}
+
+.neshoda-table-wrap {
+    overflow-x: auto;
+    margin-top: 12px;
+}
+
+.neshoda-table-wrap table {
+    width: 100%;
+}
+
+.neshoda-table-wrap th,
+.neshoda-table-wrap td {
+    padding: 8px;
+    vertical-align: top;
+}
+
+@media (max-width: 1100px) {
+    .neshoda-grid {
+        grid-template-columns: 1fr;
+    }
+}

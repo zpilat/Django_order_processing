@@ -122,6 +122,11 @@
                             {% if db_table == 'neshody_prehled' %}aria-current="page"{% endif %}
                             href="{% url 'neshody_prehled' %}">Přehled neshod</a>
                         </li>
+                        {% if request.user.is_staff and perms.orders.view_zaznamneshody %}
+                        <li>
+                            <a class="dropdown-item small" href="{% url 'admin:orders_zaznamneshody_changelist' %}">Evidence neshod</a>
+                        </li>
+                        {% endif %}
                         {% if perms.orders.view_bedna %}
                             <li>
                                 <a class="dropdown-item small{% if db_table == 'bedny' %} active{% endif %}"

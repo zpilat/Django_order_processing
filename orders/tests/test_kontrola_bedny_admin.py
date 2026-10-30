@@ -8,7 +8,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from orders.choices import RovnaniChoice, TypZkouskyChoice, UvolneniKontrolyChoice
-from orders.models import Bedna, KontrolaBedny, MereniBedny
+from orders.models import Bedna, KontrolaBedny, MereniBedny, ZaznamNeshody
 from orders.templatetags.admin_sections import orders_admin_sections
 from orders.tests.test_kontrola_bedny import KontrolaBednyTestBase
 
@@ -37,7 +37,7 @@ class KontrolaBednyAdminTests(KontrolaBednyTestBase):
         return reverse(f'admin:orders_{model._meta.model_name}_{action}', args=[pk] if pk else None)
 
     def test_quality_section_contains_only_live_models_and_has_working_lists(self):
-        models = (KontrolaBedny, MereniBedny)
+        models = (KontrolaBedny, MereniBedny, ZaznamNeshody)
         self.assertNotIn(KontrolaBedny.history.model, admin.site._registry)
         self.assertNotIn(MereniBedny.history.model, admin.site._registry)
         apps = admin.site.get_app_list(self.request())
@@ -52,7 +52,7 @@ class KontrolaBednyAdminTests(KontrolaBednyTestBase):
             with self.subTest(model=model.__name__):
                 response = self.client.get(self.url(model, 'changelist'))
                 self.assertEqual(response.status_code, 200)
-                self.assertEqual(response.context['cl'].result_count, 1)
+                self.assertEqual(response.context['cl'].result_count, 0 if model is ZaznamNeshody else 1)
         response = self.client.get(reverse('admin:index'))
         self.assertContains(response, 'Kontrola kvality')
         self.assertNotContains(response, 'Historie měření beden')

@@ -103,6 +103,8 @@ Bednu s uloženým **Uvolnění = Neshoda** nelze označit K expedici ani expedo
 
 **Přehled neshod** (`/prehled-neshod/`) ukazuje bedny s aktuálním rozhodnutím Neshoda, důvody, poznámku a autora i datum rozhodnutí. Filtruje se podle zákazníka, důvodu a dne. Po změně uvolnění na jinou hodnotu bedna z přehledu zmizí; starší rozhodnutí zůstává v historii.
 
+**Evidence neshod v administraci** (`/admin/orders/zaznamneshody/`) uchovává samostatný případ při prvním uložení Neshody nebo novém přechodu z jiného rozhodnutí do Neshody. Kopíruje identifikaci, důvody, poznámku, všechny uložené hodnoty měření a tehdejší požadavky i limity. Opakované uložení stejného stavu případ neduplikuje ani nepřepisuje; pozdější změny zůstávají v historii kontroly. Uvolnění bedny případ z evidence neodstraní. Uživatelé s účtem staff a oprávněním `orders.view_zaznamneshody` mají pod formulářem kontroly odkazy na případy této bedny přímo v adminu. Podrobnosti a rozsah první verze popisuje [Evidence neshod](manual_evidence_neshod.md).
+
 Administrace **Kontroly beden** a **Měření beden** slouží k prohlížení záznamů a historie. Údaje se upravují provozním formulářem, na který vede odkaz v poli **Formulář kontroly bedny**; detail měření má obdobný odkaz v poli **Formulář měření zkoušky**.
 
 Z administrace beden či zakázek lze pro všechny zákazníky použít akci **Vytisknout vyplněné KKK**, případně variantu pro zakázky. Výběr musí patřit jednomu zákazníkovi a každá bedna musí mít uloženou kontrolu. V administraci kamionů je tisk vyplněných KKK dostupný pouze pro kamion výdej; bedny bez kontroly se přeskočí s varováním. Prázdné KKK mají vlastní akci a zákaznické šablony. Před tiskem ověřte měření a uvolnění.

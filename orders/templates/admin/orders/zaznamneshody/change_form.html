@@ -1,0 +1,84 @@
+{% extends "admin/change_form.html" %}
+{% load static custom_filters %}
+
+{% block extrastyle %}
+    {{ block.super }}
+    <link rel="stylesheet" href="{% static 'orders/css/evidence_neshod_admin.css' %}">
+{% endblock %}
+
+{% block object-tools-items %}
+    {% if original.bedna_id and can_view_kontrola %}
+        <li><a href="{% url 'bedna_kontrola' original.bedna.cislo_bedny %}">Aktuální kontrola bedny</a></li>
+    {% endif %}
+{% endblock %}
+
+{% block field_sets %}
+<div class="neshoda-detail">
+    <div class="neshoda-intro">
+        <strong>Záznam při zjištění neshody</strong>
+        <span>{{ original.zjisteno_at|date:"d.m.Y H:i" }} · {{ original.zjistil_jmeno|default:"—" }}</span>
+        <p>Údaje zachycují okamžik zjištění. Následné opravy a uvolnění bedny tento záznam nepřepisují.</p>
+    </div>
+    <div class="neshoda-grid">
+        <section class="module neshoda-panel" aria-labelledby="neshoda-identifikace">
+            <h2 id="neshoda-identifikace">Identifikace při zjištění</h2>
+            <dl class="neshoda-facts">
+                <dt>Číslo případu</dt><dd>{{ original.pk }}</dd>
+                <dt>Skupina / oddělení</dt><dd>{{ original.get_skupina_dilu_display }} · {{ original.oddeleni }}</dd>
+                <dt>Zákazník</dt><dd>{{ original.zakaznik_zkratka }} · {{ original.zakaznik }}</dd>
+                <dt>Zakázka / artikl</dt><dd>{{ original.zakazka|default:"—" }}</dd>
+                <dt>Bedna</dt><dd><strong>{{ original.oznaceni_bedny|default:"—" }}</strong>{% if snapshot.bedna.behalter_nr %} · {{ snapshot.bedna.behalter_nr }}{% endif %}</dd>
+                <dt>Díl / rozměr</dt><dd>{{ original.dil|default:"—" }}{% if snapshot.zakazka.popis %} · {{ snapshot.zakazka.popis }}{% endif %}</dd>
+                <dt>Šarže materiálu</dt><dd>{{ original.sarze_materialu|default:"—" }}</dd>
+                <dt>Materiál</dt><dd>{{ snapshot.bedna.material|default:"—" }}</dd>
+                <dt>Výrobní zakázka</dt><dd>{{ snapshot.bedna.vyrobni_zakazka|default:"—" }}</dd>
+                <dt>Stav bedny</dt><dd>{{ snapshot.bedna.stav_popis|default:"—" }}</dd>
+                <dt>Netto kg / počet kusů</dt><dd>{{ snapshot.bedna.hmotnost|default_if_none:"—"|default:"—" }} / {{ snapshot.bedna.mnozstvi|default_if_none:"—" }}</dd>
+                <dt>Rovnání / tryskání</dt><dd>{{ snapshot.bedna.rovnani|default:"—" }} / {{ snapshot.bedna.tryskani|default:"—" }}</dd>
+            </dl>
+        </section>
+        <section class="module neshoda-panel" aria-labelledby="neshoda-vysledek">
+            <h2 id="neshoda-vysledek">Neshoda a výsledky kontroly</h2>
+            <div class="neshoda-reasons">{{ original.popis_duvodu|default:"Bez zadaného důvodu" }}</div>
+            {% if original.popis %}<div class="neshoda-note">{{ original.popis|linebreaksbr }}</div>{% endif %}
+            <dl class="neshoda-facts">
+                <dt>Uvolnění</dt><dd>{{ snapshot.kontrola.uvolneni_popis|default:"—" }}</dd>
+                <dt>Čistota / uložení</dt><dd>{{ snapshot.kontrola.cistota|default:"—" }} / {{ snapshot.kontrola.ulozeni|default:"—" }}</dd>
+                <dt>Křivých, 1. měření</dt><dd>{{ snapshot.kontrola.pocet_krivych_vrutu_prvni_mereni|default_if_none:"—" }}</dd>
+                <dt>Křivých, 2. měření</dt><dd>{{ snapshot.kontrola.pocet_krivych_vrutu_druhe_mereni|default_if_none:"—" }}</dd>
+                <dt>Velikost vzorku</dt><dd>{{ snapshot.zakaznik.pocet_vrutu_pro_kontrolu_prohybu|default_if_none:"—" }}</dd>
+                <dt>Povolený počet křivých</dt><dd>{{ snapshot.zakaznik.max_krivych_vrutu|default_if_none:"—" }}</dd>
+                <dt>Předpis</dt><dd>{{ snapshot.predpis.nazev|default:"—" }}</dd>
+            </dl>
+        </section>
+    </div>
+    <h2 class="neshoda-section-title">Naměřené hodnoty a tehdejší požadavky</h2>
+    <div class="neshoda-grid">
+        {% for zkouska in zkousky %}
+            <details class="module neshoda-test"{% if zkouska.mereni %} open{% endif %}>
+                <summary>{{ zkouska.nazev }} <span>{% if zkouska.mereni %}{{ zkouska.mereni|length }} hodnot{% else %}Bez naměřených hodnot{% endif %}</span></summary>
+                <div class="neshoda-test-content">
+                    {% for popis in zkouska.pozadavek.popisy %}<div>{{ popis|linebreaksbr }}</div>{% endfor %}
+                    {% if zkouska.limity_prohybu %}
+                        <div class="neshoda-requirement">Mez prohybu: {% if zkouska.limity_prohybu.bezny != None %}{{ zkouska.limity_prohybu.bezny|mereni_hodnota }} mm{% else %}neuvedena{% endif %}</div>
+                        {% if zkouska.limity_prohybu.pro_uvolneni_s_odchylkou != None %}<div>Mez QS s odchylkou: {{ zkouska.limity_prohybu.pro_uvolneni_s_odchylkou|mereni_hodnota }} mm</div>{% endif %}
+                    {% else %}
+                        <div class="neshoda-requirement">Požadavek: {{ zkouska.pozadavek.hodnota|default:"—" }}{% if zkouska.pozadavek.hodnota_2 %} · {{ zkouska.pozadavek.hodnota_2 }}{% endif %}</div>
+                    {% endif %}
+                    {% if zkouska.rozsah_mereni %}<div class="neshoda-muted">{{ zkouska.rozsah_mereni }}</div>{% endif %}
+                    {% if zkouska.mereni %}
+                        <div class="neshoda-table-wrap">
+                            <table>
+                                <thead><tr><th scope="col">Pořadí</th><th scope="col">Hodnota</th><th scope="col">Změřil</th><th scope="col">Datum měření</th></tr></thead>
+                                <tbody>{% for mereni in zkouska.mereni %}<tr><td>{{ mereni.poradi }}</td><td><strong>{{ mereni.hodnota|mereni_hodnota }}</strong></td><td>{{ mereni.zmeril|default:"—" }}</td><td>{{ mereni.zmereno_at|date:"d.m.Y H:i" }}</td></tr>{% endfor %}</tbody>
+                            </table>
+                        </div>
+                    {% else %}<p class="neshoda-muted">Při zjištění nebyla uložena žádná měření této zkoušky.</p>{% endif %}
+                </div>
+            </details>
+        {% empty %}
+            <p class="neshoda-muted">K tomuto případu nejsou připojená měření z kontroly bedny.</p>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

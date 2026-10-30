@@ -10,6 +10,7 @@ Internal application for receiving, heat treating, inspecting and shipping order
 - Batch step logs, workstation transfers and start/end dates and times.
 - Camera and reader scanning, operational state changes and crate movement history.
 - Crate inspection: individual measurements, cleanliness, placement, bent screw counts, release decisions and nonconformity reasons.
+- Nonconformity register in Django Admin: a frozen record of each new nonconformity decision, including all measurements and requirements at detection, with a structured read-only detail; records remain available after the crate is released. See the [Czech manual](docs/manual_evidence_neshod.md).
 - A nonconformity release decision blocks readiness for shipment and shipment; inspection and measurements become read-only once a crate is ready for shipment.
 - Chemical measurement import from Vanta JSON exports, with preview and processed file archiving.
 - Loading, workstation, inspection and nonconformity overviews; production, straightening, crate and truck dashboards with history.

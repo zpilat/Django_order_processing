@@ -12,6 +12,8 @@ Speciální oprávnění řídí úpravy expedovaných a pozastavených beden, n
 
 Hesla spravuje Django; projekt nemá vlastní `PASSWORD_HASHERS`, používá tedy výchozí konfiguraci s PBKDF2. Instalované knihovny Argon2 či bcrypt samy nezmění zvolený algoritmus. Projekt má zapnuté validátory podobnosti hesla, minimální délky, běžných hesel a čistě číselných hesel. Viz [správa hesel v Django 5.2](https://docs.djangoproject.com/en/5.2/topics/auth/passwords/).
 
+Evidence neshod a její detaily jsou pouze v administraci (`/admin/orders/zaznamneshody/`). Vyžadují aktivní staff účet a `orders.view_zaznamneshody`, případně účet správce; samotné oprávnění ke kontrole bedny nestačí. Odkazy z kontroly bedny a nabídky přehledů respektují tento přístup. Záznam vzniká při přechodu kontroly do Neshody ve stejné transakci pod zámkem bedny. Admin poskytuje pouze čtení a neumožňuje ruční přidání, úpravu ani smazání snapshotu; uložení existujícího snapshotu přes model je odmítnuto. Pozdější změny kontroly a měření nepřepisují zachycený stav. Viz [Evidence neshod](manual_evidence_neshod.md).
+
 ## Ochrany požadavků a šablon
 
 - ORM parametrizuje běžné databázové dotazy.

@@ -1678,6 +1678,61 @@ class KontrolaBedny(models.Model):
         return f'Kontrola bedny {self.bedna.cislo_bedny}'
 
 
+class ZaznamNeshody(models.Model):
+    """Výchozí stav jednoho případu neshody, nezávislý na další kontrole bedny."""
+
+    class SkupinaDilu(models.TextChoices):
+        VRUTY = 'vruty', 'Vruty'
+        OSTATNI = 'ostatni', 'Ostatní'
+
+    bedna = models.ForeignKey(
+        Bedna, on_delete=models.PROTECT, related_name='zaznamy_neshod',
+        null=True, blank=True, verbose_name='Bedna',
+    )
+    zdroj_historie_id = models.PositiveBigIntegerField(
+        unique=True, null=True, blank=True, editable=False,
+        verbose_name='Zdrojový záznam historie kontroly',
+    )
+    zjisteno_at = models.DateTimeField(default=timezone.now, db_index=True, verbose_name='Datum zjištění')
+    zjistil = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='zaznamenane_neshody', verbose_name='Zaznamenal',
+    )
+    zjistil_jmeno = models.CharField(max_length=350, blank=True, verbose_name='Jméno při zjištění')
+    skupina_dilu = models.CharField(max_length=10, choices=SkupinaDilu.choices, default=SkupinaDilu.VRUTY, verbose_name='Skupina dílů')
+    oddeleni = models.CharField(max_length=50, default='Výstupní kontrola', verbose_name='Oddělení')
+    zakaznik = models.CharField(max_length=100, blank=True, verbose_name='Zákazník')
+    zakaznik_zkratka = models.CharField(max_length=3, blank=True, db_index=True, verbose_name='Zkratka zákazníka')
+    zakazka = models.CharField(max_length=50, blank=True, verbose_name='Zakázka / artikl')
+    oznaceni_bedny = models.CharField(max_length=50, blank=True, verbose_name='Označení bedny')
+    dil = models.CharField(max_length=150, blank=True, verbose_name='Díl / rozměr')
+    sarze_materialu = models.CharField(max_length=50, blank=True, verbose_name='Šarže materiálu')
+    duvody = models.JSONField(default=list, verbose_name='Důvody neshody')
+    popis = models.TextField(blank=True, verbose_name='Popis neshody')
+    snapshot = models.JSONField(default=dict, verbose_name='Výchozí stav kontroly a měření')
+
+    class Meta:
+        verbose_name = 'Záznam neshody'
+        verbose_name_plural = 'Evidence neshod'
+        ordering = ['-zjisteno_at', '-pk']
+        default_permissions = ('view',)
+
+    def __str__(self):
+        return f'Neshoda {self.pk} – {self.oznaceni_bedny}'
+
+    @property
+    def popis_duvodu(self):
+        return ', '.join(item['nazev'] for item in self.duvody)
+
+    def get_absolute_url(self):
+        return reverse('admin:orders_zaznamneshody_change', args=[self.pk])
+
+    def save(self, *args, **kwargs):
+        if not self._state.adding:
+            raise ValidationError('Výchozí záznam neshody nelze přepisovat.')
+        return super().save(*args, **kwargs)
+
+
 class MereniBedny(models.Model):
     """Jedna naměřená hodnota; počet hodnot pro zkoušku není omezen."""
 

@@ -58,6 +58,7 @@ from .services.sarze_print_service import (
     get_tisk_pruvodky_vruty_krok,
 )
 from .services.history_service import history_transitions_to_qs
+from .services.evidence_neshod_service import zaznamenat_neshodu
 from .services.dashboard_bedny_service import build_bedny_visual_summary
 from .services.mereni_bedny_service import (
     pozadavek_zkousky, rozsah_mereni_zakaznika, mereni_snapshot, kontrola_snapshot, ulozit_mereni_zkousky,
@@ -910,6 +911,7 @@ def bedna_kontrola_view(request, cislo_bedny: int):
                         kontrola.uvolneni_zmeneno_at = None
                     kontrola._history_user = request.user
                     kontrola.save()
+                    zaznamenat_neshodu(kontrola, previous_status=previous_status, user=request.user)
                 messages.success(request, 'Kontrola bedny byla uložena.')
                 return redirect('bedna_kontrola', cislo_bedny=bedna.cislo_bedny)
             messages.error(request, 'Kontrolu bedny se nepodařilo uložit. Příčinu najdete ve formuláři Výstupní kontrola.')
@@ -929,6 +931,11 @@ def bedna_kontrola_view(request, cislo_bedny: int):
         'form': form,
         'can_edit': can_edit,
         'snapshot': snapshot,
+        'zaznamy_neshod': (
+            bedna.zaznamy_neshod.only('id', 'zjisteno_at', 'zjistil_jmeno')
+            if request.user.is_staff and request.user.has_perm('orders.view_zaznamneshody')
+            else ()
+        ),
         'can_mark_zkontrolovano': _bedna_scan_can_mark_zkontrolovano(request.user, bedna),
         'zkousky': _bedna_zkousky_context(bedna, request.user, form.omezeni_prohybu), 'db_table': 'bedna_scan',
     })

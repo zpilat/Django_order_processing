@@ -10,6 +10,7 @@ Interní aplikace pro správu zakázek od příjmu přes tepelné zpracování a
 - Deník kroků šarže, přesuny mezi pracovišti a začátek i konec včetně data.
 - Skenování beden kamerou nebo čtečkou, provozní změny stavů a zobrazení pohybu.
 - Kontrola beden: jednotlivá měření, čistota, uložení, počty křivých vrutů, uvolnění a důvody neshody.
+- Evidence neshod v administraci: zachycení výchozího stavu při přechodu kontroly do Neshody, včetně všech měření a tehdejších požadavků; případy zůstávají dostupné i po uvolnění bedny, s přehledným detailem pouze ke čtení.
 - Uvolnění Neshoda blokuje přípravu k expedici i expedici; od stavu K expedici jsou kontrola a měření pouze pro čtení.
 - Import chemických měření z JSON exportů analyzátoru Vanta s náhledem a archivací souborů.
 - Přehledy nakládání, pracovišť, kontroly a neshod; dashboardy beden, kamionů, výroby a rovnání včetně historie.
@@ -74,6 +75,7 @@ Manuály jsou v češtině a obsahují postupy, omezení a řešení běžných 
 | Bedny, stavy, filtry, akce a skenování | [Bedny](docs/manual_bedna.md) |
 | Nakládání, patra, rozdělení roštu a průvodka | [Rychlé založení šarže s bednami](docs/manual_rychle_zalozeni_sarze.md) |
 | Měření, výstupní kontrola, uvolnění a neshody | [Kontrola beden](docs/manual_kontrola_beden.md) |
+| Uložené případy neshod, výchozí měření a požadavky | [Evidence neshod](docs/manual_evidence_neshod.md) |
 | Příjem, kompletnost a expedice zakázek | [Zakázky](docs/manual_zakazka.md) |
 | Importy, příjem a výdej kamionů, doklady | [Kamiony](docs/manual_kamion.md) |
 | Šarže, kroky, deník a přesuny | [Deník beden v krocích šarže](docs/manual_denik_pece.md) |

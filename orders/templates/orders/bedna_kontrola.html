@@ -131,6 +131,16 @@
         </div>
     </section>
 
+    {% if zaznamy_neshod %}
+        <section class="card rounded-2 mt-3">
+            <h2 class="card-header h6 mb-0">Evidence neshod této bedny</h2>
+            <div class="list-group list-group-flush">
+                {% for zaznam in zaznamy_neshod %}
+                    <a class="list-group-item list-group-item-action" href="{{ zaznam.get_absolute_url }}">Neshoda {{ zaznam.pk }} · {{ zaznam.zjisteno_at|date:"d.m.Y H:i" }} · {{ zaznam.zjistil_jmeno }}</a>
+                {% endfor %}
+            </div>
+        </section>
+    {% endif %}
     <a class="btn btn-outline-secondary w-100 scan-action-button d-flex align-items-center justify-content-center mt-3" href="{% url 'bedna_scan' bedna.cislo_bedny %}">Zpět na detail bedny</a>
 </main>
 {% endblock %}
