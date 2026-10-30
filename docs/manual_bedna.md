@@ -108,6 +108,7 @@ Rozpracované změny v seznamu nejprve uložte tlačítkem Uložit. Při odchodu
 Nejpoužívanější filtry:
 
 - `Stav bedny` (`StavBednyFilter`) - obsahuje i virtuální volby `RO` (Rozpracováno) a `PE` (Po exspiraci).
+- `Uvolnění` (`UvolneniBednyFilter`) - zobrazí se přímo pod filtrem `Stav bedny` pouze při volbě **Zkontrolováno**. Nabízí **Vše** (včetně nerozhodnutých uvolnění a beden bez kontroly), **Neshoda** a **Uvolněno** (společně Uvolněno a Uvolněno QS s odchylkou). Titulek ukazuje vybranou volbu, například **Uvolnění: Uvolněno**. Při přepnutí na jiný stav bedny se filtr uvolnění odstraní a přestane omezovat výsledky.
 - `Tryskání`, `Rovnání`, `Zinkování` - mají i agregované volby typu "hotovo".
 - `Zákazník`, `Typ hlavy`, `Celozávit`, `Skupina TZ`, `Délka`, `Priorita`, `Pozastaveno`, `Odběratel`, `Notifikace`.
 

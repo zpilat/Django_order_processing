@@ -9,7 +9,7 @@ from decimal import Decimal, InvalidOperation
 from .models import Zakazka, Bedna, Zakaznik, Kamion, TypHlavy, Predpis, Odberatel, Zarizeni, Sarze, SarzeKrokBedna, Notification, KontrolaBedny
 from .choices import (
     StavBednyChoice, TryskaniChoice, RovnaniChoice, ZinkovaniChoice, PrioritaChoice, PrijemVydejChoice, SklademZakazkyChoice,
-    StavSarzeChoice, TypZarizeniChoice, STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM,
+    StavSarzeChoice, TypZarizeniChoice, UvolneniKontrolyChoice, STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM,
 )
 
 
@@ -69,6 +69,32 @@ class StavBednyFilter(DynamicTitleFilter):
             expiration_date = timezone.localdate() - timedelta(days=28)
             return queryset.exclude(stav_bedny=StavBednyChoice.EXPEDOVANO).filter(zakazka__kamion_prijem__datum__lt=expiration_date)
         return queryset.filter(stav_bedny=value)
+
+
+class UvolneniBednyFilter(DynamicTitleFilter):
+    """Filtr rozhodnutí kontroly; obě varianty uvolnění tvoří jednu volbu."""
+    title = "Uvolnění"
+    parameter_name = "uvolneni"
+
+    def __init__(self, request, params, model, model_admin):
+        self.label_dict = {
+            UvolneniKontrolyChoice.NESHODA: 'Neshoda',
+            UvolneniKontrolyChoice.UVOLNENO: 'Uvolněno',
+        }
+        super().__init__(request, params, model, model_admin)
+
+    def lookups(self, request, model_admin):
+        return self.label_dict.items()
+
+    def queryset(self, request, queryset):
+        if self.value() == UvolneniKontrolyChoice.NESHODA:
+            return queryset.filter(kontrola__uvolneni=UvolneniKontrolyChoice.NESHODA)
+        if self.value() == UvolneniKontrolyChoice.UVOLNENO:
+            return queryset.filter(kontrola__uvolneni__in=(
+                UvolneniKontrolyChoice.UVOLNENO,
+                UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU,
+            ))
+        return queryset
 
 
 class OdberatelBednyFilter(DynamicTitleFilter):

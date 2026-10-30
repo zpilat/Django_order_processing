@@ -64,7 +64,7 @@ from .filters import (
     SklademZakazkaFilter, StavBednyFilter, KompletZakazkaFilter, AktivniPredpisFilter, SkupinaFilter, ZakaznikBednyFilter,
     ZakaznikZakazkyFilter, ZakaznikKamionuFilter, PrijemVydejFilter, TryskaniFilter, RovnaniFilter, PrioritaBednyFilter, PrioritaZakazkyFilter,
     OberflacheFilter, TypHlavyBednyFilter, TypHlavyZakazkyFilter, CelozavitBednyFilter, CelozavitZakazkyFilter, DelkaFilter, PozastavenoFilter,
-    OdberatelFilter, OdberatelBednyFilter, AktivniNotifikaceBednyFilter, ZakaznikPredpisFilter, ZinkovaniFilter,
+    OdberatelFilter, OdberatelBednyFilter, AktivniNotifikaceBednyFilter, ZakaznikPredpisFilter, ZinkovaniFilter, UvolneniBednyFilter,
     StavSarzeFilter, TypSarzeFilter, ZarizeniSarzeKrokFilter, TypZarizeniSarzeKrokFilter, KonecSarzeKrokFilter, StavSarzeKrokFilter,
     ZarizeniSarzeBednaFilter, TypZarizeniSarzeBednaFilter, KonecSarzeBednaFilter, StavSarzeBednaFilter,
     SkupinaSarzeBednaFilter,
@@ -3054,7 +3054,7 @@ class BednaAdmin(HistoryViewOnlyAdmin):
     )
     search_help_text = "Dle čísla bedny, č.b. zákazníka, zakázky a popisu zakázky"
     list_filter = (
-        ZakaznikBednyFilter, StavBednyFilter, TryskaniFilter, RovnaniFilter, ZinkovaniFilter, SkupinaFilter,
+        ZakaznikBednyFilter, StavBednyFilter, UvolneniBednyFilter, TryskaniFilter, RovnaniFilter, ZinkovaniFilter, SkupinaFilter,
         DelkaFilter, CelozavitBednyFilter, TypHlavyBednyFilter, PrioritaBednyFilter, PozastavenoFilter, AktivniNotifikaceBednyFilter,
         OdberatelBednyFilter, FakturovatFilter, 
         )
@@ -3115,7 +3115,7 @@ class BednaAdmin(HistoryViewOnlyAdmin):
         return 'zakazka__kamion_vydej__datum'
 
     def _get_changelist_clean_redirect_url(self, request):
-        """Vrátí URL changelistu bez neaktivních date_hierarchy lookupů, jinak None."""
+        """Vrátí URL bez neaktivních filtrů data a uvolnění, jinak None."""
         inactive_prefix = self._get_inactive_date_hierarchy_prefix(request)
         stale_prefix = f'{inactive_prefix}__'
         query_params = request.GET.copy()
@@ -3125,6 +3125,11 @@ class BednaAdmin(HistoryViewOnlyAdmin):
             if key == inactive_prefix or key.startswith(stale_prefix):
                 removed_any = True
                 query_params.pop(key, None)
+
+        if request.GET.get('stav_bedny') != StavBednyChoice.ZKONTROLOVANO:
+            if UvolneniBednyFilter.parameter_name in query_params:
+                removed_any = True
+                query_params.pop(UvolneniBednyFilter.parameter_name)
 
         if not removed_any:
             return None
@@ -4223,10 +4228,14 @@ class BednaAdmin(HistoryViewOnlyAdmin):
         jinak se zruší filtry TryskaniFilter, RovnaniFilter, ZinkovaniFilter a PozastavenoFilter.
         Pokud není aktivní filtr stav bedny K_EXPEDICI, zruší se filtr OdberatelBednyFilter,
         jinak TryskaniFilter a RovnaniFilter.
+        UvolneniBednyFilter je dostupný pouze při stavu ZKONTROLOVANO.
         """
         actual_filters = super().get_list_filter(request)
         stav_bedny = request.GET.get('stav_bedny')
         filters_to_remove = set()
+
+        if stav_bedny != StavBednyChoice.ZKONTROLOVANO:
+            filters_to_remove.add(UvolneniBednyFilter)
 
         if stav_bedny is None:
             filters_to_remove.update([DelkaFilter, TypHlavyBednyFilter, CelozavitBednyFilter])

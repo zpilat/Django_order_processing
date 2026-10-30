@@ -25,7 +25,7 @@ from orders.import_strategies import EURImportStrategy
 from orders.models import Zakaznik, Kamion, Zakazka, Bedna, KontrolaBedny, Predpis, TypHlavy, Odberatel, Cena, Notification, PriorityNotificationRecipient, Zarizeni, Sarze, SarzeKrok, SarzeKrokBedna
 from orders.choices import StavBednyChoice, StavSarzeChoice, SklademZakazkyChoice, PrijemVydejChoice, KamionChoice, RovnaniChoice, TryskaniChoice, ZinkovaniChoice, PrioritaChoice, TypZarizeniChoice, UvolneniKontrolyChoice
 from orders.services.expedice_service import expedice_beden_do_existujiciho_kamionu
-from orders.filters import DelkaFilter, TypSarzeFilter
+from orders.filters import DelkaFilter, TypSarzeFilter, StavBednyFilter, UvolneniBednyFilter
 
 
 class DummySession(dict):
@@ -1648,6 +1648,78 @@ class BednaAdminTests(AdminBase):
         self.assertEqual(response.status_code, 200)
         self.assertIn('get_uvolneni_kontroly', response.context['cl'].list_display)
         self.assertContains(response, 'Uvolněno QS s odchylkou')
+
+    def test_checked_release_filter_options_title_and_results(self):
+        self.bedna.stav_bedny = StavBednyChoice.ZKONTROLOVANO
+        self.bedna.save(update_fields=['stav_bedny'])
+        crates = {}
+        for decision in UvolneniKontrolyChoice:
+            crate = Bedna.objects.create(
+                zakazka=self.zakazka, stav_bedny=StavBednyChoice.ZKONTROLOVANO,
+                hmotnost=Decimal(2), tara=Decimal(1), mnozstvi=1,
+            )
+            KontrolaBedny.objects.create(bedna=crate, uvolneni=decision)
+            crates[decision] = crate.pk
+
+        # Uvolněná bedna v jiném výrobním stavu se nesmí dostat do výsledků.
+        other_state = Bedna.objects.create(
+            zakazka=self.zakazka, stav_bedny=StavBednyChoice.PRIJATO,
+            hmotnost=Decimal(2), tara=Decimal(1), mnozstvi=1,
+        )
+        KontrolaBedny.objects.create(bedna=other_state, uvolneni=UvolneniKontrolyChoice.UVOLNENO)
+        self.client.force_login(self.user)
+        for value, label, expected in (
+            (None, 'Vše', [self.bedna.pk, *crates.values()]),
+            (UvolneniKontrolyChoice.NESHODA, 'Neshoda', [crates[UvolneniKontrolyChoice.NESHODA]]),
+            (UvolneniKontrolyChoice.UVOLNENO, 'Uvolněno', [
+                crates[UvolneniKontrolyChoice.UVOLNENO],
+                crates[UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU],
+            ]),
+        ):
+            with self.subTest(value=value):
+                params = {'stav_bedny': StavBednyChoice.ZKONTROLOVANO}
+                if value is not None:
+                    params['uvolneni'] = value
+                response = self.client.get(reverse('admin:orders_bedna_changelist'), params)
+                self.assertEqual(response.status_code, 200)
+                changelist = response.context['cl']
+                self.assertCountEqual(changelist.queryset.values_list('pk', flat=True), expected)
+                specs = changelist.filter_specs
+                state_index = next(i for i, spec in enumerate(specs) if isinstance(spec, StavBednyFilter))
+                release_filter = specs[state_index + 1]
+                self.assertIsInstance(release_filter, UvolneniBednyFilter)
+                self.assertEqual(release_filter.title, f'Uvolnění: {label}')
+                choices = list(release_filter.choices(changelist))
+                self.assertEqual([choice['display'] for choice in choices], ['Vše', 'Neshoda', 'Uvolněno'])
+                self.assertEqual([choice['display'] for choice in choices if choice['selected']], [label])
+                self.assertContains(response, f'Uvolnění: {label}')
+
+    def test_release_filter_only_available_for_checked_state(self):
+        for state in (None, *StavBednyChoice.values, 'RO', 'PE'):
+            with self.subTest(state=state):
+                params = {} if state is None else {'stav_bedny': state}
+                filters = self.admin.get_list_filter(self.get_request(params))
+                if state == StavBednyChoice.ZKONTROLOVANO:
+                    self.assertEqual(filters[filters.index(StavBednyFilter) + 1], UvolneniBednyFilter)
+                else:
+                    self.assertNotIn(UvolneniBednyFilter, filters)
+
+    def test_stale_release_filter_is_removed_without_losing_other_filters(self):
+        self.client.force_login(self.user)
+        for state in (None, StavBednyChoice.PRIJATO, StavBednyChoice.K_EXPEDICI, 'RO'):
+            with self.subTest(state=state):
+                params = {'uvolneni': UvolneniKontrolyChoice.NESHODA, 'zakaznik': 'EUR', 'q': 'Test'}
+                if state is not None:
+                    params['stav_bedny'] = state
+                response = self.client.get(reverse('admin:orders_bedna_changelist'), params, follow=True)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(len(response.redirect_chain), 1)
+                self.assertNotIn('uvolneni', response.wsgi_request.GET)
+                self.assertEqual(response.wsgi_request.GET.get('zakaznik'), 'EUR')
+                self.assertEqual(response.wsgi_request.GET.get('q'), 'Test')
+                self.assertEqual(response.wsgi_request.GET.get('stav_bedny'), state)
+                self.assertFalse(any(isinstance(spec, UvolneniBednyFilter) for spec in response.context['cl'].filter_specs))
+                self.assertNotContains(response, 'Uvolnění:')
 
     def test_checked_changelist_loads_release_without_query_per_bedna(self):
         self.bedna.stav_bedny = StavBednyChoice.ZKONTROLOVANO
