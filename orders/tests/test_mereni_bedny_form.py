@@ -234,7 +234,7 @@ class MereniBednyFormTests(KontrolaBednyTestBase):
                         self.assertNotContains(response, 'max.')
                     else:
                         self.assertContains(response, f'max. {normal} mm')
-                    if release is None:
+                    if release is None or kind == TypZkouskyChoice.PROHYB_PO_ROVNANI:
                         self.assertNotContains(response, 'QS max.')
                     else:
                         self.assertContains(response, f'QS max. {release} mm')

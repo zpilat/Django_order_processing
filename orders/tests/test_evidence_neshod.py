@@ -110,6 +110,9 @@ class EvidenceNeshodTests(KontrolaBednyTestBase):
         self.assertEqual(len(rolling['mereni']), 1)
         self.assertEqual(Decimal(rolling['limity_prohybu']['bezny']), Decimal('0.4'))
         self.assertEqual(Decimal(rolling['limity_prohybu']['pro_uvolneni_s_odchylkou']), Decimal('0.6'))
+        straightening = groups[TypZkouskyChoice.PROHYB_PO_ROVNANI]
+        self.assertEqual(Decimal(straightening['limity_prohybu']['bezny']), Decimal('0.4'))
+        self.assertIsNone(straightening['limity_prohybu']['pro_uvolneni_s_odchylkou'])
         self.assertEqual(case.zdroj_historie_id, control.history.first().history_id)
         detail = self.client.get(case.get_absolute_url())
         self.assertTemplateUsed(detail, 'admin/orders/zaznamneshody/change_form.html')

@@ -135,7 +135,8 @@ class UvolneniProhybTests(KontrolaBednyTestBase):
         self.measurements(['0.7', '0.7'])
         for values, expected, state in (
             (['0.1'], UvolneniKontrolyChoice.values, ''),
-            (['0.5', '0.5'], [UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU, UvolneniKontrolyChoice.NESHODA], 'odchylka'),
+            (['0.4', '0.4', '0.4001'], UvolneniKontrolyChoice.values, ''),
+            (['0.4001', '0.6'], [UvolneniKontrolyChoice.NESHODA], 'nevyhovuje'),
             (['0.7', '0.7'], [UvolneniKontrolyChoice.NESHODA], 'nevyhovuje'),
         ):
             with self.subTest(values=values):
@@ -146,7 +147,19 @@ class UvolneniProhybTests(KontrolaBednyTestBase):
                     response, TypZkouskyChoice.PROHYB_PO_ROVNANI if state else None, state,
                 )
                 if len(expected) < 4:
-                    self.assertContains(response, 'Prohyb po rovnání: počet hodnot')
+                    self.assertContains(response, 'Prohyb po rovnání: počet hodnot nad běžným limitem je 2')
+
+    def test_straightening_above_standard_limit_rejects_qs_release_on_post(self):
+        self.measurements(['0.5', '0.5'], TypZkouskyChoice.PROHYB_PO_ROVNANI)
+        response = self.client.get(self.url)
+        history_count = self.kontrola.history.count()
+        for status in (UvolneniKontrolyChoice.UVOLNENO, UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU):
+            with self.subTest(status=status):
+                result = self.client.post(self.url, self.payload(response, status, neshoda_krivost='on'))
+                self.assertIn('uvolneni', result.context['form'].errors)
+                self.kontrola.refresh_from_db()
+                self.assertEqual(self.kontrola.uvolneni, UvolneniKontrolyChoice.NEROZHODNUTO)
+                self.assertEqual(self.kontrola.history.count(), history_count)
 
     def test_bad_straightening_overrides_good_heat_treatment_and_rolling(self):
         self.measurements(['0.1'])

@@ -39,7 +39,7 @@ Tvrdost povrchu a jádra se nabízí jen u beden vybraných pravidly vzorkován�
 | SWG, délka do 300 mm včetně | `0,006 × L` mm |
 | SWG, délka nad 300 mm | `1,8` mm |
 
-ROT má navíc mez pro uvolnění QS s odchylkou `0,006 × L` mm. Jednotlivé hodnoty nad běžnou mezí až do QS meze včetně mají oranžový text. Při překročení QS meze má celé políčko s hodnotou červené pozadí a bílý text. Pokud QS mez není zadaná, červené pozadí s bílým textem označuje hodnoty nad běžnou mezí. Toto označení jednotlivých hodnot zůstává viditelné i u starších fází prohybu. Stejný styl používá přehled měření v administraci. **Ve vyplněné KKK se nevyhovující hodnoty označují pouze červeným písmem bez červeného pozadí**; hodnoty v pásmu QS mají i zde oranžový text. U zákazníka bez pravidla se mez nezobrazuje.
+ROT má pro **prohyb po TZ a po koulení** navíc mez QS s odchylkou `0,006 × L` mm. Jednotlivé hodnoty nad běžnou mezí až do QS meze včetně mají oranžový text. Při překročení QS meze má celé políčko s hodnotou červené pozadí a bílý text. Pokud QS mez není zadaná, červené pozadí s bílým textem označuje hodnoty nad běžnou mezí. **Prohyb po rovnání se u všech zákazníků posuzuje pouze proti běžné horní mezi: hodnota rovná mezi je vyhovující, vyšší je červená a nevyhovující. QS mez se po rovnání nezobrazuje ani nepoužívá; oranžové hodnoty zde nejsou.** Toto označení jednotlivých hodnot zůstává viditelné i u starších fází prohybu. Stejný styl používá přehled měření v administraci. **Ve vyplněné KKK se nevyhovující hodnoty označují pouze červeným písmem bez červeného pozadí**; oranžový text je přípustný pouze ve sloupci po TZ. U zákazníka bez pravidla se mez nezobrazuje.
 
 Maximální povolený počet křivých vrutů se nastavuje v **Administrace → Zákazníci → konkrétní zákazník → Kontrola kvality**, v poli **Maximální počet křivých vrutů při kontrole prohybu**. Nula znamená, že není povolen žádný křivý vrut; prázdné pole znamená, že se omezení uvolnění podle počtu neuplatní. Samotné meze prohybu v mm jsou definované v kódu podle zákazníka a délky, v `Bedna.limity_prohybu`.
 
@@ -53,8 +53,9 @@ Pro omezení uvolnění a barevné pozadí celé položky se posuzují pouze ulo
 
 | Výsledek rozhodujícího měření | Dostupné uvolnění | Pozadí položky měření |
 | --- | --- | --- |
-| Počet hodnot nad QS mezí překročí povolený počet křivých; bez QS meze se počítají hodnoty nad běžnou mezí | Pouze **Neshoda**, povinný důvod **Křivost** | Červené |
-| Předchozí podmínka neplatí, QS mez existuje a počet hodnot nad běžnou mezí překročí povolený počet křivých | **Uvolněno QS s odchylkou** nebo **Neshoda**, povinný důvod **Křivost** | Oranžové |
+| Po rovnání: počet hodnot nad běžnou mezí překročí povolený počet křivých | Pouze **Neshoda**, povinný důvod **Křivost** | Červené |
+| Po TZ: počet hodnot nad QS mezí překročí povolený počet křivých; bez QS meze se počítají hodnoty nad běžnou mezí | Pouze **Neshoda**, povinný důvod **Křivost** | Červené |
+| Po TZ: předchozí podmínka neplatí, QS mez existuje a počet hodnot nad běžnou mezí překročí povolený počet křivých | **Uvolněno QS s odchylkou** nebo **Neshoda**, povinný důvod **Křivost** | Oranžové |
 | Počty nepřekročí povolené maximum | Prohyb výběr uvolnění neomezuje; dostupné je i **Uvolněno** | Bez zvýraznění |
 
 Hodnota přesně na mezi se nepočítá jako překročení. Počet křivých přesně rovný povolenému maximu je přípustný. Pokud chybí maximální povolený počet, zákaznická mez prohybu nebo měření rozhodující fáze, toto omezení se neuplatní a položka nemá barevné pozadí.
@@ -157,4 +158,4 @@ Pokud jiný uživatel mezitím změnil kontrolu nebo měření, systém odmítne
 
 [Provozní tahák](provozni_tahak.md) · [Průchod šarže výrobou](manual_pruchod_sarze.md)
 
-Implementace: `orders/models.py` (`Zakaznik`, `KontrolaBedny`, `MereniBedny`, `Bedna.limity_prohybu`), `orders/forms.py` (`KontrolaBednyForm`, `MereniBednyFormSet`), `orders/views.py` (`bedna_kontrola_view`, `bedna_mereni_zkousky_view`, `bedna_scan_zkontrolovano_view`), `orders/services/mereni_bedny_service.py` a `orders/services/filled_quality_cards_service.py`. Pomocné překlady vyplněných KKK jsou ve slovnících `HELPER_LABELS` v `orders/quality_card_labels.py`; minimální počty zapsaných hodnot a názvy protokolů jsou uložené v modelu `Zakaznik` v polích `min_hodnot_mechanicke`, `min_hodnot_prohyb`, `min_hodnot_tvrdost` a `nazev_protokolu`.
+Implementace: `orders/models.py` (`Zakaznik`, `KontrolaBedny`, `MereniBedny`, `Bedna.limity_prohybu`, `Bedna.limity_prohybu_pro_zkousku`), `orders/forms.py` (`KontrolaBednyForm`, `MereniBednyFormSet`), `orders/views.py` (`bedna_kontrola_view`, `bedna_mereni_zkousky_view`, `bedna_scan_zkontrolovano_view`), `orders/services/mereni_bedny_service.py` a `orders/services/filled_quality_cards_service.py`. Pomocné překlady vyplněných KKK jsou ve slovnících `HELPER_LABELS` v `orders/quality_card_labels.py`; minimální počty zapsaných hodnot a názvy protokolů jsou uložené v modelu `Zakaznik` v polích `min_hodnot_mechanicke`, `min_hodnot_prohyb`, `min_hodnot_tvrdost` a `nazev_protokolu`.

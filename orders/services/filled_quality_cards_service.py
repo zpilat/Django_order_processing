@@ -74,7 +74,7 @@ def build_filled_context(bedna, generated_at, printing_user):
         },
         'limity_prohybu': limity_prohybu,
         'limity_prohybu_podle_sloupce': {
-            index: limity_prohybu for index, kind in enumerate(MEASUREMENT_COLUMNS)
+            index: bedna.limity_prohybu_pro_zkousku(kind) for index, kind in enumerate(MEASUREMENT_COLUMNS)
             if kind in (
                 TypZkouskyChoice.PROHYB_PO_TZ,
                 TypZkouskyChoice.PROHYB_PO_ROVNANI,

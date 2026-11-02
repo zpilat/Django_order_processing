@@ -43,7 +43,7 @@ def omezeni_uvolneni_prohybem(bedna):
         if hodnoty[TypZkouskyChoice.PROHYB_PO_ROVNANI]
         else TypZkouskyChoice.PROHYB_PO_TZ
     )
-    qs_limit = limity['pro_uvolneni_s_odchylkou']
+    qs_limit = bedna.limity_prohybu_pro_zkousku(typ)['pro_uvolneni_s_odchylkou']
     horni_limit = qs_limit if qs_limit is not None else bezny_limit
     nad_hornim = sum(hodnota > horni_limit for hodnota in hodnoty[typ])
     nad_beznym = sum(hodnota > bezny_limit for hodnota in hodnoty[typ])

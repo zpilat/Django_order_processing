@@ -825,7 +825,6 @@ def _bedna_zkousky_context(bedna, user, omezeni_prohybu):
     measurements = list(MereniBedny.objects.filter(kontrola__bedna=bedna))
     can_edit = _can_edit_mereni_bedny(user, bedna)
     merit_tvrdost = bedna.bedna_k_mereni_tvrdosti_a_povrchu
-    limity_prohybu = bedna.limity_prohybu
     preferovane_poradi = [
         'prohyb_po_tz',
         'ohyb',
@@ -855,10 +854,7 @@ def _bedna_zkousky_context(bedna, user, omezeni_prohybu):
                 if omezeni_prohybu is not None and omezeni_prohybu.typ_zkousky == kind
                 else ''
             ),
-            'pozadavek_prohyb': limity_prohybu if kind in (
-                TypZkouskyChoice.PROHYB_PO_TZ, TypZkouskyChoice.PROHYB_PO_KOULENI,
-                TypZkouskyChoice.PROHYB_PO_ROVNANI,
-            ) else None,
+            'pozadavek_prohyb': bedna.limity_prohybu_pro_zkousku(kind),
         }
         for kind in serazene_typy
         if merit_tvrdost or kind not in (
@@ -998,10 +994,7 @@ def bedna_mereni_zkousky_view(request, cislo_bedny: int, typ_zkousky: str):
         'nazev_zkousky': TypZkouskyChoice(typ_zkousky).label,
         'rozsah_mereni': rozsah_mereni_zakaznika(bedna.zakazka.kamion_prijem.zakaznik, typ_zkousky),
         'pozadavek': pozadavek_zkousky(bedna.zakazka.predpis, typ_zkousky),
-        'pozadavek_prohyb': bedna.limity_prohybu if typ_zkousky in (
-            TypZkouskyChoice.PROHYB_PO_TZ, TypZkouskyChoice.PROHYB_PO_KOULENI,
-            TypZkouskyChoice.PROHYB_PO_ROVNANI,
-        ) else None,
+        'pozadavek_prohyb': bedna.limity_prohybu_pro_zkousku(typ_zkousky),
         'formset': formset, 'snapshot': snapshot,
         'db_table': 'bedna_scan',
     })

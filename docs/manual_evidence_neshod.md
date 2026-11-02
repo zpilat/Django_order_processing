@@ -30,6 +30,8 @@ Detail uchovává také:
 
 Texty důvodů a jména se kopírují. Přejmenování zákazníka, uživatele či předpisu nemění původní údaje. Změna nebo smazání aktuálního měření ani přesun bedny do oddělené zakázky při expedici nemění zachycený stav. Odkaz na bednu slouží k navigaci; evidence zobrazuje uložené údaje případu.
 
+Nové případy zachycují meze samostatně pro každou fázi prohybu. Po rovnání se ukládá pouze běžná horní mez, bez QS meze pro odchylku. Dříve uložené snapshoty zachovávají původní údaje a změna pravidla je nepřepisuje.
+
 ## 3. Otevření a filtrování
 
 - **Administrace → Kontrola kvality → Evidence neshod**, přímo `/admin/orders/zaznamneshody/`. Nabídka **PŘEHLEDY → Evidence neshod** vede také do adminu.

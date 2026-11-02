@@ -291,7 +291,7 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
                 if release is None:
                     self.assertNotContains(response, 'QS max.')
                 else:
-                    self.assertContains(response, f'QS max. {release} mm', count=3)
+                    self.assertContains(response, f'QS max. {release} mm', count=2)
                 self.assertNotContains(response, 'None')
 
     def test_control_overview_colors_all_bending_types_using_customer_limits(self):
@@ -319,14 +319,18 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
                 customer.zkratka = code
                 customer.save(update_fields=['zkratka'])
                 response = self.client.get(self.url)
-                for value, state in zip(('0,4', '0,4001', '0,6', '0,6001'), states):
-                    suffix = f' prohyb-{state}' if state else ''
-                    expected_count = 4 if value == '0,6001' and not state else 3
-                    self.assertContains(response, f'<span class="badge text-bg-light border me-1 mb-1{suffix}">{value}</span>', count=expected_count)
+                straightened = ('', 'nevyhovuje', 'nevyhovuje', 'nevyhovuje') if code == 'ROT' else states
+                phases = (states, states, straightened)
+                for index, value in enumerate(('0,4', '0,4001', '0,6', '0,6001')):
+                    for state in ('', 'odchylka', 'nevyhovuje'):
+                        suffix = f' prohyb-{state}' if state else ''
+                        expected_count = sum(phase[index] == state for phase in phases)
+                        expected_count += int(value == '0,6001' and not state)
+                        self.assertContains(response, f'<span class="badge text-bg-light border me-1 mb-1{suffix}">{value}</span>', count=expected_count)
                 self.assertContains(response, '<span class="badge text-bg-light border me-1 mb-1">0,6001</span>')
                 html = response.content.decode('utf-8')
-                self.assertEqual(html.count(' prohyb-odchylka">'), states.count('odchylka') * 3)
-                self.assertEqual(html.count(' prohyb-nevyhovuje">'), states.count('nevyhovuje') * 3)
+                self.assertEqual(html.count(' prohyb-odchylka">'), sum(phase.count('odchylka') for phase in phases))
+                self.assertEqual(html.count(' prohyb-nevyhovuje">'), sum(phase.count('nevyhovuje') for phase in phases))
 
     def test_other_customers_hide_hardness_for_subsequent_containers(self):
         next_bedna = self.create_bedna_for_control()

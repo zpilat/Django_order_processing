@@ -390,7 +390,7 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
                 if release is None:
                     self.assertNotIn('QS max.', html)
                 else:
-                    self.assertEqual(html.count(f'QS max. {release} mm'), 2)
+                    self.assertEqual(html.count(f'QS max. {release} mm'), 1)
                 headers = html.split('<thead>', 1)[1].split('</thead>', 1)[0]
                 self.assertNotIn('None', headers)
 
@@ -417,13 +417,17 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
                 self.customer.zkratka = code
                 self.customer.save(update_fields=['zkratka'])
                 html = render_to_string(template, self.context())
-                for value, state in zip(('0,4', '0,4001', '0,6', '0,6001'), states):
-                    suffix = f' prohyb-{state}' if state else ''
-                    expected_count = 6 if value == '0,6001' and not state else 2
-                    self.assertEqual(html.count(f'<td class="measurement-value{suffix}">{value}</td>'), expected_count)
+                straightened = ('', 'nevyhovuje', 'nevyhovuje', 'nevyhovuje') if code == 'ROT' else states
+                phases = (states, straightened)
+                for index, value in enumerate(('0,4', '0,4001', '0,6', '0,6001')):
+                    for state in ('', 'odchylka', 'nevyhovuje'):
+                        suffix = f' prohyb-{state}' if state else ''
+                        expected_count = sum(phase[index] == state for phase in phases)
+                        expected_count += 4 * int(value == '0,6001' and not state)
+                        self.assertEqual(html.count(f'<td class="measurement-value{suffix}">{value}</td>'), expected_count)
                 self.assertEqual(html.count('<td class="measurement-value">0,6001</td>'), 6 if code == 'TST' else 4)
-                self.assertEqual(html.count(' prohyb-odchylka">'), states.count('odchylka') * 2)
-                self.assertEqual(html.count(' prohyb-nevyhovuje">'), states.count('nevyhovuje') * 2)
+                self.assertEqual(html.count(' prohyb-odchylka">'), sum(phase.count('odchylka') for phase in phases))
+                self.assertEqual(html.count(' prohyb-nevyhovuje">'), sum(phase.count('nevyhovuje') for phase in phases))
                 self.assertEqual(html.count('class="measurement-value'), 60)
         self.assertEqual(MereniBedny.history.count(), 16)
 

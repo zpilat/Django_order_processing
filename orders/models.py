@@ -1244,7 +1244,8 @@ class Bedna(models.Model):
     def limity_prohybu(self):
         """Vrátí horní meze prohybu v mm; hodnota rovná mezi je přípustná.
 
-        U ROT může kontrola uvolnit bednu s odchylkou až do 0,006 x délka.
+        U ROT je QS mez 0,006 x délka; pro fázi po rovnání ji metoda
+        limity_prohybu_pro_zkousku vypíná.
         U ostatních zákazníků není samostatná mez pro uvolnění s odchylkou (None).
         Pro zákazníka bez pravidla vrací obě hodnoty None.
         """
@@ -1264,6 +1265,18 @@ class Bedna(models.Model):
             'bezny': bezny,
             'pro_uvolneni_s_odchylkou': Decimal('0.006') * delka if zakaznik == 'ROT' else None,
         }
+
+    def limity_prohybu_pro_zkousku(self, typ_zkousky):
+        """Meze konkrétní fáze prohybu; po rovnání platí jen běžné maximum."""
+        if typ_zkousky not in (
+            TypZkouskyChoice.PROHYB_PO_TZ, TypZkouskyChoice.PROHYB_PO_KOULENI,
+            TypZkouskyChoice.PROHYB_PO_ROVNANI,
+        ):
+            return None
+        limity = self.limity_prohybu
+        if typ_zkousky == TypZkouskyChoice.PROHYB_PO_ROVNANI:
+            return {**limity, 'pro_uvolneni_s_odchylkou': None}
+        return limity
 
     def clean(self):
         """

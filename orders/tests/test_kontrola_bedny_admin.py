@@ -224,7 +224,7 @@ class KontrolaBednyAdminTests(KontrolaBednyTestBase):
                 if release is None:
                     self.assertNotIn('QS max.', html)
                 else:
-                    self.assertEqual(html.count(f'QS max. {release} mm'), 3)
+                    self.assertEqual(html.count(f'QS max. {release} mm'), 2)
                 self.assertIn('12,5', html)
                 self.assertNotIn('None', html)
 
@@ -251,13 +251,17 @@ class KontrolaBednyAdminTests(KontrolaBednyTestBase):
             with self.subTest(customer=code):
                 customer.zkratka = code
                 html = str(admin.site._registry[Bedna].get_mereni_bedny(self.bedna))
-                for value, state in zip(('0,4', '0,4001', '0,6', '0,6001'), states):
-                    suffix = f' prohyb-{state}' if state else ''
-                    expected_count = 4 if value == '0,6001' and not state else 3
-                    self.assertEqual(html.count(f'<span class="qc-measurement{suffix}">{value}</span>'), expected_count)
+                straightened = ('', 'nevyhovuje', 'nevyhovuje', 'nevyhovuje') if code == 'ROT' else states
+                phases = (states, states, straightened)
+                for index, value in enumerate(('0,4', '0,4001', '0,6', '0,6001')):
+                    for state in ('', 'odchylka', 'nevyhovuje'):
+                        suffix = f' prohyb-{state}' if state else ''
+                        expected_count = sum(phase[index] == state for phase in phases)
+                        expected_count += int(value == '0,6001' and not state)
+                        self.assertEqual(html.count(f'<span class="qc-measurement{suffix}">{value}</span>'), expected_count)
                 self.assertIn('<span class="qc-measurement">0,6001</span>', html)
-                self.assertEqual(html.count(' prohyb-odchylka">'), states.count('odchylka') * 3)
-                self.assertEqual(html.count(' prohyb-nevyhovuje">'), states.count('nevyhovuje') * 3)
+                self.assertEqual(html.count(' prohyb-odchylka">'), sum(phase.count('odchylka') for phase in phases))
+                self.assertEqual(html.count(' prohyb-nevyhovuje">'), sum(phase.count('nevyhovuje') for phase in phases))
 
     def test_bedna_summary_shows_hardness_only_for_selected_containers(self):
         bedny = [self.bedna] + [Bedna.objects.create(zakazka=self.bedna.zakazka) for _ in range(2)]

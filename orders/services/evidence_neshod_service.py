@@ -52,19 +52,16 @@ def zaznamenat_neshodu(kontrola, *, previous_status, user):
     zakaznik = zakazka.kamion_prijem.zakaznik
     predpis = zakazka.predpis
     measurements = list(kontrola.mereni.select_related('zmeril').order_by('typ_zkousky', 'poradi', 'pk'))
-    limity = {key: decimal_text(value) for key, value in bedna.limity_prohybu.items()}
     zkousky = []
     for kind in TypZkouskyChoice:
         requirement = pozadavek_zkousky(predpis, kind)
+        limity = bedna.limity_prohybu_pro_zkousku(kind)
         zkousky.append({
             'typ': kind.value,
             'nazev': str(kind.label),
             'pozadavek': requirement,
             'rozsah_mereni': rozsah_mereni_zakaznika(zakaznik, kind),
-            'limity_prohybu': limity if kind in (
-                TypZkouskyChoice.PROHYB_PO_TZ, TypZkouskyChoice.PROHYB_PO_KOULENI,
-                TypZkouskyChoice.PROHYB_PO_ROVNANI,
-            ) else None,
+            'limity_prohybu': {key: decimal_text(value) for key, value in limity.items()} if limity else None,
             'mereni': [
                 {
                     'id': item.pk, 'poradi': item.poradi,
