@@ -131,6 +131,8 @@ U mechanických zkoušek a tvrdosti se minimum na kartě uvádí jako počet vzo
 
 Vyplněná karta tiskne nejvýše prvních 10 hodnot jednotlivých zkoušek bez ohledu na nastavené minimum. Nastavení minima ovlivňuje pouze popisek požadavku. Pro vrstvu se použije první uložená hodnota. Úplný seznam měření je dostupný v aplikaci. Vyplněná KKK nezobrazuje sloupec Po koulení ani jeho naměřené hodnoty a kontrolující; toto měření slouží pouze interně a zůstává uložené v aplikaci. Pokud bedna podle zákaznických pravidel není určena k měření tvrdosti a povrchu, karta místo minimálního počtu hodnot tvrdosti i předpisu pro povrch a jádro vytiskne pomlčku (—).
 
+U zákazníka **SPX** se při rozhodnutí **Uvolněno** nebo **Uvolněno QS s odchylkou** ve sloupci **Krut** místo každé zapsané naměřené hodnoty tiskne **OK**. Prázdná políčka zůstávají prázdná. Při **Neshodě** nebo nerozhodnutém uvolnění se tisknou naměřené hodnoty. Jde pouze o zobrazení na vyplněné KKK; původní měření zůstávají uložená v aplikaci. Zobrazení OK zatím vychází z rozhodnutí o uvolnění, nikoli z porovnání s limitem předpisu.
+
 ## 7. Oprávnění a souběžné změny
 
 | Úkol | Potřebné oprávnění |

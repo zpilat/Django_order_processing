@@ -145,7 +145,7 @@
                 <td class="sample-number">{{ forloop.counter }}</td>
                 {% for value in row %}
                 {% with limity=quality_card.limity_prohybu_podle_sloupce|dict_get:forloop.counter0 %}
-                {% with stav=value|stav_prohybu:limity %}<td class="measurement-value{% if stav %} prohyb-{{ stav }}{% endif %}">{% if value != None %}{{ value|mereni_hodnota }}{% endif %}</td>{% endwith %}
+                {% with stav=value|stav_prohybu:limity %}<td class="measurement-value{% if stav %} prohyb-{{ stav }}{% endif %}">{% if value == "OK" %}OK{% elif value != None %}{{ value|mereni_hodnota }}{% endif %}</td>{% endwith %}
                 {% endwith %}
                 {% endfor %}
             </tr>

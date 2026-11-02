@@ -90,6 +90,8 @@ Chemická měření se importují samostatnou akcí nad jedním kamionem příje
 
 Tiskové akce jsou dostupné v seznamech beden, zakázek a kamionů podle kontextu a oprávnění. Prázdné KKK a vyplněné KKK mají samostatné akce. Vyplněné KKK jsou dostupné pro všechny zákazníky a používají společnou šablonu s českými popisy a pomocnými popisy podle zkratky státu zákazníka (D/A německy, I italsky, CZ pouze česky). Přehled rychlého založení poskytuje náhled průvodky; „Bedny k navezení“ mají vlastní tisk a PDF.
 
+U SPX se na vyplněné KKK při uvolnění (včetně QS s odchylkou) tiskne u zapsaných hodnot krutu **OK**. Původní měření zůstávají v aplikaci; porovnání krutu s limitem předpisu se zatím neprovádí.
+
 ## Struktura projektu
 
 - `order_processing/`: nastavení, hlavní URL a middleware.

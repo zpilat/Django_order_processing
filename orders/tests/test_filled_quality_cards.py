@@ -544,6 +544,56 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
             )
         self.assertEqual(response.content, b'%PDF-original-order')
 
+    def test_released_spx_torsion_prints_ok_only_for_recorded_measurements(self):
+        self.customer.zkratka = 'SPX'
+        self.customer.save(update_fields=['zkratka'])
+        kontrola = self.create_control()
+        self.measurement(kontrola, TypZkouskyChoice.OHYB, '35')
+        self.measurement(kontrola, TypZkouskyChoice.KRUT, '28.1234')
+        self.measurement(kontrola, TypZkouskyChoice.KRUT, '0', order=2)
+        history_count = MereniBedny.history.count()
+
+        for status in (UvolneniKontrolyChoice.UVOLNENO, UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU):
+            with self.subTest(status=status):
+                kontrola.uvolneni = status
+                kontrola.save()
+                context = self.context()
+                rows = context['quality_card']['rows']
+                self.assertEqual(rows[0], [Decimal('35'), 'OK', None, None, None, None])
+                self.assertEqual(rows[1], [None, 'OK', None, None, None, None])
+                self.assertTrue(all(row[1] is None for row in rows[2:]))
+                self.assertEqual(context['quality_card']['kontrolovali'][1], 'kontrolor')
+                html = render_to_string(TEMPLATE_PATH, context)
+                self.assertEqual(html.count('<td class="measurement-value">OK</td>'), 2)
+                self.assertIn('<td class="measurement-value">35</td>', html)
+                self.assertNotIn('28,1234', html)
+
+        self.assertEqual(
+            list(kontrola.mereni.filter(typ_zkousky=TypZkouskyChoice.KRUT).order_by('poradi').values_list('hodnota', flat=True)),
+            [Decimal('28.1234'), Decimal('0')],
+        )
+        self.assertEqual(MereniBedny.history.count(), history_count)
+
+    def test_torsion_keeps_measured_values_for_unreleased_spx_and_other_customers(self):
+        kontrola = self.create_control()
+        self.measurement(kontrola, TypZkouskyChoice.KRUT, '28.1234')
+        for code in ('SPX', 'EUR', 'ROT'):
+            self.customer.zkratka = code
+            self.customer.save(update_fields=['zkratka'])
+            for status in UvolneniKontrolyChoice:
+                if code == 'SPX' and status in (
+                    UvolneniKontrolyChoice.UVOLNENO, UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU,
+                ):
+                    continue
+                with self.subTest(customer=code, status=status):
+                    kontrola.uvolneni = status
+                    kontrola.save()
+                    context = self.context()
+                    self.assertEqual(context['quality_card']['rows'][0][1], Decimal('28.1234'))
+                    html = render_to_string(TEMPLATE_PATH, context)
+                    self.assertIn('<td class="measurement-value">28,1234</td>', html)
+                    self.assertNotIn('<td class="measurement-value">OK</td>', html)
+
     def test_measurement_date_range_uses_earliest_and_latest_day(self):
         kontrola = self.create_control()
         older = timezone.now() - timedelta(days=2)

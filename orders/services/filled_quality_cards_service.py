@@ -1,7 +1,7 @@
 from django.db.models import Prefetch
 from django.utils import timezone
 
-from orders.choices import TypZkouskyChoice
+from orders.choices import TypZkouskyChoice, UvolneniKontrolyChoice
 from orders.models import MereniBedny
 from orders.quality_card_labels import get_helper_labels, minimum_samples_labels, minimum_values_labels
 
@@ -53,6 +53,13 @@ def build_filled_context(bedna, generated_at, printing_user):
          for kind in MEASUREMENT_COLUMNS]
         for index in range(PRINTED_MEASUREMENTS_PER_TEST)
     ]
+    if customer.zkratka == 'SPX' and kontrola.uvolneni in (
+        UvolneniKontrolyChoice.UVOLNENO, UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU,
+    ):
+        torsion_column = MEASUREMENT_COLUMNS.index(TypZkouskyChoice.KRUT)
+        for row in rows:
+            if row[torsion_column] is not None:
+                row[torsion_column] = 'OK'
     context['quality_card'] = {
         'merit_tvrdost': merit_tvrdost,
         'helper_labels': helper_labels,
