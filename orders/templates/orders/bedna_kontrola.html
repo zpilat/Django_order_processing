@@ -25,6 +25,13 @@
             {% else %}Označit bednu jako zkontrolovanou
             {% endif %}
         </a>
+    {% else %}
+        <div id="blokace-zkontrolovano" class="w-100 scan-action-button border rounded-2 bg-body-tertiary text-center px-3 py-2 mt-3" role="status">
+            <div>{% if bedna.stav_bedny == 'ZK' %}Stav rovnání a tryskání zatím nelze upravit{% else %}Bednu zatím nelze označit jako zkontrolovanou{% endif %}</div>
+            <ul class="list-unstyled small fw-normal mb-0 mt-1">
+                {% for duvod in blokace_zkontrolovano %}<li>{{ duvod }}</li>{% endfor %}
+            </ul>
+        </div>
     {% endif %}
 
     <a class="btn btn-outline-primary w-100 scan-action-button d-flex align-items-center justify-content-center mt-3"

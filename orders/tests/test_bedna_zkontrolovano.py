@@ -48,6 +48,11 @@ class BednaZkontrolovanoTests(KontrolaBednyTestBase):
                     overview = self.client.get(self.control_url)
                     self.assertFalse(overview.context['can_mark_zkontrolovano'])
                     self.assertNotContains(overview, self.url)
+                    self.assertContains(overview, 'id="blokace-zkontrolovano"')
+                    self.assertContains(overview, (
+                        'Vyberte a uložte rozhodnutí o uvolnění.' if has_control
+                        else 'Nejprve vyplňte a uložte výstupní kontrolu'
+                    ))
                     for method in ('get', 'post'):
                         response = getattr(self.client, method)(self.url, self.payload if method == 'post' else {})
                         self.assertRedirects(response, self.control_url, fetch_redirect_response=False)
@@ -74,7 +79,9 @@ class BednaZkontrolovanoTests(KontrolaBednyTestBase):
                         },
                     )
                     Bedna.objects.filter(pk=self.bedna.pk).update(stav_bedny=state)
-                    self.assertContains(self.client.get(self.control_url), self.url)
+                    overview = self.client.get(self.control_url)
+                    self.assertContains(overview, self.url)
+                    self.assertNotContains(overview, 'id="blokace-zkontrolovano"')
                     self.assertEqual(self.client.get(self.url).status_code, 200)
                     response = self.client.post(self.url, self.payload)
                     self.assertRedirects(response, self.control_url)
@@ -90,6 +97,10 @@ class BednaZkontrolovanoTests(KontrolaBednyTestBase):
                 continue
             with self.subTest(state=state):
                 Bedna.objects.filter(pk=self.bedna.pk).update(stav_bedny=state)
+                overview = self.client.get(self.control_url)
+                self.assertContains(overview, 'id="blokace-zkontrolovano"')
+                self.assertContains(overview, f'Bedna je ve stavu {state.label}.')
+                self.assertNotContains(overview, self.url)
                 history_count = self.bedna.history.count()
                 for method in ('get', 'post'):
                     response = getattr(self.client, method)(self.url, self.payload if method == 'post' else {})
@@ -105,9 +116,20 @@ class BednaZkontrolovanoTests(KontrolaBednyTestBase):
         response = self.client.get(self.control_url)
         self.assertTrue(response.context['can_edit'])
         self.assertFalse(response.context['can_mark_zkontrolovano'])
+        self.assertContains(response, 'Bedna je pozastavená. Nejprve je nutné zrušit pozastavení.')
         self.assertRedirects(self.client.post(self.url, self.payload), self.control_url)
         self.bedna.refresh_from_db()
         self.assertEqual(self.bedna.stav_bedny, StavBednyChoice.ZAKALENO)
+
+    def test_missing_mark_permission_is_explained_on_readonly_control(self):
+        self.create_control()
+        self.user.user_permissions.clear()
+        self.user.user_permissions.add(Permission.objects.get(codename='view_bedna'))
+        response = self.client.get(self.control_url)
+        self.assertContains(response, 'Nemáte oprávnění označit bednu jako zkontrolovanou.')
+        self.assertContains(response, 'id="blokace-zkontrolovano"')
+        self.assertNotContains(response, self.url)
+        self.assertEqual(self.client.post(self.url, self.payload).status_code, 403)
 
     def test_state_and_control_are_rechecked_after_acquiring_bedna_lock(self):
         kontrola = self.create_control()
@@ -168,6 +190,18 @@ class BednaZkontrolovanoTests(KontrolaBednyTestBase):
                     overview = self.client.get(self.control_url)
                     self.assertFalse(overview.context['can_mark_zkontrolovano'])
                     self.assertNotContains(overview, self.url)
+                    self.assertContains(overview, 'id="blokace-zkontrolovano"')
+                    reasons = ' '.join(overview.context['blokace_zkontrolovano'])
+                    if 'cistota' in missing:
+                        self.assertIn('Čistotu (OK nebo NOK)', reasons)
+                    if 'ulozeni' in missing:
+                        self.assertIn('Uložení (OK nebo NOK)', reasons)
+                    if missing.get('neshoda_krivost'):
+                        for field, label in (
+                            ('pocet_krivych_vrutu_prvni_mereni', 'Počet křivých 1. měření'),
+                            ('pocet_krivych_vrutu_druhe_mereni', 'Počet křivých 2. měření'),
+                        ):
+                            self.assertEqual(label in reasons, missing.get(field) is None)
                     for method in ('get', 'post'):
                         response = getattr(self.client, method)(self.url, self.payload if method == 'post' else {})
                         self.assertRedirects(response, self.control_url, fetch_redirect_response=False)
@@ -189,7 +223,9 @@ class BednaZkontrolovanoTests(KontrolaBednyTestBase):
                     pocet_krivych_vrutu_prvni_mereni=first, pocet_krivych_vrutu_druhe_mereni=second,
                 )
                 Bedna.objects.filter(pk=self.bedna.pk).update(stav_bedny=StavBednyChoice.ZAKALENO)
-                self.assertContains(self.client.get(self.control_url), self.url)
+                overview = self.client.get(self.control_url)
+                self.assertContains(overview, self.url)
+                self.assertNotContains(overview, 'id="blokace-zkontrolovano"')
                 self.assertEqual(self.client.get(self.url).status_code, 200)
                 self.assertRedirects(self.client.post(self.url, self.payload), self.control_url)
                 self.bedna.refresh_from_db()

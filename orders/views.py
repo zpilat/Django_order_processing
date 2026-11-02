@@ -625,42 +625,57 @@ def _bedna_scan_can_mark_navezeno(user, bedna):
     )
 
 
-def _bedna_ma_vyplnenou_kontrolu(bedna):
-    """Ověří uložené údaje nutné k označení bedny jako zkontrolované."""
+def _bedna_duvody_neuplne_kontroly(bedna):
+    """Vrátí nesplněné podmínky uložené výstupní kontroly."""
     vysledky = (VysledekKontrolyChoice.OK, VysledekKontrolyChoice.NOK)
-    kontrola = KontrolaBedny.objects.filter(
-        bedna=bedna, cistota__in=vysledky, ulozeni__in=vysledky,
-        uvolneni__in=(
-            UvolneniKontrolyChoice.UVOLNENO, UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU,
-            UvolneniKontrolyChoice.NESHODA,
-        ),
-    ).first()
+    kontrola = KontrolaBedny.objects.filter(bedna=bedna).first()
     if kontrola is None:
-        return False
-    if not kontrola.neshoda_krivost or (
-        kontrola.pocet_krivych_vrutu_prvni_mereni is not None
-        and kontrola.pocet_krivych_vrutu_druhe_mereni is not None
+        return ['Nejprve vyplňte a uložte výstupní kontrolu: Čistotu, Uložení a rozhodnutí o uvolnění.']
+    duvody = []
+    if kontrola.cistota not in vysledky:
+        duvody.append('Vyplňte a uložte Čistotu (OK nebo NOK).')
+    if kontrola.ulozeni not in vysledky:
+        duvody.append('Vyplňte a uložte Uložení (OK nebo NOK).')
+    if kontrola.uvolneni not in (
+        UvolneniKontrolyChoice.UVOLNENO, UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU,
+        UvolneniKontrolyChoice.NESHODA,
     ):
-        return True
+        duvody.append('Vyberte a uložte rozhodnutí o uvolnění.')
+    chybejici_pocty = [
+        label for value, label in (
+            (kontrola.pocet_krivych_vrutu_prvni_mereni, 'Počet křivých 1. měření'),
+            (kontrola.pocet_krivych_vrutu_druhe_mereni, 'Počet křivých 2. měření'),
+        ) if value is None
+    ]
+    if kontrola.neshoda_krivost and chybejici_pocty:
+        omezeni = omezeni_uvolneni_prohybem(bedna)
+        oranzovy_prohyb_po_tz = (
+            omezeni is not None
+            and omezeni.typ_zkousky == TypZkouskyChoice.PROHYB_PO_TZ
+            and omezeni.stav == 'odchylka'
+        )
+        if not oranzovy_prohyb_po_tz:
+            duvody.extend(f'Při důvodu Křivost chybí uložený {label}.' for label in chybejici_pocty)
+    return duvody
 
-    omezeni = omezeni_uvolneni_prohybem(bedna)
-    return bool(
-        omezeni
-        and omezeni.typ_zkousky == TypZkouskyChoice.PROHYB_PO_TZ
-        and omezeni.stav == 'odchylka'
-    )
+
+def _bedna_ma_vyplnenou_kontrolu(bedna):
+    """Stejné podmínky pro zobrazení akce i její ověření před uložením."""
+    return not _bedna_duvody_neuplne_kontroly(bedna)
 
 
-def _bedna_scan_can_mark_zkontrolovano(user, bedna):
-    """
-    Kontroluje, zda má uživatel oprávnění označit bednu jako zkontrolovanou.
-    """
-    return (
-        user.has_perm('orders.mark_bedna_zkontrolovano')
-        and not bedna.pozastaveno
-        and bedna.stav_bedny in STAV_BEDNY_PODMINKA_PRO_ZMENU_NA_ZKONTROLOVANO
-        and _bedna_ma_vyplnenou_kontrolu(bedna)
-    )
+def _bedna_duvody_blokace_zkontrolovano(user, bedna):
+    duvody = []
+    if not user.has_perm('orders.mark_bedna_zkontrolovano'):
+        duvody.append('Nemáte oprávnění označit bednu jako zkontrolovanou.')
+    if bedna.pozastaveno:
+        duvody.append('Bedna je pozastavená. Nejprve je nutné zrušit pozastavení.')
+    if bedna.stav_bedny not in STAV_BEDNY_PODMINKA_PRO_ZMENU_NA_ZKONTROLOVANO:
+        duvody.append(
+            f'Bedna je ve stavu {bedna.get_stav_bedny_display()}. '
+            'Změna je dostupná pouze ve stavu Zakaleno nebo Zkontrolováno.'
+        )
+    return duvody or _bedna_duvody_neuplne_kontroly(bedna)
 
 
 def _bedna_scan_can_mark_zakaleno(user, bedna):
@@ -920,6 +935,7 @@ def bedna_kontrola_view(request, cislo_bedny: int):
         for typ_zkousky in TypZkouskyChoice.values
     }
 
+    blokace_zkontrolovano = _bedna_duvody_blokace_zkontrolovano(request.user, bedna)
     return render(request, 'orders/bedna_kontrola.html', {
         'bedna': bedna,
         'kontrola': kontrola,
@@ -927,7 +943,8 @@ def bedna_kontrola_view(request, cislo_bedny: int):
         'form': form,
         'can_edit': can_edit,
         'snapshot': snapshot,
-        'can_mark_zkontrolovano': _bedna_scan_can_mark_zkontrolovano(request.user, bedna),
+        'can_mark_zkontrolovano': not blokace_zkontrolovano,
+        'blokace_zkontrolovano': blokace_zkontrolovano,
         'zkousky': _bedna_zkousky_context(bedna, request.user, form.omezeni_prohybu), 'db_table': 'bedna_scan',
     })
 
