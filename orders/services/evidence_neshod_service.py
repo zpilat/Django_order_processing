@@ -38,14 +38,19 @@ def snapshot_zkousky_pro_zobrazeni(snapshot):
 def zaznamenat_neshodu(kontrola, *, previous_status, user):
     """Volající drží zámek bedny a ukládá kontrolu i záznam v jedné transakci.
 
-    Stejný stav ani opakovaný požadavek nevytvářejí nový případ. Další vstup do
-    Neshody má nový historický záznam a založí další nezávislý případ.
+    Nový vstup do Neshody nebo přidání důvodu během Neshody založí společný
+    snapshot všech důvodů a měření. Opakovaný požadavek jej neduplikuje.
     """
-    if (
-        kontrola.uvolneni != UvolneniKontrolyChoice.NESHODA
-        or previous_status == UvolneniKontrolyChoice.NESHODA
-    ):
+    if kontrola.uvolneni != UvolneniKontrolyChoice.NESHODA:
         return None
+    source = kontrola.history.order_by('-history_id').first()
+    if previous_status == UvolneniKontrolyChoice.NESHODA:
+        previous = kontrola.history.filter(history_id__lt=source.history_id).order_by('-history_id').first()
+        if previous is not None and not any(
+            getattr(kontrola, name) and not getattr(previous, name)
+            for name in KontrolaBedny.NESHODA_FIELDS
+        ):
+            return None
 
     bedna = kontrola.bedna
     zakazka = bedna.zakazka
@@ -73,7 +78,6 @@ def zaznamenat_neshodu(kontrola, *, previous_status, user):
             ],
         })
 
-    source = kontrola.history.order_by('-history_id').first()
     duvody = [
         {'kod': name, 'nazev': str(KontrolaBedny._meta.get_field(name).verbose_name)}
         for name in KontrolaBedny.NESHODA_FIELDS if getattr(kontrola, name)
@@ -114,7 +118,11 @@ def zaznamenat_neshodu(kontrola, *, previous_status, user):
     zaznam, _ = ZaznamNeshody.objects.get_or_create(
         zdroj_historie_id=source.history_id,
         defaults={
-            'bedna': bedna, 'zjisteno_at': kontrola.uvolneni_zmeneno_at,
+            'bedna': bedna,
+            'zjisteno_at': (
+                source.history_date if previous_status == UvolneniKontrolyChoice.NESHODA
+                else kontrola.uvolneni_zmeneno_at or source.history_date
+            ),
             'zjistil': user, 'zjistil_jmeno': jmeno_uzivatele(user),
             'zakaznik': zakaznik.nazev, 'zakaznik_zkratka': zakaznik.zkratka,
             'zakazka': zakazka.artikl, 'oznaceni_bedny': str(bedna.cislo_bedny),

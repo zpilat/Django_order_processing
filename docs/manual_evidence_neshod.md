@@ -1,18 +1,20 @@
 # Uživatelský manuál: Evidence neshod
 
-Evidence neshod uchovává samostatné případy a výchozí údaje při jejich zjištění. V první verzi se zakládají automaticky z kontroly beden. Identifikace, důvody a naměřené hodnoty zůstávají zachované i po opravě nebo uvolnění bedny.
+Evidence neshod uchovává neměnné záznamy při zjištění neshody a doplnění jejích důvodů. Zakládají se automaticky z kontroly beden. Každý snapshot je společný pro všechny aktuální důvody a měření; nevytváří se samostatně pro jednotlivé důvody. Identifikace, důvody a naměřené hodnoty zůstávají zachované i po opravě nebo uvolnění bedny.
 
 ## 1. Založení případu
 
 1. Otevřete **Kontrolu bedny**, zadejte měření a výsledky výstupní kontroly.
-2. Vyberte **Uvolnění = Neshoda**, alespoň jeden důvod a případný popis do poznámky. U **Jiné** je poznámka povinná.
-3. Zvolte **Uložit kontrolu bedny**. První uložení Neshody nebo přechod z jiného rozhodnutí do Neshody založí nový případ.
+2. Vyberte **Uvolnění = Neshoda**, alespoň jeden důvod a případný popis do poznámky. Křivost se nastavuje automaticky podle měření a Čistota podle výsledku čistoty; oba důvody jsou zamčené. Při Uložení NOK se zaškrtne a zamkne také Jiné a lze uložit pouze Neshodu. Ostatní důvody lze zadat ručně. U **Jiné** je poznámka povinná.
+3. Zvolte **Uložit kontrolu bedny**. První uložení Neshody, přechod z jiného rozhodnutí do Neshody nebo přidání důvodu během Neshody založí nový společný snapshot.
 
-Opakované uložení ve stavu Neshoda, včetně změny poznámky či důvodů, případ neduplikuje a nepřepisuje jeho výchozí údaje. Pozdější změny zůstávají v historii kontroly. Po změně rozhodnutí na jiný stav a pozdějším návratu na Neshodu vznikne další případ téže bedny. Samotné **Uvolněno QS s odchylkou** nový případ nezakládá.
+Při doplnění jednoho nebo více důvodů během trvající Neshody vznikne jeden další záznam se všemi právě platnými důvody a všemi aktuálními měřeními. Platí to také pro automatické přidání Čistoty, Křivosti nebo Jiné při Uložení NOK a pro opětovné přidání dříve odebraného důvodu. Datum a autor nového snapshotu odpovídají tomuto uložení; údaje o původní změně uvolnění u kontroly se tím nemění.
+
+Opakované uložení stejných důvodů, samotná změna poznámky či měření nebo pouhé odebrání důvodu nový snapshot nezakládají. Při současném odebrání jednoho a přidání jiného důvodu nový snapshot vznikne. Původní záznamy se nepřepisují; další úpravy zůstávají také v historii kontroly. Po změně rozhodnutí na jiný stav a pozdějším návratu na Neshodu vznikne další záznam téže bedny. Samotné **Uvolněno QS s odchylkou** nový snapshot nezakládá. **Uvolněno** vymaže aktuální důvody u bedny, nikoli původní snapshoty.
 
 Kontrola a případ se ukládají společně. Při chybě ukládání případu se neuloží ani rozhodnutí kontroly. Chybný formulář ani pokus přepsat souběžnou změnu jiného uživatele případ nezaloží.
 
-Evidence zachycuje nové přechody do Neshody po nasazení funkce. Starší případy se nedoplňují z historie ani z Google tabulky. Pokud byla bedna v Neshodě již před nasazením, pouhé další uložení stejného stavu případ nezaloží.
+Evidence zachycuje nové přechody do Neshody a přidání důvodu během Neshody po nasazení funkce. Starší případy se nedoplňují z historie ani z Google tabulky. Pokud byla bedna v Neshodě již před nasazením, další uložení stejného stavu bez přidaného důvodu snapshot nezaloží.
 
 ## 2. Uložené údaje
 
@@ -35,7 +37,6 @@ Nové případy zachycují meze samostatně pro každou fázi prohybu. Po rovná
 ## 3. Otevření a filtrování
 
 - **Administrace → Kontrola kvality → Evidence neshod**, přímo `/admin/orders/zaznamneshody/`. Nabídka **PŘEHLEDY → Evidence neshod** vede také do adminu.
-- Pod formulářem **Kontroly bedny** jsou pro oprávněné uživatele odkazy na případy této bedny přímo v adminu.
 - Číslo případu či označení bedny v seznamu otevře detail. Ten obsahuje vedle sebe **Identifikaci při zjištění** a **Neshodu a výsledky kontroly**, pod nimi jednotlivé zkoušky s tehdejšími požadavky a hodnotami. Zkoušky s uloženým měřením jsou rozbalené; ostatní lze rozbalit pro zobrazení požadavků. Odkaz **Aktuální kontrola bedny** vede na dnešní údaje, pokud k nim máte oprávnění.
 
 Hledání v seznamu adminu prochází označení bedny, zákazníka, zakázku/artikl, šarži materiálu a popis. Postranní filtry vybírají zákazníka, důvod, skupinu a datum zjištění. Lišta nad seznamem umožňuje výběr roku, měsíce a dne; data se vyhodnocují v místním čase. Záznamy se řadí od nejnovějšího, po 50 na stránku; stránkování zachovává filtry. Samostatné provozní stránky evidence se nepoužívají.
@@ -46,9 +47,9 @@ Nadpis každého postranního filtru zobrazuje vybranou hodnotu, například **D
 
 ## 4. Oprávnění a rozsah první verze
 
-Evidence i detail jsou dostupné pouze v administraci. Uživatel potřebuje účet **staff** (`is_staff`) a oprávnění **Může prohlížet Záznam neshody** (`orders.view_zaznamneshody`), případně účet správce. Samotné oprávnění ke kontrole bedny přístup do evidence nezajišťuje. Uživatel s oprávněním pouze k evidenci může číst snapshoty bez přístupu k aktuální kontrole; odkaz na ni vyžaduje navíc `orders.view_bedna` nebo `orders.mark_bedna_zkontrolovano`. Odkazy v nabídce přehledů a pod kontrolou bedny se zobrazí pouze uživatelům s přístupem do evidence.
+Evidence i detail jsou dostupné pouze v administraci. Uživatel potřebuje účet **staff** (`is_staff`) a oprávnění **Může prohlížet Záznam neshody** (`orders.view_zaznamneshody`), případně účet správce. Samotné oprávnění ke kontrole bedny přístup do evidence nezajišťuje. Uživatel s oprávněním pouze k evidenci může číst snapshoty bez přístupu k aktuální kontrole; odkaz na ni vyžaduje navíc `orders.view_bedna` nebo `orders.mark_bedna_zkontrolovano`. Odkaz v nabídce přehledů se zobrazí pouze uživatelům s přístupem do evidence. Kontrola bedny odkazy na jednotlivé snapshoty neobsahuje.
 
-Případy se přes aplikaci neupravují ani nemažou. Aktuální kontrola se upravuje stávajícím formulářem podle jeho oprávnění a omezení. Evidence nemění aktuální důvody při uvolnění ani pravidla expedice a nebarví nové sloupce KKK.
+Záznamy se přes aplikaci neupravují ani nemažou. Aktuální kontrola se upravuje stávajícím formulářem podle jeho oprávnění a omezení; při Uvolněno se její důvody vymažou a při dalších rozhodnutích odpovídají aktuálnímu nálezu. Evidence nemění pravidla expedice a nebarví nové sloupce KKK.
 
 Model počítá i se skupinou **Ostatní** a případy bez vazby na bednu. Ruční zadávání železa/ostatních dílů, průběh řešení, opatření, odpovědné osoby, termíny, uzavření a finance se doplní později. Případ zatím nemá samostatný stav řešení či uzavření.
 

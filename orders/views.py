@@ -896,7 +896,7 @@ def bedna_kontrola_view(request, cislo_bedny: int):
                 form.add_error(None, 'Kontrolu mezitím změnil jiný uživatel. Načtěte aktuální údaje znovu.')
                 valid = False
             if valid:
-                if kontrola is None or form.has_changed():
+                if kontrola is None or form.has_changed() or form.duvody_neshody_zmeneny:
                     kontrola = form.save(commit=False)
                     if kontrola.uvolneni != UvolneniKontrolyChoice.NEROZHODNUTO:
                         if previous_status != kontrola.uvolneni:
@@ -927,11 +927,6 @@ def bedna_kontrola_view(request, cislo_bedny: int):
         'form': form,
         'can_edit': can_edit,
         'snapshot': snapshot,
-        'zaznamy_neshod': (
-            bedna.zaznamy_neshod.only('id', 'zjisteno_at', 'zjistil_jmeno')
-            if request.user.is_staff and request.user.has_perm('orders.view_zaznamneshody')
-            else ()
-        ),
         'can_mark_zkontrolovano': _bedna_scan_can_mark_zkontrolovano(request.user, bedna),
         'zkousky': _bedna_zkousky_context(bedna, request.user, form.omezeni_prohybu), 'db_table': 'bedna_scan',
     })

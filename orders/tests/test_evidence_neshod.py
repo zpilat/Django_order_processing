@@ -1,5 +1,5 @@
 from copy import deepcopy
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 from unittest.mock import patch
 from urllib.parse import parse_qs, urlsplit
@@ -59,6 +59,7 @@ class EvidenceNeshodTests(KontrolaBednyTestBase):
         customer.zkratka = 'ROT'
         customer.min_hodnot_mechanicke = 3
         customer.pocet_vrutu_pro_kontrolu_prohybu = 25
+        customer.max_krivych_vrutu = 0
         customer.save()
         predpis = self.bedna.zakazka.predpis
         predpis.ohyb, predpis.popis_ohyb = '45 stupňů', 'Původní požadavek'
@@ -77,6 +78,10 @@ class EvidenceNeshodTests(KontrolaBednyTestBase):
         MereniBedny.objects.create(
             kontrola=control, typ_zkousky=TypZkouskyChoice.PROHYB_PO_KOULENI,
             hodnota=Decimal('0.5'), poradi=1, zmeril=self.user,
+        )
+        MereniBedny.objects.create(
+            kontrola=control, typ_zkousky=TypZkouskyChoice.PROHYB_PO_TZ,
+            hodnota=Decimal('0.7'), poradi=1, zmeril=self.user,
         )
         result = self.save_decision(
             UvolneniKontrolyChoice.NESHODA,
@@ -164,7 +169,7 @@ class EvidenceNeshodTests(KontrolaBednyTestBase):
         overview = self.client.get(reverse('neshody_prehled'))
         self.assertEqual(overview.context['items'], [])
         self.assertContains(self.client.get(self.list_url), case.get_absolute_url())
-        self.assertContains(self.client.get(self.control_url), case.get_absolute_url())
+        self.assertNotContains(self.client.get(self.control_url), case.get_absolute_url())
         case.popis = 'Přepsaný nález'
         with self.assertRaises(ValidationError):
             case.save()
@@ -181,6 +186,86 @@ class EvidenceNeshodTests(KontrolaBednyTestBase):
         self.assertRedirects(self.save_decision(UvolneniKontrolyChoice.NESHODA), self.control_url)
         self.assertEqual(ZaznamNeshody.objects.count(), 2)
         self.assertEqual(ZaznamNeshody.objects.values('zdroj_historie_id').distinct().count(), 2)
+
+    def test_added_reasons_create_one_shared_snapshot_with_current_author_and_time(self):
+        first = self.create_case()
+        original_snapshot = deepcopy(first.snapshot)
+        control = KontrolaBedny.objects.get(bedna=self.bedna)
+        release_date = control.uvolneni_zmeneno_at
+        editor = get_user_model().objects.create_user(username='dalsi-kontrolor', first_name='Jan', last_name='Novák')
+        editor.user_permissions.add(Permission.objects.get(codename='mark_bedna_zkontrolovano'))
+        self.client.force_login(editor)
+        response = self.client.get(self.control_url)
+        snapshot_time = timezone.now() + timedelta(seconds=3)
+        with patch('orders.views.timezone.now', return_value=snapshot_time):
+            result = self.client.post(self.control_url, self.payload(
+                response, neshoda_ohyb_nizky='on', neshoda_vrstva='on', poznamka='Doplněné důvody',
+            ))
+        self.assertRedirects(result, self.control_url)
+        self.assertEqual(ZaznamNeshody.objects.count(), 2)
+        added = ZaznamNeshody.objects.exclude(pk=first.pk).get()
+        self.assertEqual({item['kod'] for item in added.duvody}, {
+            'neshoda_krut_nizky', 'neshoda_ohyb_nizky', 'neshoda_vrstva',
+        })
+        self.assertEqual(added.snapshot['kontrola']['duvody'], added.duvody)
+        self.assertEqual(added.zjisteno_at, snapshot_time)
+        self.assertEqual(added.zjistil, editor)
+        self.assertEqual(added.zjistil_jmeno, 'Jan Novák')
+        control.refresh_from_db()
+        self.assertEqual(control.uvolneni_zmeneno_at, release_date)
+        first.refresh_from_db()
+        self.assertEqual(first.snapshot, original_snapshot)
+
+        self.assertRedirects(self.save_decision(UvolneniKontrolyChoice.NESHODA, poznamka='Jiná poznámka'), self.control_url)
+        self.assertEqual(ZaznamNeshody.objects.count(), 2)
+        self.assertRedirects(self.save_decision(UvolneniKontrolyChoice.NESHODA, neshoda_ohyb_nizky=''), self.control_url)
+        self.assertEqual(ZaznamNeshody.objects.count(), 2)
+        self.assertRedirects(self.save_decision(UvolneniKontrolyChoice.NESHODA, neshoda_ohyb_nizky='on'), self.control_url)
+        self.assertEqual(ZaznamNeshody.objects.count(), 3)
+        control.refresh_from_db()
+        repeated = zaznamenat_neshodu(control, previous_status=UvolneniKontrolyChoice.NESHODA, user=editor)
+        self.assertEqual(repeated.zdroj_historie_id, control.history.order_by('-history_id').first().history_id)
+        self.assertEqual(ZaznamNeshody.objects.count(), 3)
+
+    def test_automatic_reason_additions_are_captured_during_existing_nonconformity(self):
+        self.create_case()
+        customer = self.bedna.zakazka.kamion_prijem.zakaznik
+        customer.zkratka, customer.max_krivych_vrutu = 'ROT', 0
+        customer.save()
+        self.assertRedirects(self.save_decision(UvolneniKontrolyChoice.NESHODA, cistota='NOK'), self.control_url)
+        self.assertEqual(ZaznamNeshody.objects.count(), 2)
+        control = KontrolaBedny.objects.get(bedna=self.bedna)
+        MereniBedny.objects.create(
+            kontrola=control, typ_zkousky=TypZkouskyChoice.PROHYB_PO_TZ,
+            hodnota=Decimal('0.7'), poradi=1, zmeril=self.user,
+        )
+        self.assertRedirects(self.save_decision(UvolneniKontrolyChoice.NESHODA), self.control_url)
+        self.assertEqual(ZaznamNeshody.objects.count(), 3)
+        latest = ZaznamNeshody.objects.first()
+        self.assertEqual({item['kod'] for item in latest.duvody}, {
+            'neshoda_krut_nizky', 'neshoda_cistota', 'neshoda_krivost',
+        })
+        groups = {group['typ']: group for group in latest.snapshot['zkousky']}
+        self.assertEqual(groups[TypZkouskyChoice.PROHYB_PO_TZ]['mereni'][0]['hodnota'], '0.7000')
+        self.assertRedirects(self.save_decision(
+            UvolneniKontrolyChoice.NESHODA, ulozeni='NOK', poznamka='Nesprávné uložení',
+        ), self.control_url)
+        self.assertEqual(ZaznamNeshody.objects.count(), 4)
+        latest = ZaznamNeshody.objects.first()
+        self.assertIn('neshoda_jine', {item['kod'] for item in latest.duvody})
+        self.assertEqual(latest.snapshot['kontrola']['ulozeni'], 'NOK')
+
+    def test_failed_additional_snapshot_rolls_back_added_reason_and_history(self):
+        self.create_case()
+        control = KontrolaBedny.objects.get(bedna=self.bedna)
+        history_count = control.history.count()
+        with patch('orders.views.zaznamenat_neshodu', side_effect=RuntimeError('Snapshot failed')):
+            with self.assertRaises(RuntimeError):
+                self.save_decision(UvolneniKontrolyChoice.NESHODA, neshoda_vrstva='on')
+        control.refresh_from_db()
+        self.assertFalse(control.neshoda_vrstva)
+        self.assertEqual(control.history.count(), history_count)
+        self.assertEqual(ZaznamNeshody.objects.count(), 1)
 
     def test_invalid_and_stale_submissions_do_not_create_cases(self):
         response = self.client.get(self.control_url)
@@ -217,7 +302,7 @@ class EvidenceNeshodTests(KontrolaBednyTestBase):
     def test_case_failure_rolls_back_inspection_and_its_history(self):
         with patch('orders.views.zaznamenat_neshodu', side_effect=RuntimeError('Snapshot failed')):
             with self.assertRaises(RuntimeError):
-                self.save_decision(UvolneniKontrolyChoice.NESHODA, neshoda_cistota='on')
+                self.save_decision(UvolneniKontrolyChoice.NESHODA, cistota='NOK')
         self.assertFalse(KontrolaBedny.objects.exists())
         self.assertFalse(KontrolaBedny.history.exists())
         self.assertFalse(ZaznamNeshody.objects.exists())
@@ -249,8 +334,9 @@ class EvidenceNeshodTests(KontrolaBednyTestBase):
         self.assertNotContains(control_page, self.list_url)
         reader.user_permissions.add(Permission.objects.get(codename='view_zaznamneshody'))
         control_page = self.client.get(self.control_url)
-        self.assertContains(control_page, case.get_absolute_url())
+        self.assertNotContains(control_page, case.get_absolute_url())
         self.assertContains(control_page, self.list_url)
+        self.assertNotContains(control_page, 'Evidence neshod této bedny')
         self.assertEqual(self.client.get('/evidence-neshod/').status_code, 404)
         self.assertEqual(self.client.get(f'/evidence-neshod/{case.pk}/').status_code, 404)
 

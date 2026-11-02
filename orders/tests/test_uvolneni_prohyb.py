@@ -194,7 +194,7 @@ class UvolneniProhybTests(KontrolaBednyTestBase):
                 self.assertEqual(self.kontrola.uvolneni, UvolneniKontrolyChoice.NEROZHODNUTO)
                 self.assertEqual(self.kontrola.history.count(), history_count)
 
-    def test_both_restricted_results_require_curvature_even_with_another_reason(self):
+    def test_both_restricted_results_set_locked_curvature_even_if_posted_unchecked(self):
         for values, status in (
             (['0.7', '0.7'], UvolneniKontrolyChoice.NESHODA),
             (['0.5', '0.5'], UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU),
@@ -203,10 +203,14 @@ class UvolneniProhybTests(KontrolaBednyTestBase):
             with self.subTest(values=values, status=status):
                 self.measurements(values)
                 response = self.client.get(self.url)
-                result = self.client.post(self.url, self.payload(response, status, neshoda_cistota='on'))
-                self.assertEqual(result.status_code, 200)
-                self.assertIn('neshoda_krivost', result.context['form'].errors)
-                self.assertFalse(result.context['form']['neshoda_krivost'].value())
+                self.assertTrue(response.context['form'].fields['neshoda_krivost'].disabled)
+                result = self.client.post(self.url, self.payload(
+                    response, status, neshoda_krivost='', neshoda_krut_nizky='on',
+                ))
+                self.assertRedirects(result, self.url)
+                self.kontrola.refresh_from_db()
+                self.assertTrue(self.kontrola.neshoda_krivost)
+                self.assertTrue(self.kontrola.neshoda_krut_nizky)
 
     def test_restricted_decisions_save_curvature_and_history(self):
         for values, status in (
@@ -250,7 +254,8 @@ class UvolneniProhybTests(KontrolaBednyTestBase):
         self.measurements(['0.7', '0.7'])
         result = self.client.post(self.url, self.payload(response, UvolneniKontrolyChoice.UVOLNENO))
         self.assertIn('uvolneni', result.context['form'].errors)
-        self.assertIn('neshoda_krivost', result.context['form'].errors)
+        self.assertTrue(result.context['form']['neshoda_krivost'].value())
+        self.assertTrue(result.context['form'].fields['neshoda_krivost'].disabled)
 
     def test_prefill_replaces_old_release_only_in_form_until_saved(self):
         self.kontrola.uvolneni = UvolneniKontrolyChoice.UVOLNENO

@@ -25,6 +25,7 @@ from .choices import (
     ZinkovaniChoice,
     STAV_BEDNY_PRO_NAVEZENI,
     UvolneniKontrolyChoice,
+    VysledekKontrolyChoice,
 )
 
 import logging
@@ -88,30 +89,75 @@ class ZakazkaMeasurementForm(forms.ModelForm):
 
 class KontrolaBednyForm(forms.ModelForm):
     neshoda_fields = KontrolaBedny.NESHODA_FIELDS
+    automaticke_duvody = ('neshoda_krivost', 'neshoda_cistota')
 
     def __init__(self, *args, can_edit=True, **kwargs):
         super().__init__(*args, **kwargs)
+        self.can_edit = can_edit
+        self.puvodni_duvody = {name: getattr(self.instance, name) for name in self.neshoda_fields}
         self.omezeni_prohybu = (
             omezeni_uvolneni_prohybem(self.instance.bedna)
             if self.instance.bedna_id else None
         )
-        if self.omezeni_prohybu is not None and (can_edit or self.is_bound):
+        self.upozorneni_prohybu = ''
+        if self.instance.bedna_id:
+            bedna = self.instance.bedna
+            chybi = []
+            if bedna.limity_prohybu['bezny'] is None:
+                chybi.append('standardní mez prohybu pro zákazníka a délku')
+            if bedna.zakazka.kamion_prijem.zakaznik.max_krivych_vrutu is None:
+                chybi.append('maximální povolený počet křivých vrutů ve vzorku')
+            if chybi:
+                self.upozorneni_prohybu = (
+                    'Křivost nelze automaticky vyhodnotit. Není nastaveno: '
+                    + '; '.join(chybi)
+                    + '. Uvolnění se podle prohybu neomezuje; nejde o potvrzení vyhovujícího prohybu.'
+                )
+        self.cistota_nok = self['cistota'].value() == VysledekKontrolyChoice.NOK
+        self.ulozeni_nok = self['ulozeni'].value() == VysledekKontrolyChoice.NOK
+        self.povolene_stavy_prohybu = (
+            self.omezeni_prohybu.povolene_stavy
+            if self.omezeni_prohybu is not None else tuple(UvolneniKontrolyChoice.values)
+        )
+        povolene_stavy = (
+            (UvolneniKontrolyChoice.NESHODA,)
+            if self.cistota_nok or self.ulozeni_nok else self.povolene_stavy_prohybu
+        )
+        if can_edit or self.is_bound:
             field = self.fields['uvolneni']
             field.choices = [
                 (value, label) for value, label in UvolneniKontrolyChoice.choices
-                if value in self.omezeni_prohybu.povolene_stavy
+                if value in povolene_stavy
             ]
-            field.error_messages['invalid_choice'] = self.omezeni_prohybu.zprava
-            if not self.is_bound:
-                self.initial['neshoda_krivost'] = True
-                if self.initial.get('uvolneni') not in self.omezeni_prohybu.povolene_stavy:
-                    self.initial['uvolneni'] = self.omezeni_prohybu.povolene_stavy[0]
+            if self.cistota_nok:
+                field.error_messages['invalid_choice'] = 'Při čistotě NOK lze uložit pouze Neshodu.'
+            elif self.ulozeni_nok:
+                field.error_messages['invalid_choice'] = 'Při uložení NOK lze uložit pouze Neshodu.'
+            elif self.omezeni_prohybu is not None:
+                field.error_messages['invalid_choice'] = self.omezeni_prohybu.zprava
+            if not self.is_bound and self.initial.get('uvolneni') not in povolene_stavy:
+                self.initial['uvolneni'] = povolene_stavy[0]
+            self.initial['neshoda_krivost'] = self.omezeni_prohybu is not None
+            self.initial['neshoda_cistota'] = self.cistota_nok
+            if self.ulozeni_nok:
+                self.initial['neshoda_jine'] = True
+                self.fields['neshoda_jine'].disabled = True
+            if (
+                self['uvolneni'].value() == UvolneniKontrolyChoice.UVOLNENO
+                and UvolneniKontrolyChoice.UVOLNENO in povolene_stavy
+            ):
+                for name in self.neshoda_fields:
+                    self.initial[name] = False
+                    self.fields[name].disabled = True
+        for name in self.automaticke_duvody:
+            self.fields[name].disabled = True
 
     def clean(self):
         cleaned_data = super().clean()
-        if self.omezeni_prohybu is not None and not cleaned_data.get('neshoda_krivost'):
-            self.add_error('neshoda_krivost', 'Při překročení povoleného počtu křivých vrutů musí být vybrán důvod Křivost.')
         uvolneni = cleaned_data.get('uvolneni')
+        if uvolneni == UvolneniKontrolyChoice.UVOLNENO:
+            for name in self.neshoda_fields:
+                cleaned_data[name] = False
         if (
             uvolneni in (
                 UvolneniKontrolyChoice.NESHODA,
@@ -134,13 +180,25 @@ class KontrolaBednyForm(forms.ModelForm):
 
     @property
     def zobrazit_duvody_neshody(self):
-        return (
-            self['uvolneni'].value() in (
-                UvolneniKontrolyChoice.NESHODA,
-                UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU,
-            )
-            or any(self[name].value() for name in self.neshoda_fields)
+        return self['uvolneni'].value() in (
+            UvolneniKontrolyChoice.NESHODA,
+            UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU,
+            UvolneniKontrolyChoice.UVOLNENO,
         )
+
+    @property
+    def duvody_neshody_zmeneny(self):
+        # Disabled fields do not contribute to Django's has_changed().
+        return any(self.cleaned_data.get(name) != value for name, value in self.puvodni_duvody.items())
+
+    @property
+    def pravidla_pro_js(self):
+        return {
+            'can_edit': self.can_edit,
+            'krivost': self.omezeni_prohybu is not None,
+            'povolene_stavy_prohybu': self.povolene_stavy_prohybu,
+            'uvolneni': list(UvolneniKontrolyChoice.choices),
+        }
 
     class Meta:
         model = KontrolaBedny

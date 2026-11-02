@@ -57,10 +57,12 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
         for name in KontrolaBedny.NESHODA_FIELDS:
             self.assertContains(response, f'name="{name}"', count=1)
 
-        for status, selected in (
-            (UvolneniKontrolyChoice.NESHODA, False),
-            (UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU, False),
-            (UvolneniKontrolyChoice.UVOLNENO, True),
+        for status, selected, visible in (
+            (UvolneniKontrolyChoice.NESHODA, False, True),
+            (UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU, False, True),
+            (UvolneniKontrolyChoice.UVOLNENO, False, True),
+            (UvolneniKontrolyChoice.UVOLNENO, True, True),
+            (UvolneniKontrolyChoice.NEROZHODNUTO, True, False),
         ):
             with self.subTest(status=status):
                 KontrolaBedny.objects.update_or_create(
@@ -68,8 +70,204 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
                     defaults={'uvolneni': status, 'neshoda_cistota': selected},
                 )
                 response = self.client.get(self.url)
-                self.assertTrue(response.context['form'].zobrazit_duvody_neshody)
-                self.assertContains(response, 'id="duvody-neshody" class="mb-3 col-12"')
+                self.assertEqual(response.context['form'].zobrazit_duvody_neshody, visible)
+                suffix = '' if visible else ' d-none'
+                self.assertContains(response, f'id="duvody-neshody" class="mb-3 col-12{suffix}"')
+
+    def test_release_clears_and_locks_all_reasons_even_without_other_changes(self):
+        kontrola = KontrolaBedny.objects.create(
+            bedna=self.bedna, uvolneni=UvolneniKontrolyChoice.UVOLNENO,
+            **dict.fromkeys(KontrolaBedny.NESHODA_FIELDS, True),
+        )
+        response = self.client.get(self.url)
+        for name in KontrolaBedny.NESHODA_FIELDS:
+            self.assertFalse(response.context['form'][name].value())
+            self.assertTrue(response.context['form'].fields[name].disabled)
+        kontrola.refresh_from_db()
+        self.assertTrue(kontrola.neshoda_krivost)  # GET must not change stored data.
+        history_count = kontrola.history.count()
+        response = self.client.post(self.url, self.payload(
+            response, **dict.fromkeys(KontrolaBedny.NESHODA_FIELDS, 'on'), poznamka='',
+        ))
+        self.assertRedirects(response, self.url)
+        kontrola.refresh_from_db()
+        self.assertFalse(any(getattr(kontrola, name) for name in KontrolaBedny.NESHODA_FIELDS))
+        self.assertEqual(kontrola.history.count(), history_count + 1)
+        response = self.client.get(self.url)
+        self.assertRedirects(self.client.post(self.url, self.payload(response)), self.url)
+        self.assertEqual(kontrola.history.count(), history_count + 1)
+
+    def test_passing_or_missing_measurements_clear_locked_curvature_without_other_changes(self):
+        customer = self.bedna.zakazka.kamion_prijem.zakaznik
+        customer.zkratka, customer.max_krivych_vrutu = 'ROT', 0
+        customer.save()
+        for kind in (None, TypZkouskyChoice.PROHYB_PO_TZ, TypZkouskyChoice.PROHYB_PO_ROVNANI):
+            with self.subTest(kind=kind):
+                KontrolaBedny.objects.filter(bedna=self.bedna).delete()
+                kontrola = KontrolaBedny.objects.create(
+                    bedna=self.bedna, uvolneni=UvolneniKontrolyChoice.NESHODA,
+                    neshoda_krivost=True, neshoda_krut_nizky=True,
+                )
+                if kind is not None:
+                    MereniBedny.objects.create(
+                        kontrola=kontrola, typ_zkousky=kind, hodnota=Decimal('0.4'), poradi=1,
+                    )
+                response = self.client.get(self.url)
+                self.assertFalse(response.context['form']['neshoda_krivost'].value())
+                self.assertTrue(response.context['form'].fields['neshoda_krivost'].disabled)
+                self.assertRedirects(self.client.post(self.url, self.payload(
+                    response, neshoda_krivost='on',
+                )), self.url)
+                kontrola.refresh_from_db()
+                self.assertFalse(kontrola.neshoda_krivost)
+                self.assertTrue(kontrola.neshoda_krut_nizky)
+
+    def test_cleanliness_nok_overrides_qs_and_cannot_be_saved_with_another_release(self):
+        customer = self.bedna.zakazka.kamion_prijem.zakaznik
+        customer.zkratka, customer.max_krivych_vrutu = 'ROT', 0
+        customer.save()
+        for value in (None, '0.5', '0.7'):
+            with self.subTest(value=value):
+                KontrolaBedny.objects.filter(bedna=self.bedna).delete()
+                kontrola = KontrolaBedny.objects.create(bedna=self.bedna)
+                if value is not None:
+                    MereniBedny.objects.create(
+                        kontrola=kontrola, typ_zkousky=TypZkouskyChoice.PROHYB_PO_TZ,
+                        hodnota=Decimal(value), poradi=1,
+                    )
+                response = self.client.get(self.url)
+                for release in (
+                    UvolneniKontrolyChoice.UVOLNENO, UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU,
+                    UvolneniKontrolyChoice.NEROZHODNUTO,
+                ):
+                    result = self.client.post(self.url, self.payload(
+                        response, cistota='NOK', uvolneni=release, neshoda_cistota='',
+                    ))
+                    self.assertIn('uvolneni', result.context['form'].errors)
+                    self.assertEqual(list(result.context['form'].fields['uvolneni'].choices), [
+                        (UvolneniKontrolyChoice.NESHODA, UvolneniKontrolyChoice.NESHODA.label),
+                    ])
+                self.assertRedirects(self.client.post(self.url, self.payload(
+                    response, cistota='NOK', uvolneni=UvolneniKontrolyChoice.NESHODA,
+                    neshoda_cistota='', neshoda_krivost='',
+                )), self.url)
+                kontrola.refresh_from_db()
+                self.assertEqual(kontrola.cistota, 'NOK')
+                self.assertTrue(kontrola.neshoda_cistota)
+                self.assertEqual(kontrola.neshoda_krivost, value is not None)
+                form = self.client.get(self.url).context['form']
+                self.assertTrue(form.fields['neshoda_cistota'].disabled)
+                self.assertTrue(form['neshoda_cistota'].value())
+
+    def test_cleanliness_ok_or_unset_clears_automatic_reason_and_preserves_manual_reason(self):
+        for value in (VysledekKontrolyChoice.OK, VysledekKontrolyChoice.NEZADANO):
+            with self.subTest(value=value):
+                KontrolaBedny.objects.filter(bedna=self.bedna).delete()
+                kontrola = KontrolaBedny.objects.create(
+                    bedna=self.bedna, uvolneni=UvolneniKontrolyChoice.NESHODA,
+                    cistota='NOK', neshoda_cistota=True, neshoda_krut_nizky=True,
+                )
+                response = self.client.get(self.url)
+                self.assertRedirects(self.client.post(self.url, self.payload(
+                    response, cistota=value, neshoda_cistota='on',
+                )), self.url)
+                kontrola.refresh_from_db()
+                self.assertFalse(kontrola.neshoda_cistota)
+                self.assertTrue(kontrola.neshoda_krut_nizky)
+
+    def test_missing_bending_configuration_is_reported_instead_of_claiming_success(self):
+        customer = self.bedna.zakazka.kamion_prijem.zakaznik
+        for code, maximum, missing_limit, missing_count in (
+            ('TST', None, True, True), ('ROT', None, False, True), ('ROT', 0, False, False),
+        ):
+            with self.subTest(code=code, maximum=maximum):
+                customer.zkratka, customer.max_krivych_vrutu = code, maximum
+                customer.save()
+                response = self.client.get(self.url)
+                self.assertEqual(bool(response.context['form'].upozorneni_prohybu), missing_limit or missing_count)
+                if missing_limit or missing_count:
+                    self.assertContains(response, 'Křivost nelze automaticky vyhodnotit.')
+                    self.assertContains(response, 'nejde o potvrzení vyhovujícího prohybu')
+                self.assertEqual('standardní mez' in response.context['form'].upozorneni_prohybu, missing_limit)
+                self.assertEqual('povolený počet' in response.context['form'].upozorneni_prohybu, missing_count)
+
+    def test_placement_nok_forces_nonconformity_other_reason_and_a_note(self):
+        customer = self.bedna.zakazka.kamion_prijem.zakaznik
+        customer.zkratka, customer.max_krivych_vrutu = 'ROT', 0
+        customer.save()
+        for value, cleanliness in ((None, 'OK'), ('0.5', 'OK'), ('0.5', 'NOK')):
+            with self.subTest(prohyb=value, cistota=cleanliness):
+                KontrolaBedny.objects.filter(bedna=self.bedna).delete()
+                kontrola = KontrolaBedny.objects.create(bedna=self.bedna)
+                if value is not None:
+                    MereniBedny.objects.create(
+                        kontrola=kontrola, typ_zkousky=TypZkouskyChoice.PROHYB_PO_TZ,
+                        hodnota=Decimal(value), poradi=1,
+                    )
+                response = self.client.get(self.url)
+                for release in (
+                    UvolneniKontrolyChoice.UVOLNENO, UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU,
+                    UvolneniKontrolyChoice.NEROZHODNUTO,
+                ):
+                    result = self.client.post(self.url, self.payload(
+                        response, ulozeni='NOK', cistota=cleanliness, uvolneni=release,
+                        neshoda_jine='', poznamka='Nesprávné uložení',
+                    ))
+                    self.assertIn('uvolneni', result.context['form'].errors)
+                    self.assertEqual(list(result.context['form'].fields['uvolneni'].choices), [
+                        (UvolneniKontrolyChoice.NESHODA, UvolneniKontrolyChoice.NESHODA.label),
+                    ])
+                for note in ('', ' \t\n '):
+                    result = self.client.post(self.url, self.payload(
+                        response, ulozeni='NOK', cistota=cleanliness,
+                        uvolneni=UvolneniKontrolyChoice.NESHODA, neshoda_jine='', poznamka=note,
+                    ))
+                    self.assertIn('poznamka', result.context['form'].errors)
+                    self.assertTrue(result.context['form']['neshoda_jine'].value())
+                self.assertRedirects(self.client.post(self.url, self.payload(
+                    response, ulozeni='NOK', cistota=cleanliness,
+                    uvolneni=UvolneniKontrolyChoice.NESHODA, neshoda_jine='', poznamka='Nesprávné uložení',
+                )), self.url)
+                kontrola.refresh_from_db()
+                self.assertEqual(kontrola.ulozeni, 'NOK')
+                self.assertTrue(kontrola.neshoda_jine)
+                self.assertEqual(kontrola.neshoda_cistota, cleanliness == 'NOK')
+                self.assertEqual(kontrola.neshoda_krivost, value is not None)
+                form = self.client.get(self.url).context['form']
+                self.assertTrue(form.fields['neshoda_jine'].disabled)
+                self.assertTrue(form['neshoda_jine'].value())
+
+    def test_placement_ok_does_not_force_a_release_or_other_reason(self):
+        for release in UvolneniKontrolyChoice:
+            with self.subTest(release=release):
+                KontrolaBedny.objects.filter(bedna=self.bedna).delete()
+                response = self.client.get(self.url)
+                self.assertRedirects(self.client.post(self.url, self.payload(
+                    response, ulozeni='OK', uvolneni=release, neshoda_krut_nizky='on',
+                )), self.url)
+                kontrola = KontrolaBedny.objects.get(bedna=self.bedna)
+                self.assertEqual(kontrola.uvolneni, release)
+                self.assertFalse(kontrola.neshoda_jine)
+
+    def test_placement_repair_unlocks_other_reason_and_preserves_it_for_manual_editing(self):
+        kontrola = KontrolaBedny.objects.create(
+            bedna=self.bedna, uvolneni=UvolneniKontrolyChoice.NESHODA,
+            ulozeni='NOK', neshoda_jine=True, poznamka='Nesprávné uložení',
+        )
+        response = self.client.get(self.url)
+        self.assertTrue(response.context['form'].fields['neshoda_jine'].disabled)
+        self.assertRedirects(self.client.post(self.url, self.payload(response, ulozeni='OK')), self.url)
+        kontrola.refresh_from_db()
+        self.assertTrue(kontrola.neshoda_jine)
+        self.assertEqual(kontrola.uvolneni, UvolneniKontrolyChoice.NESHODA)
+        response = self.client.get(self.url)
+        self.assertFalse(response.context['form'].fields['neshoda_jine'].disabled)
+        self.assertRedirects(self.client.post(self.url, self.payload(
+            response, neshoda_jine='', neshoda_krut_nizky='on',
+        )), self.url)
+        kontrola.refresh_from_db()
+        self.assertFalse(kontrola.neshoda_jine)
+        self.assertTrue(kontrola.neshoda_krut_nizky)
 
     def test_layer_nonconformity_reason_is_saved_in_history(self):
         response = self.client.get(self.url)
@@ -116,7 +314,7 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
         self.assertRedirects(result, self.url)
         kontrola = KontrolaBedny.objects.get(bedna=self.bedna)
         self.assertTrue(kontrola.neshoda_krut_nizky)
-        self.assertTrue(kontrola.neshoda_krivost)
+        self.assertFalse(kontrola.neshoda_krivost)
         self.assertTrue(kontrola.neshoda_jine)
         self.assertFalse(kontrola.neshoda_cistota)
         self.assertEqual(kontrola.poznamka, 'Jiné: poškozený závit')
@@ -133,7 +331,7 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
         kontrola.refresh_from_db()
         self.assertFalse(kontrola.neshoda_krut_nizky)
         self.assertFalse(kontrola.neshoda_jine)
-        self.assertTrue(kontrola.neshoda_krivost)
+        self.assertFalse(kontrola.neshoda_krivost)
         self.assertTrue(self.client.get(self.url).context['form'].zobrazit_duvody_neshody)
 
     def test_nonconformity_and_deviation_require_a_reason_but_other_statuses_do_not(self):
@@ -154,22 +352,22 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
 
         response = self.client.get(self.url)
         self.assertRedirects(self.client.post(self.url, self.payload(
-            response, uvolneni=UvolneniKontrolyChoice.NESHODA, neshoda_cistota='on',
+            response, uvolneni=UvolneniKontrolyChoice.NESHODA, neshoda_krut_nizky='on',
         )), self.url)
         response = self.client.get(self.url)
-        result = self.client.post(self.url, self.payload(response, neshoda_cistota=''))
+        result = self.client.post(self.url, self.payload(response, neshoda_krut_nizky=''))
         self.assertEqual(result.status_code, 200)
         self.assertIn('uvolneni', result.context['form'].errors)
         kontrola = KontrolaBedny.objects.get(bedna=self.bedna)
-        self.assertTrue(kontrola.neshoda_cistota)
+        self.assertTrue(kontrola.neshoda_krut_nizky)
 
         response = self.client.get(self.url)
         self.assertRedirects(self.client.post(self.url, self.payload(
             response, uvolneni=UvolneniKontrolyChoice.UVOLNENO,
-            neshoda_cistota='',
+            neshoda_krut_nizky='',
         )), self.url)
         kontrola.refresh_from_db()
-        self.assertFalse(kontrola.neshoda_cistota)
+        self.assertFalse(kontrola.neshoda_krut_nizky)
 
     def test_other_nonconformity_reason_requires_nonblank_note(self):
         statuses = (UvolneniKontrolyChoice.NESHODA, UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU)
@@ -209,7 +407,6 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
         for status in (
             UvolneniKontrolyChoice.NESHODA,
             UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU,
-            UvolneniKontrolyChoice.UVOLNENO,
         ):
             with self.subTest(status=status):
                 response = self.client.get(self.url)
@@ -225,7 +422,7 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
         response = self.client.get(self.url)
         result = self.client.post(self.url, self.payload(
             response, uvolneni=UvolneniKontrolyChoice.UVOLNENO,
-            neshoda_jine='', poznamka='',
+            neshoda_jine='on', poznamka='',
         ))
         self.assertRedirects(result, self.url)
         kontrola.refresh_from_db()
@@ -242,7 +439,7 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
         self.assertEqual(result.status_code, 200)
         self.assertTrue(result.context['form'].non_field_errors())
         self.assertContains(result, 'Kontrolu bedny se nepodařilo uložit. Příčinu najdete ve formuláři Výstupní kontrola.')
-        self.assertTrue(result.context['form'].zobrazit_duvody_neshody)
+        self.assertFalse(result.context['form'].zobrazit_duvody_neshody)
         kontrola.refresh_from_db()
         self.assertTrue(kontrola.neshoda_cistota)
         self.assertFalse(kontrola.neshoda_krivost)
@@ -671,7 +868,7 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
                 self.assertNotContains(response, '<option value="PO">')
                 result = self.client.post(self.url, self.payload(
                     response, uvolneni=UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU,
-                    neshoda_cistota='on',
+                    neshoda_krut_nizky='on',
                 ))
                 self.assertRedirects(result, self.url)
                 kontrola = KontrolaBedny.objects.get(bedna=self.bedna)
@@ -686,7 +883,7 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
                 response = self.client.get(self.url)
                 self.client.post(self.url, self.payload(
                     response, uvolneni=nonreleased,
-                    **({'neshoda_cistota': 'on'} if nonreleased == UvolneniKontrolyChoice.NESHODA else {}),
+                    **({'neshoda_krut_nizky': 'on'} if nonreleased == UvolneniKontrolyChoice.NESHODA else {}),
                 ))
                 kontrola.refresh_from_db()
                 if nonreleased == UvolneniKontrolyChoice.NESHODA:
@@ -719,7 +916,7 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
                 with patch('orders.views.timezone.now', return_value=decision_time):
                     result = self.client.post(self.url, self.payload(
                         response, uvolneni=status,
-                        **({'neshoda_cistota': 'on'} if status in (
+                        **({'neshoda_krut_nizky': 'on'} if status in (
                             UvolneniKontrolyChoice.NESHODA,
                             UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU,
                         ) else {}),

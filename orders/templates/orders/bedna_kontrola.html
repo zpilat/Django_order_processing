@@ -79,6 +79,12 @@
             {% if form.omezeni_prohybu %}
                 <div class="alert alert-warning" role="alert">{{ form.omezeni_prohybu.zprava }}</div>
             {% endif %}
+            {% if form.upozorneni_prohybu %}
+                <div class="alert alert-warning" role="alert">{{ form.upozorneni_prohybu }}</div>
+            {% endif %}
+            <div id="omezeni-cistoty" class="alert alert-warning{% if not form.cistota_nok %} d-none{% endif %}" role="alert">Při čistotě NOK lze uložit pouze Neshodu. Důvod Čistota se nastavuje automaticky.</div>
+            <div id="omezeni-ulozeni" class="alert alert-warning{% if not form.ulozeni_nok %} d-none{% endif %}" role="alert">Při uložení NOK lze uložit pouze Neshodu. Důvod Jiné se zaškrtne a zamkne; problém s uložením upřesněte v poznámce.</div>
+            {{ form.pravidla_pro_js|json_script:"pravidla-kontroly-bedny" }}
             <form method="post" novalidate autocomplete="off">
                 {% csrf_token %}
                 <input type="hidden" name="snapshot" value="{{ snapshot }}">
@@ -103,7 +109,7 @@
                                             </div>
                                         {% endfor %}
                                     </div>
-                                    <div class="form-text">Důvod „Jiné“ upřesněte v poli Poznámka.</div>
+                                    <div class="form-text">Křivost se nastavuje podle měření, Čistota podle výsledku čistoty. Tyto důvody nelze měnit ručně. Při Uložení NOK je zaškrtnuté a zamčené také Jiné. Při Uvolněno jsou všechny důvody odškrtnuté a zamčené. Důvod „Jiné“ upřesněte v poli Poznámka.</div>
                                 </div>
                             {% endif %}
                             {% if field.name not in form.neshoda_fields %}
@@ -131,16 +137,6 @@
         </div>
     </section>
 
-    {% if zaznamy_neshod %}
-        <section class="card rounded-2 mt-3">
-            <h2 class="card-header h6 mb-0">Evidence neshod této bedny</h2>
-            <div class="list-group list-group-flush">
-                {% for zaznam in zaznamy_neshod %}
-                    <a class="list-group-item list-group-item-action" href="{{ zaznam.get_absolute_url }}">Neshoda {{ zaznam.pk }} · {{ zaznam.zjisteno_at|date:"d.m.Y H:i" }} · {{ zaznam.zjistil_jmeno }}</a>
-                {% endfor %}
-            </div>
-        </section>
-    {% endif %}
     <a class="btn btn-outline-secondary w-100 scan-action-button d-flex align-items-center justify-content-center mt-3" href="{% url 'bedna_scan' bedna.cislo_bedny %}">Zpět na detail bedny</a>
 </main>
 {% endblock %}

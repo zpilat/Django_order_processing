@@ -71,11 +71,19 @@ Vyplňte:
 - **Uvolnění**: nerozhodnuto (`--------`), Neshoda, Uvolněno nebo Uvolněno QS s odchylkou. Při překročení povoleného počtu křivých vrutů se nabídka omezí podle tabulky výše.
 - **Poznámka**: vysvětlení výsledku nebo provozní informace.
 
-Při **Neshodě** nebo **Uvolněno QS s odchylkou** vyberte alespoň jeden důvod. Lze vybrat více důvodů: čistota, nízký/vysoký krut, nízký ohyb, nízká/vysoká tvrdost povrchu či jádra, vrstva, křivost, pomíchané vruty, chyba v procesu nebo Jiné. U **Jiné** je povinné upřesnění v poznámce.
+**Důvody neshody** jsou viditelné při **Uvolněno**, **Uvolněno QS s odchylkou** a **Neshoda**. Skryté jsou pouze při nerozhodnutém uvolnění, i když z dřívějška zůstal uložený důvod. Samotné skrytí ručně zadané důvody nemaže.
 
-Při omezení kvůli prohybu formulář zobrazí rozhodující fázi, počet překročených hodnot a povolený počet křivých. V editovatelném formuláři předvyplní **Křivost**; pokud dosavadní rozhodnutí není přípustné, předvyplní první povolenou volbu uvolnění. Samotné otevření formuláře tyto změny neukládá. Při pouhém prohlížení bez možnosti editace se zobrazí skutečně uložené rozhodnutí a důvody.
+**Křivost a Čistota jsou automatické důvody a nelze je měnit ručně.** Křivost je zaškrtnutá při červeném nebo oranžovém celkovém výsledku rozhodující fáze prohybu podle tabulky výše. Při vyhovujícím výsledku nebo chybějícím měření je odškrtnutá. Čistota je zaškrtnutá pouze při **Čistota = NOK**; při OK nebo nezadáno je odškrtnutá. Čistota NOK dovoluje uložit pouze **Neshodu**, i když by samotný oranžový prohyb dovoloval uvolnění QS s odchylkou. Při souběhu jsou zaškrtnuté oba důvody.
 
-Při uložení server znovu vyhodnotí aktuálně uložená měření. Nepovolené uvolnění nebo chybějící **Křivost** odmítne, i když je vybraný jiný důvod neshody. Uložení samotných naměřených hodnot toto omezení neblokuje a automaticky nepřepisuje dříve uložené rozhodnutí o uvolnění.
+**Uložení = NOK** také dovoluje uložit pouze **Neshodu**. Automaticky zaškrtne a zamkne důvod **Jiné**, proto je povinná poznámka s popisem problému uložení. Platí to i při oranžovém prohybu a souběhu s čistotou NOK. Při Uložení OK nebo nezadáno se další omezení nepřidává. Po změně NOK na OK se Jiné zpřístupní pro ruční úpravu a zůstane zaškrtnuté; samo se nemaže, protože může popisovat i jiný problém.
+
+Při **Neshodě** nebo **Uvolněno QS s odchylkou** musí být vybraný alespoň jeden důvod, automatický nebo ruční. Ostatní důvody (krut, ohyb, tvrdost, vrstva, pomíchané vruty, chyba v procesu a Jiné mimo případ Uložení NOK) lze měnit ručně. U **Jiné** je povinné upřesnění v poznámce. Při **Uvolněno** se všechny důvody odškrtnou a zamknou; při uložení se odstraní také z aktuální kontroly. Poznámka se automaticky nemaže. Starší snapshoty a historie zůstávají zachované.
+
+Při omezení kvůli prohybu formulář zobrazí rozhodující fázi, počet překročených hodnot a povolený počet křivých. V editovatelném formuláři nastaví automatické důvody; pokud dosavadní rozhodnutí není přípustné, předvyplní první povolenou volbu uvolnění. Samotné otevření formuláře tyto změny neukládá. Při pouhém prohlížení bez možnosti editace se zobrazí skutečně uložené rozhodnutí a důvody.
+
+Pokud chybí standardní mez prohybu nebo nastavení maximálního povoleného počtu křivých ve vzorku, zobrazí se upozornění, co není nastavené. Křivost pak nelze automaticky vyhodnotit, důvod zůstává odškrtnutý a uvolnění se podle prohybu neomezuje. **Tento stav neznamená potvrzení vyhovujícího prohybu.** Maximální počet se nastavuje u zákazníka, pravidla standardních mezí jsou popsaná výše.
+
+Při uložení server znovu vyhodnotí aktuálně uložená měření a zaslaný výsledek čistoty a uložení. Automatické důvody přepočítá bez ohledu na zaslané hodnoty políček a nepovolené uvolnění odmítne. Při Uložení NOK vynutí Jiné i povinnou poznámku. Při Uvolněno vymaže všechny důvody i při pokusu odeslat je zaškrtnuté. Uložení samotných naměřených hodnot toto omezení neblokuje a automaticky nepřepisuje dříve uložené rozhodnutí o uvolnění; následně uložte také kontrolu bedny.
 
 Klikněte na **Uložit kontrolu bedny**. U rozhodnutí se eviduje, kdo a kdy stav uvolnění změnil; návrat na nerozhodnuto tyto aktuální údaje vymaže, historie zůstává.
 
@@ -105,7 +113,7 @@ Bednu s uloženým **Uvolnění = Neshoda** nelze označit K expedici ani expedo
 
 **Přehled neshod** (`/prehled-neshod/`) ukazuje bedny s aktuálním rozhodnutím Neshoda, důvody, poznámku a autora i datum rozhodnutí. Filtruje se podle zákazníka, důvodu a dne. Po změně uvolnění na jinou hodnotu bedna z přehledu zmizí; starší rozhodnutí zůstává v historii.
 
-**Evidence neshod v administraci** (`/admin/orders/zaznamneshody/`) uchovává samostatný případ při prvním uložení Neshody nebo novém přechodu z jiného rozhodnutí do Neshody. Kopíruje identifikaci, důvody, poznámku, všechny uložené hodnoty měření a tehdejší požadavky i limity. Opakované uložení stejného stavu případ neduplikuje ani nepřepisuje; pozdější změny zůstávají v historii kontroly. Uvolnění bedny případ z evidence neodstraní. Uživatelé s účtem staff a oprávněním `orders.view_zaznamneshody` mají pod formulářem kontroly odkazy na případy této bedny přímo v adminu. Podrobnosti a rozsah první verze popisuje [Evidence neshod](manual_evidence_neshod.md).
+**Evidence neshod v administraci** (`/admin/orders/zaznamneshody/`) uchovává společný snapshot všech důvodů a měření při prvním uložení Neshody, novém přechodu do Neshody nebo přidání důvodu během trvající Neshody. Kopíruje identifikaci, důvody, poznámku, všechny uložené hodnoty měření a tehdejší požadavky i limity. Odebrání důvodu, samotná úprava poznámky či měření nový snapshot nezakládá. Starší snapshoty se nepřepisují a uvolnění bedny je z evidence neodstraní. Evidence se otevírá v administraci nebo z nabídky přehledů; pod formulářem kontroly se odkazy na jednotlivé snapshoty nezobrazují. Podrobnosti popisuje [Evidence neshod](manual_evidence_neshod.md).
 
 Administrace **Kontroly beden** a **Měření beden** slouží k prohlížení záznamů a historie. Údaje se upravují provozním formulářem, na který vede odkaz v poli **Formulář kontroly bedny**; detail měření má obdobný odkaz v poli **Formulář měření zkoušky**.
 
@@ -144,7 +152,7 @@ Pokud jiný uživatel mezitím změnil kontrolu nebo měření, systém odmítne
 
 - **Kontrola je jen pro čtení:** ověřte oprávnění, pozastavení a expedici bedny.
 - **Neshoda nejde uložit:** vyberte důvod; u Jiné doplňte poznámku.
-- **Nelze vybrat Uvolněno nebo nerozhodnuto:** zkontrolujte upozornění na překročený počet křivých vrutů. Přípustné volby určuje měření po rovnání, případně po TZ; při tomto omezení musí zůstat vybraná Křivost.
+- **Nelze vybrat Uvolněno nebo nerozhodnuto:** zkontrolujte upozornění na překročený počet křivých vrutů a výsledky čistoty a uložení. Přípustné volby určuje měření po rovnání, případně po TZ; Čistota NOK i Uložení NOK vždy dovolují pouze Neshodu. Křivost a Čistota se nastavují automaticky, při Uložení NOK také Jiné s povinnou poznámkou.
 - **Po rovnání zmizelo červené/oranžové pozadí u prohybu po TZ:** posouzení přešlo na měření po rovnání. Jednotlivé starší hodnoty si své barevné označení ponechávají.
 - **Chybí požadavek zkoušky:** zkontrolujte předpis zakázky; prázdný požadavek neznamená automatické vyhovění zkoušky.
 - **Chybí tlačítko Zkontrolováno:** ověřte stav Zakaleno nebo Zkontrolováno, pozastavení, oprávnění a uloženou Čistotu, Uložení a rozhodnutí o Uvolnění. Při důvodu Křivost musí být uložené také oba počty křivých; prázdné pole nestačí, nula ano. Oba počty se nevyžadují, pokud je položka Prohyb po TZ oranžová; oranžový prohyb po rovnání tuto výjimku neposkytuje.
