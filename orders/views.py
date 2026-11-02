@@ -655,7 +655,10 @@ def _bedna_duvody_neuplne_kontroly(bedna):
             and omezeni.stav == 'odchylka'
         )
         if not oranzovy_prohyb_po_tz:
-            duvody.extend(f'Při důvodu Křivost chybí uložený {label}.' for label in chybejici_pocty)
+            if len(chybejici_pocty) == 2:
+                duvody.append('Při důvodu Křivost doplňte a uložte oba počty křivých.')
+            else:
+                duvody.append(f'Při důvodu Křivost chybí uložený {chybejici_pocty[0]}.')
     return duvody
 
 

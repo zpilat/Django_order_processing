@@ -105,6 +105,8 @@ Ve výstupní kontrole musí být předem uložené tyto údaje:
 
 Pokud akce není dostupná, na jejím místě se zobrazí neaktivní informační panel ve tvaru tlačítka s konkrétními důvody. Uvede chybějící oprávnění, pozastavení nebo nepovolený výrobní stav. Pokud tyto překážky nejsou, vypíše chybějící uloženou kontrolu nebo jednotlivé údaje: Čistotu, Uložení, rozhodnutí o uvolnění a případně první či druhý počet křivých. Nula je vyplněná hodnota a oranžový prohyb po TZ vyplnění počtů nevyžaduje. Podmínky se posuzují podle uložených údajů, nikoli rozpracovaných změn ve formuláři. Přímé otevření adresy ani odeslání akce podmínku neobejde: aplikace vrátí uživatele do kontroly bedny s vysvětlením, co má doplnit. Podmínky se znovu ověřují před změnou stavu. Rozpracovanou kontrolu s těmito chybějícími údaji lze dál ukládat, ale nejprve je nutné údaje doplnit a uložit, aby se označení Zkontrolováno zpřístupnilo.
 
+Pokud chybí oba počty křivých, panel je sloučí do jediného řádku: **Při důvodu Křivost doplňte a uložte oba počty křivých.** Při chybějícím jediném počtu uvede konkrétní měření.
+
 Uložení měření nebo uvolnění samo výrobní stav nezmění. Označení Zkontrolováno samo nezapisuje měření ani uvolnění. Před pokračováním zkontrolujte obě části evidence.
 
 Bednu s uloženým **Uvolnění = Neshoda** nelze označit K expedici ani expedovat. Zkontrolováno s Neshodou zůstává přípustné: znamená provedenou kontrolu, ale další postup je potřeba vyřešit před expedicí. Samotný zákaz Neshody nevyžaduje existenci kontroly ani výslovné uvolnění; jiné podmínky pro označení Zkontrolováno uvedené výše tím nejsou dotčeny.

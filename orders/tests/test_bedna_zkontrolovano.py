@@ -197,11 +197,16 @@ class BednaZkontrolovanoTests(KontrolaBednyTestBase):
                     if 'ulozeni' in missing:
                         self.assertIn('Uložení (OK nebo NOK)', reasons)
                     if missing.get('neshoda_krivost'):
-                        for field, label in (
-                            ('pocet_krivych_vrutu_prvni_mereni', 'Počet křivých 1. měření'),
-                            ('pocet_krivych_vrutu_druhe_mereni', 'Počet křivých 2. měření'),
-                        ):
-                            self.assertEqual(label in reasons, missing.get(field) is None)
+                        if len(missing) == 1:
+                            self.assertEqual(overview.context['blokace_zkontrolovano'], [
+                                'Při důvodu Křivost doplňte a uložte oba počty křivých.',
+                            ])
+                        else:
+                            for field, label in (
+                                ('pocet_krivych_vrutu_prvni_mereni', 'Počet křivých 1. měření'),
+                                ('pocet_krivych_vrutu_druhe_mereni', 'Počet křivých 2. měření'),
+                            ):
+                                self.assertEqual(label in reasons, missing.get(field) is None)
                     for method in ('get', 'post'):
                         response = getattr(self.client, method)(self.url, self.payload if method == 'post' else {})
                         self.assertRedirects(response, self.control_url, fetch_redirect_response=False)
