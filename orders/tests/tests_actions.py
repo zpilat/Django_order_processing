@@ -1539,6 +1539,85 @@ class ExportBednyCsvActionTests(ActionsBase):
             ],
         )
 
+    def test_customer_csv_chemistry_appends_columns_for_all_variants(self):
+        self.bedna.obsah_ca = Decimal('0.123456')
+        self.bedna.obsah_p = Decimal('0.002300')
+        self.bedna.obsah_zn = Decimal('12.340000')
+        self.bedna.save(update_fields=['obsah_ca', 'obsah_p', 'obsah_zn'])
+        queryset = Bedna.objects.filter(pk=self.bedna.pk)
+
+        for customer in ('EUR', 'SPX', 'ROT'):
+            self.zakaznik.zkratka = customer
+            self.zakaznik.save(update_fields=['zkratka'])
+            for straightening in (False, True):
+                with self.subTest(customer=customer, straightening=straightening):
+                    params = {'rovnani': 'k_vyrovnani'} if straightening else {}
+                    baseline_response = actions.export_bedny_to_csv_customer_action(
+                        self.bedna_admin, self.get_request('get', params), queryset,
+                    )
+                    params['chemie'] = '1'
+                    response = actions.export_bedny_to_csv_customer_action(
+                        self.bedna_admin, self.get_request('get', params), queryset,
+                    )
+                    baseline = list(csv.reader(
+                        io.StringIO(baseline_response.content.decode('utf-8-sig')), delimiter=';',
+                    ))
+                    rows = list(csv.reader(
+                        io.StringIO(response.content.decode('utf-8-sig')), delimiter=';',
+                    ))
+                    self.assertEqual(rows[0], baseline[0] + ['Ca [%]', 'P [%]', 'Zn [%]'])
+                    self.assertEqual(rows[1], baseline[1] + ['0,123456', '0,0023', '12,34'])
+
+    def test_customer_csv_chemistry_preserves_zero_and_missing_measurements(self):
+        self.bedna.obsah_ca = None
+        self.bedna.obsah_p = Decimal('0')
+        self.bedna.obsah_zn = None
+        self.bedna.save(update_fields=['obsah_ca', 'obsah_p', 'obsah_zn'])
+
+        response = actions.export_bedny_to_csv_customer_action(
+            self.bedna_admin,
+            self.get_request('get', {'chemie': '1'}),
+            Bedna.objects.filter(pk=self.bedna.pk),
+        )
+        rows = list(csv.reader(io.StringIO(response.content.decode('utf-8-sig')), delimiter=';'))
+
+        self.assertEqual(rows[0][-3:], ['Ca [%]', 'P [%]', 'Zn [%]'])
+        self.assertEqual(rows[1][-3:], ['', '0', ''])
+        self.assertEqual(len(rows[0]), len(rows[1]))
+
+    def test_customer_csv_chemistry_requires_active_toggle_and_permission(self):
+        from django.contrib.auth.models import Permission
+
+        user = get_user_model().objects.create_user('customer-export', is_staff=True)
+        self.bedna.obsah_ca = Decimal('1.5')
+        self.bedna.save(update_fields=['obsah_ca'])
+        queryset = Bedna.objects.filter(pk=self.bedna.pk)
+
+        for has_permission in (False, True):
+            if has_permission:
+                user.user_permissions.add(Permission.objects.get(
+                    content_type__app_label='orders', codename='filter_chemistry_bedna',
+                ))
+                user = get_user_model().objects.get(pk=user.pk)
+            for toggle in (None, '0', '1', 'true'):
+                with self.subTest(has_permission=has_permission, toggle=toggle):
+                    params = {} if toggle is None else {'chemie': toggle}
+                    request = self.get_request('get', params)
+                    request.user = user
+                    response = actions.export_bedny_to_csv_customer_action(
+                        self.bedna_admin, request, queryset,
+                    )
+                    rows = list(csv.reader(
+                        io.StringIO(response.content.decode('utf-8-sig')), delimiter=';',
+                    ))
+                    if has_permission and toggle == '1':
+                        self.assertEqual(rows[0][-3:], ['Ca [%]', 'P [%]', 'Zn [%]'])
+                        self.assertEqual(rows[1][-3:], ['1,5', '', ''])
+                    else:
+                        self.assertEqual(rows[0][-2:], ['HPM-Nr.', 'kg'])
+                        self.assertEqual(len(rows[0]), 7)
+                    self.assertEqual(len(rows[0]), len(rows[1]))
+
     def test_export_bedny_to_csv_customer_action_spx_includes_charge(self):
         self.zakaznik.zkratka = 'SPX'
         self.zakaznik.save(update_fields=['zkratka'])

@@ -651,10 +651,13 @@ def export_bedny_to_csv_customer_action(modeladmin, request, queryset):
     Podmínky:
     - Všechny bedny musí patřit jednomu zákazníkovi (podle zakazka__kamion_prijem__zakaznik).
     - Pro schválení před expedicí exportuje tyto sloupce: Artikel-Nr., Behälter-Nr., Abmessung (prumer x delka),
-      Kopf (typ_hlavy), Bezeichnung (zkraceny popis) a # (číslo bedny), 
+      Kopf (typ_hlavy), Bezeichnung (zkraceny popis), HPM-Nr. (číslo bedny) a kg (hmotnost).
     - Pro rovnání exportuje stejné sloupce a navíc Stand (rovnat), Priorität (priorita) 
       a Datum (datum změny rovnat na ROVNA_SE + 7 dní).
     - Pro zákazníka ROT jsou přeloženy názvy sloupců do italštiny.
+    - Při aktivním chemickém pohledu (chemie=1 a oprávnění orders.filter_chemistry_bedna)
+      připojí ve všech variantách za kg sloupce Ca [%], P [%] a Zn [%]. Hodnoty z polí
+      obsah_ca, obsah_p a obsah_zn mají desetinnou čárku; chybějící měření zůstávají prázdná.
     """
     if not queryset.exists():
         return None
@@ -675,6 +678,7 @@ def export_bedny_to_csv_customer_action(modeladmin, request, queryset):
     ).order_by('cislo_bedny')
 
     is_rovnani_export = request.GET.get('rovnani', '') == 'k_vyrovnani'
+    is_chemistry_export = modeladmin._is_chemistry_view(request)
     filename_suffix = 'rovnani' if is_rovnani_export else 'expedice'
 
     response = HttpResponse(content_type='text/csv; charset=utf-8')
@@ -685,24 +689,28 @@ def export_bedny_to_csv_customer_action(modeladmin, request, queryset):
 
     if is_rovnani_export:
         if zakaznik_zkratka == 'ROT':
-            writer.writerow([
+            header = [
                 'Batch', 'Nr. Cass', 'Dimensione', '', 'Descrizione', 'Stato', 'Priorità', 'Data di completamento', 'HPM-Nr.', 'kg'
-            ])
+            ]
         elif zakaznik_zkratka == 'SPX':
-            writer.writerow([
+            header = [
                 'Artikel-Nr.', 'Charge', 'Belegnummer', 'Behälter-Nr.', 'Abmessung', 'Kopf', 'Bezeichnung', 'Stand', 'Priorität', 'Fertigstellungsdatum', 'HPM-Nr.', 'kg'
-            ])
+            ]
         else:
-            writer.writerow([
+            header = [
                 'Artikel-Nr.', 'Behälter-Nr.', 'Abmessung', 'Kopf', 'Bezeichnung', 'Stand', 'Priorität', 'Fertigstellungsdatum', 'HPM-Nr.', 'kg'
-                ])
+            ]
     else:
         if zakaznik_zkratka == 'ROT':
-            writer.writerow(['Batch', 'Nr. Cass', 'Dimensione', '', 'Descrizione', 'HPM-Nr.', 'kg'])
+            header = ['Batch', 'Nr. Cass', 'Dimensione', '', 'Descrizione', 'HPM-Nr.', 'kg']
         elif zakaznik_zkratka == 'SPX':
-            writer.writerow(['Artikel-Nr.', 'Charge', 'Belegnummer', 'Behälter-Nr.', 'Abmessung', 'Kopf', 'Bezeichnung', 'HPM-Nr.', 'kg'])
+            header = ['Artikel-Nr.', 'Charge', 'Belegnummer', 'Behälter-Nr.', 'Abmessung', 'Kopf', 'Bezeichnung', 'HPM-Nr.', 'kg']
         else:
-            writer.writerow(['Artikel-Nr.', 'Behälter-Nr.', 'Abmessung', 'Kopf', 'Bezeichnung', 'HPM-Nr.', 'kg'])
+            header = ['Artikel-Nr.', 'Behälter-Nr.', 'Abmessung', 'Kopf', 'Bezeichnung', 'HPM-Nr.', 'kg']
+
+    if is_chemistry_export:
+        header.extend(['Ca [%]', 'P [%]', 'Zn [%]'])
+    writer.writerow(header)
 
     stav_rovnani_map = {
         RovnaniChoice.KRIVA: 'Krumm',
@@ -759,6 +767,12 @@ def export_bedny_to_csv_customer_action(modeladmin, request, queryset):
         if is_rovnani_export:
             row.extend([stav_rovnani, priorita, datum_vyrovnani])
         row.extend([cislo_bedny, hmotnost])
+        if is_chemistry_export:
+            row.extend([
+                _format_decimal(bedna.obsah_ca),
+                _format_decimal(bedna.obsah_p),
+                _format_decimal(bedna.obsah_zn),
+            ])
 
         writer.writerow(sanitize_csv_row(row))
 

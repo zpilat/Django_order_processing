@@ -161,6 +161,7 @@ Tisk a export:
 - Tisk karet bedny, KKK a kombinovaný tisk.
 - Tisk vyplněných KKK: dostupný pro všechny zákazníky; výběr musí patřit jednomu zákazníkovi a všechny bedny musí mít uloženou kontrolu. Společná šablona má české popisy a pomocné popisy podle zkratky státu zákazníka (D/A německy, I italsky, CZ pouze česky).
 - Chemický pohled umožňuje prohlížet chemická měření a použít jejich export.
+- Při zapnutém přepínači **CHEMIE** (`chemie=1`, vyžaduje oprávnění `orders.filter_chemistry_bedna`) přidá akce **Export vybraných beden do CSV pro zákazníka** na konec za sloupec **kg** sloupce **Ca [%]**, **P [%]** a **Zn [%]**. Platí pro všechny zákazníky i export pro rovnání. Hodnoty používají desetinnou čárku, chybějící měření mají prázdnou buňku. Při vypnutém přepínači se tyto tři sloupce neexportují.
 
 ## 9. Jak systém zpřístupňuje akce
 
