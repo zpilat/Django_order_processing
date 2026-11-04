@@ -59,6 +59,7 @@ from .services.sarze_print_service import (
 )
 from .services.history_service import history_transitions_to_qs
 from .services.evidence_neshod_service import zaznamenat_neshodu
+from .services.stav_bedny_service import vyhodnotit_tryskani_pri_zakaleni
 from .services.dashboard_bedny_service import build_bedny_visual_summary
 from .services.mereni_bedny_service import (
     pozadavek_zkousky, rozsah_mereni_zakaznika, mereni_snapshot, kontrola_snapshot, ulozit_mereni_zkousky,
@@ -1138,8 +1139,9 @@ def bedna_scan_zakaleno_view(request, cislo_bedny: int):
                 messages.error(request, f'Bedna {bedna.cislo_bedny} není ve stavu povoleném pro změnu na zakaleno.')
                 return redirect('bedna_scan', cislo_bedny=bedna.cislo_bedny)
 
+            bedna.tryskat, _ = vyhodnotit_tryskani_pri_zakaleni(bedna)
             bedna.stav_bedny = StavBednyChoice.ZAKALENO
-            bedna.save(update_fields=['stav_bedny', 'pozice'])
+            bedna.save(update_fields=['stav_bedny', 'pozice', 'tryskat'])
 
         messages.success(request, f'Bedna {cislo_bedny} byla označena jako zakalená.')
         logger.info(
@@ -1147,11 +1149,13 @@ def bedna_scan_zakaleno_view(request, cislo_bedny: int):
         )
         return redirect('provozni_prehledy')
 
+    _, neotryskane_sarze = vyhodnotit_tryskani_pri_zakaleni(bedna)
     return render(
         request,
         'orders/bedna_scan_zakaleno.html',
         {
             'bedna': bedna,
+            'neotryskane_sarze': neotryskane_sarze,
             'db_table': 'bedna_scan_zakaleno',
         },
     )

@@ -14,6 +14,8 @@ Stručný postup pro obsluhu, vhodný k vytištění. Výrobní operace a jejich
 | **6. Dokončení beden** | Dokončit požadované rovnání, tryskání či zinkování a zapsat skutečné stavy. Připravené bedny označit K expedici. | Pro K expedici musí být tryskání Čistá/Otryskaná, rovnání Rovná/Vyrovnaná a zinkování Nezinkovat/Uvolněno. Uvolnění nesmí být Neshoda; od K expedici jsou kontrola a měření pouze pro čtení. |
 | **7. Expedice** | Vybrat připravené bedny nebo zakázky, provést expedici do kamionu výdej a vytisknout potřebné doklady. | Správný zákazník, výběr a kamion. Po částečné expedici ověřit zbývající bedny a případnou novou zakázku. |
 
+Při potvrzení **Zakaleno přes sken** se Tryskání nastaví na **Otryskaná**, pokud všechny šarže bedny zahájily krok Tryskače s touto bednou; konec kroku není podmínkou. Při částečném otryskání zůstane stav zachovaný; u stavu Špinavá se již před uložením nad tlačítkem zobrazí varování s neotryskanými šaržemi. Přesun lze potvrdit, po uložení se varování neopakuje. Žádná otryskaná šarže nebo žádné šarže znamenají ponechání stavu bez varování.
+
 ## Pět pravidel při každé směně
 
 1. **Nejdřív ověřit číslo bedny nebo šarže.** Při kopírování zkontrolovat také zdrojový krok a vybrané řádky roštu.

@@ -8,7 +8,7 @@ Internal application for receiving, heat treating, inspecting and shipping order
 - Crate states, warehouse positions, priorities, paused items and change history.
 - Quick batch creation for workstations 1–6, crates arranged into rack floors and traveler printing.
 - Batch step logs, workstation transfers and start/end dates and times.
-- Camera and reader scanning, operational state changes and crate movement history.
+- Camera and reader scanning, operational state changes and crate movement history; confirming heat treatment evaluates blasting from started batch steps and displays a warning before saving about partial blasting when blasting was required.
 - Crate inspection: individual measurements, cleanliness, placement, bent screw counts and release decisions; automatic curvature and cleanliness reasons, mandatory Other reason for NOK placement, restricted release choices and cleared reasons on unconditional release.
 - Nonconformity register in Django Admin: a shared snapshot of all current reasons, measurements and requirements on entering nonconformity or adding a reason during nonconformity, with a structured read-only detail; records remain available after the crate is released. See the [Czech manual](docs/manual_evidence_neshod.md).
 - A nonconformity release decision blocks readiness for shipment and shipment; inspection and measurements become read-only once a crate is ready for shipment.

@@ -77,6 +77,8 @@ Na každém dalším pracovišti opakujte zadání začátku, kontrolu obsahu a 
 
 Přesun šarže na pec či jiné pracoviště sám neoznačuje její bedny jako Zakaleno. Přes sken lze tuto změnu provést u nepozastavených beden ve stavech Navezeno a Ve zpracování s oprávněním `orders.scan_mark_bedna_zakaleno`.
 
+Při potvrzení Zakaleno přes sken se také nastaví **Tryskání = Otryskaná**, pokud všechny šarže dané bedny mají zahájený krok Tryskače obsahující tuto bednu. Datum a čas konce nejsou podmínkou. Při částečném otryskání se stav ponechá; pokud byl **Špinavá**, zobrazí se již před uložením nad potvrzovacím tlačítkem varování s neotryskanými šaržemi. Přesun nezablokuje a po uložení se neopakuje. Pokud nebyla otryskána žádná šarže nebo bedna žádné šarže nemá, stav se ponechá bez varování. Rovnání se při tomto přechodu nemění. Podrobnosti jsou v [manuálu beden](manual_bedna.md#12-skenování-a-návazné-provozní-postupy).
+
 Kontrolor otevře **Přehled kontroly** (`/prehled-kontroly/`), zapíše měření a výstupní kontrolu a uloží uvolnění. Samostatně pak potvrdí **Zkontrolováno** a stav rovnání/tryskání. Tato akce vyžaduje uloženou **Čistotu a Uložení (OK nebo NOK)** a rozhodnutí o **Uvolnění**. Při důvodu neshody **Křivost** musí být uložené také **oba počty křivých vrutů**; nula je vyplněná hodnota. Podrobnosti jsou v [manuálu kontroly beden](manual_kontrola_beden.md).
 
 Při neshodě uložte důvody a poznámku a předejte věc k rozhodnutí o dalším postupu. Opakované skutečné zpracování zaznamenejte novým krokem a následná měření u příslušné bedny; potřebné změny jejích stavů řešte dostupnými akcemi podle oprávnění.

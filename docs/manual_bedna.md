@@ -218,6 +218,14 @@ Navezení přes sken je dostupné s `orders.mark_bedna_navezeno` nebo `orders.ch
 
 Zařazením do kroku Nakládání přejde bedna automaticky na Ve zpracování a vymaže se její skladová pozice. Opakovaný výskyt bedny v roštu představuje rozdělení jejího obsahu, nikoli vytvoření nové bedny.
 
+Při potvrzení **Zakaleno přes sken** se zároveň vyhodnotí Tryskání podle všech šarží, ve kterých je bedna evidovaná:
+
+- Pokud má každá šarže zahájený krok na typu pracoviště **Tryskač** obsahující přímo tuto bednu, nastaví se **Otryskaná**.
+- Pokud jej mají pouze některé šarže, Tryskání se nezmění. U dosavadního stavu **Špinavá** se již na potvrzovací stránce nad tlačítkem zobrazí varování s čísly neotryskaných šarží. Označení jako Zakaleno je přesto možné; po uložení se varování znovu nezobrazuje.
+- Pokud jej nemá žádná šarže nebo bedna nemá žádné šarže, Tryskání se ponechá bez varování.
+
+Stačí zahájený krok; datum a čas konce nejsou podmínkou. Tryskání jiných beden v téže šarži se nezapočítává. Opakované řádky jedné šarže se počítají pouze jednou. Vyhodnocení proběhne při potvrzení změny; Rovnání se touto akcí nemění. Hromadné akce v administraci tuto automatiku nepoužívají.
+
 Výrobní stav Zkontrolováno, uvolnění v kontrole a stav zinkování jsou samostatné údaje. Uložení kontroly automaticky nezmění výrobní stav ani zinkování. Při filtru Zkontrolováno se v seznamu zobrazuje také uvolnění kontroly.
 
 ## 13. Technická mapa (kde je logika v kódu)

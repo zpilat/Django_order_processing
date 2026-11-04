@@ -41,6 +41,14 @@
                 {% csrf_token %}
                 <input type="hidden" name="action" value="mark_zakaleno">
 
+                {% if neotryskane_sarze %}
+                    <div id="varovani-neuplne-tryskani" class="alert alert-warning" role="alert">
+                        Nebyly otryskány všechny vruty z bedny {{ bedna.cislo_bedny }}, která se měla tryskat.
+                        Neotryskané šarže: {{ neotryskane_sarze|join:", " }}.
+                        Tryskání zůstává Špinavá.
+                    </div>
+                {% endif %}
+
                 <div class="d-grid gap-2">
                     <button type="submit" class="btn btn-primary scan-action-button">
                         Označit bednu jako zakalenou
