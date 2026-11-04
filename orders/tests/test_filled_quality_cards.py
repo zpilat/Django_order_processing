@@ -471,7 +471,7 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
             self.customer.save(update_fields=['zkratka_statu'])
             for status, css, released, translation in (
                 (UvolneniKontrolyChoice.UVOLNENO, 'status-good', True, translations[0]),
-                (UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU, 'status-warning', True, translations[1]),
+                (UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU, 'status-good', True, translations[1]),
                 (UvolneniKontrolyChoice.NESHODA, 'status-bad', True, translations[2]),
                 (UvolneniKontrolyChoice.NEROZHODNUTO, 'status-pending', False, ''),
             ):

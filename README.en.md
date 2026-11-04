@@ -86,6 +86,8 @@ Chemical import is a separate action for an inbound truck with crates. It reads 
 
 Printing actions depend on selected objects, filters and permissions. Blank KKK and filled KKK (EUR) are separate actions. The quick batch overview provides a traveler print preview; the crates to be moved overview has dedicated print and PDF outputs.
 
+Filled KKK cards use a green release background for both unconditional release and QS release with deviation, and red for nonconformity. Internal QS release highlighting remains orange.
+
 For SPX, filled KKK cards print **OK** for recorded torsion measurements when released, including QS release with deviation. Original measurements remain stored; torsion limits from the specification are not evaluated yet.
 
 ## Project structure

@@ -133,6 +133,8 @@ Vyplněná karta tiskne nejvýše prvních 10 hodnot jednotlivých zkoušek bez 
 
 U zákazníka **SPX** se při rozhodnutí **Uvolněno** nebo **Uvolněno QS s odchylkou** ve sloupci **Krut** místo každé zapsané naměřené hodnoty tiskne **OK**. Prázdná políčka zůstávají prázdná. Při **Neshodě** nebo nerozhodnutém uvolnění se tisknou naměřené hodnoty. Jde pouze o zobrazení na vyplněné KKK; původní měření zůstávají uložená v aplikaci. Zobrazení OK zatím vychází z rozhodnutí o uvolnění, nikoli z porovnání s limitem předpisu.
 
+Pole **Uvolnění** má ve vyplněné KKK zelené pozadí pro **Uvolněno** i **Uvolněno QS s odchylkou** a červené pozadí pro **Neshodu**. Interní přehled kontroly nadále označuje uvolnění QS s odchylkou oranžově.
+
 Ve sloupci s pořadím vzorků 1–10 mají liché řádky bílé pozadí a sudé řádky světle šedé pozadí.
 
 ## 7. Oprávnění a souběžné změny
