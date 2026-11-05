@@ -8,13 +8,18 @@ class CustomerKkkSettingsMigrationTests(TransactionTestCase):
     migrate_from = [('orders', '0238_historicalkontrolabedny_neshoda_vrstva_and_more')]
     migrate_to = [('orders', '0241_zakaznik_pole_bez_prefixu_kkk')]
 
+    def setUp(self):
+        super().setUp()
+        self.addCleanup(self.restore_latest_schema)
+
     def restore_latest_schema(self):
-        MigrationExecutor(connection).migrate(self.migrate_to)
+        # Test končí na historické migraci; další testy potřebují aktuální schéma.
+        executor = MigrationExecutor(connection)
+        executor.migrate(executor.loader.graph.leaf_nodes())
 
     def test_existing_customers_receive_settings_without_changing_sample_size_or_history(self):
         executor = MigrationExecutor(connection)
         executor.migrate(self.migrate_from)
-        self.addCleanup(self.restore_latest_schema)
         old_apps = executor.loader.project_state(self.migrate_from).apps
         Customer = old_apps.get_model('orders', 'Zakaznik')
         History = old_apps.get_model('orders', 'HistoricalZakaznik')
@@ -58,7 +63,6 @@ class CustomerKkkSettingsMigrationTests(TransactionTestCase):
         migrate_from = [('orders', '0240_naplnit_nastaveni_kkk')]
         executor = MigrationExecutor(connection)
         executor.migrate(migrate_from)
-        self.addCleanup(self.restore_latest_schema)
         old_apps = executor.loader.project_state(migrate_from).apps
         Customer = old_apps.get_model('orders', 'Zakaznik')
         History = old_apps.get_model('orders', 'HistoricalZakaznik')
