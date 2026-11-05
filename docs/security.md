@@ -16,6 +16,8 @@ Evidence neshod a její detaily jsou pouze v administraci (`/admin/orders/zaznam
 
 ## Ochrany požadavků a šablon
 
+Dokončení kontroly, oprava zkontrolované bedny a nastavení Zkontrolováno v adminu sdílejí serverovou validaci úplnosti i souladu uvolnění a důvodů s aktuálními výsledky a limity. Hromadná akce Zkontrolováno byla odstraněna. Admin drží zámek bedny od validace do zápisu; expediční operace pod stejným zámkem odmítají čekající potvrzení měření, i když je dosud uložené Uvolněno. Modelová validace chrání také ruční zadání expedičních stavů. Snapshot vzniká až po nastavení výsledných technologických stavů v téže transakci.
+
 - ORM parametrizuje běžné databázové dotazy.
 - Django šablony standardně escapují hodnoty při výstupu do HTML; vlastní použití `safe` a `mark_safe` vyžaduje správné zacházení s obsahem.
 - `CsrfViewMiddleware` a tokeny ve formulářích chrání změnové požadavky.
@@ -244,6 +246,14 @@ Při dalších potížích rozlišujte selhání překladu jména, nedůvěryhod
 `django-simple-history` a middleware historie evidují změny sledovaných modelů a uživatele. Kontroly a měření beden mají historii; rozhodnutí o uvolnění má také aktuálního autora a čas.
 
 Zápis kontroly i jednotlivých měření porovnává odeslaný stav s aktuálním záznamem. Při souběžné změně jiným uživatelem se uložení odmítne a obsluha načte aktuální údaje. Zápis používá transakce a uzamčení bedny.
+
+Skutečná změna měření ve stejné transakci nastaví trvalý příznak čekajícího potvrzení kontroly. Zruší jej pouze úspěšné uložení výstupní kontroly; u již zkontrolované bedny společně s přepočtem Rovnání a Tryskání. Neúspěšný zápis příznak nezruší. Technický příznak se nevkládá do historie výsledků kontroly, změny měření mají vlastní historii.
+
+Prohlížeč zvýrazňuje rozdíly proti skutečným hodnotám DB a u zkontrolované bedny blokuje běžné odkazy do uložení. Při přechodu na měření stejné bedny uchovává rozepsané údaje v `sessionStorage`, odděleně podle přihlášeného uživatele a bedny. Návrat zachová původní snapshot pro kontrolu souběhu; změna od jiného uživatele tak vyvolá konflikt. Pouze vznik nové prázdné kontroly při měření lze automaticky přijmout, pokud všechny původní hodnoty zůstaly stejné. Obnovení aktuálního stavu po konfliktu vyžaduje výslovné zahození rozepsané kopie. Při zavření karty či ovládání prohlížeče je dostupné standardní varování; serverové kontroly oprávnění, validace a transakce platí nezávisle na této ochraně navigace.
+
+Akce Dokončit kontrolu bedny je dostupná pouze ve stavu Zakaleno a vyžaduje uložený prohyb po TZ, standardní maximum a povolený počet křivých u zákazníka. Server ověřuje stejné podmínky jako informační panel na stránce a po uzamčení bedny je znovu kontroluje. Stavy Rovnání a Tryskání vypočítá z aktuálně uložených výsledků a uloží společně se stavem bedny; zaslané hodnoty těchto stavů nepřebírá. Potvrzovací stránka slouží pouze jako náhled výsledku automatického výpočtu, nikoli jako možnost ručního obejití pravidel.
+
+U již zkontrolované bedny se Rovnání a Tryskání přepočítávají při každém úspěšném uložení výstupní kontroly pod stejným zámkem bedny. Výpočet používá odeslanou Čistotu a uložená měření; při chybějících podkladech se zápis odmítne před uložením kontroly. Kontrola, snapshot neshody a změny stavů s historií a autorem jsou součástí jedné transakce. Nezměněné technologické stavy se znovu neukládají. Původní potvrzovací adresa u zkontrolované bedny změnu neprovede. Uložení samotného měření přepočet nespouští a od K expedici trvá zákaz úprav kontroly a měření.
 
 Validace hlídá povinné údaje, povolené kombinace stavů, pozastavení beden, podíly pater a datum i čas konce kroku. Mazání je omezené podle výrobního stavu a souvisejících záznamů. Historie doplňuje provozní dohledatelnost; obnovu dat zajišťují zálohy databáze.
 

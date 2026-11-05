@@ -84,6 +84,8 @@ PDF se nevytvoří a zobrazí se chyba.
 
 Výroba a přesuny šarží se řeší samostatně v [deníku](manual_denik_pece.md) a [rychlém založení šarže](manual_rychle_zalozeni_sarze.md).
 
+Při expedici beden či zakázek do nového nebo existujícího kamionu se na serveru kontroluje i čekající potvrzení po změně měření. Pokud některá expedovaná bedna čeká na potvrzení, operace se odmítne s čísly beden; nejprve uložte jejich výstupní kontrolu. Platí také při dosud uloženém Uvolněno a pro vrácení zakázky z expedice na K expedici. Při odmítnutí se nevytvoří nový kamion ani oddělená zakázka a neprovede se částečná expedice.
+
 ## 7. Jak systém zpřístupňuje akce
 
 `KamionAdmin.get_actions()` dynamicky skrývá akce podle filtru `PrijemVydejFilter`.

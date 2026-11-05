@@ -27,6 +27,16 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
         self.client.force_login(self.user)
         self.url = reverse('bedna_kontrola', args=[self.bedna.cislo_bedny])
 
+    def prepare_curvature_for_marking(self, kontrola):
+        customer = self.bedna.zakazka.kamion_prijem.zakaznik
+        customer.zkratka = 'EUR'
+        customer.max_krivych_vrutu = 0
+        customer.save(update_fields=['zkratka', 'max_krivych_vrutu'])
+        MereniBedny.objects.create(
+            kontrola=kontrola, typ_zkousky=TypZkouskyChoice.PROHYB_PO_TZ,
+            poradi=1, hodnota=Decimal('0.1'),
+        )
+
     def payload(self, response, **overrides):
         form = response.context['form']
         data = {}
@@ -269,6 +279,28 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
         self.assertFalse(kontrola.neshoda_jine)
         self.assertTrue(kontrola.neshoda_krut_nizky)
 
+    def test_placement_repair_without_note_clears_other_reason_on_server(self):
+        for placement in ('OK', '--'):
+            for note in ('', '  \n '):
+                with self.subTest(placement=placement, note=note):
+                    kontrola, _ = KontrolaBedny.objects.update_or_create(
+                        bedna=self.bedna, defaults={
+                            'uvolneni': UvolneniKontrolyChoice.NESHODA,
+                            'ulozeni': 'NOK', 'neshoda_jine': True, 'poznamka': 'Nesprávné uložení',
+                        },
+                    )
+                    response = self.client.get(self.url)
+                    self.assertEqual(response.context['form'].pravidla_pro_js['puvodni_ulozeni'], 'NOK')
+                    result = self.client.post(self.url, self.payload(
+                        response, ulozeni=placement, poznamka=note,
+                        neshoda_jine='on', neshoda_krut_nizky='on',
+                    ))
+                    self.assertRedirects(result, self.url)
+                    kontrola.refresh_from_db()
+                    self.assertFalse(kontrola.neshoda_jine)
+                    self.assertEqual(kontrola.poznamka, '')
+                    self.assertTrue(kontrola.neshoda_krut_nizky)
+
     def test_layer_nonconformity_reason_is_saved_in_history(self):
         response = self.client.get(self.url)
         self.assertContains(response, 'name="neshoda_vrstva"')
@@ -456,7 +488,7 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'orders/bedna_kontrola.html')
-        self.assertContains(response, '<form method="post" novalidate autocomplete="off">')
+        self.assertContains(response, '<form method="post" novalidate autocomplete="off" id="control-form">')
         self.assertEqual(response.context['form']['uvolneni'].value(), UvolneniKontrolyChoice.NEROZHODNUTO)
         self.assertFalse(KontrolaBedny.objects.exists())
         html = response.content.decode('utf-8')
@@ -606,30 +638,33 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
         html = response.content.decode('utf-8')
         self.assertLess(html.index(scanner_url), html.index('id="mereni-bedny"'))
 
-    def test_mark_checked_button_is_above_measurements_with_label_for_state(self):
-        KontrolaBedny.objects.create(
+    def test_finish_control_button_is_above_measurements_and_hidden_after_completion(self):
+        kontrola = KontrolaBedny.objects.create(
             bedna=self.bedna, uvolneni=UvolneniKontrolyChoice.UVOLNENO,
             cistota=VysledekKontrolyChoice.OK, ulozeni=VysledekKontrolyChoice.OK,
         )
+        self.prepare_curvature_for_marking(kontrola)
         self.bedna.hmotnost = Decimal('10')
         self.bedna.tara = Decimal('1')
         self.bedna.mnozstvi = 100
         self.bedna.save(update_fields=['hmotnost', 'tara', 'mnozstvi'])
         mark_url = reverse('bedna_scan_zkontrolovano', args=[self.bedna.cislo_bedny])
         scanner_url = f"{reverse('bedna_skener_ctecka')}?cil=kontrola"
-        for state, label, other_label in (
-            (StavBednyChoice.ZAKALENO, 'Označit bednu jako zkontrolovanou', 'Upravit stav rovnání a tryskání'),
-            (StavBednyChoice.ZKONTROLOVANO, 'Upravit stav rovnání a tryskání', 'Označit bednu jako zkontrolovanou'),
-        ):
+        for state in (StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO):
             with self.subTest(state=state):
                 self.bedna.stav_bedny = state
                 self.bedna.save(update_fields=['stav_bedny'])
                 response = self.client.get(self.url)
                 html = response.content.decode('utf-8')
-                self.assertContains(response, mark_url, count=1)
-                self.assertContains(response, label)
-                self.assertNotContains(response, other_label)
-                self.assertLess(html.index(f'href="{mark_url}"'), html.index(scanner_url))
+                self.assertNotContains(response, 'Upravit stav rovnání a tryskání')
+                if state == StavBednyChoice.ZAKALENO:
+                    self.assertContains(response, mark_url, count=1)
+                    self.assertContains(response, 'Dokončit kontrolu bedny')
+                    self.assertLess(html.index(f'href="{mark_url}"'), html.index(scanner_url))
+                else:
+                    self.assertNotContains(response, mark_url)
+                    self.assertNotContains(response, 'Dokončit kontrolu bedny')
+                    self.assertNotContains(response, 'id="blokace-zkontrolovano"')
                 self.assertLess(html.index(scanner_url), html.index('id="mereni-bedny"'))
 
     def test_editing_and_marking_checked_follow_manufacturing_state(self):
@@ -637,6 +672,7 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
             bedna=self.bedna, uvolneni=UvolneniKontrolyChoice.UVOLNENO,
             cistota=VysledekKontrolyChoice.OK, ulozeni=VysledekKontrolyChoice.OK,
         )
+        self.prepare_curvature_for_marking(kontrola)
         mark_url = reverse('bedna_scan_zkontrolovano', args=[self.bedna.cislo_bedny])
         for state in StavBednyChoice:
             with self.subTest(state=state):
@@ -646,7 +682,7 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
                 editable = state in (
                     StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO,
                 )
-                markable = state in (StavBednyChoice.ZAKALENO, StavBednyChoice.ZKONTROLOVANO)
+                markable = state == StavBednyChoice.ZAKALENO
                 self.assertEqual(response.context['can_edit'], editable)
                 self.assertEqual(response.context['can_mark_zkontrolovano'], markable)
                 if editable:

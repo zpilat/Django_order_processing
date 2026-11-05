@@ -63,6 +63,10 @@ Příslušná výstupní kontrola nesmí mít **Uvolnění = Neshoda**. Pravidlo
 
 Toto pravidlo samo nevyžaduje existenci kontroly ani výslovné uvolnění: chybějící kontrola nebo nerozhodnuté uvolnění jím nejsou blokovány. Uvolněno i Uvolněno QS s odchylkou jsou přípustné.
 
+Samostatně se blokují **nepotvrzené změny měření**. Dokud po změně měření úspěšně neuložíte výstupní kontrolu, nelze bednu označit K expedici ani expedovat, a to ani v jiném okně či přes hromadnou akci. Ochrana platí v adminu, expedičních službách i při vracení zakázky z expedice; hlášení uvede dotčené bedny. Původní uložené Uvolněno a staré technologické stavy čekající potvrzení nenahrazují.
+
+Hromadná akce **Změna stavu bedny na Zkontrolováno** již není dostupná. Detail bedny, inline v zakázce i editace seznamu dovolí uložit Zkontrolováno pouze s úplnou kontrolou odpovídající aktuálním výsledkům a limitům, bez čekajícího potvrzení měření. Jde o stejné věcné podmínky jako u tlačítka Dokončit kontrolu bedny. Při přechodu do Zkontrolováno se zároveň automaticky nastaví Rovnání a Tryskání. Chybějící údaje je nutné nejprve uložit ve výstupní kontrole.
+
 Ve stavech **K expedici a Expedováno** jsou kontrola i naměřené hodnoty pouze pro čtení, a to i se zvláštním oprávněním pro expedované bedny. Pro opravu vraťte bednu K expedici na Zkontrolováno; u expedované bedny nejprve vraťte zakázku z expedice a poté bednu na Zkontrolováno. Podrobnosti jsou v [manuálu kontroly beden](manual_kontrola_beden.md).
 
 ### 4.3 Omezení pro K_NAVEZENI / NAVEZENO
@@ -229,6 +233,12 @@ Při potvrzení **Zakaleno přes sken** se zároveň vyhodnotí Tryskání podle
 Stačí zahájený krok; datum a čas konce nejsou podmínkou. Tryskání jiných beden v téže šarži se nezapočítává. Opakované řádky jedné šarže se počítají pouze jednou. Vyhodnocení proběhne při potvrzení změny; Rovnání se touto akcí nemění. Hromadné akce v administraci tuto automatiku nepoužívají.
 
 Výrobní stav Zkontrolováno, uvolnění v kontrole a stav zinkování jsou samostatné údaje. Uložení kontroly automaticky nezmění výrobní stav ani zinkování. Při filtru Zkontrolováno se v seznamu zobrazuje také uvolnění kontroly.
+
+Akce **Dokončit kontrolu bedny** je dostupná ve stavu **Zakaleno** a nastaví **Zkontrolováno**. Rovnání a Tryskání se vypočítají automaticky z uložených výsledků. Čistota NOK nastaví Špinavá; Čistota OK u dosavadní Špinavé/Otryskané nastaví Otryskaná, jinak Čistá. Prohyb po rovnání má přednost a nastaví Vyrovnaná/Křivá; jinak prohyb po TZ nastaví Rovná při vyhovujícím nebo oranžovém výsledku, Křivá při červeném. Rozhoduje celý vzorek a povolený počet křivých. Měření po TZ, standardní maximum a povolený počet křivých jsou pro potvrzení povinné; QS maximum není povinné. Na potvrzovací stránce se stavy již nevybírají ručně, pouze se zobrazí jejich výsledek.
+
+U bedny ve stavu **Zkontrolováno** se Rovnání a Tryskání přepočítají při každém úspěšném uložení **výstupní kontroly**, i bez změny uvolnění. Samostatné tlačítko pro úpravu těchto stavů se nezobrazuje. Uložení samotného měření přepočet neprovede; následně uložte také výstupní kontrolu. Chybějící podklady pro výpočet zabrání uložení opravy kontroly s vysvětlením ve formuláři. Výrobní stav a zinkování se nemění. Další podmínky uvádí [manuál kontroly](manual_kontrola_beden.md#5-potvrzení-výrobního-stavu).
+
+Při opravě kontroly již zkontrolované bedny se červeně označují hodnoty odlišné od databáze a běžný odchod na jinou bednu nebo přehled je do uložení zablokovaný. Po změně měření se čekající potvrzení eviduje i v databázi; uložení výstupní kontroly zároveň potvrdí automatické Rovnání a Tryskání. Měření stejné bedny zůstává dostupné se zachováním rozepsaných údajů kontroly. Podrobnosti jsou v [manuálu kontroly](manual_kontrola_beden.md#neuložené-změny-a-potvrzení-po-měření).
 
 ## 13. Technická mapa (kde je logika v kódu)
 

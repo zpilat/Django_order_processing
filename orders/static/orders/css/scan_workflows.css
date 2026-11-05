@@ -442,3 +442,15 @@
         padding-left: .45rem;
     }
 }
+.kontrola-zmeneno,
+.kontrola-zmeneno:disabled {
+    color: var(--bs-danger, #b02a37) !important;
+    border-color: var(--bs-danger, #b02a37) !important;
+    box-shadow: 0 0 0 1px var(--bs-danger, #b02a37);
+    opacity: 1;
+}
+
+.kontrola-zmeneny-popisek {
+    color: var(--bs-danger, #b02a37) !important;
+    opacity: 1 !important;
+}

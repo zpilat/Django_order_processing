@@ -20,8 +20,16 @@ class ExpediceResult:
     warnings: list[str] = field(default_factory=list)
 
 
-def validate_bedny_bez_neshody(bedny_qs):
-    """Odmítne celou operaci, pokud některá bedna má uloženou Neshodu."""
+def validate_bedny_pro_expedici(bedny_qs):
+    """Odmítne operaci při nepotvrzených měřeních nebo uložené Neshodě."""
+    nepotvrzene = list(bedny_qs.filter(
+        kontrola__vyzaduje_potvrzeni=True,
+    ).order_by('cislo_bedny').values_list('cislo_bedny', flat=True)[:21])
+    if nepotvrzene:
+        seznam = ', '.join(map(str, nepotvrzene[:20]))
+        if len(nepotvrzene) > 20:
+            seznam += ', …'
+        raise ServiceValidationError(f"{Bedna.NEPOTVRZENA_KONTROLA_EXPEDICE_MESSAGE} Bedny: {seznam}.")
     cisla = list(bedny_qs.filter(
         kontrola__uvolneni=UvolneniKontrolyChoice.NESHODA,
     ).order_by('cislo_bedny').values_list('cislo_bedny', flat=True)[:21])
@@ -71,7 +79,7 @@ def validate_expedice_preconditions(*, bedny_qs=None, zakazky_qs=None, check_onl
             )
 
     try:
-        validate_bedny_bez_neshody(bedny_ke_kontrole)
+        validate_bedny_pro_expedici(bedny_ke_kontrole)
     except ServiceValidationError as exc:
         errors.append(str(exc))
     return errors
@@ -98,7 +106,7 @@ def expedice_zakazek_do_existujiciho_kamionu(*, zakazky_qs, kamion_vydej, actor=
     result = ExpediceResult()
     actor_name = resolve_actor_name(actor)
     locked_bedny = _lock_bedny(Bedna.objects.filter(zakazka__in=zakazky_qs))
-    validate_bedny_bez_neshody(locked_bedny.filter(stav_bedny=StavBednyChoice.K_EXPEDICI))
+    validate_bedny_pro_expedici(locked_bedny.filter(stav_bedny=StavBednyChoice.K_EXPEDICI))
 
     for zakazka in zakazky_qs:
         bedny = zakazka.bedny.all()
@@ -143,7 +151,7 @@ def expedice_beden_do_existujiciho_kamionu(*, bedny_qs, kamion_vydej, actor=None
     result = ExpediceResult()
     actor_name = resolve_actor_name(actor)
     bedny_qs = _lock_bedny(bedny_qs)
-    validate_bedny_bez_neshody(bedny_qs)
+    validate_bedny_pro_expedici(bedny_qs)
 
     zakazky = Zakazka.objects.filter(bedny__in=bedny_qs).distinct()
     for zakazka in zakazky:

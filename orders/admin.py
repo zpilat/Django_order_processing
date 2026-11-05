@@ -50,7 +50,7 @@ from .actions import (
     tisk_karet_bedny_a_kontroly_action, tisk_protokolu_kamionu_vydej_action, tisk_proforma_faktury_kamionu_action,
     oznacit_k_navezeni_action, vratit_bedny_ze_stavu_k_navezeni_do_stavu_prijato_action, oznacit_navezeno_action, oznacit_prijato_do_zakaleno_action,
     oznacit_prijato_navezeno_action, vratit_bedny_z_rozpracovanosti_do_stavu_prijato_action, vratit_bedny_ze_stavu_navezeno_do_stavu_prijato_action,
-    oznacit_do_zpracovani_action, oznacit_zakaleno_action, oznacit_zkontrolovano_action, oznacit_k_expedici_action, oznacit_rovna_action,
+    oznacit_do_zpracovani_action, oznacit_zakaleno_action, oznacit_k_expedici_action, oznacit_rovna_action,
     oznacit_kriva_action, oznacit_kouleni_action, oznacit_rovna_se_action, oznacit_vyrovnana_action, oznacit_cista_action, oznacit_spinava_action,
     oznacit_otryskana_action, odeslat_na_zinkovani_action, export_na_zinkovani_action, oznacit_k_zinkovani_action, oznacit_po_zinkovani_action,
     oznacit_uvolneno_action, prijmout_kamion_action, prijmout_zakazku_action, prijmout_bedny_action,
@@ -3020,7 +3020,7 @@ class BednaAdmin(HistoryViewOnlyAdmin):
         export_bedny_to_csv_customer_action, export_bedny_dl_action, export_chemie_beden_action,
         oznacit_k_navezeni_action, oznacit_navezeno_action, oznacit_prijato_navezeno_action, vratit_bedny_ze_stavu_k_navezeni_do_stavu_prijato_action,
         vratit_bedny_ze_stavu_navezeno_do_stavu_prijato_action, vratit_bedny_z_rozpracovanosti_do_stavu_prijato_action,
-        oznacit_do_zpracovani_action, oznacit_zakaleno_action, oznacit_zkontrolovano_action, oznacit_k_expedici_action,
+        oznacit_do_zpracovani_action, oznacit_zakaleno_action, oznacit_k_expedici_action,
         oznacit_rovna_action, oznacit_kriva_action, oznacit_kouleni_action, oznacit_rovna_se_action, oznacit_vyrovnana_action,
         oznacit_cista_action, oznacit_spinava_action, oznacit_otryskana_action, oznacit_prijato_do_zakaleno_action,
         oznacit_k_zinkovani_action, oznacit_po_zinkovani_action, oznacit_uvolneno_action, odeslat_na_zinkovani_action, export_na_zinkovani_action,
@@ -4048,6 +4048,11 @@ class BednaAdmin(HistoryViewOnlyAdmin):
                         for fname in changed:
                             setattr(obj, fname, form.cleaned_data.get(fname))
 
+                        if 'stav_bedny' in changed and obj.stav_bedny == StavBednyChoice.ZKONTROLOVANO:
+                            # Formulář ověřil kontrolu a vypočítal technologické stavy.
+                            obj.rovnat = form.instance.rovnat
+                            obj.tryskat = form.instance.tryskat
+
                         # Uloží se objekt pouze pro formuláře s reálnými změnami.
                         obj.save()
 
@@ -4314,10 +4319,6 @@ class BednaAdmin(HistoryViewOnlyAdmin):
                 actions_to_remove += [
                     'oznacit_zakaleno_action',
                 ]
-            if stav_filter not in [StavBednyChoice.NAVEZENO, StavBednyChoice.DO_ZPRACOVANI, StavBednyChoice.ZAKALENO, 'RO']:
-                actions_to_remove += [
-                    'oznacit_zkontrolovano_action',
-                ]
             if stav_filter not in [
                 StavBednyChoice.NAVEZENO, StavBednyChoice.DO_ZPRACOVANI, StavBednyChoice.ZAKALENO,
                 StavBednyChoice.ZKONTROLOVANO, 'RO'
@@ -4430,7 +4431,6 @@ class BednaAdmin(HistoryViewOnlyAdmin):
             'oznacit_do_zpracovani_action': 'Stav bedny',
             'vratit_bedny_ze_stavu_navezeno_do_stavu_prijato_action': 'Stav bedny',
             'oznacit_zakaleno_action': 'Stav bedny',
-            'oznacit_zkontrolovano_action': 'Stav bedny',
             'oznacit_k_expedici_action': 'Stav bedny',
             'vratit_bedny_z_rozpracovanosti_do_stavu_prijato_action': 'Stav bedny',
             'oznacit_rovna_action': 'Rovnání',

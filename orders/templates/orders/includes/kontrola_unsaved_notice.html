@@ -1,0 +1,11 @@
+{{ ochrana_kontroly|json_script:"ochrana-kontroly-bedny" }}
+<div id="kontrola-neulozene" class="alert alert-danger mt-3{% if not ochrana_kontroly.ceka_na_potvrzeni and not ochrana_kontroly.stavy_nepotvrzeny %} d-none{% endif %}" role="status" aria-live="polite">
+    <strong id="kontrola-neulozene-text">Měření byla změněna. Uložte výstupní kontrolu bedny.</strong>
+    {% if not measurement_page %}
+        <button type="button" id="kontrola-prejit-na-ulozeni" class="btn btn-outline-danger btn-sm mt-2 d-block">Přejít na uložení kontroly</button>
+    {% endif %}
+</div>
+<div id="kontrola-konflikt-konceptu" class="alert alert-danger mt-3 d-none" role="alert">
+    Kontrola byla mezitím změněna. Rozepsané hodnoty jsou zachované, ale nelze jimi přepsat novější kontrolu bez jejího načtení.
+    <button type="button" id="kontrola-nacist-db" class="btn btn-outline-danger btn-sm mt-2 d-block">Načíst aktuální údaje a zahodit rozepsanou kopii</button>
+</div>

@@ -5,6 +5,7 @@
 {% block extra_head %}
 {{ block.super }}
 <link rel="stylesheet" href="{% static 'orders/css/scan_workflows.css' %}">
+<script src="{% static 'orders/js/kontrola_navigation.js' %}" defer></script>
 <script src="{% static 'orders/js/bedna_mereni_zkousky.js' %}" defer></script>
 {% endblock %}
 
@@ -20,6 +21,7 @@
             <div class="text-muted">{{ bedna.zakazka.prumer }} × {{ bedna.zakazka.delka }}</div>
         </div>
     </section>
+    {% include "orders/includes/kontrola_unsaved_notice.html" with measurement_page=True %}
     <section class="card rounded-2 mt-3">
         <h2 class="card-header h6 mb-0">{% if pozadavek_prohyb %}Požadavek zákazníka{% else %}Požadavek z předpisu {{ bedna.zakazka.predpis.nazev }}{% endif %}</h2>
         <div class="card-body">

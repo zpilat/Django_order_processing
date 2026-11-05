@@ -2,7 +2,7 @@
 {% load static custom_filters %}
 
 {% block title %}Kontrola bedny {{ bedna.cislo_bedny }}{% endblock %}
-{% block extra_head %}{{ block.super }}<link rel="stylesheet" href="{% static 'orders/css/scan_workflows.css' %}">{% include "orders/_prohyb_style.html" %}<script defer src="{% static 'orders/js/bedna_kontrola.js' %}"></script>{% endblock %}
+{% block extra_head %}{{ block.super }}<link rel="stylesheet" href="{% static 'orders/css/scan_workflows.css' %}">{% include "orders/_prohyb_style.html" %}<script defer src="{% static 'orders/js/kontrola_navigation.js' %}"></script><script defer src="{% static 'orders/js/bedna_kontrola.js' %}"></script>{% endblock %}
 
 {% block content %}
 <main class="scan-page scan-page-narrow px-0 px-sm-2 py-2">
@@ -18,20 +18,22 @@
         </div>
     </section>
 
-    {% if can_mark_zkontrolovano %}
-        <a class="btn btn-warning w-100 scan-action-button d-flex align-items-center justify-content-center mt-3"
-            href="{% url 'bedna_scan_zkontrolovano' bedna.cislo_bedny %}">
-            {% if bedna.stav_bedny == 'ZK' %}Upravit stav rovnání a tryskání
-            {% else %}Označit bednu jako zkontrolovanou
-            {% endif %}
-        </a>
-    {% else %}
-        <div id="blokace-zkontrolovano" class="w-100 scan-action-button border rounded-2 bg-body-tertiary text-center px-3 py-2 mt-3" role="status">
-            <div>{% if bedna.stav_bedny == 'ZK' %}Stav rovnání a tryskání zatím nelze upravit{% else %}Bednu zatím nelze označit jako zkontrolovanou{% endif %}</div>
-            <ul class="list-unstyled small fw-normal mb-0 mt-1">
-                {% for duvod in blokace_zkontrolovano %}<li>{{ duvod }}</li>{% endfor %}
-            </ul>
-        </div>
+    {% include "orders/includes/kontrola_unsaved_notice.html" %}
+
+    {% if bedna.stav_bedny != 'ZK' %}
+        {% if can_mark_zkontrolovano %}
+            <a class="btn btn-warning w-100 scan-action-button d-flex align-items-center justify-content-center mt-3"
+                href="{% url 'bedna_scan_zkontrolovano' bedna.cislo_bedny %}">
+                Dokončit kontrolu bedny
+            </a>
+        {% else %}
+            <div id="blokace-zkontrolovano" class="w-100 scan-action-button border rounded-2 bg-body-tertiary text-center px-3 py-2 mt-3" role="status">
+                <div>Kontrolu bedny zatím nelze dokončit</div>
+                <ul class="list-unstyled small fw-normal mb-0 mt-1">
+                    {% for duvod in blokace_zkontrolovano %}<li>{{ duvod }}</li>{% endfor %}
+                </ul>
+            </div>
+        {% endif %}
     {% endif %}
 
     <a class="btn btn-outline-primary w-100 scan-action-button d-flex align-items-center justify-content-center mt-3"
@@ -82,6 +84,8 @@
         <div class="card-body">
             {% if not can_edit %}
                 <div class="alert alert-info">Kontrolu a měření můžete pouze zobrazit. Úpravy vyžadují příslušné oprávnění a stav Zakaleno nebo Zkontrolováno; u pozastavené bedny také zvláštní oprávnění. Pro opravu bedny K expedici ji nejprve vraťte na Zkontrolováno. U expedované bedny nejprve vraťte zakázku z expedice a poté bednu na Zkontrolováno.</div>
+            {% elif bedna.stav_bedny == 'ZK' %}
+                <p class="text-muted">Při uložení výstupní kontroly se automaticky aktualizuje rovnání a tryskání. Po opravě měření uložte také tuto kontrolu.</p>
             {% endif %}
             {% if form.omezeni_prohybu %}
                 <div class="alert alert-warning" role="alert">{{ form.omezeni_prohybu.zprava }}</div>
@@ -92,12 +96,12 @@
             <div id="omezeni-cistoty" class="alert alert-warning{% if not form.cistota_nok %} d-none{% endif %}" role="alert">Při čistotě NOK lze uložit pouze Neshodu. Důvod Čistota se nastavuje automaticky.</div>
             <div id="omezeni-ulozeni" class="alert alert-warning{% if not form.ulozeni_nok %} d-none{% endif %}" role="alert">Při uložení NOK lze uložit pouze Neshodu. Důvod Jiné se zaškrtne a zamkne; problém s uložením upřesněte v poznámce.</div>
             {{ form.pravidla_pro_js|json_script:"pravidla-kontroly-bedny" }}
-            <form method="post" novalidate autocomplete="off">
+            <form method="post" novalidate autocomplete="off" id="control-form">
                 {% csrf_token %}
                 <input type="hidden" name="snapshot" value="{{ snapshot }}">
                 {% if form.non_field_errors %}
                     <div class="alert alert-danger" role="alert">{{ form.non_field_errors }}</div>
-                    <a class="btn btn-outline-secondary mb-3" href="{% url 'bedna_kontrola' bedna.cislo_bedny %}">Načíst aktuální údaje</a>
+                    <a class="btn btn-outline-secondary mb-3" data-reload-control href="{% url 'bedna_kontrola' bedna.cislo_bedny %}">Načíst aktuální údaje</a>
                 {% endif %}
                 <fieldset {% if not can_edit %}disabled{% endif %}>
                     <div class="row">

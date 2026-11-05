@@ -75,7 +75,7 @@ Vyplňte:
 
 **Křivost a Čistota jsou automatické důvody a nelze je měnit ručně.** Křivost je zaškrtnutá při červeném nebo oranžovém celkovém výsledku rozhodující fáze prohybu podle tabulky výše. Při vyhovujícím výsledku nebo chybějícím měření je odškrtnutá. Čistota je zaškrtnutá pouze při **Čistota = NOK**; při OK nebo nezadáno je odškrtnutá. Čistota NOK dovoluje uložit pouze **Neshodu**, i když by samotný oranžový prohyb dovoloval uvolnění QS s odchylkou. Při souběhu jsou zaškrtnuté oba důvody.
 
-**Uložení = NOK** také dovoluje uložit pouze **Neshodu**. Automaticky zaškrtne a zamkne důvod **Jiné**, proto je povinná poznámka s popisem problému uložení. Platí to i při oranžovém prohybu a souběhu s čistotou NOK. Při Uložení OK nebo nezadáno se další omezení nepřidává. Po změně NOK na OK se Jiné zpřístupní pro ruční úpravu a zůstane zaškrtnuté; samo se nemaže, protože může popisovat i jiný problém.
+**Uložení = NOK** také dovoluje uložit pouze **Neshodu**. Automaticky zaškrtne a zamkne důvod **Jiné**, proto je povinná poznámka s popisem problému uložení. Platí to i při oranžovém prohybu a souběhu s čistotou NOK. Při Uložení OK nebo nezadáno se další omezení nepřidává. Po změně NOK na OK nebo nezadáno se Jiné zpřístupní pro ruční úpravu. Pokud je poznámka prázdná nebo obsahuje jen mezery, Jiné se automaticky odškrtne. S vyplněnou poznámkou zůstane zaškrtnuté, protože může popisovat i jiný problém. Samotné pozdější vymazání poznámky Jiné neodškrtává; rozhodující je přechod Uložení z NOK. Při zbývající Neshodě či uvolnění QS musí stále existovat alespoň jeden důvod.
 
 Při **Neshodě** nebo **Uvolněno QS s odchylkou** musí být vybraný alespoň jeden důvod, automatický nebo ruční. Ostatní důvody (krut, ohyb, tvrdost, vrstva, pomíchané vruty, chyba v procesu a Jiné mimo případ Uložení NOK) lze měnit ručně. U **Jiné** je povinné upřesnění v poznámce. Při **Uvolněno** se všechny důvody odškrtnou a zamknou; při uložení se odstraní také z aktuální kontroly. Poznámka se automaticky nemaže. Starší snapshoty a historie zůstávají zachované.
 
@@ -89,27 +89,77 @@ Klikněte na **Uložit kontrolu bedny**. U rozhodnutí se eviduje, kdo a kdy sta
 
 ## 5. Potvrzení výrobního stavu
 
-Po uložení výsledků použijte **Označit bednu jako zkontrolovanou**:
+Po prvním uložení výsledků u bedny ve stavu **Zakaleno** použijte **Dokončit kontrolu bedny**:
 
 1. Otevřete navazující formulář.
-2. Nastavte stav rovnání a tryskání podle skutečného výsledku.
-3. Potvrďte změnu. Bedna přejde do stavu **Zkontrolováno**.
+2. Ověřte zobrazené automaticky vypočtené stavy rovnání a tryskání. Ručně se zde nevybírají.
+3. Potvrďte změnu. Bedna přejde do stavu **Zkontrolováno** a současně se uloží vypočtené technologické stavy.
 
-U již zkontrolované bedny se odkaz jmenuje **Upravit stav rovnání a tryskání**. Odkaz i samotná operace jsou dostupné pouze pro nepozastavené bedny ve stavech **Zakaleno a Zkontrolováno** s oprávněním `orders.mark_bedna_zkontrolovano`.
+Dokončení kontroly je dostupné pouze pro nepozastavené bedny ve stavu **Zakaleno** s oprávněním `orders.mark_bedna_zkontrolovano`. U již zkontrolované bedny se tlačítko ani blokující panel nezobrazují; původní samostatná akce **Upravit stav rovnání a tryskání** se již nepoužívá. Ani přímé otevření nebo odeslání původní potvrzovací adresy u zkontrolované bedny stavy nezmění.
 
 Ve výstupní kontrole musí být předem uložené tyto údaje:
 
 - **Čistota** a **Uložení**: obě pole musí mít vybranou hodnotu **OK nebo NOK**; výchozí nezadáno nestačí.
 - **Uvolnění**: **Uvolněno, Uvolněno QS s odchylkou nebo Neshoda**; výchozí nerozhodnuto nestačí.
+- **Prohyb po TZ**: alespoň jedna uložená hodnota u každé bedny, i když už existuje měření po rovnání. U zákazníka musí být nastavený **maximální povolený počet křivých ve vzorku** (nula je platná) a pro zákazníka musí existovat pravidlo **standardního maxima prohybu**. **QS maximum je volitelné**; bez něj není oranžová odchylka. Tato podmínka neověřuje úplnost předepsaného počtu hodnot vzorku.
 - Při vybraném důvodu neshody **Křivost** také **Počet křivých 1. měření i Počet křivých 2. měření**. Obě pole musí být vyplněná; **nula je přípustná vyplněná hodnota**. Výjimkou je **oranžově zvýrazněná položka Prohyb po TZ**: oba počty mohou zůstat prázdné a pro označení Zkontrolováno není nutné rovnání ani měření po rovnání. Výjimka platí pro všechny zákazníky s příslušnou QS mezí, při kterémkoli uloženém rozhodnutí uvedeném výše a bez ohledu na další důvody neshody. Čistota a Uložení zůstávají povinné. Bez důvodu Křivost se vyplnění počtů pro tuto akci nevyžaduje.
 
 Pokud akce není dostupná, na jejím místě se zobrazí neaktivní informační panel ve tvaru tlačítka s konkrétními důvody. Uvede chybějící oprávnění, pozastavení nebo nepovolený výrobní stav. Pokud tyto překážky nejsou, vypíše chybějící uloženou kontrolu nebo jednotlivé údaje: Čistotu, Uložení, rozhodnutí o uvolnění a případně první či druhý počet křivých. Nula je vyplněná hodnota a oranžový prohyb po TZ vyplnění počtů nevyžaduje. Podmínky se posuzují podle uložených údajů, nikoli rozpracovaných změn ve formuláři. Přímé otevření adresy ani odeslání akce podmínku neobejde: aplikace vrátí uživatele do kontroly bedny s vysvětlením, co má doplnit. Podmínky se znovu ověřují před změnou stavu. Rozpracovanou kontrolu s těmito chybějícími údaji lze dál ukládat, ale nejprve je nutné údaje doplnit a uložit, aby se označení Zkontrolováno zpřístupnilo.
 
 Pokud chybí oba počty křivých, panel je sloučí do jediného řádku: **Při důvodu Křivost doplňte a uložte oba počty křivých.** Při chybějícím jediném počtu uvede konkrétní měření.
 
-Uložení měření nebo uvolnění samo výrobní stav nezmění. Označení Zkontrolováno samo nezapisuje měření ani uvolnění. Před pokračováním zkontrolujte obě části evidence.
+Panel uvádí také chybějící měření po TZ, standardní maximum nebo nastavení povoleného počtu křivých. Bez těchto podkladů se přechod do Zkontrolováno neprovede ani při vyplněné Čistotě, Uložení a uvolnění.
+
+Před dokončením se ověřuje i soulad uloženého uvolnění a důvodů s aktuálním měřením a nastavením zákazníka. Pokud se například zpřísní povolený počet křivých a původní Uvolněno už neodpovídá výsledku, nejprve znovu uložte výstupní kontrolu. Samotné předvyplnění správného rozhodnutí na stránce není uložením. Zkontroluje se také povinný důvod při Neshodě/QS, poznámka pro Jiné a automatické důvody Křivost a Čistota.
+
+Hromadná akce pro označení beden jako Zkontrolováno byla odstraněna. Nastavení stavu Zkontrolováno v detailu adminu, inline zakázky i editaci seznamu vyžaduje stejné úplné a aktuální podklady jako dokončení kontroly; nepotvrzená měření nelze tímto zápisem potvrdit. Při přechodu do Zkontrolováno admin také nastaví vypočtené Rovnání a Tryskání.
+
+Oprava již zkontrolované bedny musí splnit stejnou úplnost: nelze vymazat Uložení, Uvolnění ani povinné počty křivých a ponechat kontrolu jako potvrzenou. Neúplný návrh se neuloží a případné čekající potvrzení měření zůstane aktivní. Výjimka pro oranžový prohyb po TZ bez počtů křivých zůstává platná.
+
+**Tryskání se nastaví podle uložené Čistoty:**
+
+| Čistota | Dosavadní Tryskání | Nové Tryskání |
+| --- | --- | --- |
+| NOK | Libovolné | Špinavá |
+| OK | Špinavá nebo Otryskaná | Otryskaná |
+| OK | Nezadáno nebo Čistá | Čistá |
+
+**Rovnání se nastaví podle rozhodujícího uloženého měření:**
+
+| Rozhodující měření | Výsledek celého vzorku | Nové Rovnání |
+| --- | --- | --- |
+| Prohyb po rovnání, pokud existuje | Vyhovuje standardnímu maximu | Vyrovnaná |
+| Prohyb po rovnání, pokud existuje | Nevyhovuje standardnímu maximu | Křivá |
+| Jinak Prohyb po TZ | Vyhovuje nebo oranžová QS odchylka | Rovná |
+| Jinak Prohyb po TZ | Nevyhovuje (červená) | Křivá |
+
+Rozhoduje výsledek celého vzorku s ohledem na povolený počet křivých, ne barva jednotlivé hodnoty. Hodnota rovná maximu je přípustná; po rovnání se QS maximum nepoužívá. Prohyb po koulení se pro tuto automatiku nevyhodnocuje. Používají se všechna aktuálně uložená měření příslušné fáze; opakované tepelné cykly se samostatně nerozlišují.
+
+U bedny ve stavu **Zkontrolováno** se podle stejných tabulek automaticky přepočítají Rovnání a Tryskání při každém úspěšném **Uložit kontrolu bedny**. Platí i při nezměněném rozhodnutí o uvolnění nebo nezměněném formuláři po opravě měření. Například vyhovující měření po rovnání nastaví **Vyrovnaná** a změna Čistoty z NOK na OK u dosavadní Špinavé nastaví **Otryskaná**. Zhoršení výsledků se projeví opačně: nevyhovující prohyb nastaví **Křivá**, Čistota NOK **Špinavá**. Rozhodují výsledky měření a čistoty, nikoli samotná volba Uvolněno nebo Neshoda.
+
+Výpočet používá právě odeslanou Čistotu a aktuálně uložená měření pod zámkem bedny. Zaslané hodnoty Rovnání a Tryskání nepřebírá. Pokud chybí měření po TZ, standardní maximum, povolený počet křivých nebo vyplněná Čistota, oprava výstupní kontroly se neuloží a formulář uvede důvod. Kontrola, případný snapshot neshody a změny technologických stavů se uloží společně v jedné transakci. Změna stavů má historii s autorem; nezměněné stavy nevytvářejí další záznam historie bedny. Zpráva po uložení vypíše změněné stavy. Výrobní stav zůstává **Zkontrolováno** a zinkování se nemění. Hromadné akce v administraci tuto automatiku nepoužívají.
+
+Samotné **uložení měření** Rovnání ani Tryskání nepřepočítá: po opravě měření u zkontrolované bedny zkontrolujte a uložte také výstupní kontrolu. U bedny ve stavu **Zakaleno** uložení výstupní kontroly technologické stavy nepřepočítá; proběhne to až akcí **Dokončit kontrolu bedny**. Uložení měření nebo uvolnění samo výrobní stav nezmění. Dokončení kontroly samo nezapisuje měření ani uvolnění. Od stavu **K expedici** zůstávají kontrola a měření pouze pro čtení.
 
 Bednu s uloženým **Uvolnění = Neshoda** nelze označit K expedici ani expedovat. Zkontrolováno s Neshodou zůstává přípustné: znamená provedenou kontrolu, ale další postup je potřeba vyřešit před expedicí. Samotný zákaz Neshody nevyžaduje existenci kontroly ani výslovné uvolnění; jiné podmínky pro označení Zkontrolováno uvedené výše tím nejsou dotčeny.
+
+Přípravu k expedici a expedici blokuje také příznak čekajícího potvrzení po změně měření. Platí i při původně uloženém Uvolněno a i přes admin či jiné okno. Nejprve úspěšně uložte úplnou výstupní kontrolu; samotná změna výrobního stavu čekající potvrzení nezruší.
+
+### Neuložené změny a potvrzení po měření
+
+Hodnoty výstupní kontroly odlišné od databáze mají červený rámeček a popisek. Platí to pro ruční změny Čistoty, Uložení, počtů, poznámky a důvodů i pro automaticky změněné uvolnění a zamčené důvody neshody. Porovnává se skutečný stav v databázi před automatickým předvyplněním; červené označení tak může vzniknout už při návratu z měření. Při vrácení na uloženou hodnotu označení příslušného pole zmizí. Červené označení změny formuláře je odlišné od vyhodnocení nevyhovujících naměřených hodnot.
+
+Nad obsahem se zobrazí upozornění na neuložené změny a tlačítko uložení se zvýrazní červeně. Po skutečném přidání, opravě nebo smazání měření se v databázi uloží také příznak **Měření čekají na potvrzení kontroly**. Uložení nezměněných hodnot jej nenastaví ani nezruší. Příznak zůstane i po obnovení stránky nebo otevření bedny na jiném počítači. I když se po změně měření nezmění žádné pole kontroly, je nutné kontrolu potvrdit uložením. U bedny Zakaleno příznak blokuje **Dokončit kontrolu bedny**, dokud není výstupní kontrola uložená.
+
+U bedny **Zkontrolováno** jsou při neuložených změnách nebo čekajícím potvrzení blokované běžné odkazy na další bednu, přehled a jiné stránky. Uložte výstupní kontrolu; po úspěchu se ve stejné transakci uloží výsledky, případný snapshot neshody, Rovnání a Tryskání a zruší čekající potvrzení. Při chybě validace, souběžné úpravě nebo neúspěšném zápisu upozornění zůstane. Již uložená měření se tímto krokem znovu nezapisují.
+
+Na **měření stejné bedny** lze přejít i během rozpracované kontroly. Její rozepsané hodnoty se uchovají v rámci karty prohlížeče odděleně pro uživatele a bednu; po návratu se obnoví a automatické důvody se přepočítají podle aktuálních měření. Pokud prohlížeč uchování rozepsaných hodnot neumožňuje, je nejprve nutné kontrolu uložit. Na stránce měření je před návratem potřeba uložit nově zadané či změněné hodnoty, případně je vrátit na původní. Změna pouze formátu desetinného čísla, prázdný nový řádek nebo smazaný neuložený řádek se za změnu nepovažuje.
+
+Pokud mezitím jiný uživatel uložil jinou kontrolu, rozepsaná kopie se neuloží přes novější data: zobrazí se konflikt. Odkaz či tlačítko **Načíst aktuální údaje** umožní po výslovném potvrzení rozepsanou kopii zahodit a načíst stav z databáze. První vytvoření dosud neexistující prázdné kontroly při vlastním zápisu měření se za konflikt nepovažuje, pokud všechny původní hodnoty zůstaly stejné.
+
+U bedny **Zakaleno** se změny také zvýrazňují, odchod však pouze vyvolá standardní upozornění prohlížeče. Při zavření nebo obnovení karty a použití tlačítek prohlížeče lze odchod pouze varovat; vynucené zavření nebo pád nelze zablokovat. Příznak čekajícího potvrzení měření zůstává v databázi, rozepsané ruční hodnoty jsou uložené jen v rámci dané karty prohlížeče. Samotné otevření stránky nic nezapisuje do databáze.
+
+Technický příznak přidává migrace `0245_kontrola_vyzaduje_potvrzeni`. Starší kontroly dostanou výchozí hodnotu bez čekajícího potvrzení; historie ani snapshoty se nepřepočítávají. Změna příznaku při měření nepřidává záznam výsledků do historie kontroly, vlastní měření mají samostatnou historii.
 
 ## 6. Přehled neshod, audit a tisk
 
@@ -163,7 +213,7 @@ Pokud jiný uživatel mezitím změnil kontrolu nebo měření, systém odmítne
 - **Nelze vybrat Uvolněno nebo nerozhodnuto:** zkontrolujte upozornění na překročený počet křivých vrutů a výsledky čistoty a uložení. Přípustné volby určuje měření po rovnání, případně po TZ; Čistota NOK i Uložení NOK vždy dovolují pouze Neshodu. Křivost a Čistota se nastavují automaticky, při Uložení NOK také Jiné s povinnou poznámkou.
 - **Po rovnání zmizelo červené/oranžové pozadí u prohybu po TZ:** posouzení přešlo na měření po rovnání. Jednotlivé starší hodnoty si své barevné označení ponechávají.
 - **Chybí požadavek zkoušky:** zkontrolujte předpis zakázky; prázdný požadavek neznamená automatické vyhovění zkoušky.
-- **Místo tlačítka Zkontrolováno je vysvětlení blokace:** postupujte podle vypsaných důvodů. Ověřte stav Zakaleno nebo Zkontrolováno, pozastavení, oprávnění a uloženou Čistotu, Uložení a rozhodnutí o Uvolnění. Při důvodu Křivost musí být uložené také oba počty křivých; prázdné pole nestačí, nula ano. Oba počty se nevyžadují, pokud je položka Prohyb po TZ oranžová; oranžový prohyb po rovnání tuto výjimku neposkytuje.
+- **Místo tlačítka Dokončit kontrolu bedny je vysvětlení blokace:** postupujte podle vypsaných důvodů. Ověřte stav Zakaleno, pozastavení, oprávnění a uloženou Čistotu, Uložení a rozhodnutí o Uvolnění. Při důvodu Křivost musí být uložené také oba počty křivých; prázdné pole nestačí, nula ano. Oba počty se nevyžadují, pokud je položka Prohyb po TZ oranžová; oranžový prohyb po rovnání tuto výjimku neposkytuje. U již zkontrolované bedny se toto tlačítko nezobrazuje, stavy aktualizuje uložení výstupní kontroly.
 - **Bedna stále čeká v přehledu kontroly:** uložení výsledků ji nepřepne ze stavu Zakaleno; potvrďte výrobní stav.
 - **Vyplněná KKK nejde vytisknout:** ověřte výběr jednoho zákazníka, uloženou kontrolu u každé bedny, hmotnost a předpis zakázky. U kamionu musí jít o jeden kamion výdej.
 - **Chybí pomocné popisy na vyplněné KKK:** ověřte pole Zkratka státu zákazníka; pro CZ, nevyplněnou nebo neznámou zkratku se pomocné popisy netisknou.

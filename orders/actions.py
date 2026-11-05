@@ -40,7 +40,7 @@ from .services.filled_quality_cards_service import build_filled_quality_cards_pd
 from .services.expedice_service import (
     expedice_beden_do_noveho_kamionu,
     expedice_zakazek_do_noveho_kamionu,
-    validate_bedny_bez_neshody,
+    validate_bedny_pro_expedici,
 )
 from .services.exceptions import ServiceValidationError
 from .services.sarze_print_service import (
@@ -1700,31 +1700,6 @@ def oznacit_zakaleno_action(modeladmin, request, queryset):
     logger.info(f"Uživatel {request.user} změnil stav na ZAKALENO u {queryset.count()} beden.")
     return None
 
-@admin.action(description="Změna stavu bedny na ZKONTROLOVÁNO", permissions=('change',))
-def oznacit_zkontrolovano_action(modeladmin, request, queryset):
-    """
-    Změní stav vybraných beden na ZKONTROLOVANO.
-    Může měnit všechny bedny ve stavu ROZPRACOVANOST (NAVEZENO, DO_ZPRACOVANI, ZAKALENO, ZKONTROLOVANO) na ZKONTROLOVANO.
-    """
-    if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna stavu bedny na ZKONTROLOVÁNO"):
-        return None
-
-    # kontrola, zda jsou všechny bedny v querysetu ve stavu ROZPRACOVANOST
-    if queryset.exclude(stav_bedny__in=STAV_BEDNY_ROZPRACOVANOST).exists():
-        logger.info(f"Uživatel {request.user} se pokusil změnit stav na ZKONTROLOVANO, ale některé bedny nejsou ve stavu ROZPRACOVANOST.")
-        modeladmin.message_user(request, "Některé vybrané bedny nejsou ve stavu ROZPRACOVANOST.", level=messages.ERROR)
-        return None
-
-    with transaction.atomic():
-        for bedna in queryset:
-            if bedna.stav_bedny in STAV_BEDNY_ROZPRACOVANOST:
-                bedna.stav_bedny = StavBednyChoice.ZKONTROLOVANO
-                bedna.save()
-
-    modeladmin.message_user(request, f"Zkontrolováno: {queryset.count()} beden.", level=messages.SUCCESS)
-    logger.info(f"Uživatel {request.user} změnil stav na ZKONTROLOVANO u {queryset.count()} beden.")
-    return None
-
 @admin.action(description="Uvolnění pozastavených beden", permissions=('change_pozastavena_bedna',))
 def uvolnit_pozastavene_bedny_action(modeladmin, request, queryset):
     """
@@ -1858,7 +1833,7 @@ def oznacit_k_expedici_action(modeladmin, request, queryset):
             return None
 
         try:
-            validate_bedny_bez_neshody(locked_qs)
+            validate_bedny_pro_expedici(locked_qs)
         except ServiceValidationError as exc:
             modeladmin.message_user(request, str(exc), level=messages.ERROR)
             return None
@@ -2967,7 +2942,7 @@ def vratit_zakazky_z_expedice_action(modeladmin, request, queryset):
                 locked_bedny_qs = Bedna.objects.select_for_update().filter(zakazka=locked_zakazka)
                 list(locked_bedny_qs.order_by('pk').values_list('pk', flat=True))
                 try:
-                    validate_bedny_bez_neshody(locked_bedny_qs)
+                    validate_bedny_pro_expedici(locked_bedny_qs)
                 except ServiceValidationError as exc:
                     modeladmin.message_user(request, str(exc), level=messages.ERROR)
                     continue

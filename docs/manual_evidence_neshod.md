@@ -14,6 +14,8 @@ Opakované uložení stejných důvodů, samotná změna poznámky či měření
 
 Kontrola a případ se ukládají společně. Při chybě ukládání případu se neuloží ani rozhodnutí kontroly. Chybný formulář ani pokus přepsat souběžnou změnu jiného uživatele případ nezaloží.
 
+Při opravě zkontrolované bedny vzniká snapshot až po automatickém nastavení Rovnání a Tryskání, takže zachycuje výsledné stavy téhož uložení. Kontrola, technologické stavy, snapshot a potvrzení měření jsou v jedné transakci; chyba v kterémkoli zápisu vrátí všechny tyto změny. Starší snapshoty se neopravují ani nepřepisují.
+
 Evidence zachycuje nové přechody do Neshody a přidání důvodu během Neshody po nasazení funkce. Starší případy se nedoplňují z historie ani z Google tabulky. Pokud byla bedna v Neshodě již před nasazením, další uložení stejného stavu bez přidaného důvodu snapshot nezaloží.
 
 ## 2. Uložené údaje

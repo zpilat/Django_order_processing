@@ -2497,16 +2497,8 @@ class StatusChangeActionsTests(ActionsBase):
             bedna.refresh_from_db()
             self.assertEqual(bedna.stav_bedny, StavBednyChoice.ZAKALENO)
 
-    def test_oznacit_zkontrolovano_action_accepts_all_rozpracovanost_states(self):
-        admin_obj = self._messaging_admin()
-        bedny = [self._create_bedna_in_state(state) for state in STAV_BEDNY_ROZPRACOVANOST]
-        ids = [b.id for b in bedny]
-        req = self.get_request('post')
-        resp = actions.oznacit_zkontrolovano_action(admin_obj, req, Bedna.objects.filter(id__in=ids))
-        self.assertIsNone(resp)
-        for bedna in bedny:
-            bedna.refresh_from_db()
-            self.assertEqual(bedna.stav_bedny, StavBednyChoice.ZKONTROLOVANO)
+    def test_bulk_inspection_completion_action_is_removed(self):
+        self.assertFalse(hasattr(actions, 'oznacit_zkontrolovano_action'))
 
     def test_oznacit_k_expedici_action_accepts_all_rozpracovanost_states(self):
         admin_obj = self._messaging_admin()

@@ -10,12 +10,14 @@ Interní aplikace pro správu zakázek od příjmu přes tepelné zpracování a
 - Deník kroků šarže, přesuny mezi pracovišti a začátek i konec včetně data.
 - Skenování beden kamerou nebo čtečkou, provozní změny stavů a zobrazení pohybu; při potvrzení Zakaleno automatické vyhodnocení tryskání podle zahájených kroků šarží a varování před uložením při částečném otryskání požadované bedny.
 - Kontrola beden: jednotlivá měření, čistota, uložení, počty křivých vrutů, uvolnění a důvody neshody; automatické důvody Křivost a Čistota, vynucené Jiné při Uložení NOK, omezení uvolnění podle nálezu a vymazání důvodů při Uvolněno.
+- Akce Dokončit kontrolu bedny nastaví Zkontrolováno, rovnání a tryskání podle uložené kontroly; vyžaduje prohyb po TZ a nastavení pro jeho vyhodnocení. U již zkontrolované bedny se rovnání a tryskání přepočítají při uložení výstupní kontroly, bez dalšího tlačítka.
 - Evidence neshod v administraci: společný snapshot všech důvodů, měření a tehdejších požadavků při přechodu do Neshody i přidání důvodu během Neshody; záznamy zůstávají dostupné i po uvolnění bedny, s přehledným detailem pouze ke čtení.
 - Uvolnění Neshoda blokuje přípravu k expedici i expedici; od stavu K expedici jsou kontrola a měření pouze pro čtení.
 - Import chemických měření z JSON exportů analyzátoru Vanta s náhledem a archivací souborů.
 - Přehledy nakládání, pracovišť, kontroly a neshod; dashboardy beden, kamionů, výroby a rovnání včetně historie.
 - Expedice zakázek a vybraných beden, rozdělení nehotové části zakázky a přiřazení do existujícího kamionu výdej.
 - PDF karty beden, KKK, průvodky šarží, dodací listy, certifikáty a proforma faktury. Vyplněné KKK jsou podporované pro EUR.
+- Neuložené změny kontroly se označují červeně; u zkontrolované bedny blokují běžný odchod. Po změně měření čeká kontrola na potvrzení i v databázi, rozepsané údaje se zachovávají při přechodu na měření stejné bedny.
 - Oprávnění podle úkolu a audit přes `django-simple-history`.
 
 ## Lokální spuštění na Windows
@@ -93,6 +95,8 @@ Tiskové akce jsou dostupné v seznamech beden, zakázek a kamionů podle kontex
 Na vyplněné KKK mají Uvolněno i Uvolněno QS s odchylkou zelené pozadí, Neshoda červené. Interní označení QS s odchylkou zůstává oranžové.
 
 U SPX se na vyplněné KKK při uvolnění (včetně QS s odchylkou) tiskne u zapsaných hodnot krutu **OK**. Původní měření zůstávají v aplikaci; porovnání krutu s limitem předpisu se zatím neprovádí.
+
+Dokončení a opravy zkontrolované bedny i nastavení Zkontrolováno v adminu vyžadují úplnou kontrolu odpovídající aktuálním měřením a limitům. Hromadná akce Zkontrolováno je odstraněná. Nepotvrzené změny měření blokují na serveru přípravu k expedici i expedici.
 
 ## Struktura projektu
 

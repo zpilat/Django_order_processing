@@ -641,14 +641,7 @@ class BednaScanViewTests(ViewsTestBase):
 		self.assertContains(response, reverse("bedna_scan_zakaleno", args=[self.b_eur_pr.cislo_bedny]))
 
 	def test_scan_detail_links_to_kontrola_with_mark_zkontrolovano_action(self):
-		KontrolaBedny.objects.create(
-			bedna=self.b_eur_pr, uvolneni=UvolneniKontrolyChoice.UVOLNENO,
-			cistota=VysledekKontrolyChoice.OK, ulozeni=VysledekKontrolyChoice.OK,
-		)
-		self.b_eur_pr.stav_bedny = StavBednyChoice.ZAKALENO
-		self.b_eur_pr.save(update_fields=["stav_bedny"])
-		permission = Permission.objects.get(codename="mark_bedna_zkontrolovano")
-		self.user.user_permissions.add(permission)
+		self._set_bedna_zkontrolovano_ready()
 
 		response = self.client.get(reverse("bedna_scan", args=[self.b_eur_pr.cislo_bedny]))
 
@@ -659,7 +652,7 @@ class BednaScanViewTests(ViewsTestBase):
 		response = self.client.get(reverse("bedna_kontrola", args=[self.b_eur_pr.cislo_bedny]))
 
 		self.assertEqual(response.status_code, 200)
-		self.assertContains(response, "Označit bednu jako zkontrolovanou")
+		self.assertContains(response, "Dokončit kontrolu bedny")
 		self.assertContains(response, reverse("bedna_scan_zkontrolovano", args=[self.b_eur_pr.cislo_bedny]))
 
 	def test_scan_navezeni_get_renders_position_selection(self):
@@ -2109,6 +2102,13 @@ class BednaScanViewTests(ViewsTestBase):
 				'cistota': VysledekKontrolyChoice.OK, 'ulozeni': VysledekKontrolyChoice.OK,
 			},
 		)
+		self.z_eur.max_krivych_vrutu = 0
+		self.z_eur.save(update_fields=['max_krivych_vrutu'])
+		MereniBedny.objects.update_or_create(
+			kontrola=KontrolaBedny.objects.get(bedna=self.b_eur_pr),
+			typ_zkousky=TypZkouskyChoice.PROHYB_PO_TZ, poradi=1,
+			defaults={'hodnota': Decimal('0.1')},
+		)
 		self.b_eur_pr.stav_bedny = StavBednyChoice.ZAKALENO
 		self.b_eur_pr.rovnat = RovnaniChoice.NEZADANO
 		self.b_eur_pr.tryskat = TryskaniChoice.NEZADANO
@@ -2258,12 +2258,12 @@ class BednaScanViewTests(ViewsTestBase):
 		self.assertTemplateUsed(response, "orders/bedna_scan_zkontrolovano.html")
 		self.assertContains(response, reverse("bedna_kontrola", args=[self.b_eur_pr.cislo_bedny]))
 		self.assertContains(response, str(self.b_eur_pr.cislo_bedny))
-		self.assertContains(response, "Označit bednu jako zkontrolovanou")
+		self.assertContains(response, "Dokončit kontrolu bedny")
 		self.assertNotContains(response, "Upravit stav rovnání a tryskání")
-		self.assertIn("form", response.context)
+		self.assertIn("stavy_po_kontrole", response.context)
 		self.assertIn("bedna", response.context)
 
-	def test_scan_zkontrolovano_get_uses_edit_label_for_checked_bedna(self):
+	def test_scan_zkontrolovano_redirects_checked_bedna_to_control(self):
 		self._set_bedna_zkontrolovano_ready()
 		self.b_eur_pr.stav_bedny = StavBednyChoice.ZKONTROLOVANO
 		self.b_eur_pr.save(update_fields=["stav_bedny"])
@@ -2272,47 +2272,7 @@ class BednaScanViewTests(ViewsTestBase):
 			reverse("bedna_scan_zkontrolovano", args=[self.b_eur_pr.cislo_bedny])
 		)
 
-		self.assertEqual(response.status_code, 200)
-		self.assertContains(response, "Upravit stav rovnání a tryskání")
-		self.assertNotContains(response, "Označit bednu jako zkontrolovanou")
-
-	def test_scan_zkontrolovano_get_offers_rovnat_choices_for_current_value(self):
-		self._set_bedna_zkontrolovano_ready()
-		for current, expected in (
-			(RovnaniChoice.NEZADANO, [RovnaniChoice.NEZADANO, RovnaniChoice.ROVNA, RovnaniChoice.KRIVA]),
-			(RovnaniChoice.ROVNA, [RovnaniChoice.ROVNA, RovnaniChoice.KRIVA]),
-			(RovnaniChoice.KRIVA, [RovnaniChoice.KRIVA, RovnaniChoice.VYROVNANA]),
-			(RovnaniChoice.KOULENI, [RovnaniChoice.KOULENI, RovnaniChoice.KRIVA, RovnaniChoice.VYROVNANA]),
-			(RovnaniChoice.ROVNA_SE, [RovnaniChoice.ROVNA_SE, RovnaniChoice.KRIVA, RovnaniChoice.VYROVNANA]),
-			(RovnaniChoice.VYROVNANA, [RovnaniChoice.VYROVNANA, RovnaniChoice.KRIVA]),
-		):
-			with self.subTest(current=current):
-				self.b_eur_pr.rovnat = current
-				self.b_eur_pr.save(update_fields=["rovnat"])
-				response = self.client.get(reverse("bedna_scan_zkontrolovano", args=[self.b_eur_pr.cislo_bedny]))
-				self.assertEqual(response.status_code, 200)
-				field = response.context["form"].fields["rovnat"]
-				self.assertEqual([choice for choice, _label in field.choices], expected)
-				self.assertEqual(field.initial, current)
-				self.assertIn(f'<option value="{current}" selected>', str(response.context["form"]["rovnat"]))
-
-	def test_scan_zkontrolovano_get_offers_tryskat_choices_for_current_value(self):
-		self._set_bedna_zkontrolovano_ready()
-		for current, expected in (
-			(TryskaniChoice.NEZADANO, [TryskaniChoice.NEZADANO, TryskaniChoice.CISTA, TryskaniChoice.SPINAVA]),
-			(TryskaniChoice.CISTA, [TryskaniChoice.CISTA, TryskaniChoice.SPINAVA]),
-			(TryskaniChoice.SPINAVA, [TryskaniChoice.SPINAVA, TryskaniChoice.OTRYSKANA]),
-			(TryskaniChoice.OTRYSKANA, [TryskaniChoice.OTRYSKANA, TryskaniChoice.SPINAVA]),
-		):
-			with self.subTest(current=current):
-				self.b_eur_pr.tryskat = current
-				self.b_eur_pr.save(update_fields=["tryskat"])
-				response = self.client.get(reverse("bedna_scan_zkontrolovano", args=[self.b_eur_pr.cislo_bedny]))
-				self.assertEqual(response.status_code, 200)
-				field = response.context["form"].fields["tryskat"]
-				self.assertEqual([choice for choice, _label in field.choices], expected)
-				self.assertEqual(field.initial, current)
-				self.assertIn(f'<option value="{current}" selected>', str(response.context["form"]["tryskat"]))
+		self.assertRedirects(response, reverse("bedna_kontrola", args=[self.b_eur_pr.cislo_bedny]))
 
 	def test_scan_zkontrolovano_get_requires_permission(self):
 		self.b_eur_pr.stav_bedny = StavBednyChoice.ZAKALENO
@@ -2378,7 +2338,7 @@ class BednaScanViewTests(ViewsTestBase):
 			fetch_redirect_response=False,
 		)
 		messages_list = list(response.wsgi_request._messages)
-		self.assertTrue(any("Zakaleno nebo Zkontrolováno" in str(m) for m in messages_list))
+		self.assertTrue(any("pouze v tomto stavu" in str(m) for m in messages_list))
 
 	def test_scan_zkontrolovano_post_marks_bedna_zkontrolovano(self):
 		self._set_bedna_zkontrolovano_ready()
@@ -2403,27 +2363,6 @@ class BednaScanViewTests(ViewsTestBase):
 		kontrola_response = self.client.get(response.url)
 		self.assertEqual(kontrola_response.status_code, 200)
 		self.assertContains(kontrola_response, self.b_eur_pr.get_stav_bedny_display())
-
-	def test_scan_zkontrolovano_post_accepts_current_and_new_rovnat_choices(self):
-		self._set_bedna_zkontrolovano_ready()
-		url = reverse("bedna_scan_zkontrolovano", args=[self.b_eur_pr.cislo_bedny])
-		for current, selected in (
-			(RovnaniChoice.KOULENI, RovnaniChoice.VYROVNANA),
-			(RovnaniChoice.ROVNA_SE, RovnaniChoice.ROVNA_SE),
-		):
-			with self.subTest(current=current, selected=selected):
-				self.b_eur_pr.stav_bedny = StavBednyChoice.ZAKALENO
-				self.b_eur_pr.rovnat = current
-				self.b_eur_pr.tryskat = TryskaniChoice.SPINAVA
-				self.b_eur_pr.save(update_fields=["stav_bedny", "rovnat", "tryskat"])
-				response = self.client.post(url, {
-					"action": "mark_zkontrolovano", "rovnat": selected, "tryskat": TryskaniChoice.OTRYSKANA,
-				})
-				self.assertRedirects(response, reverse("bedna_kontrola", args=[self.b_eur_pr.cislo_bedny]), fetch_redirect_response=False)
-				self.b_eur_pr.refresh_from_db()
-				self.assertEqual(self.b_eur_pr.stav_bedny, StavBednyChoice.ZKONTROLOVANO)
-				self.assertEqual(self.b_eur_pr.rovnat, selected)
-				self.assertEqual(self.b_eur_pr.tryskat, TryskaniChoice.OTRYSKANA)
 
 	def test_scan_zkontrolovano_post_redirects_mobile_to_kontrola(self):
 		self._set_bedna_zkontrolovano_ready()
@@ -2454,51 +2393,6 @@ class BednaScanViewTests(ViewsTestBase):
 		)
 
 		self.assertEqual(response.status_code, 400)
-		self.b_eur_pr.refresh_from_db()
-		self.assertEqual(self.b_eur_pr.stav_bedny, StavBednyChoice.ZAKALENO)
-
-	def test_scan_zkontrolovano_post_rejects_unavailable_rovnat(self):
-		self._set_bedna_zkontrolovano_ready()
-
-		response = self.client.post(
-			reverse("bedna_scan_zkontrolovano", args=[self.b_eur_pr.cislo_bedny]),
-			{"action": "mark_zkontrolovano", "rovnat": RovnaniChoice.NEZADANO, "tryskat": TryskaniChoice.CISTA},
-		)
-
-		self.assertEqual(response.status_code, 200)
-		self.assertTemplateUsed(response, "orders/bedna_scan_zkontrolovano.html")
-		self.assertFalse(response.context["form"].is_valid())
-		self.assertContains(response, "Označit bednu jako zkontrolovanou")
-		self.assertNotContains(response, "Upravit stav rovnání a tryskání")
-		self.b_eur_pr.refresh_from_db()
-		self.assertEqual(self.b_eur_pr.stav_bedny, StavBednyChoice.ZAKALENO)
-
-	def test_scan_zkontrolovano_post_rejects_unavailable_tryskat(self):
-		self._set_bedna_zkontrolovano_ready()
-
-		response = self.client.post(
-			reverse("bedna_scan_zkontrolovano", args=[self.b_eur_pr.cislo_bedny]),
-			{"action": "mark_zkontrolovano", "rovnat": RovnaniChoice.ROVNA, "tryskat": TryskaniChoice.NEZADANO},
-		)
-
-		self.assertEqual(response.status_code, 200)
-		self.assertTemplateUsed(response, "orders/bedna_scan_zkontrolovano.html")
-		self.assertFalse(response.context["form"].is_valid())
-		self.b_eur_pr.refresh_from_db()
-		self.assertEqual(self.b_eur_pr.stav_bedny, StavBednyChoice.ZAKALENO)
-
-	def test_scan_zkontrolovano_post_rerenders_on_invalid_form(self):
-		"""Odeslání neplatné hodnoty rovnat způsobí chybu formuláře a překreslení šablony."""
-		self._set_bedna_zkontrolovano_ready()
-
-		response = self.client.post(
-			reverse("bedna_scan_zkontrolovano", args=[self.b_eur_pr.cislo_bedny]),
-			{"action": "mark_zkontrolovano", "rovnat": "NEPLATNA_HODNOTA", "tryskat": TryskaniChoice.CISTA},
-		)
-
-		self.assertEqual(response.status_code, 200)
-		self.assertTemplateUsed(response, "orders/bedna_scan_zkontrolovano.html")
-		self.assertFalse(response.context["form"].is_valid())
 		self.b_eur_pr.refresh_from_db()
 		self.assertEqual(self.b_eur_pr.stav_bedny, StavBednyChoice.ZAKALENO)
 

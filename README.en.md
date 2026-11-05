@@ -10,12 +10,14 @@ Internal application for receiving, heat treating, inspecting and shipping order
 - Batch step logs, workstation transfers and start/end dates and times.
 - Camera and reader scanning, operational state changes and crate movement history; confirming heat treatment evaluates blasting from started batch steps and displays a warning before saving about partial blasting when blasting was required.
 - Crate inspection: individual measurements, cleanliness, placement, bent screw counts and release decisions; automatic curvature and cleanliness reasons, mandatory Other reason for NOK placement, restricted release choices and cleared reasons on unconditional release.
+- Finish crate inspection sets the inspected, straightening and blasting states from saved results; post-heat-treatment deflection measurements and evaluation settings are required. For an already inspected crate, saving the output inspection recalculates straightening and blasting without a separate action.
 - Nonconformity register in Django Admin: a shared snapshot of all current reasons, measurements and requirements on entering nonconformity or adding a reason during nonconformity, with a structured read-only detail; records remain available after the crate is released. See the [Czech manual](docs/manual_evidence_neshod.md).
 - A nonconformity release decision blocks readiness for shipment and shipment; inspection and measurements become read-only once a crate is ready for shipment.
 - Chemical measurement import from Vanta JSON exports, with preview and processed file archiving.
 - Loading, workstation, inspection and nonconformity overviews; production, straightening, crate and truck dashboards with history.
 - Shipment of orders or selected crates, splitting unfinished crates into another order and adding shipments to an existing outbound truck.
 - PDF crate cards, quality control cards (KKK), batch travelers, delivery notes, certificates and proforma invoices. Filled KKK are supported for EUR.
+- Unsaved inspection changes are highlighted in red and block normal departure from checked crates. Measurement changes persist a pending-confirmation flag in the database; inspection drafts survive navigation to the same crate's measurements.
 - Task permissions and auditing through `django-simple-history`.
 
 ## Local setup on Windows
@@ -89,6 +91,8 @@ Printing actions depend on selected objects, filters and permissions. Blank KKK 
 Filled KKK cards use a green release background for both unconditional release and QS release with deviation, and red for nonconformity. Internal QS release highlighting remains orange.
 
 For SPX, filled KKK cards print **OK** for recorded torsion measurements when released, including QS release with deviation. Original measurements remain stored; torsion limits from the specification are not evaluated yet.
+
+Inspection completion, corrections to checked crates and setting the checked state in Admin require a complete inspection consistent with current measurements and limits. Bulk marking as checked has been removed. Pending measurement confirmation blocks shipment readiness and shipment on the server.
 
 ## Project structure
 

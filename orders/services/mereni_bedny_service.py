@@ -133,6 +133,7 @@ def ulozit_mereni_zkousky(kontrola, typ_zkousky, formset, user):
     existing = {item.pk: item for item in formset.measurements}
     next_order = max((item.poradi for item in existing.values()), default=0)
     measured_at = timezone.now()
+    changed = False
     for form in formset.forms:
         data = form.cleaned_data
         item = existing.get(data.get('id'))
@@ -140,6 +141,7 @@ def ulozit_mereni_zkousky(kontrola, typ_zkousky, formset, user):
             if item is not None:
                 item._history_user = user
                 item.delete()
+                changed = True
             continue
         if not form.has_changed():
             continue
@@ -153,3 +155,8 @@ def ulozit_mereni_zkousky(kontrola, typ_zkousky, formset, user):
         item._history_user = user
         # Editing a value preserves the original measuring person/date.
         item.save()
+        changed = True
+    if changed:
+        # Volající drží zámek bedny. Příznak nemění výsledky ani historii kontroly.
+        KontrolaBedny.objects.filter(pk=kontrola.pk).update(vyzaduje_potvrzeni=True)
+        kontrola.vyzaduje_potvrzeni = True

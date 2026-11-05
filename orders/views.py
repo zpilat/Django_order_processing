@@ -12,7 +12,7 @@ from django.views.decorators.http import require_POST, require_http_methods
 from django.urls import reverse, reverse_lazy
 from django.db.models import Q, Max, Sum, Count, F, Exists, OuterRef, Subquery, DecimalField, ExpressionWrapper, Value, Prefetch, Case, When, DateTimeField
 from django.db.models.functions import Coalesce, ExtractMonth
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.utils.translation import gettext_lazy as _
 import django.utils.timezone as timezone
 from datetime import datetime, timedelta, time, date
@@ -42,7 +42,6 @@ from .models import (
     Sarze, SarzeKrok, SarzeKrokBedna, Zarizeni, KontrolaBedny, MereniBedny
 )
 from .forms import (
-    BednaScanZkontrolovanoForm,
     BednaSkenerCteckaForm,
     RychleZalozeniSarzeForm,
     SarzeKrokActionInitForm,
@@ -59,7 +58,10 @@ from .services.sarze_print_service import (
 )
 from .services.history_service import history_transitions_to_qs
 from .services.evidence_neshod_service import zaznamenat_neshodu
-from .services.stav_bedny_service import vyhodnotit_tryskani_pri_zakaleni
+from .services.stav_bedny_service import (
+    vyhodnotit_tryskani_pri_zakaleni, duvody_neuplne_kontroly,
+    vyhodnotit_stavy_pri_zkontrolovani,
+)
 from .services.dashboard_bedny_service import build_bedny_visual_summary
 from .services.mereni_bedny_service import (
     pozadavek_zkousky, rozsah_mereni_zakaznika, mereni_snapshot, kontrola_snapshot, ulozit_mereni_zkousky,
@@ -627,45 +629,7 @@ def _bedna_scan_can_mark_navezeno(user, bedna):
 
 
 def _bedna_duvody_neuplne_kontroly(bedna):
-    """Vrátí nesplněné podmínky uložené výstupní kontroly."""
-    vysledky = (VysledekKontrolyChoice.OK, VysledekKontrolyChoice.NOK)
-    kontrola = KontrolaBedny.objects.filter(bedna=bedna).first()
-    if kontrola is None:
-        return ['Nejprve vyplňte a uložte výstupní kontrolu: Čistotu, Uložení a rozhodnutí o uvolnění.']
-    duvody = []
-    if kontrola.cistota not in vysledky:
-        duvody.append('Vyplňte a uložte Čistotu (OK nebo NOK).')
-    if kontrola.ulozeni not in vysledky:
-        duvody.append('Vyplňte a uložte Uložení (OK nebo NOK).')
-    if kontrola.uvolneni not in (
-        UvolneniKontrolyChoice.UVOLNENO, UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU,
-        UvolneniKontrolyChoice.NESHODA,
-    ):
-        duvody.append('Vyberte a uložte rozhodnutí o uvolnění.')
-    chybejici_pocty = [
-        label for value, label in (
-            (kontrola.pocet_krivych_vrutu_prvni_mereni, 'Počet křivých 1. měření'),
-            (kontrola.pocet_krivych_vrutu_druhe_mereni, 'Počet křivých 2. měření'),
-        ) if value is None
-    ]
-    if kontrola.neshoda_krivost and chybejici_pocty:
-        omezeni = omezeni_uvolneni_prohybem(bedna)
-        oranzovy_prohyb_po_tz = (
-            omezeni is not None
-            and omezeni.typ_zkousky == TypZkouskyChoice.PROHYB_PO_TZ
-            and omezeni.stav == 'odchylka'
-        )
-        if not oranzovy_prohyb_po_tz:
-            if len(chybejici_pocty) == 2:
-                duvody.append('Při důvodu Křivost doplňte a uložte oba počty křivých.')
-            else:
-                duvody.append(f'Při důvodu Křivost chybí uložený {chybejici_pocty[0]}.')
-    return duvody
-
-
-def _bedna_ma_vyplnenou_kontrolu(bedna):
-    """Stejné podmínky pro zobrazení akce i její ověření před uložením."""
-    return not _bedna_duvody_neuplne_kontroly(bedna)
+    return duvody_neuplne_kontroly(bedna)
 
 
 def _bedna_duvody_blokace_zkontrolovano(user, bedna):
@@ -677,7 +641,7 @@ def _bedna_duvody_blokace_zkontrolovano(user, bedna):
     if bedna.stav_bedny not in STAV_BEDNY_PODMINKA_PRO_ZMENU_NA_ZKONTROLOVANO:
         duvody.append(
             f'Bedna je ve stavu {bedna.get_stav_bedny_display()}. '
-            'Změna je dostupná pouze ve stavu Zakaleno nebo Zkontrolováno.'
+            'Dokončení kontroly je dostupné pouze ve stavu Zakaleno.'
         )
     return duvody or _bedna_duvody_neuplne_kontroly(bedna)
 
@@ -840,6 +804,24 @@ def _can_edit_mereni_bedny(user, bedna):
     )
 
 
+def _ochrana_kontroly_context(request, bedna, kontrola):
+    merit_tvrdost = bedna.bedna_k_mereni_tvrdosti_a_povrchu
+    return {
+        'zkontrolovana': bedna.stav_bedny == StavBednyChoice.ZKONTROLOVANO,
+        'ceka_na_potvrzeni': bool(kontrola and kontrola.vyzaduje_potvrzeni),
+        'kontrola_existuje': kontrola is not None,
+        'draft_key': f'kontrola-bedny:{request.user.pk}:{bedna.pk}',
+        'url_kontroly': reverse('bedna_kontrola', args=[bedna.cislo_bedny]),
+        'urls_mereni': [
+            reverse('bedna_mereni_zkousky', args=[bedna.cislo_bedny, kind])
+            for kind in TypZkouskyChoice.values
+            if merit_tvrdost or kind not in (
+                TypZkouskyChoice.TVRDOST_POVRCHU, TypZkouskyChoice.TVRDOST_JADRA,
+            )
+        ],
+    }
+
+
 def _bedna_zkousky_context(bedna, user, omezeni_prohybu):
     measurements = list(MereniBedny.objects.filter(kontrola__bedna=bedna))
     can_edit = _can_edit_mereni_bedny(user, bedna)
@@ -914,9 +896,23 @@ def bedna_kontrola_view(request, cislo_bedny: int):
             if snapshot != current_snapshot:
                 form.add_error(None, 'Kontrolu mezitím změnil jiný uživatel. Načtěte aktuální údaje znovu.')
                 valid = False
+            stavy = None
+            if valid and bedna.stav_bedny == StavBednyChoice.ZKONTROLOVANO:
+                try:
+                    duvody = duvody_neuplne_kontroly(
+                        bedna, kontrola=form.instance, potvrzuje_mereni=True,
+                    )
+                    if duvody:
+                        raise ValidationError(duvody)
+                    stavy = vyhodnotit_stavy_pri_zkontrolovani(bedna, kontrola=form.instance)
+                except ValidationError as error:
+                    form.add_error(None, error)
+                    valid = False
             if valid:
-                if kontrola is None or form.has_changed() or form.duvody_neshody_zmeneny:
+                kontrola_ulozena = False
+                if kontrola is None or form.has_changed() or form.duvody_neshody_zmeneny or kontrola.vyzaduje_potvrzeni:
                     kontrola = form.save(commit=False)
+                    kontrola.vyzaduje_potvrzeni = False
                     if kontrola.uvolneni != UvolneniKontrolyChoice.NEROZHODNUTO:
                         if previous_status != kontrola.uvolneni:
                             kontrola.uvolneni_zmenil = request.user
@@ -926,8 +922,24 @@ def bedna_kontrola_view(request, cislo_bedny: int):
                         kontrola.uvolneni_zmeneno_at = None
                     kontrola._history_user = request.user
                     kontrola.save()
+                    kontrola_ulozena = True
+                zmeny_stavu = []
+                if stavy is not None:
+                    for field, label in (('rovnat', 'Rovnání'), ('tryskat', 'Tryskání')):
+                        if getattr(bedna, field) != stavy[field]:
+                            setattr(bedna, field, stavy[field])
+                            zmeny_stavu.append((field, f'{label}: {stavy[field].label}'))
+                    if zmeny_stavu:
+                        bedna._history_user = request.user
+                        bedna.save(update_fields=[field for field, _ in zmeny_stavu])
+                if kontrola_ulozena:
+                    # Snapshot zachytí výsledek téhož uložení, včetně nových stavů.
+                    kontrola.bedna = bedna
                     zaznamenat_neshodu(kontrola, previous_status=previous_status, user=request.user)
-                messages.success(request, 'Kontrola bedny byla uložena.')
+                zprava = 'Kontrola bedny byla uložena.'
+                if zmeny_stavu:
+                    zprava += ' ' + ', '.join(popis for _, popis in zmeny_stavu) + '.'
+                messages.success(request, zprava)
                 return redirect('bedna_kontrola', cislo_bedny=bedna.cislo_bedny)
             messages.error(request, 'Kontrolu bedny se nepodařilo uložit. Příčinu najdete ve formuláři Výstupní kontrola.')
     else:
@@ -940,6 +952,22 @@ def bedna_kontrola_view(request, cislo_bedny: int):
     }
 
     blokace_zkontrolovano = _bedna_duvody_blokace_zkontrolovano(request.user, bedna)
+    ochrana = _ochrana_kontroly_context(request, bedna, kontrola)
+    ochrana.update({
+        'can_edit': can_edit,
+        'ulozene_hodnoty': form.ulozene_hodnoty,
+        'is_bound': form.is_bound,
+        'snapshot': current_snapshot,
+        'stavy_nepotvrzeny': False,
+    })
+    if can_edit and ochrana['zkontrolovana']:
+        try:
+            stavy = vyhodnotit_stavy_pri_zkontrolovani(
+                bedna, kontrola=KontrolaBedny(cistota=form.ulozene_hodnoty['cistota']),
+            )
+            ochrana['stavy_nepotvrzeny'] = any(getattr(bedna, field) != value for field, value in stavy.items())
+        except ValidationError:
+            pass  # Chybějící podklady vysvětluje formulář; náhled nic neukládá.
     return render(request, 'orders/bedna_kontrola.html', {
         'bedna': bedna,
         'kontrola': kontrola,
@@ -947,6 +975,7 @@ def bedna_kontrola_view(request, cislo_bedny: int):
         'form': form,
         'can_edit': can_edit,
         'snapshot': snapshot,
+        'ochrana_kontroly': ochrana,
         'can_mark_zkontrolovano': not blokace_zkontrolovano,
         'blokace_zkontrolovano': blokace_zkontrolovano,
         'zkousky': _bedna_zkousky_context(bedna, request.user, form.omezeni_prohybu), 'db_table': 'bedna_scan',
@@ -1005,6 +1034,12 @@ def bedna_mereni_zkousky_view(request, cislo_bedny: int, typ_zkousky: str):
         bedna, measurements, formset = load_form()
         snapshot = mereni_snapshot(measurements)
 
+    ochrana = _ochrana_kontroly_context(
+        request, bedna, KontrolaBedny.objects.filter(bedna=bedna).first(),
+    )
+    ochrana['ulozene_mereni'] = [
+        {'id': item.pk, 'hodnota': str(item.hodnota)} for item in measurements
+    ]
     return render(request, 'orders/bedna_mereni_zkousky.html', {
         'bedna': bedna, 'typ_zkousky': typ_zkousky,
         'nazev_zkousky': TypZkouskyChoice(typ_zkousky).label,
@@ -1012,6 +1047,7 @@ def bedna_mereni_zkousky_view(request, cislo_bedny: int, typ_zkousky: str):
         'pozadavek': pozadavek_zkousky(bedna.zakazka.predpis, typ_zkousky),
         'pozadavek_prohyb': bedna.limity_prohybu_pro_zkousku(typ_zkousky),
         'formset': formset, 'snapshot': snapshot,
+        'ochrana_kontroly': ochrana,
         'db_table': 'bedna_scan',
     })
 
@@ -1164,7 +1200,7 @@ def bedna_scan_zakaleno_view(request, cislo_bedny: int):
 @login_required
 def bedna_scan_zkontrolovano_view(request, cislo_bedny: int):
     """
-    Zobrazuje stránku pro označení bedny jako zkontrolované a úpravu rovnání/tryskání.
+    Zobrazuje stránku pro první dokončení kontroly bedny.
     """
     bedna_qs = Bedna.objects.select_related(
         'zakazka',
@@ -1185,17 +1221,14 @@ def bedna_scan_zkontrolovano_view(request, cislo_bedny: int):
     if bedna.stav_bedny not in STAV_BEDNY_PODMINKA_PRO_ZMENU_NA_ZKONTROLOVANO:
         logger.warning(
             f"Uživatel {request.user} se pokusil označit přes scan bednu {bedna.cislo_bedny} jako zkontrolovanou, "
-            f"ale bedna není ve stavu Zakaleno nebo Zkontrolováno."
+            f"ale bedna není ve stavu Zakaleno."
         )
-        messages.error(request, f'Bedna {bedna.cislo_bedny} není ve stavu Zakaleno nebo Zkontrolováno.')
+        messages.error(request, f'Bedna {bedna.cislo_bedny} není ve stavu Zakaleno. Kontrolu lze dokončit pouze v tomto stavu.')
         return redirect('bedna_kontrola', cislo_bedny=bedna.cislo_bedny)
 
-    if not _bedna_ma_vyplnenou_kontrolu(bedna):
-        messages.error(request, (
-            'Před označením bedny jako zkontrolované uložte ve výstupní kontrole čistotu, uložení '
-            'a rozhodnutí o uvolnění. Při důvodu Křivost vyplňte také oba počty křivých vrutů, '
-            'pokud prohyb po TZ není oranžový.'
-        ))
+    duvody = _bedna_duvody_neuplne_kontroly(bedna)
+    if duvody:
+        messages.error(request, ' '.join(duvody))
         return redirect('bedna_kontrola', cislo_bedny=bedna.cislo_bedny)
 
     if request.method == 'POST':
@@ -1221,35 +1254,21 @@ def bedna_scan_zkontrolovano_view(request, cislo_bedny: int):
             if bedna.stav_bedny not in STAV_BEDNY_PODMINKA_PRO_ZMENU_NA_ZKONTROLOVANO:
                 logger.warning(
                     f"Uživatel {request.user} se pokusil označit přes scan bednu {bedna.cislo_bedny} jako zkontrolovanou, "
-                    f"ale bedna není ve stavu Zakaleno nebo Zkontrolováno."
+                    f"ale bedna není ve stavu Zakaleno."
                 )
-                messages.error(request, f'Bedna {bedna.cislo_bedny} není ve stavu Zakaleno nebo Zkontrolováno.')
+                messages.error(request, f'Bedna {bedna.cislo_bedny} není ve stavu Zakaleno. Kontrolu lze dokončit pouze v tomto stavu.')
                 return redirect('bedna_kontrola', cislo_bedny=bedna.cislo_bedny)
 
-            if not _bedna_ma_vyplnenou_kontrolu(bedna):
-                messages.error(request, (
-                    'Před označením bedny jako zkontrolované uložte ve výstupní kontrole čistotu, uložení '
-                    'a rozhodnutí o uvolnění. Při důvodu Křivost vyplňte také oba počty křivých vrutů, '
-                    'pokud prohyb po TZ není oranžový.'
-                ))
+            duvody = _bedna_duvody_neuplne_kontroly(bedna)
+            if duvody:
+                messages.error(request, ' '.join(duvody))
                 return redirect('bedna_kontrola', cislo_bedny=bedna.cislo_bedny)
 
-            form = BednaScanZkontrolovanoForm(request.POST, bedna=bedna)
-            if form.is_valid():
-                bedna.stav_bedny = StavBednyChoice.ZKONTROLOVANO
-                bedna.rovnat = form.cleaned_data['rovnat']
-                bedna.tryskat = form.cleaned_data['tryskat']
-                bedna.save(update_fields=['stav_bedny', 'rovnat', 'tryskat', 'pozice'])
-            else:
-                return render(
-                    request,
-                    'orders/bedna_scan_zkontrolovano.html',
-                    {
-                        'bedna': bedna,
-                        'form': form,
-                        'db_table': 'bedna_scan_zkontrolovano',
-                    }
-                )
+            stavy = vyhodnotit_stavy_pri_zkontrolovani(bedna)
+            bedna.stav_bedny = StavBednyChoice.ZKONTROLOVANO
+            bedna.rovnat = stavy['rovnat']
+            bedna.tryskat = stavy['tryskat']
+            bedna.save(update_fields=['stav_bedny', 'rovnat', 'tryskat', 'pozice'])
 
         messages.success(request, f'Bedna {cislo_bedny} byla označena jako zkontrolovaná.')
         logger.info(
@@ -1257,10 +1276,9 @@ def bedna_scan_zkontrolovano_view(request, cislo_bedny: int):
         )
         return redirect('bedna_kontrola', cislo_bedny=bedna.cislo_bedny)
 
-    form = BednaScanZkontrolovanoForm(bedna=bedna)
     context = {
         'bedna': bedna,
-        'form': form,
+        'stavy_po_kontrole': vyhodnotit_stavy_pri_zkontrolovani(bedna),
         'db_table': 'bedna_scan_zkontrolovano',
     }
     return render(request, 'orders/bedna_scan_zkontrolovano.html', context)

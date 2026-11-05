@@ -947,6 +947,10 @@ class Bedna(models.Model):
         "Bednu nelze uložit ve stavu K expedici nebo Expedováno, "
         "pokud má ve výstupní kontrole uvolnění Neshoda."
     )
+    NEPOTVRZENA_KONTROLA_EXPEDICE_MESSAGE = _(
+        "Před označením K expedici nebo expedicí uložte výstupní kontrolu "
+        "po změně měření."
+    )
 
     zakazka = models.ForeignKey(Zakazka, on_delete=models.CASCADE, related_name='bedny', verbose_name='Zakázka')
     pozice = models.ForeignKey(Pozice, on_delete=models.SET_NULL, null=True, blank=True, related_name='bedny', verbose_name='Pozice')
@@ -1284,7 +1288,7 @@ class Bedna(models.Model):
 
         - Pokud je stav bedny K_EXPEDICI nebo EXPEDOVANO, musí být tryskání buď Čistá nebo Otryskaná,
           rovnání buď Rovná nebo Vyrovnaná a zinkování buď Nezinkovat nebo Uvolněno (pozinkováno).
-          Příslušná uložená kontrola nesmí mít uvolnění NESHODA; chybějící kontrola ani
+          Příslušná uložená kontrola nesmí čekat na potvrzení měření ani mít uvolnění NESHODA; chybějící kontrola ani
           uvolnění NEROZHODNUTO se tímto pravidlem neblokují.
         - Pokud je stav bedny K_NAVEZENI nebo NAVEZENO, musí být zadána pozice.
         - Pokud je stav bedny jakýkoliv jiný než NEPRIJATO, musí být zadána hmotnost, tára a množství a tyto nesmí být nula
@@ -1293,6 +1297,10 @@ class Bedna(models.Model):
         """
         super().clean()    
         if self.stav_bedny in [StavBednyChoice.K_EXPEDICI, StavBednyChoice.EXPEDOVANO]:
+            if self.pk and KontrolaBedny.objects.filter(
+                bedna_id=self.pk, vyzaduje_potvrzeni=True,
+            ).exists():
+                raise ValidationError(self.NEPOTVRZENA_KONTROLA_EXPEDICE_MESSAGE)
             if self.pk and KontrolaBedny.objects.filter(
                 bedna_id=self.pk, uvolneni=UvolneniKontrolyChoice.NESHODA,
             ).exists():
@@ -1659,6 +1667,9 @@ class KontrolaBedny(models.Model):
     )
     uvolneni_zmeneno_at = models.DateTimeField(null=True, blank=True, verbose_name='Datum změny uvolnění')
     poznamka = models.TextField(blank=True, verbose_name='Poznámka')
+    vyzaduje_potvrzeni = models.BooleanField(
+        default=False, editable=False, verbose_name='Měření čekají na potvrzení kontroly',
+    )
     neshoda_cistota = models.BooleanField(default=False, verbose_name='Čistota')
     neshoda_krut_nizky = models.BooleanField(default=False, verbose_name='Krut nízký')
     neshoda_krut_vysoky = models.BooleanField(default=False, verbose_name='Krut vysoký')
@@ -1680,7 +1691,8 @@ class KontrolaBedny(models.Model):
         blank=True, null=True, verbose_name='Počet křivých 2. měření',
         help_text='Počet křivých vrutů z druhého měření u bedny s nevyhovujícím prohybem.',
     )
-    history = HistoricalRecords()
+    # Technický příznak není změnou výsledků kontroly; měření mají vlastní historii.
+    history = HistoricalRecords(excluded_fields=['vyzaduje_potvrzeni'])
 
     class Meta:
         verbose_name = 'Kontrola bedny'

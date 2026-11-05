@@ -12,6 +12,7 @@ from decimal import Decimal, ROUND_HALF_UP
 
 from orders.utils import parse_sarze_search_term
 from orders.services.mereni_bedny_service import omezeni_uvolneni_prohybem
+from orders.services.stav_bedny_service import duvody_neuplne_kontroly, vyhodnotit_stavy_pri_zkontrolovani
 
 from .models import Sarze, SarzeKrok, Zakaznik, Kamion, Zakazka, Bedna, Predpis, Odberatel, Pozice, Zarizeni, KontrolaBedny
 from .choices import (
@@ -94,6 +95,10 @@ class KontrolaBednyForm(forms.ModelForm):
     def __init__(self, *args, can_edit=True, **kwargs):
         super().__init__(*args, **kwargs)
         self.can_edit = can_edit
+        # Zachovat hodnoty z DB dříve, než se předvyplní automatické důvody a uvolnění.
+        self.ulozene_hodnoty = {
+            name: getattr(self.instance, name) for name in self.Meta.fields
+        }
         self.puvodni_duvody = {name: getattr(self.instance, name) for name in self.neshoda_fields}
         self.omezeni_prohybu = (
             omezeni_uvolneni_prohybem(self.instance.bedna)
@@ -159,6 +164,12 @@ class KontrolaBednyForm(forms.ModelForm):
             for name in self.neshoda_fields:
                 cleaned_data[name] = False
         if (
+            self.ulozene_hodnoty['ulozeni'] == VysledekKontrolyChoice.NOK
+            and cleaned_data.get('ulozeni') in (VysledekKontrolyChoice.OK, VysledekKontrolyChoice.NEZADANO)
+            and not cleaned_data.get('poznamka')
+        ):
+            cleaned_data['neshoda_jine'] = False
+        if (
             uvolneni in (
                 UvolneniKontrolyChoice.NESHODA,
                 UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU,
@@ -195,6 +206,7 @@ class KontrolaBednyForm(forms.ModelForm):
     def pravidla_pro_js(self):
         return {
             'can_edit': self.can_edit,
+            'puvodni_ulozeni': self.ulozene_hodnoty['ulozeni'],
             'krivost': self.omezeni_prohybu is not None,
             'povolene_stavy_prohybu': self.povolene_stavy_prohybu,
             'uvolneni': list(UvolneniKontrolyChoice.choices),
@@ -434,6 +446,22 @@ class BednaModelForm(forms.ModelForm):
             Bedna.objects.select_for_update().filter(pk=self.instance.pk).exists()
         return cleaned
 
+    def _post_clean(self):
+        super()._post_clean()
+        # ModelForm už promítl odeslanou zakázku a stav do instance. Platí pro
+        # detail, inline i list editaci; zámek z clean() trvá až do zápisu.
+        if not self.errors and self.instance.stav_bedny == StavBednyChoice.ZKONTROLOVANO:
+            duvody = duvody_neuplne_kontroly(self.instance)
+            if self.initial.get('stav_bedny') != StavBednyChoice.ZKONTROLOVANO and self.instance.pozastaveno:
+                duvody.append('Bedna je pozastavená. Nejprve je nutné zrušit pozastavení.')
+            if duvody:
+                field = 'stav_bedny' if 'stav_bedny' in self.fields else None
+                self.add_error(field, ValidationError(duvody))
+            elif self.initial.get('stav_bedny') != StavBednyChoice.ZKONTROLOVANO:
+                stavy = vyhodnotit_stavy_pri_zkontrolovani(self.instance)
+                self.instance.rovnat = stavy['rovnat']
+                self.instance.tryskat = stavy['tryskat']
+
 
 class BednaAdminForm(BednaModelForm):
     """
@@ -669,54 +697,6 @@ class NavezenoForm(forms.Form):
         label="Pozice",
         required=False
     )
-
-
-def _include_current_choice(choices, current_value, all_choices):
-    labels = dict(all_choices)
-    values = list(dict.fromkeys((current_value, *(choice for choice, _label in choices))))
-    return [(value, labels[value]) for value in values]
-
-
-class BednaScanZkontrolovanoForm(forms.Form):
-    rovnat = forms.ChoiceField(label='Rovnání')
-    tryskat = forms.ChoiceField(label='Tryskání')
-
-    def __init__(self, *args, bedna, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        if bedna.rovnat in (RovnaniChoice.NEZADANO, RovnaniChoice.ROVNA):
-            rovnat_values = [RovnaniChoice.ROVNA, RovnaniChoice.KRIVA]
-        else:
-            rovnat_values = [RovnaniChoice.KRIVA, RovnaniChoice.VYROVNANA]
-        rovnat_labels = dict(RovnaniChoice.choices)
-        self.fields['rovnat'].choices = _include_current_choice(
-            [(value, rovnat_labels[value]) for value in rovnat_values], bedna.rovnat, RovnaniChoice.choices,
-        )
-        self.fields['rovnat'].initial = bedna.rovnat
-        self.fields['rovnat'].widget.attrs.update({'class': 'form-select scan-position-select'})
-
-        if bedna.tryskat in (TryskaniChoice.NEZADANO, TryskaniChoice.CISTA):
-            tryskat_values = [TryskaniChoice.CISTA, TryskaniChoice.SPINAVA]
-        else:
-            tryskat_values = [TryskaniChoice.SPINAVA, TryskaniChoice.OTRYSKANA]
-        tryskat_labels = dict(TryskaniChoice.choices)
-        self.fields['tryskat'].choices = _include_current_choice(
-            [(value, tryskat_labels[value]) for value in tryskat_values], bedna.tryskat, TryskaniChoice.choices,
-        )
-        self.fields['tryskat'].initial = bedna.tryskat
-        self.fields['tryskat'].widget.attrs.update({'class': 'form-select scan-position-select'})
-
-    def clean_rovnat(self):
-        value = self.cleaned_data['rovnat']
-        if value == RovnaniChoice.NEZADANO:
-            raise ValidationError('Vyberte stav rovnání.')
-        return value
-
-    def clean_tryskat(self):
-        value = self.cleaned_data['tryskat']
-        if value == TryskaniChoice.NEZADANO:
-            raise ValidationError('Vyberte stav tryskání.')
-        return value
 
 
 class SarzeSkenerCteckaForm(forms.Form):

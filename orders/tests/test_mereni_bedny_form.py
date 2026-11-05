@@ -4,7 +4,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
 from django.urls import reverse
 
-from orders.choices import StavBednyChoice, TypZkouskyChoice, UvolneniKontrolyChoice
+from orders.choices import RovnaniChoice, StavBednyChoice, TryskaniChoice, TypZkouskyChoice, UvolneniKontrolyChoice
 from orders.models import Bedna, KontrolaBedny, MereniBedny
 from orders.tests.test_kontrola_bedny import KontrolaBednyTestBase
 
@@ -68,6 +68,22 @@ class MereniBednyFormTests(KontrolaBednyTestBase):
         self.assertIn('Min. 2 vzorky', form)
         self.assertNotIn('[3 ks z první bedny ze zakázky]', form)
         self.assertLess(form.index('Min. 2 vzorky'), form.index('id="measurement-rows"'))
+
+    def test_saving_straightening_measurements_does_not_update_checked_crate_states(self):
+        self.bedna.stav_bedny = StavBednyChoice.ZKONTROLOVANO
+        self.bedna.rovnat = RovnaniChoice.KRIVA
+        self.bedna.tryskat = TryskaniChoice.SPINAVA
+        self.bedna.save()
+        self.url = self.url_for(TypZkouskyChoice.PROHYB_PO_ROVNANI)
+        response = self.client.get(self.url)
+        count = self.bedna.history.count()
+        result = self.client.post(self.url, self.payload(response, [{'poradi': 1, 'hodnota': '0.1'}]))
+        self.assertRedirects(result, reverse('bedna_kontrola', args=[self.bedna.cislo_bedny]))
+        self.bedna.refresh_from_db()
+        self.assertEqual(self.bedna.rovnat, RovnaniChoice.KRIVA)
+        self.assertEqual(self.bedna.tryskat, TryskaniChoice.SPINAVA)
+        self.assertEqual(self.bedna.history.count(), count)
+        self.assertEqual(MereniBedny.objects.get().hodnota, Decimal('0.1'))
 
     def test_both_prescription_descriptions_appear_in_requirement_card(self):
         predpis = self.bedna.zakazka.predpis
