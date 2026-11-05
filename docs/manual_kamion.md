@@ -68,10 +68,11 @@ Typické akce:
 - `Importovat chemická měření beden` pro kamion příjem s bednami.
 - `Vytisknout vyplněné KKK z vybraného kamionu výdej` – pro všechny zákazníky, s pomocnými popisy podle zkratky státu zákazníka (D/A německy, I italsky, CZ pouze česky).
 
-Dodací list zákazníka SPX obsahuje za sloupcem `Artikel-Nr.` sloupec `Charge`
+Dodací list zákazníka SPX obsahuje za sloupcem `Material-Nr.` sloupec `Charge`
 s hodnotou pole `Šarže mat. / Charge` (`sarze`) příslušné bedny. Pokud šarže není
 vyplněná, buňka zůstane prázdná. Číslo objednávky (`vyrobni_zakazka`) se tiskne
-ve sloupci `Belegnummer`, sloupec s číslem obalu má nadpis `Behälter`.
+ve sloupci `Beleg-Nr.`, artikl ve sloupci `Material-Nr.` a interní číslo bedny
+ve sloupci `HPM-Nr.`. Sloupec s číslem obalu má nadpis `Behälter`.
 
 Pro tisk vyplněných karet výdeje vyberte právě jeden kamion ve filtru `Výdej`.
 PDF obsahuje karty všech jeho beden s uloženou kontrolou kvality, včetně expedovaných beden,
