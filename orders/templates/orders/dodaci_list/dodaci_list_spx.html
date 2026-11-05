@@ -3,23 +3,25 @@
 {% block table-header %}
 <tr class="text-center fw-bold fs-pdf-07">
     <td class="bg-body-secondary" style="width: 4%;">Pos.</td>
-    <td class="bg-body-secondary" style="width: 10%;">Bestell-Nr.</td>
+    <td class="bg-body-secondary" style="width: 10%;">Belegnummer</td>
     <td class="bg-body-secondary" style="width: 10%;">Artikel-Nr.</td>
+    <td class="bg-body-secondary" style="width: 8%;">Charge</td>
     <td class="bg-body-secondary" style="width: 8%;">Abmess.</td>                  
-    <td class="bg-body-secondary" style="width: 30%;">Bezeichnung</td>                    
-    <td class="bg-body-secondary" style="width: 8%;">Netto kg</td>
-    <td class="bg-body-secondary" style="width: 8%;">Brutto kg</td>
-    <td class="bg-body-secondary" style="width: 8%;">Behälter-Nr.</td>
+    <td class="bg-body-secondary" style="width: 24%;">Bezeichnung</td>
+    <td class="bg-body-secondary" style="width: 7%;">Netto kg</td>
+    <td class="bg-body-secondary" style="width: 7%;">Brutto kg</td>
+    <td class="bg-body-secondary" style="width: 6%;">Behälter</td>
     <td class="bg-body-secondary" style="width: 8%;">#</td>
     <td class="bg-body-secondary" style="width: 8%;">Richten</td>
 </tr>            
-{% endblock %}                
+{% endblock %}
 
 {% block table-body %}
 <tr class="text-center fs-pdf-07 {% if bedna.fakturovat == False %}table-warning{% endif %}">
     <td>{{ pos }}</td>
     <td>{{ bedna.vyrobni_zakazka }}</td>
     <td>{{ bedna.zakazka.artikl }}</td>
+    <td style="overflow-wrap: anywhere;">{{ bedna.sarze|default_if_none:"" }}</td>
     <td>{{ zakazka.prumer }}x{{ zakazka.delka|floatformat:0 }}</td>                          
     <td>{{ zakazka.popis }}</td>                            
     <td>{{ bedna.hmotnost }}</td>
@@ -28,4 +30,4 @@
     <td>{{ bedna.cislo_bedny }}</td>
     <td>{% if bedna.rovnat == 'VY' %}gerichtet{% else %}--{% endif %}</td>
 </tr>                      
-{% endblock %}                    
+{% endblock %}
