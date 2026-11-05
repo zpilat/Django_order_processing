@@ -1498,7 +1498,11 @@ class ExportBednyCsvActionTests(ActionsBase):
 
     def test_customer_csv_export_sanitizes_formula(self):
         self.zakazka.artikl = '=1+1'
-        self.zakazka.save(update_fields=['artikl'])
+        self.zakazka.prubeh = '=2+2'
+        self.zakazka.save(update_fields=['artikl', 'prubeh'])
+        self.bedna.sarze = '+SUM(A1:A2)'
+        self.bedna.vyrobni_zakazka = '@SUM(A1:A2)'
+        self.bedna.save(update_fields=['sarze', 'vyrobni_zakazka'])
 
         response = actions.export_bedny_to_csv_customer_action(
             self.bedna_admin,
@@ -1507,16 +1511,19 @@ class ExportBednyCsvActionTests(ActionsBase):
         )
         rows = list(csv.reader(io.StringIO(response.content.decode('utf-8-sig')), delimiter=';'))
 
-        self.assertEqual(rows[1][0], "'=1+1")
+        self.assertEqual(rows[1][:4], ["'=2+2", "'=1+1", "'+SUM(A1:A2)", "'@SUM(A1:A2)"])
 
-    def test_export_bedny_to_csv_customer_action_generates_minimal_columns(self):
+    def test_export_bedny_to_csv_customer_action_eur_includes_order_details(self):
         bedna = self.bedna
         bedna.behalter_nr = 42
+        bedna.sarze = 'MAT-123'
+        bedna.vyrobni_zakazka = 'FA-456'
         bedna.save()
 
         self.zakazka.prumer = Decimal('10.5')
         self.zakazka.delka = Decimal('20.0')
         self.zakazka.artikl = 'ART1'
+        self.zakazka.prubeh = 'VG-789'
         self.zakazka.save()
 
         req = self.get_request('post')
@@ -1525,11 +1532,14 @@ class ExportBednyCsvActionTests(ActionsBase):
         content = resp.content.decode('utf-8-sig')
         rows = list(csv.reader(io.StringIO(content), delimiter=';'))
 
-        self.assertEqual(rows[0], ['Artikel-Nr.', 'Behälter-Nr.', 'Abmessung', 'Kopf', 'Bezeichnung', 'HPM-Nr.', 'kg'])
+        self.assertEqual(rows[0], ['Vorgang+', 'Artikel-Nr.', 'Materialcharge', 'Fertigungsauftrags-Nr.', 'Behälter-Nr.', 'Abmessung', 'Kopf', 'Bezeichnung', 'HPM-Nr.', 'kg'])
         self.assertEqual(
             rows[1],
             [
+                'VG-789',
                 'ART1',
+                'MAT-123',
+                'FA-456',
                 str(bedna.behalter_nr),
                 '10,5 x 20',
                 str(self.zakazka.typ_hlavy),
@@ -1538,6 +1548,29 @@ class ExportBednyCsvActionTests(ActionsBase):
                 '1',
             ],
         )
+
+    def test_customer_csv_order_details_missing_values_and_other_customer(self):
+        self.zakazka.prubeh = None
+        self.zakazka.save(update_fields=['prubeh'])
+        self.bedna.sarze = None
+        self.bedna.vyrobni_zakazka = None
+        self.bedna.save(update_fields=['sarze', 'vyrobni_zakazka'])
+        for customer in ('EUR', 'SSH'):
+            with self.subTest(customer=customer):
+                self.zakaznik.zkratka = customer
+                self.zakaznik.save(update_fields=['zkratka'])
+                response = actions.export_bedny_to_csv_customer_action(
+                    self.bedna_admin, self.get_request('post'),
+                    Bedna.objects.filter(pk=self.bedna.pk),
+                )
+                rows = list(csv.reader(io.StringIO(response.content.decode('utf-8-sig')), delimiter=';'))
+                if customer == 'EUR':
+                    self.assertEqual(rows[1][:4], ['', self.zakazka.artikl, '', ''])
+                    self.assertEqual(len(rows[0]), 10)
+                else:
+                    self.assertEqual(rows[0], ['Artikel-Nr.', 'Behälter-Nr.', 'Abmessung', 'Kopf', 'Bezeichnung', 'HPM-Nr.', 'kg'])
+                    self.assertEqual(rows[1][0], self.zakazka.artikl)
+                self.assertEqual(len(rows[0]), len(rows[1]))
 
     def test_customer_csv_chemistry_appends_columns_for_all_variants(self):
         self.bedna.obsah_ca = Decimal('0.123456')
@@ -1615,7 +1648,7 @@ class ExportBednyCsvActionTests(ActionsBase):
                         self.assertEqual(rows[1][-3:], ['1,5', '', ''])
                     else:
                         self.assertEqual(rows[0][-2:], ['HPM-Nr.', 'kg'])
-                        self.assertEqual(len(rows[0]), 7)
+                        self.assertEqual(len(rows[0]), 10)
                     self.assertEqual(len(rows[0]), len(rows[1]))
 
     def test_export_bedny_to_csv_customer_action_spx_includes_charge(self):
@@ -1833,8 +1866,8 @@ class ExportBednyCsvActionTests(ActionsBase):
         self.assertIsInstance(resp, HttpResponse)
 
         rows = list(csv.reader(io.StringIO(resp.content.decode('utf-8-sig')), delimiter=';'))
-        self.assertEqual(rows[1][0], self.zakazka.artikl)
-        self.assertEqual(rows[2][0], zak2.artikl)
+        self.assertEqual(rows[1][1], self.zakazka.artikl)
+        self.assertEqual(rows[2][1], zak2.artikl)
 
     def test_export_bedny_dl_action_requires_allowed_status_and_single_customer(self):
         self.bedna.stav_bedny = StavBednyChoice.PRIJATO

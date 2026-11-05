@@ -652,6 +652,8 @@ def export_bedny_to_csv_customer_action(modeladmin, request, queryset):
     - Všechny bedny musí patřit jednomu zákazníkovi (podle zakazka__kamion_prijem__zakaznik).
     - Pro schválení před expedicí exportuje tyto sloupce: Artikel-Nr., Behälter-Nr., Abmessung (prumer x delka),
       Kopf (typ_hlavy), Bezeichnung (zkraceny popis), HPM-Nr. (číslo bedny) a kg (hmotnost).
+    - Pro zákazníka EUR mimo rovnání přidá na začátek Vorgang+ (zakazka.prubeh) a za
+      Artikel-Nr. sloupce Materialcharge (sarze) a Fertigungsauftrags-Nr. (vyrobni_zakazka).
     - Pro rovnání exportuje stejné sloupce a navíc Stand (rovnat), Priorität (priorita) 
       a Datum (datum změny rovnat na ROVNA_SE + 7 dní).
     - Pro zákazníka ROT jsou přeloženy názvy sloupců do italštiny.
@@ -705,6 +707,8 @@ def export_bedny_to_csv_customer_action(modeladmin, request, queryset):
             header = ['Batch', 'Nr. Cass', 'Dimensione', '', 'Descrizione', 'HPM-Nr.', 'kg']
         elif zakaznik_zkratka == 'SPX':
             header = ['Artikel-Nr.', 'Charge', 'Belegnummer', 'Behälter-Nr.', 'Abmessung', 'Kopf', 'Bezeichnung', 'HPM-Nr.', 'kg']
+        elif zakaznik_zkratka == 'EUR':
+            header = ['Vorgang+', 'Artikel-Nr.', 'Materialcharge', 'Fertigungsauftrags-Nr.', 'Behälter-Nr.', 'Abmessung', 'Kopf', 'Bezeichnung', 'HPM-Nr.', 'kg']
         else:
             header = ['Artikel-Nr.', 'Behälter-Nr.', 'Abmessung', 'Kopf', 'Bezeichnung', 'HPM-Nr.', 'kg']
 
@@ -762,6 +766,9 @@ def export_bedny_to_csv_customer_action(modeladmin, request, queryset):
 
         if zakaznik_zkratka == "SPX":
             row = [artikl, sarze, vyrobni_zakazka, behalter_nr, abm, typ_hlavy, zkraceny_popis]
+        elif zakaznik_zkratka == 'EUR' and not is_rovnani_export:
+            prubeh = (getattr(zakazka, 'prubeh', '') or '') if zakazka else ''
+            row = [prubeh, artikl, sarze, vyrobni_zakazka, behalter_nr, abm, typ_hlavy, zkraceny_popis]
         else:
             row = [artikl, behalter_nr, abm, typ_hlavy, zkraceny_popis]
         if is_rovnani_export:

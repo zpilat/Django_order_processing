@@ -158,6 +158,7 @@ Expedice:
 Tisk a export:
 
 - Export do CSV (interní, pro zákazníka, pro vložení do DL).
+- Export do CSV pro zákazníka **EUR** mimo rovnání má sloupce v pořadí **Vorgang+**, **Artikel-Nr.**, **Materialcharge**, **Fertigungsauftrags-Nr.**, **Behälter-Nr.**, **Abmessung**, **Kopf**, **Bezeichnung**, **HPM-Nr.**, **kg**. Vorgang+ je údaj zakázky, Materialcharge šarže materiálu bedny a Fertigungsauftrags-Nr. výrobní zakázka bedny. Nevyplněné údaje mají prázdnou buňku; při zapnuté CHEMII následují chemické sloupce na konci. Export pro rovnání ani exporty ostatních zákazníků se tím nemění.
 - Tisk karet bedny, KKK a kombinovaný tisk.
 - Tisk vyplněných KKK: dostupný pro všechny zákazníky; výběr musí patřit jednomu zákazníkovi a všechny bedny musí mít uloženou kontrolu. Společná šablona má české popisy a pomocné popisy podle zkratky státu zákazníka (D/A německy, I italsky, CZ pouze česky).
 - Chemický pohled umožňuje prohlížet chemická měření a použít jejich export.
