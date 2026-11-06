@@ -1,0 +1,37 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'orders/css/documentation.css' %}">
+{% endblock %}
+
+{% block breadcrumbs %}
+  <div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">Domů</a>
+    &rsaquo; Návody a dokumentace &rsaquo; {{ document.title }}
+  </div>
+{% endblock %}
+
+{% block content_title %}{% endblock %}
+
+{% block content %}
+  <div class="documentation">
+    <p class="documentation-back"><a href="{% url 'admin:index' %}#documentation-links">Zpět na seznam návodů</a></p>
+    {% if document_contents %}
+      <details class="documentation-toc" open>
+        <summary>Obsah návodu</summary>
+        <nav aria-label="Obsah návodu">
+          <ul>
+            {% for section in document_contents %}
+              <li><a href="#{{ section.id }}">{{ section.title }}</a></li>
+            {% endfor %}
+          </ul>
+        </nav>
+      </details>
+    {% endif %}
+    <article class="documentation-body" aria-label="{{ document.title }}">
+      {{ document_content|safe }}
+    </article>
+  </div>
+{% endblock %}

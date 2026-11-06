@@ -67,6 +67,13 @@ SQLite (`DJANGO_DB_ENGINE=sqlite`, `db.sqlite3`) is optional; always report its 
 
 User manuals are in Czech:
 
+Active staff users can open the manuals from **Návody a dokumentace** at the
+bottom of the Admin menu. Each link opens an in-app page in a new tab
+(`/admin/navody/<name>/`), with a table of contents and working links to related
+manuals and sections. No model permissions are required to read documentation.
+The pages read the repository files directly; retain `docs/` and `README.md`
+when deploying and edit those files to update the documentation.
+
 | Topic | Manual |
 | --- | --- |
 | Printable guide from receipt to shipment | [Operational quick reference](docs/provozni_tahak.md) |

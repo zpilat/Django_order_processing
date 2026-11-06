@@ -1,6 +1,14 @@
 from django import template
 
+from orders.documentation import DOCUMENTATION_GUIDES
+
 register = template.Library()
+
+
+@register.simple_tag
+def admin_documentation_guides():
+    return DOCUMENTATION_GUIDES
+
 
 ORDERS_ADMIN_SECTIONS = (
     {

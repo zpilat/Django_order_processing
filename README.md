@@ -70,6 +70,14 @@ SQLite (`DJANGO_DB_ENGINE=sqlite`, soubor `db.sqlite3`) je jen volitelná náhra
 
 Manuály jsou v češtině a obsahují postupy, omezení a řešení běžných chyb.
 
+V aplikaci je najdete dole v nabídce administrace v samostatném bloku
+**Návody a dokumentace**. Odkazy otevírají čitelné stránky v nové záložce
+(`/admin/navody/<nazev>/`), včetně obsahu a odkazů na související návody
+a kapitoly. Přístup mají aktivní uživatelé s příznakem staff; oprávnění
+k jednotlivým agendám nejsou pro čtení návodů potřeba. Obsah se načítá přímo
+ze souborů v repozitáři, proto při nasazení zachovejte také adresář `docs/`
+a `README.md`. Návody se upravují v těchto souborech, nikoli v administraci.
+
 | Agenda | Návod |
 | --- | --- |
 | Stručný postup od příjmu po expedici pro obsluhu | [Provozní tahák](docs/provozni_tahak.md) |

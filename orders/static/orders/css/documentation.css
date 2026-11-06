@@ -1,0 +1,86 @@
+.documentation {
+  max-width: 1100px;
+  min-width: 0;
+}
+
+.documentation-toc {
+  background: var(--darkened-bg);
+  border: 1px solid var(--hairline-color);
+  border-radius: 4px;
+  margin: 20px 0;
+  padding: 14px 20px;
+}
+
+.documentation-toc summary {
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.documentation-body {
+  overflow-x: auto;
+  overflow-wrap: anywhere;
+  padding: 4px 0;
+}
+
+.documentation-body p,
+.documentation-body li,
+.documentation-toc li {
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.documentation-body h1 {
+  color: var(--body-fg);
+  font-size: 26px;
+  line-height: 1.3;
+}
+
+.documentation-body h2 {
+  margin-top: 30px;
+}
+
+.documentation-body h3 {
+  margin-top: 22px;
+}
+
+.documentation-body table {
+  width: 100%;
+  margin: 18px 0;
+}
+
+.documentation-body th,
+.documentation-body td {
+  padding: 10px;
+  line-height: 1.5;
+  vertical-align: top;
+  border: 1px solid var(--hairline-color);
+}
+
+.documentation-body th {
+  background: var(--darkened-bg);
+}
+
+.documentation-body pre {
+  background: var(--darkened-bg);
+  padding: 14px;
+  overflow-x: auto;
+}
+
+.documentation-body code {
+  font-size: 0.95em;
+}
+
+@media print {
+  #header, #nav-sidebar, .breadcrumbs, .documentation-back, .documentation-toc {
+    display: none !important;
+  }
+
+  .main > .content {
+    margin: 0 !important;
+  }
+
+  .documentation, .documentation-body {
+    max-width: none;
+    overflow: visible;
+  }
+}

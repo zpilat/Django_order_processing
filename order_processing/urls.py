@@ -17,8 +17,14 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from orders.views import home_view, logout_view
+from orders.documentation import documentation_view
 
 urlpatterns = [
+    path(
+        'admin/navody/<slug:slug>/',
+        admin.site.admin_view(documentation_view),
+        name='admin_documentation',
+    ),
     path('admin/', admin.site.urls), # Admin site for managing the application
     path('', home_view, name='home'),
     path('accounts/logout/', logout_view, name='logout'),

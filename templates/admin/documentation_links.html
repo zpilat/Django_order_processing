@@ -1,0 +1,21 @@
+{% load admin_sections %}
+{% if request.user.is_active and request.user.is_staff %}
+  {% admin_documentation_guides as documentation_guides %}
+  <div class="app-dokumentace module"{% if show_changelinks %} id="documentation-links"{% endif %}>
+    <table>
+      <caption><span class="section">Návody a dokumentace</span></caption>
+      <thead class="visually-hidden">
+        <tr><th scope="col">Návod</th></tr>
+      </thead>
+      <tbody>
+        {% for guide in documentation_guides %}
+          <tr class="model-navod-{{ guide.slug }}">
+            <th scope="row">
+              <a href="{% url 'admin_documentation' guide.slug %}" target="_blank" rel="noopener">{{ guide.title }}</a>
+            </th>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endif %}

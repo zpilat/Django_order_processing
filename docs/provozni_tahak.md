@@ -42,6 +42,12 @@ Tlačítko **Dokončit kontrolu bedny** použijte ve stavu **Zakaleno**. Při po
 
 ## Kde pokračovat
 
+Uživatelé administrace najdou dole v její nabídce blok **Návody a dokumentace**.
+Každý návod se otevře v nové záložce přímo v aplikaci. Pro delší texty použijte
+**Obsah návodu** nebo odkazy na související návody; odkaz **Zpět na seznam návodů**
+vás vrátí na tento blok v administraci. Návody vyžadují aktivní účet s příznakem
+staff, bez dalších oprávnění k agendám.
+
 - Nakládání: **Přehled nakládání** — `/provozni-prehledy/`.
 - Výroba: **Ostatní pracoviště** — `/prehled-pracovist/`; čtečka šarží — `/sarze/skener-ctecka/`.
 - Kontrola: **Přehled kontroly** — `/prehled-kontroly/`; **Přehled neshod** — `/prehled-neshod/`.

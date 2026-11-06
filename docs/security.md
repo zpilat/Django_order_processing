@@ -6,6 +6,13 @@ Aktualizováno 23. října 2026 podle repozitáře, provozních ověření z 6.�
 
 ## Přihlášení a oprávnění
 
+Čtení návodů na `/admin/navody/<nazev>/` vyžaduje aktivní staff účet a je
+chráněné stejnou kontrolou přístupu jako administrace. Nevyžaduje oprávnění
+k jednotlivým modelům. Dostupné dokumenty jsou výslovně vyjmenované v kódu;
+URL neumožňuje číst libovolné soubory repozitáře. Markdown se vykresluje
+se zakázaným vloženým HTML a odkazy mezi povolenými dokumenty vedou do aplikace.
+Odkazy na zdrojové soubory mimo tento seznam se zobrazují jen jako text.
+
 Projekt používá autentizaci a relace Djanga. Administrace vyžaduje účet s příznakem staff a příslušná oprávnění; provozní obrazovky jsou dostupné přihlášeným uživatelům podle oprávnění dané operace.
 
 Speciální oprávnění řídí úpravy expedovaných a pozastavených beden, nepřijatých beden a jejich poznámek, navezení, označení jako zakalené či zkontrolované a řízení šarží. Podrobnosti jsou v [manuálu beden](manual_bedna.md), [kontroly](manual_kontrola_beden.md) a [rychlého založení šarže](manual_rychle_zalozeni_sarze.md).
