@@ -30,7 +30,7 @@
         </nav>
       </details>
     {% endif %}
-    <article class="documentation-body" aria-label="{{ document.title }}">
+    <article class="documentation-body" data-document="{{ document.slug }}" aria-label="{{ document.title }}">
       {{ document_content|safe }}
     </article>
   </div>

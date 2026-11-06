@@ -60,6 +60,20 @@
   background: var(--darkened-bg);
 }
 
+.documentation-body[data-document="provozni-tahak"] #běžný-pracovní-postup + table {
+  table-layout: fixed;
+}
+
+.documentation-body[data-document="provozni-tahak"] #běžný-pracovní-postup + table th:first-child,
+.documentation-body[data-document="provozni-tahak"] #běžný-pracovní-postup + table td:first-child {
+  width: 14%;
+  overflow-wrap: normal;
+}
+
+.documentation-body[data-document="provozni-tahak"] #běžný-pracovní-postup + table th:last-child {
+  width: 48%;
+}
+
 .documentation-body pre {
   background: var(--darkened-bg);
   padding: 14px;
