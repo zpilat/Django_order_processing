@@ -68,9 +68,10 @@ SQLite (`DJANGO_DB_ENGINE=sqlite`, `db.sqlite3`) is optional; always report its 
 User manuals are in Czech:
 
 Active staff users can open the manuals from **Návody a dokumentace** at the
-bottom of the Admin menu. Each link opens an in-app page in a new tab
-(`/admin/navody/<name>/`), with a table of contents and working links to related
-manuals and sections. No model permissions are required to read documentation.
+bottom of the Admin menu. Opening a manual from the Admin starts a new tab
+(`/admin/navody/<name>/`); once reading documentation, menu links and related
+manuals navigate within that tab. Pages include a table of contents and links
+to sections. No model permissions are required to read documentation.
 The pages read the repository files directly; retain `docs/` and `README.md`
 when deploying and edit those files to update the documentation.
 
@@ -81,6 +82,11 @@ when deploying and edit those files to update the documentation.
 | Crates, states, actions and scanning | [Crates](docs/manual_bedna.md) |
 | Loading a batch, rack floors and traveler printing | [Quick batch creation with crates](docs/manual_rychle_zalozeni_sarze.md) |
 | Measurements, release and nonconformities | [Crate inspection](docs/manual_kontrola_beden.md) |
+| Customers, quality settings, specifications, prices and workstations | [Reference data and customer settings](docs/manual_ciselniky.md) |
+| Receipt errors, production and measurement corrections, shipment returns | [Exceptional situations and corrections](docs/manual_mimoradne_situace.md) |
+| Crate, inspection and batch states, automatic updates and blockers | [States and automatic rules](docs/manual_stavy_a_pravidla.md) |
+| Actual development database groups, their permissions and access management | [Roles and permissions](docs/manual_role_a_opravneni.md) |
+| Dashboard metrics, calculations and differences between current and historical data | [Dashboards and metric definitions](docs/manual_prehledy_a_ukazatele.md) |
 | Order receipt, completeness and shipment | [Orders](docs/manual_zakazka.md) |
 | Truck imports, receipt, shipment and documents | [Trucks](docs/manual_kamion.md) |
 | Batch steps, logs and transfers | [Batch step log](docs/manual_denik_pece.md) |

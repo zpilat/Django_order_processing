@@ -71,9 +71,10 @@ SQLite (`DJANGO_DB_ENGINE=sqlite`, soubor `db.sqlite3`) je jen volitelná náhra
 Manuály jsou v češtině a obsahují postupy, omezení a řešení běžných chyb.
 
 V aplikaci je najdete dole v nabídce administrace v samostatném bloku
-**Návody a dokumentace**. Odkazy otevírají čitelné stránky v nové záložce
-(`/admin/navody/<nazev>/`), včetně obsahu a odkazů na související návody
-a kapitoly. Přístup mají aktivní uživatelé s příznakem staff; oprávnění
+**Návody a dokumentace**. První otevření z administrace vytvoří novou záložku
+(`/admin/navody/<nazev>/`); při čtení dokumentace se další návody z nabídky
+i souvisejících odkazů otevřou ve stávající záložce. Stránky obsahují obsah
+a odkazy na kapitoly. Přístup mají aktivní uživatelé s příznakem staff; oprávnění
 k jednotlivým agendám nejsou pro čtení návodů potřeba. Obsah se načítá přímo
 ze souborů v repozitáři, proto při nasazení zachovejte také adresář `docs/`
 a `README.md`. Návody se upravují v těchto souborech, nikoli v administraci.
@@ -86,6 +87,11 @@ a `README.md`. Návody se upravují v těchto souborech, nikoli v administraci.
 | Nakládání, patra, rozdělení roštu a průvodka | [Rychlé založení šarže s bednami](docs/manual_rychle_zalozeni_sarze.md) |
 | Měření, výstupní kontrola, uvolnění a neshody | [Kontrola beden](docs/manual_kontrola_beden.md) |
 | Uložené případy neshod, výchozí měření a požadavky | [Evidence neshod](docs/manual_evidence_neshod.md) |
+| Zákazníci, kontrolní nastavení, předpisy, ceny a pracoviště | [Číselníky a nastavení zákazníka](docs/manual_ciselniky.md) |
+| Chybné příjmy, opravy výroby a měření, vrácení expedice | [Mimořádné situace a opravy](docs/manual_mimoradne_situace.md) |
+| Vztahy stavů bedny, kontroly a šarže, automatické změny a blokace | [Stavy a automatická pravidla](docs/manual_stavy_a_pravidla.md) |
+| Skutečné skupiny z vývojové databáze, jejich práva a správa přístupu | [Role a oprávnění](docs/manual_role_a_opravneni.md) |
+| Význam přehledů, výpočty ukazatelů a rozdíly mezi aktuálními a historickými daty | [Přehledy a význam ukazatelů](docs/manual_prehledy_a_ukazatele.md) |
 | Příjem, kompletnost a expedice zakázek | [Zakázky](docs/manual_zakazka.md) |
 | Importy, příjem a výdej kamionů, doklady | [Kamiony](docs/manual_kamion.md) |
 | Šarže, kroky, deník a přesuny | [Deník beden v krocích šarže](docs/manual_denik_pece.md) |

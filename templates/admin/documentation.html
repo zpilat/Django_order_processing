@@ -6,6 +6,11 @@
   <link rel="stylesheet" href="{% static 'orders/css/documentation.css' %}">
 {% endblock %}
 
+{% block extrahead %}
+  {{ block.super }}
+  <script src="{% static 'orders/js/documentation.js' %}" defer></script>
+{% endblock %}
+
 {% block breadcrumbs %}
   <div class="breadcrumbs">
     <a href="{% url 'admin:index' %}">Domů</a>

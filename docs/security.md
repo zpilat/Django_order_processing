@@ -15,6 +15,8 @@ Odkazy na zdrojové soubory mimo tento seznam se zobrazují jen jako text.
 
 Projekt používá autentizaci a relace Djanga. Administrace vyžaduje účet s příznakem staff a příslušná oprávnění; provozní obrazovky jsou dostupné přihlášeným uživatelům podle oprávnění dané operace.
 
+Skutečné skupiny a jejich oprávnění načtené 6. listopadu 2026 z vývojové databáze, spolu s postupem nástupu, změny role a deaktivace účtu, jsou v návodu [Role a přidělování oprávnění](manual_role_a_opravneni.md). Podle správce projektu jde o aktuální kopii produkce; produkční databáze nebyla samostatně čtena. Soupis je snímek, nikoli automaticky aktualizovaný přehled.
+
 Speciální oprávnění řídí úpravy expedovaných a pozastavených beden, nepřijatých beden a jejich poznámek, navezení, označení jako zakalené či zkontrolované a řízení šarží. Podrobnosti jsou v [manuálu beden](manual_bedna.md), [kontroly](manual_kontrola_beden.md) a [rychlého založení šarže](manual_rychle_zalozeni_sarze.md).
 
 Režim FAUF pro SPX používá stávající oprávnění: vedle `change_bedna` vyžaduje

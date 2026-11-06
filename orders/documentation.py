@@ -15,13 +15,18 @@ from markdown_it import MarkdownIt
 DOCUMENTATION_GUIDES = (
     {'slug': 'provozni-tahak', 'title': 'Provozní tahák', 'path': 'docs/provozni_tahak.md'},
     {'slug': 'bedny', 'title': 'Bedny', 'path': 'docs/manual_bedna.md'},
-    {'slug': 'kamiony', 'title': 'Kamiony', 'path': 'docs/manual_kamion.md'},
     {'slug': 'zakazky', 'title': 'Zakázky', 'path': 'docs/manual_zakazka.md'},
-    {'slug': 'rychle-zalozeni-sarze', 'title': 'Rychlé založení šarže', 'path': 'docs/manual_rychle_zalozeni_sarze.md'},
-    {'slug': 'pruchod-sarze', 'title': 'Průchod šarže výrobou', 'path': 'docs/manual_pruchod_sarze.md'},
+    {'slug': 'kamiony', 'title': 'Kamiony', 'path': 'docs/manual_kamion.md'},
     {'slug': 'denik', 'title': 'Deník beden v krocích šarže', 'path': 'docs/manual_denik_pece.md'},
+    {'slug': 'pruchod-sarze', 'title': 'Průchod šarže výrobou', 'path': 'docs/manual_pruchod_sarze.md'},
+    {'slug': 'rychle-zalozeni-sarze', 'title': 'Rychlé založení šarže', 'path': 'docs/manual_rychle_zalozeni_sarze.md'},
     {'slug': 'kontrola-beden', 'title': 'Kontrola beden', 'path': 'docs/manual_kontrola_beden.md'},
     {'slug': 'evidence-neshod', 'title': 'Evidence neshod', 'path': 'docs/manual_evidence_neshod.md'},
+    {'slug': 'ciselniky', 'title': 'Číselníky a nastavení zákazníka', 'path': 'docs/manual_ciselniky.md'},
+    {'slug': 'prehledy-a-ukazatele', 'title': 'Přehledy a význam ukazatelů', 'path': 'docs/manual_prehledy_a_ukazatele.md'},
+    {'slug': 'mimoradne-situace', 'title': 'Mimořádné situace a opravy', 'path': 'docs/manual_mimoradne_situace.md'},
+    {'slug': 'stavy-a-pravidla', 'title': 'Stavy a automatická pravidla', 'path': 'docs/manual_stavy_a_pravidla.md'},
+    {'slug': 'role-a-opravneni', 'title': 'Role a oprávnění', 'path': 'docs/manual_role_a_opravneni.md'},
 )
 
 # These documents are linked from manuals, but do not clutter the operator menu.

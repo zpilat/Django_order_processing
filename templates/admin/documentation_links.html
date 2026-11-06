@@ -11,7 +11,7 @@
         {% for guide in documentation_guides %}
           <tr class="model-navod-{{ guide.slug }}">
             <th scope="row">
-              <a href="{% url 'admin_documentation' guide.slug %}" target="_blank" rel="noopener">{{ guide.title }}</a>
+              <a href="{% url 'admin_documentation' guide.slug %}"{% if request.resolver_match.url_name != 'admin_documentation' %} target="_blank" rel="noopener"{% endif %}>{{ guide.title }}</a>
             </th>
           </tr>
         {% endfor %}

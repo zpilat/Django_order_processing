@@ -32,6 +32,12 @@ Tlačítko **Dokončit kontrolu bedny** použijte ve stavu **Zakaleno**. Při po
 
 ## Když se práce zastaví
 
+Opravy chybného příjmu, zařazení do šarže, měření nebo již provedené expedice popisují [Mimořádné situace a opravy](manual_mimoradne_situace.md). Chybějící zákaznické požadavky, předpisy a ceny řeší [Číselníky a nastavení zákazníka](manual_ciselniky.md).
+
+Vztahy výrobních a technologických stavů vysvětlují [Stavy a automatická pravidla](manual_stavy_a_pravidla.md). Potřebná oprávnění a přidělování přístupu shrnují [Role a oprávnění](manual_role_a_opravneni.md).
+
+Význam souhrnů skladu, kompletnosti zakázek, výkonů výroby, rovnání a uložené rozpracovanosti vysvětlují [Přehledy a význam ukazatelů](manual_prehledy_a_ukazatele.md), včetně rozdílů mezi jednotlivými obrazovkami.
+
 | Situace | První krok |
 | --- | --- |
 | Bedna nejde vložit do šarže | Ověřit výrobní stav a pozastavení. Nepřijato, K expedici a Expedováno nejsou pro vložení povolené. |
@@ -43,7 +49,7 @@ Tlačítko **Dokončit kontrolu bedny** použijte ve stavu **Zakaleno**. Při po
 ## Kde pokračovat
 
 Uživatelé administrace najdou dole v její nabídce blok **Návody a dokumentace**.
-Každý návod se otevře v nové záložce přímo v aplikaci. Pro delší texty použijte
+První návod z administrace se otevře v nové záložce přímo v aplikaci. Při čtení dokumentace další návody z nabídky i odkazů změní obsah ve stejné záložce. Pro delší texty použijte
 **Obsah návodu** nebo odkazy na související návody; odkaz **Zpět na seznam návodů**
 vás vrátí na tento blok v administraci. Návody vyžadují aktivní účet s příznakem
 staff, bez dalších oprávnění k agendám.

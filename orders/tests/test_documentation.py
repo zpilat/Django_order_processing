@@ -6,6 +6,7 @@ from urllib.parse import unquote, urlsplit
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import SimpleTestCase, TestCase, override_settings
+from django.templatetags.static import static
 from django.urls import reverse
 
 from orders.documentation import (
@@ -18,6 +19,7 @@ class DocumentHTML(HTMLParser):
         super().__init__()
         self.ids = set()
         self.links = []
+        self.link_attributes = []
         self.feed(content)
 
     def handle_starttag(self, tag, attrs):
@@ -26,6 +28,7 @@ class DocumentHTML(HTMLParser):
             self.ids.add(attrs['id'])
         if tag == 'a' and 'href' in attrs:
             self.links.append(attrs['href'])
+            self.link_attributes.append(attrs)
 
 
 class DocumentationRenderingTests(SimpleTestCase):
@@ -103,6 +106,7 @@ class DocumentationViewTests(TestCase):
                 )
 
     def test_staff_without_model_permissions_can_read_all_documents(self):
+        """Všechny návody jsou čitelné a načítají ovládání postranního panelu."""
         self.client.force_login(self.staff)
         self.assertFalse(self.staff.get_all_permissions())
         for document in DOCUMENTS_BY_SLUG.values():
@@ -112,11 +116,17 @@ class DocumentationViewTests(TestCase):
                 self.assertTemplateUsed(response, 'admin/documentation.html')
                 self.assertContains(response, 'Obsah návodu')
                 self.assertContains(response, 'Zpět na seznam návodů')
+                self.assertContains(
+                    response,
+                    f'<script src="{static("orders/js/documentation.js")}" defer></script>',
+                    html=True,
+                )
 
     def test_documentation_block_follows_existing_admin_sections(self):
         self.client.force_login(self.staff)
         response = self.client.get(reverse('admin:index'))
         self.assertContains(response, 'id="documentation-links"')
+        self.assertNotContains(response, static('orders/js/documentation.js'))
         content = response.content.decode()
         self.assertGreater(content.index('app-dokumentace'), content.index('Přehledy výroby'))
         for guide in DOCUMENTATION_GUIDES:
@@ -128,6 +138,7 @@ class DocumentationViewTests(TestCase):
             )
 
     def test_manual_contains_links_to_other_manuals_and_czech_sections(self):
+        """Odkazy v otevřeném návodu zachovají panel i správné kotvy kapitol."""
         self.client.force_login(self.staff)
         response = self.client.get(reverse('admin_documentation', args=['provozni-tahak']))
         html = DocumentHTML(response.content.decode())
@@ -135,6 +146,18 @@ class DocumentationViewTests(TestCase):
             f'{self.url}#5-potvrzení-výrobního-stavu',
             [unquote(link) for link in html.links],
         )
+        guide_urls = {
+            reverse('admin_documentation', args=[guide['slug']])
+            for guide in DOCUMENTATION_GUIDES
+        }
+        sidebar_urls = {
+            link['href'] for link in html.link_attributes
+            if link['href'] in guide_urls
+        }
+        self.assertEqual(sidebar_urls, guide_urls)
+        for link in html.link_attributes:
+            if urlsplit(link['href']).path in guide_urls:
+                self.assertNotIn('target', link)
         response = self.client.get(self.url)
         self.assertContains(response, 'id="5-potvrzení-výrobního-stavu"')
 
