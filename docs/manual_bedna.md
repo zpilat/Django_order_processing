@@ -36,6 +36,10 @@ Prakticky:
 - `pozice`: používá se při stavech navezení.
 - `pozastaveno`: blokace práce s bednou.
 - `fakturovat`: zda se bedna započítává do fakturace.
+- `fauf`: nepovinné celé nezáporné číslo FAUF pro dodací list SPX. Import ho
+  nevyplňuje. V detailu existující bedny SPX je ve Speciálních informacích;
+  u ostatních zákazníků je skryté. Při vytváření bedny je dostupné bez omezení
+  zákazníka. Změny se ukládají také do historie bedny.
 
 Část **Kontrola kvality** v detailu bedny zobrazuje uložené výsledky a stavy kontroly. Za údajem **Otryskaná?** je **Vyrovnaná?**: zelená fajfka znamená stav Vyrovnaná, ostatní stavy zobrazují pomlčku. Tabulka obsahuje za sloupcem **Předepsáno** samostatný sloupec **Rozsah měření** s minimem vzorků nebo hodnot podle nastavení zákazníka, například **Min. 5 vzorků** či **Min. 5 hodnot z 25 vzorků**. Zápis a úpravy se otevírají odkazem **Otevřít kontrolu a měření**.
 
@@ -106,6 +110,31 @@ Zjednodušeně:
 Poznámka: seznam také obsahuje polling změn (automatická kontrola nových změn v intervalu).
 
 Rozpracované změny v seznamu nejprve uložte tlačítkem Uložit. Při odchodu ze seznamu může aplikace upozornit na neuložené úpravy; samotná změna filtru nebo spuštění jiné obrazovky údaje neukládá.
+
+### Doplňování FAUF pro SPX
+
+Z detailu kamionu SPX otevřete **Doplnit FAUF**. Jde o běžný seznam beden
+omezený na daný kamion, s parametrem `fauf=1`; u kamionu výdej se přidává
+`stav_bedny=EX`. Sloupec **FAUF** je hned za Zakázkou, Poznámka HPM je skrytá.
+Místo čísla bedny zákazníka se vedle interního čísla bedny zobrazuje
+**FA / Bestell-Nr.** (`vyrobni_zakazka`), podle kterého lze bednu dohledat
+na zákaznických průvodkách. Výrobní zakázka je pouze pro čtení.
+Bez výběru konkrétního stavu režim FAUF zahrnuje všechny stavy, včetně
+Nepřijato a Expedováno; výchozí omezení běžného seznamu na sklad zde neplatí.
+Editovat lze pouze FAUF a více řádků uložit najednou tlačítkem **Uložit**.
+Políčko má prostor pro celé osmimístné číslo; prázdnou hodnotu lze uložit také.
+
+Platí běžné oprávnění ke změně bedny a příslušná zvláštní oprávnění:
+u Nepřijato `change_neprijata_bedna` (oprávnění pouze k poznámce nestačí),
+u Expedováno `change_expedovana_bedna`, u pozastavené bedny také
+`change_pozastavena_bedna`. Oprávnění se kontroluje u jednotlivých řádků
+i před uložením aktuálního záznamu. Běžný seznam Expedováno zůstává
+needitovatelný. Na mobilu ani při filtru Pozastaveno není inline editace dostupná.
+
+Odkaz **Ukončit doplňování FAUF** odstraní jen parametr režimu; ostatní filtry
+zůstanou zachované. Přechod na **Chemie** ukončí FAUF a zapne chemický pohled.
+Před změnou pohledu či stránky rozpracované hodnoty nejprve uložte.
+Podrobnosti o tisku a upozornění na chybějící čísla jsou v [manuálu kamionů](manual_kamion.md).
 
 ## 7. Filtry v BednaAdmin
 

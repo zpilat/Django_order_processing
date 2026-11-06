@@ -15,6 +15,13 @@ window.adminModelPollConfig = {
 {% endblock %}
 
 {% block object-tools-items %}
+{% if fauf_view_active %}
+<li>
+    <a href="{{ fauf_view_exit_url }}" class="viewsitelink">
+        Ukončit doplňování FAUF
+    </a>
+</li>
+{% endif %}
 {% if show_chemistry_view_button %}
 <li>
     <a href="{{ chemistry_view_toggle_url }}" class="viewsitelink">

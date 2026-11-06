@@ -20,7 +20,7 @@ import calendar
 import uuid
 from urllib.parse import urlencode
 from django.db import transaction
-from django.contrib import messages
+from django.contrib import admin, messages
 from django.contrib.staticfiles import finders
 from django.http import Http404, HttpResponseBadRequest, HttpResponse, JsonResponse
 from django.conf import settings
@@ -4697,6 +4697,41 @@ def dodaci_list_kamion_vydej_pdf_view(request, pk: int):
     zakaznik_zkratka = getattr(kamion.zakaznik, 'zkratka', None)
     if not zakaznik_zkratka:
         return HttpResponse("Kamion nemá zkratku zákazníka", status=400)
+    if zakaznik_zkratka == 'SPX' and request.GET.get('bez_fauf') != '1':
+        missing_fauf = Bedna.objects.filter(
+            zakazka__kamion_vydej=kamion,
+            fauf__isnull=True,
+        ).order_by('cislo_bedny')
+        missing_fauf_count = missing_fauf.count()
+
+        if missing_fauf_count:
+            context = {
+                **admin.site.each_context(request),
+                'title': 'Dodací list SPX - chybí FAUF',
+                'missing_fauf_count': missing_fauf_count,
+                'missing_fauf_numbers': list(
+                    missing_fauf.values_list('cislo_bedny', flat=True)[:20]
+                ),
+                'doplnit_fauf_url': reverse(
+                    'admin:orders_bedna_changelist',
+                    query={
+                        'fauf': '1',
+                        'zakaznik': 'SPX',
+                        'zakazka__kamion_vydej__id__exact': kamion.pk,
+                        'stav_bedny': StavBednyChoice.EXPEDOVANO,
+                    },
+                ),
+                'pdf_url': reverse(
+                    'dodaci_list_kamion_vydej_pdf',
+                    args=[kamion.pk],
+                    query={'bez_fauf': '1'},
+                ),
+            }
+            return render(
+                request,
+                'orders/dodaci_list_fauf_upozorneni.html',
+                context,
+            )
 
     html_path = f"orders/dodaci_list/dodaci_list_{zakaznik_zkratka.lower()}.html"
     cislo_dl_raw = kamion.cislo_dl or f"kamion_{kamion}"

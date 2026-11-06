@@ -1,0 +1,29 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<ul class="messagelist">
+    <li class="warning">
+        Počet beden bez vyplněného FAUF: {{ missing_fauf_count }}.
+        Dodací list můžete vytisknout i bez doplnění.
+    </li>
+</ul>
+
+<p>
+    Bedny bez FAUF:
+    {{ missing_fauf_numbers|join:", " }}{% if missing_fauf_count > 20 %}, …{% endif %}
+</p>
+
+{% if missing_fauf_count > 20 %}
+<p>Zobrazeno je prvních 20 čísel beden.</p>
+{% endif %}
+
+<p style="display: flex; flex-wrap: wrap; gap: 12px;">
+    <a href="{{ doplnit_fauf_url }}" class="button">
+        Doplnit FAUF
+    </a>
+    <a href="{{ pdf_url }}" class="button"
+       style="background-color: #ffde17; color: #214290;">
+        Otevřít PDF i bez FAUF
+    </a>
+</p>
+{% endblock %}

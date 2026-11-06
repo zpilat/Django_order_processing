@@ -98,6 +98,7 @@ logger = logging.getLogger('orders')
 
 CHEMIE_VIEW_PARAM = 'chemie'
 CHEMIE_VIEW_PERMISSION = 'orders.filter_chemistry_bedna'
+FAUF_VIEW_PARAM = 'fauf'
 
 
 class ChoiceLabelsHistoricalRecordContextHelper(HistoricalRecordContextHelper):
@@ -132,6 +133,7 @@ class BednaChangeList(ChangeList):
     def get_filters_params(self, params=None):
         lookup_params = super().get_filters_params(params)
         lookup_params.pop(CHEMIE_VIEW_PARAM, None)
+        lookup_params.pop(FAUF_VIEW_PARAM, None)
         return lookup_params
 
 
@@ -1461,6 +1463,32 @@ class KamionAdmin(HistoryViewOnlyAdmin):
         """
         return obj.pocet_beden_skladem
 
+    @admin.display(description='FAUF')
+    def get_doplnit_fauf(self, obj):
+        if not obj or not obj.pk or obj.zakaznik.zkratka != 'SPX':
+            return '-'
+
+        truck_filter = (
+            'zakazka__kamion_prijem__id__exact'
+            if obj.prijem_vydej == KamionChoice.PRIJEM
+            else 'zakazka__kamion_vydej__id__exact'
+        )
+        query = {
+            FAUF_VIEW_PARAM: '1',
+            'zakaznik': 'SPX',
+            truck_filter: obj.pk,
+        }
+        if obj.prijem_vydej == KamionChoice.VYDEJ:
+            query['stav_bedny'] = StavBednyChoice.EXPEDOVANO
+        url = reverse(
+            'admin:orders_bedna_changelist',
+            query=query,
+        )
+        return format_html(
+            '<a class="button" href="{}">Doplnit FAUF</a>',
+            url,
+        )
+
     # --- UX blokace mazání kamionu ---
     def _delete_blockers(self, obj):
         """
@@ -1570,6 +1598,11 @@ class KamionAdmin(HistoryViewOnlyAdmin):
             fields = [f for f in fields if f not in ('prijem_vydej', 'odberatel', 'poznamka', 'text_upozorneni', 'prepsani_hmotnosti_brutto', 'get_struktura_kamionu')]
         if obj and obj.prijem_vydej == KamionChoice.PRIJEM:
             fields = [f for f in fields if f not in ('odberatel', 'poznamka', 'text_upozorneni', 'prepsani_hmotnosti_brutto')]
+        if obj and obj.pk and obj.zakaznik.zkratka == 'SPX':
+            fields.insert(
+                fields.index('get_struktura_kamionu'),
+                'get_doplnit_fauf'
+            )
         return fields
 
     def get_readonly_fields(self, request, obj=None):
@@ -1580,6 +1613,8 @@ class KamionAdmin(HistoryViewOnlyAdmin):
         rof = list(super().get_readonly_fields(request, obj)) or []
         if obj:
             rof.append('zakaznik')
+            if obj.zakaznik.zkratka == 'SPX':
+                rof.append('get_doplnit_fauf')
         if obj and obj.prijem_vydej == KamionChoice.VYDEJ:
             rof.append('cislo_dl')
         return rof
@@ -3140,7 +3175,9 @@ class BednaAdmin(HistoryViewOnlyAdmin):
         return request.path
 
     def lookup_allowed(self, key, value):
-        """Povolí drilldown lookupy pro obě datové hierarchie (příjem/výdej)."""
+        """Povolí filtry konkrétního kamionu a drilldown lookupy pro obě datové hierarchie (příjem/výdej)."""
+        if key in ('zakazka__kamion_prijem__id__exact', 'zakazka__kamion_vydej__id__exact',):
+            return True
         if key.startswith('zakazka__kamion_prijem__datum__') or key.startswith('zakazka__kamion_vydej__datum__'):
             return True
         return super().lookup_allowed(key, value)
@@ -3152,10 +3189,37 @@ class BednaAdmin(HistoryViewOnlyAdmin):
         return (
             request.GET.get(CHEMIE_VIEW_PARAM) == '1'
             and request.user.has_perm(CHEMIE_VIEW_PERMISSION)
+            and not self._is_fauf_view(request)
         )
+
+    def _is_fauf_view(self, request):
+        return request.GET.get(FAUF_VIEW_PARAM) == '1'
+
+    def _can_change_fauf(self, request, obj):
+        if not obj.pk or not obj.zakazka_id:
+            return False
+        if not self.has_change_permission(request):
+            return False
+        if obj.zakazka.kamion_prijem.zakaznik.zkratka != 'SPX':
+            return False
+        state_permission = {
+            StavBednyChoice.NEPRIJATO: 'orders.change_neprijata_bedna',
+            StavBednyChoice.EXPEDOVANO: 'orders.change_expedovana_bedna',
+        }.get(obj.stav_bedny)
+        if state_permission and not request.user.has_perm(state_permission):
+            return False
+        return self.has_change_permission(request, obj)
+
+    def _get_fauf_exit_url(self, request):
+        query_params = request.GET.copy()
+        query_params.pop(FAUF_VIEW_PARAM, None)
+        encoded = query_params.urlencode()
+        return f'{request.path}?{encoded}' if encoded else request.path
 
     def _get_chemistry_view_toggle_url(self, request):
         query_params = request.GET.copy()
+        query_params.pop(FAUF_VIEW_PARAM, None)
+
         if self._is_chemistry_view(request):
             query_params.pop(CHEMIE_VIEW_PARAM, None)
         else:
@@ -3759,6 +3823,11 @@ class BednaAdmin(HistoryViewOnlyAdmin):
         if request.GET.get('stav_bedny') == StavBednyChoice.ZKONTROLOVANO:
             qs = qs.select_related('kontrola')
 
+        if self._is_fauf_view(request):
+            qs = qs.filter(
+                zakazka__kamion_prijem__zakaznik__zkratka='SPX'
+            ).select_related('zakazka__kamion_prijem__zakaznik')
+
         return qs
 
     def get_fieldsets(self, request, obj=None):
@@ -3788,7 +3857,7 @@ class BednaAdmin(HistoryViewOnlyAdmin):
                 'pozice',
             )),
             ("Speciální informace", (
-                'dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka'
+                'dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka', 'fauf'
             )),
             ('Prodejní cena', (
                 'cena_za_kg', 'cena_za_bednu', 'cena_rovnani_za_kg', 'cena_rovnani_za_bednu',
@@ -3809,11 +3878,13 @@ class BednaAdmin(HistoryViewOnlyAdmin):
             zakaznik = getattr(getattr(getattr(obj, 'zakazka', None), 'kamion_prijem', None), 'zakaznik', None)
             zkratka = getattr(zakaznik, 'zkratka', None)
             if zkratka == 'ROT':
-                exclude_fields = ['dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka']
+                exclude_fields = ['dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka', 'fauf']
             elif zkratka in ('SSH', 'SWG', 'HPM', 'FIS'):
-                exclude_fields = ['behalter_nr', 'dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka']
+                exclude_fields = ['behalter_nr', 'dodatecne_info', 'dodavatel_materialu', 'vyrobni_zakazka', 'fauf']
             elif zkratka == 'SPX':
                 exclude_fields = ['dodatecne_info', 'dodavatel_materialu']
+            else:
+                exclude_fields = ['fauf']
             # Pokud je vyplněna tara a je větší než 0, skryje se pole brutto
             if obj.tara is not None and obj.tara > 0:
                 exclude_fields.append('brutto')
@@ -3866,8 +3937,10 @@ class BednaAdmin(HistoryViewOnlyAdmin):
         Dynamicky určí, která pole jsou inline-editovatelná v changelistu.
         Standarně jsou editovatelná pole: stav_bedny, tryskat, rovnát, zinkovat, hmotnost, tara, poznamka.
         Podmínky (podle původní logiky/testů):
+        - V režimu FAUF je editovatelné pouze fauf; u Nepřijato a Expedováno
+          se vyžaduje příslušné stávající oprávnění k úpravě bedny.
         - Pokud je zařízení mobil => žádná inline editace.
-        - Pokud je filtr stav_bedny = StavBednyChoice.EXPEDOVANO nebo pozastaveno=True => žádná inline editace.
+        - Filtr EXPEDOVANO vypíná běžnou inline editaci; filtr pozastaveno=True vypíná veškerou inline editaci.
         - Pokud je filtr stav_bedny = StavBednyChoice.NEPRIJATO a uživatel nemá oprávnění
           change_neprijata_bedna ani change_poznamka_neprijata_bedna => žádná inline editace.
         - Pokud je stav_bedny == StavBednyChoice.NEPRIJATO a uživatel má oprávnění change_neprijata_bedna, přidá se i mnozstvi.
@@ -3887,7 +3960,23 @@ class BednaAdmin(HistoryViewOnlyAdmin):
         pozastaveno_filter = request.GET.get('pozastaveno')
         zinkovani_aktivni_filter = request.GET.get('zinkovani', None) is not None
 
-        if stav_filter == StavBednyChoice.EXPEDOVANO or pozastaveno_filter == 'True':
+        if pozastaveno_filter == 'True':
+            return []
+
+        if self._is_fauf_view(request):
+            if not self.has_change_permission(request):
+                return []
+
+            state_permission = {
+                StavBednyChoice.NEPRIJATO: 'orders.change_neprijata_bedna',
+                StavBednyChoice.EXPEDOVANO: 'orders.change_expedovana_bedna',
+            }.get(stav_filter)
+            if state_permission and not request.user.has_perm(state_permission):
+                return []
+
+            return ['fauf']
+
+        if stav_filter == StavBednyChoice.EXPEDOVANO:
             return []
         
         if stav_filter == StavBednyChoice.NEPRIJATO:
@@ -3989,6 +4078,8 @@ class BednaAdmin(HistoryViewOnlyAdmin):
             'show_chemistry_view_button': request.user.has_perm(CHEMIE_VIEW_PERMISSION),
             'chemistry_view_active': self._is_chemistry_view(request),
             'chemistry_view_toggle_url': self._get_chemistry_view_toggle_url(request),
+            'fauf_view_active': self._is_fauf_view(request),
+            'fauf_view_exit_url': self._get_fauf_exit_url(request),
         })
 
         # Ošetření POST requestu z inline editace v changelistu,
@@ -4000,6 +4091,11 @@ class BednaAdmin(HistoryViewOnlyAdmin):
                 request,
                 form_prefix,
             )
+            if self._is_fauf_view(request):
+                visible_queryset = self.get_changelist_instance(request).queryset
+                modified_queryset = modified_queryset.filter(
+                    pk__in=visible_queryset.values('pk')
+                )
             touched_enabled = request.POST.get('_touched_enabled') == '1'
             touched_field_names = set(request.POST.getlist('_touched_field'))
             formset_data = request.POST
@@ -4040,8 +4136,22 @@ class BednaAdmin(HistoryViewOnlyAdmin):
                         if not changed:
                             continue
                         try:
-                            obj = self.model.objects.select_for_update().get(pk=form.instance.pk)
+                            locked_queryset = self.model.objects.select_for_update()
+                            if self._is_fauf_view(request):
+                                locked_queryset = locked_queryset.filter(
+                                    pk__in=modified_queryset.values('pk')
+                                )
+                            obj = locked_queryset.get(pk=form.instance.pk)
                         except self.model.DoesNotExist:
+                            continue
+
+                        if self._is_fauf_view(request):
+                            if not self._can_change_fauf(request, obj):
+                                raise PermissionDenied
+                            fauf = form.cleaned_data['fauf']
+                            if obj.fauf != fauf:
+                                obj.fauf = fauf
+                                obj.save(update_fields=['fauf'])
                             continue
 
                         # Aplikují se změny z formuláře na objekt.
@@ -4078,6 +4188,10 @@ class BednaAdmin(HistoryViewOnlyAdmin):
                 super().__init__(*args, **kwargs)
                 for form in self_inner.forms:
                     obj = form.instance
+                    if self._is_fauf_view(request) and 'fauf' in form.fields:
+                        form.fields['fauf'].disabled = not self._can_change_fauf(
+                            request, obj
+                        )
                     if obj.pozastaveno:
                         for _, field in form.fields.items():
                             # Vizuální zvýraznění pozastavených polí v changelistu
@@ -4217,6 +4331,19 @@ class BednaAdmin(HistoryViewOnlyAdmin):
                 if column in list_display:
                     list_display.remove(column)
             list_display.insert(list_display.index('stav_bedny') + 1, 'get_uvolneni_kontroly')
+
+        if self._is_fauf_view(request):
+            list_display = [
+                column for column in list_display
+                if column not in ('poznamka', 'fauf', 'behalter_nr', 'vyrobni_zakazka')
+            ]
+            list_display.insert(
+                list_display.index('get_cislo_bedny') + 1,
+                'vyrobni_zakazka',
+            )
+            insert_at = list_display.index('zakazka_link') + 1
+            list_display.insert(insert_at, 'fauf')
+            return list_display
                 
         return self._apply_chemistry_view_columns(request, list_display)
     
@@ -4495,6 +4622,16 @@ class BednaAdmin(HistoryViewOnlyAdmin):
         - Pro ForeignKey pole zruší zobrazení ikon pro přidání, změnu, smazání a zobrazení souvisejících objektů.
         - Pro pole 'poznamka' použije TextInput s menším fontem a velikostí.
         """
+        if db_field.name == 'fauf':
+            formfield = super().formfield_for_dbfield(
+                db_field, request, **kwargs
+            )
+            formfield.widget.attrs.update({
+                'size': '10',
+                'style': 'width: 12ch;',
+                'inputmode': 'numeric',
+            })
+            return formfield
         if isinstance(db_field, models.ForeignKey):
             # Zruší zobrazení ikon pro ForeignKey pole v administraci, nepřidá RelatedFieldWidgetWrapper.
             formfield = self.formfield_for_foreignkey(db_field, request, **kwargs)

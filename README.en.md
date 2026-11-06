@@ -82,6 +82,12 @@ User manuals are in Czech:
 
 ## Imports and printing
 
+For SPX, FAUF is entered manually on crates using **Doplnit FAUF** in the truck
+detail; imports leave it empty. The delivery note prints it after `Beleg-Nr.`
+and omits the former container column. Missing values show a warning with an
+option to continue to PDF. See the Czech [truck manual](docs/manual_kamion.md)
+for the workflow and permissions.
+
 Start XLSX import for exactly one inbound truck without orders. Review the preview before confirming. Customer strategies (such as EUR and SPX) define the file layout. `EXCEL_UPLOAD_MAX_SIZE_MB` controls file size (10 MB by default); the uploaded file is retained between preview and confirmation.
 
 Chemical import is a separate action for an inbound truck with crates. It reads JSON files from `CHEMISTRY_INCOMING_DIR`, checks Vanta export availability and archives processed files to `CHEMISTRY_ARCHIVE_DIR`. See the [truck manual](docs/manual_kamion.md).

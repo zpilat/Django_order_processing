@@ -68,11 +68,38 @@ Typické akce:
 - `Importovat chemická měření beden` pro kamion příjem s bednami.
 - `Vytisknout vyplněné KKK z vybraného kamionu výdej` – pro všechny zákazníky, s pomocnými popisy podle zkratky státu zákazníka (D/A německy, I italsky, CZ pouze česky).
 
-Dodací list zákazníka SPX obsahuje za sloupcem `Material-Nr.` sloupec `Charge`
-s hodnotou pole `Šarže mat. / Charge` (`sarze`) příslušné bedny. Pokud šarže není
-vyplněná, buňka zůstane prázdná. Číslo objednávky (`vyrobni_zakazka`) se tiskne
-ve sloupci `Beleg-Nr.`, artikl ve sloupci `Material-Nr.` a interní číslo bedny
-ve sloupci `HPM-Nr.`. Sloupec s číslem obalu má nadpis `Behälter`.
+Dodací list zákazníka SPX obsahuje za sloupcem `Beleg-Nr.` sloupec `FAUF`
+s ručně doplněným číslem příslušné bedny. Číslo se tiskne bez oddělovačů
+tisíců; nevyplněná hodnota má prázdnou buňku. Sloupec `Behälter` se netiskne.
+Artikl se tiskne ve sloupci `Material-Nr.`, za ním následuje `Charge`
+s hodnotou pole `Šarže mat. / Charge` (`sarze`) bedny. Interní číslo bedny
+se tiskne ve sloupci `HPM-Nr.`.
+
+### Ruční doplnění FAUF pro SPX
+
+FAUF není součástí vstupního dodacího listu a import ho nechává prázdné.
+
+1. Otevřete detail kamionu SPX a klikněte na **Doplnit FAUF**.
+2. Otevře se seznam beden daného kamionu v režimu `fauf=1`. U výdeje odkaz
+   přidává také `stav_bedny=EX`, aby zobrazil expedované bedny.
+3. Doplňte čísla ve sloupci **FAUF**, který je vpravo od Zakázky.
+4. Změny uložte tlačítkem **Uložit**.
+5. Odkazem **Ukončit doplňování FAUF** obnovíte běžné sloupce;
+   filtr kamionu i stavu zůstane zachovaný.
+
+V režimu FAUF je editovatelné pouze toto pole a Poznámka HPM je skrytá.
+Místo čísla bedny zákazníka seznam zobrazuje výrobní zakázku
+**FA / Bestell-Nr.**, aby šlo FAUF přiřadit podle zákaznických průvodek.
+Platí současná oprávnění k úpravám beden: u nepřijatých beden je potřeba
+`change_neprijata_bedna`, u expedovaných `change_expedovana_bedna`.
+Pozastavené bedny vyžadují navíc oprávnění k jejich úpravě. Bez potřebných
+oprávnění lze hodnoty pouze prohlížet. Běžný seznam expedovaných beden
+zůstává bez inline editace. Přechod do pohledu Chemie režim FAUF ukončí.
+
+Pokud při tisku dodacího listu některé bedny nemají FAUF, zobrazí se
+upozornění s jejich počtem a nejvýše prvními 20 čísly beden.
+Můžete pokračovat přes **Doplnit FAUF**, nebo zvolit
+**Otevřít PDF i bez FAUF**. Chybějící FAUF zatím tisk neblokuje.
 
 Pro tisk vyplněných karet výdeje vyberte právě jeden kamion ve filtru `Výdej`.
 PDF obsahuje karty všech jeho beden s uloženou kontrolou kvality, včetně expedovaných beden,

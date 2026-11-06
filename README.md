@@ -86,6 +86,11 @@ Manuály jsou v češtině a obsahují postupy, omezení a řešení běžných 
 
 ## Importy a tisk
 
+U SPX se FAUF doplňuje ručně do beden přes odkaz **Doplnit FAUF** v detailu
+kamionu; import ho nechává prázdné. Dodací list ho tiskne za `Beleg-Nr.` místo
+původního sloupce obalu. Chybějící hodnoty vyvolají upozornění s možností
+pokračovat do PDF. Postup a oprávnění jsou v [manuálu kamionů](docs/manual_kamion.md).
+
 Import XLSX spouštějte nad právě jedním kamionem příjem bez zakázek. Nejprve zkontrolujte náhled a potom potvrďte import. Formát se řídí strategií zákazníka (například EUR nebo SPX); limit velikosti souboru nastavuje `EXCEL_UPLOAD_MAX_SIZE_MB` (výchozí 10 MB). Nahraný soubor se zachová mezi náhledem a potvrzením.
 
 Chemická měření se importují samostatnou akcí nad jedním kamionem příjem s bednami. Import čte JSONy z `CHEMISTRY_INCOMING_DIR`, kontroluje dostupnost exportů Vanta a archivuje zpracované soubory do `CHEMISTRY_ARCHIVE_DIR`. Postup je v [manuálu kamionů](docs/manual_kamion.md).

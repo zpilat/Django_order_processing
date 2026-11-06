@@ -10,6 +10,13 @@ Projekt používá autentizaci a relace Djanga. Administrace vyžaduje účet s 
 
 Speciální oprávnění řídí úpravy expedovaných a pozastavených beden, nepřijatých beden a jejich poznámek, navezení, označení jako zakalené či zkontrolované a řízení šarží. Podrobnosti jsou v [manuálu beden](manual_bedna.md), [kontroly](manual_kontrola_beden.md) a [rychlého založení šarže](manual_rychle_zalozeni_sarze.md).
 
+Režim FAUF pro SPX používá stávající oprávnění: vedle `change_bedna` vyžaduje
+u nepřijaté bedny `change_neprijata_bedna`, u expedované
+`change_expedovana_bedna` a u pozastavené také `change_pozastavena_bedna`.
+Samotné oprávnění k poznámce nepřijaté bedny nestačí. Režim dovoluje změnit
+pouze FAUF, omezuje ukládání na vyfiltrované bedny a pod zámkem znovu ověřuje
+oprávnění podle aktuálního stavu. Zápis se zaznamenává do historie s autorem.
+
 Hesla spravuje Django; projekt nemá vlastní `PASSWORD_HASHERS`, používá tedy výchozí konfiguraci s PBKDF2. Instalované knihovny Argon2 či bcrypt samy nezmění zvolený algoritmus. Projekt má zapnuté validátory podobnosti hesla, minimální délky, běžných hesel a čistě číselných hesel. Viz [správa hesel v Django 5.2](https://docs.djangoproject.com/en/5.2/topics/auth/passwords/).
 
 Evidence neshod a její detaily jsou pouze v administraci (`/admin/orders/zaznamneshody/`). Vyžadují aktivní staff účet a `orders.view_zaznamneshody`, případně účet správce; samotné oprávnění ke kontrole bedny nestačí. Odkaz v nabídce přehledů respektuje tento přístup; pod kontrolou bedny se odkazy na snapshoty nezobrazují. Záznam vzniká při přechodu kontroly do Neshody nebo přidání důvodu během Neshody ve stejné transakci pod zámkem bedny. Server přepočítává automatické důvody Křivost a Čistota, při Uložení NOK vynutí Jiné s poznámkou, při Uvolněno důvody vymaže a odmítá uvolnění odporující měření, čistotě NOK nebo uložení NOK; samotné zamčení políček v prohlížeči není validační ochranou. Admin poskytuje pouze čtení a neumožňuje ruční přidání, úpravu ani smazání snapshotu; uložení existujícího snapshotu přes model je odmítnuto. Pozdější změny kontroly a měření nepřepisují zachycený stav. Viz [Evidence neshod](manual_evidence_neshod.md).

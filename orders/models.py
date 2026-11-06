@@ -963,6 +963,7 @@ class Bedna(models.Model):
     dodatecne_info = models.CharField(max_length=100, null=True, blank=True, verbose_name='Sonder / Zusatzinfo')
     dodavatel_materialu = models.CharField(max_length=10, null=True, blank=True, verbose_name='Lief.')
     vyrobni_zakazka = models.CharField(max_length=20, null=True, blank=True, verbose_name='FA / Bestell-Nr.')
+    fauf = models.PositiveIntegerField(blank=True, null=True, verbose_name='FAUF')
     tryskat = models.CharField(choices=TryskaniChoice.choices, max_length=5, default=TryskaniChoice.NEZADANO, verbose_name='Tryskání')
     rovnat = models.CharField(choices=RovnaniChoice.choices, max_length=5, default=RovnaniChoice.NEZADANO, verbose_name='Rovnání')
     # zatím default pro zinkovat je NEZINKOVAT, protože většina beden se nezinkuje, po rozjetí externího zinkování změnit na NEZADANO
