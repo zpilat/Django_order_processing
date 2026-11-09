@@ -139,25 +139,35 @@ odstraní i lokální tabulky a další objekty, které produkční dump neobsah
 
 Zastavte lokální `runserver` pomocí Ctrl+C a ukončete další připojení do dev
 databáze, například otevřený Django shell nebo dotazovací okno pgAdminu.
+**Samotný PostgreSQL server ponechte spuštěný**: mazání, vytvoření i obnova
+databáze se k němu potřebují připojit. Zastavuje se jen Django aplikace.
 Připravte kód odpovídající produkci nebo novější; starší kód nemusí rozumět
 schématu v dumpu. Python závislosti nainstalujte podle [README](../README.md).
 
 Potřebujete klientské nástroje PostgreSQL `pg_restore`, `dropdb` a `createdb`.
 Použijte stejnou hlavní verzi PostgreSQL jako na produkci, včetně lokálního
-databázového serveru. Cesta k nástrojům níže je jen příklad instalace;
-nahraďte ji skutečnou cestou a verzí. Pro stažení potřebujete také `scp`
+databázového serveru. Níže používáme přenosnou instalaci v
+`%LOCALAPPDATA%\pgdev\pgsql`, ze které se spouští místní server na portu 5433.
+Při jiné instalaci upravte `$pgBin` podle skutečného umístění nástrojů.
+Pro stažení potřebujete také `scp`
 (OpenSSH klient Windows), přístup na server a případně připojenou firemní VPN.
 
 Ve stejném okně PowerShellu nastavte proměnné pro celý postup:
 
 ```powershell
 Set-Location 'C:\Users\zpilat\Documents\Django_order_processing'
-$pgBin = 'C:\Program Files\PostgreSQL\17\bin'
+$pgRoot = Join-Path $env:LOCALAPPDATA 'pgdev'
+$pgBin = Join-Path $pgRoot 'pgsql\bin'
 $devPort = '5433'
 $devDb = 'orders_dev'
 $devRole = 'order_user'
 $dbAdmin = 'postgres'
 $dumpFile = Join-Path $PWD 'tmp\orders_prod_latest.dump'
+foreach ($tool in @('pg_restore.exe', 'dropdb.exe', 'createdb.exe', 'pg_ctl.exe')) {
+    if (-not (Test-Path -LiteralPath (Join-Path $pgBin $tool) -PathType Leaf)) {
+        throw "Nastroj $tool nebyl nalezen v $pgBin. Opravte cestu pred pokracovanim."
+    }
+}
 & (Join-Path $pgBin 'pg_restore.exe') --version
 if ($LASTEXITCODE -ne 0) { throw 'Klientske nastroje PostgreSQL nejsou dostupne.' }
 ```
@@ -169,6 +179,14 @@ zkontrolovanému 9. 11. 2026. **Na daném počítači je vždy porovnejte s jeho
 `$dbAdmin` je místní databázový správce s právem databázi smazat a vytvořit;
 nemusí se jmenovat `postgres`. Role `$devRole` už musí v místním PostgreSQL
 existovat a musíte znát její lokální heslo. Role se dumpem nevytvářejí.
+
+Pokud jste místní PostgreSQL předtím zastavili, spusťte jej následujícím
+příkazem. Pokud už běží, tento blok vynechte:
+
+```powershell
+& (Join-Path $pgBin 'pg_ctl.exe') -D "$pgRoot\data" -l "$pgRoot\postgres.log" -o "-h 127.0.0.1 -p $devPort" -w start
+if ($LASTEXITCODE -ne 0) { throw 'Spusteni lokalniho PostgreSQL selhalo.' }
+```
 
 ### 2. Stáhnout a zkontrolovat dump před smazáním databáze
 
@@ -283,7 +301,7 @@ a není potřeba pokaždé měnit `.env`.
 | --- | --- |
 | `pg_restore.exe` nebyl nalezen | Opravte `$pgBin` podle skutečné instalace klientských nástrojů. Samotné Python prostředí nástroje PostgreSQL neobsahuje. |
 | `unsupported version in file header` nebo neznámý parametr při obnově | Zkontrolujte verzi nástroje `pg_restore` i lokálního serveru proti produkci a použijte odpovídající verze. |
-| `database is being accessed by other users` | Ukončete lokální server, shelly a připojení pgAdminu do dev databáze, poté opakujte mazání. |
+| `database is being accessed by other users` | Ukončete Django `runserver`, shelly a připojení pgAdminu do dev databáze, poté opakujte mazání. PostgreSQL ponechte běžet. |
 | `role ... does not exist` při vytváření databáze | Opravte `$devRole` nebo nechte lokálního správce chybějící roli vytvořit s přihlašováním a heslem. |
 | `password authentication failed` nebo `connection refused` | Ověřte lokální službu PostgreSQL, port, roli a její lokální heslo. Port `5433` nemusí platit na jiném počítači. |
 | `relation ... already exists` | Obnova míří do neprázdné databáze nebo před ní proběhlo `migrate`. Opakujte krok 3 a migrujte až po obnově. |
