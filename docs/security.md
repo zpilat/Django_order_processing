@@ -32,6 +32,10 @@ Evidence neshod a její detaily jsou pouze v administraci (`/admin/orders/zaznam
 
 ## Ochrany požadavků a šablon
 
+Zápis prohybu po TZ je zakázaný, pokud má stejná bedna alespoň jednu uloženou hodnotu prohybu po rovnání. Ochrana platí pro GET i POST měřicího formuláře; při zápisu se znovu ověřuje pod zámkem bedny, takže ji neobejde dříve otevřený formulář. Po odstranění všech aktuálních hodnot po rovnání se zápis po TZ znovu povolí. Původní výsledky a jejich smazání zůstávají v historii.
+
+Společná serverová validace dokončení kontroly, opravy zkontrolované bedny a nastavení Zkontrolováno v adminu vyžaduje u téže bedny alespoň jednu uloženou hodnotu Ohybu a Krutu. Rozpracovaná či cizí měření podmínku nesplňují; přímé odeslání akce ji neobejde. Rozpracovanou kontrolu ve stavu Zakaleno lze dál uložit i před zadáním těchto měření.
+
 Dokončení kontroly, oprava zkontrolované bedny a nastavení Zkontrolováno v adminu sdílejí serverovou validaci úplnosti i souladu uvolnění a důvodů s aktuálními výsledky a limity. Hromadná akce Zkontrolováno byla odstraněna. Admin drží zámek bedny od validace do zápisu; expediční operace pod stejným zámkem odmítají čekající potvrzení měření, i když je dosud uložené Uvolněno. Modelová validace chrání také ruční zadání expedičních stavů. Snapshot vzniká až po nastavení výsledných technologických stavů v téže transakci.
 
 - ORM parametrizuje běžné databázové dotazy.
@@ -263,7 +267,7 @@ Při dalších potížích rozlišujte selhání překladu jména, nedůvěryhod
 
 Zápis kontroly i jednotlivých měření porovnává odeslaný stav s aktuálním záznamem. Při souběžné změně jiným uživatelem se uložení odmítne a obsluha načte aktuální údaje. Zápis používá transakce a uzamčení bedny.
 
-Skutečná změna měření ve stejné transakci nastaví trvalý příznak čekajícího potvrzení kontroly. Zruší jej pouze úspěšné uložení výstupní kontroly; u již zkontrolované bedny společně s přepočtem Rovnání a Tryskání. Neúspěšný zápis příznak nezruší. Technický příznak se nevkládá do historie výsledků kontroly, změny měření mají vlastní historii.
+Zápis měření ve stejné transakci porovná vyhodnocení před změnou a po ní. Trvalý příznak čekajícího potvrzení nastaví změna automatických důvodů, přípustného uvolnění nebo výsledných technologických stavů, případně nesoulad vyhodnocení s uloženým výsledkem. U zkontrolované bedny se hlídá i odstranění posledního povinného měření. Samotný zápis dosud nevyhodnocované zkoušky potvrzení nevynucuje; dříve vzniklé čekání však nesmaže. Příznak zruší úspěšné uložení výstupní kontroly, u zkontrolované bedny společně s přepočtem stavů. Neúspěšný zápis nic nepotvrdí. Technický příznak se nevkládá do historie výsledků kontroly; měření mají vlastní historii. Porovnání je soustředěné v `vyhodnoceni_kontroly_po_mereni`, kde lze doplnit další vyhodnocované zkoušky. Starší skladová bedna bez uloženého rozhodnutí v aplikaci se neblokuje jen kvůli chybějícím podkladům původní papírové kontroly.
 
 Prohlížeč zvýrazňuje rozdíly proti skutečným hodnotám DB a u zkontrolované bedny blokuje běžné odkazy do uložení. Při přechodu na měření stejné bedny uchovává rozepsané údaje v `sessionStorage`, odděleně podle přihlášeného uživatele a bedny. Návrat zachová původní snapshot pro kontrolu souběhu; změna od jiného uživatele tak vyvolá konflikt. Pouze vznik nové prázdné kontroly při měření lze automaticky přijmout, pokud všechny původní hodnoty zůstaly stejné. Obnovení aktuálního stavu po konfliktu vyžaduje výslovné zahození rozepsané kopie. Při zavření karty či ovládání prohlížeče je dostupné standardní varování; serverové kontroly oprávnění, validace a transakce platí nezávisle na této ochraně navigace.
 

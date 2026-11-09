@@ -134,7 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
         banner.classList.toggle('d-none', !dirty);
         bannerText.textContent = changes.size
             ? 'Máte neuložené změny kontroly. Změněné hodnoty jsou označené červeně.'
-            : 'Měření nebo technologické stavy čekají na potvrzení. Uložte výstupní kontrolu bedny.';
+            : 'Po změně měření se změnilo vyhodnocení kontroly nebo technologických stavů. Zkontrolujte a uložte výstupní kontrolu bedny.';
         save.classList.toggle('btn-danger', dirty);
         save.classList.toggle('btn-primary', !dirty);
         conflict.classList.toggle('d-none', snapshot.value === config.snapshot);

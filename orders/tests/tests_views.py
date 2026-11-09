@@ -2104,6 +2104,11 @@ class BednaScanViewTests(ViewsTestBase):
 		)
 		self.z_eur.max_krivych_vrutu = 0
 		self.z_eur.save(update_fields=['max_krivych_vrutu'])
+		for kind in (TypZkouskyChoice.OHYB, TypZkouskyChoice.KRUT):
+			MereniBedny.objects.update_or_create(
+				kontrola=KontrolaBedny.objects.get(bedna=self.b_eur_pr), typ_zkousky=kind, poradi=1,
+				defaults={'hodnota': Decimal('1')},
+			)
 		MereniBedny.objects.update_or_create(
 			kontrola=KontrolaBedny.objects.get(bedna=self.b_eur_pr),
 			typ_zkousky=TypZkouskyChoice.PROHYB_PO_TZ, poradi=1,

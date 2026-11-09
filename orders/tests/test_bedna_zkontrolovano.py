@@ -46,6 +46,7 @@ class BednaZkontrolovanoTests(KontrolaBednyTestBase):
             values.setdefault('neshoda_krut_nizky', True)
         kontrola = KontrolaBedny.objects.create(bedna=self.bedna, **values)
         self.create_curvature_measurement(kontrola, value='0.9' if values.get('neshoda_krivost') else '0.1')
+        self.create_required_mechanical_measurements(kontrola)
         return kontrola
 
     def test_missing_or_undecided_release_hides_button_and_blocks_get_and_post(self):
@@ -92,6 +93,7 @@ class BednaZkontrolovanoTests(KontrolaBednyTestBase):
                     },
                 )
                 self.create_curvature_measurement(kontrola, value='0.1')
+                self.create_required_mechanical_measurements(kontrola)
                 Bedna.objects.filter(pk=self.bedna.pk).update(stav_bedny=state)
                 overview = self.client.get(self.control_url)
                 self.assertContains(overview, self.url)
@@ -427,6 +429,7 @@ class BednaZkontrolovanoTests(KontrolaBednyTestBase):
                 Bedna.objects.filter(pk=self.bedna.pk).update(stav_bedny=StavBednyChoice.ZAKALENO)
                 MereniBedny.objects.filter(kontrola=kontrola).delete()
                 self.create_curvature_measurement(kontrola, value=tz)
+                self.create_required_mechanical_measurements(kontrola)
                 if after is not None:
                     self.create_curvature_measurement(kontrola, value=after, kind=TypZkouskyChoice.PROHYB_PO_ROVNANI)
                 # Koulení se pro rozhodující fázi nepoužívá.
@@ -449,6 +452,7 @@ class BednaZkontrolovanoTests(KontrolaBednyTestBase):
                 self.configure_curvature_customer(code='TST' if missing == 'limit' else 'EUR',
                                                   maximum=None if missing == 'maximum' else 0)
                 MereniBedny.objects.filter(kontrola=kontrola).delete()
+                self.create_required_mechanical_measurements(kontrola)
                 if missing != 'tz':
                     self.create_curvature_measurement(kontrola, value='0.1')
                 # Ani měření po rovnání nenahrazuje povinné měření po TZ.
@@ -470,6 +474,7 @@ class BednaZkontrolovanoTests(KontrolaBednyTestBase):
         for change in ('tz', 'maximum', 'result'):
             with self.subTest(change=change):
                 self.configure_curvature_customer(code='EUR')
+                self.create_required_mechanical_measurements(kontrola)
                 self.create_curvature_measurement(kontrola, value='0.1')
                 Bedna.objects.filter(pk=self.bedna.pk).update(stav_bedny=StavBednyChoice.ZAKALENO)
                 loads = 0
@@ -479,12 +484,16 @@ class BednaZkontrolovanoTests(KontrolaBednyTestBase):
                     loads += 1
                     if loads == 2:
                         if change == 'tz':
-                            MereniBedny.objects.filter(kontrola=kontrola).delete()
+                            MereniBedny.objects.filter(
+                                kontrola=kontrola, typ_zkousky=TypZkouskyChoice.PROHYB_PO_TZ,
+                            ).delete()
                         elif change == 'maximum':
                             customer = self.bedna.zakazka.kamion_prijem.zakaznik
                             type(customer).objects.filter(pk=customer.pk).update(max_krivych_vrutu=None)
                         else:
-                            MereniBedny.objects.filter(kontrola=kontrola).update(hodnota=Decimal('0.9'))
+                            MereniBedny.objects.filter(
+                                kontrola=kontrola, typ_zkousky=TypZkouskyChoice.PROHYB_PO_TZ,
+                            ).update(hodnota=Decimal('0.9'))
                     return get_object_or_404(*args, **kwargs)
 
                 with patch('orders.views.get_object_or_404', side_effect=load_with_change):

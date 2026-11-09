@@ -17,7 +17,7 @@ Interní aplikace pro správu zakázek od příjmu přes tepelné zpracování a
 - Přehledy nakládání, pracovišť, kontroly a neshod; dashboardy beden, kamionů, výroby a rovnání včetně historie.
 - Expedice zakázek a vybraných beden, rozdělení nehotové části zakázky a přiřazení do existujícího kamionu výdej.
 - PDF karty beden, KKK, průvodky šarží, dodací listy, certifikáty a proforma faktury. Vyplněné KKK jsou podporované pro EUR.
-- Neuložené změny kontroly se označují červeně; u zkontrolované bedny blokují běžný odchod. Po změně měření čeká kontrola na potvrzení i v databázi, rozepsané údaje se zachovávají při přechodu na měření stejné bedny.
+- Neuložené změny kontroly se označují červeně; u zkontrolované bedny blokují běžný odchod. Změna měření vyžaduje nové potvrzení pouze při změně vyhodnocení nebo technologických stavů; rozepsané údaje se zachovávají při přechodu na měření stejné bedny.
 - Oprávnění podle úkolu a audit přes `django-simple-history`.
 
 ## Lokální spuštění na Windows
@@ -120,6 +120,10 @@ Na vyplněné KKK mají Uvolněno i Uvolněno QS s odchylkou zelené pozadí, Ne
 U SPX se na vyplněné KKK při uvolnění (včetně QS s odchylkou) tiskne u zapsaných hodnot krutu **OK**. Původní měření zůstávají v aplikaci; porovnání krutu s limitem předpisu se zatím neprovádí.
 
 Dokončení a opravy zkontrolované bedny i nastavení Zkontrolováno v adminu vyžadují úplnou kontrolu odpovídající aktuálním měřením a limitům. Hromadná akce Zkontrolováno je odstraněná. Nepotvrzené změny měření blokují na serveru přípravu k expedici i expedici.
+
+U každé bedny je před dokončením kontroly povinná alespoň jedna uložená hodnota Ohybu i Krutu. Stejná serverová podmínka platí pro admin a opravu již zkontrolované bedny; chybějící zkoušku vysvětluje informační panel v kontrole.
+
+Prázdné zkoušky prohybu po koulení a po rovnání se v kontrole nabídnou až při červeném výsledku po TZ; uložené výsledky zůstávají viditelné. Uložený prohyb po rovnání zamyká další zápis prohybu po TZ i na serveru.
 
 ## Struktura projektu
 

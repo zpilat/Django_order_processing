@@ -43,6 +43,7 @@ class KontrolaConsistencyTests(KontrolaBednyTestBase):
             kontrola=self.kontrola, typ_zkousky=TypZkouskyChoice.PROHYB_PO_TZ,
             poradi=1, hodnota=Decimal('0.1'),
         )
+        self.create_required_mechanical_measurements(self.kontrola)
         self.user.user_permissions.add(*Permission.objects.filter(
             codename__in=['mark_bedna_zkontrolovano', 'change_bedna'],
         ))
@@ -70,7 +71,7 @@ class KontrolaConsistencyTests(KontrolaBednyTestBase):
         request._messages = FallbackStorage(request)
         return request
 
-    def change_measurement(self, value='0.9'):
+    def change_measurement(self, value='0.9', *, expect_confirmation=True):
         url = reverse('bedna_mereni_zkousky', args=[self.bedna.cislo_bedny, TypZkouskyChoice.PROHYB_PO_TZ])
         response = self.client.post(url, {
             'snapshot': self.client.get(url).context['snapshot'],
@@ -79,7 +80,7 @@ class KontrolaConsistencyTests(KontrolaBednyTestBase):
         })
         self.assertRedirects(response, self.url)
         self.kontrola.refresh_from_db()
-        self.assertTrue(self.kontrola.vyzaduje_potvrzeni)
+        self.assertEqual(self.kontrola.vyzaduje_potvrzeni, expect_confirmation)
 
     def admin_form(self, form_class=BednaAdminForm, **changes):
         bedna = Bedna.objects.get(pk=self.bedna.pk)
@@ -131,6 +132,7 @@ class KontrolaConsistencyTests(KontrolaBednyTestBase):
                 self.assertEqual((Kamion.objects.count(), Zakazka.objects.count()), counts)
 
     def test_successful_confirmation_unblocks_readiness(self):
+        Bedna.objects.filter(pk=self.bedna.pk).update(rovnat='KR')
         self.change_measurement('0.2')
         response = self.client.get(self.url)
         self.assertRedirects(self.client.post(self.url, self.payload(response)), self.url)
@@ -139,6 +141,7 @@ class KontrolaConsistencyTests(KontrolaBednyTestBase):
         self.assertEqual(self.bedna.stav_bedny, 'KE')
 
     def test_checked_control_cannot_clear_required_decisions_or_confirmation(self):
+        Bedna.objects.filter(pk=self.bedna.pk).update(rovnat='KR')
         self.change_measurement('0.2')
         for field in ('cistota', 'ulozeni', 'uvolneni'):
             with self.subTest(field=field):
@@ -190,6 +193,7 @@ class KontrolaConsistencyTests(KontrolaBednyTestBase):
         self.assertEqual(ZaznamNeshody.objects.filter(bedna=self.bedna).count(), 2)
 
     def test_snapshot_failure_rolls_back_control_states_and_confirmation(self):
+        Bedna.objects.filter(pk=self.bedna.pk).update(rovnat='KR')
         self.change_measurement('0.2')
         history = (self.kontrola.history.count(), self.bedna.history.count())
         with patch('orders.views.zaznamenat_neshodu', side_effect=RuntimeError('Snapshot failed')):
@@ -287,3 +291,73 @@ class KontrolaConsistencyTests(KontrolaBednyTestBase):
         for request in (RequestFactory().get('/', {'stav_bedny': 'RO'}), self.request()):
             request.user = self.user
             self.assertNotIn('oznacit_zkontrolovano_action', self.admin.get_actions(request))
+
+    def test_legacy_paper_inspection_allows_readiness_after_unrelated_measurement(self):
+        self.kontrola.delete()
+        url = reverse('bedna_mereni_zkousky', args=[self.bedna.cislo_bedny, TypZkouskyChoice.VRSTVA])
+        page = self.client.get(url)
+        result = self.client.post(url, {
+            'snapshot': page.context['snapshot'], 'mereni-TOTAL_FORMS': '1', 'mereni-INITIAL_FORMS': '0',
+            'mereni-0-hodnota': '7',
+        })
+        self.assertRedirects(result, self.url)
+        kontrola = KontrolaBedny.objects.get(bedna=self.bedna)
+        self.assertEqual(kontrola.uvolneni, '--')
+        self.assertFalse(kontrola.vyzaduje_potvrzeni)
+        self.assertFalse(self.client.get(self.url).context['ochrana_kontroly']['ceka_na_potvrzeni'])
+        actions.oznacit_k_expedici_action(self.admin, self.request(), Bedna.objects.filter(pk=self.bedna.pk))
+        self.bedna.refresh_from_db()
+        self.assertEqual(self.bedna.stav_bedny, 'KE')
+
+    def test_missing_bending_or_torsion_blocks_button_finish_and_admin(self):
+        Bedna.objects.filter(pk=self.bedna.pk).update(stav_bedny='ZA')
+        other = Bedna.objects.create(zakazka=self.bedna.zakazka)
+        self.create_required_mechanical_measurements(KontrolaBedny.objects.create(bedna=other))
+        for missing in (
+            (TypZkouskyChoice.OHYB,), (TypZkouskyChoice.KRUT,),
+            (TypZkouskyChoice.OHYB, TypZkouskyChoice.KRUT),
+        ):
+            with self.subTest(missing=missing):
+                self.create_required_mechanical_measurements(self.kontrola)
+                MereniBedny.objects.filter(kontrola=self.kontrola, typ_zkousky__in=missing).delete()
+                history = self.bedna.history.count()
+                page = self.client.get(self.url)
+                self.assertFalse(page.context['can_mark_zkontrolovano'])
+                for kind in missing:
+                    self.assertContains(page, f'Změřte a uložte {kind.label}.')
+                for method in ('get', 'post'):
+                    result = getattr(self.client, method)(self.finish_url, {'action': 'mark_zkontrolovano'})
+                    self.assertRedirects(result, self.url, fetch_redirect_response=False)
+                for form_class in (BednaAdminForm, BednaChangeListForm):
+                    form = self.admin_form(form_class)
+                    self.assertFalse(form.is_valid())
+                    for kind in missing:
+                        self.assertIn(f'Změřte a uložte {kind.label}.', str(form.errors))
+                # Rozpracovaná kontrola ve stavu Zakaleno se smí dál ukládat.
+                self.assertRedirects(self.client.post(self.url, self.payload(page)), self.url)
+                self.bedna.refresh_from_db()
+                self.assertEqual(self.bedna.stav_bedny, 'ZA')
+                self.assertEqual(self.bedna.history.count(), history)
+
+        self.create_required_mechanical_measurements(self.kontrola)
+        self.assertTrue(self.client.get(self.url).context['can_mark_zkontrolovano'])
+        self.assertRedirects(self.client.post(self.finish_url, {'action': 'mark_zkontrolovano'}), self.url)
+        self.bedna.refresh_from_db()
+        self.assertEqual(self.bedna.stav_bedny, 'ZK')
+
+    def test_checked_control_cannot_confirm_missing_mechanical_measurements(self):
+        Bedna.objects.filter(pk=self.bedna.pk).update(rovnat='KR')
+        self.change_measurement('0.2')
+        for missing in (TypZkouskyChoice.OHYB, TypZkouskyChoice.KRUT):
+            with self.subTest(missing=missing):
+                self.create_required_mechanical_measurements(self.kontrola)
+                MereniBedny.objects.filter(kontrola=self.kontrola, typ_zkousky=missing).delete()
+                page = self.client.get(self.url)
+                history = (self.kontrola.history.count(), self.bedna.history.count())
+                result = self.client.post(self.url, self.payload(page, poznamka='Neúplná oprava'))
+                self.assertEqual(result.status_code, 200)
+                self.assertContains(result, f'Změřte a uložte {missing.label}.')
+                self.kontrola.refresh_from_db()
+                self.assertTrue(self.kontrola.vyzaduje_potvrzeni)
+                self.assertEqual(self.kontrola.poznamka, '')
+                self.assertEqual((self.kontrola.history.count(), self.bedna.history.count()), history)

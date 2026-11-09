@@ -804,6 +804,20 @@ def _can_edit_mereni_bedny(user, bedna):
     )
 
 
+def _can_edit_mereni_zkousky(user, bedna, typ_zkousky, *, typy_s_merenim=None):
+    if not _can_edit_mereni_bedny(user, bedna):
+        return False
+    if typ_zkousky != TypZkouskyChoice.PROHYB_PO_TZ:
+        return True
+    if typy_s_merenim is None:
+        ma_prohyb_po_rovnani = MereniBedny.objects.filter(
+            kontrola__bedna=bedna, typ_zkousky=TypZkouskyChoice.PROHYB_PO_ROVNANI,
+        ).exists()
+    else:
+        ma_prohyb_po_rovnani = TypZkouskyChoice.PROHYB_PO_ROVNANI in typy_s_merenim
+    return not ma_prohyb_po_rovnani
+
+
 def _ochrana_kontroly_context(request, bedna, kontrola):
     merit_tvrdost = bedna.bedna_k_mereni_tvrdosti_a_povrchu
     return {
@@ -824,6 +838,9 @@ def _ochrana_kontroly_context(request, bedna, kontrola):
 
 def _bedna_zkousky_context(bedna, user, omezeni_prohybu):
     measurements = list(MereniBedny.objects.filter(kontrola__bedna=bedna))
+    typy_s_merenim = {item.typ_zkousky for item in measurements}
+    omezeni_po_tz = omezeni_uvolneni_prohybem(bedna, typ_zkousky=TypZkouskyChoice.PROHYB_PO_TZ)
+    kriva_po_tz = omezeni_po_tz is not None and omezeni_po_tz.stav == 'nevyhovuje'
     can_edit = _can_edit_mereni_bedny(user, bedna)
     merit_tvrdost = bedna.bedna_k_mereni_tvrdosti_a_povrchu
     preferovane_poradi = [
@@ -847,7 +864,13 @@ def _bedna_zkousky_context(bedna, user, omezeni_prohybu):
 
     return [
         {
-            'typ': kind.value, 'nazev': kind.label, 'can_edit': can_edit,
+            'typ': kind.value, 'nazev': kind.label,
+            'can_edit': _can_edit_mereni_zkousky(user, bedna, kind, typy_s_merenim=typy_s_merenim),
+            'duvod_zamceni': (
+                'Prohyb po TZ je po zadání měření po rovnání uzamčený.'
+                if can_edit and kind == TypZkouskyChoice.PROHYB_PO_TZ
+                and TypZkouskyChoice.PROHYB_PO_ROVNANI in typy_s_merenim else ''
+            ),
             'rozsah_mereni': rozsah_mereni_zakaznika(bedna.zakazka.kamion_prijem.zakaznik, kind),
             'mereni': [item for item in measurements if item.typ_zkousky == kind],
             'stav_prohybu': (
@@ -858,8 +881,11 @@ def _bedna_zkousky_context(bedna, user, omezeni_prohybu):
             'pozadavek_prohyb': bedna.limity_prohybu_pro_zkousku(kind),
         }
         for kind in serazene_typy
-        if merit_tvrdost or kind not in (
+        if (merit_tvrdost or kind not in (
             TypZkouskyChoice.TVRDOST_POVRCHU, TypZkouskyChoice.TVRDOST_JADRA,
+        )) and (
+            kind not in (TypZkouskyChoice.PROHYB_PO_KOULENI, TypZkouskyChoice.PROHYB_PO_ROVNANI)
+            or kriva_po_tz or kind in typy_s_merenim
         )
     ]
 
@@ -993,7 +1019,7 @@ def bedna_mereni_zkousky_view(request, cislo_bedny: int, typ_zkousky: str):
         if lock:
             queryset = queryset.select_for_update(of=('self',))
         bedna = get_object_or_404(queryset, cislo_bedny=cislo_bedny)
-        if not _can_edit_mereni_bedny(request.user, bedna):
+        if not _can_edit_mereni_zkousky(request.user, bedna, typ_zkousky):
             raise PermissionDenied
         measurements = list(
             MereniBedny.objects.filter(kontrola__bedna=bedna, typ_zkousky=typ_zkousky)

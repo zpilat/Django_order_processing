@@ -244,6 +244,10 @@ Upravte filtr `Stav bedny` na odpovídající kontext a ověřte oprávnění u�
 
 ## 12. Skenování a návazné provozní postupy
 
+V kontrole bedny se prázdné zkoušky prohybu po koulení a po rovnání nabídnou až při červeném výsledku prohybu po TZ; oranžová QS odchylka je nezpřístupňuje. Již uložené navazující výsledky zůstávají viditelné. Po prvním uloženém měření po rovnání je prohyb po TZ pouze pro čtení; oprava vyžaduje nejprve odstranění všech aktuálních hodnot po rovnání. Viz [zadávání měření](manual_kontrola_beden.md#2-zadání-měření).
+
+Dokončení kontroly a nastavení Zkontrolováno v adminu vyžaduje u každé bedny alespoň jednu uloženou hodnotu **Ohybu i Krutu**. Stejná podmínka platí při uložení opravy již zkontrolované bedny. Při chybějícím měření aplikace uvede, kterou zkoušku je nutné změřit a uložit. Jde o přítomnost obou zkoušek, nikoli vynucení minimálního počtu hodnot vzorku. Rozpracovanou výstupní kontrolu ve stavu Zakaleno lze dál průběžně ukládat.
+
 1. Otevřete kamerový skener na `/bedny/skener/` nebo čtečku na `/bedny/skener-ctecka/`.
 2. Načtěte kód z karty bedny, případně zadejte interní číslo ručně.
 3. V detailu ověřte bednu a zvolte dostupnou operaci: navezení, označení jako zakalené, kontrolu nebo pohyb bedny.
@@ -265,9 +269,9 @@ Výrobní stav Zkontrolováno, uvolnění v kontrole a stav zinkování jsou sam
 
 Akce **Dokončit kontrolu bedny** je dostupná ve stavu **Zakaleno** a nastaví **Zkontrolováno**. Rovnání a Tryskání se vypočítají automaticky z uložených výsledků. Čistota NOK nastaví Špinavá; Čistota OK u dosavadní Špinavé/Otryskané nastaví Otryskaná, jinak Čistá. Prohyb po rovnání má přednost a nastaví Vyrovnaná/Křivá; jinak prohyb po TZ nastaví Rovná při vyhovujícím nebo oranžovém výsledku, Křivá při červeném. Rozhoduje celý vzorek a povolený počet křivých. Měření po TZ, standardní maximum a povolený počet křivých jsou pro potvrzení povinné; QS maximum není povinné. Na potvrzovací stránce se stavy již nevybírají ručně, pouze se zobrazí jejich výsledek.
 
-U bedny ve stavu **Zkontrolováno** se Rovnání a Tryskání přepočítají při každém úspěšném uložení **výstupní kontroly**, i bez změny uvolnění. Samostatné tlačítko pro úpravu těchto stavů se nezobrazuje. Uložení samotného měření přepočet neprovede; následně uložte také výstupní kontrolu. Chybějící podklady pro výpočet zabrání uložení opravy kontroly s vysvětlením ve formuláři. Výrobní stav a zinkování se nemění. Další podmínky uvádí [manuál kontroly](manual_kontrola_beden.md#5-potvrzení-výrobního-stavu).
+U bedny ve stavu **Zkontrolováno** se Rovnání a Tryskání přepočítají při každém úspěšném uložení **výstupní kontroly**, i bez změny uvolnění. Samostatné tlačítko pro úpravu těchto stavů se nezobrazuje. Uložení samotného měření přepočet neprovede; kontrolu znovu uložte při změně vyhodnocení nebo technologických stavů. Chybějící podklady pro výpočet zabrání uložení opravy kontroly s vysvětlením ve formuláři. Výrobní stav a zinkování se nemění. Další podmínky uvádí [manuál kontroly](manual_kontrola_beden.md#5-potvrzení-výrobního-stavu).
 
-Při opravě kontroly již zkontrolované bedny se červeně označují hodnoty odlišné od databáze a běžný odchod na jinou bednu nebo přehled je do uložení zablokovaný. Po změně měření se čekající potvrzení eviduje i v databázi; uložení výstupní kontroly zároveň potvrdí automatické Rovnání a Tryskání. Měření stejné bedny zůstává dostupné se zachováním rozepsaných údajů kontroly. Podrobnosti jsou v [manuálu kontroly](manual_kontrola_beden.md#neuložené-změny-a-potvrzení-po-měření).
+Při opravě kontroly již zkontrolované bedny se červeně označují hodnoty odlišné od databáze a běžný odchod na jinou bednu nebo přehled je do uložení zablokovaný. Po měření se potvrzení vyžaduje pouze při změně vyhodnocení nebo výsledných technologických stavů; běžná oprava vrstvy či mechanických zkoušek se stejným vyhodnocením je nevyvolá. Uložení kontroly potvrdí také automatické Rovnání a Tryskání. Rozepsaná kontrola se při přechodu na měření stejné bedny zachová. Podrobnosti jsou v [manuálu kontroly](manual_kontrola_beden.md#neuložené-změny-a-potvrzení-po-měření).
 
 ## 13. Technická mapa (kde je logika v kódu)
 

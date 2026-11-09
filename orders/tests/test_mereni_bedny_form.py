@@ -40,6 +40,48 @@ class MereniBednyFormTests(KontrolaBednyTestBase):
             data.update({f'mereni-{index}-{key}': str(value) for key, value in row.items()})
         return data
 
+    def test_saved_straightening_locks_heat_treatment_get_and_stale_post(self):
+        item = self.create_measurement(kind=TypZkouskyChoice.PROHYB_PO_TZ, value='0.9')
+        url = self.url_for(TypZkouskyChoice.PROHYB_PO_TZ)
+        page = self.client.get(url)
+        self.assertEqual(page.status_code, 200)
+        self.create_measurement(kind=TypZkouskyChoice.PROHYB_PO_ROVNANI, value='0.1')
+        history = MereniBedny.history.count()
+        self.assertEqual(self.client.get(url).status_code, 403)
+        for rows in (
+            [{'id': item.pk, 'hodnota': '0.2'}],
+            [{'id': item.pk, 'DELETE': 'on'}],
+            [{'id': item.pk, 'hodnota': '0.9'}, {'hodnota': '0.2'}],
+        ):
+            with self.subTest(rows=rows):
+                result = self.client.post(url, self.payload(page, rows))
+                self.assertEqual(result.status_code, 403)
+                item.refresh_from_db()
+                self.assertEqual(item.hodnota, Decimal('0.9'))
+                self.assertEqual(item.kontrola.mereni.count(), 2)
+                self.assertEqual(MereniBedny.history.count(), history)
+
+    def test_removing_last_straightening_value_unlocks_heat_treatment(self):
+        self.create_measurement(kind=TypZkouskyChoice.PROHYB_PO_TZ, value='0.9')
+        item = self.create_measurement(kind=TypZkouskyChoice.PROHYB_PO_ROVNANI, value='0.1')
+        tz_url = self.url_for(TypZkouskyChoice.PROHYB_PO_TZ)
+        self.assertEqual(self.client.get(tz_url).status_code, 403)
+        straightening_url = self.url_for(TypZkouskyChoice.PROHYB_PO_ROVNANI)
+        page = self.client.get(straightening_url)
+        result = self.client.post(straightening_url, self.payload(page, [{'id': item.pk, 'DELETE': 'on'}]))
+        self.assertRedirects(result, reverse('bedna_kontrola', args=[self.bedna.cislo_bedny]))
+        self.assertEqual(self.client.get(tz_url).status_code, 200)
+        self.assertTrue(MereniBedny.history.filter(id=item.pk, history_type='-').exists())
+
+    def test_straightening_of_another_crate_does_not_lock_heat_treatment(self):
+        other = Bedna.objects.create(zakazka=self.bedna.zakazka)
+        kontrola = KontrolaBedny.objects.create(bedna=other)
+        MereniBedny.objects.create(
+            kontrola=kontrola, typ_zkousky=TypZkouskyChoice.PROHYB_PO_ROVNANI,
+            poradi=1, hodnota=Decimal('0.1'),
+        )
+        self.assertEqual(self.client.get(self.url_for(TypZkouskyChoice.PROHYB_PO_TZ)).status_code, 200)
+
     def test_get_shows_requirement_and_descriptions_without_creating_control(self):
         customer = self.bedna.zakazka.kamion_prijem.zakaznik
         customer.min_hodnot_tvrdost = 2
@@ -118,8 +160,14 @@ class MereniBednyFormTests(KontrolaBednyTestBase):
         customer.min_hodnot_tvrdost = 2
         customer.min_hodnot_prohyb = 3
         customer.pocet_vrutu_pro_kontrolu_prohybu = 25
-        fields = ('min_hodnot_mechanicke', 'min_hodnot_tvrdost', 'min_hodnot_prohyb', 'pocet_vrutu_pro_kontrolu_prohybu')
-        customer.save(update_fields=fields)
+        customer.zkratka = 'EUR'
+        customer.max_krivych_vrutu = 0
+        fields = (
+            'min_hodnot_mechanicke', 'min_hodnot_tvrdost', 'min_hodnot_prohyb',
+            'pocet_vrutu_pro_kontrolu_prohybu',
+        )
+        customer.save(update_fields=fields + ('zkratka', 'max_krivych_vrutu'))
+        self.create_measurement(kind=TypZkouskyChoice.PROHYB_PO_TZ, value='0.9')
         expected = {
             TypZkouskyChoice.OHYB: 'Min. 5 vzorků',
             TypZkouskyChoice.KRUT: 'Min. 5 vzorků',
@@ -154,6 +202,8 @@ class MereniBednyFormTests(KontrolaBednyTestBase):
                 self.assertNotContains(response, 'Rozsah měření podle zákazníka:')
             self.assertNotContains(response, 'name="pocet_krivych_vrutu_prvni_mereni"')
             self.assertNotContains(response, 'name="pocet_krivych_vrutu_druhe_mereni"')
+        customer.zkratka = 'TST'
+        customer.save(update_fields=['zkratka'])
         response = self.client.get(self.url_for(TypZkouskyChoice.PROHYB_PO_TZ))
         self.assertContains(response, 'Požadavek zákazníka')
         self.assertContains(response, 'Limit prohybu pro tohoto zákazníka není definován.')

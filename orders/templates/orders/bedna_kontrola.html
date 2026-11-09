@@ -63,6 +63,7 @@
                             <a class="btn btn-outline-primary btn-sm" href="{% url 'bedna_mereni_zkousky' bedna.cislo_bedny zkouska.typ %}">Zadat / upravit hodnoty</a>
                         {% endif %}
                     </div>
+                    {% if zkouska.duvod_zamceni %}<div class="small text-muted mt-2">{{ zkouska.duvod_zamceni }}</div>{% endif %}
                     {% include "orders/includes/rozsah_mereni_zakaznika.html" with rozsah_mereni=zkouska.rozsah_mereni bez_popisu=True %}
                     {% if zkouska.pozadavek_prohyb != None %}
                         <div class="small mt-2">Max. počet křivých vrutů ve vzorku: <strong>{{ bedna.zakazka.kamion_prijem.zakaznik.max_krivych_vrutu|default_if_none:"nenastaven" }}</strong></div>
@@ -85,7 +86,7 @@
             {% if not can_edit %}
                 <div class="alert alert-info">Kontrolu a měření můžete pouze zobrazit. Úpravy vyžadují příslušné oprávnění a stav Zakaleno nebo Zkontrolováno; u pozastavené bedny také zvláštní oprávnění. Pro opravu bedny K expedici ji nejprve vraťte na Zkontrolováno. U expedované bedny nejprve vraťte zakázku z expedice a poté bednu na Zkontrolováno.</div>
             {% elif bedna.stav_bedny == 'ZK' %}
-                <p class="text-muted">Při uložení výstupní kontroly se automaticky aktualizuje rovnání a tryskání. Po opravě měření uložte také tuto kontrolu.</p>
+                <p class="text-muted">Při uložení výstupní kontroly se automaticky aktualizuje rovnání a tryskání. Pokud oprava měření změní vyhodnocení nebo technologické stavy, potvrďte změnu uložením kontroly.</p>
             {% endif %}
             {% if form.omezeni_prohybu %}
                 <div class="alert alert-warning" role="alert">{{ form.omezeni_prohybu.zprava }}</div>

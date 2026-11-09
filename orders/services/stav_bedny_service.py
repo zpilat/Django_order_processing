@@ -2,7 +2,7 @@ from django.core.exceptions import ValidationError
 from django.db.models import Exists, OuterRef
 
 from orders.choices import (
-    RovnaniChoice, TryskaniChoice, TypZarizeniChoice, TypZkouskyChoice,
+    RovnaniChoice, StavBednyChoice, TryskaniChoice, TypZarizeniChoice, TypZkouskyChoice,
     UvolneniKontrolyChoice, VysledekKontrolyChoice,
 )
 from orders.models import KontrolaBedny, MereniBedny, Sarze, SarzeKrokBedna
@@ -52,6 +52,53 @@ def duvody_nevyhodnotitelneho_prohybu(bedna):
     return duvody
 
 
+def duvody_chybejicich_mechanickych_mereni(bedna):
+    druhy = (TypZkouskyChoice.OHYB, TypZkouskyChoice.KRUT)
+    zmerene = set(MereniBedny.objects.filter(
+        kontrola__bedna=bedna, typ_zkousky__in=druhy,
+    ).order_by().values_list('typ_zkousky', flat=True).distinct())
+    return [f'Změřte a uložte {typ.label}.' for typ in druhy if typ not in zmerene]
+
+
+def vyhodnoceni_kontroly_po_mereni(kontrola):
+    """Dopad aktuálních měření na kontrolu; samotné číselné hodnoty neporovnává.
+
+    Zde se doplní další automatické důvody a omezení, až se začnou vyhodnocovat
+    také ostatní zkoušky. Stejný výsledek nevyžaduje nové potvrzení.
+    """
+    bedna = kontrola.bedna
+    omezeni = omezeni_uvolneni_prohybem(bedna)
+    povolene_uvolneni = omezeni.povolene_stavy if omezeni else tuple(UvolneniKontrolyChoice.values)
+    if VysledekKontrolyChoice.NOK in (kontrola.cistota, kontrola.ulozeni):
+        povolene_uvolneni = (UvolneniKontrolyChoice.NESHODA,)
+    stavy = None
+    chybejici_podklady = []
+    if (
+        bedna.stav_bedny == StavBednyChoice.ZKONTROLOVANO
+        and kontrola.uvolneni != UvolneniKontrolyChoice.NEROZHODNUTO
+    ):
+        # Starší skladové bedny bez rozhodnutí v aplikaci mohou mít papírovou
+        # kontrolu. Samotný zápis nesouvisejícího měření ji nesmí vynucovat.
+        chybejici_podklady = duvody_chybejicich_mechanickych_mereni(bedna)
+        try:
+            stavy = vyhodnotit_stavy_pri_zkontrolovani(bedna, kontrola=kontrola)
+        except ValidationError as error:
+            chybejici_podklady.extend(error.messages)
+    return {
+        'neshoda_krivost': omezeni is not None,
+        'povolene_uvolneni': povolene_uvolneni,
+        # U Zakaleno se technologické stavy poprvé potvrdí až při dokončení.
+        'stavy': stavy,
+        'chybejici_podklady': chybejici_podklady,
+        'neulozene_vyhodnoceni': (
+            kontrola.neshoda_krivost != (omezeni is not None)
+            or kontrola.uvolneni not in povolene_uvolneni
+            or bool(chybejici_podklady)
+            or (stavy is not None and any(getattr(bedna, field) != value for field, value in stavy.items()))
+        ),
+    }
+
+
 def duvody_neuplne_kontroly(bedna, *, kontrola=None, potvrzuje_mereni=False):
     """Společné podmínky dokončení, opravy zkontrolované bedny a adminu.
 
@@ -64,6 +111,7 @@ def duvody_neuplne_kontroly(bedna, *, kontrola=None, potvrzuje_mereni=False):
         return ['Nejprve vyplňte a uložte výstupní kontrolu: Čistotu, Uložení a rozhodnutí o uvolnění.']
 
     duvody = duvody_nevyhodnotitelneho_prohybu(bedna)
+    duvody.extend(duvody_chybejicich_mechanickych_mereni(bedna))
     if kontrola.vyzaduje_potvrzeni and not potvrzuje_mereni:
         duvody.append('Po změně měření uložte výstupní kontrolu bedny.')
     vysledky = (VysledekKontrolyChoice.OK, VysledekKontrolyChoice.NOK)

@@ -22,8 +22,16 @@ class OmezeniUvolneniProhybem:
         return 'odchylka'
 
 
-def omezeni_uvolneni_prohybem(bedna):
-    """Vyhodnotí uložený prohyb po rovnání, jinak po TZ; koulení ignoruje."""
+def omezeni_uvolneni_prohybem(bedna, *, typ_zkousky=None):
+    """Vyhodnotí prohyb po rovnání, jinak po TZ; lze vybrat jednu fázi.
+
+    Samostatný výsledek po TZ rozhoduje o nabídce navazujících zkoušek,
+    i když už existuje měření po rovnání. Koulení uvolnění neomezuje.
+    """
+    if typ_zkousky is not None and typ_zkousky not in (
+        TypZkouskyChoice.PROHYB_PO_TZ, TypZkouskyChoice.PROHYB_PO_ROVNANI,
+    ):
+        raise ValueError('Pro omezení uvolnění lze vyhodnotit pouze prohyb po TZ nebo po rovnání.')
     maximum = bedna.zakazka.kamion_prijem.zakaznik.max_krivych_vrutu
     limity = bedna.limity_prohybu
     bezny_limit = limity['bezny']
@@ -38,7 +46,7 @@ def omezeni_uvolneni_prohybem(bedna):
         kontrola__bedna=bedna, typ_zkousky__in=hodnoty,
     ).values_list('typ_zkousky', 'hodnota'):
         hodnoty[typ].append(hodnota)
-    typ = (
+    typ = TypZkouskyChoice(typ_zkousky) if typ_zkousky is not None else (
         TypZkouskyChoice.PROHYB_PO_ROVNANI
         if hodnoty[TypZkouskyChoice.PROHYB_PO_ROVNANI]
         else TypZkouskyChoice.PROHYB_PO_TZ
@@ -130,6 +138,10 @@ def kontrola_snapshot(kontrola):
 
 def ulozit_mereni_zkousky(kontrola, typ_zkousky, formset, user):
     """Caller holds the bedna lock and has validated the formset and snapshot."""
+    # Lokální import: vyhodnocení stavů samo používá omezeni_uvolneni_prohybem.
+    from .stav_bedny_service import vyhodnoceni_kontroly_po_mereni
+
+    puvodni_vyhodnoceni = vyhodnoceni_kontroly_po_mereni(kontrola)
     existing = {item.pk: item for item in formset.measurements}
     next_order = max((item.poradi for item in existing.values()), default=0)
     measured_at = timezone.now()
@@ -156,7 +168,10 @@ def ulozit_mereni_zkousky(kontrola, typ_zkousky, formset, user):
         # Editing a value preserves the original measuring person/date.
         item.save()
         changed = True
-    if changed:
+    aktualni_vyhodnoceni = vyhodnoceni_kontroly_po_mereni(kontrola) if changed else puvodni_vyhodnoceni
+    if changed and (
+        puvodni_vyhodnoceni != aktualni_vyhodnoceni or aktualni_vyhodnoceni['neulozene_vyhodnoceni']
+    ):
         # Volající drží zámek bedny. Příznak nemění výsledky ani historii kontroly.
         KontrolaBedny.objects.filter(pk=kontrola.pk).update(vyzaduje_potvrzeni=True)
         kontrola.vyzaduje_potvrzeni = True

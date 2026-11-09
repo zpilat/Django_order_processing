@@ -17,7 +17,7 @@ Internal application for receiving, heat treating, inspecting and shipping order
 - Loading, workstation, inspection and nonconformity overviews; production, straightening, crate and truck dashboards with history.
 - Shipment of orders or selected crates, splitting unfinished crates into another order and adding shipments to an existing outbound truck.
 - PDF crate cards, quality control cards (KKK), batch travelers, delivery notes, certificates and proforma invoices. Filled KKK are supported for EUR.
-- Unsaved inspection changes are highlighted in red and block normal departure from checked crates. Measurement changes persist a pending-confirmation flag in the database; inspection drafts survive navigation to the same crate's measurements.
+- Unsaved inspection changes are highlighted in red and block normal departure from checked crates. Measurement edits require confirmation only when evaluation or technological states change; drafts survive navigation to the same crate's measurements.
 - Task permissions and auditing through `django-simple-history`.
 
 ## Local setup on Windows
@@ -116,6 +116,10 @@ Filled KKK cards use a green release background for both unconditional release a
 For SPX, filled KKK cards print **OK** for recorded torsion measurements when released, including QS release with deviation. Original measurements remain stored; torsion limits from the specification are not evaluated yet.
 
 Inspection completion, corrections to checked crates and setting the checked state in Admin require a complete inspection consistent with current measurements and limits. Bulk marking as checked has been removed. Pending measurement confirmation blocks shipment readiness and shipment on the server.
+
+Every crate requires at least one saved bending and one saved torsion measurement before inspection completion. The same server validation applies in Admin and when saving corrections to checked crates; the inspection page explains which test is missing.
+
+Empty deflection tests after rolling and straightening appear only after a nonconforming heat-treatment result; saved results remain visible. Saved straightening measurements lock further edits to heat-treatment deflection, including direct server requests.
 
 ## Project structure
 

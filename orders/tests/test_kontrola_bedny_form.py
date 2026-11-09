@@ -28,6 +28,7 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
         self.url = reverse('bedna_kontrola', args=[self.bedna.cislo_bedny])
 
     def prepare_curvature_for_marking(self, kontrola):
+        self.create_required_mechanical_measurements(kontrola)
         customer = self.bedna.zakazka.kamion_prijem.zakaznik
         customer.zkratka = 'EUR'
         customer.max_krivych_vrutu = 0
@@ -498,7 +499,10 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
         self.assertLess(html.index('id="mereni-bedny"'), html.index('<form method="post" novalidate'))
         for kind in TypZkouskyChoice:
             measurement_url = reverse('bedna_mereni_zkousky', args=[self.bedna.cislo_bedny, kind])
-            self.assertContains(response, measurement_url)
+            if kind in (TypZkouskyChoice.PROHYB_PO_KOULENI, TypZkouskyChoice.PROHYB_PO_ROVNANI):
+                self.assertNotIn(measurement_url, self.measurement_html(response))
+            else:
+                self.assertContains(response, measurement_url)
 
     def test_control_overview_shows_customer_bending_limits(self):
         customer = self.bedna.zakazka.kamion_prijem.zakaznik
@@ -516,12 +520,67 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
                 if normal is None:
                     self.assertNotContains(response, 'max.')
                 else:
-                    self.assertContains(response, f'max. {normal} mm', count=3)
+                    self.assertContains(response, f'max. {normal} mm', count=1)
                 if release is None:
                     self.assertNotContains(response, 'QS max.')
                 else:
-                    self.assertContains(response, f'QS max. {release} mm', count=2)
+                    self.assertContains(response, f'QS max. {release} mm', count=1)
                 self.assertNotContains(response, 'None')
+
+    def test_followup_deflection_requires_nonconforming_heat_treatment_sample(self):
+        customer = self.bedna.zakazka.kamion_prijem.zakaznik
+        customer.zkratka = 'ROT'
+        customer.max_krivych_vrutu = 1
+        customer.save()
+        kontrola = KontrolaBedny.objects.create(bedna=self.bedna)
+        for values, visible in (
+            ([], False), (['0.4', '0.4'], False), (['0.5', '0.5'], False),
+            (['0.6', '0.6'], False), (['0.7'], False), (['0.7', '0.7'], True),
+        ):
+            with self.subTest(values=values):
+                kontrola.mereni.all().delete()
+                for index, value in enumerate(values, 1):
+                    MereniBedny.objects.create(
+                        kontrola=kontrola, typ_zkousky=TypZkouskyChoice.PROHYB_PO_TZ,
+                        poradi=index, hodnota=Decimal(value),
+                    )
+                response = self.client.get(self.url)
+                types = {row['typ'] for row in response.context['zkousky']}
+                for kind in (TypZkouskyChoice.PROHYB_PO_KOULENI, TypZkouskyChoice.PROHYB_PO_ROVNANI):
+                    self.assertEqual(kind in types, visible)
+                    measurement_url = reverse('bedna_mereni_zkousky', args=[self.bedna.cislo_bedny, kind])
+                    self.assertEqual(measurement_url in self.measurement_html(response), visible)
+
+    def test_existing_followup_measurements_remain_visible_without_heat_treatment(self):
+        kontrola = KontrolaBedny.objects.create(bedna=self.bedna)
+        for existing in (TypZkouskyChoice.PROHYB_PO_KOULENI, TypZkouskyChoice.PROHYB_PO_ROVNANI):
+            with self.subTest(existing=existing):
+                kontrola.mereni.all().delete()
+                MereniBedny.objects.create(kontrola=kontrola, typ_zkousky=existing, poradi=1, hodnota=Decimal('0.1234'))
+                count = kontrola.mereni.count()
+                response = self.client.get(self.url)
+                rows = {row['typ']: row for row in response.context['zkousky']}
+                for kind in (TypZkouskyChoice.PROHYB_PO_KOULENI, TypZkouskyChoice.PROHYB_PO_ROVNANI):
+                    self.assertEqual(kind in rows, kind == existing)
+                self.assertContains(response, '0,1234')
+                self.assertEqual(kontrola.mereni.count(), count)
+
+    def test_followup_offer_uses_heat_treatment_result_even_after_passing_straightening(self):
+        self.prepare_curvature_for_marking(KontrolaBedny.objects.create(bedna=self.bedna))
+        kontrola = KontrolaBedny.objects.get(bedna=self.bedna)
+        kontrola.mereni.filter(typ_zkousky=TypZkouskyChoice.PROHYB_PO_TZ).update(hodnota=Decimal('0.9'))
+        MereniBedny.objects.create(
+            kontrola=kontrola, typ_zkousky=TypZkouskyChoice.PROHYB_PO_ROVNANI,
+            poradi=1, hodnota=Decimal('0.1'),
+        )
+        response = self.client.get(self.url)
+        self.assertIsNone(response.context['form'].omezeni_prohybu)
+        rows = {row['typ']: row for row in response.context['zkousky']}
+        for kind in (TypZkouskyChoice.PROHYB_PO_KOULENI, TypZkouskyChoice.PROHYB_PO_ROVNANI):
+            self.assertIn(kind, rows)
+            self.assertTrue(rows[kind]['can_edit'])
+        self.assertFalse(rows[TypZkouskyChoice.PROHYB_PO_TZ]['can_edit'])
+        self.assertContains(response, 'Prohyb po TZ je po zadání měření po rovnání uzamčený.')
 
     def test_control_overview_colors_all_bending_types_using_customer_limits(self):
         kontrola = KontrolaBedny.objects.create(bedna=self.bedna)
@@ -567,8 +626,11 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
 
         for kind in TypZkouskyChoice:
             measurement_url = reverse('bedna_mereni_zkousky', args=[next_bedna.cislo_bedny, kind])
-            if kind in (TypZkouskyChoice.TVRDOST_POVRCHU, TypZkouskyChoice.TVRDOST_JADRA):
-                self.assertNotContains(response, measurement_url)
+            if kind in (
+                TypZkouskyChoice.TVRDOST_POVRCHU, TypZkouskyChoice.TVRDOST_JADRA,
+                TypZkouskyChoice.PROHYB_PO_KOULENI, TypZkouskyChoice.PROHYB_PO_ROVNANI,
+            ):
+                self.assertNotIn(measurement_url, self.measurement_html(response))
                 self.assertNotIn(kind.label, self.measurement_html(response))
             else:
                 self.assertContains(response, measurement_url)
@@ -587,8 +649,10 @@ class KontrolaBednyFormTests(KontrolaBednyTestBase):
                     self.assertEqual(response.status_code, 200)
                     for kind in TypZkouskyChoice:
                         measurement_url = reverse('bedna_mereni_zkousky', args=[bedna.cislo_bedny, kind])
-                        if not selected and kind in (TypZkouskyChoice.TVRDOST_POVRCHU, TypZkouskyChoice.TVRDOST_JADRA):
-                            self.assertNotContains(response, measurement_url)
+                        if kind in (TypZkouskyChoice.PROHYB_PO_KOULENI, TypZkouskyChoice.PROHYB_PO_ROVNANI) or (
+                            not selected and kind in (TypZkouskyChoice.TVRDOST_POVRCHU, TypZkouskyChoice.TVRDOST_JADRA)
+                        ):
+                            self.assertNotIn(measurement_url, self.measurement_html(response))
                             self.assertNotIn(kind.label, self.measurement_html(response))
                         else:
                             self.assertContains(response, measurement_url)

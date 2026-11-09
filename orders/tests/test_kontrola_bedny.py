@@ -12,6 +12,13 @@ from orders.models import Bedna, Kamion, KontrolaBedny, MereniBedny, Predpis, Ty
 
 
 class KontrolaBednyTestBase(TestCase):
+    def create_required_mechanical_measurements(self, kontrola):
+        for kind in (TypZkouskyChoice.OHYB, TypZkouskyChoice.KRUT):
+            MereniBedny.objects.update_or_create(
+                kontrola=kontrola, typ_zkousky=kind, poradi=1,
+                defaults={'hodnota': Decimal('1')},
+            )
+
     @classmethod
     def setUpTestData(cls):
         zakaznik = Zakaznik.objects.create(

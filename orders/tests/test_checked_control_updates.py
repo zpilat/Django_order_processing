@@ -34,6 +34,7 @@ class CheckedControlUpdatesTests(KontrolaBednyTestBase):
             pocet_krivych_vrutu_prvni_mereni=0, pocet_krivych_vrutu_druhe_mereni=0,
         )
         self.measurement(TypZkouskyChoice.PROHYB_PO_TZ, '0.9')
+        self.create_required_mechanical_measurements(self.kontrola)
         self.user.user_permissions.add(Permission.objects.get(codename='mark_bedna_zkontrolovano'))
         self.client.force_login(self.user)
         self.url = reverse('bedna_kontrola', args=[self.bedna.cislo_bedny])
@@ -181,6 +182,7 @@ class CheckedControlUpdatesTests(KontrolaBednyTestBase):
                 self.customer.max_krivych_vrutu = None if missing == 'maximum' else 0
                 self.customer.save()
                 MereniBedny.objects.filter(kontrola=self.kontrola).delete()
+                self.create_required_mechanical_measurements(self.kontrola)
                 if missing != 'tz':
                     self.measurement(TypZkouskyChoice.PROHYB_PO_TZ, '0.1')
                 response = self.client.get(self.url)
