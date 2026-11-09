@@ -65,6 +65,10 @@ SQLite (`DJANGO_DB_ENGINE=sqlite`, `db.sqlite3`) is optional; always report its 
 
 ## Documentation
 
+For refreshing local development data on Windows by **replacing the existing
+dev database** with a production dump, see the Czech
+[production-to-dev restore guide](docs/zalohy.md#přepsání-lokální-dev-databáze-produkčním-dumpem).
+
 User manuals are in Czech:
 
 Active staff users can open the manuals from **Návody a dokumentace** at the

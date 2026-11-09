@@ -68,6 +68,10 @@ SQLite (`DJANGO_DB_ENGINE=sqlite`, soubor `db.sqlite3`) je jen volitelná náhra
 
 ## Uživatelská dokumentace
 
+Pravidelnou aktualizaci dev databáze produkčním dumpem na Windows, včetně
+**přepsání stávající lokální databáze**, popisuje
+[návod na přenos produkce do devu](docs/zalohy.md#přepsání-lokální-dev-databáze-produkčním-dumpem).
+
 Manuály jsou v češtině a obsahují postupy, omezení a řešení běžných chyb.
 
 V aplikaci je najdete dole v nabídce administrace v samostatném bloku
