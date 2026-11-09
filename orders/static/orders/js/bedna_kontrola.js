@@ -11,6 +11,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const omezeniCistoty = document.getElementById('omezeni-cistoty');
     const omezeniUlozeni = document.getElementById('omezeni-ulozeni');
     const checkboxes = Array.from(duvody.querySelectorAll('input[type="checkbox"]'));
+    const aktualizovatMoznostiUvolneni = vyber => {
+        const povolene = cistota.value === 'NOK' || ulozeni.value === 'NOK'
+            ? ['NE'] : pravidla.povolene_stavy_prohybu;
+        const moznosti = pravidla.uvolneni.filter(([value]) => povolene.includes(value));
+        uvolneni.replaceChildren(...moznosti.map(([value, label]) => new Option(label, value)));
+        uvolneni.value = povolene.includes(vyber) ? vyber : moznosti[0][0];
+    };
     let predchoziUlozeniNok = (pravidla.puvodni_ulozeni ?? ulozeni.value) === 'NOK';
     let track = () => {};
     const aktualizovat = () => {
@@ -22,11 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (jine) jine.checked = false;
             }
             predchoziUlozeniNok = ulozeniNok;
-            const povolene = cistotaNok || ulozeniNok ? ['NE'] : pravidla.povolene_stavy_prohybu;
-            const puvodniVyber = uvolneni.value;
-            const moznosti = pravidla.uvolneni.filter(([value]) => povolene.includes(value));
-            uvolneni.replaceChildren(...moznosti.map(([value, label]) => new Option(label, value)));
-            uvolneni.value = povolene.includes(puvodniVyber) ? puvodniVyber : moznosti[0][0];
+            aktualizovatMoznostiUvolneni(uvolneni.value);
             omezeniCistoty?.classList.toggle('d-none', !cistotaNok);
             omezeniUlozeni?.classList.toggle('d-none', !ulozeniNok);
 
@@ -103,10 +106,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 removeDraft();
             } else {
                 fields.forEach(field => {
-                    if (!Object.hasOwn(draft.values, field.name)) return;
+                    if (field === uvolneni || !Object.hasOwn(draft.values, field.name)) return;
                     if (field.type === 'checkbox') field.checked = Boolean(draft.values[field.name]);
                     else field.value = draft.values[field.name] ?? '';
                 });
+                // Volba z konceptu může chybět v možnostech odvozených z DB.
+                // Nejdříve obnovit nabídku podle rozepsané Čistoty a Uložení.
+                aktualizovatMoznostiUvolneni(draft.values[uvolneni.name] ?? uvolneni.value);
                 snapshot.value = draft.snapshot;
                 // První měření může vytvořit dosud neexistující prázdnou kontrolu.
                 // Nový snapshot přijmout jen pokud všechny původní hodnoty zůstaly stejné.
