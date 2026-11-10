@@ -1,0 +1,36 @@
+#result_list td.bedna-quality-warning-cell {
+  background-color: #ffecec;
+}
+
+.bedna-quality-warning {
+  display: inline-block;
+  width: 9px;
+  margin-inline-start: -10px;
+  margin-inline-end: 1px;
+  text-align: right;
+  white-space: nowrap;
+  color: #b42318;
+  font-family: "Segoe UI Symbol", sans-serif;
+  font-size: 12px;
+  line-height: 1;
+  vertical-align: super;
+  cursor: help;
+}
+
+html[data-theme="dark"] #result_list td.bedna-quality-warning-cell {
+  background-color: #482323;
+}
+
+html[data-theme="dark"] .bedna-quality-warning {
+  color: #ffb4ab;
+}
+
+@media (prefers-color-scheme: dark) {
+  html[data-theme="auto"] #result_list td.bedna-quality-warning-cell {
+    background-color: #482323;
+  }
+
+  html[data-theme="auto"] .bedna-quality-warning {
+    color: #ffb4ab;
+  }
+}

@@ -138,6 +138,15 @@ Podrobnosti o tisku a upozornění na chybějící čísla jsou v [manuálu kami
 
 ## 7. Filtry v BednaAdmin
 
+V seznamu se aktuální **Uvolnění = Neshoda** označuje červeným zvýrazněním
+buňky **Stav bedny** a malým symbolem **⚠** jako horním indexem těsně před
+stavem, nezávisle na zvolených filtrech. Po najetí na buňku nebo symbol
+se zobrazí **Neshoda při kontrole**. Pokud je jediným důvodem neshody
+**Křivost**, varování se nezobrazuje; tuto informaci ukazuje Rovnání. Při
+souběhu Křivosti s jiným důvodem varování zůstává. Neshoda bez zadaného důvodu
+se také zvýrazní. Po uvolnění bedny varování zmizí. Jde pouze o upozornění;
+pravidla práce s bednou a blokace expedice, včetně samotné Křivosti, se nemění.
+
 Nejpoužívanější filtry:
 
 - `Stav bedny` (`StavBednyFilter`) - obsahuje i virtuální volby `RO` (Rozpracováno) a `PE` (Po exspiraci).

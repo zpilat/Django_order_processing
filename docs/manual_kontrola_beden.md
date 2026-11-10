@@ -4,6 +4,14 @@ Kontrola propojuje naměřené hodnoty s výstupní kontrolou a rozhodnutím o u
 
 ## 1. Otevření kontroly
 
+V administraci **Bedny** upozorňuje červené zvýraznění buňky **Stav bedny**
+a malý symbol **⚠** jako horní index těsně před stavem na aktuální Neshodu
+i bez filtru Zkontrolováno. Po najetí na buňku nebo symbol se
+zobrazí **Neshoda při kontrole**. Samotná Křivost se takto neoznačuje, protože
+je patrná v Rovnání; při současném jiném důvodu se varování zobrazí.
+Chybějící důvod u Neshody varování neskrývá. Uvolnění, včetně QS s odchylkou,
+se takto nezvýrazňuje. Pravidla expedice tato vizuální výjimka nemění.
+
 - V administraci **Bedny** při filtru **Stav bedny = Zkontrolováno** najdete přímo pod ním filtr **Uvolnění**. Volba **Neshoda** zobrazí bedny s tímto rozhodnutím, **Uvolněno** zahrnuje i **Uvolněno QS s odchylkou**. Výchozí **Vše** zahrnuje také nerozhodnuté a bedny bez kontroly. Při změně výrobního stavu se filtr uvolnění odstraní.
 - Z **Přehledu kontroly** (`/prehled-kontroly/`) otevřete číslo bedny. Přehled obsahuje bedny ve stavu Zakaleno a šarže železa mimo databázi čekající na kontrolu. Bedny s alespoň jednou uloženou naměřenou hodnotou jsou červeně zvýrazněné a řadí se před ostatní položky. Obě skupiny se řadí podle času **Ke kontrole od**, od nejstarších.
 - Naskenujte kartu bedny kamerou nebo čtečkou a v detailu zvolte **Kontrola bedny**.

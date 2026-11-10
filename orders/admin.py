@@ -82,7 +82,7 @@ from .forms import (
 )
 from .choices import (
     StavBednyChoice, StavSarzeChoice, RovnaniChoice, TryskaniChoice, ZinkovaniChoice, PrioritaChoice, KamionChoice, PrijemVydejChoice, SklademZakazkyChoice,
-    TypZkouskyChoice,
+    TypZkouskyChoice, UvolneniKontrolyChoice,
     BARVA_SKUPINY_TZ, STAV_BEDNY_ROZPRACOVANOST, STAV_BEDNY_SKLADEM, STAV_BEDNY_PRO_NAVEZENI,
     STAV_BEDNY_KONTROLA_ZMENY_PRIORITY,
 )
@@ -3120,6 +3120,7 @@ class BednaAdmin(HistoryViewOnlyAdmin):
             'orders/js/admin_actions_target_blank.js',
             'orders/js/changelist_dirty_guard.js',
             'orders/js/admin_bedna_group_separator.js',
+            'orders/js/admin_bedna_quality_warning.js',
             'orders/js/admin_model_change_poll.js',
             'orders/js/bedny_hmotnost_sum.js',
             'orders/js/bedny_netto_hmotnost_sum.js',
@@ -3129,6 +3130,7 @@ class BednaAdmin(HistoryViewOnlyAdmin):
                 'orders/css/admin_paused_rows.css',
                 'orders/css/admin_changelist_filters_scroll.css',
                 'orders/css/rack_preview.css',
+                'orders/css/admin_bedna_quality_warning.css',
             )
         }
 
@@ -3482,7 +3484,11 @@ class BednaAdmin(HistoryViewOnlyAdmin):
         Zobrazí číslo bedny a umožní třídění podle hlavičky pole.
         Číslo bedny se generuje automaticky a je readonly.
         """
-        return format_cislo_bedny(obj)
+        cislo = format_cislo_bedny(obj)
+        if getattr(obj, 'has_quality_warning', False):
+            # The list script uses this marker for both editable and read-only status cells.
+            return format_html('<span data-kontrola-neshoda="true">{}</span>', cislo)
+        return cislo
 
     @admin.display(description='Pořadí', empty_value='-')
     def get_poradi_bedny_v_zakazce(self, obj):
@@ -3811,6 +3817,19 @@ class BednaAdmin(HistoryViewOnlyAdmin):
         qs = qs.annotate(
             has_active_notif=Exists(notif_filter)
         )
+
+        # Suppress only a sole bending defect; mixed or unspecified defects still warn.
+        quality_warning_filter = KontrolaBedny.objects.filter(
+            bedna_id=OuterRef('pk'),
+            uvolneni=UvolneniKontrolyChoice.NESHODA,
+        ).exclude(
+            neshoda_krivost=True,
+            **{
+                name: False for name in KontrolaBedny.NESHODA_FIELDS
+                if name != 'neshoda_krivost'
+            },
+        )
+        qs = qs.annotate(has_quality_warning=Exists(quality_warning_filter))
 
         # Anotace fake_skupina_TZ, která obsahuje fejkovou skupinu tepelného zpracování bedny, 
         # podle logiky z property fake_skupina_TZ v modelu Bedna - standardně je fake_skupina_TZ = zakazka.predpis.skupina,
