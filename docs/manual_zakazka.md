@@ -101,6 +101,26 @@ Při expedici do nového i existujícího kamionu se navíc ověřuje, že žád
 
 Od stavu **K expedici** jsou kontrola a měření pouze pro čtení. Pro opravu vraťte bednu na Zkontrolováno; u expedované zakázky nejprve použijte **Vrácení vybraných zakázek z expedice** a potom vraťte příslušnou bednu z K expedici na Zkontrolováno. Vrácení zakázky z expedice rovněž nesmí vytvořit kombinaci K expedici s Neshodou; pokud ji starší data obsahují, zakázka se nevrátí a je potřeba řešení se správcem.
 
+### 8.1 Vrácení celé zakázky z expedice
+
+1. V **Zakázkách** nastavte filtr **Skladem → Expedováno** a vyhledejte zakázku. Poznamenejte si její **kamion výdej**, pokud do něj budete část beden znovu expedovat.
+2. Označte zakázku a spusťte akci **Vrácení vybraných zakázek z expedice**. Potřebujete oprávnění ke změně zakázek.
+3. Zkontrolujte hlášení o výsledku. Běžně se zruší příznak Expedováno i přiřazení kamionu výdej a všechny bedny zakázky přejdou na **K expedici**. Zakázku pak najdete pod filtrem **Skladem → Vše skladem**.
+
+Akce vrací vždy všechny bedny zakázky; všechny musí být ve stavu Expedováno. Neshoda ve výstupní kontrole nebo nepotvrzená změna měření vrácení blokuje — taková data řešte se správcem. U dříve oddělené zakázky se bedny mohou sloučit zpět do dosud neexpedované původní zakázky a oddělená zakázka se smaže; řiďte se hlášením a ověřte, kde bedny nyní jsou.
+
+### 8.2 Vrácení jedné bedny z expedované zakázky o pěti bednách
+
+1. Vraťte **celou zakázku se všemi pěti bednami** podle postupu výše.
+2. Otevřete seznam **Bedny**, nastavte filtr **Stav bedny → K expedici** a vyhledejte vrácené bedny podle jejich čísel.
+3. Označte **pouze čtyři bedny, které mají zůstat expedované**. Bednu, kterou vracíte, neoznačujte.
+4. Spusťte **Expedice vybraných beden do existujícího kamiónu**, vyberte původní kamion výdej a potvrďte expedici.
+5. Ověřte výsledek: čtyři vybrané bedny budou v oddělené expedované zakázce přiřazené k původnímu kamionu. Vrácená bedna zůstane v neexpedované zakázce ve stavu **K expedici**. Pokud potřebujete opravit její kontrolu či měření, vraťte ji nejprve na **Zkontrolováno** podle [manuálu kontroly beden](manual_kontrola_beden.md).
+
+Tento částečný postup nelze použít u zákazníka s nastavením **Pouze kompletní zakázky**: aplikace vyžaduje expedovat všechny bedny zakázky společně. Další postup domluvte s odpovědným pracovníkem expedice.
+
+Původní kamion výdej se vrácením zakázky nemaže. Po změně obsahu znovu vytiskněte potřebné doklady; pokud již byly předány nebo proběhla fyzická expedice, domluvte s expedicí také jejich opravu a skutečné vrácení bedny. Podrobnosti jsou v [postupu pro opravy po expedici](manual_mimoradne_situace.md#7-oprava-po-expedici-nebo-špatný-kamion-výdej).
+
 ## 9. Nejčastější problémy a řešení
 
 ### Akce expedice není dostupná
