@@ -118,7 +118,7 @@ Tiskové akce jsou dostupné v seznamech beden, zakázek a kamionů podle kontex
 
 Na vyplněné KKK mají Uvolněno i Uvolněno QS s odchylkou zelené pozadí, Neshoda červené. Interní označení QS s odchylkou zůstává oranžové.
 
-U SPX se na vyplněné KKK při uvolnění (včetně QS s odchylkou) tiskne u zapsaných hodnot krutu **OK**. Původní měření zůstávají v aplikaci; porovnání krutu s limitem předpisu se zatím neprovádí.
+U SPX se na vyplněné KKK v poli Bedna tiskne také vyplněná výrobní zakázka bedny: s pouze německým popiskem **Beleg-Nr.**, pod čísly bedny a nad pořadím / počtem beden v zakázce. Při uvolnění (včetně QS s odchylkou) se tiskne u zapsaných hodnot krutu **OK**. Původní měření zůstávají v aplikaci; porovnání krutu s limitem předpisu se zatím neprovádí.
 
 Dokončení a opravy zkontrolované bedny i nastavení Zkontrolováno v adminu vyžadují úplnou kontrolu odpovídající aktuálním měřením a limitům. Hromadná akce Zkontrolováno je odstraněná. Nepotvrzené změny měření blokují na serveru přípravu k expedici i expedici.
 

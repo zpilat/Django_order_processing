@@ -114,7 +114,7 @@ Printing actions depend on selected objects, filters and permissions. Blank KKK 
 
 Filled KKK cards use a green release background for both unconditional release and QS release with deviation, and red for nonconformity. Internal QS release highlighting remains orange.
 
-For SPX, filled KKK cards print **OK** for recorded torsion measurements when released, including QS release with deviation. Original measurements remain stored; torsion limits from the specification are not evaluated yet.
+For SPX, filled KKK cards also print the crate's production order, when present, with the German-only label **Beleg-Nr.** below the crate numbers and above its position / total crate count in the order. They print **OK** for recorded torsion measurements when released, including QS release with deviation. Original measurements remain stored; torsion limits from the specification are not evaluated yet.
 
 Inspection completion, corrections to checked crates and setting the checked state in Admin require a complete inspection consistent with current measurements and limits. Bulk marking as checked has been removed. Pending measurement confirmation blocks shipment readiness and shipment on the server.
 
