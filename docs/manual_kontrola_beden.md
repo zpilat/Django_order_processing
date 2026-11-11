@@ -182,6 +182,10 @@ Technický příznak přidává migrace `0245_kontrola_vyzaduje_potvrzeni`. Star
 
 ## 6. Přehled neshod, audit a tisk
 
+Záhlaví sloupce zákazníka v PDF je dvouřádkové: nahoře **Zákazník /**, pod ním celý popis **Rozměr · závit · hlava** bez dalšího zalomení.
+
+V PDF přehledu neshod má sloupec **Zákazník / Rozměr · závit · hlava** v prvním řádku název zákazníka a ve druhém rozměr, označení závitu a typ hlavy oddělené tečkami, například **Ø10 × 100 · SG · SK**. Artikl zakázky se netiskne. Délka se zobrazuje bez koncových desetinných nul (například 100 místo 100,0); nenulová desetinná část zůstává. **SG** znamená částečný závit, **VG** celozávit; údaje se přebírají z aktuální zakázky.
+
 **Přehled neshod** (`/prehled-neshod/`) ukazuje bedny s aktuálním rozhodnutím Neshoda, důvody, poznámku a autora i datum rozhodnutí. Filtruje se podle zákazníka, důvodu a dne. Po změně uvolnění na jinou hodnotu bedna z přehledu zmizí; starší rozhodnutí zůstává v historii.
 
 **Evidence neshod v administraci** (`/admin/orders/zaznamneshody/`) uchovává společný snapshot všech důvodů a měření při prvním uložení Neshody, novém přechodu do Neshody nebo přidání důvodu během trvající Neshody. Kopíruje identifikaci, důvody, poznámku, všechny uložené hodnoty měření a tehdejší požadavky i limity. Odebrání důvodu, samotná úprava poznámky či měření nový snapshot nezakládá. Starší snapshoty se nepřepisují a uvolnění bedny je z evidence neodstraní. Evidence se otevírá v administraci nebo z nabídky přehledů; pod formulářem kontroly se odkazy na jednotlivé snapshoty nezobrazují. Podrobnosti popisuje [Evidence neshod](manual_evidence_neshod.md).

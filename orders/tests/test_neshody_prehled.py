@@ -484,8 +484,10 @@ class NeshodyPrehledPdfTests(KontrolaBednyTestBase):
         cells = soup.select_one('tbody tr:not(.day-header)').find_all('td')
         self.assertIsNotNone(cells[0].find('svg'))
         self.assertIn(self.bedna.get_stav_bedny_display(), cells[1].get_text())
-        for text in ('TEST', self.bedna.zakazka.artikl, 'Ø10', '100'):
+        for text in ('TEST', 'Ø10', '100', 'SG', str(self.bedna.zakazka.typ_hlavy)):
             self.assertIn(text, cells[2].get_text())
+        self.assertEqual(cells[2].strong.get_text(), 'TEST')
+        self.assertNotIn(self.bedna.zakazka.artikl, cells[2].get_text())
         for text in ('Vrstva', 'Křivost', 'Poškozený závit', 'Doplněná poznámka'):
             self.assertIn(text, cells[3].get_text())
         for text in ('0 / 25', '3 / 25'):

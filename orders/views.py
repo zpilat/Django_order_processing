@@ -477,7 +477,7 @@ def _build_neshody_prehled_context(request):
     kontroly = (
         KontrolaBedny.objects
         .filter(uvolneni=UvolneniKontrolyChoice.NESHODA)
-        .select_related('bedna__zakazka__kamion_prijem__zakaznik', 'uvolneni_zmenil')
+        .select_related('bedna__zakazka__kamion_prijem__zakaznik', 'bedna__zakazka__typ_hlavy', 'uvolneni_zmenil')
         .order_by(F('uvolneni_zmeneno_at').desc(nulls_last=True), '-pk')
     )
     popisky_duvodu = {

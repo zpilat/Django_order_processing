@@ -59,7 +59,7 @@
             <tr>
                 <th>Čárový kód bedny</th>
                 <th>Bedna / stav</th>
-                <th>Zákazník / zakázka</th>
+                <th>Zákazník /<br><span style="white-space: nowrap;">rozměr · závit · hlava</span></th>
                 <th>Důvody neshody / poznámka</th>
                 <th>Křivých</th>
                 <th>Označeno</th>
@@ -84,7 +84,7 @@
                     </td>
                     <td>
                         <strong>{{ item.zakaznik.zkraceny_nazev }}</strong>
-                        <div class="secondary">{{ item.zakazka.artikl }} · Ø{{ item.zakazka.prumer }} × {{ item.zakazka.delka }}</div>
+                        <div class="secondary">Ø{{ item.zakazka.prumer }} × {{ item.zakazka.delka|floatformat:"-1" }} · {% if item.zakazka.celozavit %}VG{% else %}SG{% endif %} · {{ item.zakazka.typ_hlavy }}</div>
                     </td>
                     <td>
                         {% if item.duvody %}{{ item.duvody|join:", " }}{% else %}Bez zadaného důvodu{% endif %}
