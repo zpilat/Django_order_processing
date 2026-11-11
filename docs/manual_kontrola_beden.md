@@ -42,6 +42,8 @@ Tvrdost povrchu a jádra se nabízí jen u beden vybraných pravidly vzorkován�
 
 ## 3. Meze a zvýraznění prohybu
 
+Číselná minima, maxima a maxima QS nově připravená v předpisech pro Ohyb, Krut, Tvrdost povrchu, Tvrdost jádra a Vrstvu zatím do hodnocení kontroly nevstupují. Požadavky těchto zkoušek se nadále zobrazují z původních textů. Jejich doplnění v předpisu samo nemění uvolnění, automatické důvody ani barvy výsledků. Podrobnosti popisuje [manuál číselníků](manual_ciselniky.md#číselné-meze-zkoušek--příprava-vyhodnocování).
+
 `L` znamená délku zakázky v mm. Hodnota přesně na mezi je přípustná.
 
 | Zákazník | Běžná horní mez prohybu |

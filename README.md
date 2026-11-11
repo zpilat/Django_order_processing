@@ -19,6 +19,7 @@ Interní aplikace pro správu zakázek od příjmu přes tepelné zpracování a
 - PDF karty beden, KKK, průvodky šarží, dodací listy, certifikáty a proforma faktury. Vyplněné KKK jsou podporované pro EUR.
 - Neuložené změny kontroly se označují červeně; u zkontrolované bedny blokují běžný odchod. Změna měření vyžaduje nové potvrzení pouze při změně vyhodnocení nebo technologických stavů; rozepsané údaje se zachovávají při přechodu na měření stejné bedny.
 - Oprávnění podle úkolu a audit přes `django-simple-history`.
+- V předpisech jsou připravená nepovinná číselná minima, maxima a maxima QS pro ohyb, krut, povrch, jádro a vrstvu. Příkaz `doplnit_meze_predpisu` nabízí náhled a s `--apply` doplní jednoznačné standardní meze z textů, bez přepisování ručních nebo QS hodnot. Zatím nemění hodnocení kontroly ani tisk; postup popisuje [analýza mezí](docs/analyza_mezi_predpisu.md).
 
 ## Lokální spuštění na Windows
 

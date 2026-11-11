@@ -64,6 +64,18 @@ Uložené případy v **Evidenci neshod** mají vlastní neměnný snímek tehde
 
 Běžné požadavky zkoušek se čtou z předpisu přiřazeného zakázce. Prohyb má samostatná pravidla podle zákazníka a délky. Prázdný text požadavku není potvrzením vyhovujícího výsledku.
 
+### Číselné meze zkoušek – příprava vyhodnocování
+
+Detail předpisu rozděluje Ohyb, Krut, Tvrdost povrchu, Tvrdost jádra a Vrstvu do samostatných částí. Vedle původního požadavku a popisů obsahuje každá zkouška nepovinné **minimum, maximum a maximum QS**. Ohyb se zadává ve stupních, krut v Nm, tvrdosti v HV a vrstva v mm; všechny číselné meze podporují čtyři desetinná místa. U vrstvy je jedna společná sada mezí pro textová pole Vrstva i Vrstva 2.
+
+Prázdná mez znamená nezadanou hranici, nikoli nulu. Minimum nesmí být větší než maximum, maximum QS nesmí být menší než vyplněné standardní maximum a meze nesmějí být záporné. Maximum QS se doplňuje ručně. Označení HV0,3/HV1/HV10 a CHD jsou součástí původní metodiky; jejich čísla nejsou sama o sobě mezemi vrstvy v mm.
+
+Tato pole zatím **neovlivňují vyhodnocení kontroly, uvolnění, automatické důvody neshody ani tisk KKK**. Původní texty a popisy zůstávají zachované. Migrace `0247_predpis_ciselne_meze_zkousek` pouze přidává prázdná pole do předpisu a jeho historie; nepřevádí staré hodnoty, nevytváří nové verze předpisů ani nemění staré historické záznamy. Při ručním doplnění se číselné hodnoty zaznamenají do dalšího záznamu historie předpisu.
+
+Převod z aktuálních textů, včetně potvrzených výjimek a nejednoznačných zápisů, popisuje [analýza převodu mezí](analyza_mezi_predpisu.md). Po migraci může správce použít příkaz `doplnit_meze_predpisu`: bez přepínače jen zobrazí náhled, s `--apply` doplní rozpoznaná standardní minima a maxima. `--csv cesta.csv` vytvoří podrobný přehled. Existující i částečně vyplněné meze a maxima QS se nepřepisují; nejednoznačné zápisy zůstanou prázdné. Každý změněný předpis dostane jeden nový záznam historie s důvodem převodu, staré záznamy se nedoplňují. Opakované spuštění nad nezměněnými předpisy nevytváří další změny ani historii. Zápis všech předpisů probíhá v jedné transakci; při chybě se vrátí celý převod.
+
+Naplnění mezí stále nezapíná automatické hodnocení dalších zkoušek. Pro technologické změny platné pouze pro nové zakázky používejte novou revizi předpisu podle postupu níže.
+
 ### Nová revize používaného předpisu
 
 Přepsání existujícího předpisu změní požadavky zobrazované i u zakázek, které na něj již odkazují. Pokud má nová technologie platit až pro další zakázky:

@@ -508,6 +508,66 @@ class Predpis(models.Model):
     jadro = models.CharField(max_length=50, verbose_name='Jádro', blank=True, null=True)
     vrstva = models.CharField(max_length=50, verbose_name='Vrstva', blank=True, null=True)
     vrstva_2 = models.CharField(max_length=50, verbose_name='Vrstva 2', blank=True, null=True)
+    ohyb_min = models.DecimalField(
+        max_digits=12, decimal_places=4, blank=True, null=True,
+        validators=[MinValueValidator(Decimal('0'))], verbose_name='Ohyb min. [°]',
+    )
+    ohyb_max = models.DecimalField(
+        max_digits=12, decimal_places=4, blank=True, null=True,
+        validators=[MinValueValidator(Decimal('0'))], verbose_name='Ohyb max. [°]',
+    )
+    ohyb_qsmax = models.DecimalField(
+        max_digits=12, decimal_places=4, blank=True, null=True,
+        validators=[MinValueValidator(Decimal('0'))], verbose_name='Ohyb max. QS [°]',
+    )
+    krut_min = models.DecimalField(
+        max_digits=12, decimal_places=4, blank=True, null=True,
+        validators=[MinValueValidator(Decimal('0'))], verbose_name='Krut min. [Nm]',
+    )
+    krut_max = models.DecimalField(
+        max_digits=12, decimal_places=4, blank=True, null=True,
+        validators=[MinValueValidator(Decimal('0'))], verbose_name='Krut max. [Nm]',
+    )
+    krut_qsmax = models.DecimalField(
+        max_digits=12, decimal_places=4, blank=True, null=True,
+        validators=[MinValueValidator(Decimal('0'))], verbose_name='Krut max. QS [Nm]',
+    )
+    povrch_min = models.DecimalField(
+        max_digits=12, decimal_places=4, blank=True, null=True,
+        validators=[MinValueValidator(Decimal('0'))], verbose_name='Tvrdost povrchu min. [HV]',
+    )
+    povrch_max = models.DecimalField(
+        max_digits=12, decimal_places=4, blank=True, null=True,
+        validators=[MinValueValidator(Decimal('0'))], verbose_name='Tvrdost povrchu max. [HV]',
+    )
+    povrch_qsmax = models.DecimalField(
+        max_digits=12, decimal_places=4, blank=True, null=True,
+        validators=[MinValueValidator(Decimal('0'))], verbose_name='Tvrdost povrchu max. QS [HV]',
+    )
+    jadro_min = models.DecimalField(
+        max_digits=12, decimal_places=4, blank=True, null=True,
+        validators=[MinValueValidator(Decimal('0'))], verbose_name='Tvrdost jádra min. [HV]',
+    )
+    jadro_max = models.DecimalField(
+        max_digits=12, decimal_places=4, blank=True, null=True,
+        validators=[MinValueValidator(Decimal('0'))], verbose_name='Tvrdost jádra max. [HV]',
+    )
+    jadro_qsmax = models.DecimalField(
+        max_digits=12, decimal_places=4, blank=True, null=True,
+        validators=[MinValueValidator(Decimal('0'))], verbose_name='Tvrdost jádra max. QS [HV]',
+    )
+    vrstva_min = models.DecimalField(
+        max_digits=12, decimal_places=4, blank=True, null=True,
+        validators=[MinValueValidator(Decimal('0'))], verbose_name='Vrstva min. [mm]',
+    )
+    vrstva_max = models.DecimalField(
+        max_digits=12, decimal_places=4, blank=True, null=True,
+        validators=[MinValueValidator(Decimal('0'))], verbose_name='Vrstva max. [mm]',
+    )
+    vrstva_qsmax = models.DecimalField(
+        max_digits=12, decimal_places=4, blank=True, null=True,
+        validators=[MinValueValidator(Decimal('0'))], verbose_name='Vrstva max. QS [mm]',
+    )
     popousteni = models.CharField(max_length=50, verbose_name='Popouštění', blank=True, null=True)
     sarzovani = models.CharField(max_length=50, verbose_name='Šaržování', blank=True, null=True)
     pletivo = models.ForeignKey(Pletivo, on_delete=models.SET_NULL, related_name='predpisy', verbose_name='Pletivo', blank=True, null=True)
@@ -541,6 +601,20 @@ class Predpis(models.Model):
         Vrací URL pro zobrazení detailu předpisu v administraci.
         """
         return reverse("admin:orders_predpis_change", args=[self.pk])    
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        for kind in ('ohyb', 'krut', 'povrch', 'jadro', 'vrstva'):
+            minimum = getattr(self, f'{kind}_min')
+            maximum = getattr(self, f'{kind}_max')
+            qsmax = getattr(self, f'{kind}_qsmax')
+            if all(isinstance(value, Decimal) and value.is_finite() for value in (minimum, maximum)) and minimum > maximum:
+                errors[f'{kind}_max'] = 'Maximum nesmí být menší než minimum.'
+            if all(isinstance(value, Decimal) and value.is_finite() for value in (maximum, qsmax)) and qsmax < maximum:
+                errors[f'{kind}_qsmax'] = 'Maximum QS nesmí být menší než standardní maximum.'
+        if errors:
+            raise ValidationError(errors)
         
 
 class TypHlavy(models.Model):

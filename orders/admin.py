@@ -4932,6 +4932,28 @@ class PredpisAdmin(HistoryViewOnlyAdmin):
     """
     save_as = True
     change_form_template = 'admin/orders/predpis/change_form.html'
+    fieldsets = (
+        ('Základní údaje', {
+            'fields': (('nazev', 'zakaznik'), ('skupina', 'aktivni')),
+            'description': (
+                'Číselné meze jsou příprava pro budoucí automatické vyhodnocení zkoušek. '
+                'Kontrola a tisk zatím používají původní textové požadavky. '
+                'Prázdná mez neznamená nulu; maxima QS se zadávají ručně.'
+            ),
+        }),
+        ('Ohyb', {'fields': ('ohyb', ('ohyb_min', 'ohyb_max', 'ohyb_qsmax'), 'popis_ohyb', 'popis_ohyb_2')}),
+        ('Krut', {'fields': ('krut', ('krut_min', 'krut_max', 'krut_qsmax'), 'popis_krut', 'popis_krut_2')}),
+        ('Tvrdost povrchu', {'fields': (
+            'povrch', ('povrch_min', 'povrch_max', 'povrch_qsmax'), 'popis_povrch', 'popis_povrch_2',
+        )}),
+        ('Tvrdost jádra', {'fields': (
+            'jadro', ('jadro_min', 'jadro_max', 'jadro_qsmax'), 'popis_jadro', 'popis_jadro_2',
+        )}),
+        ('Vrstva', {'fields': (
+            'vrstva', 'vrstva_2', ('vrstva_min', 'vrstva_max', 'vrstva_qsmax'), 'popis_vrstva', 'popis_vrstva_2',
+        ), 'description': 'Jedna společná sada číselných mezí v mm pro oba textové řádky vrstvy.'}),
+        ('Technologie a poznámka', {'fields': ('popousteni', 'sarzovani', 'pletivo', 'poznamka')}),
+    )
     list_display = ('nazev', 'skupina', 'get_zakaznik_zkraceny_nazev', 'ohyb', 'krut', 'povrch', 'jadro', 'vrstva', 'popousteni',
                     'sarzovani', 'pletivo', 'poznamka', 'aktivni')
     list_display_links = ('nazev',)

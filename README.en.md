@@ -19,6 +19,7 @@ Internal application for receiving, heat treating, inspecting and shipping order
 - PDF crate cards, quality control cards (KKK), batch travelers, delivery notes, certificates and proforma invoices. Filled KKK are supported for EUR.
 - Unsaved inspection changes are highlighted in red and block normal departure from checked crates. Measurement edits require confirmation only when evaluation or technological states change; drafts survive navigation to the same crate's measurements.
 - Task permissions and auditing through `django-simple-history`.
+- Specifications include optional numeric minimum, maximum and QS maximum fields for bending, torsion, surface/core hardness and case depth. `doplnit_meze_predpisu` previews text conversion and writes unambiguous standard limits only with `--apply`, preserving manual and QS values. Inspection evaluation and printing remain unchanged. See the [Czech conversion analysis](docs/analyza_mezi_predpisu.md).
 
 ## Local setup on Windows
 
