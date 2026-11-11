@@ -73,6 +73,7 @@ from .filters import (
     DuvodZaznamuNeshodyFilter, DatumZaznamuNeshodyFilter,
 )
 from .forms import (
+    MereniHodnotaInput,
     BednaAdminForm,
     BednaChangeListForm,
     ImportZakazekForm,
@@ -4932,6 +4933,12 @@ class PredpisAdmin(HistoryViewOnlyAdmin):
     """
     save_as = True
     change_form_template = 'admin/orders/predpis/change_form.html'
+    formfield_overrides = {
+        models.DecimalField: {
+            'widget': MereniHodnotaInput(attrs={'class': 'vTextField', 'size': '10', 'inputmode': 'decimal'}),
+            'localize': True,
+        },
+    }
     fieldsets = (
         ('Základní údaje', {
             'fields': (('nazev', 'zakaznik'), ('skupina', 'aktivni')),

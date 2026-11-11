@@ -68,6 +68,8 @@ Běžné požadavky zkoušek se čtou z předpisu přiřazeného zakázce. Prohy
 
 Detail předpisu rozděluje Ohyb, Krut, Tvrdost povrchu, Tvrdost jádra a Vrstvu do samostatných částí. Vedle původního požadavku a popisů obsahuje každá zkouška nepovinné **minimum, maximum a maximum QS**. Ohyb se zadává ve stupních, krut v Nm, tvrdosti v HV a vrstva v mm; všechny číselné meze podporují čtyři desetinná místa. U vrstvy je jedna společná sada mezí pro textová pole Vrstva i Vrstva 2.
 
+V detailu se číselné meze zobrazují bez koncových desetinných nul, například `45` místo `45,0000` a `0,15` místo `0,1500`. Přesnost uložených hodnot se tím nemění.
+
 Prázdná mez znamená nezadanou hranici, nikoli nulu. Minimum nesmí být větší než maximum, maximum QS nesmí být menší než vyplněné standardní maximum a meze nesmějí být záporné. Maximum QS se doplňuje ručně. Označení HV0,3/HV1/HV10 a CHD jsou součástí původní metodiky; jejich čísla nejsou sama o sobě mezemi vrstvy v mm.
 
 Tato pole zatím **neovlivňují vyhodnocení kontroly, uvolnění, automatické důvody neshody ani tisk KKK**. Původní texty a popisy zůstávají zachované. Migrace `0247_predpis_ciselne_meze_zkousek` pouze přidává prázdná pole do předpisu a jeho historie; nepřevádí staré hodnoty, nevytváří nové verze předpisů ani nemění staré historické záznamy. Při ručním doplnění se číselné hodnoty zaznamenají do dalšího záznamu historie předpisu.

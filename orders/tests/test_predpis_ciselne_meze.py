@@ -87,7 +87,7 @@ class PredpisCiselneMezeTests(KontrolaBednyTestBase):
         self.assertIn('ohyb_max', invalid.context['adminform'].form.errors)
         item.refresh_from_db()
         self.assertIsNone(item.ohyb_min)
-        data.update(ohyb_max='180', vrstva_min='0.15')
+        data.update(ohyb_max='180', vrstva_min='0,15', vrstva_max='0,2345', krut_min='0')
         saved = self.client.post(url, data)
         self.assertEqual(saved.status_code, 302)
         item.refresh_from_db()
@@ -96,3 +96,15 @@ class PredpisCiselneMezeTests(KontrolaBednyTestBase):
         self.assertEqual(item.vrstva_min, Decimal('0.15'))
         self.assertEqual(item.ohyb, 'min. 45°')
         self.assertEqual(item.history.latest().history_user_id, self.user.pk)
+        page = self.client.get(url)
+        form = page.context['adminform'].form
+        for name, value in (
+            ('ohyb_min', '45'), ('ohyb_max', '180'), ('krut_min', '0'),
+            ('vrstva_min', '0,15'), ('vrstva_max', '0,2345'), ('ohyb_qsmax', None),
+        ):
+            with self.subTest(field=name):
+                self.assertEqual(form.fields[name].widget.format_value(form[name].value()), value)
+        unchanged = type(form)(data=data, instance=item)
+        self.assertTrue(unchanged.is_valid(), unchanged.errors)
+        for name in ('ohyb_min', 'ohyb_max', 'krut_min', 'vrstva_min', 'vrstva_max'):
+            self.assertNotIn(name, unchanged.changed_data)
