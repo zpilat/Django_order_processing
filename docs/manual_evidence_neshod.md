@@ -4,6 +4,8 @@ Evidence neshod uchovává neměnné záznamy při zjištění neshody a doplně
 
 ## 1. Založení případu
 
+Výjimka pro **Atypický průběh**: Neshoda může být bez důvodu. Akce **Převést na atypický průběh, označit zkontrolováno s neshodou** vytvoří rovnou počáteční snapshot s prázdnými důvody a měřeními a označením atypického průběhu. Doplnění důvodu, například automatické Křivosti po vstupním měření, založí další snapshot. Samotné přidání měření bez nového důvodu snapshot nevytváří. Staré snapshoty se nemění a QS s odchylkou nadále vyžaduje důvod.
+
 1. Otevřete **Kontrolu bedny**, zadejte měření a výsledky výstupní kontroly.
 2. Vyberte **Uvolnění = Neshoda**, alespoň jeden důvod a případný popis do poznámky. Křivost se nastavuje automaticky podle měření a Čistota podle výsledku čistoty; oba důvody jsou zamčené. Při Uložení NOK se zaškrtne a zamkne také Jiné a lze uložit pouze Neshodu. Ostatní důvody lze zadat ručně. U **Jiné** je poznámka povinná.
 3. Zvolte **Uložit kontrolu bedny**. První uložení Neshody, přechod z jiného rozhodnutí do Neshody nebo přidání důvodu během Neshody založí nový společný snapshot.

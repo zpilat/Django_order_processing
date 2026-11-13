@@ -2,6 +2,21 @@
 
 Kontrola propojuje naměřené hodnoty s výstupní kontrolou a rozhodnutím o uvolnění konkrétní bedny. Výrobní stav Zkontrolováno se potvrzuje samostatnou operací.
 
+## Atypický průběh
+
+V admin seznamu Bedny nastavte **Stav bedny = Zkontrolováno** a použijte dynamický filtr **Atypický průběh** za filtrem Uvolnění. Volby jsou Vše, Ano a Ne. Při změně výrobního stavu se tento filtr odstraní.
+
+Bedna s příznakem **Atypický průběh** má v záhlaví upozornění. Používá se pro reklamace a samostatné operace; založení popisuje [manuál beden](manual_bedna.md#atypický-průběh-reklamace-a-samostatné-operace).
+
+- Tvrdost povrchu a jádra lze zadávat i u beden, které nejsou vybrané běžnými pravidly vzorkování. Stejná podmínka platí pro přehled měření v adminu a pro požadavky i rozsah měření ve vyplněné KKK. Tvrdosti zůstávají nepovinné.
+- Není povinné měření Ohybu, Krutu, Prohybu po TZ ani zadání obou počtů křivých. Je možné zapsat pouze vybrané zkoušky nebo uvolnit bednu bez měření. Prohyb po koulení a po rovnání je dostupný přímo, i bez vstupního prohybu po TZ. Uzamčení vstupního měření po zadání rovnání platí dál.
+- Zadaný prohyb se vyhodnocuje podle dosavadních pravidel včetně povoleného počtu křivých. Pokud nějaký prohyb existuje, potřebuje nastavenou běžnou mez a povolený počet křivých; bez nich nelze potvrdit kontrolu. Bez měření se tato nastavení nevyžadují. Vyhodnocování ostatních zkoušek se touto změnou nezapíná.
+- **Neshoda smí být bez důvodu.** U atypické bedny v Neshodě lze ukládat průběžnou kontrolu i bez Čistoty a Uložení a v adminu měnit provozní údaje, například ručně nastavit Tryskání Špinavá. U Uvolněno a QS s odchylkou jsou Čistota i Uložení nadále povinné. U QS je důvod dál povinný. Jiné stále vyžaduje poznámku a Čistota/Uložení NOK vynucují Neshodu a příslušné automatické důvody. Uvolněno důvody vymaže.
+- Při uložení kontroly se **Tryskání** nastaví podle vyplněné Čistoty jako u běžné bedny. Pokud Čistota u rozpracované atypické Neshody není zadaná, dosavadní ruční stav Tryskání zůstane zachovaný. **Rovnání** se přednostně vyhodnotí z Prohybu po rovnání: vyhovující vzorek znamená Vyrovnaná, nevyhovující Křivá. Pokud měření po rovnání neexistuje, ale je zadaný **Prohyb po TZ**, vyhovující nebo oranžový QS výsledek nastaví **Rovná** a nevyhovující **Křivá**. Bez obou těchto měření zůstane ruční stav zachovaný; samotný Prohyb po koulení jej nemění. **Zinkování se nemění.** Samotný zápis měření ani provozní úprava v adminu tyto stavy nepotvrzuje; při změně vyhodnocení je nutné uložit kontrolu.
+- Příznak neobchází Neshodu, nepotvrzené změny ani požadované technologické stavy pro expedici. Bez prohybu se tedy Rovnání samo nenastaví na Rovná; skutečný stav určete ručně. Před expedicí atypické bedny musí být uložené uvolnění a Čistota i Uložení OK.
+
+Následující požadavky na povinný Ohyb, Krut, Prohyb po TZ a oba počty křivých popisují běžné bedny bez tohoto příznaku. Ostatní pravidla platí i pro atypické bedny, není-li výše uvedeno jinak.
+
 ## 1. Otevření kontroly
 
 V administraci **Bedny** upozorňuje červené zvýraznění buňky **Stav bedny**
@@ -38,11 +53,11 @@ Pod názvem a limitem zkoušky se zobrazuje samostatný řádek s rozsahem měř
 
 Měření se ukládá samostatně pro každou zkoušku, včetně uživatele a času měření. Při prvním zápisu vznikne kontrola, pokud dosud neexistovala. Odkaz **Zpět na kontrolu bedny** neuloží rozpracované hodnoty.
 
-Tvrdost povrchu a jádra se nabízí jen u beden vybraných pravidly vzorkování. Pro SSH, SWG a ROT se výběr řídí počtem beden původní zakázky; pro ostatní zákazníky se vybírá první bedna. Chybějící sekce tvrdosti proto může být očekávaná. Položky tvrdosti mají žlutý proužek na levém okraji místo žlutého pozadí. Proužek označuje typ zkoušky, nikoli výsledek posouzení tvrdosti.
+V běžném průběhu se tvrdost povrchu a jádra nabízí jen u beden vybraných pravidly vzorkování. Pro SSH, SWG a ROT se výběr řídí počtem beden původní zakázky; pro ostatní zákazníky se vybírá první bedna. Chybějící sekce tvrdosti proto může být očekávaná. U atypického průběhu se tvrdosti nabízejí vždy. Položky tvrdosti mají žlutý proužek na levém okraji místo žlutého pozadí. Proužek označuje typ zkoušky, nikoli výsledek posouzení tvrdosti.
 
 ## 3. Meze a zvýraznění prohybu
 
-Číselná minima, maxima a maxima QS nově připravená v předpisech pro Ohyb, Krut, Tvrdost povrchu, Tvrdost jádra a Vrstvu zatím do hodnocení kontroly nevstupují. Požadavky těchto zkoušek se nadále zobrazují z původních textů. Jejich doplnění v předpisu samo nemění uvolnění, automatické důvody ani barvy výsledků. Podrobnosti popisuje [manuál číselníků](manual_ciselniky.md#číselné-meze-zkoušek--příprava-vyhodnocování).
+Číselná minima, maxima a maxima QS nově připravená v předpisech pro Ohyb, Krut, Tvrdost povrchu, Tvrdost jádra a Vrstvu zatím do hodnocení kontroly nevstupují. Požadavky těchto zkoušek se nadále zobrazují z původních textů. Jejich doplnění v předpisu samo nemění uvolnění, automatické důvody ani barvy výsledků. Podrobnosti popisuje [manuál číselníků](manual_ciselniky.md#číselné-meze-zkoušek-příprava-vyhodnocování).
 
 `L` znamená délku zakázky v mm. Hodnota přesně na mezi je přípustná.
 
@@ -204,7 +219,7 @@ Název protokolu se tiskne v záhlaví. Více označení zadejte na samostatné 
 
 U mechanických zkoušek a tvrdosti se minimum na kartě uvádí jako počet vzorků, například **Min. 5 vzorků**. Prohyb rozlišuje minimum zapisovaných hodnot a celkový počet odebraných vrutů, například **Min. 5 hodnot z 25 vzorků**. Oba údaje se čtou z nastavení zákazníka. Pokud celkový počet odebraných vrutů není vyplněný, tiskne se pouze **Min. 5 hodnot**. Stejné rozlišení používají i pomocné překlady.
 
-Vyplněná karta tiskne nejvýše prvních 10 hodnot jednotlivých zkoušek bez ohledu na nastavené minimum. Nastavení minima ovlivňuje pouze popisek požadavku. Pro vrstvu se použije první uložená hodnota. Úplný seznam měření je dostupný v aplikaci. Vyplněná KKK nezobrazuje sloupec Po koulení ani jeho naměřené hodnoty a kontrolující; toto měření slouží pouze interně a zůstává uložené v aplikaci. Pokud bedna podle zákaznických pravidel není určena k měření tvrdosti a povrchu, karta místo minimálního počtu hodnot tvrdosti i předpisu pro povrch a jádro vytiskne pomlčku (—).
+Vyplněná karta tiskne nejvýše prvních 10 hodnot jednotlivých zkoušek bez ohledu na nastavené minimum. Nastavení minima ovlivňuje pouze popisek požadavku. Pro vrstvu se použije první uložená hodnota. Úplný seznam měření je dostupný v aplikaci. Vyplněná KKK nezobrazuje sloupec Po koulení ani jeho naměřené hodnoty a kontrolující; toto měření slouží pouze interně a zůstává uložené v aplikaci. Pokud bedna podle zákaznických pravidel není určena k měření tvrdosti a povrchu a nemá atypický průběh, karta místo minimálního počtu hodnot tvrdosti i předpisu pro povrch a jádro vytiskne pomlčku (—). U atypické bedny se požadavky a nastavený rozsah tvrdostí tisknou i mimo běžný výběr vzorkování.
 
 U zákazníka **SPX** se při rozhodnutí **Uvolněno** nebo **Uvolněno QS s odchylkou** ve sloupci **Krut** místo každé zapsané naměřené hodnoty tiskne **OK**. Prázdná políčka zůstávají prázdná. Při **Neshodě** nebo nerozhodnutém uvolnění se tisknou naměřené hodnoty. Jde pouze o zobrazení na vyplněné KKK; původní měření zůstávají uložená v aplikaci. Zobrazení OK zatím vychází z rozhodnutí o uvolnění, nikoli z porovnání s limitem předpisu.
 

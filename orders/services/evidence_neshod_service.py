@@ -86,6 +86,7 @@ def zaznamenat_neshodu(kontrola, *, previous_status, user):
         'verze': 1,
         'bedna': {
             'id': bedna.pk, 'cislo_bedny': bedna.cislo_bedny,
+            'atypicky_prubeh': bedna.atypicky_prubeh,
             'behalter_nr': bedna.behalter_nr, 'sarze_materialu': bedna.sarze,
             'material': bedna.material, 'vyrobni_zakazka': bedna.vyrobni_zakazka,
             'hmotnost': decimal_text(bedna.hmotnost), 'mnozstvi': bedna.mnozstvi,

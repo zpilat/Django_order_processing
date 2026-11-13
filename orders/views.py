@@ -819,7 +819,7 @@ def _can_edit_mereni_zkousky(user, bedna, typ_zkousky, *, typy_s_merenim=None):
 
 
 def _ochrana_kontroly_context(request, bedna, kontrola):
-    merit_tvrdost = bedna.bedna_k_mereni_tvrdosti_a_povrchu
+    merit_tvrdost = bedna.zobrazit_tvrdost_v_kontrole
     return {
         'zkontrolovana': bedna.stav_bedny == StavBednyChoice.ZKONTROLOVANO,
         'ceka_na_potvrzeni': bool(kontrola and kontrola.vyzaduje_potvrzeni),
@@ -842,7 +842,7 @@ def _bedna_zkousky_context(bedna, user, omezeni_prohybu):
     omezeni_po_tz = omezeni_uvolneni_prohybem(bedna, typ_zkousky=TypZkouskyChoice.PROHYB_PO_TZ)
     kriva_po_tz = omezeni_po_tz is not None and omezeni_po_tz.stav == 'nevyhovuje'
     can_edit = _can_edit_mereni_bedny(user, bedna)
-    merit_tvrdost = bedna.bedna_k_mereni_tvrdosti_a_povrchu
+    merit_tvrdost = bedna.zobrazit_tvrdost_v_kontrole
     preferovane_poradi = [
         'prohyb_po_tz',
         'ohyb',
@@ -885,7 +885,7 @@ def _bedna_zkousky_context(bedna, user, omezeni_prohybu):
             TypZkouskyChoice.TVRDOST_POVRCHU, TypZkouskyChoice.TVRDOST_JADRA,
         )) and (
             kind not in (TypZkouskyChoice.PROHYB_PO_KOULENI, TypZkouskyChoice.PROHYB_PO_ROVNANI)
-            or kriva_po_tz or kind in typy_s_merenim
+            or bedna.atypicky_prubeh or kriva_po_tz or kind in typy_s_merenim
         )
     ]
 
@@ -989,7 +989,9 @@ def bedna_kontrola_view(request, cislo_bedny: int):
     if can_edit and ochrana['zkontrolovana']:
         try:
             stavy = vyhodnotit_stavy_pri_zkontrolovani(
-                bedna, kontrola=KontrolaBedny(cistota=form.ulozene_hodnoty['cistota']),
+                bedna, kontrola=KontrolaBedny(
+                    cistota=form.ulozene_hodnoty['cistota'], uvolneni=form.ulozene_hodnoty['uvolneni'],
+                ),
             )
             ochrana['stavy_nepotvrzeny'] = any(getattr(bedna, field) != value for field, value in stavy.items())
         except ValidationError:
@@ -3791,6 +3793,7 @@ def dashboard_kamiony_view(request):
     """
     zakaznici = Zakaznik.objects.all().order_by('zkratka')
     aktualni_rok = timezone.localdate().year
+    # Rozhoduje příznak při přechodu; dnešní změna bedny nemění původní výkon.
     zpracovano_transitions = history_transitions_to_qs(
         model=Bedna,
         field_name='stav_bedny',
@@ -3798,7 +3801,7 @@ def dashboard_kamiony_view(request):
             StavBednyChoice.ZKONTROLOVANO,
             StavBednyChoice.K_EXPEDICI,
         ),
-    )
+    ).filter(atypicky_prubeh=False)
     dostupne_roky = sorted(
         {aktualni_rok}
         | {datum.year for datum in Kamion.objects.dates('datum', 'year')}

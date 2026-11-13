@@ -6,6 +6,8 @@ Interní aplikace pro správu zakázek od příjmu přes tepelné zpracování a
 
 - Import dodacích listů z XLSX s náhledem, validací a atomickým uložením; artikly zůstávají textem.
 - Evidence beden, technologických stavů, pozic, priorit, pozastavení a historie změn.
+- Atypický průběh pro reklamace a samostatné operace: potvrzovaná akce Přijato → Zkontrolováno s Neshodou bez důvodu, nepovinná měření a individuální výjimky fakturace. Zadané prohyby se dál vyhodnocují; při uložení kontroly se rovnání nastaví podle měření po rovnání, případně po TZ. Bez obou měření zůstane ruční stav zachovaný. Viz [manuál beden](docs/manual_bedna.md#atypický-průběh-reklamace-a-samostatné-operace).
+- Původní reklamační akce Přijato → Zakaleno je odstraněná. Atypické přechody se nezapočítávají do Zpracováno ani souvisejícího podílu křivých v přehledu kamionů; skladové přehledy je nadále zahrnují.
 - Rychlé založení šarže pro pracoviště 1–6, zadání beden do pater roštu a tisk průvodky.
 - Deník kroků šarže, přesuny mezi pracovišti a začátek i konec včetně data.
 - Skenování beden kamerou nebo čtečkou, provozní změny stavů a zobrazení pohybu; při potvrzení Zakaleno automatické vyhodnocení tryskání podle zahájených kroků šarží a varování před uložením při částečném otryskání požadované bedny.
@@ -16,7 +18,7 @@ Interní aplikace pro správu zakázek od příjmu přes tepelné zpracování a
 - Import chemických měření z JSON exportů analyzátoru Vanta s náhledem a archivací souborů.
 - Přehledy nakládání, pracovišť, kontroly a neshod; dashboardy beden, kamionů, výroby a rovnání včetně historie.
 - Expedice zakázek a vybraných beden, rozdělení nehotové části zakázky a přiřazení do existujícího kamionu výdej.
-- PDF karty beden, KKK, průvodky šarží, dodací listy, certifikáty a proforma faktury. Vyplněné KKK jsou podporované pro EUR.
+- PDF karty beden, KKK, průvodky šarží, dodací listy, certifikáty a proforma faktury. Vyplněné KKK jsou podporované pro všechny zákazníky; u atypických beden zobrazují i požadavky tvrdostí mimo běžný výběr vzorkování.
 - Neuložené změny kontroly se označují červeně; u zkontrolované bedny blokují běžný odchod. Změna měření vyžaduje nové potvrzení pouze při změně vyhodnocení nebo technologických stavů; rozepsané údaje se zachovávají při přechodu na měření stejné bedny.
 - Oprávnění podle úkolu a audit přes `django-simple-history`.
 - V předpisech jsou připravená nepovinná číselná minima, maxima a maxima QS pro ohyb, krut, povrch, jádro a vrstvu. Příkaz `doplnit_meze_predpisu` nabízí náhled a s `--apply` doplní jednoznačné standardní meze z textů, bez přepisování ručních nebo QS hodnot. Zatím nemění hodnocení kontroly ani tisk; postup popisuje [analýza mezí](docs/analyza_mezi_predpisu.md).

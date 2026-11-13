@@ -25,7 +25,7 @@ from orders.import_strategies import EURImportStrategy
 from orders.models import Zakaznik, Kamion, Zakazka, Bedna, KontrolaBedny, Predpis, TypHlavy, Odberatel, Cena, Notification, PriorityNotificationRecipient, Zarizeni, Sarze, SarzeKrok, SarzeKrokBedna
 from orders.choices import StavBednyChoice, StavSarzeChoice, SklademZakazkyChoice, PrijemVydejChoice, KamionChoice, RovnaniChoice, TryskaniChoice, ZinkovaniChoice, PrioritaChoice, TypZarizeniChoice, UvolneniKontrolyChoice
 from orders.services.expedice_service import expedice_beden_do_existujiciho_kamionu
-from orders.filters import DelkaFilter, TypSarzeFilter, StavBednyFilter, UvolneniBednyFilter
+from orders.filters import DelkaFilter, TypSarzeFilter, StavBednyFilter, UvolneniBednyFilter, AtypickyPrubehFilter
 
 
 class DummySession(dict):
@@ -1701,25 +1701,58 @@ class BednaAdminTests(AdminBase):
                 filters = self.admin.get_list_filter(self.get_request(params))
                 if state == StavBednyChoice.ZKONTROLOVANO:
                     self.assertEqual(filters[filters.index(StavBednyFilter) + 1], UvolneniBednyFilter)
+                    self.assertEqual(filters[filters.index(UvolneniBednyFilter) + 1], AtypickyPrubehFilter)
                 else:
                     self.assertNotIn(UvolneniBednyFilter, filters)
+                    self.assertNotIn(AtypickyPrubehFilter, filters)
 
     def test_stale_release_filter_is_removed_without_losing_other_filters(self):
         self.client.force_login(self.user)
         for state in (None, StavBednyChoice.PRIJATO, StavBednyChoice.K_EXPEDICI, 'RO'):
             with self.subTest(state=state):
-                params = {'uvolneni': UvolneniKontrolyChoice.NESHODA, 'zakaznik': 'EUR', 'q': 'Test'}
+                params = {'uvolneni': UvolneniKontrolyChoice.NESHODA, 'atypicky_prubeh': 'True', 'zakaznik': 'EUR', 'q': 'Test'}
                 if state is not None:
                     params['stav_bedny'] = state
                 response = self.client.get(reverse('admin:orders_bedna_changelist'), params, follow=True)
                 self.assertEqual(response.status_code, 200)
                 self.assertEqual(len(response.redirect_chain), 1)
                 self.assertNotIn('uvolneni', response.wsgi_request.GET)
+                self.assertNotIn('atypicky_prubeh', response.wsgi_request.GET)
                 self.assertEqual(response.wsgi_request.GET.get('zakaznik'), 'EUR')
                 self.assertEqual(response.wsgi_request.GET.get('q'), 'Test')
                 self.assertEqual(response.wsgi_request.GET.get('stav_bedny'), state)
                 self.assertFalse(any(isinstance(spec, UvolneniBednyFilter) for spec in response.context['cl'].filter_specs))
                 self.assertNotContains(response, 'Uvolnění:')
+                self.assertNotContains(response, 'Atypický průběh:')
+
+    def test_checked_atypical_filter_options_title_and_results(self):
+        self.bedna.stav_bedny = StavBednyChoice.ZKONTROLOVANO
+        self.bedna.save(update_fields=['stav_bedny'])
+        atypical = Bedna.objects.create(
+            zakazka=self.zakazka, stav_bedny=StavBednyChoice.ZKONTROLOVANO,
+            atypicky_prubeh=True, hmotnost=2, tara=1, mnozstvi=1,
+        )
+        Bedna.objects.create(
+            zakazka=self.zakazka, stav_bedny=StavBednyChoice.PRIJATO,
+            atypicky_prubeh=True, hmotnost=2, tara=1, mnozstvi=1,
+        )
+        self.client.force_login(self.user)
+        for value, label, expected in (
+            (None, 'Vše', [self.bedna.pk, atypical.pk]),
+            ('True', 'Ano', [atypical.pk]),
+            ('False', 'Ne', [self.bedna.pk]),
+        ):
+            with self.subTest(value=value):
+                params = {'stav_bedny': StavBednyChoice.ZKONTROLOVANO}
+                if value is not None:
+                    params['atypicky_prubeh'] = value
+                response = self.client.get(reverse('admin:orders_bedna_changelist'), params)
+                self.assertEqual(response.status_code, 200)
+                changelist = response.context['cl']
+                self.assertEqual(set(changelist.queryset.values_list('pk', flat=True)), set(expected))
+                spec = next(item for item in changelist.filter_specs if isinstance(item, AtypickyPrubehFilter))
+                self.assertEqual(spec.title, f'Atypický průběh: {label}')
+                self.assertEqual([item['display'] for item in spec.choices(changelist)], ['Vše', 'Ano', 'Ne'])
 
     def test_checked_changelist_loads_release_without_query_per_bedna(self):
         self.bedna.stav_bedny = StavBednyChoice.ZKONTROLOVANO
@@ -2141,18 +2174,18 @@ class BednaAdminTests(AdminBase):
         self.assertIn('oznacit_uvolneno_action', actions_pz)
         self.assertNotIn('export_na_zinkovani_action', actions_pz)
 
-    def test_get_actions_filters_prijato_do_zakaleno_by_stav(self):
+    def test_legacy_reclamation_action_is_removed(self):
         req_prijato = self.get_request({'stav_bedny': StavBednyChoice.PRIJATO})
         req_prijato.user = self.user
         actions_prijato = self.admin.get_actions(req_prijato)
-        self.assertIn('oznacit_prijato_do_zakaleno_action', actions_prijato)
+        self.assertNotIn('oznacit_prijato_do_zakaleno_action', actions_prijato)
 
         req_jiny = self.get_request({'stav_bedny': StavBednyChoice.K_NAVEZENI})
         req_jiny.user = self.user
         actions_jiny = self.admin.get_actions(req_jiny)
         self.assertNotIn('oznacit_prijato_do_zakaleno_action', actions_jiny)
 
-    def test_get_actions_prijato_do_zakaleno_requires_custom_permission(self):
+    def test_legacy_reclamation_action_stays_removed_with_old_permission(self):
         User = get_user_model()
         user = User.objects.create_user('user_mark_zak', 'markz@example.com', 'pass', is_staff=True)
         user.user_permissions.add(Permission.objects.get(codename='change_bedna'))
@@ -2165,25 +2198,13 @@ class BednaAdminTests(AdminBase):
         user.user_permissions.add(Permission.objects.get(codename='mark_bedna_zakaleno'))
         req.user = User.objects.get(pk=user.pk)
         actions_with = self.admin.get_actions(req)
-        self.assertIn('oznacit_prijato_do_zakaleno_action', actions_with)
+        self.assertNotIn('oznacit_prijato_do_zakaleno_action', actions_with)
 
         user.user_permissions.remove(Permission.objects.get(codename='mark_bedna_zakaleno'))
         user.user_permissions.add(Permission.objects.get(codename='scan_mark_bedna_zakaleno'))
         req.user = User.objects.get(pk=user.pk)
         actions_with_scan_permission = self.admin.get_actions(req)
         self.assertNotIn('oznacit_prijato_do_zakaleno_action', actions_with_scan_permission)
-
-    def test_has_mark_bedna_zakaleno_permission(self):
-        User = get_user_model()
-        user = User.objects.create_user('user_perm_zak', 'permzak@example.com', 'pass', is_staff=True)
-        req = self.factory.get('/')
-        req.user = user
-
-        self.assertFalse(self.admin.has_mark_bedna_zakaleno_permission(req))
-
-        user.user_permissions.add(Permission.objects.get(codename='mark_bedna_zakaleno'))
-        req.user = User.objects.get(pk=user.pk)
-        self.assertTrue(self.admin.has_mark_bedna_zakaleno_permission(req))
 
     def test_has_change_pozastavena_bedna_permission(self):
         User = get_user_model()

@@ -4,8 +4,8 @@ from dataclasses import dataclass, field
 
 from django.db import transaction
 
-from ..choices import StavBednyChoice, RovnaniChoice, TryskaniChoice, ZinkovaniChoice, KamionChoice, UvolneniKontrolyChoice
-from ..models import Zakazka, Bedna, Kamion
+from ..choices import StavBednyChoice, RovnaniChoice, TryskaniChoice, ZinkovaniChoice, KamionChoice, UvolneniKontrolyChoice, VysledekKontrolyChoice
+from ..models import Zakazka, Bedna, Kamion, KontrolaBedny
 from .exceptions import ServiceValidationError
 from .logging_utils import resolve_actor_name, build_log_context
 
@@ -38,6 +38,14 @@ def validate_bedny_pro_expedici(bedny_qs):
         if len(cisla) > 20:
             seznam += ', …'
         raise ServiceValidationError(f"{Bedna.NESHODA_EXPEDICE_MESSAGE} Bedny: {seznam}.")
+    uvolnene_kontroly = KontrolaBedny.objects.filter(
+        uvolneni__in=(UvolneniKontrolyChoice.UVOLNENO, UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU),
+        cistota=VysledekKontrolyChoice.OK, ulozeni=VysledekKontrolyChoice.OK,
+    )
+    # Poddotaz nepřidá nullable JOIN do querysetu se zámkem FOR UPDATE.
+    neuzavrene_atypicke = bedny_qs.filter(atypicky_prubeh=True).exclude(pk__in=uvolnene_kontroly.values('bedna_id'))
+    if neuzavrene_atypicke.exists():
+        raise ServiceValidationError('U atypických beden nejprve uložte Čistotu a Uložení OK a rozhodnutí o uvolnění.')
 
 
 def _lock_bedny(bedny_qs):

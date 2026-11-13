@@ -2609,6 +2609,45 @@ class DashboardBednyViewTests(ViewsTestBase):
 
 
 class DashboardKamionyViewTests(ViewsTestBase):
+	def test_atypical_receipt_is_excluded_from_processed_totals_but_remains_in_stock(self):
+		from orders.services.atypicky_prubeh_service import prevest_na_atypicky_prubeh
+
+		self.b_eur_pr.stav_bedny = StavBednyChoice.ZKONTROLOVANO
+		self.b_eur_pr.rovnat = RovnaniChoice.KRIVA
+		self.b_eur_pr.fakturovat = False
+		self.b_eur_pr.save()
+		atypical = Bedna.objects.create(
+			zakazka=self.zak_eur, stav_bedny=StavBednyChoice.PRIJATO,
+			hmotnost=7, tara=1, mnozstvi=1,
+		)
+		prevest_na_atypicky_prubeh(Bedna.objects.filter(pk=atypical.pk), user=self.user)
+		response = self.client.get(reverse("dashboard_kamiony"))
+		totals = response.context["mesicni_pohyby"]["CELKEM"]["CELKEM"]
+		self.assertEqual(totals["zpracovano"], Decimal("5"))
+		self.assertEqual(totals["hmotnost_krivych_zpracovanych"], Decimal("5"))
+		self.assertEqual(totals["procento_krivych_zpracovanych"], Decimal("100"))
+		stock = self.client.get(reverse("dashboard_bedny"))
+		self.assertEqual(stock.context["souhrn_beden"]["count"], 3)
+
+		# Rozhoduje příznak při přechodu, nikoli jeho pozdější změna.
+		atypical.atypicky_prubeh = False
+		atypical.save(update_fields=["atypicky_prubeh"])
+		self.b_eur_pr.atypicky_prubeh = True
+		self.b_eur_pr.save(update_fields=["atypicky_prubeh"])
+		response = self.client.get(reverse("dashboard_kamiony"))
+		month = timezone.localdate().month
+		self.assertEqual(response.context["mesicni_pohyby"][month]["CELKEM"]["zpracovano"], Decimal("5"))
+
+	def test_atypical_direct_ready_transition_is_excluded_from_both_processed_weights(self):
+		self.b_abc_ex.atypicky_prubeh = True
+		self.b_abc_ex.rovnat = RovnaniChoice.VYROVNANA
+		self.b_abc_ex.stav_bedny = StavBednyChoice.K_EXPEDICI
+		self.b_abc_ex.save()
+		response = self.client.get(reverse("dashboard_kamiony"))
+		totals = response.context["mesicni_pohyby"]["CELKEM"]["CELKEM"]
+		self.assertEqual(totals["zpracovano"], 0)
+		self.assertEqual(totals["hmotnost_krivych_zpracovanych"], 0)
+
 	def test_processed_weights_and_crooked_percentages_use_transition_snapshots(self):
 		month = timezone.localdate().month
 		year = timezone.localdate().year

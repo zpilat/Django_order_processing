@@ -93,7 +93,7 @@ Otevřete **Přehled kamionů** (`/dashboard/kamiony/`) a vyberte rok. Měsíčn
 | Příjem | Současná netto hmotnost beden s Fakturovat = Ano u zakázek kamionu příjem. Měsíc určuje **datum kamionu**, nikoli čas importu nebo přepnutí na Přijato. |
 | Výdej | Současná netto hmotnost beden s Fakturovat = Ano u zakázek přiřazených ke kamionu výdej. Měsíc určuje **datum výdejového kamionu**. |
 | Rozdíl | Příjem − Výdej v daném období. Nejde o aktuální stav celého skladu; chybí počáteční zásoba a liší se také zahrnutí nefakturovaných beden. |
-| Zpracováno | Součet historické hmotnosti při skutečném vstupu do skupiny **Zkontrolováno / K expedici**. Období určuje čas zápisu změny do historie. Není zde filtr Fakturovat = Ano. |
+| Zpracováno | Součet historické hmotnosti při skutečném vstupu do skupiny **Zkontrolováno / K expedici**, pokud při přechodu nebyl zapnutý **Atypický průběh**. Období určuje čas zápisu změny do historie. Není zde filtr Fakturovat = Ano. |
 | Křivých % ze zpracovaných | Hmotnost při těchto přechodech s Rovnáním Křivá, Koulení, Rovná se nebo Vyrovnaná / celková hmotnost Zpracováno × 100. |
 | Křivých % z výdeje | Současná hmotnost fakturovatelných beden výdeje ve stavu **Vyrovnaná** / celková hmotnost výdeje × 100. |
 
@@ -102,6 +102,8 @@ Obě procenta jsou **hmotnostní podíly**, nikoli podíly počtu beden, počty 
 ### Jak se započítává Zpracováno
 
 Přechod Zakaleno → Zkontrolováno se započte. Následný přechod Zkontrolováno → K expedici už ne, protože bedna zůstala uvnitř stejné sledované skupiny. Pouhé uložení jiného pole bez takového vstupu výkon nepřidá. Pokud se bedna vrátí mimo tuto skupinu a později do ní znovu vstoupí, může se započítat další vstup. Není to jedinečný počet beden za celou historii.
+
+Vstupy s příznakem **Atypický průběh** v historickém záznamu se nezapočítávají do Zpracováno ani do hmotnosti křivých ze zpracovaných; výjimka platí pro měsíční i roční součty a odvozená procenta. Posuzuje se příznak při přechodu, nikoli jeho dnešní hodnota. Pozdější přepnutí příznaku tedy nepřepíše dřívější výsledek. Historické případy bez tohoto příznaku se automaticky nepřeznačují. Skladové přehledy, skutečný výkon pecí z deníku a historie provedeného rovnání se touto výjimkou nemění.
 
 Historie počítá změny s existujícím předchozím záznamem; samotné vytvoření bedny rovnou ve sledovaném stavu se jako změna nepočítá. Chybějící historický záznam nelze nahradit jen pohledem na dnešní stav.
 
@@ -210,6 +212,8 @@ Tento výběr se liší od filtru **Rozpracováno** v Seznamu beden: ten zahrnuj
 | Netto, tára, množství, údaje zakázky a zákazníka, ceny | Nejsou kompletně zkopírované do snímku; při zobrazení nebo novém tisku se čtou z navázaných aktuálních dat. |
 
 Pro **Vytisknout rozpracovanost (PDF)** vyberte právě jeden záznam. Tisk používá uložený výběr beden, ale znovu jej omezuje současným **Fakturovat = Ano** a používá aktuální hmotnosti, zakázky, ceny, fakturační nastavení i současné stavy Otryskaná/Vyrovnaná pro příplatky. Nejde o úplnou archivní kopii ocenění a stavů v okamžiku snímku.
+
+Počty beden a hmotnosti ve skupině Kalení zahrnují pouze bedny s hlavním Fakturovat = Ano a Fakturovat kalení = Ano. Stejně se pro Rovnání a Tryskání uplatní příslušné přepínače, nastavení zákazníka a stav Vyrovnaná/Otryskaná. Upozornění na neúplný ceník ověřuje pouze operace skutečně účtované alespoň u jedné bedny dané zakázky zahrnuté do tohoto PDF. Vypnuté operace ani bedny mimo vybraný snímek samy varování nevyvolají; chybějící cena účtované operace se dál ohlásí.
 
 Opětovně vytištěné PDF stejného záznamu se proto může lišit od dříve uloženého PDF. Změna hmotnosti, cen, příznaku Fakturovat nebo navazujících údajů ovlivní výsledek; smazaná bedna už není dostupná jako živá vazba. Při porovnávání uchovávejte vydaný soubor a ověřte čas snímku i čas tisku. To je jiný rozsah uchování než u neměnného případu v Evidenci neshod.
 

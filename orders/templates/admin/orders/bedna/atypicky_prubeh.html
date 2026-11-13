@@ -1,0 +1,19 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<p>Vybrané přijaté bedny budou převedeny do stavu <strong>Zkontrolováno</strong> s uvolněním <strong>Neshoda</strong> bez důvodu.</p>
+<ul>
+    <li>Zapne se Atypický průběh: měření nebudou povinná, zadané výsledky se budou nadále vyhodnocovat.</li>
+    <li>Rovnání, Tryskání a Zinkování se nastaví na Nezadáno.</li>
+    <li>Hlavní Fakturovat i fakturace všech jednotlivých operací se nastaví na Ne.</li>
+    <li>Vznikne záznam v evidenci neshod. Neshoda blokuje expedici.</li>
+</ul>
+<p>Akce je určena pouze pro nepozastavené bedny ve stavu Přijato bez dosavadní kontroly a měření.</p>
+<ul>{% for bedna in queryset %}<li>{{ bedna }}</li>{% endfor %}</ul>
+<form method="post">{% csrf_token %}
+    {% for bedna in queryset %}<input type="hidden" name="{{ action_checkbox_name }}" value="{{ bedna.pk }}">{% endfor %}
+    <input type="hidden" name="action" value="prevest_na_atypicky_prubeh_action">
+    <input type="hidden" name="confirm_atypicky_prubeh" value="yes">
+    <input type="submit" value="Převést na atypický průběh, označit zkontrolováno s neshodou">
+    <a href="{% url 'admin:orders_bedna_changelist' %}">Zpět</a>
+</form>
+{% endblock %}

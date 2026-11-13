@@ -155,6 +155,7 @@
         </thead>
         <tbody>
             {% for zakazka in kamion.zakazky_vydej.all %}
+                {% if zakazka.pocet_beden_fakturovanych %}
                 <tr class="text-center">
                     <td>
                         {{ zakazka.artikl }}
@@ -169,10 +170,10 @@
                         {{ zakazka.typ_hlavy.nazev }}
                     </td>
                     <td {% if kamion.zakaznik.fakturovat_rovnani or kamion.zakaznik.fakturovat_tryskani %}style="border-left: 1px solid black;"{% endif %}>
-                        {{ zakazka.pocet_beden_fakturovanych }}
+                        {{ zakazka.pocet_beden_fakturovaneho_kaleni }}
                     </td>
                     <td>
-                        {{ zakazka.celkova_hmotnost_fakturovanych|floatformat:"1g" }}
+                        {{ zakazka.hmotnost_fakturovaneho_kaleni|floatformat:"1g" }}
                     </td>                                      
                     <td>
                         {{ zakazka.cena_za_kg|floatformat:2 }}
@@ -193,14 +194,15 @@
                         <td style="border-right: 1px solid black;">{{ zakazka.cena_tryskani_za_zakazku|floatformat:"2g"|default:"0,00" }}</td>                    
                     {% endif %}
                 </tr>
+                {% endif %}
             {% endfor %}
             <tr class="text-center fw-bold">
                 <td colspan="4"></td>
                 <td {% if kamion.zakaznik.fakturovat_rovnani or kamion.zakaznik.fakturovat_tryskani %}style="border-left: 1px solid black;"{% endif %}>
-                    {{ kamion.pocet_beden_expedovano_fakturovanych }} ks
+                    {{ kamion.pocet_beden_fakturovaneho_kaleni }} ks
                 </td>                
                 <td>
-                    {{ kamion.celkova_hmotnost_fakturovanych_netto|floatformat:"1g" }} kg
+                    {{ kamion.hmotnost_fakturovaneho_kaleni|floatformat:"1g" }} kg
                 </td>                
                 <td></td>
                 <td {% if kamion.zakaznik.fakturovat_rovnani or kamion.zakaznik.fakturovat_tryskani %}style="border-right: 1px solid black;"{% endif %}>

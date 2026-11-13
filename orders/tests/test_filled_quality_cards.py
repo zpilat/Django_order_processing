@@ -306,6 +306,24 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
                             self.assertIn('<span class="requirement">—</span>', column)
                     self.assertEqual(html.count('class="measurement-value'), 60)
 
+    def test_atypical_crate_outside_standard_sampling_prints_hardness_requirements(self):
+        second = Bedna.objects.create(zakazka=self.bedna.zakazka, hmotnost=100, atypicky_prubeh=True)
+        kontrola = KontrolaBedny.objects.create(bedna=second)
+        self.assertFalse(second.bedna_k_mereni_tvrdosti_a_povrchu)
+        predpis = second.zakazka.predpis
+        predpis.povrch, predpis.jadro = '550-650 HV', '300-400 HV'
+        predpis.save(update_fields=['povrch', 'jadro'])
+        self.measurement(kontrola, TypZkouskyChoice.TVRDOST_POVRCHU, '613')
+        self.measurement(kontrola, TypZkouskyChoice.TVRDOST_JADRA, '387')
+        self.qs = Bedna.objects.filter(pk=second.pk)
+        context = self.context()
+        self.assertTrue(context['quality_card']['merit_tvrdost'])
+        self.assertEqual(context['quality_card']['rows'][0][-2:], [Decimal('613'), Decimal('387')])
+        html = render_to_string(TEMPLATE_PATH, context)
+        headers = html.split('<thead>', 1)[1].split('</thead>', 1)[0]
+        for text in ('550-650 HV', '300-400 HV', 'Min. 2 vzorky'):
+            self.assertIn(text, headers)
+
     def test_short_test_has_blank_cells_and_decimal_precision_is_preserved(self):
         kontrola = self.create_control()
         self.measurement(kontrola, TypZkouskyChoice.TVRDOST_POVRCHU, '592.1234')

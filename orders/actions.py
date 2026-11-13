@@ -11,7 +11,7 @@ from django import forms
 from django.forms import formset_factory
 from django.template.response import TemplateResponse
 from django.utils.translation import gettext_lazy as _
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.conf import settings
 from django.contrib.staticfiles import finders
 from django.db.models import Q, Max
@@ -54,6 +54,7 @@ from .services.chemistry_import_service import (
 )
 from .services.vanta_probe_service import probe_vanta_exports
 from .services.history_service import history_transitions_to_qs
+from .services.atypicky_prubeh_service import prevest_na_atypicky_prubeh
 from django.urls import reverse
 from .forms import VyberKamionVydejForm, OdberatelForm, KNavezeniForm, NavezenoForm, SarzeKrokActionInitForm
 from .choices import (
@@ -273,13 +274,23 @@ def _abort_if_kamiony_maji_pozastavene_bedny(modeladmin, request, queryset, acti
 def _validate_proforma_pricing(kamion):
     """Vrátí seznam chybových hlášek pro zakázky, které nemají požadované ceny pro tisk proformy."""
     errors = []
-    zakazky = kamion.zakazky_vydej.select_related('kamion_prijem__zakaznik').all()
+    zakazky = kamion.zakazky_vydej.select_related('kamion_prijem__zakaznik').prefetch_related('bedny').all()
     for zakazka in zakazky:
+        bedny = list(zakazka.bedny.all())
+        # U zakázky bez beden zachovat dosavadní kontrolu ceníku.
+        pozadovane_ceny = {
+            operation: not bedny or any(b.fakturovat and not getattr(b, f'nefakturovat_{operation}') for b in bedny)
+            for operation in ('kaleni', 'rovnani', 'tryskani')
+        }
         label = f"{zakazka.artikl or zakazka.pk}"
         kamion_prijem = getattr(zakazka, 'kamion_prijem', None)
         zakaznik_prijem = getattr(kamion_prijem, 'zakaznik', None) if kamion_prijem else None
         if not zakaznik_prijem:
             errors.append(f"Zakázka {label}: chybí kamion příjem se zákazníkem pro výpočet cen.")
+            continue
+
+        if not (pozadovane_ceny['kaleni'] or (pozadovane_ceny['rovnani'] and zakaznik_prijem.fakturovat_rovnani)
+                or (pozadovane_ceny['tryskani'] and zakaznik_prijem.fakturovat_tryskani)):
             continue
 
         predpis = getattr(zakazka, 'predpis', None)
@@ -303,15 +314,15 @@ def _validate_proforma_pricing(kamion):
             continue
 
         cena_za_kg = cena_obj.cena_za_kg
-        if cena_za_kg is None or cena_za_kg <= 0:
+        if pozadovane_ceny['kaleni'] and (cena_za_kg is None or cena_za_kg <= 0):
             errors.append(f"Zakázka {label}: cena za kg musí být větší než 0.")
 
-        if zakaznik_prijem.fakturovat_rovnani:
+        if zakaznik_prijem.fakturovat_rovnani and pozadovane_ceny['rovnani']:
             cena_rovnani = cena_obj.cena_rovnani_za_kg
             if cena_rovnani is None or cena_rovnani <= 0:
                 errors.append(f"Zakázka {label}: cena rovnání za kg musí být větší než 0.")
 
-        if zakaznik_prijem.fakturovat_tryskani:
+        if zakaznik_prijem.fakturovat_tryskani and pozadovane_ceny['tryskani']:
             cena_tryskani = cena_obj.cena_tryskani_za_kg
             if cena_tryskani is None or cena_tryskani <= 0:
                 errors.append(f"Zakázka {label}: cena tryskání za kg musí být větší než 0.")
@@ -1516,40 +1527,6 @@ def oznacit_prijato_navezeno_action(modeladmin, request, queryset):
     formset = NavezenoFormSet(initial=initial, prefix="ozn")
     return _render_oznacit_prijato_navezeno(modeladmin, request, queryset, formset)
 
-@admin.action(description="Změnit stav bedny z PŘIJATO rovnou do ZAKALENO (při reklamaci)", permissions=('mark_bedna_zakaleno',))
-def oznacit_prijato_do_zakaleno_action(modeladmin, request, queryset):
-    """
-    
-    """
-    if _abort_if_paused_bedny(modeladmin, request, queryset, "Změnit stav bedny z PŘIJATO rovnou do ZAKALENO (při reklamaci)"):
-        return None
-
-    # kontrola, zda jsou všechny zakázky v querysetu ve stavu PRIJATO
-    if queryset.exclude(stav_bedny=StavBednyChoice.PRIJATO).exists():
-        logger.info(f"Uživatel {request.user} se pokusil změnit stav z PŘIJATO do ZAKALENO, ale některé bedny nejsou ve stavu PŘIJATO.")
-        messages.error(request, "Některé vybrané bedny nejsou ve stavu PŘIJATO.")
-        return None
-
-    selected_ids = list(queryset.values_list('pk', flat=True))
-    with transaction.atomic():
-        locked_qs = Bedna.objects.select_for_update().filter(pk__in=selected_ids)
-
-        if _abort_if_paused_bedny(modeladmin, request, locked_qs, "Změnit stav bedny z PŘIJATO rovnou do ZAKALENO (při reklamaci)"):
-            return None
-
-        if locked_qs.exclude(stav_bedny=StavBednyChoice.PRIJATO).exists():
-            logger.info(
-                f"Uživatel {request.user} se pokusil změnit stav z PŘIJATO do ZAKALENO, ale některé bedny už nejsou ve stavu PŘIJATO."
-            )
-            messages.error(request, "Některé vybrané bedny už nejsou ve stavu PŘIJATO.")
-            return None
-
-        zmeneno = locked_qs.update(stav_bedny=StavBednyChoice.ZAKALENO)
-
-    logger.info(f"Uživatel {request.user} změnil stav z PŘIJATO do ZAKALENO u {zmeneno} beden.")
-    messages.success(request, f"Změněno z PŘIJATO do ZAKALENO: {zmeneno} beden.")
-    return None      
-
 @admin.action(description="Vrátit bedny ze stavu K NAVEZENÍ do stavu PŘIJATO", permissions=('change',))
 def vratit_bedny_ze_stavu_k_navezeni_do_stavu_prijato_action(modeladmin, request, queryset):
     """
@@ -1726,6 +1703,25 @@ def uvolnit_pozastavene_bedny_action(modeladmin, request, queryset):
     modeladmin.message_user(request, f"Uvolněno: {queryset.count()} beden.", level=messages.SUCCESS)
     logger.info(f"Uživatel {request.user} uvolnil {queryset.count()} beden.")
     return None
+
+
+@admin.action(description='Převést na atypický průběh, označit zkontrolováno s neshodou', permissions=('change',))
+def prevest_na_atypicky_prubeh_action(modeladmin, request, queryset):
+    if not request.user.has_perm('orders.mark_bedna_zkontrolovano'):
+        raise PermissionDenied
+    if request.POST.get('confirm_atypicky_prubeh') == 'yes':
+        try:
+            count = prevest_na_atypicky_prubeh(queryset, user=request.user)
+        except ValidationError as error:
+            modeladmin.message_user(request, ' '.join(error.messages), level=messages.ERROR)
+        else:
+            modeladmin.message_user(request, f'Na atypický průběh převedeno {count} beden.', level=messages.SUCCESS)
+        return None
+    return TemplateResponse(request, 'admin/orders/bedna/atypicky_prubeh.html', {
+        **modeladmin.admin_site.each_context(request),
+        'title': 'Převést na atypický průběh, označit zkontrolováno s neshodou', 'opts': modeladmin.model._meta,
+        'queryset': queryset, 'action_checkbox_name': helpers.ACTION_CHECKBOX_NAME,
+    })
 
 
 @admin.action(description="Označení nefakturovat", permissions=('change',))
@@ -3582,18 +3578,6 @@ def tisk_rozpracovanost_action(modeladmin, request, queryset):
     weight_quant = Decimal('0.1')
     money_quant = Decimal('0.01')
     pricing_warnings = []
-    warned_zakazky = set()
-
-    def _to_decimal_or_none(value):
-        if value is None:
-            return None
-        if isinstance(value, Decimal):
-            return value
-        try:
-            return Decimal(value)
-        except Exception:
-            logger.warning("Nepodařilo se převést cenu zakázky na Decimal při tisku rozpracovanosti.", exc_info=True)
-            return None
 
     for bedna in bedny:
         zakazka = getattr(bedna, 'zakazka', None)
@@ -3603,32 +3587,6 @@ def tisk_rozpracovanost_action(modeladmin, request, queryset):
         if not zakazka or not zakaznik:
             skipped += 1
             continue
-
-        if zakazka.pk not in warned_zakazky:
-            warning_reasons = []
-            predpis = getattr(zakazka, 'predpis', None)
-            if not predpis or getattr(predpis, 'nazev', None) == 'Neznámý předpis':
-                warning_reasons.append('chybí předpis')
-
-            cena_za_kg = _to_decimal_or_none(getattr(zakazka, 'cena_za_kg', None))
-            if cena_za_kg is None or cena_za_kg <= 0:
-                warning_reasons.append('cena kalení <= 0')
-
-            if zakaznik.fakturovat_rovnani:
-                cena_rovnani = _to_decimal_or_none(getattr(zakazka, 'cena_rovnani_za_kg', None))
-                if cena_rovnani is None or cena_rovnani <= 0:
-                    warning_reasons.append('cena rovnání <= 0')
-
-            if zakaznik.fakturovat_tryskani:
-                cena_tryskani = _to_decimal_or_none(getattr(zakazka, 'cena_tryskani_za_kg', None))
-                if cena_tryskani is None or cena_tryskani <= 0:
-                    warning_reasons.append('cena tryskání <= 0')
-
-            if warning_reasons:
-                pricing_warnings.append(
-                    f"{zakaznik.zkraceny_nazev} / {zakazka.artikl or zakazka.pk}: {', '.join(warning_reasons)}"
-                )
-            warned_zakazky.add(zakazka.pk)
 
         customer_entry = customer_map.setdefault(
             zakaznik.pk,
@@ -3650,6 +3608,8 @@ def tisk_rozpracovanost_action(modeladmin, request, queryset):
         zakazka_entry = customer_entry['zakazky'].setdefault(
             zakazka.pk,
             {
+                'id': zakazka.pk,
+                'predpis': zakazka.predpis,
                 'artikl': zakazka.artikl,
                 'datum': kamion_prijem.datum if kamion_prijem else None,
                 'rozmer': _format_rozmer(zakazka),
@@ -3675,23 +3635,25 @@ def tisk_rozpracovanost_action(modeladmin, request, queryset):
                 logger.warning("Nepodařilo se převést hmotnost bedny na Decimal při exportu zákazníka, používá se 0.", exc_info=True)
                 hmotnost = Decimal('0')
 
-        zakazka_entry['hmotnost'] += hmotnost
-        zakazka_entry['pocet_beden'] += 1
+        if not bedna.nefakturovat_kaleni:
+            zakazka_entry['hmotnost'] += hmotnost
+            zakazka_entry['pocet_beden'] += 1
 
-        if zakaznik.fakturovat_tryskani and bedna.tryskat == TryskaniChoice.OTRYSKANA:
+        if zakaznik.fakturovat_tryskani and not bedna.nefakturovat_tryskani and bedna.tryskat == TryskaniChoice.OTRYSKANA:
             zakazka_entry['tryskani_hmotnost'] += hmotnost
             zakazka_entry['tryskani_pocet_beden'] += 1
             customer_entry['sum_tryskani_hmotnost'] += hmotnost
             customer_entry['sum_tryskani_beden'] += 1
 
-        if zakaznik.fakturovat_rovnani and bedna.rovnat == RovnaniChoice.VYROVNANA:
+        if zakaznik.fakturovat_rovnani and not bedna.nefakturovat_rovnani and bedna.rovnat == RovnaniChoice.VYROVNANA:
             zakazka_entry['rovnani_hmotnost'] += hmotnost
             zakazka_entry['rovnani_pocet_beden'] += 1
             customer_entry['sum_rovnani_hmotnost'] += hmotnost
             customer_entry['sum_rovnani_beden'] += 1
 
-        customer_entry['sum_hmotnost'] += hmotnost
-        customer_entry['sum_beden'] += 1
+        if not bedna.nefakturovat_kaleni:
+            customer_entry['sum_hmotnost'] += hmotnost
+            customer_entry['sum_beden'] += 1
 
     if not customer_map:
         modeladmin.message_user(
@@ -3705,21 +3667,30 @@ def tisk_rozpracovanost_action(modeladmin, request, queryset):
             )
         return None
 
-    if pricing_warnings:
-        preview_items = pricing_warnings[:8]
-        remaining = len(pricing_warnings) - len(preview_items)
-        detail_text = '; '.join(preview_items)
-        if remaining > 0:
-            detail_text = f"{detail_text}; ... a dalších {remaining} zakázek"
-        logger.warning(
-            "Rozpracovanost PDF: nalezeny zakázky s nekompletním ceníkem/předpisem. "
-            f"Počet: {len(pricing_warnings)}. Detaily: {detail_text}"
-        )
-
     sections = []
     for customer_entry in sorted(customer_map.values(), key=lambda item: item['zakaznik'].nazev):
         zakazky_rows = []
         for zakazka_entry in sorted(customer_entry['zakazky'].values(), key=lambda item: item['artikl']):
+            # Posuzovat až celý výběr zakázky: jednotlivé bedny mohou účtovat jiné operace.
+            uctovane_ceny = [
+                (zakazka_entry[count], zakazka_entry[price], label)
+                for count, price, label in (
+                    ('pocet_beden', 'cena_kg', 'kalení'),
+                    ('rovnani_pocet_beden', 'cena_rovnani_za_kg', 'rovnání'),
+                    ('tryskani_pocet_beden', 'cena_tryskani_za_kg', 'tryskání'),
+                )
+                if zakazka_entry[count]
+            ]
+            warning_reasons = []
+            predpis = zakazka_entry['predpis']
+            if uctovane_ceny and (not predpis or predpis.nazev == 'Neznámý předpis'):
+                warning_reasons.append('chybí předpis')
+            warning_reasons.extend(f'cena {label} <= 0' for _, price, label in uctovane_ceny if price <= 0)
+            if warning_reasons:
+                zakaznik = customer_entry['zakaznik']
+                label = zakazka_entry['artikl'] or zakazka_entry['id']
+                pricing_warnings.append(f"{zakaznik.zkraceny_nazev} / {label}: {', '.join(warning_reasons)}")
+
             hm_total = zakazka_entry['hmotnost'].quantize(weight_quant, rounding=ROUND_HALF_UP)
             cena_kg = zakazka_entry['cena_kg'].quantize(money_quant, rounding=ROUND_HALF_UP) if zakazka_entry['cena_kg'] else Decimal('0.00')
             cena_netto = (zakazka_entry['hmotnost'] * zakazka_entry['cena_kg']).quantize(money_quant, rounding=ROUND_HALF_UP)
@@ -3781,6 +3752,17 @@ def tisk_rozpracovanost_action(modeladmin, request, queryset):
             'sum_rovnani_cena_kg': sum_rovnani_cena_kg,
         })
 
+    if pricing_warnings:
+        preview_items = pricing_warnings[:8]
+        remaining = len(pricing_warnings) - len(preview_items)
+        detail_text = '; '.join(preview_items)
+        if remaining > 0:
+            detail_text = f"{detail_text}; ... a dalších {remaining} zakázek"
+        logger.warning(
+            "Rozpracovanost PDF: nalezeny zakázky s nekompletním ceníkem/předpisem. "
+            f"Počet: {len(pricing_warnings)}. Detaily: {detail_text}"
+        )
+
     context = {
         'snapshot': snapshot,
         'sections': sections,
@@ -3805,7 +3787,7 @@ def tisk_rozpracovanost_action(modeladmin, request, queryset):
     response['Content-Disposition'] = f'inline; filename="{filename}"'
 
     logger.info(
-        f"Uživatel {getattr(request, 'user', None)} vygeneroval PDF rozpracovanosti ID {snapshot.pk} (beden: {sum(section['sum_beden'] for section in sections)}, přeskočeno: {skipped})."
+        f"Uživatel {getattr(request, 'user', None)} vygeneroval PDF rozpracovanosti ID {snapshot.pk} (beden: {len(bedny) - skipped}, přeskočeno: {skipped})."
     )
 
     return response

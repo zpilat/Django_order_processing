@@ -26,6 +26,8 @@ Prakticky:
 3. Použijte další filtry (zákazník, délka, priorita, zinkování atd.).
 4. Označte řádky a proveďte akci, nebo upravujte přímo v listu (pokud je povolena inline editace).
 
+Při **Stav bedny = Zkontrolováno** je za filtrem Uvolnění dostupný dynamický filtr **Atypický průběh: Vše / Ano / Ne**. Ano vybere atypické bedny, Ne běžné a Vše obě skupiny. Při změně na jiný výrobní stav se filtr skryje a jeho parametr se odstraní, aby neomezoval nový výběr.
+
 ## 3. Co znamenají hlavní pole bedny
 
 - `cislo_bedny`: interní číslo bedny, generuje se automaticky.
@@ -36,12 +38,40 @@ Prakticky:
 - `pozice`: používá se při stavech navezení.
 - `pozastaveno`: blokace práce s bednou.
 - `fakturovat`: zda se bedna započítává do fakturace.
+- `atypicky_prubeh`: individuální postup bez povinné sady měření; zadané výsledky se dál vyhodnocují.
+- `nefakturovat_kaleni`, `nefakturovat_rovnani`, `nefakturovat_tryskani`, `nefakturovat_zinkovani`: výjimky pro jednotlivé operace.
 - `fauf`: nepovinné celé nezáporné číslo FAUF pro dodací list SPX. Import ho
   nevyplňuje. V detailu existující bedny SPX je ve Speciálních informacích;
   u ostatních zákazníků je skryté. Při vytváření bedny je dostupné bez omezení
   zákazníka. Změny se ukládají také do historie bedny.
 
 Část **Kontrola kvality** v detailu bedny zobrazuje uložené výsledky a stavy kontroly. Za údajem **Otryskaná?** je **Vyrovnaná?**: zelená fajfka znamená stav Vyrovnaná, ostatní stavy zobrazují pomlčku. Tabulka obsahuje za sloupcem **Předepsáno** samostatný sloupec **Rozsah měření** s minimem vzorků nebo hodnot podle nastavení zákazníka, například **Min. 5 vzorků** či **Min. 5 hodnot z 25 vzorků**. Zápis a úpravy se otevírají odkazem **Otevřít kontrolu a měření**.
+
+### Atypický průběh – reklamace a samostatné operace
+
+Vrácené zboží přijměte jako novou bednu s novým interním číslem. Původní bedna, expedice a měření zůstávají zachované.
+
+Původní akce **Změnit stav bedny z PŘIJATO rovnou do ZAKALENO (při reklamaci)** je odstraněná; použijte postup níže. Přechody s Atypickým průběhem se v přehledu kamionů nepočítají do Zpracováno ani související hmotnosti křivých. Ve skladových přehledech bedny zůstávají.
+
+1. V seznamu Bedny vyberte nepozastavené bedny ve stavu **Přijato**, které ještě nemají kontrolu ani měření.
+2. Použijte **Převést na atypický průběh, označit zkontrolováno s neshodou** ve skupině Stav bedny a přečtěte potvrzovací stránku. Potřebujete oprávnění ke změně bedny a `orders.mark_bedna_zkontrolovano`.
+3. Potvrzením se zapne **Atypický průběh**, nastaví **Zkontrolováno** a založí kontrola s **Neshodou bez důvodu**. Rovnání, Tryskání a Zinkování se nastaví na **Nezadáno**. Hlavní **Fakturovat** i fakturace všech jednotlivých operací se nastaví na **Ne**.
+4. Vyplňte potřebné zkoušky a výstupní kontrolu. Ohyb, Krut, Prohyb po TZ ani oba počty křivých nejsou povinné. Dokud má atypická bedna **Neshodu**, lze ukládat provozní změny i průběžnou kontrolu bez vyplněné Čistoty a Uložení. Například lze ručně nastavit Tryskání na Špinavá. Čistota a Uložení jsou povinné až pro Uvolněno nebo QS s odchylkou. Podrobnosti uvádí [kontrola atypických beden](manual_kontrola_beden.md#atypický-průběh).
+5. Určete skutečné technologické stavy a případnou fakturaci. Neshoda, nepotvrzená měření a Nezadáno v technologických stavech dál blokují přípravu k expedici. Atypická bedna před expedicí vyžaduje uložené uvolnění a Čistotu i Uložení OK; starších běžných beden s papírovou kontrolou se tato podmínka netýká.
+
+Akce je společná transakce pro celý výběr. Při nepřípustné bedně nebo chybě se nepřevede žádná. Existující kontroly a měření nepřepisuje. Změny mají historii s autorem a vznikne počáteční snapshot neshody. Reset stavů a fakturace se neopakuje při dalším ukládání kontroly.
+
+Provozní úprava atypické bedny v Neshodě v adminu nepotvrzuje měření ani nepřepočítává technologické stavy; případné čekající potvrzení zůstává aktivní. V seznamu se úplnost kontroly neověřuje u nezměněných řádků, které se neukládají. Rozpracovaná nebo starší kontrola u takového řádku neblokuje uložení změn jiných beden. U změněné běžné bedny se dosavadní podmínky kontroly ověřují dál.
+
+Tvrdost povrchu a jádra je u atypické bedny dostupná i mimo běžný výběr beden ke vzorkování. Výsledky a předepsané hodnoty se zobrazují také v části Kontrola kvality v adminu a ve vyplněné KKK. Tím nevzniká povinnost tvrdost změřit.
+
+V detailu bedny je samostatná část **Fakturace**. Formulář používá kladné popisky **Fakturovat kalení, Fakturovat rovnání, Fakturovat tryskání a Fakturovat zinkování**, vždy s volbou **Ano/Ne**. Hlavní **Fakturovat = Ne** vyřadí celou bednu z proformy; na dodacím listu zůstává s označením nefakturování. Jednotlivé operace zešednou a uzamknou se s vysvětlením. Jejich nastavení se nepřepisuje a zůstává zachované i při uložení bedny. Po zapnutí hlavního přepínače se znovu zpřístupní. Pro placené rovnání například zapněte hlavní Fakturovat, nastavte Fakturovat rovnání na Ano a kalení i tryskání ponechte na Ne.
+
+Při hlavním **Fakturovat = Ano** musí mít alespoň jedna ze čtyř operací volbu **Ano**. Varování se zobrazí pouze při zapnutém hlavním Fakturovat a všech operacích na Ne; uložení se v této kombinaci odmítne i na serveru. Při hlavním Ne nebo po výběru alespoň jedné operace varování zmizí. Přepínače se automaticky nepřepisují; zvolte požadovanou operaci nebo hlavní Fakturovat nastavte na Ne. Podmínka ověřuje zvolené operace, nikoli kladnou výslednou cenu; ta dál závisí na ceníku, nastavení zákazníka a provedených operacích.
+
+Dosavadní nastavení účtování zákazníka a ceník platí dál; samotná volba Ano nezavádí novou cenu. Proformy po bednách i zakázkách a tisk rozpracovanosti respektují volby pro kalení, rovnání a tryskání v cenách, účtovaných hmotnostech i počtech beden dané operace. Bedna účtovaná pouze za rovnání se do počtu beden pro kalení nezahrne. Zakázka bez jediné bedny s hlavním Fakturovat = Ano se na proformě po zakázkách vynechá. Fakturovat zinkování je zatím pouze evidenční údaj, protože samostatný výpočet ceny zinkování není zaveden. Interní příznaky `nefakturovat_*` zůstávají zachované; formulář jejich význam zobrazuje obráceně, takže dosavadní uložené volby se nemění.
+
+Migrace `0248_atypicky_prubeh_a_fakturace` přidává příznaky do bedny i historie s výchozí hodnotou vypnuto. Nemění dosavadní stavy, původní příznak Fakturovat, ceny, měření ani snapshoty.
 
 ## 4. Důležitá validační pravidla
 

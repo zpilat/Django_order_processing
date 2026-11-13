@@ -35,7 +35,7 @@ def build_filled_context(bedna, generated_at, printing_user):
         None,
     )
     customer = bedna.zakazka.kamion_prijem.zakaznik
-    merit_tvrdost = bedna.bedna_k_mereni_tvrdosti_a_povrchu
+    merit_tvrdost = bedna.zobrazit_tvrdost_v_kontrole
     groups = {kind: [] for kind in MEASUREMENT_COLUMNS}
     for item in measurements:
         group = groups.get(item.typ_zkousky)

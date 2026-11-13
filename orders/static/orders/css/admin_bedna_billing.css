@@ -1,0 +1,8 @@
+.form-row.billing-operation-disabled {
+    opacity: 0.5;
+}
+
+#billing-empty-note[hidden],
+#billing-disabled-note[hidden] {
+    display: none;
+}

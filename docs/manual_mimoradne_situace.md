@@ -13,6 +13,8 @@ Výrobní stav bedny, stav šarže, jednotlivé kroky, kontrola a technologické
 
 ## 2. Chyba v příjmu nebo importu dodacího listu
 
+**Skutečná reklamace nebo vrácení zboží od zákazníka** je nový příjem s novým interním číslem bedny. Původní expedici kvůli němu nevracejte. Pro reklamaci, samostatné rovnání či přeposlání do zinkovny použijte [Atypický průběh](manual_bedna.md#atypický-průběh-reklamace-a-samostatné-operace); původní výsledky zůstanou u původní bedny. Postupy oprav a vracení expedice níže slouží k opravě evidence původní dodávky.
+
 ### Chyba před potvrzením importu
 
 V náhledu zkontrolujte zákazníka, artikly, rozměry, předpisy a bedny. Pokud nesouhlasí, import nepotvrzujte. Opravte vstupní XLSX a nahrajte novou verzi; při chybně zvoleném kamionu se vraťte do seznamu a vyberte správný kamion příjem bez zakázek. Náhled sám zakázky ani bedny neukládá.

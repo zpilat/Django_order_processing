@@ -174,6 +174,7 @@ class KontrolaBednyForm(forms.ModelForm):
                 UvolneniKontrolyChoice.NESHODA,
                 UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU,
             )
+            and not (uvolneni == UvolneniKontrolyChoice.NESHODA and self.instance.bedna.atypicky_prubeh)
             and not any(cleaned_data.get(name) for name in self.neshoda_fields)
         ):
             self.add_error('uvolneni', (
@@ -438,6 +439,8 @@ class ZakazkaInlineForm(ZakazkaPredpisValidatorMixin, forms.ModelForm):
 
 
 class BednaModelForm(forms.ModelForm):
+    overit_nezmenenou_kontrolu = True
+
     def clean(self):
         cleaned = super().clean()
         # Admin ukládá v transakci. Zámek držíme od validace do uložení,
@@ -450,14 +453,26 @@ class BednaModelForm(forms.ModelForm):
         super()._post_clean()
         # ModelForm už promítl odeslanou zakázku a stav do instance. Platí pro
         # detail, inline i list editaci; zámek z clean() trvá až do zápisu.
-        if not self.errors and self.instance.stav_bedny == StavBednyChoice.ZKONTROLOVANO:
+        if (
+            not self.errors and self.instance.stav_bedny == StavBednyChoice.ZKONTROLOVANO
+            and (self.overit_nezmenenou_kontrolu or self.has_changed())
+        ):
+            puvodni_stav = self.initial.get('stav_bedny', self.instance.stav_bedny)
+            if (
+                puvodni_stav == StavBednyChoice.ZKONTROLOVANO and self.instance.atypicky_prubeh
+                and KontrolaBedny.objects.filter(
+                    bedna_id=self.instance.pk, uvolneni=UvolneniKontrolyChoice.NESHODA,
+                ).exists()
+            ):
+                # Provozní úprava rozpracované atypické bedny nepotvrzuje její kontrolu.
+                return
             duvody = duvody_neuplne_kontroly(self.instance)
-            if self.initial.get('stav_bedny') != StavBednyChoice.ZKONTROLOVANO and self.instance.pozastaveno:
+            if puvodni_stav != StavBednyChoice.ZKONTROLOVANO and self.instance.pozastaveno:
                 duvody.append('Bedna je pozastavená. Nejprve je nutné zrušit pozastavení.')
             if duvody:
                 field = 'stav_bedny' if 'stav_bedny' in self.fields else None
                 self.add_error(field, ValidationError(duvody))
-            elif self.initial.get('stav_bedny') != StavBednyChoice.ZKONTROLOVANO:
+            elif puvodni_stav != StavBednyChoice.ZKONTROLOVANO:
                 stavy = vyhodnotit_stavy_pri_zkontrolovani(self.instance)
                 self.instance.rovnat = stavy['rovnat']
                 self.instance.tryskat = stavy['tryskat']
@@ -506,6 +521,16 @@ class BednaAdminForm(BednaModelForm):
         # existence jednotlivých polí v self.fields.
         if not self.fields:
             return
+
+        # Kladné popisky v UI; uložené příznaky nefakturovat_* mají opačný význam.
+        for operation, label in (
+            ('kaleni', 'Fakturovat kalení'), ('rovnani', 'Fakturovat rovnání'),
+            ('tryskani', 'Fakturovat tryskání'), ('zinkovani', 'Fakturovat zinkování'),
+        ):
+            field = self.fields.get(f'nefakturovat_{operation}')
+            if field is not None:
+                field.label = label
+                field.widget = forms.RadioSelect(attrs=field.widget.attrs, choices=((False, 'Ano'), (True, 'Ne')))
 
         field_stav_bedny = self.fields.get("stav_bedny")
         field_tryskat = self.fields.get("tryskat")
@@ -597,6 +622,9 @@ class BednaChangeListForm(BednaModelForm):
        - Pro stav_bedny nabídne všechny možné stavy, které jsou povoleny pro danou bednu a nastaví `initial` na aktuální stav.
        - Pro tryskat, rovnat a zinkovat nabídne všechny možné stavy, které jsou povoleny pro danou bednu a nastaví `initial` na aktuální stav.
     """
+    # Nezměněný řádek se neukládá a nesmí blokovat změny jiných beden.
+    overit_nezmenenou_kontrolu = False
+
     class Meta:
         model = Bedna
         fields = "__all__"

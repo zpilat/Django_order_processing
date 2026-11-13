@@ -6,6 +6,8 @@ Internal application for receiving, heat treating, inspecting and shipping order
 
 - XLSX delivery note import with preview, validation and atomic saving; article numbers remain strings.
 - Crate states, warehouse positions, priorities, paused items and change history.
+- Atypical workflow for returns and standalone operations: a confirmed Received → Inspected action with a reason-free nonconformity decision, optional measurements and per-operation billing exclusions. Saving the inspection updates straightening from post-straightening measurements, otherwise post-heat-treatment measurements; without either, the manual state is preserved. See the [Czech manual](docs/manual_bedna.md#atypický-průběh-reklamace-a-samostatné-operace).
+- The former Received → Heat treated return action has been removed. Atypical transitions are excluded from processed weight and its related crooked-weight share in the truck dashboard; stock summaries still include these crates.
 - Quick batch creation for workstations 1–6, crates arranged into rack floors and traveler printing.
 - Batch step logs, workstation transfers and start/end dates and times.
 - Camera and reader scanning, operational state changes and crate movement history; confirming heat treatment evaluates blasting from started batch steps and displays a warning before saving about partial blasting when blasting was required.
@@ -16,7 +18,7 @@ Internal application for receiving, heat treating, inspecting and shipping order
 - Chemical measurement import from Vanta JSON exports, with preview and processed file archiving.
 - Loading, workstation, inspection and nonconformity overviews; production, straightening, crate and truck dashboards with history.
 - Shipment of orders or selected crates, splitting unfinished crates into another order and adding shipments to an existing outbound truck.
-- PDF crate cards, quality control cards (KKK), batch travelers, delivery notes, certificates and proforma invoices. Filled KKK are supported for EUR.
+- PDF crate cards, quality control cards (KKK), batch travelers, delivery notes, certificates and proforma invoices. Filled KKK are supported for all customers; atypical crates also show hardness requirements outside the standard sampling selection.
 - Unsaved inspection changes are highlighted in red and block normal departure from checked crates. Measurement edits require confirmation only when evaluation or technological states change; drafts survive navigation to the same crate's measurements.
 - Task permissions and auditing through `django-simple-history`.
 - Specifications include optional numeric minimum, maximum and QS maximum fields for bending, torsion, surface/core hardness and case depth. `doplnit_meze_predpisu` previews text conversion and writes unambiguous standard limits only with `--apply`, preserving manual and QS values. Inspection evaluation and printing remain unchanged. See the [Czech conversion analysis](docs/analyza_mezi_predpisu.md).

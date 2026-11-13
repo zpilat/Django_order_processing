@@ -12,6 +12,7 @@
             <div class="text-muted fw-semibold">Bedna {{ bedna.cislo_bedny }} · {{ poradi_a_pocet.0 }}/{{ poradi_a_pocet.1 }}</div>
             {% endwith %}
             <h1 class="h3 mt-2">Kontrola bedny</h1>
+            {% if bedna.atypicky_prubeh %}<div class="alert alert-info py-2 mt-2 mb-2"><strong>Atypický průběh</strong> · Měření jsou nepovinná. Zadané výsledky se nadále vyhodnocují.</div>{% endif %}
             <div class="text-muted mb-2">Stav bedny: {{ bedna.get_stav_bedny_display }}</div>
             <div>{{ bedna.zakazka.kamion_prijem.zakaznik }} · {{ bedna.zakazka.artikl }}</div>
             <div class="text-muted text-break">{{ bedna.zakazka.prumer }} × {{ bedna.zakazka.delka }}{% if bedna.zakazka.zkraceny_popis %} · {{ bedna.zakazka.zkraceny_popis }}{% endif %}</div>

@@ -1,5 +1,9 @@
 # Role a přidělování oprávnění
 
+Akce **Převést na atypický průběh, označit zkontrolováno s neshodou** vyžaduje současně `orders.change_bedna` a `orders.mark_bedna_zkontrolovano`. Nové oprávnění ani automatické změny skupin nezavádí. Pracuje pouze s nepozastavenými přijatými bednami bez dosavadní kontroly a vyžaduje potvrzení účinků akce.
+
+Původní reklamační akce Přijato → Zakaleno je odstraněná. Historické oprávnění `orders.mark_bedna_zakaleno` může zůstat ve skupinách uvedených v tomto snímku, ale odstraněnou akci nezpřístupňuje. Pro skenové potvrzení Zakaleno nadále slouží samostatné `orders.scan_mark_bedna_zakaleno`.
+
 Návod slouží správci uživatelů při nástupu pracovníka, změně jeho úkolů a odebrání přístupu. Popisuje **skutečné skupiny a jejich přidělená oprávnění načtené 9. listopadu 2026 z vývojové PostgreSQL `orders_dev` na lokálním portu 5433 po obnově z produkčního dumpu `orders_prod_auto_20261109_080001.dump`**. Produkce se při aktualizaci návodu samostatně nečetla. Jde o snímek nastavení, který se po změně skupin neaktualizuje automaticky. Žádné účty, skupiny ani jejich oprávnění nebyly při přípravě dokumentace měněny.
 
 ## 1. Účet, administrace a oprávnění
@@ -58,7 +62,7 @@ Oprávnění `change_bedna`, `change_zakazka` a `change_kamion` slouží více a
 | Zapsat výsledky u pozastavené bedny | Navíc `change_pozastavena_bedna`; dokončení kontroly přes provozní potvrzení zůstává do zrušení pozastavení blokované. |
 | Potvrdit Navezeno přes sken | `mark_bedna_navezeno` **nebo** `change_bedna`; pouze Přijato / K navezení a nepozastavená bedna. |
 | Potvrdit Zakaleno přes sken | `scan_mark_bedna_zakaleno`; pouze Navezeno / Ve zpracování a nepozastavená bedna. |
-| Přímá admin akce Přijato → Zakaleno pro reklamaci | `mark_bedna_zakaleno`; jde o jiné oprávnění než skenové označení. |
+| Převést na atypický průběh, označit zkontrolováno s neshodou | Současně `change_bedna` a `mark_bedna_zkontrolovano`; pouze nepozastavené Přijato bez kontroly a měření. Nahrazuje původní reklamační akci Přijato → Zakaleno. |
 | Vrátit Navezeno na Přijato příslušnou admin akcí | `mark_bedna_navezeno`; ověřit skutečný stav a návazný deník. |
 | Upravit nepřijatou bednu | `change_neprijata_bedna`; admin posuzuje také přístup do příslušné agendy. |
 | Upravit pouze poznámku nepřijaté bedny | `change_poznamka_neprijata_bedna`; bez plného práva k nepřijatým bednám je ostatní obsah jen pro čtení. |

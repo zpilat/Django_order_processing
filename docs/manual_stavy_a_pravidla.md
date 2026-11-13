@@ -4,6 +4,8 @@ Tento přehled vysvětluje, jak spolu souvisejí výrobní stav bedny, rozhodnut
 
 ## 1. Které údaje se sledují samostatně
 
+**Atypický průběh** umožňuje přijatou bednu převzít rovnou do Zkontrolováno s Neshodou bez důvodu. Akce resetuje všechny tři technologické stavy a vypne účtování. Při následném uložení kontroly se Tryskání řídí vyplněnou Čistotou a Rovnání přednostně měřením po rovnání, jinak po TZ. Bez těchto měření zůstane ruční stav Rovnání zachovaný. Zinkování zůstává ruční. Povinná měření se nevyžadují, ale zadané výsledky se vyhodnocují a Neshoda stále blokuje expedici. Viz [postup atypické bedny](manual_bedna.md#atypický-průběh-reklamace-a-samostatné-operace). Níže uvedené povinnosti kompletní sady měření platí pro běžný průběh.
+
 | Údaj | Na co odpovídá | Příklad |
 | --- | --- | --- |
 | Výrobní stav bedny | Kde je bedna v procesu od příjmu po expedici? | Zakaleno, Zkontrolováno, K expedici |
@@ -49,7 +51,7 @@ Nepřijato → Přijato → K navezení → Navezeno
 
 Mimo Nepřijato se vyžaduje kladné netto, tára a množství a platný předpis; označení **Neznámý předpis** nestačí. Pozice je povinná pro K navezení a Navezeno; při uložení bedny v jiném stavu se vymaže.
 
-Skenování **Zakaleno** je povolené z Navezeno nebo Ve zpracování a vyžaduje `orders.scan_mark_bedna_zakaleno`. Přímá administrační akce Přijato → Zakaleno pro reklamaci má jiné oprávnění: `orders.mark_bedna_zakaleno`. Nabídka přechodů v adminu sama nepotvrzuje, že jsou pro uložení splněné všechny podmínky.
+Skenování **Zakaleno** je povolené z Navezeno nebo Ve zpracování a vyžaduje `orders.scan_mark_bedna_zakaleno`. Původní přímá administrační akce Přijato → Zakaleno pro reklamaci byla odstraněna. Pro reklamace a samostatné operace slouží **Převést na atypický průběh, označit zkontrolováno s neshodou**, která nastaví Zkontrolováno s Neshodou. Nabídka přechodů v adminu sama nepotvrzuje, že jsou pro uložení splněné všechny podmínky.
 
 ## 3. Kdy se co změní automaticky
 

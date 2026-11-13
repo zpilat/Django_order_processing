@@ -41,9 +41,13 @@ def vyhodnotit_tryskani_pri_zakaleni(bedna):
 def duvody_nevyhodnotitelneho_prohybu(bedna):
     """Povinné podklady pro potvrzení Zkontrolováno; QS maximum je volitelné."""
     duvody = []
-    if not MereniBedny.objects.filter(
-        kontrola__bedna=bedna, typ_zkousky=TypZkouskyChoice.PROHYB_PO_TZ,
-    ).exists():
+    zmerene = set(MereniBedny.objects.filter(
+        kontrola__bedna=bedna,
+        typ_zkousky__in=(TypZkouskyChoice.PROHYB_PO_TZ, TypZkouskyChoice.PROHYB_PO_KOULENI, TypZkouskyChoice.PROHYB_PO_ROVNANI),
+    ).values_list('typ_zkousky', flat=True))
+    if bedna.atypicky_prubeh and not zmerene:
+        return []
+    if not bedna.atypicky_prubeh and TypZkouskyChoice.PROHYB_PO_TZ not in zmerene:
         duvody.append('Změřte a uložte Prohyb po TZ.')
     if bedna.limity_prohybu['bezny'] is None:
         duvody.append('Pro zákazníka není nastavené standardní maximum prohybu.')
@@ -53,6 +57,8 @@ def duvody_nevyhodnotitelneho_prohybu(bedna):
 
 
 def duvody_chybejicich_mechanickych_mereni(bedna):
+    if bedna.atypicky_prubeh:
+        return []
     druhy = (TypZkouskyChoice.OHYB, TypZkouskyChoice.KRUT)
     zmerene = set(MereniBedny.objects.filter(
         kontrola__bedna=bedna, typ_zkousky__in=druhy,
@@ -104,6 +110,7 @@ def duvody_neuplne_kontroly(bedna, *, kontrola=None, potvrzuje_mereni=False):
 
     Pouze zápis výstupní kontroly smí potvrdit změny měření. Uložená
     rozhodnutí a automatické důvody musejí odpovídat i aktuálním limitům.
+    Atypická Neshoda smí zůstat rozpracovaná bez Čistoty a Uložení.
     """
     if kontrola is None:
         kontrola = KontrolaBedny.objects.filter(bedna_id=bedna.pk).first() if bedna.pk else None
@@ -115,8 +122,9 @@ def duvody_neuplne_kontroly(bedna, *, kontrola=None, potvrzuje_mereni=False):
     if kontrola.vyzaduje_potvrzeni and not potvrzuje_mereni:
         duvody.append('Po změně měření uložte výstupní kontrolu bedny.')
     vysledky = (VysledekKontrolyChoice.OK, VysledekKontrolyChoice.NOK)
+    rozpracovana_atypicka = bedna.atypicky_prubeh and kontrola.uvolneni == UvolneniKontrolyChoice.NESHODA
     for field, label in (('cistota', 'Čistotu'), ('ulozeni', 'Uložení')):
-        if getattr(kontrola, field) not in vysledky:
+        if not rozpracovana_atypicka and getattr(kontrola, field) not in vysledky:
             duvody.append(f'Vyplňte a uložte {label} (OK nebo NOK).')
     if kontrola.uvolneni not in (
         UvolneniKontrolyChoice.UVOLNENO, UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU,
@@ -142,7 +150,7 @@ def duvody_neuplne_kontroly(bedna, *, kontrola=None, potvrzuje_mereni=False):
         duvody.append('Při Uvolněno uložte kontrolu bez aktuálních důvodů neshody.')
     if kontrola.uvolneni in (
         UvolneniKontrolyChoice.NESHODA, UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU,
-    ) and not ma_duvod:
+    ) and not ma_duvod and not (bedna.atypicky_prubeh and kontrola.uvolneni == UvolneniKontrolyChoice.NESHODA):
         duvody.append('Při Neshodě nebo Uvolněno QS s odchylkou uložte alespoň jeden důvod.')
     if ulozeni_nok and not kontrola.neshoda_jine:
         duvody.append('Při Uložení NOK uložte důvod Jiné.')
@@ -159,7 +167,7 @@ def duvody_neuplne_kontroly(bedna, *, kontrola=None, potvrzuje_mereni=False):
         omezeni is not None and omezeni.typ_zkousky == TypZkouskyChoice.PROHYB_PO_TZ
         and omezeni.stav == 'odchylka'
     )
-    if (kontrola.neshoda_krivost or omezeni is not None) and chybejici_pocty and not oranzovy_prohyb_po_tz:
+    if not bedna.atypicky_prubeh and (kontrola.neshoda_krivost or omezeni is not None) and chybejici_pocty and not oranzovy_prohyb_po_tz:
         if len(chybejici_pocty) == 2:
             duvody.append('Při důvodu Křivost doplňte a uložte oba počty křivých.')
         else:
@@ -183,12 +191,18 @@ def vyhodnotit_stavy_pri_zkontrolovani(bedna, *, kontrola=None):
             if bedna.tryskat in (TryskaniChoice.SPINAVA, TryskaniChoice.OTRYSKANA)
             else TryskaniChoice.CISTA
         )
+    elif bedna.atypicky_prubeh and kontrola.uvolneni == UvolneniKontrolyChoice.NESHODA:
+        tryskat = TryskaniChoice(bedna.tryskat)
     else:
         raise ValidationError('Vyplňte a uložte Čistotu (OK nebo NOK).')
 
     po_rovnani = MereniBedny.objects.filter(
         kontrola__bedna=bedna, typ_zkousky=TypZkouskyChoice.PROHYB_PO_ROVNANI,
     ).exists()
+    if bedna.atypicky_prubeh and not po_rovnani and not MereniBedny.objects.filter(
+        kontrola__bedna=bedna, typ_zkousky=TypZkouskyChoice.PROHYB_PO_TZ,
+    ).exists():
+        return {'rovnat': RovnaniChoice(bedna.rovnat), 'tryskat': tryskat}
     # Stejné vyhodnocení celého vzorku jako v kontrole, včetně povoleného počtu křivých.
     omezeni = omezeni_uvolneni_prohybem(bedna)
     if omezeni is not None and omezeni.stav == 'nevyhovuje':

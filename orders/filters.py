@@ -102,6 +102,20 @@ class UvolneniBednyFilter(DynamicTitleFilter):
         return queryset
 
 
+class AtypickyPrubehFilter(DynamicTitleFilter):
+    title = 'Atypický průběh'
+    parameter_name = 'atypicky_prubeh'
+    label_dict = {'True': 'Ano', 'False': 'Ne'}
+
+    def lookups(self, request, model_admin):
+        return self.label_dict.items()
+
+    def queryset(self, request, queryset):
+        if self.value() in self.label_dict:
+            return queryset.filter(atypicky_prubeh=self.value() == 'True')
+        return queryset
+
+
 class OdberatelBednyFilter(DynamicTitleFilter):
     """
     Filtrovat bedny podle odběratele zakázky.

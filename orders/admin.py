@@ -48,7 +48,7 @@ from .actions import (
     tisk_vyplnenych_karet_kontroly_kvality_action, tisk_vyplnenych_karet_kontroly_kvality_zakazek_action,
     tisk_vyplnenych_karet_kontroly_kvality_kamionu_vydej_action,
     tisk_karet_bedny_a_kontroly_action, tisk_protokolu_kamionu_vydej_action, tisk_proforma_faktury_kamionu_action,
-    oznacit_k_navezeni_action, vratit_bedny_ze_stavu_k_navezeni_do_stavu_prijato_action, oznacit_navezeno_action, oznacit_prijato_do_zakaleno_action,
+    oznacit_k_navezeni_action, vratit_bedny_ze_stavu_k_navezeni_do_stavu_prijato_action, oznacit_navezeno_action,
     oznacit_prijato_navezeno_action, vratit_bedny_z_rozpracovanosti_do_stavu_prijato_action, vratit_bedny_ze_stavu_navezeno_do_stavu_prijato_action,
     oznacit_do_zpracovani_action, oznacit_zakaleno_action, oznacit_k_expedici_action, oznacit_rovna_action,
     oznacit_kriva_action, oznacit_kouleni_action, oznacit_rovna_se_action, oznacit_vyrovnana_action, oznacit_cista_action, oznacit_spinava_action,
@@ -56,6 +56,7 @@ from .actions import (
     oznacit_uvolneno_action, prijmout_kamion_action, prijmout_zakazku_action, prijmout_bedny_action,
     export_bedny_to_csv_customer_action, export_bedny_dl_action, tisk_rozpracovanost_action, tisk_prehledu_zakazek_kamionu_action, expedice_beden_action,
     expedice_beden_kamion_action, uvolnit_pozastavene_bedny_action, oznacit_nefakturovat_action,
+    prevest_na_atypicky_prubeh_action,
     oznacit_sarze_jako_zaplanovane_action, vytvorit_dalsi_krok_sarze_action, vytvorit_novy_krok_z_kroku_sarze_action,
     tisk_pruvodky_vruty_sarze_action, tisk_karty_kontroly_prohybu_kamionu_action,
     export_chemie_beden_action,
@@ -64,7 +65,7 @@ from .filters import (
     SklademZakazkaFilter, StavBednyFilter, KompletZakazkaFilter, AktivniPredpisFilter, SkupinaFilter, ZakaznikBednyFilter,
     ZakaznikZakazkyFilter, ZakaznikKamionuFilter, PrijemVydejFilter, TryskaniFilter, RovnaniFilter, PrioritaBednyFilter, PrioritaZakazkyFilter,
     OberflacheFilter, TypHlavyBednyFilter, TypHlavyZakazkyFilter, CelozavitBednyFilter, CelozavitZakazkyFilter, DelkaFilter, PozastavenoFilter,
-    OdberatelFilter, OdberatelBednyFilter, AktivniNotifikaceBednyFilter, ZakaznikPredpisFilter, ZinkovaniFilter, UvolneniBednyFilter,
+    OdberatelFilter, OdberatelBednyFilter, AktivniNotifikaceBednyFilter, ZakaznikPredpisFilter, ZinkovaniFilter, UvolneniBednyFilter, AtypickyPrubehFilter,
     StavSarzeFilter, TypSarzeFilter, ZarizeniSarzeKrokFilter, TypZarizeniSarzeKrokFilter, KonecSarzeKrokFilter, StavSarzeKrokFilter,
     ZarizeniSarzeBednaFilter, TypZarizeniSarzeBednaFilter, KonecSarzeBednaFilter, StavSarzeBednaFilter,
     SkupinaSarzeBednaFilter,
@@ -3056,9 +3057,9 @@ class BednaAdmin(HistoryViewOnlyAdmin):
         export_bedny_to_csv_customer_action, export_bedny_dl_action, export_chemie_beden_action,
         oznacit_k_navezeni_action, oznacit_navezeno_action, oznacit_prijato_navezeno_action, vratit_bedny_ze_stavu_k_navezeni_do_stavu_prijato_action,
         vratit_bedny_ze_stavu_navezeno_do_stavu_prijato_action, vratit_bedny_z_rozpracovanosti_do_stavu_prijato_action,
-        oznacit_do_zpracovani_action, oznacit_zakaleno_action, oznacit_k_expedici_action,
+        oznacit_do_zpracovani_action, oznacit_zakaleno_action, oznacit_k_expedici_action, prevest_na_atypicky_prubeh_action,
         oznacit_rovna_action, oznacit_kriva_action, oznacit_kouleni_action, oznacit_rovna_se_action, oznacit_vyrovnana_action,
-        oznacit_cista_action, oznacit_spinava_action, oznacit_otryskana_action, oznacit_prijato_do_zakaleno_action,
+        oznacit_cista_action, oznacit_spinava_action, oznacit_otryskana_action,
         oznacit_k_zinkovani_action, oznacit_po_zinkovani_action, oznacit_uvolneno_action, odeslat_na_zinkovani_action, export_na_zinkovani_action,
         prijmout_bedny_action, expedice_beden_action, expedice_beden_kamion_action, uvolnit_pozastavene_bedny_action, oznacit_nefakturovat_action,
     ]
@@ -3090,7 +3091,7 @@ class BednaAdmin(HistoryViewOnlyAdmin):
     )
     search_help_text = "Dle čísla bedny, č.b. zákazníka, zakázky a popisu zakázky"
     list_filter = (
-        ZakaznikBednyFilter, StavBednyFilter, UvolneniBednyFilter, TryskaniFilter, RovnaniFilter, ZinkovaniFilter, SkupinaFilter,
+        ZakaznikBednyFilter, StavBednyFilter, UvolneniBednyFilter, AtypickyPrubehFilter, TryskaniFilter, RovnaniFilter, ZinkovaniFilter, SkupinaFilter,
         DelkaFilter, CelozavitBednyFilter, TypHlavyBednyFilter, PrioritaBednyFilter, PozastavenoFilter, AktivniNotifikaceBednyFilter,
         OdberatelBednyFilter, FakturovatFilter, 
         )
@@ -3122,6 +3123,7 @@ class BednaAdmin(HistoryViewOnlyAdmin):
             'orders/js/changelist_dirty_guard.js',
             'orders/js/admin_bedna_group_separator.js',
             'orders/js/admin_bedna_quality_warning.js',
+            'orders/js/admin_bedna_billing.js',
             'orders/js/admin_model_change_poll.js',
             'orders/js/bedny_hmotnost_sum.js',
             'orders/js/bedny_netto_hmotnost_sum.js',
@@ -3132,6 +3134,7 @@ class BednaAdmin(HistoryViewOnlyAdmin):
                 'orders/css/admin_changelist_filters_scroll.css',
                 'orders/css/rack_preview.css',
                 'orders/css/admin_bedna_quality_warning.css',
+                'orders/css/admin_bedna_billing.css',
             )
         }
 
@@ -3153,7 +3156,7 @@ class BednaAdmin(HistoryViewOnlyAdmin):
         return 'zakazka__kamion_vydej__datum'
 
     def _get_changelist_clean_redirect_url(self, request):
-        """Vrátí URL bez neaktivních filtrů data a uvolnění, jinak None."""
+        """Vrátí URL bez neaktivních filtrů data, uvolnění a atypického průběhu."""
         inactive_prefix = self._get_inactive_date_hierarchy_prefix(request)
         stale_prefix = f'{inactive_prefix}__'
         query_params = request.GET.copy()
@@ -3165,9 +3168,10 @@ class BednaAdmin(HistoryViewOnlyAdmin):
                 query_params.pop(key, None)
 
         if request.GET.get('stav_bedny') != StavBednyChoice.ZKONTROLOVANO:
-            if UvolneniBednyFilter.parameter_name in query_params:
-                removed_any = True
-                query_params.pop(UvolneniBednyFilter.parameter_name)
+            for filter_class in (UvolneniBednyFilter, AtypickyPrubehFilter):
+                if filter_class.parameter_name in query_params:
+                    removed_any = True
+                    query_params.pop(filter_class.parameter_name)
 
         if not removed_any:
             return None
@@ -3317,7 +3321,7 @@ class BednaAdmin(HistoryViewOnlyAdmin):
         rows = []
         if kontrola:
             measurements = list(kontrola.mereni.all())
-            merit_tvrdost = obj.bedna_k_mereni_tvrdosti_a_povrchu
+            merit_tvrdost = obj.zobrazit_tvrdost_v_kontrole
             for kind in TypZkouskyChoice:
                 if merit_tvrdost or kind not in (
                     TypZkouskyChoice.TVRDOST_POVRCHU, TypZkouskyChoice.TVRDOST_JADRA,
@@ -3871,7 +3875,11 @@ class BednaAdmin(HistoryViewOnlyAdmin):
                 'hmotnost', 'tara', 'brutto', 'mnozstvi'
             )),
             ("Stavy bedny", (
-                'stav_bedny', 'tryskat', 'rovnat', 'zinkovat', 'pozastaveno', 'fakturovat'
+                'stav_bedny', 'atypicky_prubeh', 'tryskat', 'rovnat', 'zinkovat', 'pozastaveno',
+            )),
+            ('Fakturace', (
+                'fakturovat', 'nefakturovat_kaleni', 'nefakturovat_rovnani',
+                'nefakturovat_tryskani', 'nefakturovat_zinkovani',
             )),
             ("K navezení", (
                 'pozice',
@@ -4057,9 +4065,6 @@ class BednaAdmin(HistoryViewOnlyAdmin):
     def has_change_pozastavena_bedna_permission(self, request):
         """Permission hook for admin actions requiring change_pozastavena_bedna."""
         return request.user.has_perm('orders.change_pozastavena_bedna')
-
-    def has_mark_bedna_zakaleno_permission(self, request):
-        return request.user.has_perm('orders.mark_bedna_zakaleno')
 
     def has_filter_chemistry_bedna_permission(self, request):
         return request.user.has_perm(CHEMIE_VIEW_PERMISSION)
@@ -4376,14 +4381,14 @@ class BednaAdmin(HistoryViewOnlyAdmin):
         jinak se zruší filtry TryskaniFilter, RovnaniFilter, ZinkovaniFilter a PozastavenoFilter.
         Pokud není aktivní filtr stav bedny K_EXPEDICI, zruší se filtr OdberatelBednyFilter,
         jinak TryskaniFilter a RovnaniFilter.
-        UvolneniBednyFilter je dostupný pouze při stavu ZKONTROLOVANO.
+        UvolneniBednyFilter a AtypickyPrubehFilter jsou dostupné pouze při stavu ZKONTROLOVANO.
         """
         actual_filters = super().get_list_filter(request)
         stav_bedny = request.GET.get('stav_bedny')
         filters_to_remove = set()
 
         if stav_bedny != StavBednyChoice.ZKONTROLOVANO:
-            filters_to_remove.add(UvolneniBednyFilter)
+            filters_to_remove.update([UvolneniBednyFilter, AtypickyPrubehFilter])
 
         if stav_bedny is None:
             filters_to_remove.update([DelkaFilter, TypHlavyBednyFilter, CelozavitBednyFilter])
@@ -4437,6 +4442,9 @@ class BednaAdmin(HistoryViewOnlyAdmin):
 
         actions_to_remove = []
 
+        if not request.user.has_perm('orders.mark_bedna_zkontrolovano'):
+            actions_to_remove.append('prevest_na_atypicky_prubeh_action')
+
         if request.method == "GET":
             stav_filter = request.GET.get('stav_bedny', None)
             rovnani_filter = request.GET.get('rovnani', None)
@@ -4452,7 +4460,7 @@ class BednaAdmin(HistoryViewOnlyAdmin):
                 ]
             if stav_filter and stav_filter != StavBednyChoice.PRIJATO:
                 actions_to_remove += [
-                    'oznacit_k_navezeni_action', 'oznacit_prijato_do_zakaleno_action',
+                    'oznacit_k_navezeni_action', 'prevest_na_atypicky_prubeh_action',
                 ]
             if stav_filter != StavBednyChoice.K_NAVEZENI:
                 actions_to_remove += [
@@ -4572,7 +4580,6 @@ class BednaAdmin(HistoryViewOnlyAdmin):
             'prijmout_bedny_action': 'Stav bedny',
             'oznacit_k_navezeni_action': 'Stav bedny',
             'oznacit_prijato_navezeno_action': 'Stav bedny',
-            'oznacit_prijato_do_zakaleno_action': 'Stav bedny',
             'oznacit_navezeno_action': 'Stav bedny',
             'vratit_bedny_ze_stavu_k_navezeni_do_stavu_prijato_action': 'Stav bedny',
             'oznacit_do_zpracovani_action': 'Stav bedny',
@@ -4597,6 +4604,7 @@ class BednaAdmin(HistoryViewOnlyAdmin):
             'oznacit_uvolneno_action': 'Zinkování',
             'uvolnit_pozastavene_bedny_action': 'Další parametry bedny',
             'oznacit_nefakturovat_action': 'Další parametry bedny',
+            'prevest_na_atypicky_prubeh_action': 'Stav bedny',
         }
         order = ['Stav bedny', 'Tisk', 'Export', 'Rovnání', 'Tryskání', 'Zinkování', 'Expedice', 'Další parametry bedny']
         grouped = {g: [] for g in order}
