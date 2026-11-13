@@ -21,7 +21,7 @@ Internal application for receiving, heat treating, inspecting and shipping order
 - Shipment of orders or selected crates, splitting unfinished crates into another order and adding shipments to an existing outbound truck.
 - PDF crate cards, quality control cards (KKK), batch travelers, delivery notes, certificates and proforma invoices. Filled KKK are supported for all customers; atypical crates also show hardness requirements outside the standard sampling selection.
 - Unsaved inspection changes are highlighted in red and block normal departure from checked crates. Measurement edits require confirmation only when evaluation or technological states change; drafts survive navigation to the same crate's measurements.
-- Task permissions and auditing through `django-simple-history`.
+- Task permissions and auditing through `django-simple-history`. Atypical conversion and manual flag edits require a dedicated `mark_bedna_atypicky_prubeh` permission, separate from inspection and measurement rights; migrations do not assign it to groups automatically.
 - Specifications include optional numeric minimum, maximum and QS maximum fields for bending, torsion, surface/core hardness and case depth. `doplnit_meze_predpisu` previews text conversion and writes unambiguous standard limits only with `--apply`, preserving manual and QS values. Inspection evaluation and printing remain unchanged. See the [Czech conversion analysis](docs/analyza_mezi_predpisu.md).
 - Per-operation billing uses positive crate flags `fakturovat_*`. Customer defaults for straightening, blasting and zinc coating are copied on creation only; crate overrides are independent. Zinc coating remains metadata without a calculated charge.
 

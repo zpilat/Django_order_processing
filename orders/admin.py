@@ -3950,6 +3950,8 @@ class BednaAdmin(HistoryViewOnlyAdmin):
         """
         current_readonly_fields = list(super().get_readonly_fields(request, obj))
         added_readonly_fields = []
+        if not request.user.has_perm('orders.mark_bedna_atypicky_prubeh'):
+            current_readonly_fields.append('atypicky_prubeh')
         if obj and obj.stav_bedny == StavBednyChoice.NEPRIJATO:
             # Uživatel bez change_neprijata_bedna může upravit pouze poznámku, pokud má speciální oprávnění.
             if (not request.user.has_perm('orders.change_neprijata_bedna')
@@ -4449,7 +4451,7 @@ class BednaAdmin(HistoryViewOnlyAdmin):
 
         actions_to_remove = []
 
-        if not request.user.has_perm('orders.mark_bedna_zkontrolovano'):
+        if not request.user.has_perm('orders.mark_bedna_atypicky_prubeh'):
             actions_to_remove.append('prevest_na_atypicky_prubeh_action')
 
         if request.method == "GET":

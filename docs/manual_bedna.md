@@ -54,12 +54,14 @@ Vrácené zboží přijměte jako novou bednu s novým interním číslem. Půvo
 Původní akce **Změnit stav bedny z PŘIJATO rovnou do ZAKALENO (při reklamaci)** je odstraněná; použijte postup níže. Přechody s Atypickým průběhem se v přehledu kamionů nepočítají do Zpracováno ani související hmotnosti křivých. Ve skladových přehledech bedny zůstávají.
 
 1. V seznamu Bedny vyberte nepozastavené bedny ve stavu **Přijato**, které ještě nemají kontrolu ani měření.
-2. Použijte **Převést na atypický průběh, označit zkontrolováno s neshodou** ve skupině Stav bedny a přečtěte potvrzovací stránku. Potřebujete oprávnění ke změně bedny a `orders.mark_bedna_zkontrolovano`.
+2. Použijte **Převést na atypický průběh, označit zkontrolováno s neshodou** ve skupině Stav bedny a přečtěte potvrzovací stránku. Potřebujete oprávnění ke změně bedny a **Může převést bednu na atypický průběh** (`orders.mark_bedna_atypicky_prubeh`).
 3. Potvrzením se zapne **Atypický průběh**, nastaví **Zkontrolováno** a založí kontrola s **Neshodou bez důvodu**. Rovnání, Tryskání a Zinkování se nastaví na **Nezadáno**. Hlavní **Fakturovat** i fakturace všech jednotlivých operací se nastaví na **Ne**.
 4. Vyplňte potřebné zkoušky a výstupní kontrolu. Ohyb, Krut, Prohyb po TZ ani oba počty křivých nejsou povinné. Dokud má atypická bedna **Neshodu**, lze ukládat provozní změny i průběžnou kontrolu bez vyplněné Čistoty a Uložení. Například lze ručně nastavit Tryskání na Špinavá. Čistota a Uložení jsou povinné až pro Uvolněno nebo QS s odchylkou. Podrobnosti uvádí [kontrola atypických beden](manual_kontrola_beden.md#atypický-průběh).
 5. Určete skutečné technologické stavy a případnou fakturaci. Neshoda, nepotvrzená měření a Nezadáno v technologických stavech dál blokují přípravu k expedici. Atypická bedna před expedicí vyžaduje uložené uvolnění a Čistotu i Uložení OK; starších běžných beden s papírovou kontrolou se tato podmínka netýká.
 
 Akce je společná transakce pro celý výběr. Při nepřípustné bedně nebo chybě se nepřevede žádná. Existující kontroly a měření nepřepisuje. Změny mají historii s autorem a vznikne počáteční snapshot neshody. Reset stavů a fakturace se neopakuje při dalším ukládání kontroly.
+
+Samostatné oprávnění pro atypický průběh vyžaduje také ruční změna příznaku v detailu bedny; bez něj je pouze pro čtení. Migrace 0251 ho vytvoří, ale žádné skupině ani uživateli ho automaticky nepřidělí. Toto právo nenahrazuje kontrolorské oprávnění pro měření, uvolnění a dokončení kontroly. Podrobnosti jsou v [přehledu oprávnění](manual_role_a_opravneni.md).
 
 Provozní úprava atypické bedny v Neshodě v adminu nepotvrzuje měření ani nepřepočítává technologické stavy; případné čekající potvrzení zůstává aktivní. V seznamu se úplnost kontroly neověřuje u nezměněných řádků, které se neukládají. Rozpracovaná nebo starší kontrola u takového řádku neblokuje uložení změn jiných beden. U změněné běžné bedny se dosavadní podmínky kontroly ověřují dál.
 

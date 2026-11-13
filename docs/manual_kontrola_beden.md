@@ -8,6 +8,8 @@ V admin seznamu Bedny nastavte **Stav bedny = Zkontrolováno** a použijte dynam
 
 Bedna s příznakem **Atypický průběh** má v záhlaví upozornění. Používá se pro reklamace a samostatné operace; založení popisuje [manuál beden](manual_bedna.md#atypický-průběh-reklamace-a-samostatné-operace).
 
+Převod a ruční změna příznaku v adminu vyžadují samostatné `orders.mark_bedna_atypicky_prubeh` vedle běžných administračních práv. Samotné toto oprávnění neumožňuje měřit ani ukládat výstupní kontrolu; k tomu je dál nutné `orders.mark_bedna_zkontrolovano`.
+
 - Tvrdost povrchu a jádra lze zadávat i u beden, které nejsou vybrané běžnými pravidly vzorkování. Stejná podmínka platí pro přehled měření v adminu a pro požadavky i rozsah měření ve vyplněné KKK. Tvrdosti zůstávají nepovinné.
 - Není povinné měření Ohybu, Krutu, Prohybu po TZ ani zadání obou počtů křivých. Je možné zapsat pouze vybrané zkoušky nebo uvolnit bednu bez měření. Prohyb po koulení a po rovnání je dostupný přímo, i bez vstupního prohybu po TZ. Uzamčení vstupního měření po zadání rovnání platí dál.
 - Zadaný prohyb se vyhodnocuje podle dosavadních pravidel včetně povoleného počtu křivých. Pokud nějaký prohyb existuje, potřebuje nastavenou běžnou mez a povolený počet křivých; bez nich nelze potvrdit kontrolu. Bez měření se tato nastavení nevyžadují. Vyhodnocování ostatních zkoušek se touto změnou nezapíná.

@@ -3,8 +3,9 @@ from html.parser import HTMLParser
 from unittest.mock import patch
 
 from django import forms
+from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.forms import modelform_factory
 from django.template.loader import render_to_string
 from django.test import RequestFactory
@@ -225,10 +226,10 @@ class AtypickyPrubehTests(KontrolaBednyTestBase):
         with self.assertRaises(ServiceValidationError):
             validate_bedny_pro_expedici(self.qs)
 
-    def test_action_requires_control_permission(self):
+    def test_control_permission_does_not_allow_atypical_conversion(self):
         self.user.is_superuser = False
         self.user.save()
-        self.user.user_permissions.add(Permission.objects.get(codename='change_bedna'))
+        self.user.user_permissions.add(*Permission.objects.filter(codename__in=('change_bedna', 'mark_bedna_zkontrolovano')))
         response = self.client.post(reverse('admin:orders_bedna_changelist'), {
             'action': 'prevest_na_atypicky_prubeh_action', '_selected_action': [self.bedna.pk],
             'confirm_atypicky_prubeh': 'yes',
@@ -236,6 +237,72 @@ class AtypickyPrubehTests(KontrolaBednyTestBase):
         self.bedna.refresh_from_db()
         self.assertFalse(self.bedna.atypicky_prubeh)
         self.assertFalse(KontrolaBedny.objects.exists())
+
+    def test_atypical_permission_allows_conversion_without_control_permission(self):
+        self.user.is_superuser = False
+        self.user.save()
+        self.user.user_permissions.add(*Permission.objects.filter(codename__in=(
+            'change_bedna', 'view_bedna', 'mark_bedna_atypicky_prubeh',
+        )))
+        url = reverse('admin:orders_bedna_changelist')
+        page = self.client.get(url, {'stav_bedny': 'PR'})
+        self.assertContains(page, 'prevest_na_atypicky_prubeh_action')
+        data = {'action': 'prevest_na_atypicky_prubeh_action', '_selected_action': [self.bedna.pk]}
+        self.assertContains(self.client.post(url, data), 'confirm_atypicky_prubeh')
+        response = self.client.post(url, {**data, 'confirm_atypicky_prubeh': 'yes'})
+        self.assertEqual(response.status_code, 302)
+        self.bedna.refresh_from_db()
+        self.assertTrue(self.bedna.atypicky_prubeh)
+        self.assertEqual(self.bedna.kontrola.uvolneni, 'NE')
+        self.assertFalse(self.user.has_perm('orders.mark_bedna_zkontrolovano'))
+        self.assertEqual(self.client.post(self.url, {}).status_code, 403)
+        measurement_url = reverse('bedna_mereni_zkousky', args=[self.bedna.cislo_bedny, TypZkouskyChoice.OHYB])
+        self.assertEqual(self.client.post(measurement_url, {}).status_code, 403)
+
+    def test_conversion_service_requires_both_permissions(self):
+        for codename in ('change_bedna', 'mark_bedna_atypicky_prubeh'):
+            actor = get_user_model().objects.create_user(username=codename)
+            actor.user_permissions.add(Permission.objects.get(codename=codename))
+            with self.assertRaises(PermissionDenied):
+                prevest_na_atypicky_prubeh(self.qs, user=actor)
+        self.bedna.refresh_from_db()
+        self.assertFalse(self.bedna.atypicky_prubeh)
+        self.assertFalse(KontrolaBedny.objects.exists())
+
+    def test_manual_flag_is_readonly_without_permission_and_forged_posts_are_ignored(self):
+        self.user.is_superuser = False
+        self.user.save()
+        self.user.user_permissions.add(Permission.objects.get(codename='change_bedna'))
+        url = reverse('admin:orders_bedna_change', args=[self.bedna.pk])
+        for initial in (False, True):
+            with self.subTest(initial=initial):
+                self.qs.update(atypicky_prubeh=initial)
+                page = self.client.get(url)
+                form = page.context['adminform'].form
+                self.assertNotIn('atypicky_prubeh', form.fields)
+                data = self.admin_payload(form)
+                result = self.client.post(url, {**data, 'atypicky_prubeh': str(not initial), '_save': 'Uložit'})
+                self.assertEqual(result.status_code, 302)
+                self.bedna.refresh_from_db()
+                self.assertEqual(self.bedna.atypicky_prubeh, initial)
+
+    def test_manual_flag_can_be_changed_with_permission(self):
+        self.user.is_superuser = False
+        self.user.save()
+        self.user.user_permissions.add(*Permission.objects.filter(codename__in=(
+            'change_bedna', 'mark_bedna_atypicky_prubeh',
+        )))
+        url = reverse('admin:orders_bedna_change', args=[self.bedna.pk])
+        for value in (True, False):
+            with self.subTest(value=value):
+                page = self.client.get(url)
+                form = page.context['adminform'].form
+                self.assertIn('atypicky_prubeh', form.fields)
+                data = self.admin_payload(form)
+                result = self.client.post(url, {**data, 'atypicky_prubeh': str(value), '_save': 'Uložit'})
+                self.assertEqual(result.status_code, 302)
+                self.bedna.refresh_from_db()
+                self.assertEqual(self.bedna.atypicky_prubeh, value)
 
     def test_paused_crate_is_not_converted(self):
         self.bedna.pozastaveno = True

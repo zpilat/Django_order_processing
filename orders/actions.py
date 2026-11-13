@@ -1707,7 +1707,7 @@ def uvolnit_pozastavene_bedny_action(modeladmin, request, queryset):
 
 @admin.action(description='Převést na atypický průběh, označit zkontrolováno s neshodou', permissions=('change',))
 def prevest_na_atypicky_prubeh_action(modeladmin, request, queryset):
-    if not request.user.has_perm('orders.mark_bedna_zkontrolovano'):
+    if not request.user.has_perms(('orders.change_bedna', 'orders.mark_bedna_atypicky_prubeh')):
         raise PermissionDenied
     if request.POST.get('confirm_atypicky_prubeh') == 'yes':
         try:

@@ -1,6 +1,6 @@
 """Převzetí nově přijatých beden do atypického průběhu."""
 
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.utils import timezone
 
@@ -11,6 +11,8 @@ from orders.services.evidence_neshod_service import zaznamenat_neshodu
 
 @transaction.atomic
 def prevest_na_atypicky_prubeh(queryset, *, user):
+    if not user.has_perms(('orders.change_bedna', 'orders.mark_bedna_atypicky_prubeh')):
+        raise PermissionDenied
     bedny = list(queryset.select_for_update(of=('self',)).order_by('pk'))
     if not bedny:
         raise ValidationError('Vyberte alespoň jednu bednu.')
