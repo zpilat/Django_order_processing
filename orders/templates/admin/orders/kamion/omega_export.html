@@ -1,0 +1,50 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">Administrace</a> &rsaquo;
+  <a href="{% url 'admin:orders_kamion_changelist' %}">Kamiony</a> &rsaquo;
+  Export podkladů do OMEGY
+</div>
+{% endblock %}
+
+{% block content %}
+<h2>{{ note.number }} — {{ note.partner_name }}</h2>
+<p>Podklad podle proformy SPX, pouze kalení. V OMEZE se načte jako dodací list.
+  Z něj účetní převezme položky do faktury a zkontroluje její účetní nastavení.</p>
+<p>Číslo objednávky, artikl, popis a rozměr budou společně také v názvu každé položky.
+  Rozložení sloupců na faktuře může být jiné než u dosavadní tiskové sestavy.</p>
+<p><strong>Pilotní formát: první import a převzetí do faktury ověřte v testovací kopii firmy OMEGA.</strong></p>
+<p><a href="{% url 'admin_documentation' 'export-omega' %}" target="_blank" rel="noopener">Postup importu a omezení pilotu</a></p>
+<div class="module" style="overflow-x: auto;">
+  <table>
+    <thead>
+      <tr><th>Bedna</th><th>Operace</th><th>Objednávka</th><th>Artikl</th><th>Popis</th>
+        <th>Rozměr</th><th>kg</th><th>EUR/kg</th><th>Celkem EUR</th></tr>
+    </thead>
+    <tbody>
+      {% for line in note.lines %}
+      <tr><td>{{ line.crate_number|stringformat:"d" }}</td><td>{{ line.operation }}</td>
+        <td>{{ line.order_number }}</td><td>{{ line.article }}</td><td>{{ line.description }}</td>
+        <td>{{ line.dimension }}</td><td>{{ line.quantity|floatformat:1 }}</td>
+        <td>{{ line.unit_price|floatformat:2 }}</td><td>{{ line.total|floatformat:2 }}</td></tr>
+      {% endfor %}
+    </tbody>
+    <tfoot><tr><th colspan="6">{{ note.lines|length }} položek celkem</th>
+      <th>{{ note.weight|floatformat:1 }}</th><th></th><th>{{ note.total|floatformat:2 }}</th></tr></tfoot>
+  </table>
+</div>
+<form method="post">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="export_omega_spx_action">
+  <input type="hidden" name="{{ action_checkbox_name }}" value="{{ kamion.pk|stringformat:'d' }}">
+  <input type="hidden" name="select_across" value="0">
+  <div class="submit-row">
+    <input type="submit" name="omega_download" value="Stáhnout podklad pro OMEGU (.txt)" class="default">
+    <a href="{% url 'admin:orders_kamion_changelist' %}" class="closelink">Zpět na kamiony</a>
+  </div>
+</form>
+<p>Stažení vytváří podklad z aktuálních dat a cen. Neoznačuje kamion jako vyfakturovaný.
+  Uschovejte použitý soubor; před opakovaným importem ověřte, zda již dodací list v OMEZE existuje.</p>
+{% endblock %}

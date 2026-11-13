@@ -31,6 +31,7 @@ DOCUMENTATION_GUIDES = (
 
 # These documents are linked from manuals, but do not clutter the operator menu.
 SUPPLEMENTARY_DOCUMENTS = (
+    {'slug': 'export-omega', 'title': 'Export podkladů pro OMEGU — SPX', 'path': 'docs/manual_export_omega.md'},
     {'slug': 'readme', 'title': 'O aplikaci a instalaci', 'path': 'README.md'},
     {'slug': 'prezentace', 'title': 'Prezentace', 'path': 'docs/prezentace.md'},
     {'slug': 'bezpecnost', 'title': 'Bezpečnost', 'path': 'docs/security.md'},

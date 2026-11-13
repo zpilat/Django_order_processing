@@ -24,6 +24,8 @@ Přihlášený pracovník bez staff může používat provozní obrazovky podle 
 
 Oprávnění `view_<model>` není plošný zákaz přístupu ke všem datům mimo daný model. Některé provozní přehledy a detaily vyžadují pouze přihlášení, jiné konkrétní právo. Skupiny níže jsou rozdělením pracovních úkolů; nepředstavují oddělení dat podle zákazníků nebo pracovišť.
 
+Pilotní akce **Exportovat podklady pro OMEGU (SPX, kalení)** vyžaduje aktivní staff účet a možnost zobrazit kamion (`orders.view_kamion` nebo obecné `orders.change_kamion`). Pouze čte údaje a ceny; neprovádí expedici ani změny fakturace. Postup je v [manuálu exportu OMEGA](manual_export_omega.md). Nová oprávnění ani automatické změny skupin nezavádí.
+
 ## 2. Matice pracovních rolí podle skupin v databázi
 
 V databázi je následujících **9 skupin**. Tabulka shrnuje jejich skutečná práva, nikoli doporučené doplnění. Počet zahrnuje všechna přiřazená oprávnění skupiny, včetně zbylých práv odstraněných modelů; přesný soupis je v [kapitole 8](#8-přesný-soupis-oprávnění-skupin).

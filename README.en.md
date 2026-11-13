@@ -4,6 +4,7 @@ Internal application for receiving, heat treating, inspecting and shipping order
 
 ## Features
 
+- Pilot export of billable SPX proforma lines, including heat treatment prices, to an OMEGA delivery note TXT, with a preview and validation. Verify the first import and transfer into an invoice in a test copy of OMEGA. See the [Czech export manual](docs/manual_export_omega.md).
 - XLSX delivery note import with preview, validation and atomic saving; article numbers remain strings.
 - Crate states, warehouse positions, priorities, paused items and change history.
 - Atypical workflow for returns and standalone operations: a confirmed Received → Inspected action with a reason-free nonconformity decision, optional measurements and per-operation billing exclusions. Saving the inspection updates straightening from post-straightening measurements, otherwise post-heat-treatment measurements; without either, the manual state is preserved. See the [Czech manual](docs/manual_bedna.md#atypický-průběh-reklamace-a-samostatné-operace).

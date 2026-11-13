@@ -43,6 +43,7 @@ from .services.expedice_service import (
     validate_bedny_pro_expedici,
 )
 from .services.exceptions import ServiceValidationError
+from .services.omega_export_service import build_spx_delivery_note
 from .services.sarze_print_service import (
     build_tisk_pruvodky_vruty_response,
     get_tisk_pruvodky_vruty_krok,
@@ -3266,6 +3267,39 @@ def tisk_protokolu_kamionu_vydej_action(modeladmin, request, queryset):
     # Přesměrujeme na GET endpoint, aby stažení z vieweru fungovalo (admin akce je POST).
     url = reverse('protokol_kamion_vydej_pdf', args=[kamion.pk])
     return HttpResponseRedirect(url)
+
+@admin.action(description='Exportovat podklady pro OMEGU (SPX, kalení)', permissions=('view',))
+def export_omega_spx_action(modeladmin, request, queryset):
+    if queryset.count() != 1:
+        modeladmin.message_user(request, 'Vyberte pouze jeden kamion.', level=messages.ERROR)
+        return None
+    kamion = queryset.select_related('zakaznik').first()
+    if not modeladmin.has_view_permission(request, kamion):
+        raise PermissionDenied
+    try:
+        note = build_spx_delivery_note(kamion)
+    except ServiceValidationError as exc:
+        modeladmin.message_user(request, str(exc), level=messages.ERROR)
+        return None
+    if 'omega_download' in request.POST:
+        filename = f'omega_spx_{slugify(note.number)}.txt'
+        response = HttpResponse(note.to_bytes(), content_type='text/plain; charset=windows-1250')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        response['Cache-Control'] = 'private, no-store'
+        logger.info('Uživatel %s exportoval podklad OMEGA pro kamion %s: %s položek.',
+                    request.user, kamion.pk, len(note.lines))
+        return response
+    context = {
+        **modeladmin.admin_site.each_context(request),
+        'title': 'Export podkladů pro OMEGU — SPX',
+        'opts': modeladmin.model._meta,
+        'kamion': kamion, 'note': note,
+        'action_checkbox_name': helpers.ACTION_CHECKBOX_NAME,
+    }
+    response = TemplateResponse(request, 'admin/orders/kamion/omega_export.html', context)
+    response['Cache-Control'] = 'private, no-store'
+    return response
+
 
 @admin.action(description="Vytisknout proforma fakturu vybraného kamionu výdej")
 def tisk_proforma_faktury_kamionu_action(modeladmin, request, queryset):
