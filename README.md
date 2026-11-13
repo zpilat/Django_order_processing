@@ -23,6 +23,7 @@ Interní aplikace pro správu zakázek od příjmu přes tepelné zpracování a
 - Neuložené změny kontroly se označují červeně; u zkontrolované bedny blokují běžný odchod. Změna měření vyžaduje nové potvrzení pouze při změně vyhodnocení nebo technologických stavů; rozepsané údaje se zachovávají při přechodu na měření stejné bedny.
 - Oprávnění podle úkolu a audit přes `django-simple-history`.
 - V předpisech jsou připravená nepovinná číselná minima, maxima a maxima QS pro ohyb, krut, povrch, jádro a vrstvu. Příkaz `doplnit_meze_predpisu` nabízí náhled a s `--apply` doplní jednoznačné standardní meze z textů, bez přepisování ručních nebo QS hodnot. Zatím nemění hodnocení kontroly ani tisk; postup popisuje [analýza mezí](docs/analyza_mezi_predpisu.md).
+- Fakturace operací se ukládá v kladných polích bedny `fakturovat_*`. Výchozí rovnání, tryskání a evidenční zinkování se převezmou ze zákazníka pouze při založení; další změny beden jsou samostatné. Zinkování zatím nemá cenu ani částku na proformě.
 
 ## Lokální spuštění na Windows
 
@@ -151,6 +152,8 @@ Prázdné zkoušky prohybu po koulení a po rovnání se v kontrole nabídnou a�
 Testy standardně spouštějte na PostgreSQL. Django vytváří samostatnou testovací databázi; databázová role potřebuje oprávnění `CREATEDB`. Při změně funkce ověřte zejména validaci, oprávnění, stavové přechody a souběžné úpravy.
 
 ## Nasazení
+
+Postup pro nové migrace fakturace **0249 a 0250**, včetně zastavení služby, zálohy a opětovného spuštění, je v [manuálu beden](docs/manual_bedna.md#nasazení-migrací-fakturace-na-produkci).
 
 Hodinové zálohování produkční PostgreSQL s uchováním tří dnů je připravené ve
 skriptu [deploy/backup-orders.sh](deploy/backup-orders.sh). Nastavení hesla,

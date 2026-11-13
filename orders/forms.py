@@ -522,16 +522,6 @@ class BednaAdminForm(BednaModelForm):
         if not self.fields:
             return
 
-        # Kladné popisky v UI; uložené příznaky nefakturovat_* mají opačný význam.
-        for operation, label in (
-            ('kaleni', 'Fakturovat kalení'), ('rovnani', 'Fakturovat rovnání'),
-            ('tryskani', 'Fakturovat tryskání'), ('zinkovani', 'Fakturovat zinkování'),
-        ):
-            field = self.fields.get(f'nefakturovat_{operation}')
-            if field is not None:
-                field.label = label
-                field.widget = forms.RadioSelect(attrs=field.widget.attrs, choices=((False, 'Ano'), (True, 'Ne')))
-
         field_stav_bedny = self.fields.get("stav_bedny")
         field_tryskat = self.fields.get("tryskat")
         field_rovnat = self.fields.get("rovnat")

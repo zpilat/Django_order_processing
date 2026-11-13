@@ -280,7 +280,7 @@ def _validate_proforma_pricing(kamion):
         bedny = list(zakazka.bedny.all())
         # U zakázky bez beden zachovat dosavadní kontrolu ceníku.
         pozadovane_ceny = {
-            operation: not bedny or any(b.fakturovat and not getattr(b, f'nefakturovat_{operation}') for b in bedny)
+            operation: not bedny or any(b.fakturovat and getattr(b, f'fakturovat_{operation}') for b in bedny)
             for operation in ('kaleni', 'rovnani', 'tryskani')
         }
         label = f"{zakazka.artikl or zakazka.pk}"
@@ -290,8 +290,7 @@ def _validate_proforma_pricing(kamion):
             errors.append(f"Zakázka {label}: chybí kamion příjem se zákazníkem pro výpočet cen.")
             continue
 
-        if not (pozadovane_ceny['kaleni'] or (pozadovane_ceny['rovnani'] and zakaznik_prijem.fakturovat_rovnani)
-                or (pozadovane_ceny['tryskani'] and zakaznik_prijem.fakturovat_tryskani)):
+        if not any(pozadovane_ceny.values()):
             continue
 
         predpis = getattr(zakazka, 'predpis', None)
@@ -318,12 +317,12 @@ def _validate_proforma_pricing(kamion):
         if pozadovane_ceny['kaleni'] and (cena_za_kg is None or cena_za_kg <= 0):
             errors.append(f"Zakázka {label}: cena za kg musí být větší než 0.")
 
-        if zakaznik_prijem.fakturovat_rovnani and pozadovane_ceny['rovnani']:
+        if pozadovane_ceny['rovnani']:
             cena_rovnani = cena_obj.cena_rovnani_za_kg
             if cena_rovnani is None or cena_rovnani <= 0:
                 errors.append(f"Zakázka {label}: cena rovnání za kg musí být větší než 0.")
 
-        if zakaznik_prijem.fakturovat_tryskani and pozadovane_ceny['tryskani']:
+        if pozadovane_ceny['tryskani']:
             cena_tryskani = cena_obj.cena_tryskani_za_kg
             if cena_tryskani is None or cena_tryskani <= 0:
                 errors.append(f"Zakázka {label}: cena tryskání za kg musí být větší než 0.")
@@ -3627,6 +3626,8 @@ def tisk_rozpracovanost_action(modeladmin, request, queryset):
             {
                 'zakaznik': zakaznik,
                 'zakazky': {},
+                'fakturovat_rovnani': False,
+                'fakturovat_tryskani': False,
                 'sum_hmotnost': Decimal('0.0'),
                 'sum_beden': 0,
                 'sum_cena_netto': Decimal('0.0'),
@@ -3639,6 +3640,9 @@ def tisk_rozpracovanost_action(modeladmin, request, queryset):
             },
         )
 
+        for name in ('fakturovat_rovnani', 'fakturovat_tryskani'):
+            customer_entry[name] |= getattr(bedna, name)
+
         zakazka_entry = customer_entry['zakazky'].setdefault(
             zakazka.pk,
             {
@@ -3650,8 +3654,8 @@ def tisk_rozpracovanost_action(modeladmin, request, queryset):
                 'typ': zakazka.zkraceny_popis,
                 'hlava': str(zakazka.typ_hlavy) if zakazka.typ_hlavy else '',
                 'cena_kg': Decimal(zakazka.cena_za_kg or 0),
-                'cena_tryskani_za_kg': Decimal(zakazka.cena_tryskani_za_kg or 0) if zakaznik.fakturovat_tryskani else Decimal('0.00'),
-                'cena_rovnani_za_kg': Decimal(zakazka.cena_rovnani_za_kg or 0) if zakaznik.fakturovat_rovnani else Decimal('0.00'),
+                'cena_tryskani_za_kg': Decimal(zakazka.cena_tryskani_za_kg or 0),
+                'cena_rovnani_za_kg': Decimal(zakazka.cena_rovnani_za_kg or 0),
                 'hmotnost': Decimal('0.0'),
                 'tryskani_hmotnost': Decimal('0.0'),
                 'rovnani_hmotnost': Decimal('0.0'),
@@ -3669,23 +3673,23 @@ def tisk_rozpracovanost_action(modeladmin, request, queryset):
                 logger.warning("Nepodařilo se převést hmotnost bedny na Decimal při exportu zákazníka, používá se 0.", exc_info=True)
                 hmotnost = Decimal('0')
 
-        if not bedna.nefakturovat_kaleni:
+        if bedna.fakturovat_kaleni:
             zakazka_entry['hmotnost'] += hmotnost
             zakazka_entry['pocet_beden'] += 1
 
-        if zakaznik.fakturovat_tryskani and not bedna.nefakturovat_tryskani and bedna.tryskat == TryskaniChoice.OTRYSKANA:
+        if bedna.fakturovat_tryskani and bedna.tryskat == TryskaniChoice.OTRYSKANA:
             zakazka_entry['tryskani_hmotnost'] += hmotnost
             zakazka_entry['tryskani_pocet_beden'] += 1
             customer_entry['sum_tryskani_hmotnost'] += hmotnost
             customer_entry['sum_tryskani_beden'] += 1
 
-        if zakaznik.fakturovat_rovnani and not bedna.nefakturovat_rovnani and bedna.rovnat == RovnaniChoice.VYROVNANA:
+        if bedna.fakturovat_rovnani and bedna.rovnat == RovnaniChoice.VYROVNANA:
             zakazka_entry['rovnani_hmotnost'] += hmotnost
             zakazka_entry['rovnani_pocet_beden'] += 1
             customer_entry['sum_rovnani_hmotnost'] += hmotnost
             customer_entry['sum_rovnani_beden'] += 1
 
-        if not bedna.nefakturovat_kaleni:
+        if bedna.fakturovat_kaleni:
             customer_entry['sum_hmotnost'] += hmotnost
             customer_entry['sum_beden'] += 1
 
@@ -3772,6 +3776,8 @@ def tisk_rozpracovanost_action(modeladmin, request, queryset):
 
         sections.append({
             'zakaznik': customer_entry['zakaznik'],
+            'fakturovat_rovnani': customer_entry['fakturovat_rovnani'],
+            'fakturovat_tryskani': customer_entry['fakturovat_tryskani'],
             'zakazky': zakazky_rows,
             'sum_hmotnost': customer_entry['sum_hmotnost'].quantize(weight_quant, rounding=ROUND_HALF_UP),
             'sum_beden': customer_entry['sum_beden'],

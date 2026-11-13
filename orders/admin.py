@@ -993,7 +993,7 @@ class ZakaznikAdmin(HistoryViewOnlyAdmin):
             'fields': ('kontaktni_osoba', 'telefon', 'email',)
         }),
         ('Podmínky a nastavení', {
-            'fields': ('proforma_po_bednach', 'vse_tryskat', 'pouze_komplet', 'fakturovat_rovnani', 'fakturovat_tryskani',)
+            'fields': ('proforma_po_bednach', 'vse_tryskat', 'pouze_komplet', 'fakturovat_rovnani', 'fakturovat_tryskani', 'fakturovat_zinkovani',)
         }),
         ('Doplňující parametry', {
             'fields': ('zkraceny_nazev', 'zkratka', 'ciselna_rada',)
@@ -1015,7 +1015,7 @@ class ZakaznikAdmin(HistoryViewOnlyAdmin):
     list_display = (
         'nazev', 'zkraceny_nazev', 'zkratka', 'adresa', 'mesto', 'psc', 'stat',
         'get_proforma_po_bednach', 'vse_tryskat', 'pouze_komplet',
-        'get_fakturovat_rovnani', 'get_fakturovat_tryskani',
+        'get_fakturovat_rovnani', 'get_fakturovat_tryskani', 'fakturovat_zinkovani',
         'get_vzorek_prohybu', 'get_max_krivych_vrutu', 'ciselna_rada',
     )
     ordering = ('nazev',)
@@ -3882,8 +3882,8 @@ class BednaAdmin(HistoryViewOnlyAdmin):
                 'stav_bedny', 'atypicky_prubeh', 'tryskat', 'rovnat', 'zinkovat', 'pozastaveno',
             )),
             ('Fakturace', (
-                'fakturovat', 'nefakturovat_kaleni', 'nefakturovat_rovnani',
-                'nefakturovat_tryskani', 'nefakturovat_zinkovani',
+                'fakturovat', 'fakturovat_kaleni', 'fakturovat_rovnani',
+                'fakturovat_tryskani', 'fakturovat_zinkovani',
             )),
             ("K navezení", (
                 'pozice',
@@ -3929,13 +3929,16 @@ class BednaAdmin(HistoryViewOnlyAdmin):
                 exclude_fields.append('pozice')
         else:
             # add_view: cislo_bedny se generuje automaticky, notifikace nedává smysl, protože bedna ještě neexistuje
-            exclude_fields = ['cislo_bedny', 'get_notifikace']
+            exclude_fields = ['cislo_bedny', 'get_notifikace', 'fakturovat_rovnani', 'fakturovat_tryskani', 'fakturovat_zinkovani']
 
         fieldsets = []
         for title, fields in groups:
             kept = [f for f in fields if f not in exclude_fields]
             if kept:
-                fieldsets.append((title, {'fields': tuple(kept)}))
+                options = {'fields': tuple(kept)}
+                if title == 'Fakturace' and obj is None:
+                    options['description'] = 'Rovnání, tryskání a zinkování se při založení převezmou ze zákazníka. Poté je můžete upravit v detailu bedny.'
+                fieldsets.append((title, options))
 
         return fieldsets
 

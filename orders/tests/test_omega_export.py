@@ -102,7 +102,7 @@ class OmegaExportTests(TestCase):
         Bedna.objects.filter(pk=self.crate.pk).update(fakturovat=False)
         note = build_spx_delivery_note(self.outgoing)
         self.assertEqual([line.crate_number for line in note.lines], [self.second.cislo_bedny])
-        Bedna.objects.filter(pk=self.second.pk).update(nefakturovat_kaleni=True)
+        Bedna.objects.filter(pk=self.second.pk).update(fakturovat_kaleni=False)
         with self.assertRaisesMessage(ServiceValidationError, 'žádnou bednu'):
             build_spx_delivery_note(self.outgoing)
 
@@ -186,8 +186,7 @@ class OmegaExportTests(TestCase):
         with self.assertRaisesMessage(ServiceValidationError, 'pouze pro kamion výdej'):
             build_spx_delivery_note(self.incoming)
         for flags in (
-            {'zkratka': 'EUR'}, {'fakturovat_rovnani': True},
-            {'fakturovat_tryskani': True}, {'proforma_po_bednach': False},
+            {'zkratka': 'EUR'}, {'proforma_po_bednach': False},
         ):
             with self.subTest(flags=flags):
                 customer = Zakaznik.objects.get(pk=self.customer.pk)
@@ -196,6 +195,16 @@ class OmegaExportTests(TestCase):
                 self.outgoing.zakaznik = customer
                 with self.assertRaises(ServiceValidationError):
                     build_spx_delivery_note(self.outgoing)
+
+    def test_actual_crate_billing_controls_pilot_scope(self):
+        self.customer.fakturovat_rovnani = True
+        self.customer.save()
+        self.assertTrue(build_spx_delivery_note(self.outgoing).lines)
+        self.crate.fakturovat_rovnani = True
+        self.crate.rovnat = 'VY'
+        self.crate.save()
+        with self.assertRaisesMessage(ServiceValidationError, 'pouze kalení'):
+            build_spx_delivery_note(self.outgoing)
 
     def test_action_preview_and_download_work_with_view_permission_without_writes(self):
         history_count = Bedna.history.count()

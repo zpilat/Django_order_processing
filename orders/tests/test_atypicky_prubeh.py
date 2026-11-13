@@ -215,7 +215,7 @@ class AtypickyPrubehTests(KontrolaBednyTestBase):
         self.assertEqual((self.bedna.rovnat, self.bedna.tryskat, self.bedna.zinkovat), ('--', '--', '--'))
         self.assertFalse(self.bedna.fakturovat)
         for operation in ('kaleni', 'rovnani', 'tryskani', 'zinkovani'):
-            self.assertTrue(getattr(self.bedna, f'nefakturovat_{operation}'))
+            self.assertFalse(getattr(self.bedna, f'fakturovat_{operation}'))
         self.assertEqual(self.bedna.history.first().history_user, self.user)
         self.assertEqual(self.bedna.kontrola.uvolneni, UvolneniKontrolyChoice.NESHODA)
         snapshot = self.bedna.zaznamy_neshod.get()
@@ -383,13 +383,13 @@ class AtypickyPrubehTests(KontrolaBednyTestBase):
     def test_manual_states_and_billing_are_preserved_on_control_save(self):
         self.start()
         self.qs.update(rovnat=RovnaniChoice.ROVNA, zinkovat=ZinkovaniChoice.ZINKOVAT,
-                       fakturovat=True, nefakturovat_rovnani=False)
+                       fakturovat=True, fakturovat_rovnani=True)
         self.assertEqual(self.save_control(uvolneni='UV').status_code, 302)
         self.bedna.refresh_from_db()
         self.assertEqual(self.bedna.rovnat, RovnaniChoice.ROVNA)
         self.assertEqual(self.bedna.zinkovat, ZinkovaniChoice.ZINKOVAT)
         self.assertTrue(self.bedna.fakturovat)
-        self.assertFalse(self.bedna.nefakturovat_rovnani)
+        self.assertTrue(self.bedna.fakturovat_rovnani)
 
     def test_admin_form_uses_atypical_rules_but_cannot_disable_them_on_incomplete_control(self):
         self.start()
@@ -446,14 +446,15 @@ class AtypickyPrubehTests(KontrolaBednyTestBase):
         order.save()
         self.bedna.rovnat = RovnaniChoice.VYROVNANA
         self.bedna.tryskat = TryskaniChoice.OTRYSKANA
-        self.bedna.nefakturovat_kaleni = True
-        self.bedna.nefakturovat_tryskani = True
+        self.bedna.fakturovat_rovnani = True
+        self.bedna.fakturovat_kaleni = False
+        self.bedna.fakturovat_tryskani = False
         self.bedna.save()
         page = self.client.get(reverse('admin:orders_bedna_change', args=[self.bedna.pk]))
         self.assertContains(page, 'Fakturovat rovnání')
         self.assertNotContains(page, 'Nefakturovat rovnání')
         self.assertContains(page, 'orders/js/admin_bedna_billing.js')
-        billing_fields = ('fakturovat', 'nefakturovat_kaleni', 'nefakturovat_rovnani', 'nefakturovat_tryskani', 'nefakturovat_zinkovani')
+        billing_fields = ('fakturovat', 'fakturovat_kaleni', 'fakturovat_rovnani', 'fakturovat_tryskani', 'fakturovat_zinkovani')
         form_type = modelform_factory(Bedna, form=BednaAdminForm, fields=billing_fields)
         rendered = form_type(instance=self.bedna).as_p()
         self.assertIn('Fakturovat rovnání', rendered)
@@ -466,9 +467,9 @@ class AtypickyPrubehTests(KontrolaBednyTestBase):
             self.assertTrue(form.is_valid(), form.errors)
             form.save()
             self.bedna.refresh_from_db()
-            self.assertTrue(self.bedna.nefakturovat_kaleni)
-            self.assertFalse(self.bedna.nefakturovat_rovnani)
-            self.assertTrue(self.bedna.nefakturovat_tryskani)
+            self.assertFalse(self.bedna.fakturovat_kaleni)
+            self.assertTrue(self.bedna.fakturovat_rovnani)
+            self.assertFalse(self.bedna.fakturovat_tryskani)
             self.assertEqual(self.bedna.cena_rovnani_za_bednu, 20 if enabled else 0)
         self.assertEqual(self.bedna.cena_za_bednu, 0)
         self.assertEqual(self.bedna.cena_rovnani_za_bednu, 20)
@@ -504,29 +505,29 @@ class AtypickyPrubehTests(KontrolaBednyTestBase):
         price.cena_tryskani_za_kg = None
         price.save()
         self.assertEqual(_validate_proforma_pricing(truck), [])
-        self.bedna.nefakturovat_rovnani = True
+        self.bedna.fakturovat_rovnani = False
         self.bedna.save()
         self.assertEqual(order.hmotnost_vyrovnanych_beden, 0)
         self.assertEqual(truck.pocet_vyrovnanych_beden, 0)
-        self.bedna.nefakturovat_rovnani = False
+        self.bedna.fakturovat_rovnani = True
         self.bedna.fakturovat = False
         self.assertEqual(self.bedna.cena_rovnani_za_bednu, 0)
 
     def test_billing_enabled_requires_at_least_one_selected_operation(self):
-        fields = tuple(f'nefakturovat_{operation}' for operation in ('kaleni', 'rovnani', 'tryskani', 'zinkovani'))
+        fields = tuple(f'fakturovat_{operation}' for operation in ('kaleni', 'rovnani', 'tryskani', 'zinkovani'))
         for name in fields:
-            setattr(self.bedna, name, True)
+            setattr(self.bedna, name, False)
         message = 'vyberte alespoň jednu operaci'
         with self.assertRaisesMessage(ValidationError, message):
             self.bedna.full_clean()
         form_type = modelform_factory(Bedna, form=BednaAdminForm, fields=('fakturovat', *fields))
-        data = {'fakturovat': 'True', **dict.fromkeys(fields, 'True')}
+        data = {'fakturovat': 'True', **dict.fromkeys(fields, 'False')}
         form = form_type(data=data, instance=self.bedna)
         self.assertFalse(form.is_valid())
         self.assertIn(message, str(form.non_field_errors()))
         for selected in fields:
             with self.subTest(operation=selected):
-                allowed = form_type(data={**data, selected: 'False'}, instance=Bedna.objects.get(pk=self.bedna.pk))
+                allowed = form_type(data={**data, selected: 'True'}, instance=Bedna.objects.get(pk=self.bedna.pk))
                 self.assertTrue(allowed.is_valid(), allowed.errors)
         disabled = form_type(data={**data, 'fakturovat': 'False'}, instance=Bedna.objects.get(pk=self.bedna.pk))
         self.assertTrue(disabled.is_valid(), disabled.errors)
@@ -535,6 +536,7 @@ class AtypickyPrubehTests(KontrolaBednyTestBase):
         customer = self.bedna.zakazka.kamion_prijem.zakaznik
         customer.fakturovat_rovnani = customer.fakturovat_tryskani = True
         customer.save()
+        self.qs.update(fakturovat_rovnani=True, fakturovat_tryskani=True)
         price = Cena.objects.create(
             zakaznik=customer, popis='Test fakturace', delka_min=0, delka_max=1000,
             cena_za_kg=3, cena_rovnani_za_kg=2, cena_tryskani_za_kg=1,
@@ -578,7 +580,7 @@ class AtypickyPrubehTests(KontrolaBednyTestBase):
 
     def test_grouped_invoice_counts_only_crates_with_billable_hardening(self):
         truck, _ = self.create_billing_fixture()
-        self.qs.update(rovnat='VY', nefakturovat_kaleni=True, nefakturovat_tryskani=True)
+        self.qs.update(rovnat='VY', fakturovat_kaleni=False, fakturovat_tryskani=False)
         html = render_to_string('orders/proforma_faktura_po_zakazkach.html', {'kamion': truck})
         rows = InvoiceTableRows(html).rows
         row = next(row for row in rows if row and row[0] == self.bedna.zakazka.artikl)
@@ -605,7 +607,7 @@ class AtypickyPrubehTests(KontrolaBednyTestBase):
             typ_hlavy=order.typ_hlavy, artikl='PLACENE_ROVNANI', prumer=order.prumer,
             delka=order.delka, popis=order.popis,
         )
-        Bedna.objects.create(zakazka=other, hmotnost=10, rovnat='VY', nefakturovat_kaleni=True)
+        Bedna.objects.create(zakazka=other, hmotnost=10, rovnat='VY', fakturovat_kaleni=False)
         for template in ('proforma_faktura_po_zakazkach', 'proforma_faktura_po_bednach'):
             with self.subTest(template=template):
                 html = render_to_string(f'orders/{template}.html', {'kamion': truck})
@@ -617,7 +619,7 @@ class AtypickyPrubehTests(KontrolaBednyTestBase):
 
     def test_stock_report_prices_only_operations_billed_in_the_selected_crates(self):
         truck, price = self.create_billing_fixture()
-        self.qs.update(rovnat='VY', nefakturovat_kaleni=True, nefakturovat_tryskani=True)
+        self.qs.update(rovnat='VY', fakturovat_kaleni=False, fakturovat_tryskani=False)
         self.bedna.refresh_from_db()
         price.cena_za_kg = 0
         price.cena_tryskani_za_kg = None
@@ -650,9 +652,9 @@ class AtypickyPrubehTests(KontrolaBednyTestBase):
         self.assertEqual(len(context['pricing_warnings']), 1)
         self.assertIn('cena rovnání <= 0', context['pricing_warnings'][0])
 
-    def test_stock_report_does_not_require_prices_for_operations_disabled_by_customer(self):
+    def test_stock_report_keeps_crate_choices_after_customer_defaults_change(self):
         truck, price = self.create_billing_fixture()
-        self.qs.update(rovnat='VY', tryskat='OT', nefakturovat_kaleni=True)
+        self.qs.update(rovnat='VY', tryskat='OT', fakturovat_kaleni=False)
         customer = truck.zakaznik
         customer.fakturovat_rovnani = customer.fakturovat_tryskani = False
         customer.save()
@@ -662,4 +664,6 @@ class AtypickyPrubehTests(KontrolaBednyTestBase):
         snapshot = Rozpracovanost.objects.create()
         snapshot.bedny.add(self.bedna)
         context = self.stock_report_context(snapshot)
-        self.assertEqual(context['pricing_warnings'], [])
+        self.assertEqual(len(context['pricing_warnings']), 1)
+        self.assertIn('cena rovnání <= 0', context['pricing_warnings'][0])
+        self.assertIn('cena tryskání <= 0', context['pricing_warnings'][0])

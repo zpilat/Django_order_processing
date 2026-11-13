@@ -68,7 +68,7 @@ Typické akce:
 - `Importovat chemická měření beden` pro kamion příjem s bednami.
 - `Vytisknout vyplněné KKK z vybraného kamionu výdej` – pro všechny zákazníky, s pomocnými popisy podle zkratky státu zákazníka (D/A německy, I italsky, CZ pouze česky).
 
-Proforma zahrnuje pouze bedny s hlavním **Fakturovat = Ano**. Ve variantě po zakázkách se celá zakázka bez takové bedny vynechá. Počty beden a hmotnosti pro Kalení navíc respektují **Fakturovat kalení**; bedna účtovaná pouze za rovnání nebo tryskání se do Kalení nezapočítá. Rovnání a Tryskání se účtují podle příslušných přepínačů, nastavení zákazníka a skutečného technologického stavu. Na dodacím listu nefakturované bedny zůstávají.
+Proforma zahrnuje pouze bedny s hlavním **Fakturovat = Ano**. Ve variantě po zakázkách se celá zakázka bez takové bedny vynechá. Počty beden a hmotnosti pro Kalení navíc respektují **Fakturovat kalení**; bedna účtovaná pouze za rovnání nebo tryskání se do Kalení nezapočítá. Rovnání a Tryskání se účtují podle příslušných přepínačů bedny a skutečného technologického stavu. Na dodacím listu nefakturované bedny zůstávají.
 
 Dodací list zákazníka SPX obsahuje za sloupcem `Beleg-Nr.` sloupec `FAUF`
 s ručně doplněným číslem příslušné bedny. Číslo se tiskne bez oddělovačů

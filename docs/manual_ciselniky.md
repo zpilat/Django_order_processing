@@ -28,10 +28,11 @@ Před úpravou používaného záznamu ověřte, které zakázky či bedny na n�
 | Proforma po bednách | Určuje členění proforma faktury po jednotlivých bednách. Po změně zkontrolujte náhled dokladu. |
 | Vše tryskat | Při vytvoření nové bedny s délkou zakázky **menší než 900 mm** nastaví Tryskání na Špinavá. U delších dílů ani při délce přesně 900 mm se tento automatický krok neprovede. Změna nastavení nepřepíše existující bedny. |
 | Pouze komplet | Omezuje expedici na kompletní zakázky; před zapnutím ověřte, zda se zákazníkem nejsou domluvené dílčí dodávky. |
-| Fakturovat rovnání | Zohledňuje rovnání při ceně bedny ve stavu Vyrovnaná. Vyžaduje také odpovídající cenu rovnání. |
-| Fakturovat tryskání | Zohledňuje tryskání při ceně bedny ve stavu Otryskaná. Vyžaduje také odpovídající cenu tryskání. |
+| Fakturovat rovnání | Výchozí hodnota nových beden. U bedny ji lze později změnit; účtování vyžaduje stav Vyrovnaná a cenu rovnání. |
+| Fakturovat tryskání | Výchozí hodnota nových beden. U bedny ji lze později změnit; účtování vyžaduje stav Otryskaná a cenu tryskání. |
+| Fakturovat zinkování | Výchozí hodnota nových beden, při zavedení všem zákazníkům Ne. Zatím evidenční údaj bez výpočtu ceny zinkování. |
 
-Fakturační příznaky nenahrazují záznam skutečně provedené operace. Po změně ověřte výpočet a doklady existujících zakázek, kterých se týká.
+Fakturační příznaky zákazníka se kopírují pouze při vytvoření bedny. Pozdější změna zákazníka nepřepíše existující bedny ani nezakáže ruční výjimku u bedny. Pro konkrétní účtování rozhodují volby bedny a skutečně provedená operace. Ceník zůstává společný a jeho změny mohou ovlivnit opětovně vytvořené doklady.
 
 ## 4. Kontrola kvality zákazníka
 

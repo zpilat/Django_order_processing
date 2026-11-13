@@ -26,10 +26,10 @@ def prevest_na_atypicky_prubeh(queryset, *, user):
         bedna.tryskat = TryskaniChoice.NEZADANO
         bedna.zinkovat = ZinkovaniChoice.NEZADANO
         bedna.fakturovat = False
-        bedna.nefakturovat_kaleni = True
-        bedna.nefakturovat_rovnani = True
-        bedna.nefakturovat_tryskani = True
-        bedna.nefakturovat_zinkovani = True
+        bedna.fakturovat_kaleni = False
+        bedna.fakturovat_rovnani = False
+        bedna.fakturovat_tryskani = False
+        bedna.fakturovat_zinkovani = False
         bedna.full_clean()
         bedna._history_user = user
         bedna._change_reason = 'Převod na atypický průběh.'

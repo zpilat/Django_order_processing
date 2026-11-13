@@ -7,7 +7,7 @@ Export přenáší položky k fakturaci včetně ceny kalení. Čte databázi a 
 ## 1. Rozsah pilotu
 
 - Jeden výdejový kamion zákazníka se zkratkou **SPX**, s proformou po bednách.
-- Pouze kalení. Zapnuté samostatné účtování rovnání nebo tryskání export odmítne. Jiní zákazníci zatím nejsou podporovaní.
+- Pouze kalení. Pokud má některá fakturovaná bedna zapnuté rovnání se stavem Vyrovnaná nebo tryskání se stavem Otryskaná, export ji nesmí opomenout a celý export odmítne. Samotné výchozí nastavení zákazníka export neomezuje. Jiní zákazníci zatím nejsou podporovaní.
 - Jedna položka za bednu s hlavním **Fakturovat = Ano** a **Fakturovat kalení = Ano**.
 - Bedny musí být expedované a mít kladnou hmotnost, výrobní zakázku, artikl a popis. Zákazník příjmu musí odpovídat zákazníkovi výdeje.
 - Cena EUR/kg pochází z aktuálního ceníku stejně jako na proformě. Chybějící, nekladná nebo nejednoznačná cena export blokuje. Cena každé bedny se zaokrouhlí na dvě desetinná místa HALF_UP a teprve potom se sčítá.

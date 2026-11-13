@@ -8,6 +8,8 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal, ROUND_HALF_UP
 
+from django.db.models import Q
+
 from orders.choices import KamionChoice, StavBednyChoice
 from orders.models import Bedna
 
@@ -103,7 +105,9 @@ def build_spx_delivery_note(kamion):
     customer = kamion.zakaznik
     if kamion.prijem_vydej != KamionChoice.VYDEJ or customer.zkratka != 'SPX':
         raise ServiceValidationError('Pilotní export OMEGA je dostupný pouze pro kamion výdej zákazníka SPX.')
-    if customer.fakturovat_rovnani or customer.fakturovat_tryskani:
+    if Bedna.objects.filter(zakazka__kamion_vydej=kamion, fakturovat=True).filter(
+        Q(fakturovat_rovnani=True, rovnat='VY') | Q(fakturovat_tryskani=True, tryskat='OT')
+    ).exists():
         raise ServiceValidationError('Pilotní export podporuje pouze kalení; SPX má zapnuté účtování dalších operací.')
     if not customer.proforma_po_bednach:
         raise ServiceValidationError('Pilotní export SPX vyžaduje proformu po bednách.')
@@ -113,7 +117,7 @@ def build_spx_delivery_note(kamion):
         raise ServiceValidationError('Pro export musí být vyplněno číslo dodacího listu a název zákazníka.')
 
     crates = Bedna.objects.filter(
-        zakazka__kamion_vydej=kamion, fakturovat=True, nefakturovat_kaleni=False,
+        zakazka__kamion_vydej=kamion, fakturovat=True, fakturovat_kaleni=True,
     ).select_related('zakazka__kamion_prijem__zakaznik', 'zakazka__predpis').order_by('zakazka_id', 'id')
     lines = []
     prices = {}

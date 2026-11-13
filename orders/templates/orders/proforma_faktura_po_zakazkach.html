@@ -2,6 +2,7 @@
 {% load static %}
 {% load custom_filters %}
 {% load i18n %}
+{% with uctovat_rovnani=kamion.fakturovat_rovnani uctovat_tryskani=kamion.fakturovat_tryskani %}
 <html lang="cs">
 <head>
     <meta charset="UTF-8">
@@ -65,21 +66,21 @@
                 </td>
                 <td class="text-end fs-10" style="width: 25%;">
                     Gbely dňa: {{ kamion.datum|date:"d. m. Y" }}<br>
-                </td>                
+                </td>
             </tr>
         </tbody>
     </table>
-    <table class="table table-striped text-center 
-        {% if kamion.zakaznik.fakturovat_rovnani and kamion.zakaznik.fakturovat_tryskani %}fs-07
-        {% elif kamion.zakaznik.fakturovat_rovnani or kamion.zakaznik.fakturovat_tryskani %}fs-08
+    <table class="table table-striped text-center
+        {% if uctovat_rovnani and uctovat_tryskani %}fs-07
+        {% elif uctovat_rovnani or uctovat_tryskani %}fs-08
         {% else %}fs-09
         {% endif %}"
         style="width: 100%; table-layout: fixed;
-        {% if kamion.zakaznik.fakturovat_rovnani and kamion.zakaznik.fakturovat_tryskani %}
+        {% if uctovat_rovnani and uctovat_tryskani %}
             --w-small: 4%;
             --w-medium: 6%;
             --w-large: 10%;
-        {% elif kamion.zakaznik.fakturovat_rovnani or kamion.zakaznik.fakturovat_tryskani %}
+        {% elif uctovat_rovnani or uctovat_tryskani %}
             --w-small: 6%;
             --w-medium: 8%;
             --w-large: 12%;
@@ -98,32 +99,32 @@
             <col style="width: var(--w-medium);">  {# Hmotnost #}
             <col style="width: var(--w-small);">   {# EUR/kg #}
             <col style="width: var(--w-medium);">  {# Netto cena #}
-            {% if kamion.zakaznik.fakturovat_rovnani %}
+            {% if uctovat_rovnani %}
                 <col style="width: var(--w-small);">  {# Beden #}
                 <col style="width: var(--w-medium);">  {# Hmotnost #}
                 <col style="width: var(--w-small);">   {# EUR/kg #}
                 <col style="width: var(--w-medium);">  {# Netto cena #}
             {% endif %}
-            {% if kamion.zakaznik.fakturovat_tryskani %}
+            {% if uctovat_tryskani %}
                 <col style="width: var(--w-small);">  {# Beden #}
                 <col style="width: var(--w-medium);">  {# Hmotnost #}
                 <col style="width: var(--w-small);">   {# EUR/kg #}
                 <col style="width: var(--w-medium);">  {# Netto cena #}
             {% endif %}
-        </colgroup>        
+        </colgroup>
         <thead>
-            {% if kamion.zakaznik.fakturovat_rovnani or kamion.zakaznik.fakturovat_tryskani %}
+            {% if uctovat_rovnani or uctovat_tryskani %}
                 <tr>
                     <th colspan="4"></th>
                     <th colspan="4" class="text-center" style="border-left: 1px solid black; border-right: 1px solid black;">
                         Kalení
                     </th>
-                    {% if kamion.zakaznik.fakturovat_rovnani %}
+                    {% if uctovat_rovnani %}
                         <th colspan="4" class="text-center" style="border-right: 1px solid black; background-color: #f0f0f0;">
                             Rovnání
                         </th>
                     {% endif %}
-                    {% if kamion.zakaznik.fakturovat_tryskani %}
+                    {% if uctovat_tryskani %}
                         <th colspan="4" class="text-center" style="border-right: 1px solid black; background-color: #e0e0e0;">
                             Tryskání
                         </th>
@@ -133,19 +134,19 @@
             <tr>
                 <th>Zakázka</th>
                 <th>Rozměr</th>
-                <th>Popis</th>                                
+                <th>Popis</th>
                 <th>Hlava</th>
-                <th {% if kamion.zakaznik.fakturovat_rovnani or kamion.zakaznik.fakturovat_tryskani %}style="border-left: 1px solid black;"{% endif %}>Beden</th>                   
+                <th {% if uctovat_rovnani or uctovat_tryskani %}style="border-left: 1px solid black;"{% endif %}>Beden</th>
                 <th>Hmotnost</th>
                 <th>EUR / kg</th>
-                <th {% if kamion.zakaznik.fakturovat_rovnani or kamion.zakaznik.fakturovat_tryskani %}style="border-right: 1px solid black;"{% endif %}>Netto cena</th>                
-                {% if kamion.zakaznik.fakturovat_rovnani %}
+                <th {% if uctovat_rovnani or uctovat_tryskani %}style="border-right: 1px solid black;"{% endif %}>Netto cena</th>
+                {% if uctovat_rovnani %}
                     <th style="background-color: #f0f0f0;">Beden</th>
                     <th style="background-color: #f0f0f0;">Hmotnost</th>
                     <th style="background-color: #f0f0f0;">EUR / kg</th>
                     <th style="border-right: 1px solid black; background-color: #f0f0f0;">Netto cena</th>
                 {% endif %}
-                {% if kamion.zakaznik.fakturovat_tryskani %}
+                {% if uctovat_tryskani %}
                     <th style="background-color: #e0e0e0;">Beden</th>
                     <th style="background-color: #e0e0e0;">Hmotnost</th>
                     <th style="background-color: #e0e0e0;">EUR / kg</th>
@@ -169,71 +170,73 @@
                     <td>
                         {{ zakazka.typ_hlavy.nazev }}
                     </td>
-                    <td {% if kamion.zakaznik.fakturovat_rovnani or kamion.zakaznik.fakturovat_tryskani %}style="border-left: 1px solid black;"{% endif %}>
+                    <td {% if uctovat_rovnani or uctovat_tryskani %}style="border-left: 1px solid black;"{% endif %}>
                         {{ zakazka.pocet_beden_fakturovaneho_kaleni }}
                     </td>
                     <td>
                         {{ zakazka.hmotnost_fakturovaneho_kaleni|floatformat:"1g" }}
-                    </td>                                      
+                    </td>
                     <td>
                         {{ zakazka.cena_za_kg|floatformat:2 }}
                     </td>
-                    <td {% if kamion.zakaznik.fakturovat_rovnani or kamion.zakaznik.fakturovat_tryskani %}style="border-right: 1px solid black;"{% endif %}>
+                    <td {% if uctovat_rovnani or uctovat_tryskani %}style="border-right: 1px solid black;"{% endif %}>
                         {{ zakazka.cena_za_zakazku|floatformat:"2g" }}
                     </td>
-                    {% if kamion.zakaznik.fakturovat_rovnani %}
+                    {% if uctovat_rovnani %}
                         <td>{{ zakazka.pocet_vyrovnanych_beden }}</td>
                         <td>{{ zakazka.hmotnost_vyrovnanych_beden|floatformat:"1g"|default:"0,0" }}</td>
                         <td>{{ zakazka.cena_rovnani_za_kg|floatformat:"2"|default:"0,00" }}</td>
-                        <td style="border-right: 1px solid black;">{{ zakazka.cena_rovnani_za_zakazku|floatformat:"2g"|default:"0,00" }}</td>                    
+                        <td style="border-right: 1px solid black;">{{ zakazka.cena_rovnani_za_zakazku|floatformat:"2g"|default:"0,00" }}</td>
                     {% endif %}
-                    {% if kamion.zakaznik.fakturovat_tryskani %}
+                    {% if uctovat_tryskani %}
                         <td>{{ zakazka.pocet_otryskanych_beden }}</td>
                         <td>{{ zakazka.hmotnost_otryskanych_beden|floatformat:"1g"|default:"0,0" }}</td>
                         <td>{{ zakazka.cena_tryskani_za_kg|floatformat:"2"|default:"0,00" }}</td>
-                        <td style="border-right: 1px solid black;">{{ zakazka.cena_tryskani_za_zakazku|floatformat:"2g"|default:"0,00" }}</td>                    
+                        <td style="border-right: 1px solid black;">{{ zakazka.cena_tryskani_za_zakazku|floatformat:"2g"|default:"0,00" }}</td>
                     {% endif %}
                 </tr>
                 {% endif %}
             {% endfor %}
             <tr class="text-center fw-bold">
                 <td colspan="4"></td>
-                <td {% if kamion.zakaznik.fakturovat_rovnani or kamion.zakaznik.fakturovat_tryskani %}style="border-left: 1px solid black;"{% endif %}>
+                <td {% if uctovat_rovnani or uctovat_tryskani %}style="border-left: 1px solid black;"{% endif %}>
                     {{ kamion.pocet_beden_fakturovaneho_kaleni }} ks
-                </td>                
+                </td>
                 <td>
                     {{ kamion.hmotnost_fakturovaneho_kaleni|floatformat:"1g" }} kg
-                </td>                
+                </td>
                 <td></td>
-                <td {% if kamion.zakaznik.fakturovat_rovnani or kamion.zakaznik.fakturovat_tryskani %}style="border-right: 1px solid black;"{% endif %}>
+                <td {% if uctovat_rovnani or uctovat_tryskani %}style="border-right: 1px solid black;"{% endif %}>
                     {{ kamion.cena_za_kamion_vydej|floatformat:"2g" }} €
                 </td>
-                {% if kamion.zakaznik.fakturovat_rovnani %}
+                {% if uctovat_rovnani %}
                     <td style="background-color: #f0f0f0;">
                         {{ kamion.pocet_vyrovnanych_beden }} ks
                     </td>
                     <td style="background-color: #f0f0f0;">
                         {{ kamion.hmotnost_vyrovnanych_beden|floatformat:"1g"|default:"0,0" }} kg
                     </td>
-                    <td style="background-color: #f0f0f0;"></td>    
+                    <td style="background-color: #f0f0f0;"></td>
                     <td style="border-right: 1px solid black; background-color: #f0f0f0;">
                         {{ kamion.cena_rovnani_za_kamion_vydej|floatformat:"2g"|default:"0,00" }} €
                     </td>
                 {% endif %}
-                {% if kamion.zakaznik.fakturovat_tryskani %}
+                {% if uctovat_tryskani %}
                     <td style="background-color: #e0e0e0;">
                         {{ kamion.pocet_otryskanych_beden }} ks
                     </td>
                     <td style="background-color: #e0e0e0;">
                         {{ kamion.hmotnost_otryskanych_beden|floatformat:"1g"|default:"0,0" }} kg
                     </td>
-                    <td style="background-color: #e0e0e0;"></td>    
+                    <td style="background-color: #e0e0e0;"></td>
                     <td style="border-right: 1px solid black; background-color: #e0e0e0;">
                         {{ kamion.cena_tryskani_za_kamion_vydej|floatformat:"2g"|default:"0,00" }} €
                     </td>
                 {% endif %}
             </tr>
         </tbody>
-    </table>    
+    </table>
 </body>
 </html>
+
+{% endwith %}

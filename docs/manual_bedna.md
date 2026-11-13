@@ -39,7 +39,7 @@ Při **Stav bedny = Zkontrolováno** je za filtrem Uvolnění dostupný dynamick
 - `pozastaveno`: blokace práce s bednou.
 - `fakturovat`: zda se bedna započítává do fakturace.
 - `atypicky_prubeh`: individuální postup bez povinné sady měření; zadané výsledky se dál vyhodnocují.
-- `nefakturovat_kaleni`, `nefakturovat_rovnani`, `nefakturovat_tryskani`, `nefakturovat_zinkovani`: výjimky pro jednotlivé operace.
+- `fakturovat_kaleni`, `fakturovat_rovnani`, `fakturovat_tryskani`, `fakturovat_zinkovani`: samostatné volby účtování operací. True znamená Ano.
 - `fauf`: nepovinné celé nezáporné číslo FAUF pro dodací list SPX. Import ho
   nevyplňuje. V detailu existující bedny SPX je ve Speciálních informacích;
   u ostatních zákazníků je skryté. Při vytváření bedny je dostupné bez omezení
@@ -69,9 +69,54 @@ V detailu bedny je samostatná část **Fakturace**. Formulář používá kladn
 
 Při hlavním **Fakturovat = Ano** musí mít alespoň jedna ze čtyř operací volbu **Ano**. Varování se zobrazí pouze při zapnutém hlavním Fakturovat a všech operacích na Ne; uložení se v této kombinaci odmítne i na serveru. Při hlavním Ne nebo po výběru alespoň jedné operace varování zmizí. Přepínače se automaticky nepřepisují; zvolte požadovanou operaci nebo hlavní Fakturovat nastavte na Ne. Podmínka ověřuje zvolené operace, nikoli kladnou výslednou cenu; ta dál závisí na ceníku, nastavení zákazníka a provedených operacích.
 
-Dosavadní nastavení účtování zákazníka a ceník platí dál; samotná volba Ano nezavádí novou cenu. Proformy po bednách i zakázkách a tisk rozpracovanosti respektují volby pro kalení, rovnání a tryskání v cenách, účtovaných hmotnostech i počtech beden dané operace. Bedna účtovaná pouze za rovnání se do počtu beden pro kalení nezahrne. Zakázka bez jediné bedny s hlavním Fakturovat = Ano se na proformě po zakázkách vynechá. Fakturovat zinkování je zatím pouze evidenční údaj, protože samostatný výpočet ceny zinkování není zaveden. Interní příznaky `nefakturovat_*` zůstávají zachované; formulář jejich význam zobrazuje obráceně, takže dosavadní uložené volby se nemění.
+Nastavení Fakturovat rovnání, tryskání a zinkování u zákazníka slouží pouze jako výchozí hodnoty nových beden. Při založení bedny v adminu se převezmou automaticky; upravují se následně v detailu uložené bedny. Kalení má výchozí Ano. Další změna zákazníka ani nové uložení bedny volby nepřepíše. Ruční Ano u bedny platí i při zákaznickém výchozím Ne. Proformy, tisk rozpracovanosti a kontrola cen vycházejí z uložených voleb beden, hlavního Fakturovat a skutečného stavu Vyrovnaná/Otryskaná; ceny se nadále načítají z ceníku. Sloupce příplatků se zobrazí podle zahrnutých beden. Zakázka bez fakturovaných beden se vynechá. Zinkování je pouze evidenční přepínač bez ceny a částky na proformě.
 
-Migrace `0248_atypicky_prubeh_a_fakturace` přidává příznaky do bedny i historie s výchozí hodnotou vypnuto. Nemění dosavadní stavy, původní příznak Fakturovat, ceny, měření ani snapshoty.
+Nasazená migrace `0248_atypicky_prubeh_a_fakturace` se nemění. Nová `0249_kladna_fakturace_schema` přejmenuje záporná pole na kladná a přidá výchozí zinkování zákazníka (Ne). Samostatná datová migrace `0250_vychozi_fakturace_beden` nastaví současné běžné bedny podle zákazníků: kalení Ano, rovnání a tryskání podle zákazníka, zinkování Ne. Atypickým bednám ponechá všechny operace Ne. Hlavní Fakturovat se nemění. V historii se pouze obrátí význam přejmenovaných příznaků; nepřepisuje se podle dnešního zákazníka. Převod je jednorázový a byl testován na PostgreSQL. Při nasazení zastavte aplikaci před migracemi a spusťte ji až po jejich dokončení, protože se mění názvy sloupců i význam hodnot.
+
+#### Nasazení migrací fakturace na produkci
+
+Tento postup je pro migrace **0249 a 0250**, které navazují na již nasazenou 0248. Nejprve změny commitněte a pushněte na GitHub, včetně obou nových migrací. Příkazy níže jsou pro Bash na produkčním serveru `srv-warehouse` pod uživatelem `pilat`, v repozitáři `~/Django-orders`.
+
+**Příkazy provádějte postupně; při chybě nepokračujte k dalšímu kroku.** Aplikace musí být zastavená během aktualizace kódu i migrací, protože starý kód používá původní názvy sloupců.
+
+1. Připravte pracovní adresář, aktivujte prostředí a zastavte aplikaci:
+
+   ```bash
+   cd ~/Django-orders
+   source venv/bin/activate
+   sudo systemctl stop django-orders
+   ```
+
+2. Vytvořte aktuální zálohu databáze podle [návodu na zálohy](zalohy.md). Pokud používáte již nastavený skript a archiv `/home/pilat/archiv`, spusťte:
+
+   ```bash
+   /bin/bash deploy/backup-orders.sh /home/pilat/archiv
+   ```
+
+   Pokračujte až po ověření úspěšné zálohy; úspěšný běh končí hlášením `DONE`. Hlášení `SKIP` znamená souběžný běh a samo nepotvrzuje dokončenou zálohu.
+
+3. Stáhněte připravené změny, zkontrolujte plán a proveďte migrace i aktualizaci statických souborů:
+
+   ```bash
+   git pull --ff-only
+   python manage.py migrate --plan
+   python manage.py migrate
+   python manage.py collectstatic --noinput
+   python manage.py check --deploy
+   ```
+
+   Plán má obsahovat migrace `0249_kladna_fakturace_schema` a `0250_vychozi_fakturace_beden`, pokud ještě nebyly aplikovány. Migrace 0250 jednorázově nastaví současné bedny podle pravidel popsaných výše; nejde pouze o přidání prázdných polí.
+
+4. Po úspěšném dokončení spusťte službu a zkontrolujte její stav:
+
+   ```bash
+   sudo systemctl start django-orders
+   sudo systemctl status django-orders --no-pager
+   ```
+
+   V aplikaci otevřete nastavení zákazníka a detail běžné i atypické bedny. Ověřte kladné názvy fakturačních voleb, výchozí zinkování Ne a zachované hlavní Fakturovat.
+
+Při neúspěšné migraci službu nespouštějte se smíšenou verzí kódu a databáze. Návrat řešte jako společný návrat odpovídajícího kódu a databáze; samotné vrácení Gitu po přejmenování sloupců nestačí.
 
 ## 4. Důležitá validační pravidla
 

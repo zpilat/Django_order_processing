@@ -269,8 +269,9 @@ class ActionsTests(ActionsBase):
         self.bedna.hmotnost = Decimal('3.2')
         self.bedna.rovnat = RovnaniChoice.VYROVNANA
         self.bedna.tryskat = TryskaniChoice.OTRYSKANA
+        self.bedna.fakturovat_rovnani = True
         self.bedna.fakturovat = True
-        self.bedna.save(update_fields=['hmotnost', 'rovnat', 'tryskat', 'fakturovat'])
+        self.bedna.save(update_fields=['hmotnost', 'rovnat', 'tryskat', 'fakturovat', 'fakturovat_rovnani'])
 
         snapshot = Rozpracovanost.objects.create()
         RozpracovanostBednaSnapshot.objects.create(

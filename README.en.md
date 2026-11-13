@@ -23,6 +23,7 @@ Internal application for receiving, heat treating, inspecting and shipping order
 - Unsaved inspection changes are highlighted in red and block normal departure from checked crates. Measurement edits require confirmation only when evaluation or technological states change; drafts survive navigation to the same crate's measurements.
 - Task permissions and auditing through `django-simple-history`.
 - Specifications include optional numeric minimum, maximum and QS maximum fields for bending, torsion, surface/core hardness and case depth. `doplnit_meze_predpisu` previews text conversion and writes unambiguous standard limits only with `--apply`, preserving manual and QS values. Inspection evaluation and printing remain unchanged. See the [Czech conversion analysis](docs/analyza_mezi_predpisu.md).
+- Per-operation billing uses positive crate flags `fakturovat_*`. Customer defaults for straightening, blasting and zinc coating are copied on creation only; crate overrides are independent. Zinc coating remains metadata without a calculated charge.
 
 ## Local setup on Windows
 
@@ -147,6 +148,8 @@ Empty deflection tests after rolling and straightening appear only after a nonco
 Use PostgreSQL for normal tests. Django creates a separate test database; the database role needs `CREATEDB`. Validate permissions, state transitions, input validation and concurrent edits when changing a workflow.
 
 ## Deployment
+
+For billing migrations **0249 and 0250**, including stopping the service, taking a backup and starting it again, follow the [Czech crate manual](docs/manual_bedna.md#nasazení-migrací-fakturace-na-produkci).
 
 For hourly PostgreSQL production backups with three-day retention, use
 [deploy/backup-orders.sh](deploy/backup-orders.sh). See the Czech

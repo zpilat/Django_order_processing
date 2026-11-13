@@ -213,7 +213,7 @@ Tento výběr se liší od filtru **Rozpracováno** v Seznamu beden: ten zahrnuj
 
 Pro **Vytisknout rozpracovanost (PDF)** vyberte právě jeden záznam. Tisk používá uložený výběr beden, ale znovu jej omezuje současným **Fakturovat = Ano** a používá aktuální hmotnosti, zakázky, ceny, fakturační nastavení i současné stavy Otryskaná/Vyrovnaná pro příplatky. Nejde o úplnou archivní kopii ocenění a stavů v okamžiku snímku.
 
-Počty beden a hmotnosti ve skupině Kalení zahrnují pouze bedny s hlavním Fakturovat = Ano a Fakturovat kalení = Ano. Stejně se pro Rovnání a Tryskání uplatní příslušné přepínače, nastavení zákazníka a stav Vyrovnaná/Otryskaná. Upozornění na neúplný ceník ověřuje pouze operace skutečně účtované alespoň u jedné bedny dané zakázky zahrnuté do tohoto PDF. Vypnuté operace ani bedny mimo vybraný snímek samy varování nevyvolají; chybějící cena účtované operace se dál ohlásí.
+Počty beden a hmotnosti ve skupině Kalení zahrnují pouze bedny s hlavním Fakturovat = Ano a Fakturovat kalení = Ano. Stejně se pro Rovnání a Tryskání uplatní příslušné přepínače bedny a stav Vyrovnaná/Otryskaná. Upozornění na neúplný ceník ověřuje pouze operace skutečně účtované alespoň u jedné bedny dané zakázky zahrnuté do tohoto PDF. Vypnuté operace ani bedny mimo vybraný snímek samy varování nevyvolají; chybějící cena účtované operace se dál ohlásí.
 
 Opětovně vytištěné PDF stejného záznamu se proto může lišit od dříve uloženého PDF. Změna hmotnosti, cen, příznaku Fakturovat nebo navazujících údajů ovlivní výsledek; smazaná bedna už není dostupná jako živá vazba. Při porovnávání uchovávejte vydaný soubor a ověřte čas snímku i čas tisku. To je jiný rozsah uchování než u neměnného případu v Evidenci neshod.
 

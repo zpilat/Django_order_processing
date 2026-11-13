@@ -29,6 +29,9 @@ class PredpisMezeMigrationTests(TransactionTestCase):
         item = Spec.objects.create(nazev='Old specification', zakaznik_id=customer.pk, krut='25,3 – 31,0 Nm', vrstva='CHD 550 HV0,3', vrstva_2='0,1 – 0,3 mm')
         History.objects.create(**{field.attname: getattr(item, field.attname) for field in Spec._meta.fields}, history_date=timezone.now(), history_type='+')
         MigrationExecutor(connection).migrate(after)
+        # Runtime command uses today's models, including newer customer columns.
+        # First exercise the historical schema path, then restore the current schema.
+        self.restore_schema()
         converted = Predpis.objects.get(pk=item.pk)
         self.assertIsNone(converted.krut_min)
         call_command('doplnit_meze_predpisu', apply=True, stdout=StringIO())

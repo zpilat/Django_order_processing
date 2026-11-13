@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!masterInputs.length) return;
 
     const operations = ['kaleni', 'rovnani', 'tryskani', 'zinkovani'].map(operation => {
-        const name = `nefakturovat_${operation}`;
+        const name = `fakturovat_${operation}`;
         const inputs = Array.from(document.querySelectorAll(`input[name="${name}"]`));
         if (!inputs.length) return null;
         const row = inputs[0].closest('.form-row');
@@ -36,7 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const enabled = selected?.type === 'checkbox' ? selected.checked : selected?.value === 'True';
         note.hidden = enabled;
         const empty = enabled && operations.length === 4
-            && operations.every(({inputs}) => inputs.find(input => input.checked)?.value === 'True');
+            && operations.every(({inputs}) => inputs.find(input => input.checked)?.value === 'False');
         emptyNote.hidden = !empty;
         masterInputs.forEach(input => input.setCustomValidity(empty ? emptyNote.textContent : ''));
         operations.forEach(({inputs, row, mirror, disabled}) => {
