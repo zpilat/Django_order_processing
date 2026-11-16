@@ -47,12 +47,24 @@ Soubor vychází ze [specifikace KROS ImportExport_28_00_2025.xls](https://ftpkr
 
 - `R00`, `T01`: fakturace.
 - Jedna hlavička `R01`: číslo výdeje, název partnera, datum výdeje, součty, **typ 2 — dodací list**, EUR a kurz 1.
-- Jeden `R02` na fakturovanou bednu: název, kg, jednotka `kg`, cena, technická skupina DPH `0`, **typ V — volná položka**, artikl v poli Volná položka.
+- Jeden `R02` na fakturovanou bednu: popis, kg, jednotka `kg`, cena, technická skupina DPH `0`, **typ V — volná položka** a samostatná pole objednávky, artiklu a rozměru podle následující tabulky.
 
-Standardní položka nemá samostatné sloupce Order no. a Dimension jako dosavadní tisková sestava SPAX. Název proto zachovává všechny údaje, například:
+Mapování vychází ze snímku editace položky faktury SPX dodaného uživatelem. Názvy sloupců tiskové sestavy se liší od názvů polí v editoru. Pozice se počítají od 1 včetně `R02`:
 
-`Kalení | Obj. 4501539341 | Art. 0641000801600 | SPAX-3 SMK TSP40 TGW | 8x160`
+| Sloupec faktury | Pole položky OMEGY | Pozice R02 | Příklad |
+| --- | --- | --- | --- |
+| Order no. | Zkušební přiřazení Číslo: Číslo karty/služby (`C030_KodPolozky`) | 18 | `4501539341` |
+| Item no. | Cudzí názov (`C130_CudziNazov`) | 11 | `0641000801600` |
+| Description | Názov (`C109_Nazov`) | 2 | `SPAX-3 SMK TSP40 TGW` |
+| Dimension | Zkušební přiřazení Vlastný text: Volná položka (`C115_Volne`) | 19 | `8x160` |
+| Quantity | Množstvo | 3 | `234.0` |
+| UM | MJ | 4 | `kg` |
+| Unit price without VAT | Jednotková cena bez DPH | 5 | `1.06` |
 
-Artikl je také v samostatném volném označení položky. Nepoužívá se jako číslo skladové karty nebo služby. Dosavadní tiskové rozložení faktury se automaticky nereprodukuje; ověřte délku a zalomení názvu v používané sestavě.
+Názov obsahuje pouze popis. Číslo objednávky, artikl, rozměr ani označení operace se k němu nepřipojují. Výrobní zakázka bedny (`vyrobni_zakazka`) se předává jako text do pole 18, nejvýše 20 znaků, včetně počátečních nul. Pole 17 (JKPOV) zůstává prázdné. Artikl zůstává textem s počátečními nulami v poli Cudzí názov. Číslo výdeje v hlavičce dokladu je samostatný údaj a přenáší se dál.
+
+**Zkušební přiřazení objednávky a rozměru:** podle dohody s uživatelem se výrobní zakázka zapisuje do pole 18 (`C030_KodPolozky`, text do 20 znaků), rozměr do pole 19 (`C115_Volne`, text do 50 znaků). Vazbu na Číslo / Order no. a Vlastný text / Dimension ověří uživatel v OMEZE, včetně chování pole 18 u volné položky typu V. Samotná specifikace popisuje pole 18 jako číslo karty/služby; převzetí do vašeho editoru a sestavy zatím nebylo ověřeno. Pole JKPOV se pro rozměr nepoužívá. Při prvním importu ověřte jak editor položky, tak tisk; samotné přijetí TXT správné mapování nepotvrzuje.
+
+Rozměr delší než 50 znaků se odmítne, nikdy se nezkracuje. Při přechodu ze starších zkušebních souborů se mění význam pole 19 na rozměr (dříve obsahovalo artikl nebo objednávku). Nové soubory nejprve ověřte na kopii firmy; u již importovaných podkladů neprovádějte slepé přepsání. Hlavička dodacího listu, výběr beden, ceny a zaokrouhlení se touto změnou nemění.
 
 KROS popisuje [import TXT](https://podpora.kros.sk/migration/faq/import-%C3%BAdajov-z-in%C3%A9ho-softv%C3%A9ru-pre-rok-2025) i [převzetí položek do faktury](https://akademia.kros.sk/faq/ekonomika-a-podnikanie/suhrnna-faktura-a-hromadne-pridanie-poloziek/). Změny formátu nebo cílové instalace nejprve ověřte na kopii firmy.

@@ -48,12 +48,8 @@ class OmegaLine:
 
     @property
     def name(self):
-        # Standardní R02 nemá samostatná pole pro objednávku a rozměr.
-        # Údaje proto zůstávají i v názvu, bez závislosti na tiskové sestavě.
-        return ' | '.join((
-            self.operation, f'Obj. {self.order_number}', f'Art. {self.article}',
-            self.description, self.dimension,
-        ))
+        # SPX používá Názov jen pro Description; identifikátory mají vlastní pole.
+        return self.description
 
 
 @dataclass(frozen=True)
@@ -96,7 +92,12 @@ class OmegaDeliveryNote:
                 _number(line.quantity), 'kg', _number(line.unit_price), '0',
             ]
             item[9] = 'V'  # Volná položka; nezakládá skladovou kartu.
-            item[18] = line.article  # Volné označení položky, nejvýše 50 znaků.
+            item[10] = _text(line.article, 'Artikl')  # Cudzí názov / Item no.
+            # Pilotní přiřazení Číslo -> objednávka, Vlastný text -> rozměr.
+            # Vazbu polí 18 a 19 na editor a tisk potvrdí import v cílové OMEZE.
+            # Pole 17 (JKPOV) zůstává prázdné.
+            item[17] = _text(line.order_number, 'Výrobní zakázka (pole 18 / Číslo)', 20)
+            item[18] = _text(line.dimension, 'Rozměr (pole 19 / C115_Volne)', 50)
             records.append(item)
         return (''.join('\t'.join(record) + '\r\n' for record in records)).encode('cp1250')
 

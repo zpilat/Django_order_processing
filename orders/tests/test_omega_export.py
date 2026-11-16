@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import date
 from decimal import Decimal
 
@@ -93,10 +94,36 @@ class OmegaExportTests(TestCase):
         self.assertEqual(item[0], 'R02')
         self.assertEqual(item[2:6], ['234.0', 'kg', '1.06', '0'])
         self.assertEqual(item[9], 'V')
-        self.assertEqual(item[18], '0641000801600')
-        for value in ('Kalení', '4501539341', '0641000801600', 'SPAX-3 SMK TSP40 TGW', '8x160'):
-            self.assertIn(value, item[1])
-        self.assertIn('0000123456', rows[3][1])
+        self.assertEqual(item[1], 'SPAX-3 SMK TSP40 TGW')
+        self.assertEqual(item[10], '0641000801600')
+        self.assertEqual(item[16:19], ['', '4501539341', '8x160'])
+        self.assertEqual(rows[3][16:19], ['', '0000123456', '8x160'])
+        self.assertNotIn('4501539341', item[1])
+        self.assertNotIn('0641000801600', item[1])
+        self.assertNotIn('8x160', item[1])
+
+    def test_pilot_dimension_column_rejects_overlong_values_without_truncation(self):
+        note = build_spx_delivery_note(self.outgoing)
+        for dimension in ('999.9x99999.9', '8x' + '1' * 48, '8x' + '1' * 49):
+            with self.subTest(dimension=dimension):
+                changed = replace(note, lines=(replace(note.lines[0], dimension=dimension),))
+                if len(dimension) <= 50:
+                    item = changed.to_bytes().decode('cp1250').splitlines()[2].split('\t')
+                    self.assertEqual(item[16:19], ['', note.lines[0].order_number, dimension])
+                else:
+                    with self.assertRaisesMessage(ServiceValidationError, '50 znaků'):
+                        changed.to_bytes()
+
+    def test_order_number_column_preserves_leading_zeroes_and_rejects_overflow(self):
+        note = build_spx_delivery_note(self.outgoing)
+        order_number = '00001234567890123456'
+        changed = replace(note, lines=(replace(note.lines[0], order_number=order_number),))
+        item = changed.to_bytes().decode('cp1250').splitlines()[2].split('\t')
+        self.assertEqual(item[16:19], ['', order_number, '8x160'])
+        self.assertEqual(item[1], note.lines[0].description)
+        changed = replace(note, lines=(replace(note.lines[0], order_number=order_number + '7'),))
+        with self.assertRaisesMessage(ServiceValidationError, '20 znaků'):
+            changed.to_bytes()
 
     def test_excludes_nonbillable_crates_and_heat_exclusions(self):
         Bedna.objects.filter(pk=self.crate.pk).update(fakturovat=False)

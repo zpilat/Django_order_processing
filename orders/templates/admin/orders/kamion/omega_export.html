@@ -13,8 +13,10 @@
 <h2>{{ note.number }} — {{ note.partner_name }}</h2>
 <p>Podklad podle proformy SPX, pouze kalení. V OMEZE se načte jako dodací list.
   Z něj účetní převezme položky do faktury a zkontroluje její účetní nastavení.</p>
-<p>Číslo objednávky, artikl, popis a rozměr budou společně také v názvu každé položky.
-  Rozložení sloupců na faktuře může být jiné než u dosavadní tiskové sestavy.</p>
+<p>Samostatná pole položky: Cudzí názov = artikl, Názov = popis.
+  Objednávka je v importním poli 18, rozměr v poli 19 (C115_Volne), pole 17 zůstává prázdné.
+  Při prvním importu ověřte jejich zobrazení v Číslo a Vlastný text
+  i ve sloupcích Order no. a Dimension vaší sestavy.</p>
 <p><strong>Pilotní formát: první import a převzetí do faktury ověřte v testovací kopii firmy OMEGA.</strong></p>
 <p><a href="{% url 'admin_documentation' 'export-omega' %}" target="_blank" rel="noopener">Postup importu a omezení pilotu</a></p>
 <div class="module" style="overflow-x: auto;">
