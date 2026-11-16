@@ -93,8 +93,7 @@ class OmegaDeliveryNote:
             ]
             item[9] = 'V'  # Volná položka; nezakládá skladovou kartu.
             item[10] = _text(line.article, 'Artikl')  # Cudzí názov / Item no.
-            # Pilotní přiřazení Číslo -> objednávka, Vlastný text -> rozměr.
-            # Vazbu polí 18 a 19 na editor a tisk potvrdí import v cílové OMEZE.
+            # Ověřené přiřazení: Číslo -> objednávka, Vlastný text -> rozměr.
             # Pole 17 (JKPOV) zůstává prázdné.
             item[17] = _text(line.order_number, 'Výrobní zakázka (pole 18 / Číslo)', 20)
             item[18] = _text(line.dimension, 'Rozměr (pole 19 / C115_Volne)', 50)

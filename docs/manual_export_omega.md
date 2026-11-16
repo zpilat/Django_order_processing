@@ -2,7 +2,7 @@
 
 Export přenáší položky k fakturaci včetně ceny kalení. Čte databázi a používá stejné příznaky a výpočet jako proforma po bednách; PDF se neparsuje. V OMEZE se soubor načítá jako **dodací list**, ze kterého účetní převezme položky do nové faktury.
 
-**Stav ověření:** generátor a administrace jsou testované na PostgreSQL. Přijetí konkrétní instalací OMEGY, párování partnera a převzetí do výsledné faktury je nutné ověřit v testovací kopii firmy. Stažení souboru není potvrzením jeho importu.
+**Stav ověření:** generátor a administrace jsou testované na PostgreSQL. Uživatel 16. listopadu 2026 potvrdil správné načtení výrobní zakázky do pole Číslo a rozměru do pole Vlastný text v používané OMEZE. Toto potvrzení se týká mapování těchto dvou údajů; samo nepotvrzuje celé párování partnera, účetní nastavení ani výsledný tisk faktury. Při první zkoušce v jiné instalaci použijte testovací kopii firmy. Stažení souboru není potvrzením jeho importu.
 
 ## 1. Rozsah pilotu
 
@@ -53,17 +53,17 @@ Mapování vychází ze snímku editace položky faktury SPX dodaného uživatel
 
 | Sloupec faktury | Pole položky OMEGY | Pozice R02 | Příklad |
 | --- | --- | --- | --- |
-| Order no. | Zkušební přiřazení Číslo: Číslo karty/služby (`C030_KodPolozky`) | 18 | `4501539341` |
+| Order no. | Číslo: Číslo karty/služby (`C030_KodPolozky`) | 18 | `4501539341` |
 | Item no. | Cudzí názov (`C130_CudziNazov`) | 11 | `0641000801600` |
 | Description | Názov (`C109_Nazov`) | 2 | `SPAX-3 SMK TSP40 TGW` |
-| Dimension | Zkušební přiřazení Vlastný text: Volná položka (`C115_Volne`) | 19 | `8x160` |
+| Dimension | Vlastný text: Volná položka (`C115_Volne`) | 19 | `8x160` |
 | Quantity | Množstvo | 3 | `234.0` |
 | UM | MJ | 4 | `kg` |
 | Unit price without VAT | Jednotková cena bez DPH | 5 | `1.06` |
 
 Názov obsahuje pouze popis. Číslo objednávky, artikl, rozměr ani označení operace se k němu nepřipojují. Výrobní zakázka bedny (`vyrobni_zakazka`) se předává jako text do pole 18, nejvýše 20 znaků, včetně počátečních nul. Pole 17 (JKPOV) zůstává prázdné. Artikl zůstává textem s počátečními nulami v poli Cudzí názov. Číslo výdeje v hlavičce dokladu je samostatný údaj a přenáší se dál.
 
-**Zkušební přiřazení objednávky a rozměru:** podle dohody s uživatelem se výrobní zakázka zapisuje do pole 18 (`C030_KodPolozky`, text do 20 znaků), rozměr do pole 19 (`C115_Volne`, text do 50 znaků). Vazbu na Číslo / Order no. a Vlastný text / Dimension ověří uživatel v OMEZE, včetně chování pole 18 u volné položky typu V. Samotná specifikace popisuje pole 18 jako číslo karty/služby; převzetí do vašeho editoru a sestavy zatím nebylo ověřeno. Pole JKPOV se pro rozměr nepoužívá. Při prvním importu ověřte jak editor položky, tak tisk; samotné přijetí TXT správné mapování nepotvrzuje.
+**Potvrzené přiřazení objednávky a rozměru:** výrobní zakázka se zapisuje do pole 18 (`C030_KodPolozky`, text do 20 znaků), rozměr do pole 19 (`C115_Volne`, text do 50 znaků). Uživatel 16. listopadu 2026 potvrdil správné načtení obou údajů do Číslo a Vlastný text i u volné položky typu V. Specifikace pole 18 označuje jako číslo karty/služby; v tomto použití obsahuje výrobní zakázku bedny. Pole JKPOV se pro rozměr nepoužívá. Výsledný tisk a převzetí do faktury zůstávají samostatnou kontrolou.
 
 Rozměr delší než 50 znaků se odmítne, nikdy se nezkracuje. Při přechodu ze starších zkušebních souborů se mění význam pole 19 na rozměr (dříve obsahovalo artikl nebo objednávku). Nové soubory nejprve ověřte na kopii firmy; u již importovaných podkladů neprovádějte slepé přepsání. Hlavička dodacího listu, výběr beden, ceny a zaokrouhlení se touto změnou nemění.
 
