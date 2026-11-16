@@ -1124,6 +1124,10 @@ class ActionsTests(ActionsBase):
             cena_za_kg='5.00',
             cena_rovnani='0.00',
         )
+        Bedna.objects.create(
+            zakazka=zakazka_rot, hmotnost=Decimal('1.0'),
+            fakturovat_rovnani=True, rovnat=RovnaniChoice.VYROVNANA,
+        )
 
         req = self.get_request('get')
         resp = actions.tisk_proforma_faktury_kamionu_action(

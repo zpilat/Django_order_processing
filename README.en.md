@@ -24,6 +24,7 @@ Internal application for receiving, heat treating, inspecting and shipping order
 - Task permissions and auditing through `django-simple-history`. Atypical conversion and manual flag edits require a dedicated `mark_bedna_atypicky_prubeh` permission, separate from inspection and measurement rights; migrations do not assign it to groups automatically.
 - Specifications include optional numeric minimum, maximum and QS maximum fields for bending, torsion, surface/core hardness and case depth. `doplnit_meze_predpisu` previews text conversion and writes unambiguous standard limits only with `--apply`, preserving manual and QS values. Inspection evaluation and printing remain unchanged. See the [Czech conversion analysis](docs/analyza_mezi_predpisu.md).
 - Per-operation billing uses positive crate flags `fakturovat_*`. Customer defaults for straightening, blasting and zinc coating are copied on creation only; crate overrides are independent. Zinc coating remains metadata without a calculated charge.
+- List rates per kg remain independent of billing flags and technological states. Amounts, counts and weights share operation eligibility rules. Proformas and work-in-progress valuation use the customer's rounding mode: HALF_UP on each order's total weight times rate, or on each crate before summing. See the [Czech billing rules](docs/manual_bedna.md#ceníkové-sazby-a-účtované-částky).
 
 ## Local setup on Windows
 
@@ -148,8 +149,6 @@ Empty deflection tests after rolling and straightening appear only after a nonco
 Use PostgreSQL for normal tests. Django creates a separate test database; the database role needs `CREATEDB`. Validate permissions, state transitions, input validation and concurrent edits when changing a workflow.
 
 ## Deployment
-
-For billing migrations **0249 and 0250**, including stopping the service, taking a backup and starting it again, follow the [Czech crate manual](docs/manual_bedna.md#nasazení-migrací-fakturace-na-produkci).
 
 For hourly PostgreSQL production backups with three-day retention, use
 [deploy/backup-orders.sh](deploy/backup-orders.sh). See the Czech

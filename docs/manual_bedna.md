@@ -69,56 +69,36 @@ Tvrdost povrchu a jádra je u atypické bedny dostupná i mimo běžný výběr 
 
 V detailu bedny je samostatná část **Fakturace**. Formulář používá kladné popisky **Fakturovat kalení, Fakturovat rovnání, Fakturovat tryskání a Fakturovat zinkování**, vždy s volbou **Ano/Ne**. Hlavní **Fakturovat = Ne** vyřadí celou bednu z proformy; na dodacím listu zůstává s označením nefakturování. Jednotlivé operace zešednou a uzamknou se s vysvětlením. Jejich nastavení se nepřepisuje a zůstává zachované i při uložení bedny. Po zapnutí hlavního přepínače se znovu zpřístupní. Pro placené rovnání například zapněte hlavní Fakturovat, nastavte Fakturovat rovnání na Ano a kalení i tryskání ponechte na Ne.
 
-Při hlavním **Fakturovat = Ano** musí mít alespoň jedna ze čtyř operací volbu **Ano**. Varování se zobrazí pouze při zapnutém hlavním Fakturovat a všech operacích na Ne; uložení se v této kombinaci odmítne i na serveru. Při hlavním Ne nebo po výběru alespoň jedné operace varování zmizí. Přepínače se automaticky nepřepisují; zvolte požadovanou operaci nebo hlavní Fakturovat nastavte na Ne. Podmínka ověřuje zvolené operace, nikoli kladnou výslednou cenu; ta dál závisí na ceníku, nastavení zákazníka a provedených operacích.
+Při hlavním **Fakturovat = Ano** musí mít alespoň jedna ze čtyř operací volbu **Ano**. Varování se zobrazí pouze při zapnutém hlavním Fakturovat a všech operacích na Ne; uložení se v této kombinaci odmítne i na serveru. Při hlavním Ne nebo po výběru alespoň jedné operace varování zmizí. Přepínače se automaticky nepřepisují; zvolte požadovanou operaci nebo hlavní Fakturovat nastavte na Ne. Podmínka ověřuje zvolené operace, nikoli kladnou výslednou cenu; ta dál závisí na ceníku a provedených operacích.
 
 Nastavení Fakturovat rovnání, tryskání a zinkování u zákazníka slouží pouze jako výchozí hodnoty nových beden. Při založení bedny v adminu se převezmou automaticky; upravují se následně v detailu uložené bedny. Kalení má výchozí Ano. Další změna zákazníka ani nové uložení bedny volby nepřepíše. Ruční Ano u bedny platí i při zákaznickém výchozím Ne. Proformy, tisk rozpracovanosti a kontrola cen vycházejí z uložených voleb beden, hlavního Fakturovat a skutečného stavu Vyrovnaná/Otryskaná; ceny se nadále načítají z ceníku. Sloupce příplatků se zobrazí podle zahrnutých beden. Zakázka bez fakturovaných beden se vynechá. Zinkování je pouze evidenční přepínač bez ceny a částky na proformě.
 
-Nasazená migrace `0248_atypicky_prubeh_a_fakturace` se nemění. Nová `0249_kladna_fakturace_schema` přejmenuje záporná pole na kladná a přidá výchozí zinkování zákazníka (Ne). Samostatná datová migrace `0250_vychozi_fakturace_beden` nastaví současné běžné bedny podle zákazníků: kalení Ano, rovnání a tryskání podle zákazníka, zinkování Ne. Atypickým bednám ponechá všechny operace Ne. Hlavní Fakturovat se nemění. V historii se pouze obrátí význam přejmenovaných příznaků; nepřepisuje se podle dnešního zákazníka. Převod je jednorázový a byl testován na PostgreSQL. Při nasazení zastavte aplikaci před migracemi a spusťte ji až po jejich dokončení, protože se mění názvy sloupců i význam hodnot.
+### Ceníkové sazby a účtované částky
 
-#### Nasazení migrací fakturace na produkci
+Pravidla platí pro běžné i atypické bedny. **Ceníková cena kalení, rovnání a tryskání za kg** se u bedny i zakázky přebírá z aktuálního ceníku podle zákazníka příjmu, předpisu a délky. Dolní hranice délky platí včetně, horní vyjma. Fakturační přepínače ani technologické stavy sazbu nenulují. Nula při chybějícím nebo nejednoznačném ceníku neznamená schválenou bezplatnou operaci; účtovaná operace bez platné kladné ceny nesmí na proformu.
 
-Tento postup je pro migrace **0249 a 0250**, které navazují na již nasazenou 0248. Nejprve změny commitněte a pushněte na GitHub, včetně obou nových migrací. Příkazy níže jsou pro Bash na produkčním serveru `srv-warehouse` pod uživatelem `pilat`, v repozitáři `~/Django-orders`.
+**Účtovaná cena za bednu** je součin její netto hmotnosti a ceníkové sazby v EUR, zaokrouhlený na cent metodou HALF_UP (přesná polovina centu nahoru). Při nesplnění následujících podmínek je částka nula:
 
-**Příkazy provádějte postupně; při chybě nepokračujte k dalšímu kroku.** Aplikace musí být zastavená během aktualizace kódu i migrací, protože starý kód používá původní názvy sloupců.
+| Operace | Podmínky účtování, počtu beden i fakturované hmotnosti |
+| --- | --- |
+| Kalení | Hlavní Fakturovat = Ano a Fakturovat kalení = Ano. |
+| Rovnání | Hlavní Fakturovat = Ano, Fakturovat rovnání = Ano a Rovnání = Vyrovnaná. Samotná Rovná se neúčtuje. |
+| Tryskání | Hlavní Fakturovat = Ano, Fakturovat tryskání = Ano a Tryskání = Otryskaná. Samotná Čistá se neúčtuje. |
 
-1. Připravte pracovní adresář, aktivujte prostředí a zastavte aplikaci:
+Počty a hmotnosti jsou samostatné pro každou operaci. Bedna účtovaná pouze za rovnání do Kalení nepřidá počet, hmotnost ani částku. Počet beden se neurčuje podle kladnosti vypočtené částky; neplatný ceník musí vyvolat chybu, nikoli tiše odstranit bednu z počtu.
 
-   ```bash
-   cd ~/Django-orders
-   source venv/bin/activate
-   sudo systemctl stop django-orders
-   ```
+Zákaznická volba **Proforma po bednách** určuje zaokrouhlování souhrnů:
 
-2. Vytvořte aktuální zálohu databáze podle [návodu na zálohy](zalohy.md). Pokud používáte již nastavený skript a archiv `/home/pilat/archiv`, spusťte:
+| Režim | Částka operace za zakázku |
+| --- | --- |
+| Po zakázkách (Proforma po bednách = Ne) | Sečíst hmotnosti beden účtovaných za danou operaci, vynásobit sazbou a až výsledek zaokrouhlit na cent. |
+| Po bednách (Proforma po bednách = Ano) | Sečíst jednotlivě zaokrouhlené částky operace všech zahrnutých beden. |
 
-   ```bash
-   /bin/bash deploy/backup-orders.sh /home/pilat/archiv
-   ```
+Příklad: dvě bedny po 100,1 kg při sazbě 1,05 EUR/kg znamenají **210,21 EUR po zakázkách** a **210,22 EUR po bednách** (105,11 + 105,11). Rozdíl je důsledkem místa zaokrouhlení. Při fakturaci po zakázkách se tedy částka zakázky může lišit od součtu částek z detailů beden. Součet kamionu vždy sčítá částky odpovídající řádkům zvolené proformy; nepřepočítává celý kamion souhrnnou hmotností.
 
-   Pokračujte až po ověření úspěšné zálohy; úspěšný běh končí hlášením `DONE`. Hlášení `SKIP` znamená souběžný běh a samo nepotvrzuje dokončenou zálohu.
+Stejný režim používá [ocenění vybrané rozpracovanosti](manual_prehledy_a_ukazatele.md#11-uložená-rozpracovanost-a-její-pdf). [Export OMEGA](manual_export_omega.md) zatím podporuje pouze kalení SPX po bednách. Zinkování zůstává evidenčním přepínačem bez vypočtené ceny.
 
-3. Stáhněte připravené změny, zkontrolujte plán a proveďte migrace i aktualizaci statických souborů:
-
-   ```bash
-   git pull --ff-only
-   python manage.py migrate --plan
-   python manage.py migrate
-   python manage.py collectstatic --noinput
-   python manage.py check --deploy
-   ```
-
-   Plán má obsahovat migrace `0249_kladna_fakturace_schema` a `0250_vychozi_fakturace_beden`, pokud ještě nebyly aplikovány. Migrace 0250 jednorázově nastaví současné bedny podle pravidel popsaných výše; nejde pouze o přidání prázdných polí.
-
-4. Po úspěšném dokončení spusťte službu a zkontrolujte její stav:
-
-   ```bash
-   sudo systemctl start django-orders
-   sudo systemctl status django-orders --no-pager
-   ```
-
-   V aplikaci otevřete nastavení zákazníka a detail běžné i atypické bedny. Ověřte kladné názvy fakturačních voleb, výchozí zinkování Ne a zachované hlavní Fakturovat.
-
-Při neúspěšné migraci službu nespouštějte se smíšenou verzí kódu a databáze. Návrat řešte jako společný návrat odpovídajícího kódu a databáze; samotné vrácení Gitu po přejmenování sloupců nestačí.
+Proforma při spuštění akce i při přímém otevření PDF ověřuje jednoznačný kladný ceník skutečně účtovaných operací, kladné hmotnosti zahrnutých beden a shodu zákazníka příjmu a výdeje. Zapnuté, ale neprovedené rovnání/tryskání cenu nevyžaduje. Prázdné zakázky a nefakturované bedny kontrolu cen nevyvolají. Opakovaný tisk používá aktuální ceník, nastavení zákazníka i údaje beden; vydané PDF uchovávejte.
 
 ## 4. Důležitá validační pravidla
 

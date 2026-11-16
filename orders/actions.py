@@ -44,6 +44,10 @@ from .services.expedice_service import (
 )
 from .services.exceptions import ServiceValidationError
 from .services.omega_export_service import build_spx_delivery_note
+from .billing import (
+    is_operation_billable, summarize_operation,
+    validate_proforma_pricing,
+)
 from .services.sarze_print_service import (
     build_tisk_pruvodky_vruty_response,
     get_tisk_pruvodky_vruty_krok,
@@ -273,61 +277,8 @@ def _abort_if_kamiony_maji_pozastavene_bedny(modeladmin, request, queryset, acti
 
 
 def _validate_proforma_pricing(kamion):
-    """Vrátí seznam chybových hlášek pro zakázky, které nemají požadované ceny pro tisk proformy."""
-    errors = []
-    zakazky = kamion.zakazky_vydej.select_related('kamion_prijem__zakaznik').prefetch_related('bedny').all()
-    for zakazka in zakazky:
-        bedny = list(zakazka.bedny.all())
-        # U zakázky bez beden zachovat dosavadní kontrolu ceníku.
-        pozadovane_ceny = {
-            operation: not bedny or any(b.fakturovat and getattr(b, f'fakturovat_{operation}') for b in bedny)
-            for operation in ('kaleni', 'rovnani', 'tryskani')
-        }
-        label = f"{zakazka.artikl or zakazka.pk}"
-        kamion_prijem = getattr(zakazka, 'kamion_prijem', None)
-        zakaznik_prijem = getattr(kamion_prijem, 'zakaznik', None) if kamion_prijem else None
-        if not zakaznik_prijem:
-            errors.append(f"Zakázka {label}: chybí kamion příjem se zákazníkem pro výpočet cen.")
-            continue
-
-        if not any(pozadovane_ceny.values()):
-            continue
-
-        predpis = getattr(zakazka, 'predpis', None)
-        delka = getattr(zakazka, 'delka', None)
-        if not predpis or delka is None:
-            errors.append(f"Zakázka {label}: chybí předpis nebo délka pro výpočet ceny.")
-            continue
-
-        try:
-            cena_obj = Cena.objects.get(
-                predpis=predpis,
-                delka_min__lte=delka,
-                delka_max__gt=delka,
-                zakaznik=zakaznik_prijem
-            )
-        except Cena.DoesNotExist:
-            errors.append(f"Zakázka {label}: nenalezena cena pro předpis {predpis} a délku {delka}.")
-            continue
-        except Cena.MultipleObjectsReturned:
-            errors.append(f"Zakázka {label}: nalezeno více cen pro předpis {predpis} a délku {delka}. Opravte ceník.")
-            continue
-
-        cena_za_kg = cena_obj.cena_za_kg
-        if pozadovane_ceny['kaleni'] and (cena_za_kg is None or cena_za_kg <= 0):
-            errors.append(f"Zakázka {label}: cena za kg musí být větší než 0.")
-
-        if pozadovane_ceny['rovnani']:
-            cena_rovnani = cena_obj.cena_rovnani_za_kg
-            if cena_rovnani is None or cena_rovnani <= 0:
-                errors.append(f"Zakázka {label}: cena rovnání za kg musí být větší než 0.")
-
-        if pozadovane_ceny['tryskani']:
-            cena_tryskani = cena_obj.cena_tryskani_za_kg
-            if cena_tryskani is None or cena_tryskani <= 0:
-                errors.append(f"Zakázka {label}: cena tryskání za kg musí být větší než 0.")
-
-    return errors
+    """Společná kontrola skutečně účtovaných operací, cen a hmotností proformy."""
+    return validate_proforma_pricing(kamion)
 
 def _format_decimal(value):
     """Vrátí číslo s desetinnou čárkou; prázdný řetězec pro None."""
@@ -3580,6 +3531,12 @@ def tisk_karty_kontroly_prohybu_kamionu_action(modeladmin, request, queryset):
 
 @admin.action(description="Vytisknout rozpracovanost (PDF)")
 def tisk_rozpracovanost_action(modeladmin, request, queryset):
+    """Ocení bedny vybraného snímku v aktuálním režimu fakturace zákazníka.
+
+    Po bednách sčítá zaokrouhlené částky, po zakázkách zaokrouhlí až součin
+    hmotnosti a sazby operace. Nezahrnuje jiné bedny stejné zakázky. Výběr
+    snímku je historický, hmotnosti, ceny, přepínače a stavy se čtou aktuální.
+    """
     if queryset.count() != 1:
         modeladmin.message_user(request, "Vyberte prosím právě jeden záznam rozpracovanosti.", level=messages.ERROR)
         return None
@@ -3662,8 +3619,10 @@ def tisk_rozpracovanost_action(modeladmin, request, queryset):
                 'pocet_beden': 0,
                 'tryskani_pocet_beden': 0,
                 'rovnani_pocet_beden': 0,
+                'bedny': [],
             },
         )
+        zakazka_entry['bedny'].append(bedna)
 
         hmotnost = bedna.hmotnost or Decimal('0')
         if not isinstance(hmotnost, Decimal):
@@ -3673,23 +3632,23 @@ def tisk_rozpracovanost_action(modeladmin, request, queryset):
                 logger.warning("Nepodařilo se převést hmotnost bedny na Decimal při exportu zákazníka, používá se 0.", exc_info=True)
                 hmotnost = Decimal('0')
 
-        if bedna.fakturovat_kaleni:
+        if is_operation_billable(bedna, 'kaleni'):
             zakazka_entry['hmotnost'] += hmotnost
             zakazka_entry['pocet_beden'] += 1
 
-        if bedna.fakturovat_tryskani and bedna.tryskat == TryskaniChoice.OTRYSKANA:
+        if is_operation_billable(bedna, 'tryskani'):
             zakazka_entry['tryskani_hmotnost'] += hmotnost
             zakazka_entry['tryskani_pocet_beden'] += 1
             customer_entry['sum_tryskani_hmotnost'] += hmotnost
             customer_entry['sum_tryskani_beden'] += 1
 
-        if bedna.fakturovat_rovnani and bedna.rovnat == RovnaniChoice.VYROVNANA:
+        if is_operation_billable(bedna, 'rovnani'):
             zakazka_entry['rovnani_hmotnost'] += hmotnost
             zakazka_entry['rovnani_pocet_beden'] += 1
             customer_entry['sum_rovnani_hmotnost'] += hmotnost
             customer_entry['sum_rovnani_beden'] += 1
 
-        if bedna.fakturovat_kaleni:
+        if is_operation_billable(bedna, 'kaleni'):
             customer_entry['sum_hmotnost'] += hmotnost
             customer_entry['sum_beden'] += 1
 
@@ -3709,6 +3668,17 @@ def tisk_rozpracovanost_action(modeladmin, request, queryset):
     for customer_entry in sorted(customer_map.values(), key=lambda item: item['zakaznik'].nazev):
         zakazky_rows = []
         for zakazka_entry in sorted(customer_entry['zakazky'].values(), key=lambda item: item['artikl']):
+            operation_totals = {
+                operation: summarize_operation(
+                    zakazka_entry['bedny'], operation, zakazka_entry[price],
+                    per_crate=customer_entry['zakaznik'].proforma_po_bednach,
+                ).total
+                for operation, price in (
+                    ('kaleni', 'cena_kg'),
+                    ('rovnani', 'cena_rovnani_za_kg'),
+                    ('tryskani', 'cena_tryskani_za_kg'),
+                )
+            }
             # Posuzovat až celý výběr zakázky: jednotlivé bedny mohou účtovat jiné operace.
             uctovane_ceny = [
                 (zakazka_entry[count], zakazka_entry[price], label)
@@ -3731,13 +3701,13 @@ def tisk_rozpracovanost_action(modeladmin, request, queryset):
 
             hm_total = zakazka_entry['hmotnost'].quantize(weight_quant, rounding=ROUND_HALF_UP)
             cena_kg = zakazka_entry['cena_kg'].quantize(money_quant, rounding=ROUND_HALF_UP) if zakazka_entry['cena_kg'] else Decimal('0.00')
-            cena_netto = (zakazka_entry['hmotnost'] * zakazka_entry['cena_kg']).quantize(money_quant, rounding=ROUND_HALF_UP)
+            cena_netto = operation_totals['kaleni']
             tryskani_hmotnost = zakazka_entry['tryskani_hmotnost'].quantize(weight_quant, rounding=ROUND_HALF_UP)
             rovnani_hmotnost = zakazka_entry['rovnani_hmotnost'].quantize(weight_quant, rounding=ROUND_HALF_UP)
             cena_tryskani_kg = zakazka_entry['cena_tryskani_za_kg'].quantize(money_quant, rounding=ROUND_HALF_UP) if zakazka_entry['cena_tryskani_za_kg'] else Decimal('0.00')
             cena_rovnani_kg = zakazka_entry['cena_rovnani_za_kg'].quantize(money_quant, rounding=ROUND_HALF_UP) if zakazka_entry['cena_rovnani_za_kg'] else Decimal('0.00')
-            cena_tryskani_netto = (zakazka_entry['tryskani_hmotnost'] * zakazka_entry['cena_tryskani_za_kg']).quantize(money_quant, rounding=ROUND_HALF_UP)
-            cena_rovnani_netto = (zakazka_entry['rovnani_hmotnost'] * zakazka_entry['cena_rovnani_za_kg']).quantize(money_quant, rounding=ROUND_HALF_UP)
+            cena_tryskani_netto = operation_totals['tryskani']
+            cena_rovnani_netto = operation_totals['rovnani']
             customer_entry['sum_cena_netto'] += cena_netto
             customer_entry['sum_tryskani_cena_netto'] += cena_tryskani_netto
             customer_entry['sum_rovnani_cena_netto'] += cena_rovnani_netto

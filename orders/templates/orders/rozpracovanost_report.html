@@ -82,6 +82,7 @@
     {% for section in sections %}
         <div class="customer-section">
             <h2>Rozpracovanost - {{ section.zakaznik.nazev }}</h2>
+            <p>Ocenění: {% if section.zakaznik.proforma_po_bednach %}po bednách — součet jednotlivě zaokrouhlených částek.{% else %}po zakázkách — celková fakturovaná hmotnost operace × ceníková sazba.{% endif %}</p>
             <table class={% if section.fakturovat_rovnani and section.fakturovat_tryskani %}"fs-06"{% elif section.fakturovat_rovnani or section.fakturovat_tryskani %}"fs-07"{% else %}"fs-08"{% endif %}>
                 <thead>
                     <tr>

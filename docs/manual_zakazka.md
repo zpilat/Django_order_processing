@@ -35,6 +35,12 @@ Prakticky:
 - Na detailu je inline tabulka beden (`BednaInline`).
 - U expedovaných zakázek jsou úpravy omezené oprávněním.
 
+### Ceny, fakturované hmotnosti a počty beden
+
+Ceny za kg jsou aktuální **ceníkové sazby** kalení, rovnání a tryskání, nezávislé na fakturačních přepínačích a stavech beden. Účtované částky, hmotnosti a počty beden každé operace mají společné podmínky: hlavní Fakturovat a příslušná operace musí být Ano; rovnání navíc vyžaduje Vyrovnaná a tryskání Otryskaná.
+
+Pokud zákazník nemá **Proforma po bednách**, částka každé operace zakázky se vypočítá z celkové fakturované hmotnosti a sazby a poté zaokrouhlí na cent HALF_UP. Při proformě po bednách se sčítají jednotlivě zaokrouhlené částky beden. V prvním režimu se částka zakázky může o centy lišit od součtu částek uvedených v detailech beden; souhlasí s násobením hmotnosti a sazby na proformě. Podrobnosti a příklad uvádí [manuál beden](manual_bedna.md#ceníkové-sazby-a-účtované-částky).
+
 ## 4. Význam indikátoru „Komplet“
 
 V adminu se zobrazuje stav kompletnosti:

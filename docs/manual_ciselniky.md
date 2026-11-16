@@ -25,7 +25,7 @@ Před úpravou používaného záznamu ověřte, které zakázky či bedny na n�
 
 | Nastavení | Význam a dopad |
 | --- | --- |
-| Proforma po bednách | Určuje členění proforma faktury po jednotlivých bednách. Po změně zkontrolujte náhled dokladu. |
+| Proforma po bednách | Určuje členění i zaokrouhlování proformy a rozpracovanosti: Ano sčítá jednotlivě zaokrouhlené částky beden; Ne zaokrouhluje až součin celkové hmotnosti operace zakázky a sazby. Změna může změnit souhrny o centy i při stejném ceníku. Viz [pravidla fakturace](manual_bedna.md#ceníkové-sazby-a-účtované-částky). |
 | Vše tryskat | Při vytvoření nové bedny s délkou zakázky **menší než 900 mm** nastaví Tryskání na Špinavá. U delších dílů ani při délce přesně 900 mm se tento automatický krok neprovede. Změna nastavení nepřepíše existující bedny. |
 | Pouze komplet | Omezuje expedici na kompletní zakázky; před zapnutím ověřte, zda se zákazníkem nejsou domluvené dílčí dodávky. |
 | Fakturovat rovnání | Výchozí hodnota nových beden. U bedny ji lze později změnit; účtování vyžaduje stav Vyrovnaná a cenu rovnání. |

@@ -15,6 +15,8 @@ Export přenáší položky k fakturaci včetně ceny kalení. Čte databázi a 
 
 Pro budoucí rozšíření platí **jedna operace = jeden řádek** s její fakturovanou hmotností a cenou. Pilot další operace neexportuje.
 
+Výpočet částky bedny a její zahrnutí do kalení sdílí export s ostatní fakturací aplikace. Součet zaokrouhlených řádků se zapisuje do hlavičky dokladu; při dvou bednách po 100,1 kg a sazbě 1,05 EUR/kg je to 210,22 EUR. Fakturace po zakázkách by dala 210,21 EUR a export ji proto v tomto pilotu odmítá, místo aby změnil seskupení a zaokrouhlení. Viz [pravidla sazeb a částek](manual_bedna.md#ceníkové-sazby-a-účtované-částky).
+
 ## 2. Stažení podkladu
 
 1. V administraci otevřete **Kamiony** a nastavte filtr **Výdej**.

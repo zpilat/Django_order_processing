@@ -52,6 +52,7 @@ from .forms import (
     KontrolaBednyForm,
 )
 from .actions import _build_sarzekrokbedna_preview_rows, _create_sarzekrok_and_copy_rows
+from .billing import validate_proforma_pricing
 from .services.sarze_print_service import (
     build_tisk_pruvodky_vruty_response,
     get_tisk_pruvodky_vruty_krok,
@@ -737,12 +738,12 @@ def _bedna_scan_sections(bedna):
             (
                 'Prodejní cena',
                 [
-                    ('Cena kalení EUR/kg', bedna.cena_za_kg),
-                    ('Cena kalení EUR/bedna', bedna.cena_za_bednu),
-                    ('Cena rovnání EUR/kg', bedna.cena_rovnani_za_kg),
-                    ('Cena rovnání EUR/bedna', bedna.cena_rovnani_za_bednu),
-                    ('Cena tryskání EUR/kg', bedna.cena_tryskani_za_kg),
-                    ('Cena tryskání EUR/bedna', bedna.cena_tryskani_za_bednu),
+                    ('Ceníková cena kalení EUR/kg', bedna.cena_za_kg),
+                    ('Účtovaná cena kalení EUR/bedna', bedna.cena_za_bednu),
+                    ('Ceníková cena rovnání EUR/kg', bedna.cena_rovnani_za_kg),
+                    ('Účtovaná cena rovnání EUR/bedna', bedna.cena_rovnani_za_bednu),
+                    ('Ceníková cena tryskání EUR/kg', bedna.cena_tryskani_za_kg),
+                    ('Účtovaná cena tryskání EUR/bedna', bedna.cena_tryskani_za_bednu),
                 ],
             )
         )
@@ -4774,11 +4775,18 @@ def dodaci_list_kamion_vydej_pdf_view(request, pk: int):
 @login_required
 @permission_required('orders.view_kamion', raise_exception=True)
 def proforma_kamion_vydej_pdf_view(request, pk: int):
-    """GET endpoint pro proforma fakturu kamionu výdej."""
+    """Proforma v režimu zákazníka; před PDF znovu ověří účtované ceny a váhy."""
     kamion = get_object_or_404(Kamion, pk=pk, prijem_vydej=KamionChoice.VYDEJ)
     zakaznik_zkratka = getattr(kamion.zakaznik, 'zkratka', None)
     if not zakaznik_zkratka:
         return HttpResponse("Kamion nemá zkratku zákazníka", status=400)
+
+    pricing_errors = validate_proforma_pricing(kamion)
+    if pricing_errors:
+        return HttpResponse(
+            'Proformu nelze vytvořit:\n' + '\n'.join(pricing_errors),
+            status=400, content_type='text/plain; charset=utf-8',
+        )
 
     if kamion.zakaznik.proforma_po_bednach:
         html_path = "orders/proforma_faktura_po_bednach.html"

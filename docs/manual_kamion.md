@@ -70,6 +70,10 @@ Typické akce:
 
 Proforma zahrnuje pouze bedny s hlavním **Fakturovat = Ano**. Ve variantě po zakázkách se celá zakázka bez takové bedny vynechá. Počty beden a hmotnosti pro Kalení navíc respektují **Fakturovat kalení**; bedna účtovaná pouze za rovnání nebo tryskání se do Kalení nezapočítá. Rovnání a Tryskání se účtují podle příslušných přepínačů bedny a skutečného technologického stavu. Na dodacím listu nefakturované bedny zůstávají.
 
+Zákaznické **Proforma po bednách = Ne** znamená pro každou operaci zakázky výpočet **celková fakturovaná hmotnost × ceníková sazba**, zaokrouhlený až na konci. Při **Ano** se zaokrouhlí každá operace každé bedny a výsledky se sečtou. Souhrny výdeje jsou součtem těchto částek; nemění je další přepočet hmotností. Dvě bedny po 100,1 kg při 1,05 EUR/kg proto znamenají 210,21 EUR po zakázkách a 210,22 EUR po bednách. Podrobné podmínky jsou v [pravidlech fakturace beden](manual_bedna.md#ceníkové-sazby-a-účtované-částky).
+
+Akce tisku i přímý odkaz na PDF odmítnou účtovanou operaci s chybějící, nekladnou nebo nejednoznačnou cenou, bednu bez kladné fakturované hmotnosti a neshodu zákazníka příjmu a výdeje. Ceník se nevyžaduje pro vypnutou nebo neprovedenou operaci, prázdnou zakázku či nefakturovanou bednu.
+
 Dodací list zákazníka SPX obsahuje za sloupcem `Beleg-Nr.` sloupec `FAUF`
 s ručně doplněným číslem příslušné bedny. Číslo se tiskne bez oddělovačů
 tisíců; nevyplněná hodnota má prázdnou buňku. Sloupec `Behälter` se netiskne.

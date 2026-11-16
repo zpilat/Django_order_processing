@@ -6,10 +6,11 @@ Export nic neukládá; nejde o vystavení ani zaúčtování faktury.
 
 from dataclasses import dataclass
 from datetime import date
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal
 
 from django.db.models import Q
 
+from orders.billing import billed_amount, operation_conditions
 from orders.choices import KamionChoice, StavBednyChoice
 from orders.models import Bedna
 
@@ -101,12 +102,16 @@ class OmegaDeliveryNote:
 
 
 def build_spx_delivery_note(kamion):
-    """Pouze kalení SPX, s výběrem a výpočtem odpovídajícím proformě po bednách."""
+    """Kalení SPX: shodný výběr a HALF_UP každé bedny jako na proformě po bednách.
+
+    Fakturaci po zakázkách ani další operace pilot nepodporuje. Hlavička
+    dokladu sčítá zaokrouhlené řádky, nepřepočítává celkovou hmotnost sazbou.
+    """
     customer = kamion.zakaznik
     if kamion.prijem_vydej != KamionChoice.VYDEJ or customer.zkratka != 'SPX':
         raise ServiceValidationError('Pilotní export OMEGA je dostupný pouze pro kamion výdej zákazníka SPX.')
-    if Bedna.objects.filter(zakazka__kamion_vydej=kamion, fakturovat=True).filter(
-        Q(fakturovat_rovnani=True, rovnat='VY') | Q(fakturovat_tryskani=True, tryskat='OT')
+    if Bedna.objects.filter(zakazka__kamion_vydej=kamion).filter(
+        Q(**operation_conditions('rovnani')) | Q(**operation_conditions('tryskani'))
     ).exists():
         raise ServiceValidationError('Pilotní export podporuje pouze kalení; SPX má zapnuté účtování dalších operací.')
     if not customer.proforma_po_bednach:
@@ -117,7 +122,7 @@ def build_spx_delivery_note(kamion):
         raise ServiceValidationError('Pro export musí být vyplněno číslo dodacího listu a název zákazníka.')
 
     crates = Bedna.objects.filter(
-        zakazka__kamion_vydej=kamion, fakturovat=True, fakturovat_kaleni=True,
+        zakazka__kamion_vydej=kamion, **operation_conditions('kaleni'),
     ).select_related('zakazka__kamion_prijem__zakaznik', 'zakazka__predpis').order_by('zakazka_id', 'id')
     lines = []
     prices = {}
@@ -145,7 +150,7 @@ def build_spx_delivery_note(kamion):
             crate_number=crate.cislo_bedny, order_number=order_number,
             article=article, description=description, dimension=dimension,
             quantity=crate.hmotnost, unit_price=unit_price,
-            total=(crate.hmotnost * unit_price).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP),
+            total=billed_amount(crate.hmotnost, unit_price),
         ))
     if not lines:
         raise ServiceValidationError('Kamion neobsahuje žádnou bednu určenou k fakturaci kalení.')

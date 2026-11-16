@@ -3938,6 +3938,13 @@ class BednaAdmin(HistoryViewOnlyAdmin):
                 options = {'fields': tuple(kept)}
                 if title == 'Fakturace' and obj is None:
                     options['description'] = 'Rovnání, tryskání a zinkování se při založení převezmou ze zákazníka. Poté je můžete upravit v detailu bedny.'
+                if 'cena_za_kg' in kept:
+                    options['description'] = (
+                        'Ceny jsou v EUR. Ceníkové sazby za kg nezávisí na fakturaci ani stavu bedny. '
+                        'Částky za bednu jsou zaokrouhlené na cent. Při fakturaci po zakázkách se '
+                        'částka počítá z celkové fakturované hmotnosti operace a může se o centy '
+                        'lišit od součtu částek jednotlivých beden.'
+                    )
                 fieldsets.append((title, options))
 
         return fieldsets

@@ -2612,6 +2612,11 @@ class DashboardKamionyViewTests(ViewsTestBase):
 	def test_atypical_receipt_is_excluded_from_processed_totals_but_remains_in_stock(self):
 		from orders.services.atypicky_prubeh_service import prevest_na_atypicky_prubeh
 
+		self.user.user_permissions.add(*Permission.objects.filter(
+			content_type__app_label="orders",
+			codename__in=("change_bedna", "mark_bedna_atypicky_prubeh"),
+		))
+
 		self.b_eur_pr.stav_bedny = StavBednyChoice.ZKONTROLOVANO
 		self.b_eur_pr.rovnat = RovnaniChoice.KRIVA
 		self.b_eur_pr.fakturovat = False
@@ -2887,6 +2892,14 @@ class DashboardKamionyViewTests(ViewsTestBase):
 
 
 class KamionVydejPdfPermissionTests(ViewsTestBase):
+	def setUp(self):
+		super().setUp()
+		price = Cena.objects.create(
+			zakaznik=self.z_eur, popis="PDF oprávnění", delka_min=0, delka_max=200,
+			cena_za_kg=Decimal("1.05"),
+		)
+		price.predpis.add(self.predpis_eur)
+
 	def _pdf_urls(self):
 		return [
 			reverse("protokol_kamion_vydej_pdf", args=[self.k_vydej_eur.pk]),

@@ -215,6 +215,10 @@ Pro **Vytisknout rozpracovanost (PDF)** vyberte právě jeden záznam. Tisk pou�
 
 Počty beden a hmotnosti ve skupině Kalení zahrnují pouze bedny s hlavním Fakturovat = Ano a Fakturovat kalení = Ano. Stejně se pro Rovnání a Tryskání uplatní příslušné přepínače bedny a stav Vyrovnaná/Otryskaná. Upozornění na neúplný ceník ověřuje pouze operace skutečně účtované alespoň u jedné bedny dané zakázky zahrnuté do tohoto PDF. Vypnuté operace ani bedny mimo vybraný snímek samy varování nevyvolají; chybějící cena účtované operace se dál ohlásí.
 
+Ocenění respektuje aktuální zákaznickou volbu **Proforma po bednách**. Při Ne se pro každou operaci zakázky násobí součet zahrnutých hmotností ceníkovou sazbou a výsledek se zaokrouhlí na cent HALF_UP. Při Ano se sčítají jednotlivě zaokrouhlené částky zahrnutých beden. Tento režim je uveden i v PDF; u ocenění po bednách může částka řádku zakázky o centy překročit nebo podkročit součin zobrazené hmotnosti a sazby. Souhrn zákazníka vždy sčítá částky řádků zakázek, nepřepočítává je průměrnou sazbou.
+
+Do částek se nesmí přičíst bedny mimo vybraný snímek, ani když patří ke stejné zakázce. Pro shodný výběr beden, stejné aktuální údaje a stejný režim fakturace tak rozpracovanost odpovídá proformě. Podrobná pravidla jsou v [manuálu beden](manual_bedna.md#ceníkové-sazby-a-účtované-částky).
+
 Opětovně vytištěné PDF stejného záznamu se proto může lišit od dříve uloženého PDF. Změna hmotnosti, cen, příznaku Fakturovat nebo navazujících údajů ovlivní výsledek; smazaná bedna už není dostupná jako živá vazba. Při porovnávání uchovávejte vydaný soubor a ověřte čas snímku i čas tisku. To je jiný rozsah uchování než u neměnného případu v Evidenci neshod.
 
 ## 12. Aktualizace obrazovek a přístup

@@ -15,7 +15,12 @@ from datetime import datetime, timedelta
 from simple_history.models import HistoricalRecords
 
 import re
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal
+
+from .billing import (
+    billed_amount, is_operation_billable, operation_conditions,
+    operation_unit_price, summarize_operation,
+)
 
 from .choices import (
     StavBednyChoice,
@@ -222,20 +227,37 @@ class Kamion(models.Model):
 
     @property
     def hmotnost_fakturovaneho_kaleni(self):
-        if self.prijem_vydej not in (KamionChoice.PRIJEM, KamionChoice.VYDEJ):
-            raise ValidationError('Neplatný typ kamionu.')
-        relation = 'zakazka__kamion_vydej' if self.prijem_vydej == KamionChoice.VYDEJ else 'zakazka__kamion_prijem'
-        return Bedna.objects.filter(**{relation: self}, fakturovat=True, fakturovat_kaleni=True).aggregate(
+        """Hmotnost beden účtovaných za kalení, bez vlivu ostatních operací."""
+        return self._bedny_fakturovane_operace('kaleni').aggregate(
             suma=Sum('hmotnost'),
         )['suma'] or Decimal('0.0')
 
     @property
     def pocet_beden_fakturovaneho_kaleni(self):
         """Počet beden zahrnutých do fakturace kalení tohoto kamionu."""
+        return self._bedny_fakturovane_operace('kaleni').count()
+
+    def _bedny_fakturovane_operace(self, operation):
+        """Stejné podmínky zahrnutí jako při výpočtu částky dané operace."""
         if self.prijem_vydej not in (KamionChoice.PRIJEM, KamionChoice.VYDEJ):
             raise ValidationError('Neplatný typ kamionu.')
         relation = 'zakazka__kamion_vydej' if self.prijem_vydej == KamionChoice.VYDEJ else 'zakazka__kamion_prijem'
-        return Bedna.objects.filter(**{relation: self}, fakturovat=True, fakturovat_kaleni=True).count()
+        return Bedna.objects.filter(**{relation: self}, **operation_conditions(operation))
+
+    def _cena_operace_za_kamion_vydej(self, operation):
+        """Součet částek řádků zakázek ve způsobu fakturace zákazníka výdeje.
+
+        Po bednách zahrnují částky zakázek součet zaokrouhlených beden;
+        po zakázkách součin hmotnosti a sazby zaokrouhlený za každou zakázku.
+        Celý kamion se znovu neoceňuje souhrnnou hmotností ani průměrnou sazbou.
+        """
+        if self.prijem_vydej != KamionChoice.VYDEJ:
+            return Decimal('0.00')
+        return sum(
+            (order.get_billing_summary(operation, per_crate=self.zakaznik.proforma_po_bednach).total
+             for order in self.zakazky_vydej.select_related('kamion_prijem__zakaznik').prefetch_related('bedny')),
+            Decimal('0.00'),
+        )
 
     @property
     def fakturovat_rovnani(self):
@@ -266,86 +288,31 @@ class Kamion(models.Model):
     
     @property
     def cena_za_kamion_vydej(self):
-        """
-        Vrací cenu za kamion výdej na základě zákazníka, předpisu a délky, pouze pro kamionu výdej.
-        Celkovou cenu vypočte podle property cena_za_zakazku pro jednotlivé zakázky v kamionu.
-        Neobsahuje bedny, které mají fakturovat=False.
-        Pokud není cena nalezena, vrací 0.
-        """
-        # Získá všechny zakázky obsažené v kamionu.        
-        zakazky = self.zakazky_vydej.all()
-        if zakazky.exists() and self.prijem_vydej == KamionChoice.VYDEJ:
-            return Decimal(
-                sum(
-                    Decimal(zakazka.cena_za_zakazku) for zakazka in zakazky
-                ).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-            )
-        return Decimal('0.00')
+        """Účtované kalení výdeje v EUR, součet řádků podle režimu zákazníka."""
+        return self._cena_operace_za_kamion_vydej('kaleni')
     
     @property
     def cena_rovnani_za_kamion_vydej(self):
-        """
-        Vrací cenu rovnání za kamion výdej na základě zákazníka, předpisu a délky, pouze pro kamionu výdej.
-        Celkovou cenu vypočte podle property cena_rovnani_za_zakazku pro jednotlivé zakázky v kamionu.
-        Neobsahuje bedny, které mají fakturovat=False.
-        Pokud není cena nalezena, vrací 0.
-        """
-        # Získá všechny zakázky obsažené v kamionu.        
-        zakazky = self.zakazky_vydej.all()
-        if zakazky.exists() and self.prijem_vydej == KamionChoice.VYDEJ:
-            return Decimal(
-                sum(
-                    Decimal(zakazka.cena_rovnani_za_zakazku) for zakazka in zakazky
-                ).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-            )
-        return Decimal('0.00')
+        """Účtované rovnání výdeje v EUR, součet řádků podle režimu zákazníka."""
+        return self._cena_operace_za_kamion_vydej('rovnani')
 
     @property
     def pocet_vyrovnanych_beden(self):
-        """
-        Vrací celkový počet vyrovnaných beden spojených s kamionem výdej.
-        Neobsahuje bedny, které mají fakturovat=False.
-        """
+        """Počet vyrovnaných beden výdeje s hlavním i dílčím Fakturovat = Ano."""
         if self.prijem_vydej == KamionChoice.VYDEJ:
-            return Bedna.objects.filter(
-                zakazka__kamion_vydej=self,
-                rovnat=RovnaniChoice.VYROVNANA,
-                fakturovat_rovnani=True,
-                fakturovat=True
-            ).count()
+            return self._bedny_fakturovane_operace('rovnani').count()
         return 0
     
     @property
     def cena_tryskani_za_kamion_vydej(self):
-        """
-        Vrací cenu tryskání za kamion výdej na základě zákazníka, předpisu a délky, pouze pro kamionu výdej.
-        Celkovou cenu vypočte podle property cena_tryskani_za_zakazku pro jednotlivé zakázky v kamionu.
-        Neobsahuje bedny, které mají fakturovat=False.
-        Pokud není cena nalezena, vrací 0.
-        """
-        # Získá všechny zakázky obsažené v kamionu.        
-        zakazky = self.zakazky_vydej.all()
-        if zakazky.exists() and self.prijem_vydej == KamionChoice.VYDEJ:
-            return Decimal(
-                sum(
-                    Decimal(zakazka.cena_tryskani_za_zakazku) for zakazka in zakazky
-                ).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-            )
-        return Decimal('0.00')
+        """Účtované tryskání výdeje v EUR, součet řádků podle režimu zákazníka."""
+        return self._cena_operace_za_kamion_vydej('tryskani')
     
     @property
     def pocet_otryskanych_beden(self):
-        """
-        Vrací celkový počet otryskaných beden spojených s kamionem výdej.
-        Neobsahuje bedny, které mají fakturovat=False.
-        """
+        """Počet otryskaných beden výdeje s hlavním i dílčím Fakturovat = Ano."""
         if self.prijem_vydej == KamionChoice.VYDEJ:
-            return Bedna.objects.filter(
-                zakazka__kamion_vydej=self,
-                tryskat=TryskaniChoice.OTRYSKANA,
-                fakturovat_tryskani=True,
-                fakturovat=True
-            ).count()
+            return self._bedny_fakturovane_operace('tryskani').count()
         return 0
 
     @property
@@ -419,30 +386,16 @@ class Kamion(models.Model):
 
     @property
     def hmotnost_otryskanych_beden(self):
-        """
-        Vrací pro kamion výdej celkovou hmotnost beden, které mají stav tryskání: otryskaná a fakturovat=True.
-        """
+        """Hmotnost otryskaných beden výdeje s hlavním i dílčím Fakturovat = Ano."""
         if self.prijem_vydej == KamionChoice.VYDEJ:
-            return Bedna.objects.filter(
-                zakazka__kamion_vydej=self,
-                tryskat=TryskaniChoice.OTRYSKANA,
-                fakturovat_tryskani=True,
-                fakturovat=True
-            ).aggregate(suma=Sum('hmotnost'))['suma'] or Decimal('0.0')
+            return self._bedny_fakturovane_operace('tryskani').aggregate(suma=Sum('hmotnost'))['suma'] or Decimal('0.0')
         raise ValidationError(_("Neplatný typ kamionu. Musí být buď 'Přijem' nebo 'Výdej'."))
 
     @property
     def hmotnost_vyrovnanych_beden(self):
-        """
-        Vrací pro kamion výdej celkovou hmotnost beden, které mají stav rovnání: vyrovnaná a fakturovat=True.
-        """
+        """Hmotnost vyrovnaných beden výdeje s hlavním i dílčím Fakturovat = Ano."""
         if self.prijem_vydej == KamionChoice.VYDEJ:
-            return Bedna.objects.filter(
-                zakazka__kamion_vydej=self,
-                rovnat=RovnaniChoice.VYROVNANA,
-                fakturovat_rovnani=True,
-                fakturovat=True
-            ).aggregate(suma=Sum('hmotnost'))['suma'] or Decimal('0.0')
+            return self._bedny_fakturovane_operace('rovnani').aggregate(suma=Sum('hmotnost'))['suma'] or Decimal('0.0')
         raise ValidationError(_("Neplatný typ kamionu. Musí být buď 'Přijem' nebo 'Výdej'."))  
 
     def get_admin_url(self):
@@ -720,12 +673,13 @@ class Zakazka(models.Model):
 
     @property
     def hmotnost_fakturovaneho_kaleni(self):
-        return self.bedny.filter(fakturovat=True, fakturovat_kaleni=True).aggregate(suma=Sum('hmotnost'))['suma'] or Decimal('0.0')
+        """Hmotnost týchž beden, které vstupují do účtované částky kalení."""
+        return self.bedny.filter(**operation_conditions('kaleni')).aggregate(suma=Sum('hmotnost'))['suma'] or Decimal('0.0')
 
     @property
     def pocet_beden_fakturovaneho_kaleni(self):
         """Počet beden zahrnutých do fakturace kalení této zakázky."""
-        return self.bedny.filter(fakturovat=True, fakturovat_kaleni=True).count()
+        return self.bedny.filter(**operation_conditions('kaleni')).count()
     
     @property
     def pocet_beden(self):
@@ -762,12 +716,11 @@ class Zakazka(models.Model):
     @property
     def cena_za_kg(self):
         """
-        Vrací cenu zboží v zakázce v EUR/kg.
-        Výpočet ceny se provádí na základě předpisu, délky a zákazníka.
-        1. Najde se předpis, zákazník a délka z bedny/zakázky.
-        2. Pokud není předpis nebo zákazník, vrací 0.
-        3. Najde se cena v tabulce Cena podle předpisu, délky a zákazníka.
-        4. Pokud je cena nalezena, vrátí se cena_za_kg, jinak 0.
+        Ceníková cena kalení v EUR/kg podle předpisu, zákazníka a délky.
+
+        Přepínače fakturace ani stavy beden sazbu nemění. Délka spadá do
+        intervalu od včetně / do vyjma. Chybějící nebo nejednoznačný ceník
+        vrací pro zobrazení nulu; vydání proformy pro účtovanou operaci blokuje.
         """
         predpis = self.predpis
         zakaznik = self.kamion_prijem.zakaznik
@@ -795,17 +748,24 @@ class Zakazka(models.Model):
 
         return cena.cena_za_kg or Decimal('0.00')
            
+    def get_billing_summary(self, operation, *, crates=None, per_crate=None):
+        """Počet, hmotnost a účtovaná částka jedné operace v režimu zákazníka.
+
+        Po zakázkách se zaokrouhlí až součin hmotnosti a sazby. Po bednách
+        se sčítají již zaokrouhlené částky beden. Volitelný výběr crates umožní
+        ocenit jen část zakázky; explicitní režim per_crate určuje proforma výdeje.
+        """
+        if per_crate is None:
+            per_crate = self.kamion_prijem.zakaznik.proforma_po_bednach
+        return summarize_operation(
+            self.bedny.all() if crates is None else crates,
+            operation, operation_unit_price(self, operation), per_crate=per_crate,
+        )
+
     @property
     def cena_za_zakazku(self):
-        """
-        Vrací cenu zboží v zakázce v EUR/bednu.
-        Výpočet se provádí jakou součet ceny za bednu pro všechny bedny v zakázce,
-        které mají nastaveno fakturovat=True.
-        """
-        return sum(
-            (bedna.cena_za_bednu for bedna in self.bedny.filter(fakturovat=True)),
-            Decimal('0.00'),
-        )
+        """Účtované kalení zakázky v EUR, zaokrouhlené dle způsobu fakturace."""
+        return self.get_billing_summary('kaleni').total
 
     @property
     def prvni_bedna_v_zakazce(self):
@@ -817,7 +777,7 @@ class Zakazka(models.Model):
 
     @property
     def cena_rovnani_za_kg(self):
-        """Sazba z ceníku; volbu účtovat určuje konkrétní bedna."""
+        """Ceníková sazba rovnání EUR/kg, nezávislá na stavech a fakturaci beden."""
         predpis = self.predpis
         zakaznik = self.kamion_prijem.zakaznik
         delka = self.delka
@@ -845,19 +805,12 @@ class Zakazka(models.Model):
 
     @property
     def cena_rovnani_za_zakazku(self):
-        """
-        Vrací cenu rovnání v zakázce v EUR/zakazka.
-        Výpočet se provádí jakou součet ceny rovnani za bednu pro všechny bedny v zakázce,
-        které mají nastaveno fakturovat=True.
-        """
-        return sum(
-            (bedna.cena_rovnani_za_bednu for bedna in self.bedny.filter(fakturovat=True)),
-            Decimal('0.00'),
-        )
+        """Účtované rovnání zakázky v EUR, pouze zapnuté a vyrovnané bedny."""
+        return self.get_billing_summary('rovnani').total
 
     @property
     def cena_tryskani_za_kg(self):
-        """Sazba z ceníku; volbu účtovat určuje konkrétní bedna."""
+        """Ceníková sazba tryskání EUR/kg, nezávislá na stavech a fakturaci beden."""
         predpis = self.predpis
         zakaznik = self.kamion_prijem.zakaznik
         delka = self.delka
@@ -885,59 +838,32 @@ class Zakazka(models.Model):
             
     @property
     def cena_tryskani_za_zakazku(self):
-        """
-        Vrací cenu tryskání v zakázce v EUR/zakazka.
-        Výpočet se provádí jakou součet ceny tryskani za bednu pro všechny bedny v zakázce,
-        které mají nastaveno fakturovat=True.
-        """
-        return sum(
-            (bedna.cena_tryskani_za_bednu for bedna in self.bedny.filter(fakturovat=True)),
-            Decimal('0.00'),
-        )
+        """Účtované tryskání zakázky v EUR, pouze zapnuté a otryskané bedny."""
+        return self.get_billing_summary('tryskani').total
+
+    cena_za_kg.fget.short_description = 'Ceníková cena kalení za kg'
+    cena_rovnani_za_kg.fget.short_description = 'Ceníková cena rovnání za kg'
+    cena_tryskani_za_kg.fget.short_description = 'Ceníková cena tryskání za kg'
 
     @property
     def hmotnost_vyrovnanych_beden(self):
-        """
-        Vrací celkovou hmotnost vyrovnaných beden v zakázce, které mají nastaveno fakturovat=True.
-        """
-        return self.bedny.filter(
-            rovnat=RovnaniChoice.VYROVNANA,
-            fakturovat_rovnani=True,
-            fakturovat=True
-        ).aggregate(suma=Sum('hmotnost'))['suma'] or Decimal('0.0')
+        """Hmotnost vyrovnaných beden zakázky s hlavním i dílčím Fakturovat = Ano."""
+        return self.bedny.filter(**operation_conditions('rovnani')).aggregate(suma=Sum('hmotnost'))['suma'] or Decimal('0.0')
     
     @property
     def hmotnost_otryskanych_beden(self):
-        """
-        Vrací celkovou hmotnost otryskaných beden v zakázce.
-        """
-        return self.bedny.filter(
-            tryskat=TryskaniChoice.OTRYSKANA,
-            fakturovat_tryskani=True,
-            fakturovat=True
-        ).aggregate(suma=Sum('hmotnost'))['suma'] or Decimal('0.0')
+        """Hmotnost otryskaných beden zakázky s hlavním i dílčím Fakturovat = Ano."""
+        return self.bedny.filter(**operation_conditions('tryskani')).aggregate(suma=Sum('hmotnost'))['suma'] or Decimal('0.0')
 
     @property
     def pocet_vyrovnanych_beden(self):
-        """
-        Vrací počet vyrovnaných beden v zakázce, které mají nastaveno fakturovat=True.
-        """
-        return self.bedny.filter(
-            rovnat=RovnaniChoice.VYROVNANA,
-            fakturovat_rovnani=True,
-            fakturovat=True
-        ).count()
+        """Počet vyrovnaných beden zakázky s hlavním i dílčím Fakturovat = Ano."""
+        return self.bedny.filter(**operation_conditions('rovnani')).count()
     
     @property
     def pocet_otryskanych_beden(self):
-        """
-        Vrací počet otryskaných beden v zakázce, které mají nastaveno fakturovat=True.
-        """
-        return self.bedny.filter(
-            tryskat=TryskaniChoice.OTRYSKANA,
-            fakturovat_tryskani=True,
-            fakturovat=True
-        ).count()
+        """Počet otryskaných beden zakázky s hlavním i dílčím Fakturovat = Ano."""
+        return self.bedny.filter(**operation_conditions('tryskani')).count()
     
     @property
     def vyrobni_zakazky_beden(self):
@@ -965,9 +891,10 @@ class Zakazka(models.Model):
     
 
 class Cena(models.Model):
-    """
-    Model pro cenu zakázky.
-    Umožňuje přiřadit cenu k zakázce a sledovat historii změn cen.
+    """Aktuální ceníkové sazby EUR/kg pro zákazníka, předpisy a interval délek.
+
+    Interval délky je od včetně / do vyjma. Sazba neurčuje povinnost účtovat;
+    tu určují uložené přepínače a technologické stavy konkrétní bedny.
     """
     popis = models.CharField(max_length=50, verbose_name='Popis ceny')
     zakaznik = models.ForeignKey(Zakaznik, on_delete=models.CASCADE, related_name='ceny', verbose_name='Zákazník')
@@ -1710,68 +1637,46 @@ class Bedna(models.Model):
     
     @property
     def cena_za_kg(self):
-        """
-        Vrací cenu zboží v bedně v EUR/kg.
-        Pouze přebírá hodnotu z property zakazka.cena_za_kg.
-        """
-        return Decimal('0.00') if not self.fakturovat_kaleni else self.zakazka.cena_za_kg
+        """Ceníková cena kalení EUR/kg, i při vypnuté fakturaci bedny/operace."""
+        return self.zakazka.cena_za_kg
 
     @property
     def cena_za_bednu(self):
-        """
-        Vrací cenu zboží v bedně v EUR/bednu.
-        Výpočet ceny se provádí na základě property cena_za_kg.
-        Pokud je bedna označena jako fakturovat == False, vrací 0.
-        """
-        if not self.fakturovat or not self.fakturovat_kaleni:
+        """Účtované kalení bedny v EUR, HALF_UP na cent; vypnutá fakturace = 0."""
+        if not is_operation_billable(self, 'kaleni'):
             return Decimal('0.00')
-        return Decimal(self.cena_za_kg * self.hmotnost).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP) if self.hmotnost else Decimal('0.00')
+        return billed_amount(self.hmotnost, self.cena_za_kg)
     
     @property
     def cena_rovnani_za_kg(self):
-        """
-        Vrací cenu zboží v bedně v EUR/kg.
-        Přebírá se hodnotu z property cena_rovnani_za_kg zakázky, ale pouze pokud je bedna vyrovnaná, jinak je hodnota 0.
-        """
-        vyrovnana = self.rovnat == RovnaniChoice.VYROVNANA
-
-        if vyrovnana and self.fakturovat_rovnani:
-            return self.zakazka.cena_rovnani_za_kg
-        return Decimal('0.00')  
+        """Ceníková cena rovnání EUR/kg bez ohledu na stav a fakturaci bedny."""
+        return self.zakazka.cena_rovnani_za_kg
 
     @property
     def cena_rovnani_za_bednu(self):
-        """
-        Vrací cenu rovnání bedny v EUR/bedna.
-        Výpočet ceny se provádí na základě property cena_rovnani_za_kg.
-        Pokud je bedna označena jako fakturovat == False, vrací 0.
-        """
-        if not self.fakturovat or not self.fakturovat_rovnani:
+        """Účtované rovnání v EUR: hlavní i dílčí Ano a stav Vyrovnaná, jinak 0."""
+        if not is_operation_billable(self, 'rovnani'):
             return Decimal('0.00')
-        return Decimal(self.cena_rovnani_za_kg * self.hmotnost).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP) if self.hmotnost else Decimal('0.00')
+        return billed_amount(self.hmotnost, self.cena_rovnani_za_kg)
 
     @property
     def cena_tryskani_za_kg(self):
-        """
-        Vrací cenu zboží v bedně v EUR/kg.
-        Přebírá se hodnotu z property cena_tryskani_za_kg zakázky, ale pouze pokud je bedna otryskaná, jinak je hodnota 0.
-        """
-        otryskana = self.tryskat == TryskaniChoice.OTRYSKANA
-
-        if otryskana and self.fakturovat_tryskani:
-            return self.zakazka.cena_tryskani_za_kg
-        return Decimal('0.00')
+        """Ceníková cena tryskání EUR/kg bez ohledu na stav a fakturaci bedny."""
+        return self.zakazka.cena_tryskani_za_kg
 
     @property
     def cena_tryskani_za_bednu(self):
-        """
-        Vrací cenu tryskání bedny v EUR/bedna.
-        Výpočet ceny se provádí na základě property cena_tryskani_za_kg.
-        Pokud je bedna označena jako fakturovat == False, vrací 0.
-        """
-        if not self.fakturovat or not self.fakturovat_tryskani:
+        """Účtované tryskání v EUR: hlavní i dílčí Ano a stav Otryskaná, jinak 0."""
+        if not is_operation_billable(self, 'tryskani'):
             return Decimal('0.00')
-        return Decimal(self.cena_tryskani_za_kg * self.hmotnost).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP) if self.hmotnost else Decimal('0.00')
+        return billed_amount(self.hmotnost, self.cena_tryskani_za_kg)
+
+    cena_za_kg.fget.short_description = 'Ceníková cena kalení za kg'
+    cena_rovnani_za_kg.fget.short_description = 'Ceníková cena rovnání za kg'
+    cena_tryskani_za_kg.fget.short_description = 'Ceníková cena tryskání za kg'
+    cena_za_bednu.fget.short_description = 'Účtovaná cena kalení za bednu'
+    cena_rovnani_za_bednu.fget.short_description = 'Účtovaná cena rovnání za bednu'
+    cena_tryskani_za_bednu.fget.short_description = 'Účtovaná cena tryskání za bednu'
 
     # --- Delete guards ---
     def delete(self, using=None, keep_parents=False):

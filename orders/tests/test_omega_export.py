@@ -113,6 +113,10 @@ class OmegaExportTests(TestCase):
         note = build_spx_delivery_note(self.outgoing)
         self.assertEqual([line.total for line in note.lines], [Decimal('0.11'), Decimal('0.11')])
         self.assertEqual(note.total, Decimal('0.22'))
+        self.assertEqual(note.total, self.order.cena_za_zakazku)
+        self.assertEqual(note.total, self.outgoing.cena_za_kamion_vydej)
+        html = render_to_string('orders/proforma_faktura_po_bednach.html', {'kamion': self.outgoing})
+        self.assertIn('0,22', html)
 
     def test_each_order_uses_its_own_length_interval_price(self):
         price = Cena.objects.create(
