@@ -77,21 +77,24 @@
         {% endif %}"
         style="width: 100%; table-layout: fixed;
         {% if uctovat_rovnani and uctovat_tryskani %}
+            --w-position: 1%;
             --w-small: 4%;
             --w-medium: 6%;
             --w-large: 10%;
         {% elif uctovat_rovnani or uctovat_tryskani %}
+            --w-position: 2%;
             --w-small: 6%;
             --w-medium: 8%;
             --w-large: 12%;
         {% else %}
+            --w-position: 3%;
             --w-small: 8%;
             --w-medium: 12%;
             --w-large: 20%;
         {% endif %}
         ">
         <colgroup>
-            <col style="width: var(--w-small);">   {# Pozice #}
+            <col style="width: var(--w-position);">   {# Pozice #}
             <col style="width: var(--w-medium);">   {# Výr.č./Obj.č. #}
             <col style="width: var(--w-medium);">   {# Zakázka #}
             <col style="width: var(--w-large);">    {# Popis #}
