@@ -18,7 +18,7 @@ import json
 from orders.models import (
     Zakaznik, Kamion, Zakazka, Bedna, Predpis, TypHlavy,
     Odberatel, Pozice, PoziceZakazkaOrder, Rozpracovanost, RozpracovanostBednaSnapshot, Cena,
-    Zarizeni, Sarze, SarzeKrok, SarzeKrokBedna,
+    Zarizeni, Sarze, SarzeKrok, SarzeKrokBedna, KontrolaBedny,
 )
 from orders.choices import (
     KamionChoice,
@@ -2551,6 +2551,7 @@ class StatusChangeActionsTests(ActionsBase):
             StavBednyChoice.ZKONTROLOVANO,
             zinkovat=ZinkovaniChoice.ZINKOVAT,
         )
+        KontrolaBedny.objects.create(bedna=bedna, cistota='OK', ulozeni='OK', uvolneni='UV')
         bedna.cislo_bedny = 123
         bedna.hmotnost = Decimal('2.5')
         bedna.mnozstvi = 4

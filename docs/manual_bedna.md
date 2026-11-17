@@ -133,6 +133,15 @@ Toto pravidlo samo nevyžaduje existenci kontroly ani výslovné uvolnění: chy
 
 Samostatně se blokují **nepotvrzené změny měření**. Dokud po změně měření úspěšně neuložíte výstupní kontrolu, nelze bednu označit K expedici ani expedovat, a to ani v jiném okně či přes hromadnou akci. Ochrana platí v adminu, expedičních službách i při vracení zakázky z expedice; hlášení uvede dotčené bedny. Původní uložené Uvolněno a staré technologické stavy čekající potvrzení nenahrazují.
 
+Stejné podmínky ověřují pod zámkem také samotné expediční služby při programovém
+volání. Expedice vybraných beden vyžaduje u všech stav **K expedici**, přípustné
+technologické stavy a zrušené pozastavení. Expedice zakázek přesouvá pouze jejich
+bedny K expedici; Neshoda jiné bedny ponechané ve výrobě ji neblokuje.
+Pozastavená bedna ve vybrané zakázce však blokuje expedici celé zakázky, stejně
+jako v admin akci. Při chybě se nevytvoří kamion ani oddělená zakázka a neuloží
+se částečné přesuny ani jejich historie. Výjimka pro starší běžné bedny
+bez elektronické kontroly nebo s nerozhodnutým uvolněním zůstává zachovaná.
+
 Hromadná akce **Změna stavu bedny na Zkontrolováno** již není dostupná. Detail bedny, inline v zakázce i editace seznamu dovolí uložit Zkontrolováno pouze s úplnou kontrolou odpovídající aktuálním výsledkům a limitům, bez čekajícího potvrzení měření. Jde o stejné věcné podmínky jako u tlačítka Dokončit kontrolu bedny. Při přechodu do Zkontrolováno se zároveň automaticky nastaví Rovnání a Tryskání. Chybějící údaje je nutné nejprve uložit ve výstupní kontrole.
 
 Ve stavech **K expedici a Expedováno** jsou kontrola i naměřené hodnoty pouze pro čtení, a to i se zvláštním oprávněním pro expedované bedny. Pro opravu vraťte bednu K expedici na Zkontrolováno; u expedované bedny nejprve vraťte zakázku z expedice a poté bednu na Zkontrolováno. Podrobnosti jsou v [manuálu kontroly beden](manual_kontrola_beden.md).
@@ -141,9 +150,30 @@ Ve stavech **K expedici a Expedováno** jsou kontrola i naměřené hodnoty pouz
 
 Pro stavy `K_NAVEZENI` a `NAVEZENO` musí být vyplněna `pozice`.
 
+Při potvrzení akce **Změna stavu bedny na K_NAVEZENI** musí řádky formuláře
+přesně odpovídat původně vybraným bednám, bez vynechaných nebo opakovaných čísel.
+Po zamčení se znovu ověří celý výběr, stav **Přijato** a pozastavení. Pokud
+některá bedna mezitím změnila stav, byla pozastavena či odstraněna, celá akce
+se odmítne. Obnovte seznam a proveďte nový výběr. Neprovede se částečný přesun
+ani zápis poznámek k navezení. Překročení kapacity pozice zůstává upozorněním.
+
 ### 4.4 Zinkování V ZINKOVNĚ
 
 Pokud je `zinkovat = V ZINKOVNĚ`, bedna musí být ve stavu `ZKONTROLOVANO`.
+
+Akce **Označit V ZINKOVNĚ a vyexportovat DL** vyžaduje u všech vybraných beden:
+
+- výrobní stav **Zkontrolováno** a zinkování **Zinkovat**,
+- zrušené pozastavení,
+- uloženou výstupní kontrolu s **Uvolněno** nebo **Uvolněno QS s odchylkou**,
+- žádné čekající potvrzení po změně měření.
+
+Podmínky se ověřují po zamčení beden. Jediná nevyhovující bedna odmítne celý
+výběr; stav se nezmění, historie nevznikne a dodací list se nevygeneruje.
+Hlášení o chybějícím uvolnění nebo potvrzení měření uvede čísla beden.
+Uvolněná kontrola se znovu nepřehodnocuje podle pozdější změny zákaznických limitů.
+Samostatný **Export beden se stavem V ZINKOVNĚ do DL** slouží k opakovanému
+vystavení dokladu již odeslaných beden; stav nemění a nové uvolnění nevyžaduje.
 
 ### 4.5 Mazání bedny
 

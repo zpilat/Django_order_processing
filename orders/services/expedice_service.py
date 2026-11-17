@@ -57,7 +57,25 @@ def _lock_bedny(bedny_qs):
     return locked_qs
 
 
+def validate_technologicke_stavy_pro_expedici(bedny_qs):
+    """Společné technologické podmínky expedičních akcí a služeb."""
+    if (
+        bedny_qs.exclude(rovnat__in=[RovnaniChoice.ROVNA, RovnaniChoice.VYROVNANA]).exists()
+        or bedny_qs.exclude(tryskat__in=[TryskaniChoice.CISTA, TryskaniChoice.OTRYSKANA]).exists()
+        or bedny_qs.exclude(zinkovat__in=[ZinkovaniChoice.NEZINKOVAT, ZinkovaniChoice.UVOLNENO]).exists()
+    ):
+        raise ServiceValidationError(
+            'Pro expedici musí být rovnání Rovná/Vyrovnaná, tryskání Čistá/Otryskaná a zinkování Nezinkovat/Uvolněno.'
+        )
+
+
 def validate_expedice_preconditions(*, bedny_qs=None, zakazky_qs=None, check_only_k_expedici=True):
+    """Ověří stav, pozastavení, technologické stavy a uložené rozhodnutí.
+
+    U zakázek se expedují jen bedny K expedici; ostatní mohou zůstat ve výrobě.
+    Pozastavení kterékoliv bedny vybrané zakázky blokuje operaci stejně jako
+    v admin akci. Starší běžné bedny bez elektronické kontroly zůstávají přípustné.
+    """
     errors = []
 
     if bedny_qs is not None:
@@ -70,21 +88,22 @@ def validate_expedice_preconditions(*, bedny_qs=None, zakazky_qs=None, check_onl
         errors.append("Není vybrána žádná zakázka.")
 
     if bedny_qs is not None:
+        selected_bedny = bedny_qs
         bedny_ke_kontrole = bedny_qs.filter(stav_bedny=StavBednyChoice.K_EXPEDICI)
     elif zakazky_qs is not None:
-        bedny_ke_kontrole = Bedna.objects.filter(zakazka__in=zakazky_qs, stav_bedny=StavBednyChoice.K_EXPEDICI)
+        selected_bedny = Bedna.objects.filter(zakazka__in=zakazky_qs)
+        bedny_ke_kontrole = selected_bedny.filter(stav_bedny=StavBednyChoice.K_EXPEDICI)
     else:
+        selected_bedny = Bedna.objects.none()
         bedny_ke_kontrole = Bedna.objects.none()
 
-    if bedny_ke_kontrole.exists():
-        if (
-            bedny_ke_kontrole.exclude(rovnat__in=[RovnaniChoice.ROVNA, RovnaniChoice.VYROVNANA]).exists()
-            or bedny_ke_kontrole.exclude(tryskat__in=[TryskaniChoice.CISTA, TryskaniChoice.OTRYSKANA]).exists()
-            or bedny_ke_kontrole.exclude(zinkovat__in=[ZinkovaniChoice.NEZINKOVAT, ZinkovaniChoice.UVOLNENO]).exists()
-        ):
-            errors.append(
-                "Pro expedici musí být rovnání Rovná/Vyrovnaná, tryskání Čistá/Otryskaná a zinkování Nezinkovat/Uvolněno."
-            )
+    if selected_bedny.filter(pozastaveno=True).exists():
+        errors.append('Nelze expedovat pozastavené bedny ani zakázky obsahující pozastavené bedny.')
+
+    try:
+        validate_technologicke_stavy_pro_expedici(bedny_ke_kontrole)
+    except ServiceValidationError as exc:
+        errors.append(str(exc))
 
     try:
         validate_bedny_pro_expedici(bedny_ke_kontrole)
@@ -111,10 +130,13 @@ def _clone_zakazka_for_expedice(zakazka):
 
 @transaction.atomic
 def expedice_zakazek_do_existujiciho_kamionu(*, zakazky_qs, kamion_vydej, actor=None):
+    """Pod zámkem ověří podmínky a expeduje připravenou část vybraných zakázek."""
     result = ExpediceResult()
     actor_name = resolve_actor_name(actor)
-    locked_bedny = _lock_bedny(Bedna.objects.filter(zakazka__in=zakazky_qs))
-    validate_bedny_pro_expedici(locked_bedny.filter(stav_bedny=StavBednyChoice.K_EXPEDICI))
+    _lock_bedny(Bedna.objects.filter(zakazka__in=zakazky_qs))
+    errors = validate_expedice_preconditions(zakazky_qs=zakazky_qs)
+    if errors:
+        raise ServiceValidationError(' '.join(errors))
 
     for zakazka in zakazky_qs:
         bedny = zakazka.bedny.all()
@@ -156,10 +178,13 @@ def expedice_zakazek_do_existujiciho_kamionu(*, zakazky_qs, kamion_vydej, actor=
 
 @transaction.atomic
 def expedice_beden_do_existujiciho_kamionu(*, bedny_qs, kamion_vydej, actor=None):
+    """Expeduje pouze nepozastavené bedny K expedici splňující společná pravidla."""
     result = ExpediceResult()
     actor_name = resolve_actor_name(actor)
     bedny_qs = _lock_bedny(bedny_qs)
-    validate_bedny_pro_expedici(bedny_qs)
+    errors = validate_expedice_preconditions(bedny_qs=bedny_qs)
+    if errors:
+        raise ServiceValidationError(' '.join(errors))
 
     zakazky = Zakazka.objects.filter(bedny__in=bedny_qs).distinct()
     for zakazka in zakazky:

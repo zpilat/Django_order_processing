@@ -25,7 +25,7 @@ from orders.utils import (
     validate_bedny_pripraveny_k_expedici,
 )
 from orders.models import Bedna, Zakazka, Kamion
-from orders.choices import StavBednyChoice, KamionChoice, ZinkovaniChoice
+from orders.choices import StavBednyChoice, KamionChoice, ZinkovaniChoice, RovnaniChoice, TryskaniChoice
 from .tests_models import ModelsBase
 from django.conf import settings
 
@@ -228,6 +228,9 @@ class UtilitaExpediceZakazekTests(UtilsBase):
             tara=Decimal(1),
             mnozstvi=1,
             stav_bedny=StavBednyChoice.K_EXPEDICI,
+            rovnat=RovnaniChoice.ROVNA,
+            tryskat=TryskaniChoice.CISTA,
+            zinkovat=ZinkovaniChoice.NEZINKOVAT,
         )
         self.bedna1.save()
 
@@ -276,13 +279,22 @@ class UtilitaExpediceBedenTests(UtilsBase):
             tara=Decimal("0.5"),
             mnozstvi=1,
             stav_bedny=state,
+            rovnat=RovnaniChoice.ROVNA,
+            tryskat=TryskaniChoice.CISTA,
+            zinkovat=ZinkovaniChoice.NEZINKOVAT,
         )
 
     def test_utilita_expedice_beden_partial_split(self):
         # Připrav dvě bedny k expedici a jednu ponech neexpedovanou
         self.bedna1.stav_bedny = StavBednyChoice.K_EXPEDICI
+        self.bedna1.rovnat = RovnaniChoice.ROVNA
+        self.bedna1.tryskat = TryskaniChoice.CISTA
+        self.bedna1.zinkovat = ZinkovaniChoice.NEZINKOVAT
         self.bedna1.save()
         self.bedna2.stav_bedny = StavBednyChoice.K_EXPEDICI
+        self.bedna2.rovnat = RovnaniChoice.ROVNA
+        self.bedna2.tryskat = TryskaniChoice.CISTA
+        self.bedna2.zinkovat = ZinkovaniChoice.NEZINKOVAT
         self.bedna2.save()
         treti = self._create_bedna(StavBednyChoice.PRIJATO)
 

@@ -69,6 +69,7 @@ from .choices import (
     TryskaniChoice,
     TypZarizeniChoice,
     ZinkovaniChoice,
+    UvolneniKontrolyChoice,
     PrioritaChoice,
     StavSarzeChoice,
     STAV_BEDNY_SKLADEM,
@@ -1143,7 +1144,9 @@ def oznacit_k_navezeni_action(modeladmin, request, queryset):
     Zkontroluje zda nejsou v querysetu pozastavené bedny a zda jsou všechny ve stavu PRIJATO.
     Pokud nejsou podmínky splněny, akce se přeruší s chybovou hláškou.
     1) GET: zobrazí formset s výběrem pozice pro každou vybranou bednu.
-    2) POST (apply): validace kapacit + uložení (stav PRIJATO -> K_NAVEZENI a přiřazení pozice).
+    2) POST (apply): ověření shody výběru a řádků formuláře, poté pod zámkem
+       opakované ověření PRIJATO a pozastavení. Chyba odmítne celý výběr.
+       Překročení kapacity zůstává pouze upozorněním.
     """
     if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna stavu bedny na K_NAVEZENÍ"):
         return None
@@ -1166,8 +1169,15 @@ def oznacit_k_navezeni_action(modeladmin, request, queryset):
 
     if request.method == "POST" and ("apply" in request.POST or "apply_open_dashboard" in request.POST):
         redirect_requested = "apply_open_dashboard" in request.POST
-        select_ids = request.POST.getlist(admin.helpers.ACTION_CHECKBOX_NAME)
-        qs = Bedna.objects.filter(pk__in=select_ids)            
+        try:
+            select_ids = {int(pk) for pk in request.POST.getlist(admin.helpers.ACTION_CHECKBOX_NAME)}
+        except (TypeError, ValueError):
+            messages.error(request, 'Neplatný výběr beden. Obnovte seznam a vyberte bedny znovu.')
+            return None
+        if not select_ids or select_ids != set(queryset.values_list('pk', flat=True)):
+            messages.error(request, 'Výběr beden se změnil. Obnovte seznam a vyberte bedny znovu.')
+            return None
+        qs = queryset
         if _abort_if_paused_bedny(modeladmin, request, qs, "Změna stavu bedny na K_NAVEZENÍ"):
             return None
 
@@ -1199,7 +1209,12 @@ def oznacit_k_navezeni_action(modeladmin, request, queryset):
         if not formset.is_valid():           
             messages.error(request, "Formulář není validní.")
             return _render_oznacit_k_navezeni(modeladmin, request, qs, formset)
-        
+
+        formularove_ids = [form.cleaned_data['bedna_id'] for form in formset.forms]
+        if set(formularove_ids) != select_ids or len(formularove_ids) != len(select_ids):
+            messages.error(request, 'Řádky formuláře neodpovídají vybraným bednám. Obnovte seznam a výběr.')
+            return None
+
         # Pokud není uvedena pozice u první bedny, znovu se vykreslí s hodnotami a chybou
         aktualni_pozice = formset.forms[0].cleaned_data.get("pozice")
         if not aktualni_pozice:
@@ -1217,10 +1232,18 @@ def oznacit_k_navezeni_action(modeladmin, request, queryset):
         prekrocena_kapacita = 0
 
         with transaction.atomic():
-            vybrane_ids = [f.cleaned_data["bedna_id"] for f in formset.forms]
+            locked_qs = Bedna.objects.select_for_update().filter(pk__in=select_ids).order_by('pk')
             bedny_map = {
-                b.pk: b for b in Bedna.objects.select_for_update().filter(pk__in=vybrane_ids)
+                b.pk: b for b in locked_qs
             }
+            if set(bedny_map) != select_ids or set(queryset.values_list('pk', flat=True)) != select_ids:
+                messages.error(request, 'Výběr beden se změnil. Obnovte seznam a vyberte bedny znovu.')
+                return None
+            if _abort_if_paused_bedny(modeladmin, request, locked_qs, 'Změna stavu bedny na K_NAVEZENÍ'):
+                return None
+            if any(bedna.stav_bedny != StavBednyChoice.PRIJATO for bedna in bedny_map.values()):
+                messages.error(request, 'Některé vybrané bedny už nejsou ve stavu Přijato. Obnovte seznam a výběr.')
+                return None
             pair_note_map = {}
 
             for form in formset.forms:
@@ -1234,10 +1257,7 @@ def oznacit_k_navezeni_action(modeladmin, request, queryset):
                 else:
                     pozice = aktualni_pozice               
 
-                bedna = bedny_map.get(bedna_id)
-                if not bedna:
-                    messages.warning(request, f"Bedna s ID {bedna_id} nebyla nalezena, přeskočena.")
-                    continue
+                bedna = bedny_map[bedna_id]
 
                 pid = pozice.pk
                 # Pokud by přiřazení přesáhlo kapacitu, jen poznačíme pro warning
@@ -1247,6 +1267,8 @@ def oznacit_k_navezeni_action(modeladmin, request, queryset):
                 # Přesun + změna stavu (bez ohledu na kapacitu)
                 bedna.pozice = pozice
                 bedna.stav_bedny = StavBednyChoice.K_NAVEZENI
+                bedna._history_user = request.user
+                bedna._change_reason = 'Příprava k navezení.'
                 bedna.save()
                 pair_key = (pozice.pk, bedna.zakazka_id)
                 note_value = (poznamka_k_navezeni or None)
@@ -2353,28 +2375,49 @@ def oznacit_otryskana_action(modeladmin, request, queryset):
 @admin.action(description="Označit V ZINKOVNĚ a vyexportovat DL", permissions=('change',))
 def odeslat_na_zinkovani_action(modeladmin, request, queryset):
     """
-    Pro bedny ve stavu ZKONTROLOVANO a se zinkováním ZINKOVAT:
-    - přepne zinkovat na V ZINKOVNĚ
-    - vrátí dočasný CSV export pro externí zinkovnu
+    Pod zámkem ověří ZKONTROLOVANO, ZINKOVAT a uložené uvolnění bez
+    nepotvrzených změn měření. Celý výběr přepne na V ZINKOVNĚ s historií
+    a vrátí CSV pro externí zinkovnu. Starší limity znovu nevyhodnocuje.
     """
-    if not queryset.exists():
+    export_ids = set(queryset.values_list('pk', flat=True))
+    if not export_ids:
         return None
 
-    if _abort_if_paused_bedny(modeladmin, request, queryset, "Označit V ZINKOVNĚ a vyexportovat DL"):
-        return None
-
-    if queryset.exclude(stav_bedny=StavBednyChoice.ZKONTROLOVANO).exists():
-        modeladmin.message_user(request, "Všechny vybrané bedny musí být ve stavu ZKONTROLOVANO.", level=messages.ERROR)
-        return None
-
-    if queryset.exclude(zinkovat=ZinkovaniChoice.ZINKOVAT).exists():
-        modeladmin.message_user(request, "Všechny vybrané bedny musí mít zinkování ZINKOVAT.", level=messages.ERROR)
-        return None
-
-    export_ids = list(queryset.values_list('pk', flat=True))
     with transaction.atomic():
+        locked_qs = Bedna.objects.select_for_update(of=('self',)).filter(pk__in=export_ids).order_by('pk')
+        locked_ids = list(locked_qs.values_list('pk', flat=True))
+        if set(locked_ids) != export_ids:
+            modeladmin.message_user(request, 'Výběr beden se změnil. Obnovte seznam a výběr.', level=messages.ERROR)
+            return None
+        if _abort_if_paused_bedny(modeladmin, request, locked_qs, 'Označit V ZINKOVNĚ a vyexportovat DL'):
+            return None
+
+        if locked_qs.exclude(stav_bedny=StavBednyChoice.ZKONTROLOVANO).exists():
+            modeladmin.message_user(request, 'Všechny vybrané bedny musí být ve stavu ZKONTROLOVANO.', level=messages.ERROR)
+            return None
+
+        if locked_qs.exclude(zinkovat=ZinkovaniChoice.ZINKOVAT).exists():
+            modeladmin.message_user(request, 'Všechny vybrané bedny musí mít zinkování ZINKOVAT.', level=messages.ERROR)
+            return None
+
+        nepotvrzene = list(locked_qs.filter(kontrola__vyzaduje_potvrzeni=True).values_list('cislo_bedny', flat=True))
+        if nepotvrzene:
+            modeladmin.message_user(
+                request, 'Před odesláním do zinkovny po změně měření uložte výstupní kontrolu. '
+                f"Bedny: {', '.join(map(str, nepotvrzene))}.", level=messages.ERROR,
+            )
+            return None
+        neuvolnene = list(locked_qs.exclude(kontrola__uvolneni__in=(
+            UvolneniKontrolyChoice.UVOLNENO, UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU,
+        )).values_list('cislo_bedny', flat=True))
+        if neuvolnene:
+            modeladmin.message_user(
+                request, 'Pro odeslání do zinkovny uložte Uvolněno nebo Uvolněno QS s odchylkou. '
+                f"Bedny: {', '.join(map(str, neuvolnene))}.", level=messages.ERROR,
+            )
+            return None
         update_queryset_with_history(
-            queryset, user=request.user,
+            locked_qs, user=request.user,
             change_reason='Odeslání do zinkovny a export dodacího listu.',
             zinkovat=ZinkovaniChoice.V_ZINKOVNE,
         )

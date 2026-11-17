@@ -41,6 +41,7 @@ from .services.expedice_service import (
     expedice_beden_do_existujiciho_kamionu,
     expedice_zakazek_do_existujiciho_kamionu,
     validate_bedny_pro_expedici,
+    validate_technologicke_stavy_pro_expedici,
 )
 from .services.exceptions import ServiceValidationError, ServiceOperationError
 
@@ -401,12 +402,10 @@ def validate_bedny_pripraveny_k_expedici(modeladmin, request, bedny_qs, message=
     if not bedny_ke_kontrole.exists():
         return True
 
-    if (
-        bedny_ke_kontrole.exclude(rovnat__in=[RovnaniChoice.ROVNA, RovnaniChoice.VYROVNANA]).exists()
-        or bedny_ke_kontrole.exclude(tryskat__in=[TryskaniChoice.CISTA, TryskaniChoice.OTRYSKANA]).exists()
-        or bedny_ke_kontrole.exclude(zinkovat__in=[ZinkovaniChoice.NEZINKOVAT, ZinkovaniChoice.UVOLNENO]).exists()
-    ):
-        text = message or "Pro expedici musí být rovnání Rovná/Vyrovnaná, tryskání Čistá/Otryskaná a zinkování Nezinkovat/Uvolněno."
+    try:
+        validate_technologicke_stavy_pro_expedici(bedny_ke_kontrole)
+    except ServiceValidationError as exc:
+        text = message or str(exc)
         try:
             modeladmin.message_user(request, text, level=messages.ERROR)
         except Exception:

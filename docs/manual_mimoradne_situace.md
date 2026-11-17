@@ -38,6 +38,10 @@ Oprava nepřijaté bedny vyžaduje oprávnění `orders.change_neprijata_bedna`;
 
 ## 3. Chybná pozice nebo návrat z přípravy výroby
 
+Starý otevřený formulář K navezení nelze použít k přepsání novějšího stavu bedny.
+Potvrzení ověřuje aktuální výběr, Přijato a pozastavení pod zámkem. Při odmítnutí
+se nepřesune žádná bedna; obnovte seznam a výběr a nejprve ověřte skutečný stav.
+
 - **Nesprávná pozice:** u bedny K navezení nebo Navezeno vyberte správnou pozici a uložte. Zkontrolujte její kapacitu a skutečné umístění bedny.
 - **Zrušený požadavek na navezení:** použijte **Vrátit bedny ze stavu K NAVEZENÍ do stavu PŘIJATO**. Vyžaduje oprávnění ke změně beden.
 - **Bedna byla omylem označena Navezeno:** použijte **Vrátit bedny ze stavu NAVEZENO do stavu PŘIJATO**. Vyžaduje `orders.mark_bedna_navezeno`.

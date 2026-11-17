@@ -139,7 +139,12 @@ Připravenost neodvozujte jen z barvy řádku nebo indikátoru **Komplet**. Komp
 
 Od **K expedici** jsou kontrola a měření pouze pro čtení. Pro opravu vraťte bednu na Zkontrolováno; u Expedováno nejprve vraťte celou zakázku z expedice. Oprávnění správce ani právo upravovat expedované bedny tento zákaz zápisu měření neruší. Viz [opravy](manual_mimoradne_situace.md#7-oprava-po-expedici-nebo-špatný-kamion-výdej).
 
-Zinkování **V zinkovně** lze zadat pouze u bedny Zkontrolováno. Jednotlivé fáze zinkování evidujte podle skutečnosti; dokončení kontroly zinkování samo nemění.
+Zinkování **V zinkovně** lze zadat pouze u bedny Zkontrolováno. Akce pro odeslání
+do zinkovny s exportem DL navíc vyžaduje stav Zinkovat, nepozastavené bedny,
+uložené Uvolněno nebo Uvolněno QS s odchylkou a žádné nepotvrzené změny měření.
+Vše ověřuje pod zámkem pro celý výběr. Samostatný opakovaný export dokladu
+již odeslaných beden stav nemění. Jednotlivé fáze zinkování evidujte podle
+skutečnosti; dokončení kontroly zinkování samo nemění.
 
 ## 7. Stav šarže a ukončení kroků
 

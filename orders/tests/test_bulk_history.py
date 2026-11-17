@@ -6,7 +6,7 @@ from django.http import HttpResponse
 
 from orders import actions
 from orders.choices import StavBednyChoice, ZinkovaniChoice, STAV_BEDNY_ROZPRACOVANOST
-from orders.models import Bedna, Pozice, PoziceZakazkaOrder, Zakazka
+from orders.models import Bedna, KontrolaBedny, Pozice, PoziceZakazkaOrder, Zakazka
 from orders.services.history_service import update_queryset_with_history
 from orders.tests.tests_actions import ActionsBase, DummyAdmin
 from orders.views import dashboard_bedny_k_navezeni_view
@@ -109,6 +109,8 @@ class BulkActionHistoryTests(BulkHistoryAssertions, ActionsBase):
 
     def test_zinc_dispatch_records_history_even_when_original_filter_no_longer_matches(self):
         bedny = self.create_bedny(StavBednyChoice.ZKONTROLOVANO, zinkovat=ZinkovaniChoice.ZINKOVAT)
+        for bedna in bedny:
+            KontrolaBedny.objects.create(bedna=bedna, cistota='OK', ulozeni='OK', uvolneni='UV')
         before = self.history_before(bedny)
         queryset = Bedna.objects.filter(pk__in=before, zinkovat=ZinkovaniChoice.ZINKOVAT)
         with patch('orders.actions.utilita_export_beden_zinkovani_csv', return_value=HttpResponse()) as export:

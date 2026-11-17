@@ -127,6 +127,12 @@ Při expedici beden či zakázek do nového nebo existujícího kamionu se na se
 
 ## 7. Jak systém zpřístupňuje akce
 
+Kontrolu K expedici, technologických stavů, pozastavení, Neshody a nepotvrzených
+měření provádějí také expediční služby při přímém programovém volání, po zamčení
+beden. Nevyhovující operace se vrátí celá zpět včetně případného nového kamionu,
+oddělené zakázky a historie. Starší běžné bedny s papírovou kontrolou mohou
+být nadále expedovány, pokud splňují ostatní expediční podmínky.
+
 `KamionAdmin.get_actions()` dynamicky skrývá akce podle filtru `PrijemVydejFilter`.
 
 Praktický dopad:
