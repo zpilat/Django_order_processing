@@ -45,6 +45,10 @@ Oprava nepřijaté bedny vyžaduje oprávnění `orders.change_neprijata_bedna`;
 
 Návrat na Přijato vymaže skladovou pozici, ale sám neodstraní řádky deníku, kroky šarže, měření ani kontrolu a nevrátí technologické stavy. Pokud už proběhlo fyzické zpracování, musí správnost opravy posoudit odpovědný pracovník výroby. Pozastavené bedny tyto návratové akce blokují; jejich uvolnění řeší kapitola níže.
 
+Návratové akce zapisují do historie každé bedny pracovníka a popis návratu.
+Změna stavu i vymazání pozice se uloží společně s historií; při chybě se vrátí
+celá akce. Podrobnosti uvádí [historie hromadných změn](manual_bedna.md#82-historie-hromadných-změn).
+
 ## 4. Bedna je ve špatné šarži nebo patře
 
 ### Nakládání je ještě otevřené
@@ -104,6 +108,11 @@ Nejprve zjistěte, zda již proběhla skutečná nakládka či předání zbož�
 4. Ověřte nové vazby: běžně se zruší příznak Expedováno a přiřazení kamionu výdej a bedny přejdou na **K expedici**. Pokud jde o oddělenou zakázku a její původní zakázka ještě nebyla expedována, bedny se mohou vrátit do původní zakázky a oddělená zakázka se smaže.
 5. Pro opravu měření vraťte příslušnou bednu z K expedici na Zkontrolováno a postupujte podle předchozí kapitoly.
 6. Po opravě zkontrolujte všechny bedny a proveďte expedici do správného nového či existujícího kamionu výdej. Ověřte zákazníka, odběratele a znovu vygenerujte potřebné doklady.
+
+Vrácení zapisuje autora a popis do historie zakázky i všech vracených beden.
+Při přesunu do původní zakázky historie bedny zachytí společně nový stav i změnu
+zakázky; odstranění oddělené zakázky má vlastní historický záznam. Při chybě se
+pro příslušnou vracenou zakázku neuloží částečné změny ani částečná historie.
 
 Vrácení zakázky samo neodstraní původní kamion výdej. Před případným odstraněním ověřte, zda na něj neodkazují jiné zakázky; výdej s přiřazenými zakázkami nelze smazat.
 

@@ -1,4 +1,31 @@
+from django.db import transaction
 from django.db.models import OuterRef, Q, Subquery
+from simple_history.utils import bulk_update_with_history
+
+
+def update_queryset_with_history(queryset, *, user, change_reason, **changes):
+    """Hromadně uloží konkrétní hodnoty polí i historii s autorem a popisem akce.
+
+    Čerstvé řádky se zamknou před sestavením celých historických záznamů, aby
+    historie zachovala i aktuální hodnoty neměněných polí. Zápis dat a historie
+    tvoří jednu transakci. Stejně jako QuerySet.update() nevolá save() ani
+    validaci modelu; volající zajišťuje pravidla příslušné operace.
+    """
+    model = queryset.model
+    fields = [model._meta.get_field(name).name for name in changes]
+    if not fields:
+        raise ValueError('Musí být zadáno alespoň jedno pole ke změně.')
+
+    with transaction.atomic():
+        objects = list(queryset.select_for_update().order_by('pk'))
+        for obj in objects:
+            for name, value in changes.items():
+                setattr(obj, name, value)
+        return bulk_update_with_history(
+            objects, model, fields,
+            default_user=user,
+            default_change_reason=change_reason,
+        )
 
 
 def history_transitions_to_qs(*, model, field_name, target_value):

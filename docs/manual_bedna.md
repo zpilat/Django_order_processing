@@ -263,6 +263,32 @@ Tisk a export:
 - Chemický pohled umožňuje prohlížet chemická měření a použít jejich export.
 - Při zapnutém přepínači **CHEMIE** (`chemie=1`, vyžaduje oprávnění `orders.filter_chemistry_bedna`) přidá akce **Export vybraných beden do CSV pro zákazníka** na konec za sloupec **kg** sloupce **Ca [%]**, **P [%]** a **Zn [%]**. Platí pro všechny zákazníky i export pro rovnání. Hodnoty používají desetinnou čárku, chybějící měření mají prázdnou buňku. Při vypnutém přepínači se tyto tři sloupce neexportují.
 
+### 8.2 Historie hromadných změn
+
+V historii každé dotčené bedny se ukládá pracovník, čas, popis akce a celý stav
+bedny také při těchto operacích:
+
+- návrat z K navezení, Navezeno nebo rozpracovanosti do Přijato,
+- hromadné označení K expedici,
+- označení V zinkovně spojené s exportem dodacího listu,
+- vrácení zakázky z expedice, včetně případného přesunu beden do původní zakázky,
+- přesun mezi skladovými pozicemi šipkami v přehledu K navezení.
+
+Změna a její historie se ukládají společně: při chybě zápisu historie se neuloží
+ani samotná změna. Při návratu do Přijato a při přesunu K expedici se současně
+vymaže skladová pozice. Fakturační přepínače se těmito akcemi nemění.
+Při vrácení z expedice má autora a popis také změna nebo odstranění oddělené zakázky.
+Pouhý export již evidovaných beden V zinkovně stav nemění a nový záznam nevytváří.
+
+Tyto záznamy vznikají pro nově provedené operace. Starší chybějící historii tato
+úprava zpětně nedoplňuje; u starších porovnání nemusí autor a čas odpovídat
+skutečnému provedení změny.
+
+Technicky hromadné zápisy používají `update_queryset_with_history()` v
+`orders/services/history_service.py`. Funkce načítá a zamyká aktuální řádky,
+ukládá data i historii v jedné transakci a nevolá `save()`, `clean()` ani
+`full_clean()`. Kontroly přípustnosti zůstávají v jednotlivých akcích.
+
 ## 9. Jak systém zpřístupňuje akce
 
 Akce nejsou vždy dostupné. `BednaAdmin.get_actions()` je zapíná/vypíná hlavně podle:

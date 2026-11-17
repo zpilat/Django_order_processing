@@ -58,7 +58,7 @@ from .services.chemistry_import_service import (
     build_chemistry_import_preview,
 )
 from .services.vanta_probe_service import probe_vanta_exports
-from .services.history_service import history_transitions_to_qs
+from .services.history_service import history_transitions_to_qs, update_queryset_with_history
 from .services.atypicky_prubeh_service import prevest_na_atypicky_prubeh
 from django.urls import reverse
 from .forms import VyberKamionVydejForm, OdberatelForm, KNavezeniForm, NavezenoForm, SarzeKrokActionInitForm
@@ -1506,7 +1506,12 @@ def vratit_bedny_ze_stavu_k_navezeni_do_stavu_prijato_action(modeladmin, request
             messages.error(request, "Některé vybrané bedny už nejsou ve stavu K NAVEZENÍ.")
             return None
 
-        vraceno = locked_qs.update(stav_bedny=StavBednyChoice.PRIJATO)
+        vraceno = update_queryset_with_history(
+            locked_qs, user=request.user,
+            change_reason='Vrácení z K navezení do Přijato.',
+            stav_bedny=StavBednyChoice.PRIJATO,
+            pozice=None,
+        )
 
     logger.info(f"Uživatel {request.user} vrátil do stavu PŘIJATO {vraceno} beden.")
     messages.success(request, f"Vráceno do stavu PŘIJATO: {vraceno} beden.")
@@ -1540,7 +1545,12 @@ def vratit_bedny_ze_stavu_navezeno_do_stavu_prijato_action(modeladmin, request, 
             modeladmin.message_user(request, "Některé vybrané bedny už nejsou ve stavu NAVEZENO.", level=messages.ERROR)
             return None
 
-        vraceno = locked_qs.update(stav_bedny=StavBednyChoice.PRIJATO)
+        vraceno = update_queryset_with_history(
+            locked_qs, user=request.user,
+            change_reason='Vrácení z Navezeno do Přijato.',
+            stav_bedny=StavBednyChoice.PRIJATO,
+            pozice=None,
+        )
 
     logger.info(f"Uživatel {request.user} vrátil do stavu PŘIJATO {vraceno} beden.")
     modeladmin.message_user(request, f"Vráceno do stavu PŘIJATO: {vraceno} beden.", level=messages.SUCCESS)
@@ -1574,7 +1584,12 @@ def vratit_bedny_z_rozpracovanosti_do_stavu_prijato_action(modeladmin, request, 
             modeladmin.message_user(request, "Některé vybrané bedny už nejsou v rozpracovanosti.", level=messages.ERROR)
             return None
 
-        vraceno = locked_qs.update(stav_bedny=StavBednyChoice.PRIJATO)
+        vraceno = update_queryset_with_history(
+            locked_qs, user=request.user,
+            change_reason='Vrácení z rozpracovanosti do Přijato.',
+            stav_bedny=StavBednyChoice.PRIJATO,
+            pozice=None,
+        )
 
     logger.info(f"Uživatel {request.user} vrátil do stavu PŘIJATO {vraceno} beden.")
     modeladmin.message_user(request, f"Vráceno do stavu PŘIJATO: {vraceno} beden.", level=messages.SUCCESS)
@@ -1784,7 +1799,12 @@ def oznacit_k_expedici_action(modeladmin, request, queryset):
         except ServiceValidationError as exc:
             modeladmin.message_user(request, str(exc), level=messages.ERROR)
             return None
-        zmeneno = locked_qs.update(stav_bedny=StavBednyChoice.K_EXPEDICI)
+        zmeneno = update_queryset_with_history(
+            locked_qs, user=request.user,
+            change_reason='Hromadné označení K expedici.',
+            stav_bedny=StavBednyChoice.K_EXPEDICI,
+            pozice=None,
+        )
 
     modeladmin.message_user(request, f"Změněno na K EXPEDICI: {zmeneno} beden.", level=messages.SUCCESS)
     logger.info(f"Uživatel {request.user} změnil stav na K_EXPEDICI u {zmeneno} beden.")
@@ -2349,7 +2369,11 @@ def odeslat_na_zinkovani_action(modeladmin, request, queryset):
 
     export_ids = list(queryset.values_list('pk', flat=True))
     with transaction.atomic():
-        queryset.update(zinkovat=ZinkovaniChoice.V_ZINKOVNE)
+        update_queryset_with_history(
+            queryset, user=request.user,
+            change_reason='Odeslání do zinkovny a export dodacího listu.',
+            zinkovat=ZinkovaniChoice.V_ZINKOVNE,
+        )
 
     # Použijeme čerstvý queryset podle primárních klíčů, aby se neztratil výběr,
     # pokud původní queryset měl filtr na zinkovat=ZINKOVAT a po update by byl prázdný.
@@ -2917,8 +2941,15 @@ def vratit_zakazky_z_expedice_action(modeladmin, request, queryset):
                 if puvodni_zakazka is None or puvodni_zakazka.expedovano:
                     locked_zakazka.expedovano = False
                     locked_zakazka.kamion_vydej = None
+                    locked_zakazka._history_user = request.user
+                    locked_zakazka._change_reason = 'Vrácení zakázky z expedice.'
                     locked_zakazka.save(update_fields=["expedovano", "kamion_vydej"])
-                    locked_bedny_qs.update(stav_bedny=StavBednyChoice.K_EXPEDICI)
+                    update_queryset_with_history(
+                        locked_bedny_qs, user=request.user,
+                        change_reason='Vrácení zakázky z expedice: bedna K expedici.',
+                        stav_bedny=StavBednyChoice.K_EXPEDICI,
+                        pozice=None,
+                    )
                     uspely += 1
                     logger.info(
                         f"Uživatel {request.user} úspěšně vrátil zakázku {locked_zakazka} z expedice do původního stavu."
@@ -2926,11 +2957,16 @@ def vratit_zakazky_z_expedice_action(modeladmin, request, queryset):
                     continue
 
                 # Varianta B: existuje původní zakázka, která ještě není expedována – přesuneme bedny zpět
-                bedny = list(locked_bedny_qs)
-                for bedna in bedny:
-                    bedna.stav_bedny = StavBednyChoice.K_EXPEDICI
-                    bedna.zakazka = puvodni_zakazka
-                Bedna.objects.bulk_update(bedny, ["stav_bedny", "zakazka"])
+                update_queryset_with_history(
+                    locked_bedny_qs, user=request.user,
+                    change_reason=(
+                        'Vrácení z expedice do původní zakázky '
+                        f'(ID {puvodni_zakazka.pk}).'
+                    ),
+                    stav_bedny=StavBednyChoice.K_EXPEDICI,
+                    zakazka=puvodni_zakazka,
+                    pozice=None,
+                )
 
                 if Bedna.objects.filter(zakazka=locked_zakazka).exists():
                     logger.error(
@@ -2943,6 +2979,8 @@ def vratit_zakazky_z_expedice_action(modeladmin, request, queryset):
                     )
                     continue
 
+                locked_zakazka._history_user = request.user
+                locked_zakazka._change_reason = 'Vrácení beden do původní zakázky po expedici.'
                 locked_zakazka.delete()
                 uspely += 1
                 logger.info(

@@ -57,7 +57,7 @@ from .services.sarze_print_service import (
     build_tisk_pruvodky_vruty_response,
     get_tisk_pruvodky_vruty_krok,
 )
-from .services.history_service import history_transitions_to_qs
+from .services.history_service import history_transitions_to_qs, update_queryset_with_history
 from .services.evidence_neshod_service import zaznamenat_neshodu
 from .services.stav_bedny_service import (
     vyhodnotit_tryskani_pri_zakaleni, duvody_neuplne_kontroly,
@@ -4362,8 +4362,13 @@ def dashboard_bedny_k_navezeni_view(request):
                         )
                         target_note_by_zakazka = {o.zakazka_id: o.poznamka_k_navezeni for o in dst_orders}
                         target_nasledne_by_zakazka = {o.zakazka_id: o.nasledne for o in dst_orders}
-                        # přesun beden
-                        Bedna.objects.filter(zakazka_id=zakazka_id, pozice_id=pozice_id).update(pozice_id=target_pozice_id)
+                        # Přesun beden i historie se uloží ve stejné transakci jako pořadí.
+                        update_queryset_with_history(
+                            Bedna.objects.filter(zakazka_id=zakazka_id, pozice_id=pozice_id),
+                            user=request.user,
+                            change_reason=f'Přesun v přehledu K navezení: pozice {pozice_kod} → {prev_kod}.',
+                            pozice_id=target_pozice_id,
+                        )
                         # přepiš pořadí ve zdrojové pozici (bez této zakázky)
                         src_ids = [p.zakazka_id for p in qs if p.zakazka_id != zakazka_id]
                         PoziceZakazkaOrder.objects.filter(pozice_id=pozice_id).delete()
@@ -4418,7 +4423,12 @@ def dashboard_bedny_k_navezeni_view(request):
                         )
                         target_note_by_zakazka = {o.zakazka_id: o.poznamka_k_navezeni for o in dst_orders}
                         target_nasledne_by_zakazka = {o.zakazka_id: o.nasledne for o in dst_orders}
-                        Bedna.objects.filter(zakazka_id=zakazka_id, pozice_id=pozice_id).update(pozice_id=target_pozice_id)
+                        update_queryset_with_history(
+                            Bedna.objects.filter(zakazka_id=zakazka_id, pozice_id=pozice_id),
+                            user=request.user,
+                            change_reason=f'Přesun v přehledu K navezení: pozice {pozice_kod} → {next_kod}.',
+                            pozice_id=target_pozice_id,
+                        )
                         # zdrojová pozice bez této zakázky
                         src_ids = [p.zakazka_id for p in qs if p.zakazka_id != zakazka_id]
                         PoziceZakazkaOrder.objects.filter(pozice_id=pozice_id).delete()

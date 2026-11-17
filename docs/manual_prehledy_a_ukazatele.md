@@ -69,6 +69,11 @@ Označení **Po exspiraci** znamená stáří příjmu podle uvedeného pravidla
 
 **Přehled beden k navezení** (`/bedny/k-navezeni/`) obsahuje pouze bedny K navezení, seskupené podle pozice a zakázky. Zobrazuje také prázdné pozice. Pořadí zakázek a příznak následné práce slouží organizaci navezení; nejsou výrobním stavem ani prioritou zakázky. Při tisku jsou části „nyní“ a následné zakázky oddělené.
 
+Přesun šipkou přes okraj pozice přesune bedny zakázky do sousední pozice.
+Každá přesunutá bedna má v historii pracovníka, čas a popis přesunu se zdrojovou
+a cílovou pozicí. Pozice, historie i nové pořadí se uloží společně. Změna pořadí
+uvnitř stejné pozice polohu beden nemění a nový záznam jejich historie nevytváří.
+
 ## 4. Co přesně znamená Komplet u zakázky
 
 | Indikátor | Význam v administraci Zakázky |
