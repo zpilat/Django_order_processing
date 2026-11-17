@@ -119,7 +119,7 @@ ve stejném vzoru jako tisk vyplněných KKK v administraci beden.
 U zákazníka v části **Kontrola kvality** určuje volba **Vyplněné KKK po zakázkách** způsob stažení:
 
 - **Ne** (výchozí): jedno společné PDF.
-- **Ano**: archiv `KKK_kamion_<ID>.zip` se samostatným PDF pro každou zakázku modelu Zakázka, například `45001234.pdf` podle pole **Artikl / Zakázka**. V jednom PDF jsou všechny dostupné karty dané zakázky v tomto výdeji. I pro jedinou zakázku se stáhne ZIP; před odesláním zákazníkovi jej rozbalte.
+- **Ano**: archiv `KKK_kamion_<číslo DL>.zip`, například `KKK_kamion_EXP-026-2026-ROT.zip`, se samostatným PDF pro každou zakázku modelu Zakázka, například `45001234.pdf` podle pole **Artikl / Zakázka**. V jednom PDF jsou všechny dostupné karty dané zakázky v tomto výdeji. I pro jedinou zakázku se stáhne ZIP; před odesláním zákazníkovi jej rozbalte. Pokud číslo DL chybí, název ZIPu použije ID kamionu.
 
 Různé zakázky se stejným artiklem se neslučují. PDF se jmenuje pouze podle označení zakázky s příponou `.pdf`. Znaky nevhodné pro názvy souborů se nahrazují podtržítkem; při shodě názvů (i bez ohledu na velikost písmen) se doplní ID zakázky, případně další pořadí. ID se přidá také k názvům vyhrazeným ve Windows, například `CON`. Prázdné označení nahradí ID zakázky.
 

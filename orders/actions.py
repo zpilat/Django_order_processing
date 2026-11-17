@@ -6,7 +6,7 @@ from django.template.loader import render_to_string
 from django.shortcuts import render
 from django.db import transaction, IntegrityError, DataError
 from django.utils import timezone
-from django.utils.text import slugify
+from django.utils.text import get_valid_filename, slugify
 from django import forms
 from django.forms import formset_factory
 from django.template.response import TemplateResponse
@@ -968,7 +968,10 @@ def tisk_vyplnenych_karet_kontroly_kvality_kamionu_vydej_action(modeladmin, requ
             'return_url': request.get_full_path(),
         }
         return TemplateResponse(request, 'admin/orders/kamion/filled_quality_cards_print.html', context)
-    zip_filename = f'KKK_kamion_{kamion.pk}.zip' if kamion.zakaznik.vyplnene_kkk_po_zakazkach else None
+    zip_filename = None
+    if kamion.zakaznik.vyplnene_kkk_po_zakazkach:
+        delivery_note = (kamion.cislo_dl or '').strip() or str(kamion.pk)
+        zip_filename = get_valid_filename(f'KKK_kamion_{delivery_note}.zip')
     return _tisk_vyplnenych_karet_kontroly(modeladmin, request, bedny_s_kontrolou, zip_filename=zip_filename)
 
 

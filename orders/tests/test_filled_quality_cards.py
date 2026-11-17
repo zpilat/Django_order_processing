@@ -801,6 +801,8 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
 
     def test_outgoing_zip_contains_one_pdf_per_order_with_only_its_crates(self):
         truck = self.outgoing_truck()
+        truck.cislo_dl = 'EXP-026-2026-ROT'
+        truck.save(update_fields=['cislo_dl'])
         self.customer.vyplnene_kkk_po_zakazkach = True
         self.customer.save(update_fields=['vyplnene_kkk_po_zakazkach'])
         self.create_control()
@@ -825,7 +827,7 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
             renderer.return_value.write_pdf.side_effect = [b'%PDF-first', b'%PDF-second']
             response = self.print_outgoing_truck(Kamion.objects.filter(pk=truck.pk))
         self.assertEqual(response['Content-Type'], 'application/zip')
-        self.assertEqual(response['Content-Disposition'], f'attachment; filename="KKK_kamion_{truck.pk}.zip"')
+        self.assertEqual(response['Content-Disposition'], 'attachment; filename="KKK_kamion_EXP-026-2026-ROT.zip"')
         with ZipFile(BytesIO(response.content)) as archive:
             self.assertIsNone(archive.testzip())
             self.assertEqual(archive.namelist(), ['A1.pdf', '45001235.pdf'])
