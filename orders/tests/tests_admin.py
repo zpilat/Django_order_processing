@@ -2147,6 +2147,41 @@ class BednaAdminTests(AdminBase):
         editable = self.admin.get_list_editable(req)
         self.assertEqual(editable, ['stav_bedny', 'tryskat', 'rovnat', 'zinkovat', 'hmotnost', 'tara', 'poznamka', 'mnozstvi'])
 
+    def test_ready_for_shipment_action_requires_checked_filter_for_get_and_post(self):
+        for method in ('get', 'post'):
+            for state in (None, '', 'RO', 'PE', *StavBednyChoice.values):
+                with self.subTest(method=method, state=state):
+                    url = reverse('admin:orders_bedna_changelist')
+                    if state:
+                        url += f'?stav_bedny={state}'
+                    request = getattr(self.factory, method)(url)
+                    request.user = self.user
+                    self.assertEqual(
+                        'oznacit_k_expedici_action' in self.admin.get_actions(request),
+                        state == StavBednyChoice.ZKONTROLOVANO,
+                    )
+
+    def test_ready_for_shipment_post_without_checked_filter_does_not_run_action(self):
+        bedna = Bedna.objects.get(pk=self.bedna.pk)
+        bedna.stav_bedny = StavBednyChoice.ZKONTROLOVANO
+        bedna.rovnat = RovnaniChoice.ROVNA
+        bedna.tryskat = TryskaniChoice.CISTA
+        bedna.save()
+        count = bedna.history.count()
+        self.client.force_login(self.user)
+        for state in (None, 'RO', StavBednyChoice.ZAKALENO):
+            with self.subTest(state=state):
+                url = reverse('admin:orders_bedna_changelist')
+                if state:
+                    url += f'?stav_bedny={state}'
+                response = self.client.post(url, {
+                    'action': 'oznacit_k_expedici_action', '_selected_action': [bedna.pk],
+                })
+                self.assertEqual(response.status_code, 302)
+                bedna.refresh_from_db()
+                self.assertEqual(bedna.stav_bedny, StavBednyChoice.ZKONTROLOVANO)
+                self.assertEqual(bedna.history.count(), count)
+
     def test_get_actions_filters_zinkovani_by_filter(self):
         def _actions_for(value):
             req = self.get_request({'zinkovani': value})

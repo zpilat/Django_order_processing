@@ -484,7 +484,7 @@ class AtypickyPrubehTests(KontrolaBednyTestBase):
         self.start()
         self.save_control(uvolneni='UV')
         self.qs.update(rovnat=RovnaniChoice.ROVNA, zinkovat=ZinkovaniChoice.NEZINKOVAT)
-        self.client.post(reverse('admin:orders_bedna_changelist'), {
+        self.client.post(reverse('admin:orders_bedna_changelist') + '?stav_bedny=ZK', {
             'action': 'oznacit_k_expedici_action', '_selected_action': [self.bedna.pk],
         })
         self.bedna.refresh_from_db()

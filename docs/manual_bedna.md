@@ -120,6 +120,13 @@ Pro tyto stavy musí být:
 - `rovnat` = Rovná nebo Vyrovnaná,
 - `zinkovat` = Nezinkovat nebo Uvolněno.
 
+Hromadná akce **Změna stavu bedny na K_EXPEDICI** převádí pouze bedny ve stavu
+**Zkontrolováno**. Nabízí se a lze ji provést jen při filtru **Stav bedny →
+Zkontrolováno**. Ze stavů Navezeno, Ve zpracování ani Zakaleno nelze touto akcí
+kontrolu přeskočit; akce se nezobrazí ani při filtru Rozpracováno. Aktuální stav
+se znovu ověřuje po zamčení beden. Obsahuje-li předaný výběr bednu v jiném stavu,
+nepřesune se žádná bedna.
+
 Příslušná výstupní kontrola nesmí mít **Uvolnění = Neshoda**. Pravidlo platí také pro hromadné označení K expedici, expedici beden i zakázek do nového či existujícího kamionu a vrácení z expedice na K expedici. Pokud vybrané bedny obsahují neshodu, označení K expedici ani expedice se neprovede; hlášení uvede čísla nevyhovujících beden. Při vracení z expedice se odmítne příslušná zakázka.
 
 Toto pravidlo samo nevyžaduje existenci kontroly ani výslovné uvolnění: chybějící kontrola nebo nerozhodnuté uvolnění jím nejsou blokovány. Uvolněno i Uvolněno QS s odchylkou jsou přípustné.
@@ -232,7 +239,9 @@ Akce jsou v UI seskupené do kategorií:
 Stav bedny:
 
 - Přijmout vybrané bedny na sklad.
-- Změna stavu na `K_NAVEZENI`, `NAVEZENO`, `DO ZPRACOVÁNÍ`, `ZAKALENO`, `ZKONTROLOVÁNO`, `K_EXPEDICI`.
+- Změna stavu na `K_NAVEZENI`, `NAVEZENO`, `DO ZPRACOVÁNÍ`, `ZAKALENO`.
+- Změna na `K_EXPEDICI` pouze ze `ZKONTROLOVANO` a při stejném filtru seznamu.
+- Hromadné označení `ZKONTROLOVANO` není dostupné; dokončete jednotlivé kontroly.
 - Vracení stavů zpět (`K_NAVEZENI -> PRIJATO`, `NAVEZENO -> PRIJATO`, rozpracovanost -> `PRIJATO`).
 
 Rovnání:

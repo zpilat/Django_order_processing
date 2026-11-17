@@ -97,17 +97,15 @@ class BulkActionHistoryTests(BulkHistoryAssertions, ActionsBase):
                     'Vrácení z rozpracovanosti do Přijato.',
                 )
 
-    def test_ready_for_shipment_records_history_for_all_eligible_states(self):
-        for state in STAV_BEDNY_ROZPRACOVANOST:
-            with self.subTest(state=state):
-                before = self.history_before(self.create_bedny(state))
-                actions.oznacit_k_expedici_action(
-                    DummyAdmin(), self.get_request('post'), Bedna.objects.filter(pk__in=before),
-                )
-                self.assert_audited_change(
-                    before, {'stav_bedny': StavBednyChoice.K_EXPEDICI, 'pozice_id': None},
-                    'Hromadné označení K expedici.',
-                )
+    def test_ready_for_shipment_records_history_for_checked_crates(self):
+        before = self.history_before(self.create_bedny(StavBednyChoice.ZKONTROLOVANO))
+        actions.oznacit_k_expedici_action(
+            DummyAdmin(), self.get_request('post'), Bedna.objects.filter(pk__in=before),
+        )
+        self.assert_audited_change(
+            before, {'stav_bedny': StavBednyChoice.K_EXPEDICI, 'pozice_id': None},
+            'Hromadné označení K expedici.',
+        )
 
     def test_zinc_dispatch_records_history_even_when_original_filter_no_longer_matches(self):
         bedny = self.create_bedny(StavBednyChoice.ZKONTROLOVANO, zinkovat=ZinkovaniChoice.ZINKOVAT)

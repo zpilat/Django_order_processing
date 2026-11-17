@@ -2424,7 +2424,7 @@ class StatusChangeActionsTests(ActionsBase):
     def test_oznacit_k_expedici_action_invalid_conditions(self):
         admin_obj = self._messaging_admin()
         # nastaví stav tak, aby nesplňoval podmínku rovnání
-        self.bedna.stav_bedny = StavBednyChoice.NAVEZENO
+        self.bedna.stav_bedny = StavBednyChoice.ZKONTROLOVANO
         self.bedna.rovnat = RovnaniChoice.NEZADANO
         self.bedna.tryskat = TryskaniChoice.CISTA
         self.bedna.save()
@@ -2436,7 +2436,7 @@ class StatusChangeActionsTests(ActionsBase):
 
     def test_oznacit_k_expedici_action_success(self):
         admin_obj = self._messaging_admin()
-        # splní podmínky: stav v rozpracovanosti + rovnání a tryskání v povolených hodnotách
+        # Splní podmínky: Zkontrolováno + rovnání a tryskání v povolených hodnotách.
         self.bedna.stav_bedny = StavBednyChoice.ZKONTROLOVANO
         self.bedna.rovnat = RovnaniChoice.ROVNA
         self.bedna.tryskat = TryskaniChoice.CISTA
@@ -2472,16 +2472,24 @@ class StatusChangeActionsTests(ActionsBase):
     def test_bulk_inspection_completion_action_is_removed(self):
         self.assertFalse(hasattr(actions, 'oznacit_zkontrolovano_action'))
 
-    def test_oznacit_k_expedici_action_accepts_all_rozpracovanost_states(self):
-        admin_obj = self._messaging_admin()
-        bedny = [self._create_bedna_in_state(state) for state in STAV_BEDNY_ROZPRACOVANOST]
-        ids = [b.id for b in bedny]
-        req = self.get_request('post')
-        resp = actions.oznacit_k_expedici_action(admin_obj, req, Bedna.objects.filter(id__in=ids))
-        self.assertIsNone(resp)
-        for bedna in bedny:
-            bedna.refresh_from_db()
-            self.assertEqual(bedna.stav_bedny, StavBednyChoice.K_EXPEDICI)
+    def test_oznacit_k_expedici_action_rejects_entire_selection_with_unchecked_crate(self):
+        for state in StavBednyChoice:
+            if state == StavBednyChoice.ZKONTROLOVANO:
+                continue
+            with self.subTest(state=state):
+                checked = self._create_bedna_in_state(StavBednyChoice.ZKONTROLOVANO)
+                other = self._create_bedna_in_state(state)
+                counts = {bedna.pk: bedna.history.count() for bedna in (checked, other)}
+                req = self.get_request('post')
+                resp = actions.oznacit_k_expedici_action(
+                    self._messaging_admin(), req, Bedna.objects.filter(pk__in=counts),
+                )
+                self.assertIsNone(resp)
+                for bedna, expected_state in ((checked, StavBednyChoice.ZKONTROLOVANO), (other, state)):
+                    bedna.refresh_from_db()
+                    self.assertEqual(bedna.stav_bedny, expected_state)
+                    self.assertEqual(bedna.history.count(), counts[bedna.pk])
+                self.assertTrue(any('Zkontrolováno' in message for message in self._messages_texts(req)))
 
     def test_oznacit_kouleni_action_success_from_kriva(self):
         admin_obj = self._messaging_admin()

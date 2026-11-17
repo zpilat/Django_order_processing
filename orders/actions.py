@@ -1721,15 +1721,19 @@ def oznacit_nefakturovat_action(modeladmin, request, queryset):
 @admin.action(description="Změna stavu bedny na K_EXPEDICI", permissions=('change',))
 def oznacit_k_expedici_action(modeladmin, request, queryset):
     """
-    Změní stav vybraných beden ze stavu ROZPRACOVANOST (NAVEZENO, DO_ZPRACOVANI, ZAKALENO nebo ZKONTROLOVANO) na K_EXPEDICI.
+    Přesune pouze zkontrolované bedny na K_EXPEDICI po ověření podmínek expedice.
+    Při jediné nevyhovující bedně se neprovede celý výběr. Stav se znovu
+    ověřuje pod zámkem; úspěšná změna se uloží společně s historií.
     """
     if _abort_if_paused_bedny(modeladmin, request, queryset, "Změna stavu bedny na K EXPEDICI"):
         return None
 
-    # kontrola, zda jsou všechny bedny v querysetu ve stavu ROZPRACOVANOST (NAVEZENO, DO_ZPRACOVANI, ZAKALENO, ZKONTROLOVANO)
-    if queryset.exclude(stav_bedny__in=STAV_BEDNY_ROZPRACOVANOST).exists():
-        logger.info(f"Uživatel {request.user} se pokusil změnit stav na K_EXPEDICI, ale některé bedny nejsou ve stavu ROZPRACOVANOST.")
-        modeladmin.message_user(request, "Některé vybrané bedny nejsou ve stavu ROZPRACOVANOST.", level=messages.ERROR)
+    if queryset.exclude(stav_bedny=StavBednyChoice.ZKONTROLOVANO).exists():
+        logger.info(f"Uživatel {request.user} se pokusil změnit stav na K_EXPEDICI, ale některé bedny nejsou ve stavu ZKONTROLOVANO.")
+        modeladmin.message_user(
+            request, "Pro změnu stavu na 'K expedici' musí být všechny vybrané bedny ve stavu Zkontrolováno.",
+            level=messages.ERROR,
+        )
         return None
     
     # kontrola, zda všechny bedny splňují podmínky pro přechod do stavu K_EXPEDICI:
@@ -1766,11 +1770,11 @@ def oznacit_k_expedici_action(modeladmin, request, queryset):
         if _abort_if_paused_bedny(modeladmin, request, locked_qs, "Změna stavu bedny na K EXPEDICI"):
             return None
 
-        if locked_qs.exclude(stav_bedny__in=STAV_BEDNY_ROZPRACOVANOST).exists():
+        if locked_qs.exclude(stav_bedny=StavBednyChoice.ZKONTROLOVANO).exists():
             logger.info(
-                f"Uživatel {request.user} se pokusil změnit stav na K_EXPEDICI, ale některé bedny už nejsou ve stavu ROZPRACOVANOST."
+                f"Uživatel {request.user} se pokusil změnit stav na K_EXPEDICI, ale některé bedny už nejsou ve stavu ZKONTROLOVANO."
             )
-            modeladmin.message_user(request, "Některé vybrané bedny už nejsou ve stavu ROZPRACOVANOST.", level=messages.ERROR)
+            modeladmin.message_user(request, "Některé vybrané bedny už nejsou ve stavu Zkontrolováno.", level=messages.ERROR)
             return None
 
         if locked_qs.exclude(rovnat__in=[RovnaniChoice.ROVNA, RovnaniChoice.VYROVNANA]).exists():

@@ -19,7 +19,7 @@ Internal application for receiving, heat treating, inspecting and shipping order
 - A nonconformity release decision blocks readiness for shipment and shipment; inspection and measurements become read-only once a crate is ready for shipment.
 - Chemical measurement import from Vanta JSON exports, with preview and processed file archiving.
 - Loading, workstation, inspection and nonconformity overviews; production, straightening, crate and truck dashboards with history.
-- Shipment of orders or selected crates, splitting unfinished crates into another order and adding shipments to an existing outbound truck.
+- Shipment of orders or selected crates, splitting unfinished crates into another order and adding shipments to an existing outbound truck. The bulk Ready for shipment action is available only with the Inspected filter and accepts only crates in that state.
 - PDF crate cards, quality control cards (KKK), batch travelers, delivery notes, certificates and proforma invoices. Filled KKK are supported for all customers; atypical crates also show hardness requirements outside the standard sampling selection.
 - Unsaved inspection changes are highlighted in red and block normal departure from checked crates. Measurement edits require confirmation only when evaluation or technological states change; drafts survive navigation to the same crate's measurements.
 - Task permissions and auditing through `django-simple-history`. Atypical conversion and manual flag edits require a dedicated `mark_bedna_atypicky_prubeh` permission, separate from inspection and measurement rights; migrations do not assign it to groups automatically.

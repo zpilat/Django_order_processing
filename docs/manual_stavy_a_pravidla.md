@@ -120,6 +120,11 @@ Pro dokončení kontroly se vyžaduje stav Zakaleno, nepozastavená bedna, oprá
 
 ## 6. Co blokuje přípravu k expedici a expedici
 
+Hromadné označení **K expedici** je dostupné pouze při filtru **Stav bedny →
+Zkontrolováno** a převádí výhradně zkontrolované bedny. Předchozí výrobní stavy
+nelze touto akcí přeskočit. Stav všech vybraných beden se ověří také na serveru
+po jejich zamčení; nevyhovující výběr se odmítne celý.
+
 | Podmínka | Co má být splněno |
 | --- | --- |
 | Tryskání | **Čistá** nebo **Otryskaná**. |

@@ -4432,9 +4432,7 @@ class BednaAdmin(HistoryViewOnlyAdmin):
         Pokud není aktivní filtr stav bedny NAVEZENO nebo RO, zruší se akce pro označení bedny do stavu DO_ZPRACOVANI
             a akce pro vrácení bedny ze stavu NAVEZENO do stavu PRIJATO.
         Pokud není aktivní filtr stav bedny NAVEZENO, DO_ZPRACOVANI nebo RO, zruší se akce pro označení bedny jako ZAKALENO.
-        Pokud není aktivní filtr stav bedny NAVEZENO, DO_ZPRACOVANI, ZAKALENO nebo RO, zruší se akce pro označení bedny jako ZKONTROLOVANO.
-        Pokud není aktivní filtr stav bedny NAVEZENO, DO_ZPRACOVANI, ZAKALENO, ZKONTROLOVANO nebo RO,
-        zruší se akce pro označení bedny jako K_EXPEDICI.
+        Pokud není aktivní filtr stav bedny ZKONTROLOVANO, zruší se akce pro označení bedny jako K_EXPEDICI.
         Pokud není aktivní filtr stav bedny EXPEDOVANO nebo K_EXPEDICI, zruší se akce pro export_bedny_dl_action.
         Pokud je aktivní filtr stav bedny EXPEDOVANO, zruší se akce pro uvolnění bedny a označení nefakturovat.
         Pokud není aktivní filtr stav bedny RO, zruší se akce pro vrácení bedny z rozpracovanosti do stavu PRIJATO.
@@ -4460,6 +4458,9 @@ class BednaAdmin(HistoryViewOnlyAdmin):
 
         if not request.user.has_perm('orders.mark_bedna_atypicky_prubeh'):
             actions_to_remove.append('prevest_na_atypicky_prubeh_action')
+
+        if request.GET.get('stav_bedny') != StavBednyChoice.ZKONTROLOVANO:
+            actions_to_remove.append('oznacit_k_expedici_action')
 
         if request.method == "GET":
             stav_filter = request.GET.get('stav_bedny', None)
@@ -4489,13 +4490,6 @@ class BednaAdmin(HistoryViewOnlyAdmin):
             if stav_filter not in [StavBednyChoice.NAVEZENO, StavBednyChoice.DO_ZPRACOVANI, 'RO']:
                 actions_to_remove += [
                     'oznacit_zakaleno_action',
-                ]
-            if stav_filter not in [
-                StavBednyChoice.NAVEZENO, StavBednyChoice.DO_ZPRACOVANI, StavBednyChoice.ZAKALENO,
-                StavBednyChoice.ZKONTROLOVANO, 'RO'
-                ]:
-                actions_to_remove += [
-                    'oznacit_k_expedici_action',
                 ]
             if stav_filter != 'RO':
                 actions_to_remove += [
