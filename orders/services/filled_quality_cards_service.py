@@ -1,4 +1,10 @@
+import re
+from io import BytesIO
+from pathlib import PureWindowsPath
+from zipfile import ZIP_DEFLATED, ZipFile
+
 from django.db.models import Prefetch
+from django.http import HttpResponse
 from django.utils import timezone
 
 from orders.choices import TypZkouskyChoice, UvolneniKontrolyChoice
@@ -96,7 +102,7 @@ def build_filled_context(bedna, generated_at, printing_user):
     return context
 
 
-def build_filled_quality_cards_pdf(bedny_qs, request):
+def validate_filled_quality_cards(bedny_qs):
     if not bedny_qs.exists():
         raise ServiceValidationError('Není vybrána žádná bedna k tisku.')
     if bedny_qs.values('zakazka__kamion_prijem__zakaznik').distinct().count() != 1:
@@ -105,6 +111,36 @@ def build_filled_quality_cards_pdf(bedny_qs, request):
     if missing_controls.exists():
         numbers = ', '.join(map(str, missing_controls.values_list('cislo_bedny', flat=True)[:20]))
         raise ServiceValidationError(f'Chybí uložená kontrola u beden: {numbers}.')
+
+
+def build_filled_quality_cards_zip(bedny_qs, request, *, filename):
+    validate_filled_quality_cards(bedny_qs)
+    orders = bedny_qs.order_by('zakazka_id').values_list('zakazka_id', 'zakazka__artikl').distinct()
+    archive_buffer = BytesIO()
+    used_names = set()
+    with ZipFile(archive_buffer, 'w', compression=ZIP_DEFLATED) as archive:
+        for order_id, article in orders:
+            # Keep customer identifiers readable while removing invalid Windows/path characters.
+            article = re.sub(r'[<>:"/\\|?*\x00-\x1f]', '_', article).strip(' .')[:150]
+            base_name = article or str(order_id)
+            if PureWindowsPath(f'{base_name}.pdf').is_reserved():
+                base_name = f'{base_name}_{order_id}'
+            pdf_name = f'{base_name}.pdf'
+            suffix = 0
+            while pdf_name.casefold() in used_names:
+                suffix += 1
+                disambiguator = str(order_id) if suffix == 1 else f'{order_id}_{suffix}'
+                pdf_name = f'{base_name}_{disambiguator}.pdf'
+            used_names.add(pdf_name.casefold())
+            response = build_filled_quality_cards_pdf(bedny_qs.filter(zakazka_id=order_id), request)
+            archive.writestr(pdf_name, response.content)
+    response = HttpResponse(archive_buffer.getvalue(), content_type='application/zip')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
+
+
+def build_filled_quality_cards_pdf(bedny_qs, request):
+    validate_filled_quality_cards(bedny_qs)
     bedny_qs = bedny_qs.select_related(
         'zakazka__kamion_prijem__zakaznik', 'zakazka__predpis', 'kontrola__uvolneni_zmenil',
     ).prefetch_related(Prefetch(

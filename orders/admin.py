@@ -1006,6 +1006,7 @@ class ZakaznikAdmin(HistoryViewOnlyAdmin):
                 'min_hodnot_prohyb',
                 'min_hodnot_tvrdost',
                 'nazev_protokolu',
+                'vyplnene_kkk_po_zakazkach',
             )
         }),
     ]
@@ -1015,7 +1016,7 @@ class ZakaznikAdmin(HistoryViewOnlyAdmin):
     list_display = (
         'nazev', 'zkraceny_nazev', 'zkratka', 'adresa', 'mesto', 'psc', 'stat',
         'get_proforma_po_bednach', 'vse_tryskat', 'pouze_komplet',
-        'get_fakturovat_rovnani', 'get_fakturovat_tryskani', 'fakturovat_zinkovani',
+        'get_fakturovat_rovnani', 'get_fakturovat_tryskani', 'get_fakturovat_zinkovani',
         'get_vzorek_prohybu', 'get_max_krivych_vrutu', 'ciselna_rada',
     )
     ordering = ('nazev',)
@@ -1053,6 +1054,13 @@ class ZakaznikAdmin(HistoryViewOnlyAdmin):
         Vrací hodnotu fakturovat_tryskani pro zákazníka.
         """
         return obj.fakturovat_tryskani
+
+    @admin.display(boolean=True, description='Fakt. zink.')
+    def get_fakturovat_zinkovani(self, obj):
+        """
+        Vrací hodnotu fakturovat_zinkovani pro zákazníka.
+        """
+        return obj.fakturovat_zinkovani    
 
     @admin.display(boolean=True, description='Po bednách')
     def get_proforma_po_bednach(self, obj):

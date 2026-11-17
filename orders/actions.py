@@ -36,7 +36,7 @@ from .utils import (
     validate_bedny_pripraveny_k_expedici,
 )
 from .services.pdf_cards_service import resolve_customer_templates
-from .services.filled_quality_cards_service import build_filled_quality_cards_pdf
+from .services.filled_quality_cards_service import build_filled_quality_cards_pdf, build_filled_quality_cards_zip
 from .services.expedice_service import (
     expedice_beden_do_noveho_kamionu,
     expedice_zakazek_do_noveho_kamionu,
@@ -900,14 +900,17 @@ def tisk_karet_kontroly_kvality_action(modeladmin, request, queryset):
         return None
 
 
-def _tisk_vyplnenych_karet_kontroly(modeladmin, request, bedny):
+def _tisk_vyplnenych_karet_kontroly(modeladmin, request, bedny, *, zip_filename=None):
     if not bedny.exists():
         modeladmin.message_user(request, 'Ve výběru nejsou žádné bedny k tisku.', level=messages.ERROR)
         return None
     if _abort_if_bedna_has_not_hmotnost_zakazka_predpis(modeladmin, request, bedny, 'tisk vyplněných karet kontroly kvality'):
         return None
     try:
-        response = build_filled_quality_cards_pdf(bedny, request)
+        if zip_filename:
+            response = build_filled_quality_cards_zip(bedny, request, filename=zip_filename)
+        else:
+            response = build_filled_quality_cards_pdf(bedny, request)
     except ServiceValidationError as exc:
         modeladmin.message_user(request, str(exc), level=messages.ERROR)
         return None
@@ -935,7 +938,8 @@ def tisk_vyplnenych_karet_kontroly_kvality_kamionu_vydej_action(modeladmin, requ
     if queryset.count() != 1:
         modeladmin.message_user(request, 'Vyberte pouze jeden kamion.', level=messages.ERROR)
         return None
-    if queryset.first().prijem_vydej != KamionChoice.VYDEJ:
+    kamion = queryset.select_related('zakaznik').first()
+    if kamion.prijem_vydej != KamionChoice.VYDEJ:
         modeladmin.message_user(request, 'Tisk vyplněných karet je možný pouze pro kamiony výdej.', level=messages.ERROR)
         return None
     bedny = Bedna.objects.filter(zakazka__kamion_vydej__in=queryset)
@@ -956,14 +960,16 @@ def tisk_vyplnenych_karet_kontroly_kvality_kamionu_vydej_action(modeladmin, requ
             **modeladmin.admin_site.each_context(request),
             'title': 'Tisk vyplněných karet kontroly kvality',
             'opts': modeladmin.model._meta,
-            'kamion': queryset.first(),
+            'kamion': kamion,
+            'po_zakazkach': kamion.zakaznik.vyplnene_kkk_po_zakazkach,
             'warning': f'Nevytištěny bedny bez uložené kontroly kvality ({missing_count}): {numbers}.',
             'available_count': bedny_s_kontrolou.count(),
             'action': 'tisk_vyplnenych_karet_kontroly_kvality_kamionu_vydej_action',
             'return_url': request.get_full_path(),
         }
         return TemplateResponse(request, 'admin/orders/kamion/filled_quality_cards_print.html', context)
-    return _tisk_vyplnenych_karet_kontroly(modeladmin, request, bedny_s_kontrolou)
+    zip_filename = f'KKK_kamion_{kamion.pk}.zip' if kamion.zakaznik.vyplnene_kkk_po_zakazkach else None
+    return _tisk_vyplnenych_karet_kontroly(modeladmin, request, bedny_s_kontrolou, zip_filename=zip_filename)
 
 
 @admin.action(description="Vytisknout karty bedny + KKK")

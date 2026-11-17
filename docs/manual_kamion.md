@@ -114,12 +114,19 @@ Můžete pokračovat přes **Doplnit FAUF**, nebo zvolit
 **Otevřít PDF i bez FAUF**. Chybějící FAUF zatím tisk neblokuje.
 
 Pro tisk vyplněných karet výdeje vyberte právě jeden kamion ve filtru `Výdej`.
-PDF obsahuje karty všech jeho beden s uloženou kontrolou kvality, včetně expedovaných beden,
+Výstup obsahuje karty všech jeho beden s uloženou kontrolou kvality, včetně expedovaných beden,
 ve stejném vzoru jako tisk vyplněných KKK v administraci beden.
+U zákazníka v části **Kontrola kvality** určuje volba **Vyplněné KKK po zakázkách** způsob stažení:
+
+- **Ne** (výchozí): jedno společné PDF.
+- **Ano**: archiv `KKK_kamion_<ID>.zip` se samostatným PDF pro každou zakázku modelu Zakázka, například `45001234.pdf` podle pole **Artikl / Zakázka**. V jednom PDF jsou všechny dostupné karty dané zakázky v tomto výdeji. I pro jedinou zakázku se stáhne ZIP; před odesláním zákazníkovi jej rozbalte.
+
+Různé zakázky se stejným artiklem se neslučují. PDF se jmenuje pouze podle označení zakázky s příponou `.pdf`. Znaky nevhodné pro názvy souborů se nahrazují podtržítkem; při shodě názvů (i bez ohledu na velikost písmen) se doplní ID zakázky, případně další pořadí. ID se přidá také k názvům vyhrazeným ve Windows, například `CON`. Prázdné označení nahradí ID zakázky.
+
 Pokud některé bedny nemají uloženou kontrolu, v novém panelu se nejprve zobrazí varování
 s jejich počtem a čísly (nejvýše prvních 20). Tlačítkem „Otevřít PDF dostupných karet“
-vytisknete karty beden s kontrolou; ostatní se přeskočí. Pokud žádná bedna nemá kontrolu,
-PDF se nevytvoří a zobrazí se chyba.
+nebo „Stáhnout ZIP dostupných karet“ podle nastavení zákazníka získáte karty beden s kontrolou; ostatní se přeskočí. Zakázka bez jediné uložené kontroly nemá v ZIP žádné PDF. Pokud žádná bedna kamionu nemá kontrolu,
+výstup se nevytvoří a zobrazí se chyba.
 
 Výroba a přesuny šarží se řeší samostatně v [deníku](manual_denik_pece.md) a [rychlém založení šarže](manual_rychle_zalozeni_sarze.md).
 

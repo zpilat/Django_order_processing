@@ -1,6 +1,8 @@
 from datetime import timedelta
 from decimal import Decimal
+from io import BytesIO
 from unittest.mock import patch
+from zipfile import ZipFile
 
 from django.contrib import admin, messages
 from django.contrib.auth import get_user_model
@@ -22,7 +24,7 @@ from orders.services.exceptions import ServiceValidationError
 from orders.services.expedice_service import expedice_beden_do_existujiciho_kamionu
 from orders.services.pdf_cards_service import build_cards_pdf
 from orders.services.filled_quality_cards_service import (
-    MEASUREMENT_COLUMNS, build_filled_context, build_filled_quality_cards_pdf,
+    MEASUREMENT_COLUMNS, build_filled_context, build_filled_quality_cards_pdf, build_filled_quality_cards_zip,
     TEMPLATE_PATH,
 )
 from orders.tests.test_kontrola_bedny import KontrolaBednyTestBase
@@ -742,17 +744,23 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
         Bedna.objects.create(zakazka=zakazka)
         with self.assertRaisesMessage(ServiceValidationError, 'od jednoho zákazníka'):
             build_filled_quality_cards_pdf(Bedna.objects.all(), self.request)
+        with self.assertRaisesMessage(ServiceValidationError, 'od jednoho zákazníka'):
+            build_filled_quality_cards_zip(Bedna.objects.all(), self.request, filename='cards.zip')
 
     def test_actions_select_bedny_from_each_overview(self):
         self.create_control()
         with patch('orders.actions.build_filled_quality_cards_pdf', return_value=HttpResponse(b'%PDF-demo')) as builder:
-            for action, model, pk in (
-                (actions.tisk_vyplnenych_karet_kontroly_kvality_action, Bedna, self.bedna.pk),
-                (actions.tisk_vyplnenych_karet_kontroly_kvality_zakazek_action, Zakazka, self.bedna.zakazka.pk),
-            ):
-                self.assertNotIn('(EUR)', action.short_description)
-                self.assertEqual(action(admin.site._registry[model], self.request, model.objects.filter(pk=pk)).status_code, 200)
-                self.assertEqual(list(builder.call_args.args[0].values_list('pk', flat=True)), [self.bedna.pk])
+            for po_zakazkach in (False, True):
+                self.customer.vyplnene_kkk_po_zakazkach = po_zakazkach
+                self.customer.save(update_fields=['vyplnene_kkk_po_zakazkach'])
+                for action, model, pk in (
+                    (actions.tisk_vyplnenych_karet_kontroly_kvality_action, Bedna, self.bedna.pk),
+                    (actions.tisk_vyplnenych_karet_kontroly_kvality_zakazek_action, Zakazka, self.bedna.zakazka.pk),
+                ):
+                    with self.subTest(po_zakazkach=po_zakazkach, model=model):
+                        self.assertNotIn('(EUR)', action.short_description)
+                        self.assertEqual(action(admin.site._registry[model], self.request, model.objects.filter(pk=pk)).status_code, 200)
+                        self.assertEqual(list(builder.call_args.args[0].values_list('pk', flat=True)), [self.bedna.pk])
 
     def test_actions_show_validation_message_instead_of_pdf_if_control_is_missing(self):
         response = actions.tisk_vyplnenych_karet_kontroly_kvality_action(admin.site._registry[Bedna], self.request, self.qs)
@@ -790,6 +798,115 @@ class FilledQualityCardsTests(KontrolaBednyTestBase):
         return actions.tisk_vyplnenych_karet_kontroly_kvality_kamionu_vydej_action(
             admin.site._registry[Kamion], self.request, trucks,
         )
+
+    def test_outgoing_zip_contains_one_pdf_per_order_with_only_its_crates(self):
+        truck = self.outgoing_truck()
+        self.customer.vyplnene_kkk_po_zakazkach = True
+        self.customer.save(update_fields=['vyplnene_kkk_po_zakazkach'])
+        self.create_control()
+        extra_crate = Bedna.objects.create(zakazka=self.bedna.zakazka, hmotnost=100)
+        KontrolaBedny.objects.create(bedna=extra_crate)
+        second_order = Zakazka.objects.create(
+            kamion_prijem=self.bedna.zakazka.kamion_prijem, kamion_vydej=truck,
+            predpis=self.bedna.zakazka.predpis, typ_hlavy=self.bedna.zakazka.typ_hlavy,
+            artikl='45001235', prumer=10, delka=100,
+        )
+        second_crate = Bedna.objects.create(zakazka=second_order, hmotnost=100)
+        KontrolaBedny.objects.create(bedna=second_crate)
+        unshipped_order = Zakazka.objects.create(
+            kamion_prijem=self.bedna.zakazka.kamion_prijem,
+            predpis=self.bedna.zakazka.predpis, typ_hlavy=self.bedna.zakazka.typ_hlavy,
+            artikl='UNSHIPPED', prumer=10, delka=100,
+        )
+        unshipped = Bedna.objects.create(zakazka=unshipped_order, hmotnost=100)
+        KontrolaBedny.objects.create(bedna=unshipped)
+        before = (Bedna.history.count(), KontrolaBedny.history.count(), MereniBedny.history.count())
+        with patch('orders.services.pdf_cards_service.HTML') as renderer:
+            renderer.return_value.write_pdf.side_effect = [b'%PDF-first', b'%PDF-second']
+            response = self.print_outgoing_truck(Kamion.objects.filter(pk=truck.pk))
+        self.assertEqual(response['Content-Type'], 'application/zip')
+        self.assertEqual(response['Content-Disposition'], f'attachment; filename="KKK_kamion_{truck.pk}.zip"')
+        with ZipFile(BytesIO(response.content)) as archive:
+            self.assertIsNone(archive.testzip())
+            self.assertEqual(archive.namelist(), ['A1.pdf', '45001235.pdf'])
+            self.assertEqual(archive.read('A1.pdf'), b'%PDF-first')
+            self.assertEqual(archive.read('45001235.pdf'), b'%PDF-second')
+        self.assertEqual(renderer.call_count, 2)
+        for call, included, excluded in (
+            (renderer.call_args_list[0], [self.bedna, extra_crate], [second_crate, unshipped]),
+            (renderer.call_args_list[1], [second_crate], [self.bedna, extra_crate, unshipped]),
+        ):
+            html = call.kwargs['string']
+            for crate in included:
+                self.assertIn(f'class="field-value container-value">{crate.cislo_bedny}</span>', html)
+            for crate in excluded:
+                self.assertNotIn(f'class="field-value container-value">{crate.cislo_bedny}</span>', html)
+        self.assertEqual(before, (Bedna.history.count(), KontrolaBedny.history.count(), MereniBedny.history.count()))
+
+    def test_zip_preserves_distinct_orders_with_duplicate_and_unsafe_article_names(self):
+        self.create_control()
+        order = self.bedna.zakazka
+        order.artikl = 'Číslo/123'
+        order.save(update_fields=['artikl'])
+        articles = ['Číslo/123', 'číslo_123', 'Číslo:123', '../<>:"\\|?*', 'CON', 'nul.txt', ' . ']
+        orders = [order]
+        for article in articles:
+            other = Zakazka.objects.create(
+                kamion_prijem=order.kamion_prijem, predpis=order.predpis,
+                typ_hlavy=order.typ_hlavy, artikl=article, prumer=10, delka=100,
+            )
+            crate = Bedna.objects.create(zakazka=other, hmotnost=100)
+            KontrolaBedny.objects.create(bedna=crate)
+            orders.append(other)
+        with patch('orders.services.pdf_cards_service.HTML') as renderer:
+            renderer.return_value.write_pdf.return_value = b'%PDF-demo'
+            response = build_filled_quality_cards_zip(Bedna.objects.all(), self.request, filename='cards.zip')
+        with ZipFile(BytesIO(response.content)) as archive:
+            names = archive.namelist()
+            self.assertEqual(len(names), len(orders))
+            self.assertEqual(len({name.casefold() for name in names}), len(orders))
+            self.assertEqual(names[0], 'Číslo_123.pdf')
+            self.assertEqual(names[1], f'Číslo_123_{orders[1].pk}.pdf')
+            self.assertEqual(names[-3], f'CON_{orders[-3].pk}.pdf')
+            self.assertEqual(names[-2], f'nul.txt_{orders[-2].pk}.pdf')
+            self.assertEqual(names[-1], f'{orders[-1].pk}.pdf')
+            for name in names:
+                self.assertNotRegex(name, r'[<>:"/\\|?*\x00-\x1f]')
+
+    def test_zip_validates_entire_selection_before_rendering(self):
+        self.create_control()
+        Bedna.objects.create(zakazka=self.bedna.zakazka, hmotnost=100)
+        with patch('orders.services.pdf_cards_service.HTML') as renderer:
+            with self.assertRaisesMessage(ServiceValidationError, 'Chybí uložená kontrola'):
+                build_filled_quality_cards_zip(Bedna.objects.all(), self.request, filename='cards.zip')
+            with self.assertRaisesMessage(ServiceValidationError, 'Není vybrána žádná bedna'):
+                build_filled_quality_cards_zip(Bedna.objects.none(), self.request, filename='cards.zip')
+            renderer.assert_not_called()
+
+    def test_zip_warning_requires_confirmation_and_single_order_still_downloads_zip(self):
+        truck = self.outgoing_truck()
+        self.customer.vyplnene_kkk_po_zakazkach = True
+        self.customer.save(update_fields=['vyplnene_kkk_po_zakazkach'])
+        self.create_control()
+        skipped = Bedna.objects.create(zakazka=self.bedna.zakazka)
+        with patch('orders.services.pdf_cards_service.HTML') as renderer:
+            renderer.return_value.write_pdf.return_value = b'%PDF-available'
+            preview = self.print_outgoing_truck(Kamion.objects.filter(pk=truck.pk))
+            self.assertContains(preview, 'Stáhnout ZIP dostupných karet')
+            self.assertContains(preview, f'(1): {skipped.cislo_bedny}.')
+            renderer.assert_not_called()
+            self.request.POST = {'print_available': '1'}
+            response = self.print_outgoing_truck(Kamion.objects.filter(pk=truck.pk))
+        with ZipFile(BytesIO(response.content)) as archive:
+            self.assertEqual(archive.namelist(), ['A1.pdf'])
+        html = renderer.call_args.kwargs['string']
+        self.assertNotIn(f'class="field-value container-value">{skipped.cislo_bedny}</span>', html)
+
+    def test_zip_contains_real_pdf(self):
+        self.create_control()
+        response = build_filled_quality_cards_zip(self.qs, self.request, filename='cards.zip')
+        with ZipFile(BytesIO(response.content)) as archive:
+            self.assertTrue(archive.read('A1.pdf').startswith(b'%PDF-'))
 
     def test_outgoing_truck_prints_all_its_controlled_bedny_and_warns_about_skipped_bedny(self):
         truck = self.outgoing_truck()

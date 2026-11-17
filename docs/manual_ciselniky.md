@@ -46,6 +46,9 @@ Otevřete **Zákazníci → konkrétní zákazník → Kontrola kvality**.
 | Minimum hodnot prohybu | Uváděné minimum pro každou prováděnou fázi prohybu; nezaměňujte s celkovou velikostí vzorku. |
 | Minimum hodnot tvrdosti | Uváděné minimum zvlášť pro povrch a jádro u beden vybraných k měření tvrdosti. |
 | Název protokolu | Označení v záhlaví vyplněné KKK. Více označení napište na samostatné řádky; prázdné pole použije **HPM - F XXX**. |
+| Vyplněné KKK po zakázkách | Při tisku z kamionu výdej stáhne ZIP se samostatným PDF pro každý záznam zakázky. Název PDF obsahuje **Artikl / Zakázka**, například `45001234.pdf`. Výchozí Ne zachovává společné PDF. Tisk z přehledu beden a zakázek zůstává společný. |
+
+Nastavení **Vyplněné KKK po zakázkách** se použije při dalším tisku, včetně již expedovaných kamionů, a jeho změny se zaznamenávají do historie zákazníka. Různé záznamy zakázek se stejným artiklem dostanou samostatná PDF; při shodě názvů se doplní ID zakázky. Znaky nevhodné pro název souboru se nahradí podtržítkem.
 
 Všechna tři minima zapisovaných hodnot mohou zůstat prázdná (minimum neuvedeno), ale vyplněná musí být alespoň 1. Jsou podkladem pro zobrazení rozsahu měření a KKK; neberte je jako potvrzení, že systém automaticky vynutí počet všech zapsaných měření.
 

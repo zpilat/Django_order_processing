@@ -52,9 +52,19 @@ class ZakaznikKontrolaKvalityTests(TestCase):
         self.assertContains(response, 'Maximální počet křivých vrutů při kontrole prohybu')
         self.assertContains(response, 'name="max_krivych_vrutu"')
         fieldsets = dict(response.context['adminform'].fieldsets)
-        for field in ('min_hodnot_mechanicke', 'min_hodnot_prohyb', 'min_hodnot_tvrdost', 'nazev_protokolu'):
+        for field in ('min_hodnot_mechanicke', 'min_hodnot_prohyb', 'min_hodnot_tvrdost', 'nazev_protokolu', 'vyplnene_kkk_po_zakazkach'):
             self.assertIn(field, fieldsets['Kontrola kvality']['fields'])
             self.assertContains(response, f'name="{field}"')
+
+    def test_admin_saves_order_zip_setting_and_history(self):
+        self.assertFalse(self.customer.vyplnene_kkk_po_zakazkach)
+        for submitted, expected in (({'vyplnene_kkk_po_zakazkach': 'on'}, True), ({}, False)):
+            with self.subTest(expected=expected):
+                response = self.client.post(self.url, {**self.payload(''), **submitted})
+                self.assertEqual(response.status_code, 302)
+                self.customer.refresh_from_db()
+                self.assertEqual(self.customer.vyplnene_kkk_po_zakazkach, expected)
+                self.assertEqual(self.customer.history.first().vyplnene_kkk_po_zakazkach, expected)
 
     def test_kkk_minimums_are_optional_positive_and_enforced_in_database(self):
         for field in ('min_hodnot_mechanicke', 'min_hodnot_prohyb', 'min_hodnot_tvrdost'):

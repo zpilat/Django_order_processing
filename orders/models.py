@@ -101,6 +101,10 @@ class Zakaznik(models.Model):
         verbose_name='Název protokolu', blank=True, default='',
         help_text='Označení v záhlaví vyplněné KKK. Více označení zadejte na samostatné řádky. Při nevyplnění se použije HPM - F XXX.',
     )
+    vyplnene_kkk_po_zakazkach = models.BooleanField(
+        default=False, verbose_name='Vyplněné KKK po zakázkách',
+        help_text='Tisk z kamionu výdej stáhne ZIP se samostatným PDF pro každou zakázku. Název PDF obsahuje Artikl / Zakázka.',
+    )
     ciselna_rada = models.PositiveIntegerField(verbose_name='Číselná řada', default=100000, unique=True,
                                                help_text='Číselná řada pro automatické číslování beden - např. 100000, 200000, 300000 atd.')
     history = HistoricalRecords()

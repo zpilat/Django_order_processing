@@ -118,7 +118,9 @@ Start XLSX import for exactly one inbound truck without orders. Review the previ
 
 Chemical import is a separate action for an inbound truck with crates. It reads JSON files from `CHEMISTRY_INCOMING_DIR`, checks Vanta export availability and archives processed files to `CHEMISTRY_ARCHIVE_DIR`. See the [truck manual](docs/manual_kamion.md).
 
-Printing actions depend on selected objects, filters and permissions. Blank KKK and filled KKK (EUR) are separate actions. The quick batch overview provides a traveler print preview; the crates to be moved overview has dedicated print and PDF outputs.
+Printing actions depend on selected objects, filters and permissions. Blank KKK and filled KKK are separate actions; filled KKK support all customers. The quick batch overview provides a traveler print preview; the crates to be moved overview has dedicated print and PDF outputs.
+
+The customer setting **Kontrola kvality → Vyplněné KKK po zakázkách** changes outbound truck printing to a ZIP containing one PDF per order record. PDF filenames use **Artikl / Zakázka**, for example `45001234.pdf`; duplicate names include the order ID. The default remains a single combined PDF. Crate and order overview actions still produce a combined PDF. See the [truck manual](docs/manual_kamion.md#6-hromadné-akce-v-kamionadmin).
 
 Filled KKK cards use a green release background for both unconditional release and QS release with deviation, and red for nonconformity. Internal QS release highlighting remains orange.
 
