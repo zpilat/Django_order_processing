@@ -408,6 +408,23 @@ class BednaZkontrolovanoTests(KontrolaBednyTestBase):
                     self.assertEqual(self.bedna.history.count(), history_count + 1)
                     self.assertEqual(kontrola.history.count(), control_history_count)
 
+    def test_completion_preserves_active_straightening_without_measurement_after_straightening(self):
+        self.create_control(
+            uvolneni=UvolneniKontrolyChoice.NESHODA, neshoda_krivost=True,
+            pocet_krivych_vrutu_prvni_mereni=0, pocet_krivych_vrutu_druhe_mereni=0,
+        )
+        for state in (RovnaniChoice.ROVNA_SE, RovnaniChoice.KOULENI):
+            with self.subTest(state=state):
+                Bedna.objects.filter(pk=self.bedna.pk).update(
+                    stav_bedny=StavBednyChoice.ZAKALENO, rovnat=state,
+                )
+                preview = self.client.get(self.url)
+                self.assertEqual(preview.context['stavy_po_kontrole']['rovnat'], state)
+                self.assertRedirects(self.client.post(self.url, {'action': 'mark_zkontrolovano'}), self.control_url)
+                self.bedna.refresh_from_db()
+                self.assertEqual(self.bedna.stav_bedny, StavBednyChoice.ZKONTROLOVANO)
+                self.assertEqual(self.bedna.rovnat, state)
+
     def test_straightening_uses_decisive_phase_and_sample_tolerance(self):
         self.configure_curvature_customer()
         kontrola = self.create_control(

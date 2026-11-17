@@ -106,11 +106,15 @@ Chybějící mez, povolený počet nebo měření znamenají, že prohyb nelze t
 | Čistota NOK | Tryskání = **Špinavá**. |
 | Čistota OK a dosavadní Tryskání Špinavá nebo Otryskaná | Tryskání = **Otryskaná**. |
 | Čistota OK a jiný dosavadní stav tryskání | Tryskání = **Čistá**. |
-| Rozhodující prohyb je nevyhovující | Rovnání = **Křivá**. |
-| Rozhodující prohyb není nevyhovující a existuje měření po rovnání | Rovnání = **Vyrovnaná**. |
-| Rozhodující prohyb není nevyhovující a není měření po rovnání | Rovnání = **Rovná**, také při oranžovém prohybu po TZ. |
+| Není měření po rovnání a dosavadní Rovnání je Koulení nebo Rovná se | Rovnání se **zachová**, bez ohledu na výsledek po TZ nebo po koulení. |
+| Existuje měření po rovnání a rozhodující vzorek nevyhovuje | Rovnání = **Křivá**. |
+| Existuje měření po rovnání a rozhodující vzorek vyhovuje | Rovnání = **Vyrovnaná**. |
+| Není měření po rovnání, stav není Koulení ani Rovná se a prohyb po TZ nevyhovuje | Rovnání = **Křivá**. |
+| Není měření po rovnání, stav není Koulení ani Rovná se a prohyb po TZ vyhovuje nebo je v oranžovém pásmu QS | Rovnání = **Rovná**. |
 
 Tyto výpočty se provádějí při **Dokončit kontrolu bedny** a při uložení výstupní kontroly bedny již ve stavu **Zkontrolováno**. Uložení jednotlivého měření je nespouští. Samostatné tlačítko pro opravu rovnání a tryskání se nepoužívá.
+
+Zachování Koulení/Rovná se platí i při nezměněném formuláři a u atypických beden. Omezení uvolnění, automatické důvody neshody a požadavky na podklady kontroly platí dál; Tryskání se dál přepočítá podle Čistoty. První uložená hodnota Prohybu po rovnání, včetně nuly, ochranu rozpracovaného stavu ukončí a rozhodne výsledek celého vzorku po rovnání.
 
 Pro dokončení kontroly se vyžaduje stav Zakaleno, nepozastavená bedna, oprávnění kontrolora a úplné aktuální podklady: uložená Čistota a Uložení OK/NOK, rozhodnutí o uvolnění, alespoň jedno měření prohybu po TZ, běžná mez a maximální počet křivých u zákazníka. Při Křivosti se požadují také oba počty křivých, včetně přípustné nuly. Výjimkou je oranžová položka Prohyb po TZ, kdy oba počty nejsou pro dokončení povinné. QS maximum je volitelné. Stejné podmínky úplnosti a souladu se ověřují při opravě zkontrolované bedny a při nastavení Zkontrolováno v adminu.
 

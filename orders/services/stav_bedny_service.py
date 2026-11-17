@@ -176,7 +176,12 @@ def duvody_neuplne_kontroly(bedna, *, kontrola=None, potvrzuje_mereni=False):
 
 
 def vyhodnotit_stavy_pri_zkontrolovani(bedna, *, kontrola=None):
-    """Vypočítá stavy z měření a z předané či uložené kontroly; nic neukládá."""
+    """Vypočítá stavy z měření a kontroly; nic neukládá.
+
+    Bez měření po rovnání zachová rozpracované Koulení / Rovná se.
+    Původní prohyb po TZ ani měření po koulení nesmějí zrušit probíhající
+    operaci. Podklady kontroly a vyhodnocení tryskání se ověřují dál.
+    """
     duvody = duvody_nevyhodnotitelneho_prohybu(bedna)
     if duvody:
         # Chybějící podklady nesmějí být zaměněny za vyhovující výsledek.
@@ -199,6 +204,8 @@ def vyhodnotit_stavy_pri_zkontrolovani(bedna, *, kontrola=None):
     po_rovnani = MereniBedny.objects.filter(
         kontrola__bedna=bedna, typ_zkousky=TypZkouskyChoice.PROHYB_PO_ROVNANI,
     ).exists()
+    if not po_rovnani and bedna.rovnat in (RovnaniChoice.ROVNA_SE, RovnaniChoice.KOULENI):
+        return {'rovnat': RovnaniChoice(bedna.rovnat), 'tryskat': tryskat}
     if bedna.atypicky_prubeh and not po_rovnani and not MereniBedny.objects.filter(
         kontrola__bedna=bedna, typ_zkousky=TypZkouskyChoice.PROHYB_PO_TZ,
     ).exists():

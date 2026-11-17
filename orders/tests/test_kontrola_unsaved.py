@@ -62,6 +62,65 @@ class KontrolaUnsavedTests(KontrolaBednyTestBase):
         self.kontrola.refresh_from_db()
         self.assertFalse(self.kontrola.vyzaduje_potvrzeni)
 
+    def test_rolling_measurement_does_not_require_reconfirmation_or_reset_active_straightening(self):
+        MereniBedny.objects.filter(kontrola=self.kontrola, typ_zkousky=TypZkouskyChoice.PROHYB_PO_TZ).update(
+            hodnota=Decimal('0.9'),
+        )
+        KontrolaBedny.objects.filter(pk=self.kontrola.pk).update(
+            uvolneni='NE', neshoda_krivost=True,
+            pocet_krivych_vrutu_prvni_mereni=0, pocet_krivych_vrutu_druhe_mereni=0,
+        )
+        for state in ('RS', 'KO'):
+            for value in ('0.1', '0.9'):
+                with self.subTest(state=state, value=value):
+                    Bedna.objects.filter(pk=self.bedna.pk).update(rovnat=state)
+                    MereniBedny.objects.filter(
+                        kontrola=self.kontrola, typ_zkousky=TypZkouskyChoice.PROHYB_PO_KOULENI,
+                    ).delete()
+                    histories = (self.bedna.history.count(), self.kontrola.history.count())
+                    self.assertRedirects(self.save_measurements(
+                        TypZkouskyChoice.PROHYB_PO_KOULENI, [{'hodnota': value}],
+                    ), self.url)
+                    self.bedna.refresh_from_db()
+                    self.kontrola.refresh_from_db()
+                    self.assertEqual(self.bedna.rovnat, state)
+                    self.assertFalse(self.kontrola.vyzaduje_potvrzeni)
+                    page = self.client.get(self.url)
+                    self.assertFalse(page.context['ochrana_kontroly']['ceka_na_potvrzeni'])
+                    self.assertFalse(page.context['ochrana_kontroly']['stavy_nepotvrzeny'])
+                    self.confirm()
+                    self.bedna.refresh_from_db()
+                    self.assertEqual(self.bedna.rovnat, state)
+                    self.assertEqual(self.kontrola.uvolneni, 'NE')
+                    self.assertTrue(self.kontrola.neshoda_krivost)
+                    self.assertEqual((self.bedna.history.count(), self.kontrola.history.count()), histories)
+
+    def test_new_measurement_after_straightening_requires_confirmation_and_then_updates_active_state(self):
+        MereniBedny.objects.filter(kontrola=self.kontrola, typ_zkousky=TypZkouskyChoice.PROHYB_PO_TZ).update(
+            hodnota=Decimal('0.9'),
+        )
+        for state in ('RS', 'KO'):
+            for value, release, expected in (('0', 'UV', 'VY'), ('0.4001', 'NE', 'KR')):
+                with self.subTest(state=state, value=value):
+                    Bedna.objects.filter(pk=self.bedna.pk).update(rovnat=state)
+                    KontrolaBedny.objects.filter(pk=self.kontrola.pk).update(
+                        uvolneni='NE', neshoda_krivost=True, vyzaduje_potvrzeni=False,
+                        pocet_krivych_vrutu_prvni_mereni=0, pocet_krivych_vrutu_druhe_mereni=0,
+                    )
+                    MereniBedny.objects.filter(
+                        kontrola=self.kontrola, typ_zkousky=TypZkouskyChoice.PROHYB_PO_ROVNANI,
+                    ).delete()
+                    self.assertRedirects(self.save_measurements(
+                        TypZkouskyChoice.PROHYB_PO_ROVNANI, [{'hodnota': value}],
+                    ), self.url)
+                    self.bedna.refresh_from_db()
+                    self.kontrola.refresh_from_db()
+                    self.assertEqual(self.bedna.rovnat, state)
+                    self.assertTrue(self.kontrola.vyzaduje_potvrzeni)
+                    self.confirm(uvolneni=release)
+                    self.bedna.refresh_from_db()
+                    self.assertEqual(self.bedna.rovnat, expected)
+
     def test_database_baseline_is_captured_before_automatic_defaults(self):
         MereniBedny.objects.filter(kontrola=self.kontrola).update(hodnota=Decimal('0.9'))
         history = self.kontrola.history.count()

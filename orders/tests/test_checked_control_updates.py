@@ -1,4 +1,5 @@
 from decimal import Decimal
+from itertools import product
 from unittest.mock import patch
 
 from django import forms
@@ -57,6 +58,114 @@ class CheckedControlUpdatesTests(KontrolaBednyTestBase):
                 data[name] = '' if value is None else value
         data.update(overrides)
         return data
+
+    def test_save_preserves_active_straightening_without_measurement_after_straightening(self):
+        for state, atypical, tz, rolling in product(
+            (RovnaniChoice.ROVNA_SE, RovnaniChoice.KOULENI),
+            (False, True), ('0.1', '0.5', '0.9'), (None, '0.1', '0.9'),
+        ):
+            with self.subTest(state=state, atypical=atypical, tz=tz, rolling=rolling):
+                Bedna.objects.filter(pk=self.bedna.pk).update(rovnat=state, atypicky_prubeh=atypical)
+                self.measurement(TypZkouskyChoice.PROHYB_PO_TZ, tz)
+                MereniBedny.objects.filter(
+                    kontrola=self.kontrola, typ_zkousky=TypZkouskyChoice.PROHYB_PO_KOULENI,
+                ).delete()
+                if rolling is not None:
+                    self.measurement(TypZkouskyChoice.PROHYB_PO_KOULENI, rolling)
+                KontrolaBedny.objects.filter(pk=self.kontrola.pk).update(
+                    neshoda_krivost=tz != '0.1', poznamka='',
+                )
+                history = self.bedna.history.count()
+                for _ in range(2):  # Ruční změna i následné uložení nezměněné kontroly.
+                    response = self.client.get(self.url)
+                    result = self.client.post(self.url, self.payload(response, poznamka='Průběžná kontrola'))
+                    self.assertRedirects(result, self.url)
+                    self.bedna.refresh_from_db()
+                    self.kontrola.refresh_from_db()
+                    self.assertEqual(self.bedna.rovnat, state)
+                    self.assertEqual(self.bedna.stav_bedny, StavBednyChoice.ZKONTROLOVANO)
+                    self.assertEqual(self.kontrola.neshoda_krivost, tz != '0.1')
+                    self.assertEqual(self.kontrola.uvolneni, UvolneniKontrolyChoice.NESHODA)
+                self.assertEqual(self.bedna.history.count(), history)
+
+    def test_measurement_after_straightening_overrides_active_states_including_zero(self):
+        for state, atypical, (value, expected) in product(
+            (RovnaniChoice.ROVNA_SE, RovnaniChoice.KOULENI),
+            (False, True),
+            (('0', RovnaniChoice.VYROVNANA), ('0.4', RovnaniChoice.VYROVNANA),
+             ('0.4001', RovnaniChoice.KRIVA)),
+        ):
+            with self.subTest(state=state, atypical=atypical, value=value):
+                Bedna.objects.filter(pk=self.bedna.pk).update(rovnat=state, atypicky_prubeh=atypical)
+                self.measurement(TypZkouskyChoice.PROHYB_PO_ROVNANI, value)
+                result = self.client.post(self.url, self.payload(self.client.get(self.url)))
+                self.assertRedirects(result, self.url)
+                self.bedna.refresh_from_db()
+                self.kontrola.refresh_from_db()
+                self.assertEqual(self.bedna.rovnat, expected)
+                self.assertEqual(self.kontrola.neshoda_krivost, expected == RovnaniChoice.KRIVA)
+
+    def test_cleanliness_still_updates_blasting_while_straightening_is_active(self):
+        for state in (RovnaniChoice.ROVNA_SE, RovnaniChoice.KOULENI):
+            with self.subTest(state=state):
+                Bedna.objects.filter(pk=self.bedna.pk).update(rovnat=state, tryskat=TryskaniChoice.SPINAVA)
+                KontrolaBedny.objects.filter(pk=self.kontrola.pk).update(cistota='NOK', neshoda_cistota=True)
+                result = self.client.post(self.url, self.payload(self.client.get(self.url), cistota='OK'))
+                self.assertRedirects(result, self.url)
+                self.bedna.refresh_from_db()
+                self.kontrola.refresh_from_db()
+                self.assertEqual(self.bedna.rovnat, state)
+                self.assertEqual(self.bedna.tryskat, TryskaniChoice.OTRYSKANA)
+                self.assertEqual(self.kontrola.uvolneni, UvolneniKontrolyChoice.NESHODA)
+                self.assertTrue(self.kontrola.neshoda_krivost)
+
+    def test_active_straightening_does_not_allow_release_of_failing_heat_treatment_sample(self):
+        for state in (RovnaniChoice.ROVNA_SE, RovnaniChoice.KOULENI):
+            with self.subTest(state=state):
+                Bedna.objects.filter(pk=self.bedna.pk).update(rovnat=state)
+                history = self.bedna.history.count()
+                result = self.client.post(self.url, self.payload(
+                    self.client.get(self.url), cistota='OK', uvolneni='UV',
+                ))
+                self.assertEqual(result.status_code, 200)
+                self.assertTrue(result.context['form'].errors)
+                self.bedna.refresh_from_db()
+                self.kontrola.refresh_from_db()
+                self.assertEqual(self.bedna.rovnat, state)
+                self.assertEqual(self.kontrola.uvolneni, UvolneniKontrolyChoice.NESHODA)
+                self.assertEqual(self.bedna.history.count(), history)
+
+    def test_valid_release_changes_preserve_active_straightening_and_confirm_pending_measurements(self):
+        for state in (RovnaniChoice.ROVNA_SE, RovnaniChoice.KOULENI):
+            for tz, release in (('0.1', 'UV'), ('0.5', 'UO')):
+                with self.subTest(state=state, release=release):
+                    Bedna.objects.filter(pk=self.bedna.pk).update(rovnat=state)
+                    self.measurement(TypZkouskyChoice.PROHYB_PO_TZ, tz)
+                    KontrolaBedny.objects.filter(pk=self.kontrola.pk).update(vyzaduje_potvrzeni=True)
+                    result = self.client.post(self.url, self.payload(
+                        self.client.get(self.url), cistota='OK', uvolneni=release,
+                    ))
+                    self.assertRedirects(result, self.url)
+                    self.bedna.refresh_from_db()
+                    self.kontrola.refresh_from_db()
+                    self.assertEqual(self.bedna.rovnat, state)
+                    self.assertEqual(self.kontrola.uvolneni, release)
+                    self.assertEqual(self.kontrola.neshoda_krivost, release == 'UO')
+                    self.assertFalse(self.kontrola.vyzaduje_potvrzeni)
+
+    def test_active_straightening_does_not_bypass_missing_evaluation_inputs(self):
+        self.customer.max_krivych_vrutu = None
+        self.customer.save()
+        for state in (RovnaniChoice.ROVNA_SE, RovnaniChoice.KOULENI):
+            with self.subTest(state=state):
+                Bedna.objects.filter(pk=self.bedna.pk).update(rovnat=state)
+                history = self.bedna.history.count()
+                result = self.client.post(self.url, self.payload(self.client.get(self.url)))
+                self.assertEqual(result.status_code, 200)
+                self.assertContains(result, 'U zákazníka nastavte maximální povolený počet křivých ve vzorku.')
+                self.bedna.refresh_from_db()
+                self.assertEqual(self.bedna.rovnat, state)
+                self.assertEqual(self.bedna.history.count(), history)
 
     def test_corrected_control_updates_both_states_and_records_author(self):
         self.measurement(TypZkouskyChoice.PROHYB_PO_ROVNANI, '0.4')
