@@ -328,6 +328,11 @@ Technicky hromadné zápisy používají `update_queryset_with_history()` v
 ukládá data i historii v jedné transakci a nevolá `save()`, `clean()` ani
 `full_clean()`. Kontroly přípustnosti zůstávají v jednotlivých akcích.
 
+Chybějící snímky inicializace fakturace migrací 0250 lze samostatně doplnit
+příkazem `doplnit_historii_fakturace`. Má náhled bez zápisu, zkoušku s rollbackem
+a výslovný režim `--apply`. Aktuální bedny a původní historické řádky se nemění;
+postup a omezení popisuje [návod opravy historie](oprava_historie_fakturace_0250.md).
+
 ## 9. Jak systém zpřístupňuje akce
 
 Akce nejsou vždy dostupné. `BednaAdmin.get_actions()` je zapíná/vypíná hlavně podle:
