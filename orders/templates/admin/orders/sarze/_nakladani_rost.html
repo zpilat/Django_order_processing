@@ -1,0 +1,10 @@
+<div class="sarze-admin-nakladani-content">
+    {% for patro_item in nakladani_patra %}
+        <div class="bedna-admin-pohyb-patro">
+            <strong>Patro {{ patro_item.patro }}</strong>
+            {% include "orders/includes/patro_rack.html" with polozky=patro_item.polozky patro=patro_item.patro only %}
+        </div>
+    {% empty %}
+        <p>Rozložení roštu při nakládání není k dispozici.</p>
+    {% endfor %}
+</div>

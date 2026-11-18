@@ -130,17 +130,23 @@
  * duplicitní label skrýt a readonly obsah roztáhnout přes celý řádek.
  */
 body.app-orders.model-bedna.change-form
-    .field-get_pohyb_v_sarzich > div > .flex-container {
+    .field-get_pohyb_v_sarzich > div > .flex-container,
+body.app-orders.model-sarze.change-form
+    .field-get_rozlozeni_rostu_pri_nakladani > div > .flex-container {
     display: block;
 }
 
 body.app-orders.model-bedna.change-form
-    .field-get_pohyb_v_sarzich > div > .flex-container > label {
+    .field-get_pohyb_v_sarzich > div > .flex-container > label,
+body.app-orders.model-sarze.change-form
+    .field-get_rozlozeni_rostu_pri_nakladani > div > .flex-container > label {
     display: none;
 }
 
 body.app-orders.model-bedna.change-form
-    .field-get_pohyb_v_sarzich .readonly {
+    .field-get_pohyb_v_sarzich .readonly,
+body.app-orders.model-sarze.change-form
+    .field-get_rozlozeni_rostu_pri_nakladani .readonly {
     width: 100%;
     min-width: 0;
     max-width: none;
@@ -150,15 +156,19 @@ body.app-orders.model-bedna.change-form
 
 @media (min-width: 1200px) {
     body.app-orders.model-bedna.change-form
-        .field-get_pohyb_v_sarzich .readonly {
+        .field-get_pohyb_v_sarzich .readonly,
+    body.app-orders.model-sarze.change-form
+        .field-get_rozlozeni_rostu_pri_nakladani .readonly {
         width: 50%;
     }
 }
 
-.bedna-admin-pohyb .rack-preview {
+.bedna-admin-pohyb .rack-preview,
+.sarze-admin-nakladani .rack-preview {
     min-height: 100px;
 }
 
-.bedna-admin-pohyb .rack-segment {
+.bedna-admin-pohyb .rack-segment,
+.sarze-admin-nakladani .rack-segment {
     padding-bottom: .35rem;
 }

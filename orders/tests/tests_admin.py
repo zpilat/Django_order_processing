@@ -3664,6 +3664,82 @@ class SarzeAdminCreateBehaviorTests(AdminBase):
             cislo_bedny=cislo_bedny,
         )
 
+    def test_change_form_shows_first_loading_layout_above_steps_without_highlight(self):
+        sarze = Sarze.objects.create(datum_zalozeni=date.today())
+        nakladani = Zarizeni.objects.create(
+            kod_zarizeni='NK', nazev_zarizeni='Nakládání',
+            zkraceny_nazev_zarizeni='NK', typ_zarizeni=TypZarizeniChoice.NAKLADANI,
+        )
+        # Pozdější nakládání vznikne dříve, výběr se musí řídit pořadím kroku.
+        later = SarzeKrok.objects.create(
+            sarze=sarze, poradi=3, zarizeni=nakladani,
+            zacatek=time(9, 0), operator='Novak',
+        )
+        first = SarzeKrok.objects.create(
+            sarze=sarze, poradi=2, zarizeni=nakladani,
+            zacatek=time(7, 0), operator='Novak',
+        )
+        other = self._create_sarze_krok(sarze)
+        bedna = self._create_bedna(76543210)
+        SarzeKrokBedna.objects.create(krok=first, bedna=bedna, patro=1, procent_z_patra=40)
+        SarzeKrokBedna.objects.create(krok=first, bedna=bedna, patro=1, procent_z_patra=60)
+        SarzeKrokBedna.objects.create(
+            krok=first, popis_mimo_db='Železo <test>', patro=3, procent_z_patra=100,
+        )
+        for krok in (later, other):
+            SarzeKrokBedna.objects.create(
+                krok=krok, popis_mimo_db='Jiný obsah', patro=6, procent_z_patra=100,
+            )
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse('admin:orders_sarze_change', args=[sarze.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '>Rozložení roštu při nakládání</h2>', count=1)
+        self.assertContains(response, 'orders/css/rack_preview.css')
+        html = response.content.decode('utf-8')
+        layout = html.split('<fieldset class="module aligned sarze-admin-nakladani"', 1)[1].split('</fieldset>', 1)[0]
+        self.assertNotIn('<details', layout)
+        self.assertNotIn('rack-segment-current', layout)
+        self.assertNotIn('Jiný obsah', layout)
+        self.assertIn('Železo &lt;test&gt;', layout)
+        self.assertEqual(layout.count(str(bedna.cislo_bedny)), 2)
+        self.assertEqual(layout.count('background-color: #ffde17;'), 3)
+        self.assertIn('width: 40%;', layout)
+        self.assertIn('width: 60%;', layout)
+        self.assertLess(layout.index('Patro 3'), layout.index('Patro 1'))
+        self.assertLess(html.index('>Rozložení roštu při nakládání</h2>'), html.index('id="kroky-group"'))
+        self.assertIn('get_rozlozeni_rostu_pri_nakladani', self.admin.readonly_fields)
+        self.assertIn('field-get_rozlozeni_rostu_pri_nakladani', layout)
+
+    def test_change_form_without_loading_items_shows_unavailable_message(self):
+        sarze = Sarze.objects.create(datum_zalozeni=date.today())
+        self.client.force_login(self.user)
+        url = reverse('admin:orders_sarze_change', args=[sarze.pk])
+        krok = self._create_sarze_krok(sarze)
+        SarzeKrokBedna.objects.create(
+            krok=krok, popis_mimo_db='Obsah jiného pracoviště', patro=1, procent_z_patra=100,
+        )
+
+        response = self.client.get(url)
+        self.assertContains(response, 'Rozložení roštu při nakládání není k dispozici.')
+        self.assertNotContains(response, 'class="rack-preview"')
+
+        krok.zarizeni.typ_zarizeni = TypZarizeniChoice.NAKLADANI
+        krok.zarizeni.save()
+        krok.krok_bedny.all().delete()
+        response = self.client.get(url)
+        self.assertContains(response, 'Rozložení roštu při nakládání není k dispozici.')
+        self.assertNotContains(response, 'class="rack-preview"')
+
+    def test_add_form_does_not_show_loading_layout(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse('admin:orders_sarze_add'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'Rozložení roštu při nakládání')
+
     def test_history_changes_display_choice_labels(self):
         sarze = Sarze.objects.create(
             datum_zalozeni=date.today(),

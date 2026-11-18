@@ -92,7 +92,7 @@ from .choices import (
 from .utils import (
     utilita_validate_excel_upload, build_postup_vyroby_cases, truncate_with_title, parse_sarze_search_term,
     format_decimal_csv, format_cislo_bedny, format_skupina_TZ, build_fake_skupina_TZ_annotation,
-    prirad_barvy_polozkam_pater, nastav_porovnani_kroku_s_nakladanim,
+    prirad_barvy_polozkam_pater, nastav_porovnani_kroku_s_nakladanim, rozlozeni_rostu_pri_nakladani,
 )
 from .services.mereni_bedny_service import pozadavek_zkousky, rozsah_mereni_zakaznika
 
@@ -528,7 +528,7 @@ class SarzeAdmin(HistoryPollingAdminMixin, HistoryViewOnlyAdmin):
     list_editable = ('stav_sarze',)
     list_filter = (StavSarzeFilter, TypSarzeFilter)
     search_fields = ('cislo_sarze',)
-    readonly_fields = ('cislo_sarze',)
+    readonly_fields = ('cislo_sarze', 'get_rozlozeni_rostu_pri_nakladani')
     date_hierarchy = 'datum_zalozeni'
     ordering = ('-cislo_sarze',)
     inlines = [SarzeKrokInline]
@@ -542,6 +542,7 @@ class SarzeAdmin(HistoryPollingAdminMixin, HistoryViewOnlyAdmin):
     history_list_per_page = 20
 
     class Media:
+        css = {'all': ('orders/css/rack_preview.css',)}
         js = (
             'orders/js/admin_actions_target_blank.js',
             'orders/js/changelist_dirty_guard.js',
@@ -675,6 +676,24 @@ class SarzeAdmin(HistoryPollingAdminMixin, HistoryViewOnlyAdmin):
         if obj is None and 'datum_zalozeni' in fields:
             fields.remove('datum_zalozeni')
         return fields
+
+    def get_fieldsets(self, request, obj=None):
+        fieldsets = [('Základní údaje', {'fields': self.get_fields(request, obj)})]
+        if obj and obj.pk:
+            fieldsets.append(('Rozložení roštu při nakládání', {
+                'fields': ('get_rozlozeni_rostu_pri_nakladani',),
+                'classes': ('sarze-admin-nakladani',),
+            }))
+        return fieldsets
+
+    @admin.display(description='Rozložení roštu při nakládání')
+    def get_rozlozeni_rostu_pri_nakladani(self, obj):
+        if not obj or not obj.pk:
+            return '-'
+        return mark_safe(render_to_string(
+            'admin/orders/sarze/_nakladani_rost.html',
+            {'nakladani_patra': rozlozeni_rostu_pri_nakladani(obj)},
+        ))
 
     def get_queryset(self, request):
         return Sarze.with_typ_sarze(super().get_queryset(request))

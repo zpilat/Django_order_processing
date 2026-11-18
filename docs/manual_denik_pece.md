@@ -26,6 +26,14 @@ Pro nakládání existujících beden na pracovištích 1–6 lze místo ruční
 
 ## 3. Šarže a krok
 
+Pole šarže jsou v administraci seskupená v části **Základní údaje**, a to při založení i při úpravě šarže.
+
+V detailu uložené šarže v administraci je nad seznamem kroků vždy otevřený přehled **Rozložení roštu při nakládání**. Zobrazuje obsah prvního kroku typu Nakládání podle pořadí: patra od nejvyššího dolů, barevné části s čísly beden nebo popisy položek mimo databázi a procentní stupnici. Žádná bedna se zvlášť nezvýrazňuje. Přehled vychází z uložených položek nakládání; pozdější kroky ho nemění. Pokud nakládání chybí nebo nemá položky, zobrazí se zpráva, že rozložení není k dispozici.
+
+Přehled je samostatný fieldset s nadpisem přes celou šířku formuláře, stejně jako část **Základní údaje**. Při šířce okna od 1200 px zabírá obsah s rošty polovinu šířky formuláře; na menších obrazovkách využívá celou dostupnou šířku.
+
+Rozložení je pouze ke čtení. Pro opravu beden, položek mimo databázi, pater nebo podílů upravte deník příslušného kroku Nakládání.
+
 Datum založení šarže se při vytvoření doplní automaticky. Seznam šarží umožňuje filtrovat aktivní šarže.
 
 Při založení šarže v administraci vyplňte povinné údaje prvního kroku. Při vytváření dalšího kroku přes přesun se datum začátku, pracoviště, začátek a operátor zadávají v navazujícím formuláři před uložením.

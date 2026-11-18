@@ -140,6 +140,26 @@ def nastav_porovnani_kroku_s_nakladanim(sarze_groups):
     return sarze_groups
 
 
+def rozlozeni_rostu_pri_nakladani(sarze):
+    """Vrátí obarvená patra prvního nakládání, od nejvyššího patra."""
+    krok = sarze.kroky.filter(
+        zarizeni__typ_zarizeni=TypZarizeniChoice.NAKLADANI,
+    ).order_by('poradi', 'pk').first()
+    if krok is None:
+        return []
+
+    polozky = list(
+        krok.krok_bedny.select_related('bedna').order_by('-patro', 'pk')
+    )
+    prirad_barvy_polozkam_pater(polozky)
+    patra = []
+    for polozka in polozky:
+        if not patra or patra[-1]['patro'] != polozka.patro:
+            patra.append({'patro': polozka.patro, 'polozky': []})
+        patra[-1]['polozky'].append(polozka)
+    return patra
+
+
 def format_cislo_bedny(bedna):
     """
     Vrátí číslo bedny s barevným zvýrazněním podle zákazníka přijmového kamionu.
