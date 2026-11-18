@@ -98,7 +98,7 @@ when deploying and edit those files to update the documentation.
 | Customers, quality settings, specifications, prices and workstations | [Reference data and customer settings](docs/manual_ciselniky.md) |
 | Receipt errors, production and measurement corrections, shipment returns | [Exceptional situations and corrections](docs/manual_mimoradne_situace.md) |
 | Crate, inspection and batch states, automatic updates and blockers | [States and automatic rules](docs/manual_stavy_a_pravidla.md) |
-| Actual development database groups, their permissions and access management | [Roles and permissions](docs/manual_role_a_opravneni.md) |
+| Actual groups and permissions from the production dump dated 17 November 2026, and access management | [Roles and permissions](docs/manual_role_a_opravneni.md) |
 | Dashboard metrics, calculations and differences between current and historical data | [Dashboards and metric definitions](docs/manual_prehledy_a_ukazatele.md) |
 | Order receipt, completeness and shipment | [Orders](docs/manual_zakazka.md) |
 | Truck imports, receipt, shipment and documents | [Trucks](docs/manual_kamion.md) |

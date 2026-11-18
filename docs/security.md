@@ -15,7 +15,7 @@ Odkazy na zdrojové soubory mimo tento seznam se zobrazují jen jako text.
 
 Projekt používá autentizaci a relace Djanga. Administrace vyžaduje účet s příznakem staff a příslušná oprávnění; provozní obrazovky jsou dostupné přihlášeným uživatelům podle oprávnění dané operace.
 
-Skutečné skupiny a jejich oprávnění načtené 6. listopadu 2026 z vývojové databáze, spolu s postupem nástupu, změny role a deaktivace účtu, jsou v návodu [Role a přidělování oprávnění](manual_role_a_opravneni.md). Podle správce projektu jde o aktuální kopii produkce; produkční databáze nebyla samostatně čtena. Soupis je snímek, nikoli automaticky aktualizovaný přehled.
+Skutečné skupiny a jejich oprávnění z produkčního dumpu `tmp/orders_prod_latest.dump`, vytvořeného 17. listopadu 2026 v 11:00:01, spolu s postupem nástupu, změny role a deaktivace účtu, jsou v návodu [Role a přidělování oprávnění](manual_role_a_opravneni.md). Soupis byl ověřen 18. listopadu 2026 přímo z archivu, bez obnovy do databáze a bez připojení k živé produkci. Zahrnuje 9 skupin, přesná přiřazení a úplný seznam 194 uložených práv včetně práv bez skupinového přiřazení; členství uživatelů, jejich příznaky a přímá práva nebyly při této aktualizaci ověřovány. Jde o snímek, nikoli automaticky aktualizovaný přehled.
 
 Speciální oprávnění řídí úpravy expedovaných a pozastavených beden, nepřijatých beden a jejich poznámek, navezení, označení jako zakalené či zkontrolované a řízení šarží. Podrobnosti jsou v [manuálu beden](manual_bedna.md), [kontroly](manual_kontrola_beden.md) a [rychlého založení šarže](manual_rychle_zalozeni_sarze.md).
 

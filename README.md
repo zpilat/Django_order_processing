@@ -103,7 +103,7 @@ a `README.md`. Návody se upravují v těchto souborech, nikoli v administraci.
 | Zákazníci, kontrolní nastavení, předpisy, ceny a pracoviště | [Číselníky a nastavení zákazníka](docs/manual_ciselniky.md) |
 | Chybné příjmy, opravy výroby a měření, vrácení expedice | [Mimořádné situace a opravy](docs/manual_mimoradne_situace.md) |
 | Vztahy stavů bedny, kontroly a šarže, automatické změny a blokace | [Stavy a automatická pravidla](docs/manual_stavy_a_pravidla.md) |
-| Skutečné skupiny z vývojové databáze, jejich práva a správa přístupu | [Role a oprávnění](docs/manual_role_a_opravneni.md) |
+| Skutečné skupiny a práva z produkčního dumpu ze 17. 11. 2026 a správa přístupu | [Role a oprávnění](docs/manual_role_a_opravneni.md) |
 | Význam přehledů, výpočty ukazatelů a rozdíly mezi aktuálními a historickými daty | [Přehledy a význam ukazatelů](docs/manual_prehledy_a_ukazatele.md) |
 | Příjem, kompletnost a expedice zakázek | [Zakázky](docs/manual_zakazka.md) |
 | Importy, příjem a výdej kamionů, doklady | [Kamiony](docs/manual_kamion.md) |

@@ -2,11 +2,11 @@
 
 Akce **Převést na atypický průběh, označit zkontrolováno s neshodou** vyžaduje současně `orders.change_bedna` a samostatné **Může převést bednu na atypický průběh** (`orders.mark_bedna_atypicky_prubeh`). Stejné nové právo umožňuje ruční změnu příznaku Atypický průběh v detailu bedny; bez něj je pole pouze pro čtení při vytvoření i úpravě. Akce pracuje pouze s nepozastavenými přijatými bednami bez dosavadní kontroly a vyžaduje potvrzení účinků akce.
 
-Migrace `0251_atypicky_prubeh_opravneni` vytvoří nové oprávnění při `migrate`, ale nepřidělí ho žádné skupině ani uživateli. Ani skupině **Příjem - Expedice** se automaticky nepřidává. Přidělení provede správce podle potřeby v oprávněních skupiny nebo uživatele. Superuživatel má přístup automaticky. Nové právo neopravňuje k zápisu měření, rozhodování o uvolnění ani dokončení kontroly; ty dál vyžadují `orders.mark_bedna_zkontrolovano`. Samotné kontrolorské právo převod na atypický průběh neumožňuje.
+Migrace `0251_atypicky_prubeh_opravneni` vytvoří nové oprávnění při `migrate`, ale nepřidělí ho žádné skupině ani uživateli. **Ve snímku z 17. listopadu 2026 je právo přidělené pouze skupině Manager; Příjem - Expedice ho nemá.** Další přidělení provede správce podle potřeby v oprávněních skupiny nebo uživatele. Superuživatel má přístup automaticky. Nové právo neopravňuje k zápisu měření, rozhodování o uvolnění ani dokončení kontroly; ty dál vyžadují `orders.mark_bedna_zkontrolovano`. Samotné kontrolorské právo převod na atypický průběh neumožňuje.
 
 Původní reklamační akce Přijato → Zakaleno je odstraněná. Historické oprávnění `orders.mark_bedna_zakaleno` může zůstat ve skupinách uvedených v tomto snímku, ale odstraněnou akci nezpřístupňuje. Pro skenové potvrzení Zakaleno nadále slouží samostatné `orders.scan_mark_bedna_zakaleno`.
 
-Návod slouží správci uživatelů při nástupu pracovníka, změně jeho úkolů a odebrání přístupu. Popisuje **skutečné skupiny a jejich přidělená oprávnění načtené 9. listopadu 2026 z vývojové PostgreSQL `orders_dev` na lokálním portu 5433 po obnově z produkčního dumpu `orders_prod_auto_20261109_080001.dump`**. Produkce se při aktualizaci návodu samostatně nečetla. Jde o snímek nastavení, který se po změně skupin neaktualizuje automaticky. Žádné účty, skupiny ani jejich oprávnění nebyly při přípravě dokumentace měněny.
+Návod slouží správci uživatelů při nástupu pracovníka, změně jeho úkolů a odebrání přístupu. Popisuje **skutečné skupiny a jejich přidělená oprávnění z produkčního dumpu `tmp/orders_prod_latest.dump`, vytvořeného 17. listopadu 2026 v 11:00:01 z databáze `orders_prod` podle hlavičky archivu**. Soupis byl ověřen 18. listopadu 2026 přímým vyčtením tabulek `auth_group`, `auth_group_permissions`, `auth_permission` a `django_content_type` pomocí `pg_restore`, bez obnovy do databáze. Nezahrnuje pozdější lokální změny, členství uživatelů ani jejich přímá práva a příznaky účtů. Živá produkce se při aktualizaci návodu nečetla. Jde o snímek nastavení, který se po změně skupin neaktualizuje automaticky. Žádné účty, skupiny ani jejich oprávnění nebyly při přípravě dokumentace měněny.
 
 ## 1. Účet, administrace a oprávnění
 
@@ -35,7 +35,7 @@ V databázi je následujících **9 skupin**. Tabulka shrnuje jejich skutečná 
 | Skupina v databázi | Obrazovky a úkoly podle přidělených práv | Přidělená oprávnění a hranice |
 | --- | --- | --- |
 | Kontrola | Provozní kontrola beden, měření, rozhodnutí o uvolnění, dokončení kontroly; kontrolorské stavy šarží s položkami mimo DB; souhrnná měření zakázek pro výdej | **9 práv**. view pro bedny, kamiony, zakázky, šarže, kroky a deník; `mark_bedna_zkontrolovano`, `change_stav_sarze_kontrolor`, `change_mereni_zakazky`. Nemá obecné change_bedna ani view_zaznamneshody. |
-| Manager | Široká správa provozních agend, číselníků, účtů a skupin, také opravy a mazání v rozsahu přidělených práv; čtení historie beden a Evidence neshod | **96 práv**, včetně všech čtyř standardních práv pro vyjmenované provozní modely a auth modely user, group a permission. Má plný i omezený přesun šarží, kontrolorská a operátorská stavová práva, výjimky pro nepřijaté, pozastavené a expedované bedny a `view_historicalbedna` i `view_zaznamneshody`. Není to automaticky superuser ani skupina se všemi budoucími právy. |
+| Manager | Široká správa provozních agend, číselníků, účtů a skupin, také opravy a mazání v rozsahu přidělených práv; čtení historie beden a Evidence neshod | **97 práv**, včetně všech čtyř standardních práv pro vyjmenované provozní modely a auth modely user, group a permission. Má plný i omezený přesun šarží, kontrolorská a operátorská stavová práva, výjimky pro nepřijaté, pozastavené a expedované bedny, `mark_bedna_atypicky_prubeh` a `view_historicalbedna` i `view_zaznamneshody`. Není to automaticky superuser ani skupina se všemi budoucími právy. |
 | Mistr | Provozní obrazovky i administrace v rozsahu přidělených práv: rychlé založení šarže, patra, úpravy kroků a hlavičky, průvodka, plné přesuny, navezení a Zakaleno přes sken; operátorské stavy šarží s položkami mimo DB | **16 práv**, přesně shodných se skupinou Operátor. Účet má `is_staff=True`, takže může využívat i administrační seznamy, formuláře a akce podle těchto práv. Má `can_move_sarze`, `mark_bedna_navezeno`, `scan_mark_bedna_zakaleno` a mazání posledního patra. Nemá mark_bedna_zkontrolovano ani change_bedna. |
 | Náhled | Čtení beden, zakázek, kamionů, šarží, kroků, deníku, rozpracovanosti, zařízení a vybraných číselníků | **15 práv**, všechna view. Má `view_zarizeni`, nemá práva přidávání, změny ani mazání, `view_predpis` ani `view_zaznamneshody`. Počet zahrnuje také zbylé `view_sarzebedna` pro odstraněný model. Některé provozní stránky mají vlastní podmínky přístupu, viz kapitola 1. |
 | Operátor | Provozní obrazovky: nakládání, kroky, plné přesuny, navezení a Zakaleno přes sken | **16 práv**, přesně shodných se skupinou Mistr. Účet má `is_staff=False`, proto nemůže do administrace ani používat její seznamy, formuláře, akce a návody v aplikaci. Provozní operace zůstávají dostupné podle přidělených práv a stavu záznamů. |
@@ -46,7 +46,7 @@ V databázi je následujících **9 skupin**. Tabulka shrnuje jejich skutečná 
 
 V této a dalších tabulkách mají oprávnění bez uvedené předpony předponu **`orders.`**. Zápis „view/add/change pro kamion“ znamená `view_kamion`, `add_kamion`, `change_kamion`; není to název jednoho oprávnění.
 
-Členství ve skupině **nenastavuje Aktivní, staff ani superuser**. V běžném provozním nastavení mají **mistři `is_staff=True` a operátoři `is_staff=False`**. Toto rozlišení popisuje pracovní role, bez testovacích účtů. Příznak staff se nastavuje u každého účtu samostatně; není vlastností skupiny. Při doplňující kontrole byli ověřeni členové skupin Mistr a Operátor, u ostatních účtů se příznaky a přímá práva nečetly.
+Členství ve skupině **nenastavuje Aktivní, staff ani superuser**. V běžném provozním nastavení mají **mistři `is_staff=True` a operátoři `is_staff=False`**. Toto rozlišení popisuje pracovní role, bez testovacích účtů, a vychází z předchozího ověření členů skupin Mistr a Operátor. Příznak staff se nastavuje u každého účtu samostatně; není vlastností skupiny. Při aktualizaci soupisu 18. listopadu 2026 se členství ani příznaky a přímá práva jednotlivých účtů znovu neověřovaly.
 
 Shodných 16 skupinových oprávnění tedy neznamená stejný rozsah dostupných funkcí: mistr může navíc pracovat v administraci, operátor používá provozní rozhraní. V provozních obrazovkách samotná absence staff operátorova práva nesnižuje; například plný přesun šarží je dostupný oběma rolím. Pro vstup do administrace musí být účet také aktivní a pro každou agendu platí její vlastní kontroly oprávnění.
 
@@ -145,7 +145,9 @@ Při ověření projděte celý navazující úkol: například založení šar�
 
 ## 8. Přesný soupis oprávnění skupin
 
-Snímek z 9. listopadu 2026. V tabulkách zápis `view` u modelu `orders.bedna` označuje právo `orders.view_bedna`; obdobně add, change a delete. Pomlčka znamená, že skupina dané standardní právo nemá. Vlastní oprávnění jsou uvedena samostatně plným kódem. Soupis zahrnuje i uložená práva historických a odstraněných modelů; jejich existence sama neznamená editovatelnou historii ani dostupnou agendu.
+Snímek z 17. listopadu 2026 v 11:00:01, ověřený 18. listopadu 2026 přímo z dumpu. V tabulkách zápis `view` u modelu `orders.bedna` označuje právo `orders.view_bedna`; obdobně add, change a delete. Pomlčka znamená, že skupina dané standardní právo nemá. Vlastní oprávnění jsou uvedena samostatně plným kódem. Soupis zahrnuje i uložená práva historických a odstraněných modelů; jejich existence sama neznamená editovatelnou historii ani dostupnou agendu.
+
+Dump obsahuje **194 oprávnění** (177 standardních a 17 vlastních) a **214 přiřazení práv k 9 skupinám**. Skupinám je přiřazeno 103 různých práv; zbývajících 91 není přiřazeno žádné skupině a je vypsáno na konci kapitoly. Ve srovnání se soupisem z 9. listopadu 2026 má Manager navíc `orders.mark_bedna_atypicky_prubeh` (97 místo 96 práv); u ostatních osmi skupin se přiřazení nezměnilo.
 
 ### Kontrola (9 práv)
 
@@ -160,7 +162,7 @@ Snímek z 9. listopadu 2026. V tabulkách zápis `view` u modelu `orders.bedna` 
 
 **Vlastní oprávnění:** `orders.change_mereni_zakazky`, `orders.change_stav_sarze_kontrolor`, `orders.mark_bedna_zkontrolovano`.
 
-### Manager (96 práv)
+### Manager (97 práv)
 
 | Model | view | add | change | delete |
 | --- | --- | --- | --- | --- |
@@ -191,7 +193,7 @@ Snímek z 9. listopadu 2026. V tabulkách zápis `view` u modelu `orders.bedna` 
 | `orders.zarizeni` | Ano | Ano | Ano | Ano |
 | `orders.zaznamneshody` | Ano | — | — | — |
 
-**Vlastní oprávnění:** `orders.can_move_sarze`, `orders.can_move_sarze_limited`, `orders.change_expedovana_bedna`, `orders.change_expedovana_zakazka`, `orders.change_mereni_zakazky`, `orders.change_neprijata_bedna`, `orders.change_pozastavena_bedna`, `orders.change_poznamka_neprijata_bedna`, `orders.change_stav_sarze_kontrolor`, `orders.change_stav_sarze_operator`, `orders.delete_sarzekrokbedna_patro`, `orders.filter_chemistry_bedna`, `orders.mark_bedna_navezeno`, `orders.mark_bedna_zakaleno`, `orders.mark_bedna_zkontrolovano`, `orders.scan_mark_bedna_zakaleno`.
+**Vlastní oprávnění:** `orders.can_move_sarze`, `orders.can_move_sarze_limited`, `orders.change_expedovana_bedna`, `orders.change_expedovana_zakazka`, `orders.change_mereni_zakazky`, `orders.change_neprijata_bedna`, `orders.change_pozastavena_bedna`, `orders.change_poznamka_neprijata_bedna`, `orders.change_stav_sarze_kontrolor`, `orders.change_stav_sarze_operator`, `orders.delete_sarzekrokbedna_patro`, `orders.filter_chemistry_bedna`, `orders.mark_bedna_atypicky_prubeh`, `orders.mark_bedna_navezeno`, `orders.mark_bedna_zakaleno`, `orders.mark_bedna_zkontrolovano`, `orders.scan_mark_bedna_zakaleno`.
 
 ### Mistr (16 práv)
 
@@ -297,6 +299,65 @@ Snímek z 9. listopadu 2026. V tabulkách zápis `view` u modelu `orders.bedna` 
 ### Rozšířený filtr TZ (0 práv)
 
 Skupina nemá žádná přiřazená modelová ani vlastní oprávnění. Její účinek je dán přímou kontrolou členství podle názvu v `orders/filters.py`, třída `SkupinaSarzeBednaFilter`. Přístup do agendy musí zajistit jiná skupina, přímá oprávnění a potřebné příznaky účtu.
+
+### Přehled vlastních oprávnění podle skupin
+
+Všech 17 vlastních oprávnění uložených v dumpu má alespoň jednu skupinu. Tabulka zachycuje skupinové přiřazení; přímá práva uživatele a superuser mohou přístup dále rozšířit. Význam a další podmínky jednotlivých operací popisují kapitoly 3 a 4.
+
+| Oprávnění | Skupiny s přiděleným právem |
+| --- | --- |
+| `orders.can_move_sarze` | Manager, Mistr, Operátor |
+| `orders.can_move_sarze_limited` | Manager, Předák |
+| `orders.change_expedovana_bedna` | Manager |
+| `orders.change_expedovana_zakazka` | Manager |
+| `orders.change_mereni_zakazky` | Kontrola, Manager |
+| `orders.change_neprijata_bedna` | Manager, Příjem - Expedice |
+| `orders.change_pozastavena_bedna` | Manager |
+| `orders.change_poznamka_neprijata_bedna` | Manager, Plánování výroby a rovnání |
+| `orders.change_stav_sarze_kontrolor` | Kontrola, Manager |
+| `orders.change_stav_sarze_operator` | Manager, Mistr, Operátor, Předák |
+| `orders.delete_sarzekrokbedna_patro` | Manager, Mistr, Operátor |
+| `orders.filter_chemistry_bedna` | Manager, Příjem - Expedice |
+| `orders.mark_bedna_atypicky_prubeh` | Manager |
+| `orders.mark_bedna_navezeno` | Manager, Mistr, Operátor |
+| `orders.mark_bedna_zakaleno` | Manager, Příjem - Expedice |
+| `orders.mark_bedna_zkontrolovano` | Kontrola, Manager |
+| `orders.scan_mark_bedna_zakaleno` | Manager, Mistr, Operátor, Předák |
+
+`orders.mark_bedna_zakaleno` je historické právo pro odstraněnou reklamační akci Přijato → Zakaleno; jeho uložené přiřazení tuto akci neobnovuje a nenahrazuje právo pro atypický průběh ani skenové potvrzení Zakaleno.
+
+### Oprávnění nepřiřazená žádné skupině
+
+Následující tabulka doplňuje soupis o zbývajících **91 standardních oprávnění**, která v dumpu existují, ale nemá je žádná z devíti skupin. Spolu s výše uvedenými skupinovými soupisy tak pokrývá všech 194 práv v dumpu. Zápis `add` u `orders.historicalbedna` znamená `orders.add_historicalbedna`; obdobně ostatní akce. Nepřiřazení skupině nevylučuje přímé oprávnění uživatele ani přístup aktivního superuser a není pokynem k doplnění těchto práv do skupin.
+
+| Model | Oprávnění bez skupinového přiřazení |
+| --- | --- |
+| `admin.logentry` | add, change, delete, view |
+| `contenttypes.contenttype` | add, change, delete, view |
+| `orders.historicalbedna` | add, change, delete |
+| `orders.historicalcena` | add, change, delete, view |
+| `orders.historicalkamion` | add, change, delete |
+| `orders.historicalkontrolabedny` | add, change, delete, view |
+| `orders.historicalmerenibedny` | add, change, delete, view |
+| `orders.historicalodberatel` | add, change, delete |
+| `orders.historicalpletivo` | add, change, delete, view |
+| `orders.historicalpredpis` | add, change, delete, view |
+| `orders.historicalsarze` | add, change, delete |
+| `orders.historicalsarzebedna` | add, change, delete, view |
+| `orders.historicalsarzekrok` | change, delete |
+| `orders.historicalsarzekrokbedna` | add, change, delete |
+| `orders.historicaltyphlavy` | add, change, delete, view |
+| `orders.historicalzakazka` | add, change, delete |
+| `orders.historicalzakaznik` | add, change, delete |
+| `orders.historicalzarizeni` | add, change, delete, view |
+| `orders.kontrolabedny` | add, change, delete |
+| `orders.merenibedny` | add, change, delete |
+| `orders.pozicezakazkaorder` | add, change, delete, view |
+| `orders.prioritynotificationrecipient` | add, change, delete, view |
+| `orders.rozpracovanost` | add, change, delete |
+| `orders.rozpracovanostbednasnapshot` | add, change, delete, view |
+| `orders.sarzebedna` | add, change, delete |
+| `sessions.session` | add, change, delete, view |
 
 ## 9. Související dokumentace a kód
 
