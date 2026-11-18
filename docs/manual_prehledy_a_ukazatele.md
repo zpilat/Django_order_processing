@@ -147,6 +147,8 @@ Používá se celá současná kladná netto hmotnost bedny, bez násobení proc
 
 **Historie výroby** (`/dashboard/vyroba/historie/`) používá stejná zařízení a pravidlo prvního použití bedny jako Přehled výroby. Zvolte rok; přes měsíc otevřete denní detail.
 
+Na mobilu hlavní přehled i měsíční detail využívají celou dostupnou šířku. Pokud se všechny sloupce nevejdou, posouvejte konkrétní tabulku vodorovně uvnitř její karty. Záhlaví a ovládací prvky se přizpůsobují šířce obrazovky.
+
 | Ukazatel | Výpočet a výklad |
 | --- | --- |
 | Průměrný denní výkon [kg/den] | Produkce za období / počet uplynulých **kalendářních dní**. V aktuálním roce se zahrnuje i dnešek; minulý rok se hodnotí celý. |

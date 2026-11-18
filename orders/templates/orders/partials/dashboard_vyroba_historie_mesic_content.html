@@ -1,5 +1,5 @@
 <div class="alert" role="alert" style="background-color: #214290; color: #ffde17; font-family: 'Liberation Sans', Arial;">
-  <div class="d-flex align-items-center justify-content-between mb-2">
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
     <h3 class="mb-0">{{ vyroba_historie.title }} - Denní rozpis</h3>
     <a class="btn btn-secondary" style="color: #ffde17;" href="{% url 'admin:orders_sarzekrokbedna_changelist' %}">Návrat</a>
   </div>
@@ -9,47 +9,49 @@
   </div>
 </div>
 
-<div class="row justify-content-center" style="font-family: 'Liberation Sans', Arial;">
-  <div class="col-8 mb-3">
+<div class="row justify-content-center mx-0" style="font-family: 'Liberation Sans', Arial;">
+  <div class="col-12 col-xl-8 mb-3">
     <div class="card shadow-sm">
       <div class="card-header fw-bold d-flex align-items-center justify-content-between" style="background-color: #ffde17; color: #214290;">
         <span>Denní produkce - {{ vyroba_historie.month_detail.label }} {{ vyroba_historie.selected_year }}</span>
       </div>
       <div class="card-body p-2">
-        <table class="table table-sm align-middle mb-0">
-          <thead>
-            <tr>
-              <th style="background-color: #214290; color: #ffde17;">Den</th>
-              <th style="background-color: #214290; color: #ffde17;">TQF XL1<br>[kg]</th>
-              <th style="background-color: #214290; color: #ffde17;">TQF XL2<br>[kg]</th>
-              <th style="background-color: #214290; color: #ffde17;">CELKEM<br>[kg]</th>
-              <th style="background-color: #214290; color: #ffde17;">Vytížení roštu<br>[kg/rošt]</th>
-              <th style="background-color: #214290; color: #ffde17;">Cena<br>[EUR/rošt]</th>
-              <th style="background-color: #214290; color: #ffde17;">Prostoj XL1<br>[hod./den]</th>
-              <th style="background-color: #214290; color: #ffde17;">Prostoj XL2<br>[hod./den]</th>
-              <th style="background-color: #214290; color: #ffde17;">Prostoj CELKEM<br>[hod./den]</th>
-            </tr>
-          </thead>
-          <tbody class="table-striped">
-            {% for row in vyroba_historie.month_detail.rows %}
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead>
               <tr>
-                <th>{{ row.label }}</th>
-                <td>{{ row.xl1_display }}</td>
-                <td>{{ row.xl2_display }}</td>
-                <td class="fw-bold">{{ row.total_display }}</td>
-                <td class="fw-bold">{{ row.vytizeni_rostu.display }}</td>
-                <td class="fw-bold">{{ row.cena_za_rost.display }}</td>
-                <td>{{ row.prostoj_avg.xl1_display }}</td>
-                <td>{{ row.prostoj_avg.xl2_display }}</td>
-                <td class="fw-bold">{{ row.prostoj_avg.total_display }}</td>
+                <th style="background-color: #214290; color: #ffde17;">Den</th>
+                <th style="background-color: #214290; color: #ffde17;">TQF XL1<br>[kg]</th>
+                <th style="background-color: #214290; color: #ffde17;">TQF XL2<br>[kg]</th>
+                <th style="background-color: #214290; color: #ffde17;">CELKEM<br>[kg]</th>
+                <th style="background-color: #214290; color: #ffde17;">Vytížení roštu<br>[kg/rošt]</th>
+                <th style="background-color: #214290; color: #ffde17;">Cena<br>[EUR/rošt]</th>
+                <th style="background-color: #214290; color: #ffde17;">Prostoj XL1<br>[hod./den]</th>
+                <th style="background-color: #214290; color: #ffde17;">Prostoj XL2<br>[hod./den]</th>
+                <th style="background-color: #214290; color: #ffde17;">Prostoj CELKEM<br>[hod./den]</th>
               </tr>
-            {% empty %}
-              <tr>
-                <td colspan="9" class="text-muted">Ve zvoleném měsíci zatím nejsou žádné uplynulé dny s daty.</td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+            </thead>
+            <tbody class="table-striped">
+              {% for row in vyroba_historie.month_detail.rows %}
+                <tr>
+                  <th>{{ row.label }}</th>
+                  <td>{{ row.xl1_display }}</td>
+                  <td>{{ row.xl2_display }}</td>
+                  <td class="fw-bold">{{ row.total_display }}</td>
+                  <td class="fw-bold">{{ row.vytizeni_rostu.display }}</td>
+                  <td class="fw-bold">{{ row.cena_za_rost.display }}</td>
+                  <td>{{ row.prostoj_avg.xl1_display }}</td>
+                  <td>{{ row.prostoj_avg.xl2_display }}</td>
+                  <td class="fw-bold">{{ row.prostoj_avg.total_display }}</td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="9" class="text-muted">Ve zvoleném měsíci zatím nejsou žádné uplynulé dny s daty.</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>

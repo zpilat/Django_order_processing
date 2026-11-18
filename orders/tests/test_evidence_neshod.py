@@ -335,7 +335,7 @@ class EvidenceNeshodTests(KontrolaBednyTestBase):
         reader.user_permissions.add(Permission.objects.get(codename='view_zaznamneshody'))
         control_page = self.client.get(self.control_url)
         self.assertNotContains(control_page, case.get_absolute_url())
-        self.assertContains(control_page, self.list_url)
+        self.assertNotContains(control_page, self.list_url)
         self.assertNotContains(control_page, 'Evidence neshod této bedny')
         self.assertEqual(self.client.get('/evidence-neshod/').status_code, 404)
         self.assertEqual(self.client.get(f'/evidence-neshod/{case.pk}/').status_code, 404)

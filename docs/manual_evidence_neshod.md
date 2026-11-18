@@ -40,7 +40,7 @@ Nové případy zachycují meze samostatně pro každou fázi prohybu. Po rovná
 
 ## 3. Otevření a filtrování
 
-- **Administrace → Kontrola kvality → Evidence neshod**, přímo `/admin/orders/zaznamneshody/`. Nabídka **PŘEHLEDY → Evidence neshod** vede také do adminu.
+- **Administrace → Kontrola kvality → Evidence neshod**, přímo `/admin/orders/zaznamneshody/`. V nabídce **PŘEHLEDY** odkaz na evidenci není.
 - Číslo případu či označení bedny v seznamu otevře detail. Ten obsahuje vedle sebe **Identifikaci při zjištění** a **Neshodu a výsledky kontroly**, pod nimi jednotlivé zkoušky s tehdejšími požadavky a hodnotami. Zkoušky s uloženým měřením jsou rozbalené; ostatní lze rozbalit pro zobrazení požadavků. Odkaz **Aktuální kontrola bedny** vede na dnešní údaje, pokud k nim máte oprávnění.
 
 Hledání v seznamu adminu prochází označení bedny, zákazníka, zakázku/artikl, šarži materiálu a popis. Postranní filtry vybírají zákazníka, důvod, skupinu a datum zjištění. Lišta nad seznamem umožňuje výběr roku, měsíce a dne; data se vyhodnocují v místním čase. Záznamy se řadí od nejnovějšího, po 50 na stránku; stránkování zachovává filtry. Samostatné provozní stránky evidence se nepoužívají.
@@ -51,7 +51,7 @@ Nadpis každého postranního filtru zobrazuje vybranou hodnotu, například **D
 
 ## 4. Oprávnění a rozsah první verze
 
-Evidence i detail jsou dostupné pouze v administraci. Uživatel potřebuje účet **staff** (`is_staff`) a oprávnění **Může prohlížet Záznam neshody** (`orders.view_zaznamneshody`), případně účet správce. Samotné oprávnění ke kontrole bedny přístup do evidence nezajišťuje. Uživatel s oprávněním pouze k evidenci může číst snapshoty bez přístupu k aktuální kontrole; odkaz na ni vyžaduje navíc `orders.view_bedna` nebo `orders.mark_bedna_zkontrolovano`. Odkaz v nabídce přehledů se zobrazí pouze uživatelům s přístupem do evidence. Kontrola bedny odkazy na jednotlivé snapshoty neobsahuje.
+Evidence i detail jsou dostupné pouze v administraci. Uživatel potřebuje účet **staff** (`is_staff`) a oprávnění **Může prohlížet Záznam neshody** (`orders.view_zaznamneshody`), případně účet správce. Samotné oprávnění ke kontrole bedny přístup do evidence nezajišťuje. Uživatel s oprávněním pouze k evidenci může číst snapshoty bez přístupu k aktuální kontrole; odkaz na ni vyžaduje navíc `orders.view_bedna` nebo `orders.mark_bedna_zkontrolovano`. Kontrola bedny odkazy na jednotlivé snapshoty neobsahuje.
 
 Záznamy se přes aplikaci neupravují ani nemažou. Aktuální kontrola se upravuje stávajícím formulářem podle jeho oprávnění a omezení; při Uvolněno se její důvody vymažou a při dalších rozhodnutích odpovídají aktuálnímu nálezu. Evidence nemění pravidla expedice a nebarví nové sloupce KKK.
 
