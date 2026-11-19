@@ -29,6 +29,8 @@ Internal application for receiving, heat treating, inspecting and shipping order
 - Per-operation billing uses positive crate flags `fakturovat_*`. Customer defaults for straightening, blasting and zinc coating are copied on creation only; crate overrides are independent. Zinc coating remains metadata without a calculated charge.
 - List rates per kg remain independent of billing flags and technological states. Amounts, counts and weights share operation eligibility rules. Proformas and work-in-progress valuation use the customer's rounding mode: HALF_UP on each order's total weight times rate, or on each crate before summing. See the [Czech billing rules](docs/manual_bedna.md#ceníkové-sazby-a-účtované-částky).
 
+The **Přehled kontrolorů** report (`/prehled-kontroloru/`) shows daily counts and per-user totals for the last 30 calendar days, including today, in Europe/Prague time. It counts each crate's first completed inspection and each nonconformity-to-release transition separately. See the [Czech reporting rules and historical limitations](docs/manual_prehledy_a_ukazatele.md#14-přehled-kontrolorů).
+
 ## Local setup on Windows
 
 **PostgreSQL is used both locally and in production.** Prepare a local database and database role. Dependencies are pinned in [requirements.txt](requirements.txt), including Django 5.2, pandas, openpyxl, psycopg and WeasyPrint.

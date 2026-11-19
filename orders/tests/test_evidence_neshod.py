@@ -14,6 +14,7 @@ from django.utils import timezone
 from orders.choices import StavBednyChoice, TypZkouskyChoice, UvolneniKontrolyChoice
 from orders.models import KontrolaBedny, MereniBedny, ZaznamNeshody
 from orders.services.evidence_neshod_service import zaznamenat_neshodu
+from orders.services.kontrolori_prehled_service import build_kontrolori_prehled
 from orders.tests.test_kontrola_bedny import KontrolaBednyTestBase
 
 
@@ -186,6 +187,23 @@ class EvidenceNeshodTests(KontrolaBednyTestBase):
         self.assertRedirects(self.save_decision(UvolneniKontrolyChoice.NESHODA), self.control_url)
         self.assertEqual(ZaznamNeshody.objects.count(), 2)
         self.assertEqual(ZaznamNeshody.objects.values('zdroj_historie_id').distinct().count(), 2)
+
+    def test_report_attributes_resolution_to_releasing_user_and_counts_repeated_cycles(self):
+        self.create_case()
+        editor = get_user_model().objects.create_user('uvolnujici')
+        editor.user_permissions.add(Permission.objects.get(codename='mark_bedna_zkontrolovano'))
+        self.client.force_login(editor)
+        self.assertRedirects(self.save_decision(UvolneniKontrolyChoice.UVOLNENO), self.control_url)
+        self.assertRedirects(self.save_decision(UvolneniKontrolyChoice.UVOLNENO), self.control_url)
+        self.assertRedirects(self.save_decision(
+            UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU, neshoda_krut_nizky='on',
+        ), self.control_url)
+        report = build_kontrolori_prehled()
+        self.assertEqual(report['resolved'], 1)
+        self.assertEqual(report['summary'][0]['user_id'], editor.pk)
+        self.assertRedirects(self.save_decision(UvolneniKontrolyChoice.NESHODA), self.control_url)
+        self.assertRedirects(self.save_decision(UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU), self.control_url)
+        self.assertEqual(build_kontrolori_prehled()['resolved'], 2)
 
     def test_added_reasons_create_one_shared_snapshot_with_current_author_and_time(self):
         first = self.create_case()

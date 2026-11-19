@@ -17,6 +17,7 @@ from orders.choices import KamionChoice, TypZkouskyChoice, ZinkovaniChoice
 from orders.forms import BednaAdminForm, BednaChangeListForm
 from orders.models import Bedna, Kamion, KontrolaBedny, MereniBedny, Odberatel, ZaznamNeshody, Zakazka
 from orders.services.exceptions import ServiceValidationError
+from orders.services.kontrolori_prehled_service import RUCNI_ZKONTROLOVANO_REASON
 from orders.services.expedice_service import (
     expedice_beden_do_existujiciho_kamionu, expedice_beden_do_noveho_kamionu,
     expedice_zakazek_do_existujiciho_kamionu, expedice_zakazek_do_noveho_kamionu,
@@ -282,6 +283,7 @@ class KontrolaConsistencyTests(KontrolaBednyTestBase):
                     self.assertEqual(result.status_code, 302)
                     self.assertEqual(self.bedna.rovnat, 'RO')
                     self.assertEqual(self.bedna.tryskat, 'OT')
+                    self.assertEqual(self.bedna.history.first().history_change_reason, RUCNI_ZKONTROLOVANO_REASON)
                 else:
                     self.assertEqual(result.status_code, 200)
                     self.assertContains(result, 'Vyplňte a uložte Uložení')

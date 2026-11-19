@@ -14,6 +14,7 @@ Návod vysvětluje, co jednotlivé přehledy počítají, ke kterému okamžiku 
 | Přehled výroby a Historie výroby | Deník kroků na TQF XL1 a TQF XL2 | Evidované vsázky, produkci podle prvního použití bedny na zařízení a vypočtené prostoje. |
 | Využití roštů dle zákazníků | Hmotnosti beden a jejich evidované podíly v krocích pecí | Průměr kg na rošt nebo zákaznický podíl roštu. |
 | Historie rovnání | Historie změn Rovnání na Vyrovnaná | Počet různých beden, které v období přešly na Vyrovnaná. |
+| Přehled kontrolorů | Historie prvního dokončení kontroly a přechodů z Neshody do uvolnění | Denní počty za kontrolory za posledních 30 kalendářních dní včetně dneška. |
 | Rozpracovanosti v administraci | Uložený výběr beden a snímek čtyř stavových polí | Které bedny byly vybrané při pořízení snímku; ostatní údaje nejsou kompletně zmrazené. |
 
 **Současný stav skladu, výkon výroby a výdej za měsíc jsou různé veličiny.** Jedna bedna může být dnes na skladě, mít průchod pecí minulý měsíc a být expedovaná až příští měsíc.
@@ -234,6 +235,7 @@ Opětovně vytištěné PDF stejného záznamu se proto může lišit od dříve
 | --- | --- |
 | Přehled beden | Automaticky přibližně každých 10 minut. |
 | Přehled beden k navezení | Automaticky přibližně každých 60 sekund. |
+| Přehled kontrolorů | Automaticky přibližně každých 60 sekund; při obnovení se znovu určí posledních 30 dní. |
 | Přehled kamionů, výroby, Historie výroby, Využití roštů dle zákazníků, Historie rovnání a jejich uvedené měsíční detaily | Automaticky přibližně každých 60 minut. |
 | Seznam beden | Kontrola změn beden přibližně každých 30 sekund; nejde o stejný časovač jako v souhrnných dashboardech. |
 
@@ -259,6 +261,35 @@ Položky menu se mohou skrývat podle oprávnění; přístup konkrétní strán
 
 Při ověřování si poznamenejte název přehledu, rok/měsíc nebo rozsah dní, jednotku, filtry a čas aktualizace. Rozdíl ověřte na jedné konkrétní bedně nebo zakázce a teprve poté porovnávejte součty. Pokud evidence neodpovídá skutečnosti, postupujte podle [Mimořádných situací a oprav](manual_mimoradne_situace.md).
 
-## 14. Související návody
+## 14. Přehled kontrolorů
+
+Položka **Přehled kontrolorů** je poslední v menu **PŘEHLEDY**. Nahoře je samostatná karta **Souhrn za posledních 30 dní**: každý kontrolor má jeden řádek s celkovým počtem dokončených kontrol a vyřešených neshod za období. Poslední řádek uvádí součty obou typů za všechny kontrolory.
+
+Pod souhrnem je karta **Denní přehled podle kontrolorů**: každý den tvoří jeden řádek, vlevo je datum a vedle sebe jsou skupiny **Dokončené kontroly beden** a **Vyřešené neshody**. Pod každou skupinou jsou sloupce jednotlivých kontrolorů ve stejném pořadí a sloupec **Celkem** za daný den a typ údaje. Vysvětlení pravidel a omezení starší historie je až pod oběma kartami.
+
+Přehled používá stejné firemní barvy jako ostatní přehledy: modré úvodní záhlaví se žlutým textem, žluté názvy karet a modrá záhlaví sloupců se žlutým textem. Na širokých obrazovkách má omezenou šířku a je vycentrovaný, aby jména a počty zůstaly blízko sebe. Čísla jsou zarovnaná na střed, nuly v denním přehledu mají méně výrazný text. Názvy sloupců a jednotlivé dny oddělují vodorovné čáry. Datum je od dokončených kontrol oddělené stejnou svislou čárou jako obě skupiny údajů od sebe. Denní tabulka zobrazuje všech 30 dní v plné výšce bez vnitřního svislého posouvání; podle potřeby se posouvá celá stránka. Na menších obrazovkách nebo při větším počtu kontrolorů lze tabulku posouvat vodorovně.
+
+Otevřete **PŘEHLEDY → Přehled kontrolorů** (`/prehled-kontroloru/`). Přístup vyžaduje přihlášení, bez dalšího modelového oprávnění, stejně jako ostatní souhrnné dashboardy. Období je vždy **dnešek a předchozích 29 kalendářních dní**, podle času **Europe/Prague**, včetně víkendů a svátků. Nejde o posledních 720 hodin ani posledních 30 pracovních dní. Filtr období není dostupný.
+
+Sloupce kontrolorů zahrnují každého uživatele, který má v období alespoň jednu započítanou událost libovolného z obou typů. Denní rozpis jde od dneška zpět a obsahuje všech 30 dní, včetně nulových dnů a nulových počtů těchto uživatelů. Uživatelé se rozlišují podle účtu, i když mají stejné jméno. Zobrazuje se současné celé jméno, případně přihlašovací jméno. Chybějící autor patří pod **Neznámý uživatel**; jeho práci nepřebírá zakladatel kontroly ani poslední editor.
+
+| Ukazatel | Pravidlo započtení |
+| --- | --- |
+| **Dokončené kontroly beden** | První skutečné dokončení tlačítkem **Dokončit kontrolu bedny**, tedy úspěšný přechod **Zakaleno → Zkontrolováno**. Počítá se i výsledek Neshoda. Den a autor pocházejí ze záznamu dokončení, nikoli založení kontroly nebo měření. |
+| **Vyřešené neshody** | Každý skutečný přechod **Neshoda → Uvolněno / Uvolněno QS s odchylkou**. Den a autor pocházejí z tohoto přechodu. Jedna bedna může mít po návratu do Neshody více započtených vyřešení, i ve stejný den. |
+
+První dokončení se hledá v celé dostupné historii, nejen uvnitř 30 dní. Návrat z K expedici na Zkontrolováno, opakované uložení ani nové dokončení stejné bedny po návratu na Zakaleno další dokončenou bednu nepřidají. Založení kontroly, zápis měření, uložení rozhodnutí bez dokončení a neúspěšné potvrzení nejsou dokončením. Automatický převod **Přijato → Zkontrolováno** při zahájení atypického průběhu se nepočítá; pozdější vyřešení jeho Neshody ano.
+
+Samotná změna Uvolněno na QS s odchylkou nebo naopak ani uložení poznámky nezvyšuje počet vyřešených neshod. Počítají se přechody rozhodnutí v historii kontroly, nikoli počet snapshotů Evidence neshod nebo jednotlivých důvodů. Jedno uvolnění bedny s více důvody znamená jedno vyřešení.
+
+**Oba typy údajů se mohou týkat stejné bedny a nesčítají se do celkového počtu beden.** Například první kontrola s Neshodou v pondělí patří dokončujícímu kontrolorovi v pondělí; následné uvolnění ve středu patří uvolňujícímu kontrolorovi ve středu.
+
+### Rozsah starší historie
+
+Nové dokončení tlačítkem má v historii důvod **Dokončení kontroly bedny tlačítkem.** Nové ruční nastavení Zkontrolováno v seznamu nebo detailu administrace má vlastní označení a do dokončených kontrol tohoto přehledu nevstupuje. Historie se zpětně nepřepisuje a změna nevyžaduje datovou migraci.
+
+U starších záznamů bez označení akce se použije první přechod Zakaleno → Zkontrolováno. Nelze u nich spolehlivě rozlišit tlačítko od stejné ruční změny v administraci. Bez předchozího historického záznamu se přechod neodvozuje; přehled tedy nemůže dopočítat chybějící historii. Započtení se neopírá o současný stav bedny: pozdější expedice dokončenou kontrolu neodstraní.
+
+## 15. Související návody
 
 [Provozní tahák](provozni_tahak.md) · [Stavy a automatická pravidla](manual_stavy_a_pravidla.md) · [Bedny](manual_bedna.md) · [Zakázky](manual_zakazka.md) · [Kamiony](manual_kamion.md) · [Průchod šarže](manual_pruchod_sarze.md) · [Kontrola beden](manual_kontrola_beden.md) · [Evidence neshod](manual_evidence_neshod.md) · [Číselníky](manual_ciselniky.md) · [Role a oprávnění](manual_role_a_opravneni.md)

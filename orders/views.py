@@ -58,6 +58,7 @@ from .services.sarze_print_service import (
     get_tisk_pruvodky_vruty_krok,
 )
 from .services.history_service import history_transitions_to_qs, update_queryset_with_history
+from .services.kontrolori_prehled_service import build_kontrolori_prehled, DOKONCENI_KONTROLY_REASON
 from .services.evidence_neshod_service import zaznamenat_neshodu
 from .services.stav_bedny_service import (
     vyhodnotit_tryskani_pri_zakaleni, duvody_neuplne_kontroly,
@@ -471,6 +472,19 @@ def kontrola_prehled_view(request):
         'orders/kontrola_prehled.html',
         _build_kontrola_prehled_context(request.user, request.GET.get('filtr', 'vse')),
     )
+
+
+@login_required
+@never_cache
+def kontrolori_prehled_view(request):
+    context = {
+        'kontrolori': build_kontrolori_prehled(),
+        'db_table': 'kontrolori_prehled',
+        'current_time': timezone.now(),
+    }
+    if request.htmx:
+        return render(request, 'orders/partials/kontrolori_prehled_content.html', context)
+    return render(request, 'orders/kontrolori_prehled.html', context)
 
 
 def _build_neshody_prehled_context(request):
@@ -1297,6 +1311,8 @@ def bedna_scan_zkontrolovano_view(request, cislo_bedny: int):
             bedna.stav_bedny = StavBednyChoice.ZKONTROLOVANO
             bedna.rovnat = stavy['rovnat']
             bedna.tryskat = stavy['tryskat']
+            bedna._history_user = request.user
+            bedna._change_reason = DOKONCENI_KONTROLY_REASON
             bedna.save(update_fields=['stav_bedny', 'rovnat', 'tryskat', 'pozice'])
 
         messages.success(request, f'Bedna {cislo_bedny} byla označena jako zkontrolovaná.')

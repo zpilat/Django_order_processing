@@ -7,6 +7,7 @@ from django.urls import reverse
 
 from orders.choices import RovnaniChoice, StavBednyChoice, TryskaniChoice, TypZkouskyChoice, UvolneniKontrolyChoice, VysledekKontrolyChoice
 from orders.models import Bedna, KontrolaBedny, MereniBedny
+from orders.services.kontrolori_prehled_service import build_kontrolori_prehled, DOKONCENI_KONTROLY_REASON
 from orders.tests.test_kontrola_bedny import KontrolaBednyTestBase
 
 
@@ -127,6 +128,18 @@ class BednaZkontrolovanoTests(KontrolaBednyTestBase):
                 self.bedna.refresh_from_db()
                 self.assertEqual(self.bedna.stav_bedny, state)
                 self.assertEqual(self.bedna.history.count(), history_count)
+
+    def test_button_records_finisher_and_report_counts_completion_with_nonconformity(self):
+        self.create_control(uvolneni=UvolneniKontrolyChoice.NESHODA)
+        self.client.post(self.url, self.payload)
+        record = self.bedna.history.first()
+        self.assertEqual(record.history_user_id, self.user.pk)
+        self.assertEqual(record.history_change_reason, DOKONCENI_KONTROLY_REASON)
+        report = build_kontrolori_prehled()
+        self.assertEqual(report['completed'], 1)
+        self.assertEqual(report['summary'][0]['user_id'], self.user.pk)
+        self.client.post(self.url, self.payload)
+        self.assertEqual(build_kontrolori_prehled()['completed'], 1)
 
     def test_paused_bedna_cannot_be_marked_even_with_special_permission(self):
         self.create_control()

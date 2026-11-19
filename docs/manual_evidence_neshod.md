@@ -49,6 +49,8 @@ Nadpis každého postranního filtru zobrazuje vybranou hodnotu, například **D
 
 **Přehled neshod** (`/prehled-neshod/`) nadále obsahuje pouze aktuálně neshodné bedny. **Evidence neshod** zachovává i případy již uvolněných beden.
 
+**Přehled kontrolorů** (`/prehled-kontroloru/`) zobrazuje za posledních 30 kalendářních dní včetně dneška také počet **vyřešených neshod** za autora a den přechodu Neshoda → Uvolněno / Uvolněno QS s odchylkou. Počítá změny rozhodnutí v historii kontroly, nikoli jednotlivé důvody nebo snapshoty této evidence. Opakované vyřešení po návratu do Neshody se započítá znovu. Pravidla jsou v [manuálu přehledů](manual_prehledy_a_ukazatele.md#14-přehled-kontrolorů).
+
 ## 4. Oprávnění a rozsah první verze
 
 Evidence i detail jsou dostupné pouze v administraci. Uživatel potřebuje účet **staff** (`is_staff`) a oprávnění **Může prohlížet Záznam neshody** (`orders.view_zaznamneshody`), případně účet správce. Samotné oprávnění ke kontrole bedny přístup do evidence nezajišťuje. Uživatel s oprávněním pouze k evidenci může číst snapshoty bez přístupu k aktuální kontrole; odkaz na ni vyžaduje navíc `orders.view_bedna` nebo `orders.mark_bedna_zkontrolovano`. Kontrola bedny odkazy na jednotlivé snapshoty neobsahuje.

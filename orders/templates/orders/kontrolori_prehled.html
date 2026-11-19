@@ -1,0 +1,13 @@
+{% extends "orders/base.html" %}
+{% load static %}
+{% block title %}Přehled kontrolorů{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'orders/css/kontrolori_prehled.css' %}">
+{% endblock %}
+{% block content %}
+<div class="container py-3" style="max-width: 820px;">
+  <div id="kontrolori-content" class="kontrolori-report" hx-get="{% url 'kontrolori_prehled' %}" hx-trigger="every 60s" hx-swap="innerHTML">
+    {% include "orders/partials/kontrolori_prehled_content.html" %}
+  </div>
+</div>
+{% endblock %}

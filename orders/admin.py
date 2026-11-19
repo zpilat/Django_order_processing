@@ -41,6 +41,7 @@ from .models import (
     KontrolaBedny, MereniBedny, ZaznamNeshody,
 )
 from .services.evidence_neshod_service import snapshot_zkousky_pro_zobrazeni
+from .services.kontrolori_prehled_service import RUCNI_ZKONTROLOVANO_REASON
 from .actions import (
     expedice_zakazek_action, import_kamionu_action, import_chemickych_mereni_action, tisk_karet_beden_action, tisk_karet_beden_zakazek_action,
     tisk_karet_beden_kamionu_action, tisk_karet_bedny_a_kontroly_kamionu_action, tisk_dodaciho_listu_kamionu_action, vratit_zakazky_z_expedice_action, expedice_zakazek_kamion_action,
@@ -3082,6 +3083,12 @@ class BednaAdmin(HistoryViewOnlyAdmin):
     """
     change_list_template = 'admin/orders/bedna/change_list.html'
     poll_interval_ms = 30000
+
+    def save_model(self, request, obj, form, change):
+        if 'stav_bedny' in form.changed_data and obj.stav_bedny == StavBednyChoice.ZKONTROLOVANO:
+            obj._change_reason = RUCNI_ZKONTROLOVANO_REASON
+        super().save_model(request, obj, form, change)
+
     actions = [
         tisk_karet_beden_action, tisk_karet_kontroly_kvality_action, tisk_karet_bedny_a_kontroly_action,
         tisk_vyplnenych_karet_kontroly_kvality_action,
@@ -4230,6 +4237,7 @@ class BednaAdmin(HistoryViewOnlyAdmin):
                             # Formulář ověřil kontrolu a vypočítal technologické stavy.
                             obj.rovnat = form.instance.rovnat
                             obj.tryskat = form.instance.tryskat
+                            obj._change_reason = RUCNI_ZKONTROLOVANO_REASON
 
                         # Uloží se objekt pouze pro formuláře s reálnými změnami.
                         obj.save()

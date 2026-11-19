@@ -1,0 +1,74 @@
+.kontrolori-report {
+  --kontrolori-blue: #214290;
+  --kontrolori-yellow: #ffde17;
+  font-family: 'Liberation Sans', Arial, sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+.kontrolori-banner {
+  background-color: var(--kontrolori-blue);
+  color: var(--kontrolori-yellow);
+}
+
+.kontrolori-section-header {
+  background-color: var(--kontrolori-yellow);
+  color: var(--kontrolori-blue);
+  font-weight: 600;
+}
+
+.kontrolori-refresh {
+  --bs-btn-color: var(--kontrolori-blue);
+  --bs-btn-bg: var(--kontrolori-yellow);
+  --bs-btn-border-color: var(--kontrolori-yellow);
+  --bs-btn-hover-color: var(--kontrolori-blue);
+  --bs-btn-hover-bg: #ffe64d;
+  --bs-btn-hover-border-color: #ffe64d;
+  --bs-btn-active-color: var(--kontrolori-blue);
+  --bs-btn-active-bg: #f5d210;
+  --bs-btn-active-border-color: #f5d210;
+  --bs-btn-focus-shadow-rgb: 255, 222, 23;
+}
+
+.kontrolori-report .table > thead > tr > th {
+  background-color: var(--kontrolori-blue);
+  color: var(--kontrolori-yellow);
+  border-bottom-color: #5771aa;
+}
+
+.kontrolori-report .table > tfoot > tr > * {
+  background-color: var(--kontrolori-yellow);
+  color: var(--kontrolori-blue);
+  border-top: 2px solid var(--kontrolori-blue);
+}
+
+.kontrolori-table > thead {
+  box-shadow: 0 1px 0 var(--kontrolori-blue);
+}
+
+.kontrolori-table .kontrolori-date {
+  white-space: nowrap;
+  border-right: 1px solid var(--kontrolori-blue);
+}
+
+.kontrolori-table .kontrolori-name {
+  min-width: 4.5rem;
+  max-width: 7rem;
+  overflow-wrap: anywhere;
+  font-size: 0.875rem;
+}
+
+.kontrolori-table .kontrolori-total {
+  min-width: 3.5rem;
+}
+
+.kontrolori-table .kontrolori-group-start {
+  border-left: 1px solid var(--kontrolori-blue);
+}
+
+.kontrolori-table > thead .kontrolori-group-start {
+  border-left-color: var(--kontrolori-yellow);
+}
+
+.kontrolori-table > thead .kontrolori-date {
+  border-right-color: var(--kontrolori-yellow);
+}

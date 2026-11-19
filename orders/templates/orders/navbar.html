@@ -159,6 +159,11 @@
                             {% if db_table == 'dashboard_vyroba_zakaznici_vyuziti' %}aria-current="page"{% endif %}
                             href="{% url 'dashboard_vyroba_zakaznici_vyuziti' %}">Využití roštů</a>
                         </li>
+                        <li>
+                            <a class="dropdown-item small{% if db_table == 'kontrolori_prehled' %} active{% endif %}"
+                            {% if db_table == 'kontrolori_prehled' %}aria-current="page"{% endif %}
+                            href="{% url 'kontrolori_prehled' %}">Přehled kontrolorů</a>
+                        </li>
                     </ul>
                 </div>
             {% endif %}

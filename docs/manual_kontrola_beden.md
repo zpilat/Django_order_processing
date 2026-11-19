@@ -267,6 +267,10 @@ Pokud jiný uživatel mezitím změnil kontrolu nebo měření, systém odmítne
 
 ## 9. Související dokumentace a kód
 
+## Denní počty za kontrolory
+
+V nabídce **PŘEHLEDY → Přehled kontrolorů** najdete souhrn a denní počty za posledních **30 kalendářních dní včetně dneška**. Dokončená kontrola připadne uživateli, který úspěšně stiskne **Dokončit kontrolu bedny** a převede bednu ze Zakaleno na Zkontrolováno, i při výsledku Neshoda. Založení kontroly nebo samotné uložení měření a uvolnění tento počet nezvyšují. Každá bedna se započítá při prvním dokončení; samostatně se počítá každé pozdější vyřešení Neshody přechodem na Uvolněno nebo QS s odchylkou, podle autora a dne změny. Podrobná pravidla a omezení starší historie popisuje [Přehled kontrolorů](manual_prehledy_a_ukazatele.md#14-přehled-kontrolorů).
+
 [Bedny](manual_bedna.md) · [Rychlé založení šarže](manual_rychle_zalozeni_sarze.md) · [Zakázky](manual_zakazka.md) · [README](../README.md)
 
 [Provozní tahák](provozni_tahak.md) · [Průchod šarže výrobou](manual_pruchod_sarze.md)

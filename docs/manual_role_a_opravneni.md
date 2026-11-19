@@ -61,6 +61,7 @@ Oprávnění `change_bedna`, `change_zakazka` a `change_kamion` slouží více a
 | Úkol | Kontrolované oprávnění a podmínky |
 | --- | --- |
 | Zobrazit provozní kontrolu bedny | `view_bedna` **nebo** `mark_bedna_zkontrolovano`. |
+| Zobrazit Přehled kontrolorů za posledních 30 dní | Přihlášený uživatel; další modelové oprávnění ani staff se nevyžaduje. Přehled sám neopravňuje k úpravě kontroly. |
 | Zapsat výstupní kontrolu a jednotlivá měření | `mark_bedna_zkontrolovano`; pouze Zakaleno nebo Zkontrolováno. Samotná obecná práva change_kontrolabedny / change_merenibedny tento provozní přístup nenahrazují. |
 | Dokončit kontrolu bedny přes provozní potvrzení | `mark_bedna_zkontrolovano`, stav Zakaleno, nepozastavená bedna a úplné aktuální podklady. |
 | Zapsat výsledky u pozastavené bedny | Navíc `change_pozastavena_bedna`; dokončení kontroly přes provozní potvrzení zůstává do zrušení pozastavení blokované. |

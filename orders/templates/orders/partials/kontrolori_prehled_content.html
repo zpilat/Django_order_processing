@@ -1,0 +1,91 @@
+<div class="alert kontrolori-banner d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3" role="status">
+  <div>
+    <h1 class="h4 mb-1">Přehled kontrolorů</h1>
+    <p class="mb-0">Posledních 30 dní: {{ kontrolori.start_date|date:"d.m.Y" }} - {{ kontrolori.end_date|date:"d.m.Y" }}</p>
+    <p class="small mb-0">Naposledy aktualizováno {{ current_time|date:"d.m.Y H:i" }}</p>
+  </div>
+  <a class="btn btn-sm kontrolori-refresh" href="{% url 'kontrolori_prehled' %}">Obnovit</a>
+</div>
+<section class="card shadow-sm mb-3" aria-labelledby="kontrolori-souhrn">
+  <div class="card-header kontrolori-section-header"><h2 id="kontrolori-souhrn" class="h6 mb-0">Souhrn za posledních 30 dní</h2></div>
+  <div class="table-responsive">
+    <table class="table table-sm table-striped align-middle mb-0">
+      <thead>
+        <tr>
+          <th scope="col">Kontrolor</th>
+          <th scope="col" class="text-center">Dokončené kontroly beden</th>
+          <th scope="col" class="text-center">Vyřešené neshody</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in kontrolori.summary %}
+          <tr>
+            <th scope="row">{{ row.name }}</th>
+            <td class="text-center">{{ row.completed }}</td>
+            <td class="text-center">{{ row.resolved }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="3" class="text-muted">Za posledních 30 dní nebyly zaznamenány žádné dokončené kontroly ani vyřešené neshody.</td></tr>
+        {% endfor %}
+      </tbody>
+      <tfoot class="fw-bold">
+        <tr>
+          <th scope="row">Celkem</th>
+          <td class="text-center">{{ kontrolori.completed }}</td>
+          <td class="text-center">{{ kontrolori.resolved }}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</section>
+<section class="card shadow-sm" aria-labelledby="kontrolori-dny">
+  <div class="card-header kontrolori-section-header"><h2 id="kontrolori-dny" class="h6 mb-0">Denní přehled podle kontrolorů</h2></div>
+  <div class="table-responsive" role="region" aria-labelledby="kontrolori-dny" tabindex="0">
+    <table class="table table-sm table-striped align-middle mb-0 kontrolori-table">
+      <colgroup span="1"></colgroup>
+      <colgroup span="{{ kontrolori.summary|length|add:'1' }}"></colgroup>
+      <colgroup span="{{ kontrolori.summary|length|add:'1' }}"></colgroup>
+      <thead>
+        <tr>
+          <th scope="col" rowspan="2" class="kontrolori-date">Den</th>
+          <th scope="colgroup" colspan="{{ kontrolori.summary|length|add:'1' }}" class="text-center">Dokončené kontroly beden</th>
+          <th scope="colgroup" colspan="{{ kontrolori.summary|length|add:'1' }}" class="text-center kontrolori-group-start">Vyřešené neshody</th>
+        </tr>
+        <tr>
+          {% for row in kontrolori.summary %}
+            <th scope="col" class="text-center kontrolori-name">{{ row.name }}</th>
+          {% endfor %}
+          <th scope="col" class="text-center kontrolori-total">Celkem</th>
+          {% for row in kontrolori.summary %}
+            <th scope="col" class="text-center kontrolori-name{% if forloop.first %} kontrolori-group-start{% endif %}">{{ row.name }}</th>
+          {% endfor %}
+          <th scope="col" class="text-center kontrolori-total{% if not kontrolori.summary %} kontrolori-group-start{% endif %}">Celkem</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for day in kontrolori.days %}
+          <tr>
+            <th scope="row" class="kontrolori-date">{{ day.date|date:"d.m." }}</th>
+            {% for row in day.rows %}
+              <td class="text-center{% if not row.completed %} text-muted{% endif %}">{{ row.completed }}</td>
+            {% endfor %}
+            <td class="text-center fw-semibold{% if not day.completed %} text-muted{% endif %}">{{ day.completed }}</td>
+            {% for row in day.rows %}
+              <td class="text-center{% if forloop.first %} kontrolori-group-start{% endif %}{% if not row.resolved %} text-muted{% endif %}">{{ row.resolved }}</td>
+            {% endfor %}
+            <td class="text-center fw-semibold{% if not day.rows %} kontrolori-group-start{% endif %}{% if not day.resolved %} text-muted{% endif %}">{{ day.resolved }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+<aside class="small text-muted mt-3" aria-label="Pravidla přehledu">
+  <p class="mb-2">
+    Dokončená kontrola se započítá při prvním dokončení tlačítkem „Dokončit kontrolu bedny“
+    (Zakaleno → Zkontrolováno), i s výsledkem Neshoda. Vyřešená neshoda je přechod
+    Neshoda → Uvolněno nebo Uvolněno QS s odchylkou; každé další vyřešení se počítá znovu.
+    Oba počty se mohou týkat stejné bedny.
+  </p>
+  <p class="mb-0">U starších dokončení bez označení akce nelze odlišit tlačítko od ruční změny stejného stavu v administraci.</p>
+</aside>
