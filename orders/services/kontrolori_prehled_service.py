@@ -4,7 +4,7 @@ from datetime import datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 from django.contrib.auth import get_user_model
-from django.db.models import Count, OuterRef, Q, Subquery
+from django.db.models import Count, Q
 from django.db.models.functions import TruncDate
 from django.utils import timezone
 
@@ -32,10 +32,6 @@ def build_kontrolori_prehled(*, today=None):
         Q(history_change_reason=DOKONCENI_KONTROLY_REASON)
         | Q(history_change_reason__isnull=True)
         | Q(history_change_reason='')
-    )
-    first_completion = completions.filter(id=OuterRef('id')).order_by('history_date', 'history_id')
-    completions = completions.filter(
-        history_id=Subquery(first_completion.values('history_id')[:1]),
     )
     resolutions = history_transitions_to_qs(
         model=KontrolaBedny, field_name='uvolneni',

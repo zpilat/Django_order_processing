@@ -14,7 +14,7 @@ Návod vysvětluje, co jednotlivé přehledy počítají, ke kterému okamžiku 
 | Přehled výroby a Historie výroby | Deník kroků na TQF XL1 a TQF XL2 | Evidované vsázky, produkci podle prvního použití bedny na zařízení a vypočtené prostoje. |
 | Využití roštů dle zákazníků | Hmotnosti beden a jejich evidované podíly v krocích pecí | Průměr kg na rošt nebo zákaznický podíl roštu. |
 | Historie rovnání | Historie změn Rovnání na Vyrovnaná | Počet různých beden, které v období přešly na Vyrovnaná. |
-| Přehled kontrolorů | Historie prvního dokončení kontroly a přechodů z Neshody do uvolnění | Denní počty za kontrolory za posledních 30 kalendářních dní včetně dneška. |
+| Přehled kontrolorů | Historie všech dokončení kontrol a přechodů z Neshody do uvolnění | Denní počty za kontrolory za posledních 30 kalendářních dní včetně dneška, včetně opakovaných kontrol stejné bedny. |
 | Rozpracovanosti v administraci | Uložený výběr beden a snímek čtyř stavových polí | Které bedny byly vybrané při pořízení snímku; ostatní údaje nejsou kompletně zmrazené. |
 
 **Současný stav skladu, výkon výroby a výdej za měsíc jsou různé veličiny.** Jedna bedna může být dnes na skladě, mít průchod pecí minulý měsíc a být expedovaná až příští měsíc.
@@ -275,10 +275,12 @@ Sloupce kontrolorů zahrnují každého uživatele, který má v období alespo�
 
 | Ukazatel | Pravidlo započtení |
 | --- | --- |
-| **Dokončené kontroly beden** | První skutečné dokončení tlačítkem **Dokončit kontrolu bedny**, tedy úspěšný přechod **Zakaleno → Zkontrolováno**. Počítá se i výsledek Neshoda. Den a autor pocházejí ze záznamu dokončení, nikoli založení kontroly nebo měření. |
+| **Dokončené kontroly beden** | Každé skutečné dokončení tlačítkem **Dokončit kontrolu bedny**, tedy úspěšný přechod **Zakaleno → Zkontrolováno**. Počítá se i výsledek Neshoda a opakované dokončení stejné bedny, i ve stejný den. Den a autor pocházejí z příslušného záznamu dokončení, nikoli založení kontroly nebo měření. |
 | **Vyřešené neshody** | Každý skutečný přechod **Neshoda → Uvolněno / Uvolněno QS s odchylkou**. Den a autor pocházejí z tohoto přechodu. Jedna bedna může mít po návratu do Neshody více započtených vyřešení, i ve stejný den. |
 
-První dokončení se hledá v celé dostupné historii, nejen uvnitř 30 dní. Návrat z K expedici na Zkontrolováno, opakované uložení ani nové dokončení stejné bedny po návratu na Zakaleno další dokončenou bednu nepřidají. Založení kontroly, zápis měření, uložení rozhodnutí bez dokončení a neúspěšné potvrzení nejsou dokončením. Automatický převod **Přijato → Zkontrolováno** při zahájení atypického průběhu se nepočítá; pozdější vyřešení jeho Neshody ano.
+Přehled měří počet dokončených kontrol, nikoli počet různých beden. Po návratu bedny do výroby a novém dokončení ze Zakaleno na Zkontrolováno se započítá další kontrola podle dne a autora nového dokončení. Platí to i vícekrát ve stejný den nebo pokud předchozí dokončení leží mimo posledních 30 dní. Například pondělní kontrola a nová čtvrteční kontrola po opakovaném zpracování znamenají dvě dokončené kontroly.
+
+Samotný návrat z K expedici na Zkontrolováno, opakované uložení ani oprava výsledků kontroly počet nezvyšují. Založení kontroly, zápis měření, uložení rozhodnutí bez dokončení a neúspěšné potvrzení nejsou dokončením. Automatický převod **Přijato → Zkontrolováno** při zahájení atypického průběhu se nepočítá; pozdější vyřešení jeho Neshody ano.
 
 Samotná změna Uvolněno na QS s odchylkou nebo naopak ani uložení poznámky nezvyšuje počet vyřešených neshod. Počítají se přechody rozhodnutí v historii kontroly, nikoli počet snapshotů Evidence neshod nebo jednotlivých důvodů. Jedno uvolnění bedny s více důvody znamená jedno vyřešení.
 
@@ -288,7 +290,7 @@ Samotná změna Uvolněno na QS s odchylkou nebo naopak ani uložení poznámky 
 
 Nové dokončení tlačítkem má v historii důvod **Dokončení kontroly bedny tlačítkem.** Nové ruční nastavení Zkontrolováno v seznamu nebo detailu administrace má vlastní označení a do dokončených kontrol tohoto přehledu nevstupuje. Historie se zpětně nepřepisuje a změna nevyžaduje datovou migraci.
 
-U starších záznamů bez označení akce se použije první přechod Zakaleno → Zkontrolováno. Nelze u nich spolehlivě rozlišit tlačítko od stejné ruční změny v administraci. Bez předchozího historického záznamu se přechod neodvozuje; přehled tedy nemůže dopočítat chybějící historii. Započtení se neopírá o současný stav bedny: pozdější expedice dokončenou kontrolu neodstraní.
+U starších záznamů bez označení akce se započítá každý přechod Zakaleno → Zkontrolováno v období. Nelze u nich spolehlivě rozlišit tlačítko od stejné ruční změny v administraci. Bez předchozího historického záznamu se přechod neodvozuje; přehled tedy nemůže dopočítat chybějící historii. Započtení se neopírá o současný stav bedny: pozdější expedice dokončenou kontrolu neodstraní.
 
 ## 15. Související návody
 

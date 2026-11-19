@@ -140,6 +140,13 @@ class BednaZkontrolovanoTests(KontrolaBednyTestBase):
         self.assertEqual(report['summary'][0]['user_id'], self.user.pk)
         self.client.post(self.url, self.payload)
         self.assertEqual(build_kontrolori_prehled()['completed'], 1)
+        self.bedna.refresh_from_db()
+        self.bedna.stav_bedny = StavBednyChoice.ZAKALENO
+        self.bedna.save(update_fields=['stav_bedny'])
+        self.assertRedirects(self.client.post(self.url, self.payload), self.control_url)
+        report = build_kontrolori_prehled()
+        self.assertEqual(report['completed'], 2)
+        self.assertEqual(report['summary'][0]['completed'], 2)
 
     def test_paused_bedna_cannot_be_marked_even_with_special_permission(self):
         self.create_control()

@@ -48,7 +48,7 @@ class KontroloriPrehledTests(KontrolaBednyTestBase):
     def report(self):
         return build_kontrolori_prehled(today=self.today)
 
-    def test_completion_belongs_to_finisher_and_is_counted_only_once(self):
+    def test_each_completion_belongs_to_finisher_without_counting_saves_or_dispatch_returns(self):
         self.event(Bedna, '2026-11-01T09:00', State.ZAKALENO, kind='+')
         self.event(Bedna, '2026-11-02T09:00', State.ZAKALENO)
         self.event(Bedna, '2026-11-03T09:00', State.ZKONTROLOVANO, user=self.finisher.pk,
@@ -60,24 +60,40 @@ class KontroloriPrehledTests(KontrolaBednyTestBase):
         self.event(Bedna, '2026-11-08T09:00', State.ZKONTROLOVANO)
 
         report = self.report()
-        self.assertEqual(report['completed'], 1)
+        self.assertEqual(report['completed'], 2)
         self.assertEqual(report['summary'], [
             {'user_id': self.finisher.pk, 'name': 'Jan Novák', 'completed': 1, 'resolved': 0},
+            {'user_id': self.user.pk, 'name': 'kontrolor', 'completed': 1, 'resolved': 0},
         ])
         day = next(day for day in report['days'] if day['date'] == date(2026, 11, 3))
         self.assertEqual(day['rows'][0]['completed'], 1)
-        self.assertEqual(sum(day['completed'] for day in report['days']), 1)
+        self.assertEqual(sum(day['completed'] for day in report['days']), 2)
         self.assertEqual(len(report['days']), 30)
         self.assertEqual(report['days'][0]['date'], self.today)
         self.assertEqual(report['days'][-1]['date'], date(2026, 10, 20))
         self.assertEqual(report['days'][0]['rows'][0]['completed'], 0)
 
-    def test_first_completion_before_period_prevents_counting_a_repeat(self):
+    def test_repeat_in_period_counts_even_when_first_completion_is_before_period(self):
         self.event(Bedna, '2026-10-01T09:00', State.ZAKALENO, kind='+')
         self.event(Bedna, '2026-10-02T09:00', State.ZKONTROLOVANO)
         self.event(Bedna, '2026-11-01T09:00', State.ZAKALENO)
         self.event(Bedna, '2026-11-02T09:00', State.ZKONTROLOVANO)
-        self.assertEqual(self.report()['completed'], 0)
+        self.assertEqual(self.report()['completed'], 1)
+
+    def test_same_crate_can_be_completed_multiple_times_per_day_by_different_users(self):
+        self.event(Bedna, '2026-11-01T09:00', State.ZAKALENO, kind='+')
+        for hour, author in ((10, self.finisher.pk), (12, self.user.pk), (14, self.user.pk)):
+            self.event(Bedna, f'2026-11-01T{hour:02d}:00', State.ZKONTROLOVANO, user=author,
+                       history_change_reason=DOKONCENI_KONTROLY_REASON)
+            self.event(Bedna, f'2026-11-01T{hour:02d}:30', State.ZKONTROLOVANO, user=author)
+            self.event(Bedna, f'2026-11-01T{hour + 1:02d}:00', State.ZAKALENO)
+        report = self.report()
+        self.assertEqual(report['completed'], 3)
+        totals = {row['user_id']: row['completed'] for row in report['summary']}
+        self.assertEqual(totals, {self.finisher.pk: 1, self.user.pk: 2})
+        day = next(day for day in report['days'] if day['date'] == date(2026, 11, 1))
+        self.assertEqual(day['completed'], 3)
+        self.assertEqual({row['user_id']: row['completed'] for row in day['rows']}, totals)
 
     def test_noncompletion_transitions_and_new_manual_admin_changes_are_excluded(self):
         self.event(Bedna, '2026-11-01T09:00', State.ZKONTROLOVANO, kind='+')
