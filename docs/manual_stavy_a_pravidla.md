@@ -141,7 +141,12 @@ Od **K expedici** jsou kontrola a měření pouze pro čtení. Pro opravu vraťt
 
 Zinkování **V zinkovně** lze zadat pouze u bedny Zkontrolováno. Akce pro odeslání
 do zinkovny s exportem DL navíc vyžaduje stav Zinkovat, nepozastavené bedny,
-uložené Uvolněno nebo Uvolněno QS s odchylkou a žádné nepotvrzené změny měření.
+uložené rozhodnutí kontroly a žádné nepotvrzené změny měření. Přípustné je
+Uvolněno nebo Uvolněno QS s odchylkou. Neshoda je přípustná u atypické bedny
+s libovolnými důvody i bez důvodu (například pro přezinkování); u běžné bedny
+jen tehdy, je-li jediným důvodem Křivost. Bez kontroly nebo s nerozhodnutým
+uvolněním odeslání neprojde ani u atypické bedny. Rozhodnutí a důvody se
+odesláním nemění; Neshoda dál blokuje K expedici a expedici zákazníkovi.
 Vše ověřuje pod zámkem pro celý výběr. Samostatný opakovaný export dokladu
 již odeslaných beden stav nemění. Jednotlivé fáze zinkování evidujte podle
 skutečnosti; dokončení kontroly zinkování samo nemění.

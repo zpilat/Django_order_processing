@@ -21,12 +21,17 @@ from orders.tests.tests_actions import ActionsBase
 
 
 class ZincDispatchGuardTests(ActionsBase):
-    def make_crate(self, release='UV', *, pending=False):
+    def make_crate(self, release='UV', *, pending=False, atypical=False, reasons=None):
         crate = self._create_bedna_in_state(StavBednyChoice.ZKONTROLOVANO, zinkovat=ZinkovaniChoice.ZINKOVAT)
+        if atypical:
+            crate.atypicky_prubeh = True
+            crate.save(update_fields=['atypicky_prubeh'])
         if release is not None:
+            if reasons is None:
+                reasons = ('neshoda_jine',) if release in ('NE', 'UO') else ()
             KontrolaBedny.objects.create(
                 bedna=crate, cistota='OK', ulozeni='OK', uvolneni=release,
-                vyzaduje_potvrzeni=pending, neshoda_jine=release in ('NE', 'UO'),
+                vyzaduje_potvrzeni=pending, **{name: True for name in reasons},
                 poznamka='Původní rozhodnutí.',
             )
         return crate
@@ -52,16 +57,90 @@ class ZincDispatchGuardTests(ActionsBase):
             self.assertEqual(crate.zinkovat, expected[crate.pk])
             self.assertEqual(crate.history.count(), counts[crate.pk])
 
-    def test_both_release_decisions_allow_dispatch_with_history(self):
-        crates = [self.make_crate(release) for release in ('UV', 'UO')]
+    def assert_dispatched(self, crates):
+        counts = {crate.pk: crate.history.count() for crate in crates}
+        controls = KontrolaBedny.objects.filter(bedna__in=crates).order_by('pk')
+        before = list(controls.values())
+        control_history_counts = {control.pk: control.history.count() for control in controls}
         with patch('orders.actions.utilita_export_beden_zinkovani_csv', return_value=HttpResponse()) as export:
             result, _ = self.dispatch(crates)
         self.assertIsInstance(result, HttpResponse)
         self.assertEqual(set(export.call_args.args[0].values_list('pk', flat=True)), {crate.pk for crate in crates})
+        self.assertEqual(list(controls.values()), before)
+        for control in controls:
+            self.assertEqual(control.history.count(), control_history_counts[control.pk])
         for crate in crates:
             crate.refresh_from_db()
             self.assertEqual(crate.zinkovat, ZinkovaniChoice.V_ZINKOVNE)
+            self.assertEqual(crate.history.count(), counts[crate.pk] + 1)
             self.assertEqual(crate.history.first().history_user_id, self.user.pk)
+            self.assertEqual(crate.history.first().history_change_reason, 'Odeslání do zinkovny a export dodacího listu.')
+
+    def test_both_release_decisions_allow_dispatch_with_history(self):
+        self.assert_dispatched([self.make_crate(release) for release in ('UV', 'UO')])
+
+    def test_curvature_only_nonconformity_allows_dispatch_in_mixed_selection(self):
+        curved = self.make_crate('NE', reasons=('neshoda_krivost',))
+        curved.rovnat = 'KR'
+        curved.save(update_fields=['rovnat'])
+        self.assert_dispatched([
+            self.make_crate(), self.make_crate('UO'), curved,
+            self.make_crate('NE', atypical=True),
+        ])
+        self.assertEqual(curved.rovnat, 'KR')
+
+    def test_atypical_nonconformity_allows_any_or_no_reasons(self):
+        reasons = [(), *((field,) for field in KontrolaBedny.NESHODA_FIELDS), KontrolaBedny.NESHODA_FIELDS]
+        crates = [self.make_crate('NE', atypical=True, reasons=names) for names in reasons]
+        # Přezinkování může řešit i NOK čistotu nebo uložení atypické bedny.
+        control = crates[-1].kontrola
+        control.cistota = control.ulozeni = 'NOK'
+        control.save()
+        self.assert_dispatched(crates)
+
+    def test_standard_nonconformity_with_other_reason_rejects_whole_selection(self):
+        for field in KontrolaBedny.NESHODA_FIELDS:
+            if field == 'neshoda_krivost':
+                continue
+            for reasons in ((field,), ('neshoda_krivost', field)):
+                with self.subTest(reasons=reasons):
+                    self.assert_rejected([
+                        self.make_crate('NE', atypical=True),
+                        self.make_crate('NE', reasons=('neshoda_krivost',)),
+                        self.make_crate('NE', reasons=reasons),
+                    ], 'Křivost')
+
+    def test_standard_nonconformity_without_reason_rejects_whole_selection(self):
+        self.assert_rejected([self.make_crate(), self.make_crate('NE', reasons=())], 'Křivost')
+
+    def test_atypical_missing_or_undecided_control_rejects_whole_selection(self):
+        for release in (None, '--'):
+            with self.subTest(release=release):
+                self.assert_rejected([
+                    self.make_crate('NE', atypical=True),
+                    self.make_crate(release, atypical=True),
+                ], 'Uvolněno')
+
+    def test_nonconformity_exceptions_still_require_measurement_confirmation(self):
+        for atypical, reasons in ((True, ()), (False, ('neshoda_krivost',))):
+            with self.subTest(atypical=atypical):
+                self.assert_rejected([
+                    self.make_crate(),
+                    self.make_crate('NE', pending=True, atypical=atypical, reasons=reasons),
+                ], 'po změně měření')
+
+    def test_nonconformity_exceptions_preserve_state_and_pause_guards(self):
+        for atypical, reasons in ((True, ()), (False, ('neshoda_krivost',))):
+            for field, value, message in (
+                ('stav_bedny', 'ZA', 'ZKONTROLOVANO'),
+                ('zinkovat', 'NN', 'ZINKOVAT'),
+                ('pozastaveno', True, 'pozastaven'),
+            ):
+                with self.subTest(atypical=atypical, field=field):
+                    bad = self.make_crate('NE', atypical=atypical, reasons=reasons)
+                    setattr(bad, field, value)
+                    bad.save()
+                    self.assert_rejected([self.make_crate(), bad], message)
 
     def test_missing_undecided_or_nonconforming_control_rejects_whole_selection(self):
         for release in (None, '--', 'NE'):

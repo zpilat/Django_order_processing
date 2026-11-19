@@ -165,8 +165,15 @@ Akce **Označit V ZINKOVNĚ a vyexportovat DL** vyžaduje u všech vybraných be
 
 - výrobní stav **Zkontrolováno** a zinkování **Zinkovat**,
 - zrušené pozastavení,
-- uloženou výstupní kontrolu s **Uvolněno** nebo **Uvolněno QS s odchylkou**,
+- uloženou výstupní kontrolu s **Uvolněno**, **Uvolněno QS s odchylkou** nebo přípustnou **Neshodou** podle výjimek níže,
 - žádné čekající potvrzení po změně měření.
+
+**Neshoda neblokuje odeslání u atypické bedny**, a to s libovolnými důvody
+i bez důvodu, například při přezinkování. U běžné bedny je odeslání s Neshodou
+povolené pouze s jediným důvodem **Křivost**; souběh s jiným důvodem ani Neshoda
+bez důvodu nestačí. Bez kontroly nebo s nerozhodnutým uvolněním nelze odeslat
+ani atypickou bednu. Odeslání nemění uložené rozhodnutí ani důvody neshody.
+Neshoda nadále blokuje **K expedici** a expedici zákazníkovi.
 
 Podmínky se ověřují po zamčení beden. Jediná nevyhovující bedna odmítne celý
 výběr; stav se nezmění, historie nevznikne a dodací list se nevygeneruje.

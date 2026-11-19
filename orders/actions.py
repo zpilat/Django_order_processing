@@ -23,7 +23,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from weasyprint import HTML
 from weasyprint import CSS
 
-from .models import Zakazka, Bedna, Kamion, Zakaznik, Pozice, PoziceZakazkaOrder, Rozpracovanost, Cena, Zarizeni, Sarze, SarzeKrok, SarzeKrokBedna
+from .models import Zakazka, Bedna, Kamion, Zakaznik, Pozice, PoziceZakazkaOrder, Rozpracovanost, Cena, Zarizeni, Sarze, SarzeKrok, SarzeKrokBedna, KontrolaBedny
 from .utils import (
     utilita_tisk_dokumentace,
     utilita_tisk_dokumentace_sablony,
@@ -2384,8 +2384,9 @@ def oznacit_otryskana_action(modeladmin, request, queryset):
 @admin.action(description="Označit V ZINKOVNĚ a vyexportovat DL", permissions=('change',))
 def odeslat_na_zinkovani_action(modeladmin, request, queryset):
     """
-    Pod zámkem ověří ZKONTROLOVANO, ZINKOVAT a uložené uvolnění bez
-    nepotvrzených změn měření. Celý výběr přepne na V ZINKOVNĚ s historií
+    Pod zámkem ověří ZKONTROLOVANO, ZINKOVAT a uložené rozhodnutí bez
+    nepotvrzených změn měření. Neshoda smí projít u atypické bedny nebo se
+    samotnou Křivostí. Celý výběr přepne na V ZINKOVNĚ s historií
     a vrátí CSV pro externí zinkovnu. Starší limity znovu nevyhodnocuje.
     """
     export_ids = set(queryset.values_list('pk', flat=True))
@@ -2416,12 +2417,21 @@ def odeslat_na_zinkovani_action(modeladmin, request, queryset):
                 f"Bedny: {', '.join(map(str, nepotvrzene))}.", level=messages.ERROR,
             )
             return None
-        neuvolnene = list(locked_qs.exclude(kontrola__uvolneni__in=(
+        pouze_krivost = {
+            f'kontrola__{field}': field == 'neshoda_krivost'
+            for field in KontrolaBedny.NESHODA_FIELDS
+        }
+        povolene_rozhodnuti = Q(kontrola__uvolneni__in=(
             UvolneniKontrolyChoice.UVOLNENO, UvolneniKontrolyChoice.UVOLNENO_S_ODCHYLKOU,
-        )).values_list('cislo_bedny', flat=True))
+        )) | (
+            Q(kontrola__uvolneni=UvolneniKontrolyChoice.NESHODA)
+            & (Q(atypicky_prubeh=True) | Q(**pouze_krivost))
+        )
+        neuvolnene = list(locked_qs.exclude(povolene_rozhodnuti).values_list('cislo_bedny', flat=True))
         if neuvolnene:
             modeladmin.message_user(
-                request, 'Pro odeslání do zinkovny uložte Uvolněno nebo Uvolněno QS s odchylkou. '
+                request, 'Pro odeslání do zinkovny uložte Uvolněno nebo Uvolněno QS s odchylkou, '
+                'případně Neshodu u atypické bedny nebo pouze s důvodem Křivost. '
                 f"Bedny: {', '.join(map(str, neuvolnene))}.", level=messages.ERROR,
             )
             return None
