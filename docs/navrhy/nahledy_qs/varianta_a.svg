@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="1486" viewBox="0 0 1100 1486" role="img" aria-labelledby="title desc">
+<title id="title">A · Select se třemi možnostmi: tři příklady vyplnění</title>
+<desc id="desc">Po kontrole: křivost i vysoká tvrdost povrchu jsou nevyřešené neshody a v seznamu zkontrolovaných beden se zobrazuje červené varování. Po schválení tvrdosti QS: křivost zůstává neshodou, ale červené varování se nezobrazuje. Po rovnání a vyhovujícím prohybu po rovnání: křivost není označená, tvrdost zůstává schválená QS; po potvrzení kontroly celkově Uvolněno QS s odchylkou. Checkboxy jsou pouze zaškrtnuté nebo prázdné.</desc>
+<g font-family="Segoe UI, DejaVu Sans, Arial, sans-serif">
+<rect x="0" y="0" width="1100" height="1486" rx="0" fill="white" stroke="white"/>
+<text x="24" y="31" font-size="27" fill="#243447" font-weight="700" text-anchor="start">A · Select se třemi možnostmi</text>
+<text x="24" y="61" font-size="19" fill="#59697b" font-weight="400" text-anchor="start">Select: Neoznačeno / Neshoda / Schváleno QS</text>
+<rect x="12" y="84" width="1076" height="448" rx="8" fill="white" stroke="#cbd5e1"/>
+<text x="34" y="119" font-size="24" fill="#243447" font-weight="600" text-anchor="start">01  Po kontrole: křivost i vysoká tvrdost neshodné</text>
+<text x="34" y="160" font-size="19" fill="#59697b" font-weight="400" text-anchor="start">Celkové rozhodnutí</text>
+<rect x="244" y="133" width="338" height="38" rx="7" fill="#fff1f1" stroke="#a82424"/>
+<text x="413" y="159" font-size="20" fill="#a82424" font-weight="600" text-anchor="middle">Neshoda</text>
+<text x="620" y="160" font-size="19" fill="#59697b" font-weight="400" text-anchor="start">Prohyb po TZ: nevyhovuje</text>
+<text x="34" y="207" font-size="17" fill="#59697b" font-weight="600" text-anchor="start">DŮVOD</text>
+<text x="1038" y="207" font-size="17" fill="#59697b" font-weight="600" text-anchor="end">POSOUZENÍ</text>
+<text x="34" y="251" font-size="21" fill="#243447" font-weight="600" text-anchor="start">Křivost</text>
+<rect x="624" y="225" width="416" height="40" rx="5" fill="#fff1f1" stroke="#a82424"/><text x="639" y="252" font-size="21" fill="#a82424" font-weight="600" text-anchor="start">Neshoda</text><line x1="996" y1="225" x2="996" y2="265" stroke="#cbd5e1"/><line x1="1010" y1="242" x2="1018" y2="250" stroke="#59697b" stroke-width="2"/><line x1="1018" y1="250" x2="1026" y2="242" stroke="#59697b" stroke-width="2"/>
+<text x="34" y="302" font-size="21" fill="#243447" font-weight="600" text-anchor="start">Tvrdost povrchu vysoká</text>
+<rect x="624" y="276" width="416" height="40" rx="5" fill="#fff1f1" stroke="#a82424"/><text x="639" y="303" font-size="21" fill="#a82424" font-weight="600" text-anchor="start">Neshoda</text><line x1="996" y1="276" x2="996" y2="316" stroke="#cbd5e1"/><line x1="1010" y1="293" x2="1018" y2="301" stroke="#59697b" stroke-width="2"/><line x1="1018" y1="301" x2="1026" y2="293" stroke="#59697b" stroke-width="2"/>
+<text x="34" y="353" font-size="21" fill="#243447" font-weight="400" text-anchor="start">Tvrdost povrchu nízká</text>
+<rect x="624" y="327" width="416" height="40" rx="5" fill="white" stroke="#cbd5e1"/><text x="639" y="354" font-size="21" fill="#243447" font-weight="400" text-anchor="start">Neoznačeno</text><line x1="996" y1="327" x2="996" y2="367" stroke="#cbd5e1"/><line x1="1010" y1="344" x2="1018" y2="352" stroke="#59697b" stroke-width="2"/><line x1="1018" y1="352" x2="1026" y2="344" stroke="#59697b" stroke-width="2"/>
+<rect x="30" y="423" width="1036" height="88" rx="7" fill="#f5f7fa" stroke="#e0e6ed"/>
+<text x="46" y="456" font-size="20" fill="#243447" font-weight="600" text-anchor="start">Zbývá: křivost + vysoká tvrdost povrchu. Nic není schválené QS.</text>
+<text x="46" y="489" font-size="19" fill="#a82424" font-weight="400" text-anchor="start">Červené varování v seznamu zkontrolovaných beden: ANO. Expedice je blokovaná.</text>
+<rect x="12" y="548" width="1076" height="448" rx="8" fill="white" stroke="#cbd5e1"/>
+<text x="34" y="583" font-size="24" fill="#243447" font-weight="600" text-anchor="start">02  Tvrdost schválená QS, zbývá křivost</text>
+<text x="34" y="624" font-size="19" fill="#59697b" font-weight="400" text-anchor="start">Celkové rozhodnutí</text>
+<rect x="244" y="597" width="338" height="38" rx="7" fill="#fff1f1" stroke="#a82424"/>
+<text x="413" y="623" font-size="20" fill="#a82424" font-weight="600" text-anchor="middle">Neshoda</text>
+<text x="620" y="624" font-size="19" fill="#59697b" font-weight="400" text-anchor="start">Prohyb po TZ: nevyhovuje</text>
+<text x="34" y="671" font-size="17" fill="#59697b" font-weight="600" text-anchor="start">DŮVOD</text>
+<text x="1038" y="671" font-size="17" fill="#59697b" font-weight="600" text-anchor="end">POSOUZENÍ</text>
+<text x="34" y="715" font-size="21" fill="#243447" font-weight="600" text-anchor="start">Křivost</text>
+<rect x="624" y="689" width="416" height="40" rx="5" fill="#fff1f1" stroke="#a82424"/><text x="639" y="716" font-size="21" fill="#a82424" font-weight="600" text-anchor="start">Neshoda</text><line x1="996" y1="689" x2="996" y2="729" stroke="#cbd5e1"/><line x1="1010" y1="706" x2="1018" y2="714" stroke="#59697b" stroke-width="2"/><line x1="1018" y1="714" x2="1026" y2="706" stroke="#59697b" stroke-width="2"/>
+<text x="34" y="766" font-size="21" fill="#243447" font-weight="600" text-anchor="start">Tvrdost povrchu vysoká</text>
+<rect x="624" y="740" width="416" height="40" rx="5" fill="#fff5e6" stroke="#925000"/><text x="639" y="767" font-size="21" fill="#925000" font-weight="600" text-anchor="start">Schváleno QS</text><line x1="996" y1="740" x2="996" y2="780" stroke="#cbd5e1"/><line x1="1010" y1="757" x2="1018" y2="765" stroke="#59697b" stroke-width="2"/><line x1="1018" y1="765" x2="1026" y2="757" stroke="#59697b" stroke-width="2"/>
+<text x="34" y="817" font-size="21" fill="#243447" font-weight="400" text-anchor="start">Tvrdost povrchu nízká</text>
+<rect x="624" y="791" width="416" height="40" rx="5" fill="white" stroke="#cbd5e1"/><text x="639" y="818" font-size="21" fill="#243447" font-weight="400" text-anchor="start">Neoznačeno</text><line x1="996" y1="791" x2="996" y2="831" stroke="#cbd5e1"/><line x1="1010" y1="808" x2="1018" y2="816" stroke="#59697b" stroke-width="2"/><line x1="1018" y1="816" x2="1026" y2="808" stroke="#59697b" stroke-width="2"/>
+<rect x="30" y="887" width="1036" height="88" rx="7" fill="#f5f7fa" stroke="#e0e6ed"/>
+<text x="46" y="920" font-size="20" fill="#243447" font-weight="600" text-anchor="start">Zbývá: křivost. Tvrdost povrchu je schválená QS.</text>
+<text x="46" y="953" font-size="19" fill="#59697b" font-weight="400" text-anchor="start">Červené varování v seznamu zkontrolovaných beden: NE. Expedice je stále blokovaná.</text>
+<rect x="12" y="1012" width="1076" height="448" rx="8" fill="white" stroke="#cbd5e1"/>
+<text x="34" y="1047" font-size="24" fill="#243447" font-weight="600" text-anchor="start">03  Po rovnání: prohyb po rovnání vyhovuje</text>
+<text x="34" y="1088" font-size="19" fill="#59697b" font-weight="400" text-anchor="start">Celkové rozhodnutí</text>
+<rect x="244" y="1061" width="338" height="38" rx="7" fill="#fff5e6" stroke="#925000"/>
+<text x="413" y="1087" font-size="20" fill="#925000" font-weight="600" text-anchor="middle">Uvolněno QS s odchylkou</text>
+<text x="620" y="1088" font-size="19" fill="#59697b" font-weight="400" text-anchor="start">Prohyb po rovnání: vyhovuje</text>
+<text x="34" y="1135" font-size="17" fill="#59697b" font-weight="600" text-anchor="start">DŮVOD</text>
+<text x="1038" y="1135" font-size="17" fill="#59697b" font-weight="600" text-anchor="end">POSOUZENÍ</text>
+<text x="34" y="1179" font-size="21" fill="#243447" font-weight="400" text-anchor="start">Křivost</text>
+<rect x="624" y="1153" width="416" height="40" rx="5" fill="white" stroke="#cbd5e1"/><text x="639" y="1180" font-size="21" fill="#243447" font-weight="400" text-anchor="start">Neoznačeno</text><line x1="996" y1="1153" x2="996" y2="1193" stroke="#cbd5e1"/><line x1="1010" y1="1170" x2="1018" y2="1178" stroke="#59697b" stroke-width="2"/><line x1="1018" y1="1178" x2="1026" y2="1170" stroke="#59697b" stroke-width="2"/>
+<text x="34" y="1230" font-size="21" fill="#243447" font-weight="600" text-anchor="start">Tvrdost povrchu vysoká</text>
+<rect x="624" y="1204" width="416" height="40" rx="5" fill="#fff5e6" stroke="#925000"/><text x="639" y="1231" font-size="21" fill="#925000" font-weight="600" text-anchor="start">Schváleno QS</text><line x1="996" y1="1204" x2="996" y2="1244" stroke="#cbd5e1"/><line x1="1010" y1="1221" x2="1018" y2="1229" stroke="#59697b" stroke-width="2"/><line x1="1018" y1="1229" x2="1026" y2="1221" stroke="#59697b" stroke-width="2"/>
+<text x="34" y="1281" font-size="21" fill="#243447" font-weight="400" text-anchor="start">Tvrdost povrchu nízká</text>
+<rect x="624" y="1255" width="416" height="40" rx="5" fill="white" stroke="#cbd5e1"/><text x="639" y="1282" font-size="21" fill="#243447" font-weight="400" text-anchor="start">Neoznačeno</text><line x1="996" y1="1255" x2="996" y2="1295" stroke="#cbd5e1"/><line x1="1010" y1="1272" x2="1018" y2="1280" stroke="#59697b" stroke-width="2"/><line x1="1018" y1="1280" x2="1026" y2="1272" stroke="#59697b" stroke-width="2"/>
+<rect x="30" y="1351" width="1036" height="88" rx="7" fill="#f5f7fa" stroke="#e0e6ed"/>
+<text x="46" y="1384" font-size="20" fill="#243447" font-weight="600" text-anchor="start">Nevyřešené důvody: žádné. Odchylka tvrdosti zůstává uložená.</text>
+<text x="46" y="1417" font-size="19" fill="#59697b" font-weight="400" text-anchor="start">Červené varování v seznamu zkontrolovaných beden: NE. Ostatní podmínky expedice dál platí.</text>
+</g>
+</svg>
