@@ -81,9 +81,11 @@ Artikl se tiskne ve sloupci `Material-Nr.`, za ním následuje `Charge`
 s hodnotou pole `Šarže mat. / Charge` (`sarze`) bedny. Interní číslo bedny
 se tiskne ve sloupci `HPM-Nr.`.
 
-### Export podkladů pro OMEGU — SPX
+### Export podkladů pro OMEGU — SPX a EUR
 
-Akce **Exportovat podklady pro OMEGU (SPX, kalení)** otevře náhled fakturovatelných položek po bednách a stáhne TXT pro import jako dodací list OMEGY. Přenáší i ceny kalení; respektuje hlavní Fakturovat i výjimku pro kalení. Pilot je omezený na jeden výdej SPX, proformu po bednách a samotné kalení. Ostatní zákazníky a zapnuté účtování rovnání/tryskání odmítne.
+Společná akce **Exportovat podklady pro OMEGU** otevře náhled a stáhne TXT pro import jako dodací list OMEGY. Vybírá pravidla podle zákazníka jednoho výdejového kamionu. SPX přenáší kalení po bednách, EUR kalení po zakázkách a souhrnný řádek tryskání pro každou použitou sazbu EUR/kg, vždy jako 1 ks za příslušný součet z proformy. V názvu je hmotnost fakturovaných beden dané sazby × cena za kg. Respektuje hlavní Fakturovat i přepínače jednotlivých operací. Ostatní zákazníci zatím nejsou podporováni.
+
+Pro všechny zákazníky export blokuje bedna s hlavním Fakturovat a zapnutým Fakturovat zinkování, dokud nebude připraven výpočet a export této operace. EUR navíc vyžaduje jednoznačnou kladnou sazbu všech otryskaných beden a nulové rovnání na proformě. SPX nadále nepovoluje účtované rovnání ani tryskání.
 
 První import a převzetí do faktury ověřte v testovací kopii OMEGY. Obsah odpovídá proformě, ale tiskové sloupce se nemusí shodovat. Export nevystavuje fakturu a neoznačuje kamion jako vyfakturovaný. Přesný postup, omezení a stav ověření jsou v [manuálu exportu OMEGA](manual_export_omega.md).
 

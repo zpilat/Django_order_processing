@@ -11,33 +11,40 @@
 
 {% block content %}
 <h2>{{ note.number }} — {{ note.partner_name }}</h2>
-<p>Podklad podle proformy SPX, pouze kalení. V OMEZE se načte jako dodací list.
+<p>Podklad podle proformy {{ customer_code }}. V OMEZE se načte jako dodací list.
   Z něj účetní převezme položky do faktury a zkontroluje její účetní nastavení.</p>
+{% if customer_code == 'EUR' %}
+<p>Kalení je po zakázkách. Číslo = artikl, Názov = zkrácený popis a rozměr;
+  Cudzí názov a Vlastný text jsou prázdné. Tryskání tvoří samostatný souhrnný řádek
+  1 ks pro každou sazbu, s příslušnou fakturovanou hmotností a cenou za kg v názvu.
+  Částky zachovávají součty z proformy.</p>
+{% else %}
 <p>Samostatná pole položky v OMEZE: Číslo = objednávka, Cudzí názov = artikl,
   Názov = popis a Vlastný text = rozměr.</p>
+{% endif %}
 <p><strong>Pilotní formát: první import a převzetí do faktury ověřte v testovací kopii firmy OMEGA.</strong></p>
 <p><a href="{% url 'admin_documentation' 'export-omega' %}" target="_blank" rel="noopener">Postup importu a omezení pilotu</a></p>
 <div class="module" style="overflow-x: auto;">
   <table>
     <thead>
-      <tr><th>Bedna</th><th>Operace</th><th>Objednávka</th><th>Artikl</th><th>Popis</th>
-        <th>Rozměr</th><th>kg</th><th>EUR/kg</th><th>Celkem EUR</th></tr>
+      <tr><th>Zdroj</th><th>Operace</th><th>Číslo</th><th>Cudzí názov</th><th>Názov</th>
+        <th>Vlastný text</th><th>Množství</th><th>MJ</th><th>EUR/MJ</th><th>Celkem EUR</th></tr>
     </thead>
     <tbody>
       {% for line in note.lines %}
-      <tr><td>{{ line.crate_number|stringformat:"d" }}</td><td>{{ line.operation }}</td>
+      <tr><td>{{ line.source }}</td><td>{{ line.operation }}</td>
         <td>{{ line.order_number }}</td><td>{{ line.article }}</td><td>{{ line.description }}</td>
-        <td>{{ line.dimension }}</td><td>{{ line.quantity|floatformat:1 }}</td>
+        <td>{{ line.dimension }}</td><td>{{ line.quantity|floatformat:1 }}</td><td>{{ line.unit }}</td>
         <td>{{ line.unit_price|floatformat:2 }}</td><td>{{ line.total|floatformat:2 }}</td></tr>
       {% endfor %}
     </tbody>
     <tfoot><tr><th colspan="6">{{ note.lines|length }} položek celkem</th>
-      <th>{{ note.weight|floatformat:1 }}</th><th></th><th>{{ note.total|floatformat:2 }}</th></tr></tfoot>
+      <th colspan="2">{{ note.weight|floatformat:1 }} kg kalení</th><th></th><th>{{ note.total|floatformat:2 }}</th></tr></tfoot>
   </table>
 </div>
 <form method="post">
   {% csrf_token %}
-  <input type="hidden" name="action" value="export_omega_spx_action">
+  <input type="hidden" name="action" value="export_omega_action">
   <input type="hidden" name="{{ action_checkbox_name }}" value="{{ kamion.pk|stringformat:'d' }}">
   <input type="hidden" name="select_across" value="0">
   <div class="submit-row">

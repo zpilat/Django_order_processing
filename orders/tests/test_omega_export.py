@@ -14,7 +14,7 @@ from orders.admin import KamionAdmin
 from orders.choices import KamionChoice, PrijemVydejChoice, StavBednyChoice
 from orders.models import Bedna, Cena, Kamion, Predpis, TypHlavy, Zakazka, Zakaznik
 from orders.services.exceptions import ServiceValidationError
-from orders.services.omega_export_service import build_spx_delivery_note
+from orders.services.omega_export_service import build_omega_delivery_note, build_spx_delivery_note
 
 
 class OmegaExportTests(TestCase):
@@ -59,7 +59,7 @@ class OmegaExportTests(TestCase):
 
     def action_data(self, **extra):
         return {
-            'action': 'export_omega_spx_action', '_selected_action': str(self.outgoing.pk),
+            'action': 'export_omega_action', '_selected_action': str(self.outgoing.pk),
             'select_across': '0', **extra,
         }
 
@@ -132,6 +132,26 @@ class OmegaExportTests(TestCase):
         Bedna.objects.filter(pk=self.second.pk).update(fakturovat_kaleni=False)
         with self.assertRaisesMessage(ServiceValidationError, 'žádnou bednu'):
             build_spx_delivery_note(self.outgoing)
+
+    def test_shared_export_keeps_spx_format_and_blocks_billable_zinc(self):
+        self.assertEqual(build_omega_delivery_note(self.outgoing).to_bytes(),
+                         build_spx_delivery_note(self.outgoing).to_bytes())
+        Bedna.objects.filter(pk=self.crate.pk).update(fakturovat_zinkovani=True)
+        for builder in (build_spx_delivery_note, build_omega_delivery_note):
+            with self.subTest(builder=builder.__name__):
+                with self.assertRaisesMessage(ServiceValidationError, 'zinkování'):
+                    builder(self.outgoing)
+        Bedna.objects.filter(pk=self.crate.pk).update(fakturovat=False)
+        self.assertTrue(build_omega_delivery_note(self.outgoing).lines)
+
+    def test_zinc_guard_runs_before_customer_rules_for_any_customer(self):
+        self.outgoing.zakaznik.zkratka = 'OTHER'
+        Bedna.objects.filter(pk=self.crate.pk).update(fakturovat_zinkovani=True)
+        with self.assertRaisesMessage(ServiceValidationError, 'zinkování'):
+            build_omega_delivery_note(self.outgoing)
+        Bedna.objects.filter(pk=self.crate.pk).update(fakturovat_zinkovani=False)
+        with self.assertRaisesMessage(ServiceValidationError, 'pouze zákazníky SPX a EUR'):
+            build_omega_delivery_note(self.outgoing)
 
     def test_price_rounds_each_crate_before_summing(self):
         self.price.cena_za_kg = Decimal('1.05')
@@ -273,7 +293,7 @@ class OmegaExportTests(TestCase):
         truck_admin = KamionAdmin(Kamion, admin.site)
         request = RequestFactory().get('/', {'prijem_vydej': PrijemVydejChoice.PRIJEM_NEPRIJATY})
         request.user = self.staff
-        self.assertNotIn('export_omega_spx_action', truck_admin.get_actions(request))
+        self.assertNotIn('export_omega_action', truck_admin.get_actions(request))
         self.staff.user_permissions.clear()
         self.client.force_login(get_user_model().objects.get(pk=self.staff.pk))
         response = self.client.post(self.url, self.action_data(omega_download='1'))

@@ -4,7 +4,7 @@ Interní aplikace pro správu zakázek od příjmu přes tepelné zpracování a
 
 ## Funkce
 
-- Pilotní export položek proformy SPX včetně cen kalení do TXT dodacího listu OMEGY, s náhledem a kontrolami. První import a převzetí do faktury ověřte v testovací kopii OMEGY. Viz [manuál exportu](docs/manual_export_omega.md).
+- Společný export podkladů pro OMEGU s náhledem a kontrolami: SPX má kalení po bednách, EUR kalení po zakázkách a souhrny tryskání podle sazeb EUR/kg. Zapnuté účtování zinkování export blokuje u všech zákazníků. Rozšíření EUR nejprve ověřte v testovací kopii OMEGY. Viz [manuál exportu](docs/manual_export_omega.md).
 - Import dodacích listů z XLSX s náhledem, validací a atomickým uložením; artikly zůstávají textem.
 - Evidence beden, technologických stavů, pozic, priorit, pozastavení a historie změn.
 - Dodatečná rekonstrukce chybějící historie fakturačních voleb po migraci 0250: příkaz `doplnit_historii_fakturace` nabízí náhled, zkoušku s rollbackem a atomické doplnění bez změny aktuálních beden. Viz [postup opravy](docs/oprava_historie_fakturace_0250.md).

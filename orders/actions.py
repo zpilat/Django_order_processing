@@ -43,7 +43,7 @@ from .services.expedice_service import (
     validate_bedny_pro_expedici,
 )
 from .services.exceptions import ServiceValidationError
-from .services.omega_export_service import build_spx_delivery_note
+from .services.omega_export_service import build_omega_delivery_note
 from .billing import (
     is_operation_billable, summarize_operation,
     validate_proforma_pricing,
@@ -3322,8 +3322,8 @@ def tisk_protokolu_kamionu_vydej_action(modeladmin, request, queryset):
     url = reverse('protokol_kamion_vydej_pdf', args=[kamion.pk])
     return HttpResponseRedirect(url)
 
-@admin.action(description='Exportovat podklady pro OMEGU (SPX, kalení)', permissions=('view',))
-def export_omega_spx_action(modeladmin, request, queryset):
+@admin.action(description='Exportovat podklady pro OMEGU', permissions=('view',))
+def export_omega_action(modeladmin, request, queryset):
     if queryset.count() != 1:
         modeladmin.message_user(request, 'Vyberte pouze jeden kamion.', level=messages.ERROR)
         return None
@@ -3331,12 +3331,12 @@ def export_omega_spx_action(modeladmin, request, queryset):
     if not modeladmin.has_view_permission(request, kamion):
         raise PermissionDenied
     try:
-        note = build_spx_delivery_note(kamion)
+        note = build_omega_delivery_note(kamion)
     except ServiceValidationError as exc:
         modeladmin.message_user(request, str(exc), level=messages.ERROR)
         return None
     if 'omega_download' in request.POST:
-        filename = f'omega_spx_{slugify(note.number)}.txt'
+        filename = f'omega_{kamion.zakaznik.zkratka.lower()}_{slugify(note.number)}.txt'
         response = HttpResponse(note.to_bytes(), content_type='text/plain; charset=windows-1250')
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
         response['Cache-Control'] = 'private, no-store'
@@ -3345,9 +3345,10 @@ def export_omega_spx_action(modeladmin, request, queryset):
         return response
     context = {
         **modeladmin.admin_site.each_context(request),
-        'title': 'Export podkladů pro OMEGU — SPX',
+        'title': f'Export podkladů pro OMEGU — {kamion.zakaznik.zkratka}',
         'opts': modeladmin.model._meta,
         'kamion': kamion, 'note': note,
+        'customer_code': kamion.zakaznik.zkratka,
         'action_checkbox_name': helpers.ACTION_CHECKBOX_NAME,
     }
     response = TemplateResponse(request, 'admin/orders/kamion/omega_export.html', context)

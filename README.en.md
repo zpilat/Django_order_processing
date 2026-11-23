@@ -4,7 +4,7 @@ Internal application for receiving, heat treating, inspecting and shipping order
 
 ## Features
 
-- Pilot export of billable SPX proforma lines, including heat treatment prices, to an OMEGA delivery note TXT, with a preview and validation. Verify the first import and transfer into an invoice in a test copy of OMEGA. See the [Czech export manual](docs/manual_export_omega.md).
+- Shared OMEGA export with a preview and validation: SPX heat treatment per crate; EUR heat treatment per order and sandblasting summaries grouped by EUR/kg rate. Enabled zinc billing blocks export for all customers. Verify the EUR extension in a test copy of OMEGA first. See the [Czech export manual](docs/manual_export_omega.md).
 - XLSX delivery note import with preview, validation and atomic saving; article numbers remain strings.
 - Crate states, warehouse positions, priorities, paused items and change history.
 - Backfill missing billing history from migration 0250 using `doplnit_historii_fakturace`: preview, rollback rehearsal and atomic history-only insertion with no current crate changes. See the [Czech repair guide](docs/oprava_historie_fakturace_0250.md).
