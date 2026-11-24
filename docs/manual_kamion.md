@@ -89,6 +89,8 @@ Export nastavuje zaokrouhlení výsledné sumy i sumy každé položky na **0,01
 
 Všechny položky exportu přenášejí zadané nastavení **Zaúčtovanie položky → Typ sumy = Osv**. Platí to pro všechny zákazníky, nyní SPX i EUR, včetně každého souhrnu tryskání. Nastavení ověřte na importovaném dodacím listu i při převzetí do faktury.
 
+Při postupu **Pridaj novou fakturu → přidat položky z dodacieho listu** bylo v používané OMEZE ověřeno přepsání typu sumy z Osv na 14. Po převzetí proto zkontrolujte položky faktury a případně na všech **hromadně nastavte Typ sumy = Osv**, potom ověřte nulovou sazbu DPH. Hromadnou opravu uživatel prakticky ověřil; automatické zachování Osv při převzetí zatím potvrzené není.
+
 Pro všechny zákazníky export blokuje bedna s hlavním Fakturovat a zapnutým Fakturovat zinkování, dokud nebude připraven výpočet a export této operace. EUR navíc vyžaduje jednoznačnou kladnou sazbu všech otryskaných beden a nulové rovnání na proformě. SPX nadále nepovoluje účtované rovnání ani tryskání.
 
 První import a převzetí do faktury ověřte v testovací kopii OMEGY. Obsah odpovídá proformě, ale tiskové sloupce se nemusí shodovat. Export nevystavuje fakturu a neoznačuje kamion jako vyfakturovaný. Přesný postup, omezení a stav ověření jsou v [manuálu exportu OMEGA](manual_export_omega.md).

@@ -6,6 +6,8 @@ Společná akce **Exportovat podklady pro OMEGU** vybírá pravidla podle zákaz
 
 Rozšíření EUR ověřené v aplikaci ještě vyžaduje první praktickou zkoušku v OMEZE, zejména převzetí souhrnů tryskání podle sazeb, každý jako `1 ks`.
 
+**Ověření typu sumy (24. listopadu 2026):** uživatel potvrdil, že Osv se na dodací list naimportuje správně. Při postupu **Pridaj novou fakturu → přidat položky z dodacieho listu** však OMEGA nastavila na položkách faktury Typ sumy 14. Ověřeným řešením je po převzetí nastavit na všech položkách faktury Typ sumy Osv hromadně; uživatel potvrdil úspěch této opravy. Import pole 30 je pro použitou instalaci ověřen. Přesná příčina přepsání při převzetí ani nastavení pro automatické zachování Osv zatím potvrzené nejsou; vytvoření faktury kopií dodacího listu v tomto ohledu nebylo ověřeno.
+
 ## 1. Rozsah pilotu
 
 Pro všechny zákazníky se export zastaví, pokud má některá bedna s hlavním **Fakturovat = Ano** také **Fakturovat zinkování = Ano**. Kontrola probíhá před výběrem pravidel zákazníka a platí také pro SPX. Samostatný výpočet ceny a export zinkování zatím není zaveden. Nefakturovaná bedna tuto blokaci nezpůsobí.
@@ -56,7 +58,7 @@ Export nemění bedny ani kamion, neukládá historii fakturace a nevystavuje fa
 2. V **Firma → Nastavenia → Všeobecné nastavenia → Prechod/Import/Eshop** ověřte porovnávací kritéria partnera a dokladu. Ověřte také evidenci a výchozí číselnou řadu dodacích listů. Pilot jejich kódy do souboru nezadává; převzetí nelze potvrdit bez zkoušky v OMEZE.
 3. Spusťte **Firma → Import → Import z textového súboru**, vyberte TXT a použijte přidávání neexistujících dokladů. Prohlédněte výsledek a případný `.LOG`.
 4. V **Fakturácia → Dodacie listy** ověřte partnera, číslo, datum, počet položek, kg, ceny a součet. V záložce **Nastavenie** zkontrolujte **Zaokrúhlenie výslednej sumy = 0,01**, **Zaokrúhlenie sumy každej položky = 0,01** a **Spôsob zaokrúhlenia = Prirodzene**. Na položkách v nastavení prodejní ceny mají být také dvě desetinná místa a přirozené zaokrouhlení. Číslo a datum pocházejí z výdejového kamionu. Pro tyto volné položky nevytvářejte další skladové výdejky.
-5. V **Fakturácia → Odoslané faktúry** založte fakturu pro správného partnera a u přidávání položek vyberte **z dodacieho listu**. Přeneste všechny položky příslušného podkladu.
+5. V **Fakturácia → Odoslané faktúry** založte fakturu pro správného partnera a u přidávání položek vyberte **z dodacieho listu**. Přeneste všechny položky příslušného podkladu. Potom ověřte **Typ sumy** na položkách faktury: v používané instalaci se při tomto převzetí změnil z Osv na 14. Pokud k tomu dojde, nastavte na **všech položkách faktury hromadně Typ sumy = Osv**; tento postup byl uživatelem prakticky ověřen. Následně zkontrolujte také zachování nulové sazby DPH.
 6. Ověřte obsah a tisk faktury, měnu, DPH, data, splatnost a číslování. Není ověřeno, že OMEGA při převzetí nahradí účetní hodnoty podkladu nastavením faktury. Pilotní TXT nese EUR, kurz 1 a technický nulový rozpis DPH; nejde o určení daňového režimu finální faktury.
 7. Před opakováním importu zjistěte, zda už podklad existuje nebo byl použit na faktuře. Při chybě uchovejte LOG a snímek nastavení; aplikace úspěch importu nezná.
 
@@ -95,7 +97,7 @@ Mapování **SPX** vychází ze snímku editace položky dodaného uživatelem. 
 | Unit price without VAT | Jednotková cena bez DPH | 5 | `1.06` |
 | Typ sumy | Typ DPH (`C021_Kod(T033_TypCiastka)`) | 30 | `Osv` |
 
-Pole 30 specifikace označuje jako „typ DPH“, v editoru OMEGY odpovídá poli **Zaúčtovanie položky → Typ sumy**. Pro všechny položky obsahuje text `Osv` podle nastavení dodaného uživatelem; dříve bylo prázdné a OMEGA doplňovala vlastní výchozí hodnotu. Sazba DPH v poli 6 zůstává `0`. Změna se uplatní v nově exportovaných TXT, již importované doklady automaticky neopraví. Ověření přijetí kódu Osv v cílové OMEZE je součástí kontroly nového importu.
+Pole 30 specifikace označuje jako „typ DPH“, v editoru OMEGY odpovídá poli **Zaúčtovanie položky → Typ sumy**. Pro všechny položky obsahuje text `Osv` podle nastavení dodaného uživatelem; dříve bylo prázdné a OMEGA doplňovala vlastní výchozí hodnotu. Sazba DPH v poli 6 zůstává `0`. Změna se uplatní v nově exportovaných TXT, již importované doklady automaticky neopraví. Uživatel potvrdil přijetí Osv na dodacím listu; po převzetí položek do faktury je stále nutné ověřit, že OMEGA hodnotu zachovala.
 
 Názov obsahuje pouze popis. Číslo objednávky, artikl, rozměr ani označení operace se k němu nepřipojují. Výrobní zakázka bedny (`vyrobni_zakazka`) se předává jako text do pole 18, nejvýše 20 znaků, včetně počátečních nul. Pole 17 (JKPOV) zůstává prázdné. Artikl zůstává textem s počátečními nulami v poli Cudzí názov. Číslo výdeje v hlavičce dokladu je samostatný údaj a přenáší se dál.
 
