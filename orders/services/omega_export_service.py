@@ -114,6 +114,7 @@ class OmegaDeliveryNote:
             # Pole 17 (JKPOV) zůstává prázdné.
             item[17] = _text(line.order_number, 'Číslo položky (pole 18)', 20)
             item[18] = _text(line.dimension, 'Rozměr (pole 19 / C115_Volne)', 50)
+            item[29] = 'Osv'  # 30 / Typ sumy: zadané účetní nastavení všech položek.
             # Ostatné / Nastavenie predajnej ceny také přímo na každé položce.
             item[44] = '-2'  # 45 / C105_Zaokruhlenie: dvě desetinná místa.
             item[45] = '3'  # 46 / C106_SposobZaokruhlenia: přirozeně.

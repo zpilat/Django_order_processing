@@ -93,7 +93,9 @@ class OmegaExportTests(TestCase):
         self.assertEqual(header[60:64], ['-2', '3', '', '-2'])
         for row in rows[2:]:
             self.assertEqual(len(row), 46)
-            self.assertEqual(row[19:44], [''] * 25)
+            self.assertEqual(row[19:29], [''] * 10)
+            self.assertEqual(row[29], 'Osv')
+            self.assertEqual(row[30:44], [''] * 14)
             self.assertEqual(row[44:46], ['-2', '3'])
         item = rows[2]
         self.assertEqual(len(item), 46)

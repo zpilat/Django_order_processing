@@ -10,6 +10,8 @@ Rozšíření EUR ověřené v aplikaci ještě vyžaduje první praktickou zkou
 
 Pro všechny zákazníky se export zastaví, pokud má některá bedna s hlavním **Fakturovat = Ano** také **Fakturovat zinkování = Ano**. Kontrola probíhá před výběrem pravidel zákazníka a platí také pro SPX. Samostatný výpočet ceny a export zinkování zatím není zaveden. Nefakturovaná bedna tuto blokaci nezpůsobí.
 
+Na všech položkách exportu se podle zadaného účetního nastavení výslovně předává **Zaúčtovanie položky → Typ sumy = Osv**. Platí to pro všechny zákazníky, nyní SPX i EUR, a také pro každý souhrn tryskání. Po importu ověřte tento údaj už na dodacím listu a následně při převzetí do faktury.
+
 ### SPX — kalení po bednách
 
 - Jeden výdejový kamion zákazníka se zkratkou **SPX**, s proformou po bednách.
@@ -91,6 +93,9 @@ Mapování **SPX** vychází ze snímku editace položky dodaného uživatelem. 
 | Quantity | Množstvo | 3 | `234.0` |
 | UM | MJ | 4 | `kg` |
 | Unit price without VAT | Jednotková cena bez DPH | 5 | `1.06` |
+| Typ sumy | Typ DPH (`C021_Kod(T033_TypCiastka)`) | 30 | `Osv` |
+
+Pole 30 specifikace označuje jako „typ DPH“, v editoru OMEGY odpovídá poli **Zaúčtovanie položky → Typ sumy**. Pro všechny položky obsahuje text `Osv` podle nastavení dodaného uživatelem; dříve bylo prázdné a OMEGA doplňovala vlastní výchozí hodnotu. Sazba DPH v poli 6 zůstává `0`. Změna se uplatní v nově exportovaných TXT, již importované doklady automaticky neopraví. Ověření přijetí kódu Osv v cílové OMEZE je součástí kontroly nového importu.
 
 Názov obsahuje pouze popis. Číslo objednávky, artikl, rozměr ani označení operace se k němu nepřipojují. Výrobní zakázka bedny (`vyrobni_zakazka`) se předává jako text do pole 18, nejvýše 20 znaků, včetně počátečních nul. Pole 17 (JKPOV) zůstává prázdné. Artikl zůstává textem s počátečními nulami v poli Cudzí názov. Číslo výdeje v hlavičce dokladu je samostatný údaj a přenáší se dál.
 

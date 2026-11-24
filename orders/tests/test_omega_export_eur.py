@@ -103,7 +103,9 @@ class EurOmegaExportTests(TestCase):
         self.assertEqual(rows[1][60:64], ['-2', '3', '', '-2'])
         for row in rows[2:]:  # Kalení i souhrn tryskání mají vlastní nastavení.
             self.assertEqual(len(row), 46)
-            self.assertEqual(row[19:44], [''] * 25)
+            self.assertEqual(row[19:29], [''] * 10)
+            self.assertEqual(row[29], 'Osv')
+            self.assertEqual(row[30:44], [''] * 14)
             self.assertEqual(row[44:46], ['-2', '3'])
         self.assertEqual(len(rows), 5)
         self.assertEqual(rows[2][1:5], ['HSPT SK vruty, 8x160', '200.2', 'kg', '1.05'])
@@ -189,6 +191,7 @@ class EurOmegaExportTests(TestCase):
         self.assertEqual(note.total, self.outgoing.cena_za_kamion_vydej + self.outgoing.cena_tryskani_za_kamion_vydej)
         rows = [row.split('\t') for row in note.to_bytes().decode('cp1250').splitlines()]
         self.assertEqual(rows[1][16], str(note.total))
+        self.assertTrue(all(row[29] == 'Osv' for row in rows[2:]))
         self.assertTrue(all(row[10] == row[17] == row[18] == '' and row[2:4] == ['1', 'ks']
                             for row in rows[-3:]))
         response = self.client.post(self.url, self.action_data())
