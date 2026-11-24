@@ -98,6 +98,13 @@ class EurOmegaExportTests(TestCase):
         self.assertEqual(rows[0], ['R00', 'T01'])
         self.assertEqual(rows[1][16:18], ['455.46', '2'])
         self.assertEqual(rows[1][39:43], ['EUR', '1', '1', '455.46'])
+        self.assertEqual(len(rows[1]), 64)
+        self.assertEqual(rows[1][43:60], [''] * 17)
+        self.assertEqual(rows[1][60:64], ['-2', '3', '', '-2'])
+        for row in rows[2:]:  # Kalení i souhrn tryskání mají vlastní nastavení.
+            self.assertEqual(len(row), 46)
+            self.assertEqual(row[19:44], [''] * 25)
+            self.assertEqual(row[44:46], ['-2', '3'])
         self.assertEqual(len(rows), 5)
         self.assertEqual(rows[2][1:5], ['HSPT SK vruty, 8x160', '200.2', 'kg', '1.05'])
         self.assertEqual(rows[2][10], '')

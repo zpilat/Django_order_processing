@@ -53,7 +53,7 @@ Export nemění bedny ani kamion, neukládá historii fakturace a nevystavuje fa
 1. Připravte testovací kopii firmy s existujícím partnerem SPAX nebo příslušným partnerem EUR. Porovnejte jeho název s názvem zákazníka v aplikaci. Model zákazníka aplikace nemá IČO ani IČ DPH; soubor předává název, nikoli nový číselník partnerů.
 2. V **Firma → Nastavenia → Všeobecné nastavenia → Prechod/Import/Eshop** ověřte porovnávací kritéria partnera a dokladu. Ověřte také evidenci a výchozí číselnou řadu dodacích listů. Pilot jejich kódy do souboru nezadává; převzetí nelze potvrdit bez zkoušky v OMEZE.
 3. Spusťte **Firma → Import → Import z textového súboru**, vyberte TXT a použijte přidávání neexistujících dokladů. Prohlédněte výsledek a případný `.LOG`.
-4. V **Fakturácia → Dodacie listy** ověřte partnera, číslo, datum, počet položek, kg, ceny a součet. Číslo a datum pocházejí z výdejového kamionu. Pro tyto volné položky nevytvářejte další skladové výdejky.
+4. V **Fakturácia → Dodacie listy** ověřte partnera, číslo, datum, počet položek, kg, ceny a součet. V záložce **Nastavenie** zkontrolujte **Zaokrúhlenie výslednej sumy = 0,01**, **Zaokrúhlenie sumy každej položky = 0,01** a **Spôsob zaokrúhlenia = Prirodzene**. Na položkách v nastavení prodejní ceny mají být také dvě desetinná místa a přirozené zaokrouhlení. Číslo a datum pocházejí z výdejového kamionu. Pro tyto volné položky nevytvářejte další skladové výdejky.
 5. V **Fakturácia → Odoslané faktúry** založte fakturu pro správného partnera a u přidávání položek vyberte **z dodacieho listu**. Přeneste všechny položky příslušného podkladu.
 6. Ověřte obsah a tisk faktury, měnu, DPH, data, splatnost a číslování. Není ověřeno, že OMEGA při převzetí nahradí účetní hodnoty podkladu nastavením faktury. Pilotní TXT nese EUR, kurz 1 a technický nulový rozpis DPH; nejde o určení daňového režimu finální faktury.
 7. Před opakováním importu zjistěte, zda už podklad existuje nebo byl použit na faktuře. Při chybě uchovejte LOG a snímek nastavení; aplikace úspěch importu nezná.
@@ -67,6 +67,18 @@ Soubor vychází ze [specifikace KROS ImportExport_28_00_2025.xls](https://ftpkr
 - `R00`, `T01`: fakturace.
 - Jedna hlavička `R01`: číslo výdeje, název partnera, datum výdeje, součty, **typ 2 — dodací list**, EUR a kurz 1.
 - `R02`: položky podle pravidel zákazníka, vždy **typ V — volná položka**, s technickou skupinou DPH `0`. SPX má řádek na bednu; EUR řádek na zakázku kalení a případně souhrnný řádek tryskání za každou použitou sazbu.
+
+Export SPX i EUR výslovně nastavuje zaokrouhlení výsledné sumy i sumy každé položky na **0,01** a způsob **Prirodzene**. Nastavení posílá také přímo na každém řádku, včetně souhrnů tryskání. Pozice jsou číslované od 1 včetně `R01` nebo `R02`:
+
+| Záznam | Pozice | Pole OMEGY | Hodnota | Význam |
+| --- | --- | --- | --- | --- |
+| R01 | 61 | `C221_Zaokruhlenie` | `-2` | Výsledná suma na dvě desetinná místa |
+| R01 | 62 | `C222_SposobZaokruhlenia` | `3` | Přirozené zaokrouhlení |
+| R01 | 64 | `C225_ZaokruhleniePolozky` | `-2` | Suma každé položky na dvě desetinná místa |
+| R02 | 45 | `C105_Zaokruhlenie` | `-2` | Prodejní cena položky na dvě desetinná místa |
+| R02 | 46 | `C106_SposobZaokruhlenia` | `3` | Přirozené zaokrouhlení položky |
+
+Hlavička má nyní 64 polí a položka 46; mezilehlá nepoužitá pole jsou prázdná. Starší TXT končily na pozicích 43 a 19 a nastavení zaokrouhlení neposílaly. Uživatel zjistil, že OMEGA již na takto importovaném dodacím listu nastavila zaokrouhlení prodejní ceny na celé jednotky; po převzetí do faktury se pak položky zobrazovaly nesprávně, ačkoli součet byl správný. Nové nastavení je nutné ověřit po importu dodáku i po převzetí do faktury. Již importované doklady změna exportu automaticky neopraví. Výpočet částek a součtů v aplikaci se nemění.
 
 Mapování **SPX** vychází ze snímku editace položky dodaného uživatelem. Názvy sloupců sestavy se liší od názvů polí v editoru. Pozice se počítají od 1 včetně `R02`:
 

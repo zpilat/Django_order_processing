@@ -82,7 +82,7 @@ class OmegaDeliveryNote:
 
     def to_bytes(self):
         # Pozice jsou číslované od 1 včetně R01. Prázdná pole se nezkracují.
-        header = [''] * 43
+        header = [''] * 64
         header[0:7] = [
             'R01', self.number, self.partner_name, '',
             self.issued_on.strftime('%d.%m.%Y'),
@@ -97,9 +97,13 @@ class OmegaDeliveryNote:
         header[32] = self.number
         header[33] = self.number
         header[39:43] = ['EUR', '1', '1', _number(self.total)]
+        # Nastavenie: výsledná suma i suma každej položky na 0,01, Prirodzene.
+        header[60] = '-2'  # 61 / C221_Zaokruhlenie: dvě desetinná místa.
+        header[61] = '3'  # 62 / C222_SposobZaokruhlenia: přirozeně.
+        header[63] = '-2'  # 64 / C225_ZaokruhleniePolozky: dvě desetinná místa.
         records = [['R00', 'T01'], header]
         for line in self.lines:
-            item = [''] * 19
+            item = [''] * 46
             item[0:6] = [
                 'R02', _text(line.name, f'{line.source}, název položky'),
                 _number(line.quantity), _text(line.unit, 'Měrná jednotka', 5), _number(line.unit_price), '0',
@@ -110,6 +114,9 @@ class OmegaDeliveryNote:
             # Pole 17 (JKPOV) zůstává prázdné.
             item[17] = _text(line.order_number, 'Číslo položky (pole 18)', 20)
             item[18] = _text(line.dimension, 'Rozměr (pole 19 / C115_Volne)', 50)
+            # Ostatné / Nastavenie predajnej ceny také přímo na každé položce.
+            item[44] = '-2'  # 45 / C105_Zaokruhlenie: dvě desetinná místa.
+            item[45] = '3'  # 46 / C106_SposobZaokruhlenia: přirozeně.
             records.append(item)
         return (''.join('\t'.join(record) + '\r\n' for record in records)).encode('cp1250')
 

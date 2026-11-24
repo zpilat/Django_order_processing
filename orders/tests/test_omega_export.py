@@ -81,7 +81,7 @@ class OmegaExportTests(TestCase):
         self.assertEqual(rows[0], ['R00', 'T01'])
         self.assertEqual(len(rows), 4)
         header = rows[1]
-        self.assertEqual(len(header), 43)
+        self.assertEqual(len(header), 64)
         self.assertEqual(header[:7], [
             'R01', self.outgoing.cislo_dl, self.customer.nazev, '',
             '29.10.2026', '29.10.2026', '29.10.2026',
@@ -89,8 +89,14 @@ class OmegaExportTests(TestCase):
         self.assertEqual(header[9], '479.12')
         self.assertEqual(header[16:20], ['479.12', '2', '', ''])
         self.assertEqual(header[39:43], ['EUR', '1', '1', '479.12'])
+        self.assertEqual(header[43:60], [''] * 17)
+        self.assertEqual(header[60:64], ['-2', '3', '', '-2'])
+        for row in rows[2:]:
+            self.assertEqual(len(row), 46)
+            self.assertEqual(row[19:44], [''] * 25)
+            self.assertEqual(row[44:46], ['-2', '3'])
         item = rows[2]
-        self.assertEqual(len(item), 19)
+        self.assertEqual(len(item), 46)
         self.assertEqual(item[0], 'R02')
         self.assertEqual(item[2:6], ['234.0', 'kg', '1.06', '0'])
         self.assertEqual(item[9], 'V')

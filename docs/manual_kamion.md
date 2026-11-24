@@ -85,6 +85,8 @@ se tiskne ve sloupci `HPM-Nr.`.
 
 Společná akce **Exportovat podklady pro OMEGU** otevře náhled a stáhne TXT pro import jako dodací list OMEGY. Vybírá pravidla podle zákazníka jednoho výdejového kamionu. SPX přenáší kalení po bednách, EUR kalení po zakázkách a souhrnný řádek tryskání pro každou použitou sazbu EUR/kg, vždy jako 1 ks za příslušný součet z proformy. V názvu je hmotnost fakturovaných beden dané sazby × cena za kg. Respektuje hlavní Fakturovat i přepínače jednotlivých operací. Ostatní zákazníci zatím nejsou podporováni.
 
+Export nastavuje zaokrouhlení výsledné sumy i sumy každé položky na **0,01**, způsob **Prirodzene** a stejné zaokrouhlení přímo na položkách SPX i EUR. Po importu ověřte nastavení už na dodacím listu a následně i na faktuře. Starší importované doklady se změnou exportu automaticky neopraví.
+
 Pro všechny zákazníky export blokuje bedna s hlavním Fakturovat a zapnutým Fakturovat zinkování, dokud nebude připraven výpočet a export této operace. EUR navíc vyžaduje jednoznačnou kladnou sazbu všech otryskaných beden a nulové rovnání na proformě. SPX nadále nepovoluje účtované rovnání ani tryskání.
 
 První import a převzetí do faktury ověřte v testovací kopii OMEGY. Obsah odpovídá proformě, ale tiskové sloupce se nemusí shodovat. Export nevystavuje fakturu a neoznačuje kamion jako vyfakturovaný. Přesný postup, omezení a stav ověření jsou v [manuálu exportu OMEGA](manual_export_omega.md).
