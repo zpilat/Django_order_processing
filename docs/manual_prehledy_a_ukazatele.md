@@ -128,7 +128,7 @@ Období končí **včera**, zahrnuje 14 kalendářních dní a nezávisí na vyb
 - **Souhrn vsázek** počítá evidované kroky na těchto zařízeních podle data začátku. Konec kroku není podmínkou započtení.
 - **Vruty** znamenají kroky obsahující bedny z databáze, **Železo** kroky s položkami mimo DB. Smíšený krok může být v obou kategoriích, takže jejich součet nemusí odpovídat počtu všech vsázek.
 - **Výkon vruty** a zákaznický rozpis produkce vycházejí z prvního evidovaného použití bedny na daném zařízení, podle pravidla níže. Hmotnosti položek mimo DB se do tohoto výkonu nepřičítají.
-- Nakládání pater a podíly šarží jsou v samostatném **Přehledu časů nakládání**. Původní tabulka počtu naložených šarží a pater už součástí Přehledu výroby není.
+- Pro porovnání je dočasně znovu dostupná původní tabulka **Počet naložených šarží a pater včerejších směn**. Zahrnuje všechna pracoviště typu Nakládání. Počítá kroky Nakládání, nikoli jedinečné šarže, a součet různých čísel pater v jednotlivých krocích. Celý krok a všechna jeho aktuální patra přiřadí podle data a času začátku kroku do denní 06:00–18:00 nebo noční 18:00–06:00 směny; konec ani historie uložení pater nerozhodují. Započítá i neukončený krok a krok bez pater (jako jednu šarži a nula pater). Poměrné rozdělení pater a podílů šarží podle časových intervalů zůstává v samostatném **Přehledu časů nakládání**. Pod původní tabulkou je odkaz na nový přehled.
 
 ### Kalendářní den není totéž co dvojice směn
 

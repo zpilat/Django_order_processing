@@ -3490,7 +3490,7 @@ def _build_vyroba_dashboard_context(date_value=None):
     xl2 = _device_stats([device_codes[1]])
     summary = _device_stats(device_codes)
 
-    def _shift_stats(shift_qs):
+    def _shift_stats(shift_qs, nakladani_qs):
         """
         Vypočítá statistiky pro zadaný queryset směny.
         """
@@ -3505,11 +3505,23 @@ def _build_vyroba_dashboard_context(date_value=None):
         xl2_minutes = _calc_prostoj_minutes(list(xl2_qs))
         total_minutes = xl1_minutes + xl2_minutes
 
+        # Dočasné srovnání s původním výpočtem podle začátku celého kroku.
+        sarze_count = nakladani_qs.count()
+        patra_count = (
+            nakladani_qs
+            .annotate(pocet_pater=Count('krok_bedny__patro', distinct=True))
+            .aggregate(total_patra=Sum('pocet_pater'))
+            .get('total_patra')
+            or 0
+        )
+
         return {
             'counts': {
                 'xl1': xl1_count,
                 'xl2': xl2_count,
                 'total': total_count,
+                'sarze': sarze_count,
+                'patra': patra_count,
             },
             'prostoje': {
                 'xl1': _format_hours(xl1_minutes / 60) if xl1_minutes else '0,0',
@@ -3525,6 +3537,18 @@ def _build_vyroba_dashboard_context(date_value=None):
         Q(datum=date_value, zacatek__gte=shift_times[1])
         | Q(datum=today, zacatek__lt=shift_times[0])
     ).select_related('sarze', 'zarizeni')
+    day_nakladani_qs = SarzeKrok.objects.filter(
+        zarizeni__typ_zarizeni=TypZarizeniChoice.NAKLADANI,
+        datum=date_value,
+        zacatek__gte=shift_times[0],
+        zacatek__lt=shift_times[1],
+    )
+    night_nakladani_qs = SarzeKrok.objects.filter(
+        zarizeni__typ_zarizeni=TypZarizeniChoice.NAKLADANI,
+    ).filter(
+        Q(datum=date_value, zacatek__gte=shift_times[1])
+        | Q(datum=today, zacatek__lt=shift_times[0])
+    )
     dashboard = {
         'date_label': date_value.strftime('%d.%m.%Y'),
         'devices': {
@@ -3533,8 +3557,8 @@ def _build_vyroba_dashboard_context(date_value=None):
             'celkem': summary,
         },
         'shifts': {
-            'day': _shift_stats(day_qs),
-            'night': _shift_stats(night_qs),
+            'day': _shift_stats(day_qs, day_nakladani_qs),
+            'night': _shift_stats(night_qs, night_nakladani_qs),
         },
     }
 

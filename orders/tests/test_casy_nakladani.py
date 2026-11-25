@@ -12,6 +12,7 @@ from orders.models import Sarze, SarzeKrok, SarzeKrokBedna, Zarizeni
 from orders.services.casy_nakladani_service import (
     build_casy_nakladani_prehled, FLOOR_DELETED_REASON,
 )
+from orders.views import _build_vyroba_dashboard_context
 
 
 @override_settings(TIME_ZONE='Europe/Prague', SECURE_SSL_REDIRECT=False)
@@ -86,6 +87,22 @@ class CasyNakladaniTests(TestCase):
         self.assertEqual(rows[0]['sarze'], Decimal('.6'))
         self.assertEqual(rows[1]['patra'], Decimal('1.6'))
         self.assertEqual(rows[1]['sarze'], Decimal('.4'))
+
+    def test_original_dashboard_assigns_whole_loading_to_its_start_shift(self):
+        step = self.create_loading(
+            ['2026-11-24T17:00', '2026-11-24T19:00'], '2026-11-24T20:00',
+        )
+        self.add_floor(step, 1, '2026-11-24T17:10')
+        old = _build_vyroba_dashboard_context(date_value=self.day)['vyroba_dashboard']['shifts']
+        self.assertEqual(old['day']['counts']['sarze'], 1)
+        self.assertEqual(old['day']['counts']['patra'], 2)
+        self.assertEqual(old['night']['counts']['sarze'], 0)
+        self.assertEqual(old['night']['counts']['patra'], 0)
+        new = self.scheme(self.report(), 'twelve')['rows']
+        self.assertEqual(new[0]['patra'], Decimal('.5'))
+        self.assertEqual(new[1]['patra'], Decimal('1.5'))
+        self.assertEqual(new[0]['sarze'], Decimal('.25'))
+        self.assertEqual(new[1]['sarze'], Decimal('.75'))
 
     def test_batch_denominator_is_calculated_separately_for_each_loading(self):
         self.create_loading(['2026-11-24T17:00'], '2026-11-24T19:00')
@@ -230,7 +247,8 @@ class CasyNakladaniTests(TestCase):
             other_day = self.client.get(self.url, {'datum': '2026-11-23'})
             self.assertContains(other_day, 'Pro vybraný den nejsou evidovaná nakládání.')
             old = self.client.get(reverse('dashboard_vyroba'))
-            self.assertNotContains(old, 'Počet naložených šarží a pater')
+            self.assertContains(old, 'Počet naložených šarží a pater')
+            self.assertContains(old, 'Dočasně pro porovnání')
             self.assertContains(old, 'Počet vsázek včerejších směn')
 
     def test_default_date_invalid_date_and_future_date(self):
