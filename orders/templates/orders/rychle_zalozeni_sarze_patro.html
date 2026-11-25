@@ -194,6 +194,7 @@
 {{ block.super }}
 <script src="{% static 'orders/js/html5-qrcode.min.js' %}"></script>
 <script src="{% static 'orders/js/scan_parser.js' %}"></script>
+<script src="{% static 'orders/js/bedna_selection.js' %}"></script>
 
 <script>
 (function () {
@@ -554,13 +555,6 @@
         renderPreview(active, values);
     }
 
-    function normalizeSearchText(text) {
-        return String(text || '')
-            .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '')
-            .toLowerCase();
-    }
-
     function usableBednaOptions(select) {
         return Array.from(select.options).filter(option => option.value);
     }
@@ -600,10 +594,9 @@
 
     function renderBednaResults(select, query) {
         const picker = select.closest('.bedna-picker');
-        const normalizedQuery = normalizeSearchText(query);
         closeBednaResults(picker);
 
-        if (!normalizedQuery) {
+        if (!String(query || '').trim()) {
             return;
         }
 
@@ -611,9 +604,7 @@
         results.className = 'bedna-search-results';
         results.setAttribute('role', 'listbox');
 
-        const matches = usableBednaOptions(select)
-            .filter(option => normalizeSearchText(option.textContent).includes(normalizedQuery))
-            .slice(0, 25);
+        const matches = window.OrderBednaSelection.matchingOptions(select.options, query).slice(0, 25);
 
         if (!matches.length) {
             const empty = document.createElement('div');
@@ -652,7 +643,7 @@
         input.type = 'text';
         input.className = 'form-control form-control-sm bedna-search-input';
         input.autocomplete = 'off';
-        input.placeholder = 'Hledat bednu...';
+        input.placeholder = 'Hledat podle čísla bedny...';
         input.value = selectedBednaLabel(select);
         picker.insertBefore(input, select);
         select.classList.add('d-none');
@@ -664,7 +655,8 @@
         });
 
         input.addEventListener('focus', function () {
-            renderBednaResults(select, input.value);
+            const selectedOption = select.value ? select.options[select.selectedIndex] : null;
+            renderBednaResults(select, selectedOption ? bednaNumberFromOption(selectedOption) : input.value);
         });
 
         input.addEventListener('keydown', function (event) {
@@ -785,9 +777,7 @@
     }
 
     function bednaNumberFromOption(option) {
-        const text = option.textContent.trim();
-        const match = text.match(/^(\d+)(?:\s|\(|$)/);
-        return match ? match[1] : '';
+        return window.OrderBednaSelection.numberFromOption(option);
     }
 
     function selectBednaByNumber(numberText) {
@@ -796,7 +786,7 @@
         }
 
         const normalizedNumber = String(numberText || '').trim();
-        const option = Array.from(activeBednaSelect.options).find(item => bednaNumberFromOption(item) === normalizedNumber);
+        const option = window.OrderBednaSelection.matchingOptions(activeBednaSelect.options, normalizedNumber, true)[0];
         if (!option) {
             setScannerStatus('Bedna ' + normalizedNumber + ' není v nabídce. Zkontrolujte, že je ve stavu skladem.', 'warning');
             return false;

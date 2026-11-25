@@ -5104,6 +5104,7 @@ class RychleZalozeniSarzeViewTests(ViewsTestBase):
 		self.assertTemplateUsed(resp, "orders/rychle_zalozeni_sarze_patro.html")
 		self.assertEqual(resp.context["patro"], 1)
 		self.assertEqual(resp.context["formset"].total_form_count(), 5)
+		self.assertContains(resp, 'orders/js/bedna_selection.js')
 		self.assertContains(resp, 'id="repeat-first-bedna"')
 		self.assertContains(resp, "Zopakovat první bednu")
 

@@ -12,7 +12,7 @@ Interní aplikace pro správu zakázek od příjmu přes tepelné zpracování a
 - Potvrzení K navezení ověřuje celý výběr, aktuální Přijato a pozastavení pod zámkem. Odeslání do zinkovny vyžaduje uložené rozhodnutí bez nepotvrzených změn měření: Uvolněno, QS s odchylkou nebo Neshodu u atypické bedny s libovolnými důvody i bez důvodu, u běžné jen se samotnou Křivostí. Expediční služby samy ověřují stav K expedici, technologické stavy a pozastavení; výjimka pro starší běžné bedny s papírovou kontrolou zůstává zachovaná.
 - Atypický průběh pro reklamace a samostatné operace: potvrzovaná akce Přijato → Zkontrolováno s Neshodou bez důvodu, nepovinná měření a individuální výjimky fakturace. Zadané prohyby se dál vyhodnocují; při uložení kontroly se rovnání nastaví podle měření po rovnání, případně po TZ. Bez měření po rovnání se zachová Koulení/Rovná se; bez obou měření zůstane ruční stav zachovaný vždy. Viz [manuál beden](docs/manual_bedna.md#atypický-průběh-reklamace-a-samostatné-operace).
 - Původní reklamační akce Přijato → Zakaleno je odstraněná. Atypické přechody se nezapočítávají do Zpracováno ani souvisejícího podílu křivých v přehledu kamionů; skladové přehledy je nadále zahrnují.
-- Rychlé založení šarže pro pracoviště 1–6, zadání beden do pater roštu a tisk průvodky.
+- Rychlé založení šarže pro pracoviště 1–6, zadání beden do pater roštu a tisk průvodky. Výběr beden zde i v deníku kroku šarže hledá pouze podle čísla bedny; přesná shoda má přednost před hledáním podle části čísla.
 - Deník kroků šarže, přesuny mezi pracovišti a začátek i konec včetně data.
 - Skenování beden kamerou nebo čtečkou, provozní změny stavů a zobrazení pohybu; při potvrzení Zakaleno automatické vyhodnocení tryskání podle zahájených kroků šarží a varování před uložením při částečném otryskání požadované bedny.
 - Kontrola beden: jednotlivá měření, čistota, uložení, počty křivých vrutů, uvolnění a důvody neshody; automatické důvody Křivost a Čistota, vynucené Jiné při Uložení NOK, omezení uvolnění podle nálezu a vymazání důvodů při Uvolněno.
@@ -157,6 +157,8 @@ Prázdné zkoušky prohybu po koulení a po rovnání se v kontrole nabídnou a�
 ```
 
 Testy standardně spouštějte na PostgreSQL. Django vytváří samostatnou testovací databázi; databázová role potřebuje oprávnění `CREATEDB`. Při změně funkce ověřte zejména validaci, oprávnění, stavové přechody a souběžné úpravy.
+
+JavaScriptové testy hledání a rozpoznávání kódů beden lze spustit s Node.js bez dalších závislostí: `node orders/tests/js/test_bedna_selection.js`.
 
 ## Nasazení
 

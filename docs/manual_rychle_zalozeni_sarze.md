@@ -28,7 +28,7 @@ Uložení hlavičky je samostatný krok. Pozdější zrušení zadávání patra
 
 ## 3. Zadání beden do patra
 
-1. Vyberte bednu v řádku nebo použijte **Sken**.
+1. Vyberte bednu v řádku podle jejího interního čísla nebo použijte **Sken**.
 2. Ve skenovacím okně použijte kameru, čtečku nebo ruční zadání čísla bedny, URL či kódu a potvrďte **Přidat**.
 3. Zkontrolujte bednu a její podíl v části **Rozložení položek v roštu**. Pro každou položku nastavte procenta.
 4. Přidejte další řádky podle skutečného rozložení. **Zopakovat první bednu** vloží stejnou bednu do prvního volného řádku; hodí se, když její obsah zabírá více částí roštu.
@@ -37,6 +37,8 @@ Uložení hlavičky je samostatný krok. Pozdější zrušení zadávání patra
 
 Pravidla rychlého zadávání:
 
+- Pole **Hledat podle čísla bedny…** hledá pouze v interním čísle bedny, nikoli v čísle zakázky, označení zákazníka nebo dalších údajích v popisku. Můžete zadat část čísla; pokud existuje přesná shoda celého čísla, nabídne se pouze tato bedna. Stejně funguje čtečka zapisující přímo do tohoto pole; Enter potvrdí nabízenou bednu.
+- V okně **Sken** se při načtení kamerou, čtečkou i ručním zadáním čísla, kódu `BEDNA:číslo` nebo URL vyžaduje přesné celé číslo bedny. Chybějící nebo nepovolená bedna se nenahrazuje jinou shodou.
 - Patra mají čísla 1–6; jedno patro obsahuje nejvýše 5 položek.
 - Zadejte alespoň jednu bednu. Každá položka má podíl 5–100 %; součet v patře nesmí překročit 100 %.
 - Stejná bedna může být v patře opakovaně nebo ve více patrech; jde o rozdělení obsahu jedné bedny.

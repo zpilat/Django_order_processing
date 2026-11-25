@@ -45,7 +45,7 @@
 
         const url = parseUrl(value);
         if (url) {
-            const bednaMatch = url.pathname.match(/^\/bedny\/scan\/(\d+)\/?$/);
+            const bednaMatch = url.pathname.match(/^\/bedny\/scan\/(\d+)\/?$/i);
             if (bednaMatch) {
                 return { type: "bedna", raw: rawValue, code: value, value: bednaMatch[1], source: "url" };
             }

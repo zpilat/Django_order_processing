@@ -2603,7 +2603,7 @@ class SarzeKrokBednaInlineAdminTests(AdminBase):
             program='P1',
         )
 
-    def test_sarze_inline_bedna_autocomplete_supports_zakaznik_zkratka_and_filters_only_pro_navezeni(self):
+    def test_sarze_inline_bedna_autocomplete_filters_only_number_and_pro_navezeni(self):
         self.client.force_login(self.user)
 
         zakaznik = Zakaznik.objects.create(
@@ -2659,7 +2659,7 @@ class SarzeKrokBednaInlineAdminTests(AdminBase):
                 'app_label': 'orders',
                 'model_name': 'sarzekrokbedna',
                 'field_name': 'bedna',
-                'term': 'ZKT AUT-1',
+                'term': str(pro_navezeni_bedna.cislo_bedny)[:-1],
             },
         )
 
@@ -2671,6 +2671,75 @@ class SarzeKrokBednaInlineAdminTests(AdminBase):
         self.assertNotIn(str(mimo_pro_navezeni_bedna.pk), returned_ids)
         self.assertNotIn(str(expedovana_bedna.pk), returned_ids)
         self.assertNotIn(str(pozastavena_bedna.pk), returned_ids)
+
+    def _create_autocomplete_collision_bedny(self):
+        zakazka = Zakazka.objects.create(
+            kamion_prijem=self.kamion,
+            artikl='1031780751800',
+            prumer=Decimal('10.0'),
+            delka=Decimal('20.0'),
+            predpis=self.predpis,
+            typ_hlavy=self.typ_hlavy,
+            popis='Search collision',
+        )
+        bedny = []
+        # The misleading match comes first in the admin's default ordering.
+        for number in (701329, 103178, 1031780):
+            bedna = Bedna.objects.create(
+                zakazka=zakazka,
+                behalter_nr='103178',
+                hmotnost=Decimal('1.0'),
+                tara=Decimal('1.0'),
+                mnozstvi=1,
+                stav_bedny=StavBednyChoice.PRIJATO,
+            )
+            # New crates always receive an automatic number on their first save.
+            bedna.cislo_bedny = number
+            bedna.save(update_fields=['cislo_bedny'])
+            bedny.append(bedna)
+        return bedny
+
+    def _bedna_autocomplete_ids(self, term):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse('admin:autocomplete'), {
+            'app_label': 'orders',
+            'model_name': 'sarzekrokbedna',
+            'field_name': 'bedna',
+            'term': term,
+        })
+        self.assertEqual(response.status_code, 200)
+        return {item['id'] for item in response.json()['results']}
+
+    def test_bedna_autocomplete_prefers_exact_number_over_order_and_longer_number(self):
+        _wrong_bedna, exact_bedna, _longer_bedna = self._create_autocomplete_collision_bedny()
+
+        self.assertEqual(self._bedna_autocomplete_ids('103178'), {str(exact_bedna.pk)})
+        self.assertEqual(self._bedna_autocomplete_ids(' 103178 '), {str(exact_bedna.pk)})
+
+    def test_bedna_autocomplete_partial_number_does_not_match_order_or_customer_number(self):
+        _wrong_bedna, exact_bedna, longer_bedna = self._create_autocomplete_collision_bedny()
+
+        self.assertEqual(
+            self._bedna_autocomplete_ids('3178'),
+            {str(exact_bedna.pk), str(longer_bedna.pk)},
+        )
+
+    def test_bedna_autocomplete_does_not_search_other_label_fields(self):
+        self._create_autocomplete_collision_bedny()
+
+        for term in ('1031780751800', 'Search', 'EUR 103178', '10.0', ''):
+            with self.subTest(term=term):
+                self.assertEqual(self._bedna_autocomplete_ids(term), set())
+
+    def test_bedna_changelist_still_searches_by_order(self):
+        bedny = self._create_autocomplete_collision_bedny()
+        request = self.factory.get('/admin/orders/bedna/', {'q': '1031780751800'})
+        request.user = self.user
+        bedna_admin = BednaAdmin(Bedna, self.site)
+
+        queryset, _ = bedna_admin.get_search_results(request, Bedna.objects.all(), '1031780751800')
+
+        self.assertSetEqual(set(queryset), set(bedny))
 
     def test_sarze_inline_bedna_formfield_queryset_excludes_paused_bedny(self):
         request = self.factory.get('/admin/orders/sarzekrok/')

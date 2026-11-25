@@ -12,7 +12,7 @@ Internal application for receiving, heat treating, inspecting and shipping order
 - Loading confirmation locks and rechecks the complete selection, Received state and pauses. Zinc dispatch requires a saved decision without pending measurement confirmation: Released, QS release with deviation, or Nonconformity for atypical crates with any or no reasons, or standard crates with curvature as the only reason. Shipping services enforce readiness, technological states and pauses themselves; legacy standard crates with paper inspections remain eligible.
 - Atypical workflow for returns and standalone operations: a confirmed Received → Inspected action with a reason-free nonconformity decision, optional measurements and per-operation billing exclusions. Saving the inspection updates straightening from post-straightening measurements, otherwise post-heat-treatment measurements. Rolling and straightening in progress are preserved without post-straightening measurements; without either measurement type, any manual state is preserved. See the [Czech manual](docs/manual_bedna.md#atypický-průběh-reklamace-a-samostatné-operace).
 - The former Received → Heat treated return action has been removed. Atypical transitions are excluded from processed weight and its related crooked-weight share in the truck dashboard; stock summaries still include these crates.
-- Quick batch creation for workstations 1–6, crates arranged into rack floors and traveler printing.
+- Quick batch creation for workstations 1–6, crates arranged into rack floors and traveler printing. Crate selection here and in the batch step log searches only crate numbers; an exact match takes precedence over partial matches.
 - Batch step logs, workstation transfers and start/end dates and times.
 - Camera and reader scanning, operational state changes and crate movement history; confirming heat treatment evaluates blasting from started batch steps and displays a warning before saving about partial blasting when blasting was required.
 - Crate inspection: individual measurements, cleanliness, placement, bent screw counts and release decisions; automatic curvature and cleanliness reasons, mandatory Other reason for NOK placement, restricted release choices and cleared reasons on unconditional release.
@@ -154,6 +154,8 @@ Empty deflection tests after rolling and straightening appear only after a nonco
 ```
 
 Use PostgreSQL for normal tests. Django creates a separate test database; the database role needs `CREATEDB`. Validate permissions, state transitions, input validation and concurrent edits when changing a workflow.
+
+Run the crate selection and code parsing JavaScript tests with Node.js, without extra dependencies: `node orders/tests/js/test_bedna_selection.js`.
 
 ## Deployment
 

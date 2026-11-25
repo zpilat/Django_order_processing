@@ -3305,11 +3305,9 @@ class BednaAdmin(HistoryViewOnlyAdmin):
 
     def get_search_results(self, request, queryset, search_term):
         """
-        Přizpůsobí výsledky hledání pro inline autocomplete pole 'bedna' v deníku beden v krocích šarže,
-        aby se zobrazovaly pouze bedny se stavem bedny STAV_BEDNY_PRO_NAVEZENI.
+        Ve výběru do šarže hledá pouze číslo bedny, s předností přesné shody.
+        Běžné hledání v seznamu beden nadále používá všechna search_fields.
         """
-        queryset, use_distinct = super().get_search_results(request, queryset, search_term)
-
         is_sarze_inline_autocomplete = (
             request.path.endswith('/autocomplete/')
             and request.GET.get('app_label') == 'orders'
@@ -3317,18 +3315,21 @@ class BednaAdmin(HistoryViewOnlyAdmin):
             and request.GET.get('field_name') == 'bedna'
         )
 
-        # Pokud je vyvoláno inline autocomplete pro šarže, filtruje queryset podle stavu bedny.
-        # Pokud je search_term kratší než 4 znaky, vrátí prázdný queryset,
-        # aby omylem nezadal první nabídnutou bednu.
-        if is_sarze_inline_autocomplete:
-            if len(search_term.strip()) < 4:
-                return queryset.none(), use_distinct
-            queryset = queryset.filter(
-                stav_bedny__in=_stav_bedny_pro_navezeni_values(),
-                pozastaveno=False,
-            )
+        if not is_sarze_inline_autocomplete:
+            return super().get_search_results(request, queryset, search_term)
 
-        return queryset, use_distinct
+        search_term = search_term.strip()
+        if len(search_term) < 4 or not search_term.isascii() or not search_term.isdecimal():
+            return queryset.none(), False
+
+        queryset = queryset.filter(
+            stav_bedny__in=_stav_bedny_pro_navezeni_values(),
+            pozastaveno=False,
+        )
+        exact_matches = queryset.filter(cislo_bedny=search_term)
+        if exact_matches.exists():
+            return exact_matches, False
+        return queryset.filter(cislo_bedny__contains=search_term), False
 
     def get_urls(self):
         urls = super().get_urls()

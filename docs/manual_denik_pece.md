@@ -53,6 +53,8 @@ Bednu a údaje mimo databázi nelze kombinovat v jednom řádku. Samotný zákaz
 
 Bedna z databáze musí být nepozastavená a ve stavu Přijato, K navezení, Navezeno, Ve zpracování, Zakaleno nebo Zkontrolováno. Bedny Nepřijato, K expedici a Expedováno nejsou pro tento postup povolené.
 
+Pole **Bedna** při přidání nebo opravě řádku deníku vyhledává pouze podle interního čísla bedny, nikoli podle zakázky, zákaznického čísla bedny nebo jiných údajů v popisku. Zadejte alespoň 4 číslice. Pokud mezi povolenými bednami existuje přesná shoda celého čísla, nabídne se pouze tato bedna; jinak lze hledat podle části čísla. Pravidlo platí i pro čtečku zapisující do tohoto pole. Obecné hledání v seznamu všech beden v administraci nadále podporuje také údaje zakázky a zákazníka.
+
 Procenta v deníku mohou být nevyplněná; vyplněný podíl má rozsah 0–100 %. Součet v jednom kroku a patře nesmí přesáhnout 100 %. Rychlé zadávání pater má přísnější pravidla: podíl 5–100 %, nejvýše 5 položek a patra 1–6.
 
 Stejná bedna se smí v jednom patře i ve více patrech opakovat, pokud je její obsah rozdělený do více částí roštu. Kombinace krok + bedna + patro proto nemusí být jedinečná.
