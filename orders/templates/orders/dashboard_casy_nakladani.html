@@ -1,0 +1,19 @@
+{% extends "orders/base.html" %}
+{% load static %}
+
+{% block title %}Přehled časů nakládání{% endblock %}
+
+{% block extra_head %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'orders/css/casy_nakladani.css' %}">
+{% endblock %}
+
+{% block content %}
+<main class="container py-3">
+  <div id="dashboard-content" class="loading-times-report"
+       hx-get="{% url 'dashboard_casy_nakladani' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}"
+       hx-trigger="every 60m" hx-swap="innerHTML">
+    {% include "orders/partials/dashboard_casy_nakladani_content.html" %}
+  </div>
+</main>
+{% endblock %}

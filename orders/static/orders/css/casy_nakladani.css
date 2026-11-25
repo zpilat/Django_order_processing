@@ -1,0 +1,30 @@
+.loading-times-report {
+    font-family: 'Liberation Sans', Arial, sans-serif;
+}
+
+.loading-times-report .loading-times-heading,
+.loading-times-report thead th {
+    background-color: #214290;
+    color: #ffde17;
+}
+
+.loading-times-heading .btn-secondary {
+    color: #ffde17;
+}
+
+.loading-times-heading input[type='date'] {
+    width: auto;
+}
+
+.loading-times-report .card-header {
+    background-color: #ffde17;
+    color: #214290;
+}
+
+.loading-times-report .table {
+    --bs-table-striped-bg: #f3f5f8;
+}
+
+.loading-times-report tfoot {
+    border-top: 2px solid #214290;
+}

@@ -50,6 +50,8 @@ Kamera potřebuje povolený přístup v prohlížeči. Když skenování nefungu
 
 ## 4. Uložení a pokračování
 
+Pro směnový **Přehled časů nakládání** je rozhodující první uložení patra. Po načtení první bedny proto patro rovnou uložte a pak začněte fyzicky nakládat. První uložení následujícího patra ukončí měřený interval předchozího patra. Oprava uložených beden nebo procent původní začátek neposouvá.
+
 | Tlačítko | Výsledek |
 | --- | --- |
 | Uložit a do přehledu šarže | Uloží celé zadávané patro a otevře přehled. |
@@ -76,6 +78,8 @@ V přehledu vidíte přípravek, pracoviště, operátora, začátek a rozložen
 4. Na pracovišti lze poté založit další šarži. V dalším zpracování pokračujte podle [Průchodu šarže výrobou](manual_pruchod_sarze.md); podrobnou evidenci položek popisuje [manuál deníku](manual_denik_pece.md).
 
 Datum a čas konce se vyplňují společně. Konec nesmí být před začátkem; při práci přes půlnoc zadejte správné datum konce. Konec lze uložit až po přidání alespoň jedné bedny. Uzavřený krok už není dostupný pro zadávání pater a tisk přes tento rychlý přehled.
+
+Konec Nakládání doplňte ihned po dokončení posledního patra; určuje konec jeho měřeného intervalu. Rozdělení pater a podílů šarží mezi 12hodinové a 8hodinové směny najdete v [Přehledu časů nakládání](manual_prehledy_a_ukazatele.md#přehled-časů-nakládání). Smazání celého patra tlačítkem se od běžné úpravy rozložení odlišuje důvodem v auditní historii; jeho pozdější nové založení začne nový interval.
 
 ## 7. Oprávnění a běžné problémy
 

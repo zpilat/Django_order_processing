@@ -128,7 +128,7 @@ Období končí **včera**, zahrnuje 14 kalendářních dní a nezávisí na vyb
 - **Souhrn vsázek** počítá evidované kroky na těchto zařízeních podle data začátku. Konec kroku není podmínkou započtení.
 - **Vruty** znamenají kroky obsahující bedny z databáze, **Železo** kroky s položkami mimo DB. Smíšený krok může být v obou kategoriích, takže jejich součet nemusí odpovídat počtu všech vsázek.
 - **Výkon vruty** a zákaznický rozpis produkce vycházejí z prvního evidovaného použití bedny na daném zařízení, podle pravidla níže. Hmotnosti položek mimo DB se do tohoto výkonu nepřičítají.
-- Počet **šarží v nakládání** ve směnovém přehledu se odvozuje od počtu kroků Nakládání ve směně; počet **pater** je součet různých čísel pater v jednotlivých krocích, nikoli počet řádků deníku.
+- Nakládání pater a podíly šarží jsou v samostatném **Přehledu časů nakládání**. Původní tabulka počtu naložených šarží a pater už součástí Přehledu výroby není.
 
 ### Kalendářní den není totéž co dvojice směn
 
@@ -143,6 +143,39 @@ Pro výkon se vybírá první evidovaný průchod bedny **na konkrétním zaří
 Používá se celá současná kladná netto hmotnost bedny, bez násobení procenty roštu a bez omezení na Fakturovat = Ano. Pokud stejná bedna projde poprvé XL1 i XL2, může se její hmotnost započítat jednou u každého zařízení. Celkem tedy nemusí být hmotnost jedinečných beden napříč oběma pecemi.
 
 Čtrnáctidenní historie denní produkce končí včera. Týdenní a dvoutýdenní průměry dělí produkci 7 a 14 kalendářními dny včetně nulových dní; nejde o průměr pouze za odpracované směny.
+
+### Přehled časů nakládání
+
+Otevřete v administraci **Přehledy výroby → Přehled časů nakládání**, případně stejnou položku v menu **PŘEHLEDY** (`/dashboard/casy-nakladani/`). Přístup vyžaduje přihlášení, stejně jako ostatní souhrnné dashboardy; vstup do administrace navíc vyžaduje staff. Přehled je pouze ke čtení a nemění oprávnění k výrobní evidenci. Nevytváří novou tabulku ani rozhraní pro opravy časů.
+
+Výchozím dnem je včerejšek. Pole **Den začátku směn** umožní vybrat jiný den nejpozději dnešní. Obě tabulky pokrývají stejný interval **od 06:00 vybraného dne do 06:00 následujícího dne**:
+
+| Režim | Směny |
+| --- | --- |
+| 12hodinový | Denní 06:00–18:00, noční 18:00–06:00. |
+| 8hodinový | Ranní 06:00–14:00, odpolední 14:00–22:00, noční 22:00–06:00. |
+
+Přehled zahrnuje všechna pracoviště typu **Nakládání**, bedny z DB i položky mimo DB. Dva režimy představují dva pohledy na stejnou práci a **nesčítají se**. Společný součet **Celkem 06:00–06:00** se zobrazuje pouze pod 12hodinovými směnami. Nejde o automatické přiřazení výkonu konkrétním pracovníkům podle jejich pracovního úvazku.
+
+**Časový interval patra:**
+
+1. Začátek je první uložení položky daného patra v kroku Nakládání, podle `history_date` vytvoření v Simple History. Samotné načtení kódu do neuloženého formuláře se do databáze nezapisuje. Obsluha proto po načtení první bedny patro rovnou uloží a pak začne fyzicky nakládat.
+2. Konec je první uložení následujícího patra. Patra se řadí podle čísla.
+3. Poslední patro končí evidovaným datem a časem konce kroku Nakládání; konec se doplní ihned po dokončení práce.
+
+Běžná úprava patra jeho původní začátek neposouvá, i když technicky smaže a znovu vytvoří řádky deníku. Výpočet hledá i mezi historickými záznamy již smazaných řádků. Nové použití tlačítka **Smazat patro** má v historii důvod **Smazání celého patra při nakládání.** Pokud se stejné číslo patra později znovu založí, použije se až jeho nové první uložení. Starší smazání celého patra a neoznačené ruční zásahy v administraci nelze spolehlivě odlišit od technické náhrady řádků; u stejného čísla patra se v takovém případě zachová první dochované vytvoření. Historie se zpětně nepřepisuje.
+
+**Výpočet sloupců:**
+
+- **Patra**: pro každý dokončený interval se započte poměr délky jeho překryvu se směnou k celé délce intervalu. Například 17:40–18:20 znamená 0,50 patra denní a 0,50 patra noční směně.
+- **Šarže**: podíl pater se pro každý uzavřený krok Nakládání dělí jeho skutečným konečným počtem různých pater. Například 2,4 ze 4 pater představuje 0,6 šarže. Celý platný uzavřený krok se napříč všemi zasaženými dny a směnami sečte na 1,0 šarže. Nepoužívá se pevný dělitel 6, maximální číslo patra ani průměrný počet pater všech šarží. Případné opakované kroky Nakládání stejné šarže se vyhodnocují samostatně.
+- **Čas [hod.]**: součet překryvů intervalů nakládání se směnou ze všech pracovišť. Zahrnuje čekání a přestávky uvnitř intervalu. Při souběhu pracovišť může přesáhnout délku směny; nejde o osobní odpracované hodiny.
+
+Počítá se z přesných délek intervalů a zaokrouhluje se až při zobrazení: patra, podíly šarží a hodiny na **jedno desetinné místo**, včetně součtů a hodin v rozpisu pater. Součty se počítají z nezaokrouhlených hodnot, proto se mohou mírně lišit od součtu zobrazených zaokrouhlených řádků. Hranice směn jsou podle **Europe/Prague**, délky podle skutečně uplynulého času i při změně letního a zimního času. Patro začínající před vybraným obdobím se započte jen částí, která do něj zasahuje; půlnoc sama interval nerozděluje.
+
+U rozpracovaného Nakládání se započtou jen patra se známým koncem. Otevřené poslední patro čeká na další patro nebo konec kroku. **Podíly šarží** se doplní až po uzavření celého Nakládání, protože teprve tehdy je znám konečný počet pater. Dřívější výsledky se proto mohou dodatečně doplnit nebo změnit po opravě evidence.
+
+Pod souhrny je rozpis **Časy nakládání jednotlivých pater** se šarží, krokem, pracovištěm, číslem patra, celým začátkem a koncem, celou délkou intervalu a stavem započtení. Celé intervaly v rozpisu mohou přesahovat vybrané období; souhrny obsahují pouze jejich překryv s obdobím. Prázdné kroky, chybějící první uložení, nerostoucí začátky pater nebo neplatný konec se označí a celý dotčený krok se ze součtů vyřadí. Chybějící časy se neodhadují ze začátku kroku ani z pozdějších úprav. Odkaz na administraci kroku je dostupný pouze staff uživateli s právem `view_sarzekrok`.
 
 ## 7. Historie výroby: průměry, vytížení a prostoje
 
@@ -236,7 +269,7 @@ Opětovně vytištěné PDF stejného záznamu se proto může lišit od dříve
 | Přehled beden | Automaticky přibližně každých 10 minut. |
 | Přehled beden k navezení | Automaticky přibližně každých 60 sekund. |
 | Přehled kontrolorů | Automaticky přibližně každých 60 sekund; při obnovení se znovu určí posledních 30 dní. |
-| Přehled kamionů, výroby, Historie výroby, Využití roštů dle zákazníků, Historie rovnání a jejich uvedené měsíční detaily | Automaticky přibližně každých 60 minut. |
+| Přehled kamionů, výroby, časů nakládání, Historie výroby, Využití roštů dle zákazníků, Historie rovnání a jejich uvedené měsíční detaily | Automaticky přibližně každých 60 minut. |
 | Seznam beden | Kontrola změn beden přibližně každých 30 sekund; nejde o stejný časovač jako v souhrnných dashboardech. |
 
 Interval není zárukou okamžitého načtení: ověřte spojení, otevřenou stránku a zobrazené **Naposledy aktualizováno**. Tento čas je čas sestavení přehledu, nikoli poslední výrobní událost nebo datum zvoleného období. Před porovnáním dvou obrazovek je znovu načtěte a zkontrolujte jejich filtry a jednotky.

@@ -21,6 +21,7 @@ Interní aplikace pro správu zakázek od příjmu přes tepelné zpracování a
 - Uvolnění Neshoda blokuje přípravu k expedici i expedici; od stavu K expedici jsou kontrola a měření pouze pro čtení.
 - Import chemických měření z JSON exportů analyzátoru Vanta s náhledem a archivací souborů.
 - Přehledy nakládání, pracovišť, kontroly a neshod; dashboardy beden, kamionů, výroby a rovnání včetně historie.
+- Samostatný Přehled časů nakládání v nabídce Přehledy výroby: poměrné rozdělení pater a podílů šarží do 12hodinových i 8hodinových směn podle prvních uložení pater v historii. Nahrazuje původní tabulku nakládání v Přehledu výroby, bez nové databázové evidence. Viz [pravidla výpočtu](docs/manual_prehledy_a_ukazatele.md#přehled-časů-nakládání).
 - Přehled kontrolorů za posledních 30 kalendářních dní včetně dneška: každé dokončení kontroly bedny včetně opakovaných kontrol a jednotlivá vyřešení neshod, podle dne a autora, s denním rozpisem a souhrnem. Viz [pravidla a rozsah historie](docs/manual_prehledy_a_ukazatele.md#14-přehled-kontrolorů).
 - Expedice zakázek a vybraných beden, rozdělení nehotové části zakázky a přiřazení do existujícího kamionu výdej. Hromadné označení K expedici je dostupné pouze při filtru Zkontrolováno a převádí pouze bedny v tomto stavu.
 - PDF karty beden, KKK, průvodky šarží, dodací listy, certifikáty a proforma faktury. Vyplněné KKK jsou podporované pro všechny zákazníky; u atypických beden zobrazují i požadavky tvrdostí mimo běžný výběr vzorkování.

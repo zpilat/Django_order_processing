@@ -59,6 +59,9 @@ from .services.sarze_print_service import (
 )
 from .services.history_service import history_transitions_to_qs, update_queryset_with_history
 from .services.kontrolori_prehled_service import build_kontrolori_prehled, DOKONCENI_KONTROLY_REASON
+from .services.casy_nakladani_service import (
+    build_casy_nakladani_prehled, FLOOR_DELETED_REASON, REPORT_TIMEZONE,
+)
 from .services.evidence_neshod_service import zaznamenat_neshodu
 from .services.stav_bedny_service import (
     vyhodnotit_tryskani_pri_zakaleni, duvody_neuplne_kontroly,
@@ -2104,7 +2107,11 @@ def rychle_zalozeni_sarze_patro_view(request, krok_id, patro):
                     messages.error(request, 'Smazat lze pouze poslední patro kroku šarže.')
                     return redirect('rychle_zalozeni_sarze_patro', krok_id=krok.pk, patro=patro)
 
-                deleted_count, _ = locked_krok.krok_bedny.filter(patro=patro).delete()
+                deleted_count = 0
+                for item in locked_krok.krok_bedny.filter(patro=patro):
+                    item._history_user = request.user
+                    item._change_reason = FLOOR_DELETED_REASON
+                    deleted_count += item.delete()[0]
 
             messages.success(request, f'{patro}. patro bylo smazáno.')
             logger.info(
@@ -3483,7 +3490,7 @@ def _build_vyroba_dashboard_context(date_value=None):
     xl2 = _device_stats([device_codes[1]])
     summary = _device_stats(device_codes)
 
-    def _shift_stats(shift_qs, nakladani_qs):
+    def _shift_stats(shift_qs):
         """
         Vypočítá statistiky pro zadaný queryset směny.
         """
@@ -3498,22 +3505,11 @@ def _build_vyroba_dashboard_context(date_value=None):
         xl2_minutes = _calc_prostoj_minutes(list(xl2_qs))
         total_minutes = xl1_minutes + xl2_minutes
 
-        sarze_count = nakladani_qs.count()
-        patra_count = (
-            nakladani_qs
-            .annotate(pocet_pater=Count('krok_bedny__patro', distinct=True))
-            .aggregate(total_patra=Sum('pocet_pater'))
-            .get('total_patra')
-            or 0
-        )
-
         return {
             'counts': {
                 'xl1': xl1_count,
                 'xl2': xl2_count,
                 'total': total_count,
-                'sarze': sarze_count,
-                'patra': patra_count,
             },
             'prostoje': {
                 'xl1': _format_hours(xl1_minutes / 60) if xl1_minutes else '0,0',
@@ -3529,19 +3525,6 @@ def _build_vyroba_dashboard_context(date_value=None):
         Q(datum=date_value, zacatek__gte=shift_times[1])
         | Q(datum=today, zacatek__lt=shift_times[0])
     ).select_related('sarze', 'zarizeni')
-    day_nakladani_qs = SarzeKrok.objects.filter(
-        zarizeni__typ_zarizeni=TypZarizeniChoice.NAKLADANI,
-        datum=date_value,
-        zacatek__gte=shift_times[0],
-        zacatek__lt=shift_times[1],
-    ).select_related('sarze', 'zarizeni')
-    night_nakladani_qs = SarzeKrok.objects.filter(
-        zarizeni__typ_zarizeni=TypZarizeniChoice.NAKLADANI,
-    ).filter(
-        Q(datum=date_value, zacatek__gte=shift_times[1])
-        | Q(datum=today, zacatek__lt=shift_times[0])
-    ).select_related('sarze', 'zarizeni')
-
     dashboard = {
         'date_label': date_value.strftime('%d.%m.%Y'),
         'devices': {
@@ -3550,8 +3533,8 @@ def _build_vyroba_dashboard_context(date_value=None):
             'celkem': summary,
         },
         'shifts': {
-            'day': _shift_stats(day_qs, day_nakladani_qs),
-            'night': _shift_stats(night_qs, night_nakladani_qs),
+            'day': _shift_stats(day_qs),
+            'night': _shift_stats(night_qs),
         },
     }
 
@@ -4061,6 +4044,32 @@ def dashboard_vyroba_view(request):
     if request.htmx:
         return render(request, "orders/partials/dashboard_vyroba_content.html", context)
     return render(request, 'orders/dashboard_vyroba.html', context)
+
+
+@login_required
+def dashboard_casy_nakladani_view(request):
+    """Časy nakládání pater a jejich poměrné rozdělení do obou režimů směn."""
+    today = timezone.localdate(timezone=REPORT_TIMEZONE)
+    selected_date = today - timedelta(days=1)
+    date_error = ''
+    if 'datum' in request.GET:
+        try:
+            selected_date = date.fromisoformat(request.GET['datum'])
+            if selected_date > today:
+                raise ValueError
+        except (TypeError, ValueError):
+            selected_date = today - timedelta(days=1)
+            date_error = 'Zadejte platné datum nejpozději dnešní. Zobrazen je včerejšek.'
+    context = {
+        'casy_nakladani': build_casy_nakladani_prehled(date_value=selected_date),
+        'db_table': 'dashboard_casy_nakladani',
+        'current_time': timezone.now(),
+        'today_iso': today.isoformat(),
+        'date_error': date_error,
+    }
+    if request.htmx:
+        return render(request, 'orders/partials/dashboard_casy_nakladani_content.html', context)
+    return render(request, 'orders/dashboard_casy_nakladani.html', context)
 
 
 @login_required

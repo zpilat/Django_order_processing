@@ -1,0 +1,128 @@
+<div class="alert loading-times-heading" role="region" aria-label="Výběr dne přehledu">
+  <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-3">
+    <h1 class="h3 mb-0">Přehled časů nakládání</h1>
+    <a class="btn btn-secondary" href="{% url 'admin:orders_sarzekrokbedna_changelist' %}">Návrat</a>
+  </div>
+  <div class="d-flex flex-wrap gap-3 align-items-center justify-content-between">
+    <div>
+      <div>Směny {{ casy_nakladani.start|date:"d.m.Y H:i" }} – {{ casy_nakladani.end|date:"d.m.Y H:i" }}</div>
+      <div class="small">Naposledy aktualizováno {{ current_time|date:"d.m.Y H:i" }}</div>
+    </div>
+    <form method="get" class="d-flex flex-wrap align-items-center gap-2">
+      <label for="loading-date">Den začátku směn:</label>
+      <input type="date" id="loading-date" name="datum" class="form-control form-control-sm"
+             value="{{ casy_nakladani.date_iso }}" max="{{ today_iso }}" required>
+      <button type="submit" class="btn btn-sm btn-light">Zobrazit</button>
+    </form>
+  </div>
+</div>
+
+{% if date_error %}
+  <div class="alert alert-warning" role="alert">{{ date_error }}</div>
+{% endif %}
+
+<div class="row">
+  {% for scheme in casy_nakladani.schemes %}
+    <div class="col-12 col-lg-6 mb-3">
+      <section class="card h-100 shadow-sm" aria-labelledby="loading-{{ scheme.key }}">
+        <h2 id="loading-{{ scheme.key }}" class="card-header h6 fw-bold mb-0">{{ scheme.title }}</h2>
+        <div class="card-body p-2">
+          <div class="table-responsive">
+            <table class="table table-sm table-striped align-middle mb-0">
+              <thead>
+                <tr>
+                  <th scope="col">Směna</th>
+                  <th scope="col" class="text-center">Patra</th>
+                  <th scope="col" class="text-center">Šarže</th>
+                  <th scope="col" class="text-center">Čas [hod.]</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in scheme.rows %}
+                  <tr>
+                    <th scope="row">{{ row.label }} <span class="text-nowrap">({{ row.time_label }})</span></th>
+                    <td class="text-center">{{ row.patra|floatformat:1 }}</td>
+                    <td class="text-center">{{ row.sarze|floatformat:1 }}</td>
+                    <td class="text-center">{{ row.hours|floatformat:1 }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+              {% if scheme.key == 'twelve' %}
+                <tfoot>
+                  <tr class="fw-bold">
+                    <th scope="row">Celkem 06:00–06:00</th>
+                    <td class="text-center">{{ scheme.total.patra|floatformat:1 }}</td>
+                    <td class="text-center">{{ scheme.total.sarze|floatformat:1 }}</td>
+                    <td class="text-center">{{ scheme.total.hours|floatformat:1 }}</td>
+                  </tr>
+                </tfoot>
+              {% endif %}
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+  {% endfor %}
+</div>
+
+{% if casy_nakladani.invalid_steps %}
+  <div class="alert alert-warning" role="status">
+    Počet kroků s neúplnou nebo rozpornou evidencí: <strong>{{ casy_nakladani.invalid_steps }}</strong>.
+    Tyto kroky nejsou započtené. Podrobnosti jsou v rozpisu pater.
+  </div>
+{% endif %}
+{% if casy_nakladani.incomplete_steps %}
+  <div class="alert alert-info" role="status">
+    Počet rozpracovaných nakládání: <strong>{{ casy_nakladani.incomplete_steps }}</strong>.
+    Započtena jsou jen patra se známým koncem. Podíly šarží se doplní po uzavření nakládání.
+  </div>
+{% endif %}
+
+<section class="card shadow-sm mb-3" aria-labelledby="loading-floor-details">
+  <h2 id="loading-floor-details" class="card-header h6 fw-bold mb-0">Časy nakládání jednotlivých pater</h2>
+  <div class="card-body p-2">
+    <div class="table-responsive">
+      <table class="table table-sm table-striped align-middle mb-0">
+        <thead>
+          <tr>
+            <th scope="col">Šarže / krok</th>
+            <th scope="col">Pracoviště</th>
+            <th scope="col" class="text-center">Patro</th>
+            <th scope="col">Začátek</th>
+            <th scope="col">Konec</th>
+            <th scope="col" class="text-center">Celý interval [hod.]</th>
+            <th scope="col">Započtení</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in casy_nakladani.details %}
+            <tr{% if row.invalid %} class="table-warning"{% endif %}>
+              <th scope="row">
+                {% if request.user.is_staff and perms.orders.view_sarzekrok %}
+                  <a href="{% url 'admin:orders_sarzekrok_change' row.step.pk %}">{{ row.step.sarze }} / {{ row.step.poradi }}</a>
+                {% else %}
+                  {{ row.step.sarze }} / {{ row.step.poradi }}
+                {% endif %}
+              </th>
+              <td>{{ row.step.zarizeni.zkraceny_nazev_zarizeni }}{% if row.step.sarze.cislo_pracoviste %} / {{ row.step.sarze.cislo_pracoviste }}{% endif %}</td>
+              <td class="text-center">{{ row.floor|default_if_none:"—" }}</td>
+              <td class="text-nowrap">{% if row.start %}{{ row.start|date:"d.m.Y H:i:s" }}{% else %}—{% endif %}</td>
+              <td class="text-nowrap">{% if row.end %}{{ row.end|date:"d.m.Y H:i:s" }}{% else %}—{% endif %}</td>
+              <td class="text-center">{% if row.hours != None %}{{ row.hours|floatformat:1 }}{% else %}—{% endif %}</td>
+              <td>{{ row.status }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="7" class="text-muted text-center">Pro vybraný den nejsou evidovaná nakládání.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<div class="small text-muted">
+  <p class="mb-1">Začátek patra určuje jeho první uložení, konec začátek dalšího patra. Poslední patro končí ukončením Nakládání. Částečná patra se rozdělují poměrně podle času ve směně.</p>
+  <p class="mb-1">Podíl šarže je přidělený počet pater dělený skutečným konečným počtem pater jejího kroku Nakládání. Například 2,4 ze 4 pater znamená 0,6 šarže.</p>
+  <p class="mb-1">Obě tabulky zobrazují stejnou práci v různých režimech směn; jejich výsledky se nesčítají. Čas je součet intervalů nakládání všech pracovišť v dané směně, včetně čekání a přestávek. Při souběhu pracovišť může přesáhnout délku směny.</p>
+  <p class="mb-0">Rozpis ukazuje celé intervaly pater. Souhrny započítávají jen část uvnitř vybraného období. Rozpracované výsledky a později opravená evidence mohou změnit i dřívější přehled.</p>
+</div>

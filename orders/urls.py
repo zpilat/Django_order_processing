@@ -10,6 +10,7 @@ from .views import (
     neshody_prehled_pdf_view,
     dashboard_kamiony_view,
     dashboard_vyroba_view,
+    dashboard_casy_nakladani_view,
     dashboard_vyroba_historie_view,
     dashboard_vyroba_historie_mesic_view,
     dashboard_rovnani_historie_view,
@@ -59,6 +60,7 @@ urlpatterns = [
     path('dashboard/bedny/', dashboard_bedny_view, name='dashboard_bedny'),
     path('dashboard/kamiony/', dashboard_kamiony_view, name='dashboard_kamiony'),    
     path('dashboard/vyroba/', dashboard_vyroba_view, name='dashboard_vyroba'),
+    path('dashboard/casy-nakladani/', dashboard_casy_nakladani_view, name='dashboard_casy_nakladani'),
     path(
         'dashboard/vyroba/historie/',
         dashboard_vyroba_historie_view,
