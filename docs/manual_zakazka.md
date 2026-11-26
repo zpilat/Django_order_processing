@@ -35,6 +35,8 @@ Prakticky:
 - Na detailu je inline tabulka beden (`BednaInline`).
 - U expedovaných zakázek jsou úpravy omezené oprávněním.
 
+Certifikát 3.1 výdeje **SPX** se vytváří akcí v agendě Kamiony z aktuálních kontrol beden konkrétní výdejové zakázky. Při částečné expedici používá pouze expedovanou část. Ruční pole Tvrdost povrchu, Tvrdost jádra, Ohyb, Krut a Házení na zakázce pro tento certifikát již nejsou zdrojem. Výběr prvních hodnot z prvních až tří beden a podmínky blokování tisku popisuje [manuál kamionů](manual_kamion.md#certifikát-31-výdeje-spx-z-měření-beden).
+
 ### Ceny, fakturované hmotnosti a počty beden
 
 Ceny za kg jsou aktuální **ceníkové sazby** kalení, rovnání a tryskání, nezávislé na fakturačních přepínačích a stavech beden. Účtované částky, hmotnosti a počty beden každé operace mají společné podmínky: hlavní Fakturovat a příslušná operace musí být Ano; rovnání navíc vyžaduje Vyrovnaná a tryskání Otryskaná.

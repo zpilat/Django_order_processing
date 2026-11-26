@@ -37,6 +37,7 @@ from .utils import (
 )
 from .services.pdf_cards_service import resolve_customer_templates
 from .services.filled_quality_cards_service import build_filled_quality_cards_pdf, build_filled_quality_cards_zip
+from .services.spx_certificate_service import build_spx_certificate_rows
 from .services.expedice_service import (
     expedice_beden_do_noveho_kamionu,
     expedice_zakazek_do_noveho_kamionu,
@@ -3298,10 +3299,10 @@ def tisk_dodaciho_listu_kamionu_action(modeladmin, request, queryset):
     return None
 
 
-@admin.action(description="Vytisknout certifikát 3.1 kamionu výdej")
+@admin.action(description="Vytisknout certifikát 3.1 kamionu výdej – SPX")
 def tisk_protokolu_kamionu_vydej_action(modeladmin, request, queryset):
     """
-    Vytvoří jednoduchý PDF protokol pro kamion výdej s přehledem naměřených hodnot na zakázkách.
+    Ověří podklady z kontrol beden a otevře certifikát 3.1 výdeje SPX.
     """
     if queryset.count() != 1:
         logger.info(
@@ -3316,6 +3317,12 @@ def tisk_protokolu_kamionu_vydej_action(modeladmin, request, queryset):
             f"Uživatel {getattr(request, 'user', None)} se pokusil tisknout protokol pro kamion {kamion}, ale kamion není typu výdej.",
         )
         modeladmin.message_user(request, "Tisk protokolu je možný pouze pro kamiony výdej.", level=messages.ERROR)
+        return None
+
+    try:
+        build_spx_certificate_rows(kamion)
+    except ServiceValidationError as exc:
+        modeladmin.message_user(request, str(exc), level=messages.ERROR)
         return None
 
     # Přesměrujeme na GET endpoint, aby stažení z vieweru fungovalo (admin akce je POST).

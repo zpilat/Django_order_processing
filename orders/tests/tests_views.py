@@ -2919,6 +2919,7 @@ class KamionVydejPdfPermissionTests(ViewsTestBase):
 		))
 
 		with (
+			patch("orders.views.build_spx_certificate_rows", return_value=[]),
 			patch("orders.views.render_to_string", return_value="<html></html>"),
 			patch("orders.views.HTML.write_pdf", return_value=b"%PDF"),
 			patch("orders.views.finders.find", return_value=None),

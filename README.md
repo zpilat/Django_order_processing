@@ -129,6 +129,8 @@ Chemická měření se importují samostatnou akcí nad jedním kamionem příje
 
 Tiskové akce jsou dostupné v seznamech beden, zakázek a kamionů podle kontextu a oprávnění. Prázdné KKK a vyplněné KKK mají samostatné akce. Vyplněné KKK jsou dostupné pro všechny zákazníky a používají společnou šablonu s českými popisy a pomocnými popisy podle zkratky státu zákazníka (D/A německy, I italsky, CZ pouze česky). Přehled rychlého založení poskytuje náhled průvodky; „Bedny k navezení“ mají vlastní tisk a PDF.
 
+Akce **Vytisknout certifikát 3.1 kamionu výdej – SPX** čerpá aktuální měření beden výdejové části zakázky. Tiskne pod sebou první hodnoty obou tvrdostí a prohybu z prvních až tří beden; ohyb a krut uvádí jako OK podle aktuálních neshod všech beden. Příslušná neshoda nebo chybějící požadované měření tisk blokuje. Ruční pole měření zakázky se nepoužívají. Viz [manuál kamionů](docs/manual_kamion.md#certifikát-31-výdeje-spx-z-měření-beden).
+
 Volba zákazníka **Kontrola kvality → Vyplněné KKK po zakázkách** umožňuje z kamionu výdej stáhnout ZIP se samostatným PDF pro každý záznam zakázky. Název vychází z pole **Artikl / Zakázka**, například `45001234.pdf`; shody se rozliší ID zakázky. Ve výchozím stavu se tiskne společné PDF. Podrobnosti v [manuálu kamionů](docs/manual_kamion.md#6-hromadné-akce-v-kamionadmin).
 
 Na vyplněné KKK mají Uvolněno i Uvolněno QS s odchylkou zelené pozadí, Neshoda červené. Interní označení QS s odchylkou zůstává oranžové.

@@ -66,6 +66,8 @@ from .services.casy_smen_service import REPORT_TIMEZONE
 from .services.casy_smen_export_service import build_mesicni_export_pater, last_complete_shift_month
 from .services.casy_vykladani_service import build_casy_vykladani_prehled
 from .services.evidence_neshod_service import zaznamenat_neshodu
+from .services.exceptions import ServiceValidationError
+from .services.spx_certificate_service import build_spx_certificate_rows
 from .services.stav_bedny_service import (
     vyhodnotit_tryskani_pri_zakaleni, duvody_neuplne_kontroly,
     vyhodnotit_stavy_pri_zkontrolovani,
@@ -4753,10 +4755,14 @@ def dashboard_bedny_k_navezeni_pdf_view(request):
 @login_required
 @permission_required('orders.view_kamion', raise_exception=True)
 def protokol_kamion_vydej_pdf_view(request, pk: int):
-    """GET endpoint pro PDF protokol kamionu (výdej)."""
+    """PDF certifikát SPX; i přímý odkaz znovu ověří aktuální kontroly beden."""
     kamion = get_object_or_404(Kamion, pk=pk, prijem_vydej=KamionChoice.VYDEJ)
 
-    zakazky = kamion.zakazky_vydej.all().order_by('id')
+    try:
+        certificate_rows = build_spx_certificate_rows(kamion)
+    except ServiceValidationError as exc:
+        return HttpResponse(str(exc), status=400, content_type='text/plain; charset=utf-8')
+
     base_url = getattr(settings, 'WEASYPRINT_BASEURL', None)
     if not base_url:
         base_url = request.build_absolute_uri('/') if request else None
@@ -4768,13 +4774,13 @@ def protokol_kamion_vydej_pdf_view(request, pk: int):
 
     context = {
         "kamion": kamion,
-        "zakazky": zakazky,
+        "certificate_rows": certificate_rows,
         "generated_at": timezone.now(),
         "issued_by": request.user.get_full_name() if request.user.is_authenticated else "",
         "pdf_static_url": static_url,
     }
 
-    html_string = render_to_string(f"orders/protokol_kamion_vydej_{kamion.zakaznik.zkratka.lower()}.html", context)
+    html_string = render_to_string('orders/protokol_kamion_vydej_spx.html', context)
 
     stylesheets = []
     css_path = finders.find('orders/css/pdf_shared.css')

@@ -62,7 +62,7 @@ Typické akce:
 - `Vytisknout karty beden` / `Vytisknout KKK` pro kamion příjem.
 - `Tisk přehledu zakázek` pro kamion příjem.
 - `Vytisknout dodací list vybraného kamionu výdej`.
-- `Vytisknout certifikát 3.1 kamionu výdej`.
+- `Vytisknout certifikát 3.1 kamionu výdej – SPX`.
 - `Vytisknout proforma fakturu vybraného kamionu výdej`.
 - `Zadat / upravit měření vybraného kamionu výdej`.
 - `Importovat chemická měření beden` pro kamion příjem s bednami.
@@ -80,6 +80,21 @@ tisíců; nevyplněná hodnota má prázdnou buňku. Sloupec `Behälter` se neti
 Artikl se tiskne ve sloupci `Material-Nr.`, za ním následuje `Charge`
 s hodnotou pole `Šarže mat. / Charge` (`sarze`) bedny. Interní číslo bedny
 se tiskne ve sloupci `HPM-Nr.`.
+
+### Certifikát 3.1 výdeje SPX z měření beden
+
+Vyberte právě jeden kamion výdej zákazníka **SPX** a spusťte **Vytisknout certifikát 3.1 kamionu výdej – SPX**. PDF se vytváří ručně touto akcí z aktuálně uložených kontrol beden. Pro jiného zákazníka akce ani přímý odkaz na PDF certifikát nevytvoří.
+
+Každý řádek odpovídá konkrétní výdejové zakázce. Při částečné expedici se používají pouze bedny oddělené výdejové části, nikoli původní zakázky, jiných výdejů ani jiných zakázek se stejným artiklem.
+
+- **Tvrdost povrchu a Tvrdost jádra:** z každé z prvních tří beden podle čísla bedny se tiskne první uložená hodnota příslušné zkoušky podle pořadí měření. Má-li zakázka jednu nebo dvě bedny, tiskne se jedna nebo dvě hodnoty. Chybějící měření se nenahrazuje hodnotou ze čtvrté či další bedny.
+- **Házení (Throwing):** stejný výběr beden; u každé bedny se použije první hodnota **Prohybu po rovnání**, pokud existuje, jinak první hodnota **Prohybu po TZ**. Nula je platné měření. Prohyb po koulení se nepoužívá.
+- Hodnoty obou tvrdostí i házení jsou v jednotlivých buňkách **pod sebou**, ve stejném pořadí beden.
+- **Ohyb a Krut:** tiskne se **OK**, pokud žádná bedna této výdejové zakázky nemá aktuálně **Uvolnění = Neshoda** s důvodem **Ohyb nízký**, respektive **Krut nízký / Krut vysoký**. Kontrolují se všechny bedny, i čtvrtá a další. **Uvolněno QS s odchylkou** dává také OK, i když zůstává příslušný důvod zaškrtnutý. Historické záznamy již vyřešených neshod výsledek neovlivňují. Výsledek se nepřepočítává z číselných hodnot ohybu a krutu.
+
+Při příslušné neshodě se tisk celého certifikátu zablokuje a upozornění uvede zakázku, číslo bedny a důvod. Stejně se tisk zablokuje, pokud u některé z prvních až tří beden chybí některá tvrdost nebo oba použitelné prohyby. Menší skutečný počet beden je v pořádku; chybějící měření u existující bedny je nutné doplnit. Prázdný kamion nebo výdejová zakázka bez beden certifikát nevytvoří. Stejné podmínky se znovu ověří i při přímém otevření PDF.
+
+Dosavadní akce **Zadat / upravit měření vybraného kamionu výdej** a ruční pole měření zakázky zůstávají dostupné, ale tento certifikát SPX je již nepoužívá ani nepřepisuje. Každé nové otevření PDF čerpá aktuální měření beden; nejde o archiv neměnného vystaveného dokumentu.
 
 ### Export podkladů pro OMEGU — SPX a EUR
 

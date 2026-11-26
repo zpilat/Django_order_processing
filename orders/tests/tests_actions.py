@@ -18,7 +18,7 @@ import json
 from orders.models import (
     Zakaznik, Kamion, Zakazka, Bedna, Predpis, TypHlavy,
     Odberatel, Pozice, PoziceZakazkaOrder, Rozpracovanost, RozpracovanostBednaSnapshot, Cena,
-    Zarizeni, Sarze, SarzeKrok, SarzeKrokBedna, KontrolaBedny,
+    Zarizeni, Sarze, SarzeKrok, SarzeKrokBedna, KontrolaBedny, MereniBedny,
 )
 from orders.choices import (
     KamionChoice,
@@ -472,10 +472,12 @@ class ActionsTests(ActionsBase):
         self.assertIn('chybí předpis', ' '.join(context['pricing_warnings']))
 
     def test_tisk_protokolu_kamionu_vydej_action_success(self):
+        self.zakaznik.zkratka = 'SPX'
+        self.zakaznik.save(update_fields=['zkratka'])
         self.kamion_vydej.cislo_dl = 'DL123'
         self.kamion_vydej.save()
 
-        Zakazka.objects.create(
+        order = Zakazka.objects.create(
             kamion_prijem=self.kamion_prijem,
             kamion_vydej=self.kamion_vydej,
             artikl='ART1',
@@ -490,6 +492,12 @@ class ActionsTests(ActionsBase):
             krut='OK',
             hazeni='0,1 mm',
         )
+
+        self.bedna.zakazka = order
+        self.bedna.save(update_fields=['zakazka'])
+        control = KontrolaBedny.objects.create(bedna=self.bedna, uvolneni='UV')
+        for kind, value in (('tvrdost_povrchu', 350), ('tvrdost_jadra', 340), ('prohyb_po_tz', '0.1')):
+            MereniBedny.objects.create(kontrola=control, typ_zkousky=kind, poradi=1, hodnota=value)
 
         request = self.get_request('post')
         queryset = Kamion.objects.filter(pk=self.kamion_vydej.pk)

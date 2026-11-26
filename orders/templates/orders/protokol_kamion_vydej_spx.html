@@ -266,13 +266,14 @@
         </tr>
     </thead>
     <tbody>
-    {% for zakazka in zakazky %}
+    {% for row in certificate_rows %}
+    {% with zakazka=row.zakazka %}
         <tr>
             <td>{{ zakazka.artikl }}</td>
             <td>
-                {% if zakazka.bedny.all %}
+                {% if row.bedny %}
                     <ul class="order-list">
-                    {% for bedna in zakazka.bedny.all %}
+                    {% for bedna in row.bedny %}
                         <li>{{ bedna.vyrobni_zakazka }}</li>
                     {% endfor %}
                     </ul>
@@ -280,12 +281,13 @@
                     -
                 {% endif %}
             </td>
-            <td>{{ zakazka.tvrdost_povrchu|default_if_none:"" }}</td>
-            <td>{{ zakazka.tvrdost_jadra|default_if_none:"" }}</td>
-            <td>{{ zakazka.ohyb|default_if_none:"" }}</td>
-            <td>{{ zakazka.krut|default_if_none:"" }}</td>
-            <td>{{ zakazka.hazeni|default_if_none:"" }}</td>
+            <td>{% for value in row.tvrdost_povrchu %}<div>{{ value|mereni_hodnota }}</div>{% endfor %}</td>
+            <td>{% for value in row.tvrdost_jadra %}<div>{{ value|mereni_hodnota }}</div>{% endfor %}</td>
+            <td>{{ row.ohyb }}</td>
+            <td>{{ row.krut }}</td>
+            <td>{% for value in row.hazeni %}<div>{{ value|mereni_hodnota }}</div>{% endfor %}</td>
         </tr>                             
+    {% endwith %}
     {% empty %}
         <tr>
             <td colspan="7">Žádné zakázky k výdeji.</td>

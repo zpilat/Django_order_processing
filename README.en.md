@@ -126,6 +126,8 @@ Chemical import is a separate action for an inbound truck with crates. It reads 
 
 Printing actions depend on selected objects, filters and permissions. Blank KKK and filled KKK are separate actions; filled KKK support all customers. The quick batch overview provides a traveler print preview; the crates to be moved overview has dedicated print and PDF outputs.
 
+The **Vytisknout certifikát 3.1 kamionu výdej – SPX** action uses current crate measurements from each outbound order portion. Surface hardness, core hardness and deflection use the first values from the first up to three crates, printed vertically. Bending and torsion show OK based on current nonconformities across all crates in that portion; QS release with deviation also gives OK. Relevant nonconformities or missing required measurements block printing. Manual order measurement fields are no longer used. See the [truck manual](docs/manual_kamion.md#certifikát-31-výdeje-spx-z-měření-beden).
+
 The customer setting **Kontrola kvality → Vyplněné KKK po zakázkách** changes outbound truck printing to a ZIP containing one PDF per order record. PDF filenames use **Artikl / Zakázka**, for example `45001234.pdf`; duplicate names include the order ID. The default remains a single combined PDF. Crate and order overview actions still produce a combined PDF. See the [truck manual](docs/manual_kamion.md#6-hromadné-akce-v-kamionadmin).
 
 Filled KKK cards use a green release background for both unconditional release and QS release with deviation, and red for nonconformity. Internal QS release highlighting remains orange.
