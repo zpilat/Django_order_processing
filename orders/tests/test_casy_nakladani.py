@@ -41,19 +41,29 @@ class CasyNakladaniTests(TestCase):
         item.save()
         return item
 
-    def create_loading(self, starts, end=None, *, device=None):
+    def create_loading(self, starts, end=None, *, device=None, created_at=None):
         first = self.instant(starts[0])
         finish = self.instant(end) if end else None
         batch = Sarze.objects.create(datum_zalozeni=first.date(), cislo_pracoviste=1)
-        step = SarzeKrok.objects.create(
+        step = SarzeKrok(
             sarze=batch, poradi=1, zarizeni=device or self.device,
             datum=first.date(), zacatek=first.time(), operator='Test',
             datum_konce=finish.date() if finish else None,
             konec=finish.time() if finish else None,
         )
+        if created_at:
+            step._history_date = self.instant(created_at)
+        step.save()
         for floor, timestamp in enumerate(starts, 1):
             self.add_floor(step, floor, timestamp)
         return step
+
+    def save_loading_end(self, step, end, saved_at):
+        finish = self.instant(end) if end else None
+        step.datum_konce = finish.date() if finish else None
+        step.konec = finish.time() if finish else None
+        step._history_date = self.instant(saved_at)
+        step.save()
 
     def report(self, day=None):
         return build_casy_nakladani_prehled(date_value=day or self.day, now=self.now)
@@ -275,6 +285,102 @@ class CasyNakladaniTests(TestCase):
         with self.assertNumQueries(3):
             report = self.report()
         self.assertEqual(len(report['details']), 6)
+
+    def test_conflicting_end_uses_exact_closing_history_and_ignores_later_saves(self):
+        step = self.create_loading(
+            ['2026-11-24T17:00', '2026-11-24T17:59:10'], created_at='2026-11-24T16:59',
+        )
+        self.save_loading_end(step, '2026-11-24T17:58', '2026-11-24T18:00:10')
+        step.operator = 'Pozdější úprava'
+        step._history_date = self.instant('2026-11-24T18:30')
+        step.save()
+        history_count = step.history.count() + SarzeKrokBedna.history.filter(krok_id=step.pk).count()
+        report = self.report()
+        self.assertEqual(report['invalid_steps'], 0)
+        self.assertEqual(report['historical_end_steps'], 1)
+        self.assertEqual(report['details'][-1]['end'], self.instant('2026-11-24T18:00:10'))
+        self.assertEqual(report['details'][-1]['recorded_end'], self.instant('2026-11-24T17:58'))
+        self.assertTrue(report['details'][-1]['end_from_history'])
+        self.assertFalse(report['details'][0]['end_from_history'])
+        self.assertIn('konec podle historie uzavření', report['details'][-1]['status'])
+        twelve = self.scheme(report, 'twelve')
+        self.assertEqual(twelve['total']['patra'], 2)
+        self.assertEqual(twelve['total']['sarze'], 1)
+        self.assertEqual(twelve['rows'][1]['patra'], Decimal(1) / 6)
+        step.refresh_from_db()
+        self.assertEqual(step.konec, time(17, 58))
+        self.assertEqual(history_count, step.history.count() + SarzeKrokBedna.history.filter(krok_id=step.pk).count())
+        self.client.force_login(self.user)
+        with patch('orders.views.timezone.now', return_value=self.now):
+            response = self.client.get(self.url, {'datum': self.day.isoformat()})
+        self.assertContains(response, 'Započteno; konec podle historie uzavření.')
+
+    def test_history_is_not_used_when_the_closing_minute_already_gives_valid_interval(self):
+        step = self.create_loading(['2026-11-24T09:00'], created_at='2026-11-24T08:59')
+        self.save_loading_end(step, '2026-11-24T09:00', '2026-11-24T10:00')
+        with self.assertNumQueries(3):
+            report = self.report()
+        self.assertEqual(report['details'][0]['end'], self.instant('2026-11-24T09:00:59.999999'))
+        self.assertEqual(report['historical_end_steps'], 0)
+
+    def test_created_closed_and_closed_to_closed_corrections_remain_invalid(self):
+        for correction in (False, True):
+            step = self.create_loading(
+                ['2026-11-24T10:02'], '2026-11-24T10:00', created_at='2026-11-24T09:00',
+            )
+            self.save_loading_end(
+                step, '2026-11-24T10:01' if correction else '2026-11-24T10:00',
+                '2026-11-24T10:03',
+            )
+        report = self.report()
+        self.assertEqual(report['invalid_steps'], 2)
+        self.assertEqual(report['historical_end_steps'], 0)
+        self.assertEqual(self.scheme(report, 'twelve')['total']['patra'], 0)
+
+    def test_history_must_end_after_the_last_floor_and_not_in_the_future(self):
+        for saved_at in ('2026-11-24T10:01', '2026-11-24T10:02', '2026-11-27T10:03'):
+            step = self.create_loading(['2026-11-24T10:02'], created_at='2026-11-24T09:00')
+            self.save_loading_end(step, '2026-11-24T10:00', saved_at)
+        report = self.report()
+        self.assertEqual(report['invalid_steps'], 3)
+        self.assertEqual(report['historical_end_steps'], 0)
+
+    def test_changing_recorded_end_invalidates_earlier_closing_event(self):
+        step = self.create_loading(['2026-11-24T10:02'], created_at='2026-11-24T09:00')
+        self.save_loading_end(step, '2026-11-24T10:00', '2026-11-24T10:03')
+        self.save_loading_end(step, '2026-11-24T10:01', '2026-11-24T10:04')
+        self.assertEqual(self.report()['invalid_steps'], 1)
+
+    def test_reopening_requires_a_new_valid_closing_event(self):
+        step = self.create_loading(['2026-11-24T10:02'], created_at='2026-11-24T09:00')
+        self.save_loading_end(step, '2026-11-24T10:00', '2026-11-24T10:03')
+        self.save_loading_end(step, None, '2026-11-24T10:04')
+        self.save_loading_end(step, '2026-11-24T10:01', '2026-11-24T10:05')
+        report = self.report()
+        self.assertEqual(report['invalid_steps'], 0)
+        self.assertEqual(report['details'][0]['end'], self.instant('2026-11-24T10:05'))
+
+    def test_missing_open_history_does_not_prove_a_closing_transition(self):
+        step = self.create_loading(['2026-11-24T10:02'], created_at='2026-11-24T09:00')
+        self.save_loading_end(step, '2026-11-24T10:00', '2026-11-24T10:03')
+        step.history.filter(history_type='+').delete()
+        self.assertEqual(self.report()['invalid_steps'], 1)
+
+    def test_history_fallback_is_batched_and_conserves_floors_across_reporting_days(self):
+        for _ in range(3):
+            step = self.create_loading(['2026-11-24T05:59:30'], created_at='2026-11-24T05:00')
+            self.save_loading_end(step, '2026-11-24T05:58', '2026-11-24T06:00:30')
+        with self.assertNumQueries(4):
+            report = self.report()
+        previous = self.report(self.day - timedelta(days=1))
+        self.assertEqual(report['historical_end_steps'], 3)
+        self.assertEqual(previous['historical_end_steps'], 3)
+        for key in ('twelve', 'eight'):
+            current_total = self.scheme(report, key)['total']
+            previous_total = self.scheme(previous, key)['total']
+            self.assertEqual(current_total['patra'], Decimal('1.5'))
+            self.assertEqual(current_total['sarze'], Decimal('1.5'))
+            self.assertEqual(current_total['patra'] + previous_total['patra'], 3)
 
     def test_anonymous_users_are_redirected(self):
         response = self.client.get(self.url)

@@ -83,6 +83,8 @@ Konec Nakládání doplňte ihned po dokončení posledního patra; určuje kone
 
 Přehled a jeho CSV tolerují minutovou přesnost zadaného konce: pro výpočet použijí konec této minuty (HH:MM:59,999999). Zadaný konec ani historie se tím nepřepisují; tato úprava nemění časy v provozním detailu ani pravidla ukládání kroku.
 
+Pokud ani tato minuta nenásleduje po prvním uložení posledního patra, přehled může použít přesný historický čas doloženého uzavření otevřeného Nakládání. Musí odpovídat nyní zadanému konci a tvořit platný interval. Založení již uzavřeného kroku ani pouhá oprava vyplněného konce nestačí. Použití je označené na konci řádku v přehledu a ve sloupci Stav evidence v CSV; podmínky popisuje [přehled časů](manual_prehledy_a_ukazatele.md#přehled-časů-nakládání-a-vykládání).
+
 ## 7. Oprávnění a běžné problémy
 
 | Operace | Oprávnění v aplikaci `orders` |

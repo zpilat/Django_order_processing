@@ -98,6 +98,7 @@
 <div class="small text-muted">
   <p class="mb-1">Začátek patra určuje jeho první uložení, konec začátek dalšího patra. Poslední patro končí ukončením Nakládání. Částečná patra se rozdělují poměrně podle času ve směně.</p>
   <p class="mb-1">U konce Nakládání se pro přehled a CSV započítává celá zadaná minuta až do sekundy 59,999999. Mezilehlé konce pater se neupravují. Uložený čas zůstává zachovaný; u vypočteného konce je v nápovědě původní hodnota.</p>
+  <p class="mb-1">Pokud ani konec zadané minuty není po začátku posledního patra, může se použít přesný čas uzavření kroku v historii. Musí jít o doložený přechod z otevřeného kroku na uzavřený, odpovídající nyní uloženému konci, a platný interval. Použití je označené ve sloupci Započtení a ve Stavu evidence v CSV.</p>
   <p class="mb-1">Podíl šarže je přidělený počet pater dělený skutečným konečným počtem pater jejího kroku Nakládání. Například 2,4 ze 4 pater znamená 0,6 šarže.</p>
   <p class="mb-1">Obě tabulky zobrazují stejnou práci v různých režimech směn; jejich výsledky se nesčítají. Čas je součet intervalů nakládání všech pracovišť v dané směně, včetně čekání a přestávek. Při souběhu pracovišť může přesáhnout délku směny.</p>
   <p class="mb-0">Rozpis ukazuje celé intervaly pater. Souhrny započítávají jen část uvnitř vybraného období. Rozpracované výsledky a později opravená evidence mohou změnit i dřívější přehled.</p>

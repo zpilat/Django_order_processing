@@ -59,15 +59,19 @@ class CasySmenExportTests(TestCase):
     def loading(self, starts, end=None):
         return self.step(starts[0], end, kind=DeviceType.NAKLADANI, starts=starts)
 
-    def step(self, start, end, *, kind=DeviceType.TRYSKAC, floors=3, starts=None, batch=None, order=1):
+    def step(self, start, end, *, kind=DeviceType.TRYSKAC, floors=3, starts=None, batch=None, order=1,
+             created_at=None):
         start = self.instant(start)
         end = self.instant(end) if end else None
         batch = batch or Sarze.objects.create(datum_zalozeni=start.date())
-        step = SarzeKrok.objects.create(
+        step = SarzeKrok(
             sarze=batch, poradi=order, zarizeni=self.devices[kind], operator='Test',
             datum=start.date(), zacatek=start.time(),
             datum_konce=end.date() if end else None, konec=end.time() if end else None,
         )
+        if created_at:
+            step._history_date = self.instant(created_at)
+        step.save()
         for index in range(len(starts) if starts else floors):
             item = SarzeKrokBedna(krok=step, patro=index + 1, popis_mimo_db='Test')
             item._history_date = self.instant(starts[index]) if starts else start
@@ -159,6 +163,28 @@ class CasySmenExportTests(TestCase):
         self.assertEqual(result['filename'], 'patra_smeny_2024-02.csv')
         self.assertEqual(len(rows), 29)
         self.assertEqual(rows[-1][0], '29.02.2024')
+
+    def test_csv_counts_history_fallback_and_records_it_in_the_last_column(self):
+        step = self.step(
+            '2026-10-20T17:00', None, kind=DeviceType.NAKLADANI,
+            starts=['2026-10-20T17:00', '2026-10-20T17:59:30'],
+            created_at='2026-10-20T16:59',
+        )
+        step.datum_konce = date(2026, 10, 20)
+        step.konec = self.instant('2026-10-20T17:58').time()
+        step._history_date = self.instant('2026-10-20T18:00:30')
+        step.save()
+        self.loading(['2026-10-20T19:00'], '2026-10-20T18:59')
+        counts = (SarzeKrok.history.count(), SarzeKrokBedna.history.count())
+        _, _, rows = self.export()
+        self.assertEqual(rows[19], [
+            '20.10.2026', '1,5', '0,0', '0,5', '0,0',
+            '0,0', '0,0', '2,0', '0,0', '0,0', '0,0',
+            'Nakládání: chybné kroky 1; Nakládání: konec podle historie uzavření u kroků 1',
+        ])
+        self.assertEqual(rows[18][-1], 'OK')
+        self.assertEqual(rows[20][-1], 'OK')
+        self.assertEqual(counts, (SarzeKrok.history.count(), SarzeKrokBedna.history.count()))
 
     def test_download_requires_login_and_is_an_excel_compatible_attachment(self):
         self.assertEqual(self.client.get(self.url).status_code, 302)

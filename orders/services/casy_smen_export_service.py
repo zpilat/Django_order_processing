@@ -45,6 +45,8 @@ def _evidence_status(loading, unloading):
             notes.append(f"{label}: chybné kroky {report['invalid_steps']}")
         if report['incomplete_steps']:
             notes.append(f"{label}: neuzavřené kroky {report['incomplete_steps']}")
+    if loading['historical_end_steps']:
+        notes.append(f"Nakládání: konec podle historie uzavření u kroků {loading['historical_end_steps']}")
     if unloading['repeated_batches']:
         notes.append(f"Vykládání: šarže s více průchody {unloading['repeated_batches']}")
     return '; '.join(notes) or 'OK'
