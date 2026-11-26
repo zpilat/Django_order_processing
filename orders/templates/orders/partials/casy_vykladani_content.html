@@ -1,0 +1,71 @@
+<section aria-labelledby="unloading-detail-section">
+  <h2 id="unloading-detail-section" class="h4 mb-3">Podrobnosti vykládání</h2>
+
+  {% if casy_vykladani.invalid_steps %}
+    <div class="alert alert-warning" role="status">
+      Počet kroků vykládání s neúplnou nebo rozpornou evidencí: <strong>{{ casy_vykladani.invalid_steps }}</strong>.
+      Tyto kroky nejsou započtené. Podrobnosti jsou v rozpisu vykládání.
+    </div>
+  {% endif %}
+  {% if casy_vykladani.incomplete_steps %}
+    <div class="alert alert-info" role="status">
+      Počet rozpracovaných vykládání: <strong>{{ casy_vykladani.incomplete_steps }}</strong>.
+      Výkon a čas se započtou až po doplnění konce celého kroku.
+    </div>
+  {% endif %}
+  {% if casy_vykladani.repeated_batches %}
+    <div class="alert alert-warning" role="status">
+      Počet šarží s více kroky Vykládání nebo Tryskače: <strong>{{ casy_vykladani.repeated_batches }}</strong>.
+      Každý platný dokončený krok je započtený samostatně. U označených šarží ověřte, zda jde o skutečný opakovaný průchod, nebo duplicitní evidenci.
+    </div>
+  {% endif %}
+
+  <section class="card shadow-sm mb-3" aria-labelledby="unloading-details">
+    <h3 id="unloading-details" class="card-header h6 fw-bold mb-0">Časy vykládání šarží</h3>
+    <div class="card-body p-2">
+      <div class="table-responsive">
+        <table class="table table-sm table-striped align-middle mb-0">
+          <thead>
+            <tr>
+              <th scope="col">Šarže / krok</th>
+              <th scope="col">Pracoviště</th>
+              <th scope="col" class="text-center">Počet pater kroku</th>
+              <th scope="col">Začátek</th>
+              <th scope="col">Konec</th>
+              <th scope="col" class="text-center">Celý interval [hod.]</th>
+              <th scope="col">Započtení</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in casy_vykladani.details %}
+              <tr{% if row.invalid or row.repeated %} class="table-warning"{% endif %}>
+                <th scope="row">
+                  {% if request.user.is_staff and perms.orders.view_sarzekrok %}
+                    <a href="{% url 'admin:orders_sarzekrok_change' row.step.pk %}">{{ row.step.sarze }} / {{ row.step.poradi }}</a>
+                  {% else %}
+                    {{ row.step.sarze }} / {{ row.step.poradi }}
+                  {% endif %}
+                </th>
+                <td>{{ row.step.zarizeni.zkraceny_nazev_zarizeni }} <span class="small text-muted">({{ row.step.zarizeni.get_typ_zarizeni_display }})</span></td>
+                <td class="text-center">{{ row.floor_count }}</td>
+                <td class="text-nowrap">{% if row.start %}{{ row.start|date:"d.m.Y H:i:s" }}{% else %}—{% endif %}</td>
+                <td class="text-nowrap">{% if row.end %}{{ row.end|date:"d.m.Y H:i:s" }}{% else %}—{% endif %}</td>
+                <td class="text-center">{% if row.hours != None %}{{ row.hours|floatformat:1 }}{% else %}—{% endif %}</td>
+                <td>{{ row.status }}{% if row.repeated %}<div class="small">Více průchodů šarže – ověřit evidenci.</div>{% endif %}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="7" class="text-muted text-center">Pro vybraný den nejsou evidovaná vykládání.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <div class="small text-muted">
+    <p class="mb-1">Vykládání zahrnuje typy pracovišť Vykládání a Tryskač. Celý interval od evidovaného začátku do konce kroku se považuje za rovnoměrnou práci.</p>
+    <p class="mb-1">Šarže se přidělí podle podílu času kroku ve směně. Patra jsou tento podíl násobený počtem různých čísel pater v obsahu kroku. Například třetina vykládání třípatrové šarže znamená jednu třetinu šarže a 1,0 patra.</p>
+    <p class="mb-1">Obě tabulky vykládání představují stejnou práci v různých režimech směn; jejich výsledky se nesčítají. Hodiny zahrnují i čekání a přestávky uvnitř kroku a při souběhu pracovišť mohou přesáhnout délku směny.</p>
+    <p class="mb-0">Rozpis ukazuje celé intervaly kroků. Souhrny započítávají jen část uvnitř vybraného období. Neuzavřený krok se doplní zpětně po dokončení vykládání.</p>
+  </div>
+</section>

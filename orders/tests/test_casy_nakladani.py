@@ -273,6 +273,6 @@ class CasyNakladaniTests(TestCase):
         self.assertIn(self.url, section)
         self.assertContains(
             response,
-            f'<a href="{self.url}" target="_blank" rel="noopener">Přehled časů nakládání</a>',
+            f'<a href="{self.url}" target="_blank" rel="noopener">Přehled časů nakládání a vykládání</a>',
             html=True,
         )

@@ -123,6 +123,7 @@ Větev zvolte podle skutečného postupu: kontrola před vyložením nebo po vyl
 - **Přehled nakládání**: otevřené nakládání pro čísla pracovišť 1–6.
 - **Ostatní pracoviště** (`/prehled-pracovist/`): otevřené šarže mimo Nakládání.
 - **Přehled kontroly**: bedny ve stavu Zakaleno a šarže s položkami mimo DB čekající na kontrolu.
+- **Přehled časů nakládání a vykládání** (`/dashboard/casy-nakladani/`): směnové výkony. Vykládání zahrnuje typy Vykládání a Tryskač, rovnoměrně rozdělené podle celého evidovaného začátku a konce kroku. Počet pater pochází z obsahu kroku přeneseného při přesunu. Konec doplňte hned po práci; neuzavřený krok se započte až po uzavření. Podrobnosti jsou v [manuálu přehledů](manual_prehledy_a_ukazatele.md#přehled-časů-nakládání-a-vykládání).
 - Administrace kroků a deníku: filtry **Pracoviště**, **Typ pracoviště** a **Konec: Ne** pomáhají najít neuzavřené průchody.
 
 Průvodku vrutů lze znovu otevřít přes **Náhled tisku** v provozním detailu šarže i po uzavření nakládání. Tisk vychází z prvního kroku: musí být typu Nakládání a obsahovat alespoň jednu bednu z databáze.

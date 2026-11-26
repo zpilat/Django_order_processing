@@ -128,7 +128,7 @@ Období končí **včera**, zahrnuje 14 kalendářních dní a nezávisí na vyb
 - **Souhrn vsázek** počítá evidované kroky na těchto zařízeních podle data začátku. Konec kroku není podmínkou započtení.
 - **Vruty** znamenají kroky obsahující bedny z databáze, **Železo** kroky s položkami mimo DB. Smíšený krok může být v obou kategoriích, takže jejich součet nemusí odpovídat počtu všech vsázek.
 - **Výkon vruty** a zákaznický rozpis produkce vycházejí z prvního evidovaného použití bedny na daném zařízení, podle pravidla níže. Hmotnosti položek mimo DB se do tohoto výkonu nepřičítají.
-- Pro porovnání je dočasně znovu dostupná původní tabulka **Počet naložených šarží a pater včerejších směn**. Zahrnuje všechna pracoviště typu Nakládání. Počítá kroky Nakládání, nikoli jedinečné šarže, a součet různých čísel pater v jednotlivých krocích. Celý krok a všechna jeho aktuální patra přiřadí podle data a času začátku kroku do denní 06:00–18:00 nebo noční 18:00–06:00 směny; konec ani historie uložení pater nerozhodují. Započítá i neukončený krok a krok bez pater (jako jednu šarži a nula pater). Poměrné rozdělení pater a podílů šarží podle časových intervalů zůstává v samostatném **Přehledu časů nakládání**. Pod původní tabulkou je odkaz na nový přehled.
+- Pro porovnání je dočasně znovu dostupná původní tabulka **Počet naložených šarží a pater včerejších směn**. Zahrnuje všechna pracoviště typu Nakládání. Počítá kroky Nakládání, nikoli jedinečné šarže, a součet různých čísel pater v jednotlivých krocích. Celý krok a všechna jeho aktuální patra přiřadí podle data a času začátku kroku do denní 06:00–18:00 nebo noční 18:00–06:00 směny; konec ani historie uložení pater nerozhodují. Započítá i neukončený krok a krok bez pater (jako jednu šarži a nula pater). Poměrné rozdělení pater a podílů šarží podle časových intervalů zůstává v samostatném **Přehledu časů nakládání a vykládání**. Pod původní tabulkou je odkaz na nový přehled.
 
 ### Kalendářní den není totéž co dvojice směn
 
@@ -144,9 +144,9 @@ Používá se celá současná kladná netto hmotnost bedny, bez násobení proc
 
 Čtrnáctidenní historie denní produkce končí včera. Týdenní a dvoutýdenní průměry dělí produkci 7 a 14 kalendářními dny včetně nulových dní; nejde o průměr pouze za odpracované směny.
 
-### Přehled časů nakládání
+### Přehled časů nakládání a vykládání
 
-Otevřete v administraci **Přehledy výroby → Přehled časů nakládání**, případně stejnou položku v menu **PŘEHLEDY** (`/dashboard/casy-nakladani/`). Přístup vyžaduje přihlášení, stejně jako ostatní souhrnné dashboardy; vstup do administrace navíc vyžaduje staff. Přehled je pouze ke čtení a nemění oprávnění k výrobní evidenci. Nevytváří novou tabulku ani rozhraní pro opravy časů.
+Otevřete v administraci **Přehledy výroby → Přehled časů nakládání a vykládání**, případně stejnou položku v menu **PŘEHLEDY** (`/dashboard/casy-nakladani/`). Přehled má společný výběr dne a nahoře pod sebou směnové souhrny **Nakládání** a **Vykládání**. V každém souhrnu jsou 12hodinové a 8hodinové směny na široké obrazovce vedle sebe, na menší pod sebou. Teprve pod oběma souhrny následují **Podrobnosti nakládání** a **Podrobnosti vykládání**: upozornění k evidenci, rozpisy všech příslušných šarží a pater a vysvětlení výpočtů. Přístup vyžaduje přihlášení, stejně jako ostatní souhrnné dashboardy; vstup do administrace navíc vyžaduje staff. Přehled je pouze ke čtení a nemění oprávnění k výrobní evidenci. Nevytváří novou tabulku ani rozhraní pro opravy časů.
 
 Výchozím dnem je včerejšek. Pole **Den začátku směn** umožní vybrat jiný den nejpozději dnešní. Obě tabulky pokrývají stejný interval **od 06:00 vybraného dne do 06:00 následujícího dne**:
 
@@ -155,9 +155,9 @@ Výchozím dnem je včerejšek. Pole **Den začátku směn** umožní vybrat jin
 | 12hodinový | Denní 06:00–18:00, noční 18:00–06:00. |
 | 8hodinový | Ranní 06:00–14:00, odpolední 14:00–22:00, noční 22:00–06:00. |
 
-Přehled zahrnuje všechna pracoviště typu **Nakládání**, bedny z DB i položky mimo DB. Dva režimy představují dva pohledy na stejnou práci a **nesčítají se**. Společný součet **Celkem 06:00–06:00** se zobrazuje pouze pod 12hodinovými směnami. Nejde o automatické přiřazení výkonu konkrétním pracovníkům podle jejich pracovního úvazku.
+Sekce Nakládání zahrnuje všechna pracoviště typu **Nakládání**. Sekce Vykládání zahrnuje společně typy **Vykládání** a **Tryskač**. Obě zahrnují bedny z DB i položky mimo DB. Dva režimy směn v každé sekci představují dva pohledy na stejnou práci a **nesčítají se**. Součet **Celkem 06:00–06:00** je v každé sekci pouze pod 12hodinovými směnami. Nejde o automatické přiřazení výkonu konkrétním pracovníkům podle jejich pracovního úvazku.
 
-**Časový interval patra:**
+**Časový interval patra při nakládání:**
 
 1. Začátek je první uložení položky daného patra v kroku Nakládání, podle `history_date` vytvoření v Simple History. Samotné načtení kódu do neuloženého formuláře se do databáze nezapisuje. Obsluha proto po načtení první bedny patro rovnou uloží a pak začne fyzicky nakládat.
 2. Konec je první uložení následujícího patra. Patra se řadí podle čísla.
@@ -165,17 +165,35 @@ Přehled zahrnuje všechna pracoviště typu **Nakládání**, bedny z DB i polo
 
 Běžná úprava patra jeho původní začátek neposouvá, i když technicky smaže a znovu vytvoří řádky deníku. Výpočet hledá i mezi historickými záznamy již smazaných řádků. Nové použití tlačítka **Smazat patro** má v historii důvod **Smazání celého patra při nakládání.** Pokud se stejné číslo patra později znovu založí, použije se až jeho nové první uložení. Starší smazání celého patra a neoznačené ruční zásahy v administraci nelze spolehlivě odlišit od technické náhrady řádků; u stejného čísla patra se v takovém případě zachová první dochované vytvoření. Historie se zpětně nepřepisuje.
 
-**Výpočet sloupců:**
+**Výpočet sloupců pro nakládání:**
 
 - **Patra**: pro každý dokončený interval se započte poměr délky jeho překryvu se směnou k celé délce intervalu. Například 17:40–18:20 znamená 0,50 patra denní a 0,50 patra noční směně.
 - **Šarže**: podíl pater se pro každý uzavřený krok Nakládání dělí jeho skutečným konečným počtem různých pater. Například 2,4 ze 4 pater představuje 0,6 šarže. Celý platný uzavřený krok se napříč všemi zasaženými dny a směnami sečte na 1,0 šarže. Nepoužívá se pevný dělitel 6, maximální číslo patra ani průměrný počet pater všech šarží. Případné opakované kroky Nakládání stejné šarže se vyhodnocují samostatně.
 - **Čas [hod.]**: součet překryvů intervalů nakládání se směnou ze všech pracovišť. Zahrnuje čekání a přestávky uvnitř intervalu. Při souběhu pracovišť může přesáhnout délku směny; nejde o osobní odpracované hodiny.
 
-Počítá se z přesných délek intervalů a zaokrouhluje se až při zobrazení: patra, podíly šarží a hodiny na **jedno desetinné místo**, včetně součtů a hodin v rozpisu pater. Součty se počítají z nezaokrouhlených hodnot, proto se mohou mírně lišit od součtu zobrazených zaokrouhlených řádků. Hranice směn jsou podle **Europe/Prague**, délky podle skutečně uplynulého času i při změně letního a zimního času. Patro začínající před vybraným obdobím se započte jen částí, která do něj zasahuje; půlnoc sama interval nerozděluje.
+V obou sekcích se počítá z přesných délek intervalů a zaokrouhluje se až při zobrazení: patra, podíly šarží a hodiny na **jedno desetinné místo**, včetně součtů a hodin v rozpisech. Počet pater celého kroku v rozpisu vykládání je celé číslo. Součty se počítají z nezaokrouhlených hodnot, proto se mohou mírně lišit od součtu zobrazených zaokrouhlených řádků. Hranice směn jsou podle **Europe/Prague**, délky podle skutečně uplynulého času i při změně letního a zimního času. Interval začínající před vybraným obdobím se započte jen částí, která do něj zasahuje; půlnoc sama interval nerozděluje.
 
 U rozpracovaného Nakládání se započtou jen patra se známým koncem. Otevřené poslední patro čeká na další patro nebo konec kroku. **Podíly šarží** se doplní až po uzavření celého Nakládání, protože teprve tehdy je znám konečný počet pater. Dřívější výsledky se proto mohou dodatečně doplnit nebo změnit po opravě evidence.
 
 Pod souhrny je rozpis **Časy nakládání jednotlivých pater** se šarží, krokem, pracovištěm, číslem patra, celým začátkem a koncem, celou délkou intervalu a stavem započtení. Celé intervaly v rozpisu mohou přesahovat vybrané období; souhrny obsahují pouze jejich překryv s obdobím. Prázdné kroky, chybějící první uložení, nerostoucí začátky pater nebo neplatný konec se označí a celý dotčený krok se ze součtů vyřadí. Chybějící časy se neodhadují ze začátku kroku ani z pozdějších úprav. Odkaz na administraci kroku je dostupný pouze staff uživateli s právem `view_sarzekrok`.
+
+**Vykládání na typech Vykládání a Tryskač:**
+
+Procentuální rozdělení vychází z celého intervalu **Datum začátku + Začátek → Datum konce + Konec** daného kroku. Práce se považuje za rovnoměrnou na obou typech pracovišť. Časy vytvoření řádků deníku ani historie jednotlivých pater zde začátek neurčují. Počet pater je počet různých čísel pater v obsahu vykládacího kroku; běžný přesun je kopíruje z předchozího kroku. Více beden na stejném patře počet nezvyšuje a nejde o nejvyšší číslo patra.
+
+| Sloupec | Výpočet |
+| --- | --- |
+| Šarže | Délka překryvu kroku se směnou / celková délka kroku. Celý dokončený krok představuje 1,0 šarže. |
+| Patra | Počet různých pater v obsahu kroku × uvedený časový podíl. |
+| Čas [hod.] | Délka překryvu celého kroku se směnou; součet ze všech pracovišť, včetně čekání a přestávek uvnitř kroku. |
+
+Například vykládání třípatrové šarže 17:30–19:00 trvá 90 minut. Denní směna dostane 30/90 šarže a 1,0 patra, noční 60/90 šarže a 2,0 patra; na obrazovce jsou šarže zaokrouhlené na 0,3 a 0,7. Jde o časový odhad pater, protože jejich skutečné dílčí časy nejsou evidované.
+
+**Neukončené vykládání** se zobrazí jako rozpracované. Šarže, patra ani hodiny se nezapočtou, dokud není znám konec celého kroku. Po uzavření se výkon zpětně rozdělí do všech zasažených směn a dní. Krok bez evidovaných pater, bez platného začátku, s neúplným koncem, nulovou nebo zápornou délkou nebo koncem v budoucnosti se označí a ze součtů vyřadí. Počet pater se nenahrazuje šestkou ani se neodhaduje podle jiného kroku.
+
+Pokud má šarže více kroků typu Vykládání nebo Tryskač, zobrazí se upozornění a dotčené řádky jsou zvýrazněné. Kontrola hledá všechny tyto kroky šarže, i mimo vybraný den. **Každý platný dokončený krok se započte samostatně**; přehled automaticky neurčuje, který je duplicitní. Ověřte, zda evidence zachycuje skutečné opakované zpracování, nebo vyžaduje opravu duplicity. Počet Šarže je tedy součtem vykládacích průchodů, nikoli počtem jedinečných čísel šarží.
+
+Rozpis **Časy vykládání šarží** obsahuje šarži a krok, pracoviště včetně typu, počet pater celého kroku, celý začátek a konec, celou délku intervalu a stav započtení. Stejně jako u nakládání souhrny obsahují pouze překryv s vybraným obdobím. Odkaz na administraci kroku má stejná omezení jako u nakládání. Vykládací statistika není vázaná na aktuální výrobní stav šarže ani beden.
 
 ## 7. Historie výroby: průměry, vytížení a prostoje
 
@@ -269,7 +287,7 @@ Opětovně vytištěné PDF stejného záznamu se proto může lišit od dříve
 | Přehled beden | Automaticky přibližně každých 10 minut. |
 | Přehled beden k navezení | Automaticky přibližně každých 60 sekund. |
 | Přehled kontrolorů | Automaticky přibližně každých 60 sekund; při obnovení se znovu určí posledních 30 dní. |
-| Přehled kamionů, výroby, časů nakládání, Historie výroby, Využití roštů dle zákazníků, Historie rovnání a jejich uvedené měsíční detaily | Automaticky přibližně každých 60 minut. |
+| Přehled kamionů, výroby, časů nakládání a vykládání, Historie výroby, Využití roštů dle zákazníků, Historie rovnání a jejich uvedené měsíční detaily | Automaticky přibližně každých 60 minut. |
 | Seznam beden | Kontrola změn beden přibližně každých 30 sekund; nejde o stejný časovač jako v souhrnných dashboardech. |
 
 Interval není zárukou okamžitého načtení: ověřte spojení, otevřenou stránku a zobrazené **Naposledy aktualizováno**. Tento čas je čas sestavení přehledu, nikoli poslední výrobní událost nebo datum zvoleného období. Před porovnáním dvou obrazovek je znovu načtěte a zkontrolujte jejich filtry a jednotky.

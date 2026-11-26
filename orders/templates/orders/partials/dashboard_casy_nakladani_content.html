@@ -1,6 +1,6 @@
 <div class="alert loading-times-heading" role="region" aria-label="Výběr dne přehledu">
   <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-3">
-    <h1 class="h3 mb-0">Přehled časů nakládání</h1>
+    <h1 class="h3 mb-0">Přehled časů nakládání a vykládání</h1>
     <a class="btn btn-secondary" href="{% url 'admin:orders_sarzekrokbedna_changelist' %}">Návrat</a>
   </div>
   <div class="d-flex flex-wrap gap-3 align-items-center justify-content-between">
@@ -21,49 +21,20 @@
   <div class="alert alert-warning" role="alert">{{ date_error }}</div>
 {% endif %}
 
-<div class="row">
-  {% for scheme in casy_nakladani.schemes %}
-    <div class="col-12 col-lg-6 mb-3">
-      <section class="card h-100 shadow-sm" aria-labelledby="loading-{{ scheme.key }}">
-        <h2 id="loading-{{ scheme.key }}" class="card-header h6 fw-bold mb-0">{{ scheme.title }}</h2>
-        <div class="card-body p-2">
-          <div class="table-responsive">
-            <table class="table table-sm table-striped align-middle mb-0">
-              <thead>
-                <tr>
-                  <th scope="col">Směna</th>
-                  <th scope="col" class="text-center">Patra</th>
-                  <th scope="col" class="text-center">Šarže</th>
-                  <th scope="col" class="text-center">Čas [hod.]</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for row in scheme.rows %}
-                  <tr>
-                    <th scope="row">{{ row.label }} <span class="text-nowrap">({{ row.time_label }})</span></th>
-                    <td class="text-center">{{ row.patra|floatformat:1 }}</td>
-                    <td class="text-center">{{ row.sarze|floatformat:1 }}</td>
-                    <td class="text-center">{{ row.hours|floatformat:1 }}</td>
-                  </tr>
-                {% endfor %}
-              </tbody>
-              {% if scheme.key == 'twelve' %}
-                <tfoot>
-                  <tr class="fw-bold">
-                    <th scope="row">Celkem 06:00–06:00</th>
-                    <td class="text-center">{{ scheme.total.patra|floatformat:1 }}</td>
-                    <td class="text-center">{{ scheme.total.sarze|floatformat:1 }}</td>
-                    <td class="text-center">{{ scheme.total.hours|floatformat:1 }}</td>
-                  </tr>
-                </tfoot>
-              {% endif %}
-            </table>
-          </div>
-        </div>
-      </section>
-    </div>
-  {% endfor %}
-</div>
+<section aria-labelledby="loading-section">
+  <h2 id="loading-section" class="h4 mb-3">Nakládání</h2>
+  {% include "orders/partials/casy_smen_tables.html" with schemes=casy_nakladani.schemes prefix="loading" only %}
+</section>
+
+<section aria-labelledby="unloading-section">
+  <h2 id="unloading-section" class="h4 mb-3">Vykládání</h2>
+  {% include "orders/partials/casy_smen_tables.html" with schemes=casy_vykladani.schemes prefix="unloading" only %}
+</section>
+
+<hr class="my-4">
+
+<section aria-labelledby="loading-detail-section">
+<h2 id="loading-detail-section" class="h4 mb-3">Podrobnosti nakládání</h2>
 
 {% if casy_nakladani.invalid_steps %}
   <div class="alert alert-warning" role="status">
@@ -79,7 +50,7 @@
 {% endif %}
 
 <section class="card shadow-sm mb-3" aria-labelledby="loading-floor-details">
-  <h2 id="loading-floor-details" class="card-header h6 fw-bold mb-0">Časy nakládání jednotlivých pater</h2>
+  <h3 id="loading-floor-details" class="card-header h6 fw-bold mb-0">Časy nakládání jednotlivých pater</h3>
   <div class="card-body p-2">
     <div class="table-responsive">
       <table class="table table-sm table-striped align-middle mb-0">
@@ -126,3 +97,7 @@
   <p class="mb-1">Obě tabulky zobrazují stejnou práci v různých režimech směn; jejich výsledky se nesčítají. Čas je součet intervalů nakládání všech pracovišť v dané směně, včetně čekání a přestávek. Při souběhu pracovišť může přesáhnout délku směny.</p>
   <p class="mb-0">Rozpis ukazuje celé intervaly pater. Souhrny započítávají jen část uvnitř vybraného období. Rozpracované výsledky a později opravená evidence mohou změnit i dřívější přehled.</p>
 </div>
+</section>
+
+<hr class="my-4">
+{% include "orders/partials/casy_vykladani_content.html" %}

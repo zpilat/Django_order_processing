@@ -2,67 +2,20 @@
 
 from collections import defaultdict
 from datetime import datetime, time, timedelta, timezone as datetime_timezone
-from decimal import Decimal
 from fractions import Fraction
-from zoneinfo import ZoneInfo
 
 from django.db.models import Exists, OuterRef, Q
 from django.utils import timezone
 
 from orders.choices import TypZarizeniChoice
 from orders.models import SarzeKrok, SarzeKrokBedna
-
-
-REPORT_TIMEZONE = ZoneInfo('Europe/Prague')
-FLOOR_DELETED_REASON = 'Smazání celého patra při nakládání.'
-SHIFT_SCHEMES = (
-    ('twelve', '12hodinové směny', (
-        ('Denní', 6, 18), ('Noční', 18, 30),
-    )),
-    ('eight', '8hodinové směny', (
-        ('Ranní', 6, 14), ('Odpolední', 14, 22), ('Noční', 22, 30),
-    )),
+from orders.services.casy_smen_service import (
+    REPORT_TIMEZONE, _at_hour, _microseconds, _present_totals,
+    add_interval, build_shift_schemes, finish_shift_schemes,
 )
 
 
-def _at_hour(day, hour):
-    # Hranice směn jsou místní, délky intervalů se počítají v UTC i při změně času.
-    return datetime.combine(
-        day + timedelta(days=hour // 24), time(hour % 24), tzinfo=REPORT_TIMEZONE,
-    ).astimezone(datetime_timezone.utc)
-
-
-def _microseconds(duration):
-    return ((duration.days * 86400 + duration.seconds) * 1000000 + duration.microseconds)
-
-
-def _empty_totals():
-    return {'patra': Fraction(0), 'sarze': Fraction(0), 'microseconds': 0}
-
-
-def _present_totals(totals):
-    def decimal(value):
-        value = Fraction(value)
-        return Decimal(value.numerator) / Decimal(value.denominator)
-
-    return {
-        'patra': decimal(totals['patra']),
-        'sarze': decimal(totals['sarze']),
-        'hours': decimal(Fraction(totals['microseconds'], 3600000000)),
-    }
-
-
-def _add_interval(schemes, start, end, floor_count, *, closed):
-    duration = _microseconds(end - start)
-    for scheme in schemes:
-        for shift in scheme['rows']:
-            overlap = _microseconds(min(end, shift['end']) - max(start, shift['start']))
-            if overlap > 0:
-                share = Fraction(overlap, duration)
-                shift['totals']['patra'] += share
-                if closed:
-                    shift['totals']['sarze'] += share / floor_count
-                shift['totals']['microseconds'] += overlap
+FLOOR_DELETED_REASON = 'Smazání celého patra při nakládání.'
 
 
 def build_casy_nakladani_prehled(*, date_value=None, now=None):
@@ -72,21 +25,7 @@ def build_casy_nakladani_prehled(*, date_value=None, now=None):
     )
     window_start = _at_hour(date_value, 6)
     window_end = _at_hour(date_value, 30)
-    schemes = []
-    for key, title, shifts in SHIFT_SCHEMES:
-        schemes.append({
-            'key': key, 'title': title,
-            'rows': [
-                {
-                    'label': label,
-                    'time_label': f'{start % 24:02d}:00–{end % 24:02d}:00',
-                    'start': _at_hour(date_value, start),
-                    'end': _at_hour(date_value, end),
-                    'totals': _empty_totals(),
-                }
-                for label, start, end in shifts
-            ],
-        })
+    schemes = build_shift_schemes(date_value)
 
     history_before_end = SarzeKrokBedna.history.filter(
         krok_id=OuterRef('pk'), history_type='+', history_date__lt=window_end,
@@ -176,7 +115,10 @@ def build_casy_nakladani_prehled(*, date_value=None, now=None):
             start = starts[index]
             end = starts[index + 1] if index + 1 < len(floors) else finish
             if not error and end is not None:
-                _add_interval(schemes, start, end, len(floors), closed=closed)
+                add_interval(
+                    schemes, start, end, floors=1,
+                    batches=Fraction(1, len(floors)) if closed else 0,
+                )
             # U vadného kroku ukážeme všechna patra kvůli dohledání chyby.
             if not error and (
                 start >= min(window_end, now)
@@ -198,13 +140,7 @@ def build_casy_nakladani_prehled(*, date_value=None, now=None):
                 ),
             })
 
-    for scheme in schemes:
-        total = _empty_totals()
-        for row in scheme['rows']:
-            for field in total:
-                total[field] += row['totals'][field]
-            row.update(_present_totals(row.pop('totals')))
-        scheme['total'] = _present_totals(total)
+    finish_shift_schemes(schemes)
 
     return {
         'date': date_value, 'date_iso': date_value.isoformat(),

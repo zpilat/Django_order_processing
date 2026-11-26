@@ -1,0 +1,43 @@
+<div class="row">
+  {% for scheme in schemes %}
+    <div class="col-12 col-lg-6 mb-3">
+      <section class="card h-100 shadow-sm" aria-labelledby="{{ prefix }}-{{ scheme.key }}">
+        <h3 id="{{ prefix }}-{{ scheme.key }}" class="card-header h6 fw-bold mb-0">{{ scheme.title }}</h3>
+        <div class="card-body p-2">
+          <div class="table-responsive">
+            <table class="table table-sm table-striped align-middle mb-0">
+              <thead>
+                <tr>
+                  <th scope="col">Směna</th>
+                  <th scope="col" class="text-center">Patra</th>
+                  <th scope="col" class="text-center">Šarže</th>
+                  <th scope="col" class="text-center">Čas [hod.]</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in scheme.rows %}
+                  <tr>
+                    <th scope="row">{{ row.label }} <span class="text-nowrap">({{ row.time_label }})</span></th>
+                    <td class="text-center">{{ row.patra|floatformat:1 }}</td>
+                    <td class="text-center">{{ row.sarze|floatformat:1 }}</td>
+                    <td class="text-center">{{ row.hours|floatformat:1 }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+              {% if scheme.key == 'twelve' %}
+                <tfoot>
+                  <tr class="fw-bold">
+                    <th scope="row">Celkem 06:00–06:00</th>
+                    <td class="text-center">{{ scheme.total.patra|floatformat:1 }}</td>
+                    <td class="text-center">{{ scheme.total.sarze|floatformat:1 }}</td>
+                    <td class="text-center">{{ scheme.total.hours|floatformat:1 }}</td>
+                  </tr>
+                </tfoot>
+              {% endif %}
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+  {% endfor %}
+</div>

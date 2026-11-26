@@ -60,8 +60,10 @@ from .services.sarze_print_service import (
 from .services.history_service import history_transitions_to_qs, update_queryset_with_history
 from .services.kontrolori_prehled_service import build_kontrolori_prehled, DOKONCENI_KONTROLY_REASON
 from .services.casy_nakladani_service import (
-    build_casy_nakladani_prehled, FLOOR_DELETED_REASON, REPORT_TIMEZONE,
+    build_casy_nakladani_prehled, FLOOR_DELETED_REASON,
 )
+from .services.casy_smen_service import REPORT_TIMEZONE
+from .services.casy_vykladani_service import build_casy_vykladani_prehled
 from .services.evidence_neshod_service import zaznamenat_neshodu
 from .services.stav_bedny_service import (
     vyhodnotit_tryskani_pri_zakaleni, duvody_neuplne_kontroly,
@@ -4072,8 +4074,9 @@ def dashboard_vyroba_view(request):
 
 @login_required
 def dashboard_casy_nakladani_view(request):
-    """Časy nakládání pater a jejich poměrné rozdělení do obou režimů směn."""
-    today = timezone.localdate(timezone=REPORT_TIMEZONE)
+    """Časy nakládání a vykládání rozdělené do obou režimů směn."""
+    current_time = timezone.now()
+    today = timezone.localdate(current_time, timezone=REPORT_TIMEZONE)
     selected_date = today - timedelta(days=1)
     date_error = ''
     if 'datum' in request.GET:
@@ -4085,9 +4088,10 @@ def dashboard_casy_nakladani_view(request):
             selected_date = today - timedelta(days=1)
             date_error = 'Zadejte platné datum nejpozději dnešní. Zobrazen je včerejšek.'
     context = {
-        'casy_nakladani': build_casy_nakladani_prehled(date_value=selected_date),
+        'casy_nakladani': build_casy_nakladani_prehled(date_value=selected_date, now=current_time),
+        'casy_vykladani': build_casy_vykladani_prehled(date_value=selected_date, now=current_time),
         'db_table': 'dashboard_casy_nakladani',
-        'current_time': timezone.now(),
+        'current_time': current_time,
         'today_iso': today.isoformat(),
         'date_error': date_error,
     }

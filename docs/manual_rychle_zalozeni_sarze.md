@@ -50,7 +50,7 @@ Kamera potřebuje povolený přístup v prohlížeči. Když skenování nefungu
 
 ## 4. Uložení a pokračování
 
-Pro směnový **Přehled časů nakládání** je rozhodující první uložení patra. Po načtení první bedny proto patro rovnou uložte a pak začněte fyzicky nakládat. První uložení následujícího patra ukončí měřený interval předchozího patra. Oprava uložených beden nebo procent původní začátek neposouvá.
+Pro sekci Nakládání ve směnovém **Přehledu časů nakládání a vykládání** je rozhodující první uložení patra. Po načtení první bedny proto patro rovnou uložte a pak začněte fyzicky nakládat. První uložení následujícího patra ukončí měřený interval předchozího patra. Oprava uložených beden nebo procent původní začátek neposouvá.
 
 | Tlačítko | Výsledek |
 | --- | --- |
@@ -79,7 +79,7 @@ V přehledu vidíte přípravek, pracoviště, operátora, začátek a rozložen
 
 Datum a čas konce se vyplňují společně. Konec nesmí být před začátkem; při práci přes půlnoc zadejte správné datum konce. Konec lze uložit až po přidání alespoň jedné bedny. Uzavřený krok už není dostupný pro zadávání pater a tisk přes tento rychlý přehled.
 
-Konec Nakládání doplňte ihned po dokončení posledního patra; určuje konec jeho měřeného intervalu. Rozdělení pater a podílů šarží mezi 12hodinové a 8hodinové směny najdete v [Přehledu časů nakládání](manual_prehledy_a_ukazatele.md#přehled-časů-nakládání). Smazání celého patra tlačítkem se od běžné úpravy rozložení odlišuje důvodem v auditní historii; jeho pozdější nové založení začne nový interval.
+Konec Nakládání doplňte ihned po dokončení posledního patra; určuje konec jeho měřeného intervalu. Rozdělení pater a podílů šarží mezi 12hodinové a 8hodinové směny najdete v [Přehledu časů nakládání a vykládání](manual_prehledy_a_ukazatele.md#přehled-časů-nakládání-a-vykládání). Smazání celého patra tlačítkem se od běžné úpravy rozložení odlišuje důvodem v auditní historii; jeho pozdější nové založení začne nový interval.
 
 ## 7. Oprávnění a běžné problémy
 
