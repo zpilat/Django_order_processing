@@ -17,6 +17,7 @@ class CasyVykladaniTests(TestCase):
     day = date(2026, 11, 24)
     tz = ZoneInfo('Europe/Prague')
     now = datetime(2026, 11, 26, 12, tzinfo=tz)
+    minute_tail = Decimal('59.999999')
 
     def setUp(self):
         self.devices = {}
@@ -57,12 +58,13 @@ class CasyVykladaniTests(TestCase):
         top.save()
         report = self.report()
         day, night = self.scheme(report)['rows']
-        self.assertEqual(day['sarze'], Decimal(1) / 3)
-        self.assertEqual(night['sarze'], Decimal(2) / 3)
-        self.assertEqual(day['patra'], 1)
-        self.assertEqual(night['patra'], 2)
+        day_share = Decimal(1800) / (5400 + self.minute_tail)
+        self.assertEqual(day['sarze'], day_share)
+        self.assertAlmostEqual(night['sarze'], 1 - day_share, places=20)
+        self.assertAlmostEqual(day['patra'], 3 * day_share, places=20)
+        self.assertAlmostEqual(night['patra'], 3 * (1 - day_share), places=20)
         self.assertEqual(day['hours'], Decimal('.5'))
-        self.assertEqual(night['hours'], 1)
+        self.assertEqual(night['hours'], 1 + self.minute_tail / 3600)
         self.assertEqual(self.scheme(report)['total'], self.scheme(report, 'eight')['total'])
         self.assertEqual(report['details'][0]['floor_count'], 3)
 
@@ -71,8 +73,13 @@ class CasyVykladaniTests(TestCase):
         self.step('2026-11-24T21:30', '2026-11-24T22:30', floors=2)
         report = self.report()
         rows = self.scheme(report, 'eight')['rows']
-        self.assertEqual([row['patra'] for row in rows], [2, 3, 1])
-        self.assertEqual([row['sarze'] for row in rows], [Decimal('.5'), 1, Decimal('.5')])
+        before_boundary = Decimal(1800) / (3600 + self.minute_tail)
+        expected = ((4 * before_boundary, before_boundary),
+                    (4 - 2 * before_boundary, Decimal(1)),
+                    (2 * (1 - before_boundary), 1 - before_boundary))
+        for row, (floors, batches) in zip(rows, expected):
+            self.assertAlmostEqual(row['patra'], floors, places=20)
+            self.assertAlmostEqual(row['sarze'], batches, places=20)
         self.assertEqual(self.scheme(report)['total']['patra'], 6)
         self.assertEqual(self.scheme(report)['total']['sarze'], 2)
         self.assertEqual(self.scheme(report)['total'], self.scheme(report, 'eight')['total'])
@@ -81,28 +88,30 @@ class CasyVykladaniTests(TestCase):
         self.step('2026-11-24T22:00', '2026-11-25T07:00', floors=4)
         current = self.scheme(self.report())['total']
         following = self.scheme(self.report(self.day + timedelta(days=1)))['total']
-        self.assertEqual(current['sarze'], Decimal(8) / 9)
+        self.assertEqual(current['sarze'], Decimal(28800) / (32400 + self.minute_tail))
         self.assertEqual(current['hours'], 8)
-        self.assertEqual(following['sarze'], Decimal(1) / 9)
-        self.assertEqual(following['hours'], 1)
+        self.assertEqual(following['sarze'], (3600 + self.minute_tail) / (32400 + self.minute_tail))
+        self.assertEqual(following['hours'], 1 + self.minute_tail / 3600)
         self.assertEqual(current['patra'] + following['patra'], 4)
 
     def test_step_started_before_selected_day_is_included(self):
         self.step('2026-11-23T22:00', '2026-11-24T10:00', floors=3)
         day, night = self.scheme(self.report())['rows']
-        self.assertEqual(day['sarze'], Decimal(1) / 3)
-        self.assertEqual(day['patra'], 1)
-        self.assertEqual(day['hours'], 4)
+        day_share = (14400 + self.minute_tail) / (43200 + self.minute_tail)
+        self.assertEqual(day['sarze'], day_share)
+        self.assertAlmostEqual(day['patra'], 3 * day_share, places=20)
+        self.assertEqual(day['hours'], 4 + self.minute_tail / 3600)
         self.assertEqual(night['sarze'], 0)
 
-    def test_exact_six_boundaries_exclude_adjacent_intervals(self):
+    def test_closing_minute_at_six_belongs_to_the_next_reporting_day(self):
         self.step('2026-11-23T22:00', '2026-11-24T06:00')
         self.step('2026-11-24T06:00', '2026-11-24T07:00', floors=2)
         self.step('2026-11-25T06:00', '2026-11-25T07:00')
         report = self.report()
-        self.assertEqual(len(report['details']), 1)
-        self.assertEqual(self.scheme(report)['total']['sarze'], 1)
-        self.assertEqual(self.scheme(report)['total']['patra'], 2)
+        self.assertEqual(len(report['details']), 2)
+        tail_share = self.minute_tail / (28800 + self.minute_tail)
+        self.assertEqual(self.scheme(report)['total']['sarze'], 1 + tail_share)
+        self.assertAlmostEqual(self.scheme(report)['total']['patra'], 2 + 3 * tail_share, places=20)
 
     def test_open_step_waits_for_end_then_backfills_its_original_day(self):
         step = self.step('2026-11-24T17:30')
@@ -124,7 +133,7 @@ class CasyVykladaniTests(TestCase):
 
     def test_missing_floors_and_invalid_times_do_not_contribute(self):
         self.step('2026-11-24T09:00', '2026-11-24T10:00', floors=0)
-        self.step('2026-11-24T11:00', '2026-11-24T11:00')
+        self.step('2026-11-24T11:00', '2026-11-24T10:59')
         self.step('2026-11-24T13:00', '2026-11-24T12:00')
         self.step('2026-11-24T14:00', '2026-11-27T15:00')
         report = self.report()
@@ -176,8 +185,39 @@ class CasyVykladaniTests(TestCase):
                 report = self.report(date.fromisoformat(day))
                 for scheme in report['schemes']:
                     self.assertEqual(scheme['rows'][-1]['hours'], expected)
-                    self.assertEqual(scheme['rows'][-1]['sarze'], 1)
-                    self.assertEqual(scheme['rows'][-1]['patra'], 2)
+                    share = Decimal(expected * 3600) / (expected * 3600 + self.minute_tail)
+                    self.assertEqual(scheme['rows'][-1]['sarze'], share)
+                    self.assertAlmostEqual(scheme['rows'][-1]['patra'], 2 * share, places=20)
+                following = self.scheme(self.report(date.fromisoformat(next_day)))['total']
+                self.assertEqual(self.scheme(report)['total']['sarze'] + following['sarze'], 1)
+
+    def test_step_started_and_finished_in_the_same_minute_counts_the_whole_minute(self):
+        step = self.step('2026-11-24T17:59:00', '2026-11-24T17:59:00')
+        report = self.report()
+        self.assertEqual(report['invalid_steps'], 0)
+        self.assertEqual(self.scheme(report)['rows'][0]['sarze'], 1)
+        self.assertEqual(self.scheme(report)['rows'][0]['patra'], 3)
+        self.assertEqual(self.scheme(report)['rows'][1]['sarze'], 0)
+        self.assertEqual(report['details'][0]['end'], self.instant('2026-11-24T17:59:59.999999'))
+        step.refresh_from_db()
+        self.assertEqual(step.konec, self.instant('2026-11-24T17:59:00').time())
+
+    def test_original_seconds_are_replaced_instead_of_adding_another_minute(self):
+        self.step('2026-11-24T09:59', '2026-11-24T10:00:40')
+        row = self.report()['details'][0]
+        self.assertEqual(row['end'], self.instant('2026-11-24T10:00:59.999999'))
+        self.assertEqual(row['recorded_end'], self.instant('2026-11-24T10:00:40'))
+
+    def test_future_validation_uses_original_end_for_just_closed_unloading(self):
+        self.step('2026-11-24T17:00', '2026-11-24T17:59')
+        now = self.instant('2026-11-24T17:59:20')
+        report = build_casy_vykladani_prehled(date_value=self.day, now=now)
+        self.assertEqual(report['invalid_steps'], 0)
+        self.assertGreater(report['details'][0]['end'], now)
+        self.step('2026-11-24T17:10', '2026-11-24T17:59:50')
+        report = build_casy_vykladani_prehled(date_value=self.day, now=now)
+        self.assertEqual(report['invalid_steps'], 1)
+        self.assertEqual(report['details'][1]['status'], 'Konec vykládání je v budoucnosti.')
 
     def test_query_count_is_constant_and_report_does_not_modify_evidence(self):
         for _ in range(3):

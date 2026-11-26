@@ -28,6 +28,11 @@ def _microseconds(duration):
     return (duration.days * 86400 + duration.seconds) * 1000000 + duration.microseconds
 
 
+def end_of_minute(value):
+    """Konec zadané minuty pouze pro výpočet; nemění uložený údaj."""
+    return value.replace(second=59, microsecond=999999)
+
+
 def _empty_totals():
     return {'patra': Fraction(0), 'sarze': Fraction(0), 'microseconds': 0}
 

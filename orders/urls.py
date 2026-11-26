@@ -11,6 +11,7 @@ from .views import (
     dashboard_kamiony_view,
     dashboard_vyroba_view,
     dashboard_casy_nakladani_view,
+    dashboard_casy_smen_csv_view,
     dashboard_vyroba_historie_view,
     dashboard_vyroba_historie_mesic_view,
     dashboard_rovnani_historie_view,
@@ -61,6 +62,7 @@ urlpatterns = [
     path('dashboard/kamiony/', dashboard_kamiony_view, name='dashboard_kamiony'),    
     path('dashboard/vyroba/', dashboard_vyroba_view, name='dashboard_vyroba'),
     path('dashboard/casy-nakladani/', dashboard_casy_nakladani_view, name='dashboard_casy_nakladani'),
+    path('dashboard/casy-nakladani/export-mesic.csv', dashboard_casy_smen_csv_view, name='dashboard_casy_smen_csv'),
     path(
         'dashboard/vyroba/historie/',
         dashboard_vyroba_historie_view,

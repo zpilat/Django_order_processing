@@ -86,7 +86,7 @@ Speciální práva pro pozastavené, nepřijaté a expedované bedny přidělujt
 | Operace v provozních obrazovkách | Potřebná oprávnění |
 | --- | --- |
 | Přehled pracovišť, rychlý přehled šarže a náhled průvodky | `view_sarzekrok` **a** `view_sarzekrokbedna`. |
-| Přehled časů nakládání a vykládání | Přihlášený uživatel, bez dalšího modelového oprávnění. Odkaz v administraci vyžaduje také staff; odkaz na detail kroku v obou sekcích navíc `view_sarzekrok`. Přehled neumožňuje upravovat časy ani historii. |
+| Přehled časů nakládání a vykládání a měsíční CSV pater | Přihlášený uživatel, bez dalšího modelového oprávnění. Odkaz v administraci vyžaduje také staff; odkaz na detail kroku v obou sekcích navíc `view_sarzekrok`. Přehled ani export neumožňují upravovat časy nebo historii. |
 | Rychlé založení šarže a prvního kroku | `add_sarze`, `add_sarzekrok`, `add_sarzekrokbedna`. Pro následné zadávání patra doplňte také change_sarzekrokbedna a pro přehled obě view práva. |
 | Zadání a úprava patra | `add_sarzekrokbedna` **a** `change_sarzekrokbedna`. |
 | Smazání posledního patra v rychlém zadávání | K právům pro úpravu patra navíc `delete_sarzekrokbedna_patro`. Není to běžné delete_sarzekrokbedna. |

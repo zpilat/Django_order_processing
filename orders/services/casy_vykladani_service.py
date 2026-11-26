@@ -9,7 +9,7 @@ from orders.choices import TypZarizeniChoice
 from orders.models import SarzeKrok
 from orders.services.casy_smen_service import (
     REPORT_TIMEZONE, _at_hour, _microseconds, _present_totals,
-    add_interval, build_shift_schemes, finish_shift_schemes,
+    add_interval, build_shift_schemes, end_of_minute, finish_shift_schemes,
 )
 
 
@@ -35,7 +35,7 @@ def build_casy_vykladani_prehled(*, date_value=None, now=None):
         .filter(
             Q(datum_konce__isnull=True) | Q(konec__isnull=True)
             | Q(datum_konce__gt=date_value)
-            | Q(datum_konce=date_value, konec__gt=time(6))
+            | Q(datum_konce=date_value, konec__gte=time(6))
             | starts_in_window
         )
         .select_related('sarze', 'zarizeni')
@@ -63,11 +63,12 @@ def build_casy_vykladani_prehled(*, date_value=None, now=None):
             if step.datum is not None and step.zacatek is not None else None
         )
         closed = step.datum_konce is not None and step.konec is not None
-        end = (
+        recorded_end = (
             datetime.combine(step.datum_konce, step.konec, tzinfo=REPORT_TIMEZONE)
             .astimezone(datetime_timezone.utc)
             if closed else None
         )
+        end = end_of_minute(recorded_end) if closed else None
         if start is not None and start >= min(window_end, now):
             continue
         if end is not None and end <= window_start and (start is None or end > start):
@@ -82,7 +83,7 @@ def build_casy_vykladani_prehled(*, date_value=None, now=None):
             error = 'Chybí datum nebo čas konce vykládání.'
         elif closed and end <= start:
             error = 'Konec vykládání není po začátku kroku.'
-        elif closed and end > now:
+        elif closed and recorded_end > now:
             error = 'Konec vykládání je v budoucnosti.'
 
         hours = None
@@ -105,6 +106,7 @@ def build_casy_vykladani_prehled(*, date_value=None, now=None):
         details.append({
             'step': step, 'floor_count': step.floor_count,
             'start': start, 'end': end, 'hours': hours,
+            'recorded_end': recorded_end,
             'invalid': bool(error), 'status': status, 'repeated': repeated,
         })
 

@@ -163,11 +163,17 @@ Sekce Nakládání zahrnuje všechna pracoviště typu **Nakládání**. Sekce V
 2. Konec je první uložení následujícího patra. Patra se řadí podle čísla.
 3. Poslední patro končí evidovaným datem a časem konce kroku Nakládání; konec se doplní ihned po dokončení práce.
 
+**Celá koncová minuta:** Pro přehled a měsíční CSV se konec Nakládání i Vykládání/Tryskače vyhodnocuje jako konec zadané minuty, tedy **HH:MM:59,999999**. Například zadaných 08:10 znamená pro výpočet 08:10:59,999999. Sekundy se nastaví na konec téže minuty i tehdy, pokud je uložený čas už obsahuje; nepřičítá se dalších 59 sekund, které by ho posunuly do následující minuty. Zadané časy v databázi a historii se nemění. Začátky pater a mezilehlé konce podle založení dalšího patra zůstávají přesné.
+
+Pravidlo toleruje první uložení posledního patra až do koncové minuty, například 08:10:59,5 při zadaném konci 08:10. Větší nesoulad nadále vyřadí krok. Kontrola budoucího konce používá původní zadaný údaj, aby právě ukončený krok nebyl chybný jen kvůli dopočteným sekundám do konce minuty. Nulová nebo záporná délka i po této úpravě zůstává neplatná; začátek a konec zadané ve stejné minutě mohou pro přehled tvořit platný interval.
+
+Koncová minuta se rozdělí podle stejných hranic směn jako zbytek práce. Konec zadaný v 18:00 proto zasáhne i noční směnu, konec v 06:00 začátek následujícího dne přehledu. Denní a měsíční okna stále začínají i končí přesně v 06:00. Hodiny a přesné podíly se mohou proti výpočtu bez koncové minuty mírně změnit.
+
 Běžná úprava patra jeho původní začátek neposouvá, i když technicky smaže a znovu vytvoří řádky deníku. Výpočet hledá i mezi historickými záznamy již smazaných řádků. Nové použití tlačítka **Smazat patro** má v historii důvod **Smazání celého patra při nakládání.** Pokud se stejné číslo patra později znovu založí, použije se až jeho nové první uložení. Starší smazání celého patra a neoznačené ruční zásahy v administraci nelze spolehlivě odlišit od technické náhrady řádků; u stejného čísla patra se v takovém případě zachová první dochované vytvoření. Historie se zpětně nepřepisuje.
 
 **Výpočet sloupců pro nakládání:**
 
-- **Patra**: pro každý dokončený interval se započte poměr délky jeho překryvu se směnou k celé délce intervalu. Například 17:40–18:20 znamená 0,50 patra denní a 0,50 patra noční směně.
+- **Patra**: pro každý dokončený interval se započte poměr délky jeho překryvu se směnou k celé délce intervalu. Například u posledního patra 17:40–18:20 se počítá do 18:20:59,999999; přesné podíly jsou přibližně 0,488 denní a 0,512 noční směně, obě zobrazené jako 0,5 patra.
 - **Šarže**: podíl pater se pro každý uzavřený krok Nakládání dělí jeho skutečným konečným počtem různých pater. Například 2,4 ze 4 pater představuje 0,6 šarže. Celý platný uzavřený krok se napříč všemi zasaženými dny a směnami sečte na 1,0 šarže. Nepoužívá se pevný dělitel 6, maximální číslo patra ani průměrný počet pater všech šarží. Případné opakované kroky Nakládání stejné šarže se vyhodnocují samostatně.
 - **Čas [hod.]**: součet překryvů intervalů nakládání se směnou ze všech pracovišť. Zahrnuje čekání a přestávky uvnitř intervalu. Při souběhu pracovišť může přesáhnout délku směny; nejde o osobní odpracované hodiny.
 
@@ -175,11 +181,11 @@ V obou sekcích se počítá z přesných délek intervalů a zaokrouhluje se a�
 
 U rozpracovaného Nakládání se započtou jen patra se známým koncem. Otevřené poslední patro čeká na další patro nebo konec kroku. **Podíly šarží** se doplní až po uzavření celého Nakládání, protože teprve tehdy je znám konečný počet pater. Dřívější výsledky se proto mohou dodatečně doplnit nebo změnit po opravě evidence.
 
-Pod souhrny je rozpis **Časy nakládání jednotlivých pater** se šarží, krokem, pracovištěm, číslem patra, celým začátkem a koncem, celou délkou intervalu a stavem započtení. Celé intervaly v rozpisu mohou přesahovat vybrané období; souhrny obsahují pouze jejich překryv s obdobím. Prázdné kroky, chybějící první uložení, nerostoucí začátky pater nebo neplatný konec se označí a celý dotčený krok se ze součtů vyřadí. Chybějící časy se neodhadují ze začátku kroku ani z pozdějších úprav. Odkaz na administraci kroku je dostupný pouze staff uživateli s právem `view_sarzekrok`.
+Pod souhrny je rozpis **Časy nakládání jednotlivých pater** se šarží, krokem, pracovištěm, číslem patra, celým začátkem, **Koncem pro výpočet**, celou délkou intervalu a stavem započtení. U posledního patra je v nápovědě vypočteného konce také původní zadaný konec kroku. Celé intervaly v rozpisu mohou přesahovat vybrané období; souhrny obsahují pouze jejich překryv s obdobím. Prázdné kroky, chybějící první uložení, nerostoucí začátky pater nebo neplatný konec se označí a celý dotčený krok se ze součtů vyřadí. Chybějící časy se neodhadují ze začátku kroku ani z pozdějších úprav. Odkaz na administraci kroku je dostupný pouze staff uživateli s právem `view_sarzekrok`.
 
 **Vykládání na typech Vykládání a Tryskač:**
 
-Procentuální rozdělení vychází z celého intervalu **Datum začátku + Začátek → Datum konce + Konec** daného kroku. Práce se považuje za rovnoměrnou na obou typech pracovišť. Časy vytvoření řádků deníku ani historie jednotlivých pater zde začátek neurčují. Počet pater je počet různých čísel pater v obsahu vykládacího kroku; běžný přesun je kopíruje z předchozího kroku. Více beden na stejném patře počet nezvyšuje a nejde o nejvyšší číslo patra.
+Procentuální rozdělení vychází z celého intervalu **Datum začátku + Začátek → Datum konce + konec zadané minuty** daného kroku. Práce se považuje za rovnoměrnou na obou typech pracovišť. Časy vytvoření řádků deníku ani historie jednotlivých pater zde začátek neurčují. Počet pater je počet různých čísel pater v obsahu vykládacího kroku; běžný přesun je kopíruje z předchozího kroku. Více beden na stejném patře počet nezvyšuje a nejde o nejvyšší číslo patra.
 
 | Sloupec | Výpočet |
 | --- | --- |
@@ -187,13 +193,27 @@ Procentuální rozdělení vychází z celého intervalu **Datum začátku + Za�
 | Patra | Počet různých pater v obsahu kroku × uvedený časový podíl. |
 | Čas [hod.] | Délka překryvu celého kroku se směnou; součet ze všech pracovišť, včetně čekání a přestávek uvnitř kroku. |
 
-Například vykládání třípatrové šarže 17:30–19:00 trvá 90 minut. Denní směna dostane 30/90 šarže a 1,0 patra, noční 60/90 šarže a 2,0 patra; na obrazovce jsou šarže zaokrouhlené na 0,3 a 0,7. Jde o časový odhad pater, protože jejich skutečné dílčí časy nejsou evidované.
+Například vykládání třípatrové šarže 17:30–19:00 se pro výpočet prodlouží do 19:00:59,999999, tedy na téměř 91 minut. Denní směna dostane podíl za 30 minut a noční za téměř 61 minut; na obrazovce se zobrazí 0,3 a 0,7 šarže a 1,0 a 2,0 patra. Jde o časový odhad pater, protože jejich skutečné dílčí časy nejsou evidované.
 
-**Neukončené vykládání** se zobrazí jako rozpracované. Šarže, patra ani hodiny se nezapočtou, dokud není znám konec celého kroku. Po uzavření se výkon zpětně rozdělí do všech zasažených směn a dní. Krok bez evidovaných pater, bez platného začátku, s neúplným koncem, nulovou nebo zápornou délkou nebo koncem v budoucnosti se označí a ze součtů vyřadí. Počet pater se nenahrazuje šestkou ani se neodhaduje podle jiného kroku.
+**Neukončené vykládání** se zobrazí jako rozpracované. Šarže, patra ani hodiny se nezapočtou, dokud není znám konec celého kroku. Po uzavření se výkon zpětně rozdělí do všech zasažených směn a dní. Krok bez evidovaných pater, bez platného začátku, s neúplným koncem, nulovou nebo zápornou délkou i po započtení koncové minuty nebo původním zadaným koncem v budoucnosti se označí a ze součtů vyřadí. Počet pater se nenahrazuje šestkou ani se neodhaduje podle jiného kroku.
 
 Pokud má šarže více kroků typu Vykládání nebo Tryskač, zobrazí se upozornění a dotčené řádky jsou zvýrazněné. Kontrola hledá všechny tyto kroky šarže, i mimo vybraný den. **Každý platný dokončený krok se započte samostatně**; přehled automaticky neurčuje, který je duplicitní. Ověřte, zda evidence zachycuje skutečné opakované zpracování, nebo vyžaduje opravu duplicity. Počet Šarže je tedy součtem vykládacích průchodů, nikoli počtem jedinečných čísel šarží.
 
-Rozpis **Časy vykládání šarží** obsahuje šarži a krok, pracoviště včetně typu, počet pater celého kroku, celý začátek a konec, celou délku intervalu a stav započtení. Stejně jako u nakládání souhrny obsahují pouze překryv s vybraným obdobím. Odkaz na administraci kroku má stejná omezení jako u nakládání. Vykládací statistika není vázaná na aktuální výrobní stav šarže ani beden.
+Rozpis **Časy vykládání šarží** obsahuje šarži a krok, pracoviště včetně typu, počet pater celého kroku, celý začátek, **Konec pro výpočet**, celou délku intervalu a stav započtení. V nápovědě vypočteného konce je původní zadaná hodnota. Stejně jako u nakládání souhrny obsahují pouze překryv s vybraným obdobím. Odkaz na administraci kroku má stejná omezení jako u nakládání. Vykládací statistika není vázaná na aktuální výrobní stav šarže ani beden.
+
+**Měsíční export pater do CSV:**
+
+Tlačítko **CSV za MM/RRRR** v horním záhlaví stáhne soubor `patra_smeny_RRRR-MM.csv` za poslední celý uplynulý měsíc směn. Zvolený den v přehledu období exportu nemění. Interval začíná **v 06:00 prvního dne měsíce** a končí **v 06:00 prvního dne následujícího měsíce**. Například říjen zahrnuje 1. 10. 06:00 až 1. 11. 06:00. Nový měsíc je uzavřený teprve po konci poslední noční směny: 1. 12. v 05:59 se stále exportuje říjen, od 06:00 už listopad. Rozhoduje čas **Europe/Prague**.
+
+CSV má jeden řádek pro každý den začátku směn v měsíci, vzestupně a včetně nulových dní. Obsahuje 12 sloupců:
+
+1. **Datum směn** ve formátu DD.MM.RRRR.
+2. Dvojici **Naložená patra / Vyložená patra** pro každou směnu v pořadí **12h 06–18, 12h 18–06, 8h 06–14, 8h 14–22, 8h 22–06** (celkem deset číselných sloupců).
+3. **Stav evidence**: `OK`, nebo počty známých chybných a neuzavřených kroků Nakládání/Vykládání a šarží s opakovanými vykládacími průchody pro daný den. Více upozornění je v jedné buňce oddělených středníkem.
+
+Noční směna každého řádku končí v 06:00 následujícího dne; u posledního řádku už v dalším měsíci. Export používá přesně stejné výpočty a pravidla započtení jako denní přehled, včetně celé koncové minuty kroku, překryvů z předchozího měsíce, rovnoměrného vykládání, neuzavřených kroků a změny letního a zimního času. Okno měsíce zůstává přesně 06:00–06:00: část koncové minuty ležící za hranicí měsíce už náleží následujícímu měsíci. Hodnoty pater mají **jedno desetinné místo a desetinnou čárku**, nulové hodnoty jsou `0,0`. Oba režimy směn zachycují stejnou práci a při dalším zpracování CSV se nesčítají dohromady.
+
+Soubor používá **UTF-8 s BOM, oddělovač středník a konce řádků CRLF**, aby se správně otevřel v českém Excelu. Export se vytvoří při stažení z aktuální evidence a nemění data ani auditní historii. Po doplnění konců nebo opravě výrobní evidence se mohou hodnoty při opakovaném stažení změnit. Přístup má přihlášený uživatel stejně jako do přehledu; soubor se stáhne do počítače uživatele a automatické měsíční vytváření na serveru není nastavené.
 
 ## 7. Historie výroby: průměry, vytížení a prostoje
 

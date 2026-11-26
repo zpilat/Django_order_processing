@@ -81,6 +81,8 @@ Datum a čas konce se vyplňují společně. Konec nesmí být před začátkem;
 
 Konec Nakládání doplňte ihned po dokončení posledního patra; určuje konec jeho měřeného intervalu. Rozdělení pater a podílů šarží mezi 12hodinové a 8hodinové směny najdete v [Přehledu časů nakládání a vykládání](manual_prehledy_a_ukazatele.md#přehled-časů-nakládání-a-vykládání). Smazání celého patra tlačítkem se od běžné úpravy rozložení odlišuje důvodem v auditní historii; jeho pozdější nové založení začne nový interval.
 
+Přehled a jeho CSV tolerují minutovou přesnost zadaného konce: pro výpočet použijí konec této minuty (HH:MM:59,999999). Zadaný konec ani historie se tím nepřepisují; tato úprava nemění časy v provozním detailu ani pravidla ukládání kroku.
+
 ## 7. Oprávnění a běžné problémy
 
 | Operace | Oprávnění v aplikaci `orders` |

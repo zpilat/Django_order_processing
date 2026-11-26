@@ -63,6 +63,7 @@ from .services.casy_nakladani_service import (
     build_casy_nakladani_prehled, FLOOR_DELETED_REASON,
 )
 from .services.casy_smen_service import REPORT_TIMEZONE
+from .services.casy_smen_export_service import build_mesicni_export_pater, last_complete_shift_month
 from .services.casy_vykladani_service import build_casy_vykladani_prehled
 from .services.evidence_neshod_service import zaznamenat_neshodu
 from .services.stav_bedny_service import (
@@ -4087,9 +4088,12 @@ def dashboard_casy_nakladani_view(request):
         except (TypeError, ValueError):
             selected_date = today - timedelta(days=1)
             date_error = 'Zadejte platné datum nejpozději dnešní. Zobrazen je včerejšek.'
+    export_month, export_end = last_complete_shift_month(now=current_time)
     context = {
         'casy_nakladani': build_casy_nakladani_prehled(date_value=selected_date, now=current_time),
         'casy_vykladani': build_casy_vykladani_prehled(date_value=selected_date, now=current_time),
+        'export_month': export_month,
+        'export_end': export_end,
         'db_table': 'dashboard_casy_nakladani',
         'current_time': current_time,
         'today_iso': today.isoformat(),
@@ -4098,6 +4102,17 @@ def dashboard_casy_nakladani_view(request):
     if request.htmx:
         return render(request, 'orders/partials/dashboard_casy_nakladani_content.html', context)
     return render(request, 'orders/dashboard_casy_nakladani.html', context)
+
+
+@login_required
+@require_http_methods(['GET'])
+@never_cache
+def dashboard_casy_smen_csv_view(request):
+    """Export posledního celého měsíce směn; nezávisí na datu denního přehledu."""
+    export = build_mesicni_export_pater()
+    response = HttpResponse(export['content'], content_type='text/csv; charset=utf-8')
+    response['Content-Disposition'] = f'attachment; filename="{export["filename"]}"'
+    return response
 
 
 @login_required

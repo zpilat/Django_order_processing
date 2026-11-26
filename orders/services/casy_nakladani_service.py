@@ -11,7 +11,7 @@ from orders.choices import TypZarizeniChoice
 from orders.models import SarzeKrok, SarzeKrokBedna
 from orders.services.casy_smen_service import (
     REPORT_TIMEZONE, _at_hour, _microseconds, _present_totals,
-    add_interval, build_shift_schemes, finish_shift_schemes,
+    add_interval, build_shift_schemes, end_of_minute, finish_shift_schemes,
 )
 
 
@@ -38,7 +38,7 @@ def build_casy_nakladani_prehled(*, date_value=None, now=None):
         .filter(
             Q(datum_konce__isnull=True) | Q(konec__isnull=True)
             | Q(datum_konce__gt=date_value)
-            | Q(datum_konce=date_value, konec__gt=time(6))
+            | Q(datum_konce=date_value, konec__gte=time(6))
         )
         .select_related('sarze', 'zarizeni')
         .order_by('sarze__cislo_sarze', 'poradi', 'pk')
@@ -73,11 +73,12 @@ def build_casy_nakladani_prehled(*, date_value=None, now=None):
         floors = sorted(floors_by_step[step.pk])
         starts = [first_saves.get((step.pk, floor)) for floor in floors]
         closed = step.datum_konce is not None and step.konec is not None
-        finish = (
+        recorded_finish = (
             datetime.combine(step.datum_konce, step.konec, tzinfo=REPORT_TIMEZONE)
             .astimezone(datetime_timezone.utc)
             if closed else None
         )
+        finish = end_of_minute(recorded_finish) if closed else None
         known_starts = [start for start in starts if start is not None]
         # Chybějící historii zobrazujeme jen u kroku, který mohl zasáhnout období.
         evidence_start = min(known_starts) if known_starts else (
@@ -99,7 +100,7 @@ def build_casy_nakladani_prehled(*, date_value=None, now=None):
             error = 'Začátky pater nejsou v rostoucím pořadí.'
         elif closed and finish <= starts[-1]:
             error = 'Konec nakládání není po začátku posledního patra.'
-        elif closed and finish > now:
+        elif closed and recorded_finish > now:
             error = 'Konec nakládání je v budoucnosti.'
         if error:
             invalid_steps += 1
@@ -109,6 +110,7 @@ def build_casy_nakladani_prehled(*, date_value=None, now=None):
         if not floors:
             details.append({
                 'step': step, 'floor': None, 'start': evidence_start, 'end': finish,
+                'recorded_end': recorded_finish,
                 'hours': None, 'status': error, 'invalid': True,
             })
         for index, floor in enumerate(floors):
@@ -131,6 +133,7 @@ def build_casy_nakladani_prehled(*, date_value=None, now=None):
             )
             details.append({
                 'step': step, 'floor': floor, 'start': start, 'end': end,
+                'recorded_end': recorded_finish if index == len(floors) - 1 else None,
                 'hours': hours, 'invalid': bool(error),
                 'status': error or (
                     'Započteno' if closed else (

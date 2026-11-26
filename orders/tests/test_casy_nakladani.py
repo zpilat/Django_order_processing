@@ -1,5 +1,6 @@
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
+from fractions import Fraction
 from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
@@ -20,6 +21,7 @@ class CasyNakladaniTests(TestCase):
     day = date(2026, 11, 24)
     tz = ZoneInfo('Europe/Prague')
     now = datetime(2026, 11, 26, 12, tzinfo=tz)
+    minute_tail = Decimal('59.999999')
 
     def setUp(self):
         self.device = Zarizeni.objects.create(
@@ -67,14 +69,18 @@ class CasyNakladaniTests(TestCase):
         report = self.report()
         twelve = self.scheme(report, 'twelve')
         eight = self.scheme(report, 'eight')
-        self.assertEqual([r['patra'] for r in twelve['rows']], [Decimal('3.5'), Decimal('.5')])
-        self.assertEqual([r['sarze'] for r in twelve['rows']], [Decimal('.875'), Decimal('.125')])
+        # Poslední patro trvá 40 minut a téměř 60 sekund, z toho 20 minut v denní.
+        day_share = Decimal(1200) / (2400 + self.minute_tail)
+        self.assertAlmostEqual(twelve['rows'][0]['patra'], 3 + day_share, places=20)
+        self.assertAlmostEqual(twelve['rows'][1]['patra'], 1 - day_share, places=20)
+        self.assertAlmostEqual(twelve['rows'][0]['sarze'], (3 + day_share) / 4, places=20)
+        self.assertAlmostEqual(twelve['rows'][1]['sarze'], (1 - day_share) / 4, places=20)
         self.assertEqual([r['patra'] for r in eight['rows']], [Decimal('1.5'), Decimal('2.5'), 0])
         self.assertEqual([r['sarze'] for r in eight['rows']], [Decimal('.375'), Decimal('.625'), 0])
         self.assertEqual(twelve['total'], eight['total'])
         self.assertEqual(twelve['total']['patra'], 4)
         self.assertEqual(twelve['total']['sarze'], 1)
-        self.assertEqual(twelve['total']['hours'], 5)
+        self.assertAlmostEqual(twelve['total']['hours'], 5 + self.minute_tail / 3600, places=20)
         self.assertEqual(len(report['details']), 4)
 
     def test_two_point_four_of_four_floors_is_point_six_batches(self):
@@ -108,9 +114,10 @@ class CasyNakladaniTests(TestCase):
         self.create_loading(['2026-11-24T17:00'], '2026-11-24T19:00')
         self.create_loading(['2026-11-24T07:00', '2026-11-24T08:00'], '2026-11-24T09:00')
         rows = self.scheme(self.report(), 'twelve')['rows']
-        self.assertEqual(rows[0]['patra'], Decimal('2.5'))
-        self.assertEqual(rows[0]['sarze'], Decimal('1.5'))
-        self.assertEqual(rows[1]['sarze'], Decimal('.5'))
+        day_share = Decimal(3600) / (7200 + self.minute_tail)
+        self.assertAlmostEqual(rows[0]['patra'], 2 + day_share, places=20)
+        self.assertAlmostEqual(rows[0]['sarze'], 1 + day_share, places=20)
+        self.assertAlmostEqual(rows[1]['sarze'], 1 - day_share, places=20)
 
     def test_first_history_survives_replacing_rows_and_multiple_items_on_one_floor(self):
         step = self.create_loading(['2026-11-24T17:00', '2026-11-24T19:00'], '2026-11-24T20:00')
@@ -165,24 +172,37 @@ class CasyNakladaniTests(TestCase):
         for start, end in intervals:
             self.create_loading([start], end)
         report = self.report()
-        self.assertEqual([r['patra'] for r in self.scheme(report, 'twelve')['rows']], [2, 3])
-        self.assertEqual([r['patra'] for r in self.scheme(report, 'eight')['rows']], [1, 2, 2])
-        self.assertEqual(self.scheme(report, 'twelve')['total']['hours'], 24)
-        self.assertEqual(len(report['details']), 5)
+        eight_hours = Fraction(28_800_000_000, 28_859_999_999)
+        four_hours = Fraction(14_400_000_000, 14_459_999_999)
+        six_hours = Fraction(21_600_000_000, 21_659_999_999)
+        # Předešlá noční přispěje minutou po 06:00, poslední minuta následující
+        # noční už patří dalšímu dni. Konce v 14/18/22 zasahují do další směny.
+        day = 1 + (1 - eight_hours) + four_hours
+        night = 2 + (1 - four_hours) + six_hours
+        for key, expected in (('twelve', (day, night)), ('eight', (1, day, night - 1))):
+            for row, share in zip(self.scheme(report, key)['rows'], expected):
+                share = Fraction(share)
+                self.assertAlmostEqual(row['patra'], Decimal(share.numerator) / share.denominator, places=20)
+        self.assertAlmostEqual(
+            self.scheme(report, 'twelve')['total']['hours'],
+            24 + 5 * self.minute_tail / 3600, places=20,
+        )
+        self.assertEqual(len(report['details']), 6)
 
     def test_floor_started_before_report_window_is_split_between_report_days(self):
         self.create_loading(['2026-11-23T18:00'], '2026-11-24T18:00')
         total = self.scheme(self.report(), 'twelve')['total']
         previous = self.scheme(self.report(self.day - timedelta(days=1)), 'twelve')['total']
-        self.assertEqual(total['patra'], Decimal('.5'))
-        self.assertEqual(total['sarze'], Decimal('.5'))
+        share = (43200 + self.minute_tail) / (86400 + self.minute_tail)
+        self.assertEqual(total['patra'], share)
+        self.assertEqual(total['sarze'], share)
         self.assertEqual(total['patra'] + previous['patra'], 1)
 
     def test_missing_history_nonincreasing_times_and_invalid_end_are_not_guessed(self):
         missing = self.create_loading(['2026-11-24T09:00'], '2026-11-24T10:00')
         SarzeKrokBedna.history.filter(krok_id=missing.pk).delete()
         self.create_loading(['2026-11-24T12:00', '2026-11-24T11:00'], '2026-11-24T13:00')
-        self.create_loading(['2026-11-24T15:00'], '2026-11-24T15:00')
+        self.create_loading(['2026-11-24T15:00'], '2026-11-24T14:59')
         report = self.report()
         self.assertEqual(report['invalid_steps'], 3)
         self.assertEqual(self.scheme(report, 'twelve')['total']['patra'], 0)
@@ -212,8 +232,42 @@ class CasyNakladaniTests(TestCase):
                 self.create_loading([f'{day}T22:00'], f'{end}T06:00')
                 report = self.report(date.fromisoformat(day))
                 for scheme in report['schemes']:
-                    self.assertEqual(scheme['rows'][-1]['patra'], 1)
+                    share = Decimal(expected * 3600) / (expected * 3600 + self.minute_tail)
+                    self.assertEqual(scheme['rows'][-1]['patra'], share)
                     self.assertEqual(scheme['rows'][-1]['hours'], expected)
+                following = self.scheme(self.report(date.fromisoformat(end)), 'twelve')['total']
+                self.assertEqual(self.scheme(report, 'twelve')['total']['patra'] + following['patra'], 1)
+
+    def test_last_floor_saved_at_fractional_second_59_is_included_without_changing_evidence(self):
+        step = self.create_loading(
+            ['2026-11-24T07:01:00', '2026-11-24T07:02:59.500000'], '2026-11-24T07:02',
+        )
+        history_count = step.history.count() + SarzeKrokBedna.history.filter(krok_id=step.pk).count()
+        report = self.report()
+        self.assertEqual(report['invalid_steps'], 0)
+        self.assertEqual(self.scheme(report, 'twelve')['total']['patra'], 2)
+        self.assertEqual(report['details'][0]['end'], self.instant('2026-11-24T07:02:59.500000'))
+        self.assertEqual(report['details'][-1]['end'], self.instant('2026-11-24T07:02:59.999999'))
+        self.assertEqual(report['details'][-1]['recorded_end'], self.instant('2026-11-24T07:02:00'))
+        step.refresh_from_db()
+        self.assertEqual(step.konec, time(7, 2))
+        self.assertEqual(history_count, step.history.count() + SarzeKrokBedna.history.filter(krok_id=step.pk).count())
+
+    def test_just_closed_loading_is_not_rejected_for_the_calculated_future_seconds(self):
+        self.create_loading(['2026-11-24T07:01', '2026-11-24T07:02:10'], '2026-11-24T07:02')
+        now = self.instant('2026-11-24T07:02:40')
+        report = build_casy_nakladani_prehled(date_value=self.day, now=now)
+        self.assertEqual(report['invalid_steps'], 0)
+        self.assertGreater(report['details'][-1]['end'], now)
+        self.assertEqual(self.scheme(report, 'twelve')['total']['patra'], 2)
+
+    def test_original_future_end_still_is_rejected_within_the_same_minute(self):
+        self.create_loading(['2026-11-24T07:01'], '2026-11-24T07:02:50')
+        report = build_casy_nakladani_prehled(
+            date_value=self.day, now=self.instant('2026-11-24T07:02:40'),
+        )
+        self.assertEqual(report['invalid_steps'], 1)
+        self.assertEqual(report['details'][0]['status'], 'Konec nakládání je v budoucnosti.')
 
     def test_query_count_does_not_grow_per_step_or_floor(self):
         for _ in range(3):

@@ -31,7 +31,7 @@
               <th scope="col">Pracoviště</th>
               <th scope="col" class="text-center">Počet pater kroku</th>
               <th scope="col">Začátek</th>
-              <th scope="col">Konec</th>
+              <th scope="col">Konec pro výpočet</th>
               <th scope="col" class="text-center">Celý interval [hod.]</th>
               <th scope="col">Započtení</th>
             </tr>
@@ -49,7 +49,7 @@
                 <td>{{ row.step.zarizeni.zkraceny_nazev_zarizeni }} <span class="small text-muted">({{ row.step.zarizeni.get_typ_zarizeni_display }})</span></td>
                 <td class="text-center">{{ row.floor_count }}</td>
                 <td class="text-nowrap">{% if row.start %}{{ row.start|date:"d.m.Y H:i:s" }}{% else %}—{% endif %}</td>
-                <td class="text-nowrap">{% if row.end %}{{ row.end|date:"d.m.Y H:i:s" }}{% else %}—{% endif %}</td>
+                <td class="text-nowrap"{% if row.recorded_end %} title="Zadaný konec: {{ row.recorded_end|date:'d.m.Y H:i:s' }}"{% endif %}>{% if row.end %}{{ row.end|date:"d.m.Y H:i:s" }}{% else %}—{% endif %}</td>
                 <td class="text-center">{% if row.hours != None %}{{ row.hours|floatformat:1 }}{% else %}—{% endif %}</td>
                 <td>{{ row.status }}{% if row.repeated %}<div class="small">Více průchodů šarže – ověřit evidenci.</div>{% endif %}</td>
               </tr>
@@ -64,6 +64,7 @@
 
   <div class="small text-muted">
     <p class="mb-1">Vykládání zahrnuje typy pracovišť Vykládání a Tryskač. Celý interval od evidovaného začátku do konce kroku se považuje za rovnoměrnou práci.</p>
+    <p class="mb-1">Zadaná koncová minuta se pro přehled a CSV započítává celá až do sekundy 59,999999. Uložený čas se nemění; v nápovědě vypočteného konce je původní hodnota.</p>
     <p class="mb-1">Šarže se přidělí podle podílu času kroku ve směně. Patra jsou tento podíl násobený počtem různých čísel pater v obsahu kroku. Například třetina vykládání třípatrové šarže znamená jednu třetinu šarže a 1,0 patra.</p>
     <p class="mb-1">Obě tabulky vykládání představují stejnou práci v různých režimech směn; jejich výsledky se nesčítají. Hodiny zahrnují i čekání a přestávky uvnitř kroku a při souběhu pracovišť mohou přesáhnout délku směny.</p>
     <p class="mb-0">Rozpis ukazuje celé intervaly kroků. Souhrny započítávají jen část uvnitř vybraného období. Neuzavřený krok se doplní zpětně po dokončení vykládání.</p>
