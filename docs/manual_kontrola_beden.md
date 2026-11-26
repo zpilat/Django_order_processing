@@ -42,6 +42,8 @@ Před zápisem ověřte číslo, zákazníka, artikl a rozměr. Pořadí bedny s
 
 Sekce **Naměřené hodnoty a jednotlivé zkoušky** nabízí Ohyb, Krut, Prohyb po TZ, Prohyb po koulení, Prohyb po rovnání, Tvrdost povrchu, Tvrdost jádra a Vrstva.
 
+V zákaznickém nastavení lze evidovat [doby trvání zkoušek](manual_ciselniky.md#doby-trvání-zkoušek) ve formátu **mm:ss**. Prohyb, krut a ohyb mají čas pro všechny vzorky z jedné bedny; tvrdosti a vrstva pro jedno měření na jednom vrutu. Zatím se z těchto hodnot celková doba kontroly nepočítá a průběh kontroly se nemění.
+
 **Prohyb po koulení a Prohyb po rovnání** se nově nabízejí až při červeném výsledku celého vzorku **Prohybu po TZ**, s ohledem na zákaznické meze a povolený počet křivých. Bez měření po TZ, při vyhovujícím nebo oranžovém QS výsledku se prázdné navazující zkoušky nezobrazují. Pokud už konkrétní navazující zkouška má uložené hodnoty, zůstává viditelná. Nabídka se řídí samotným výsledkem po TZ i po následném úspěšném vyrovnání; neřídí se ručně nastaveným stavem Rovnání.
 
 Po uložení alespoň jedné hodnoty **Prohybu po rovnání** se **Prohyb po TZ uzamkne**. Hodnoty zůstávají viditelné, ale nelze je přidávat, upravovat ani mazat; řádek vysvětluje důvod zamčení. Server odmítne i přímé otevření zápisu nebo odeslání formuláře otevřeného před uložením rovnání. Pokud je nutná oprava původního měření, nejprve odstraňte všechny aktuální hodnoty po rovnání; tím se zápis po TZ znovu zpřístupní. Historie původních hodnot a snapshoty neshody zůstávají zachované. Samotné měření po koulení prohyb po TZ nezamyká.

@@ -56,6 +56,23 @@ Všechna tři minima zapisovaných hodnot mohou zůstat prázdná (minimum neuve
 
 Uložené případy v **Evidenci neshod** mají vlastní neměnný snímek tehdejších požadavků a měření. Změna zákazníka jej nepřepíše. Dříve stažené PDF se také nemění; nové vygenerování může mít jiný obsah.
 
+### Doby trvání zkoušek
+
+V detailu zákazníka otevřete samostatnou sekci **Doby trvání zkoušek**. Obsahuje šest nepovinných časů:
+
+| Pole | Význam doby |
+| --- | --- |
+| Doba zkoušky prohybu | Provedení zkoušky pro všechny vzorky z jedné bedny. |
+| Doba zkoušky krutu | Provedení zkoušky pro všechny vzorky z jedné bedny. |
+| Doba zkoušky ohybu | Provedení zkoušky pro všechny vzorky z jedné bedny. |
+| Doba měření tvrdosti jádra | Jedno měření na jednom vrutu. |
+| Doba měření tvrdosti povrchu | Jedno měření na jednom vrutu. |
+| Doba měření vrstvy | Jedno měření na jednom vrutu. |
+
+Časy zadávejte ve formátu **mm:ss** (minuty:sekundy), například **02:30** pro dvě minuty a třicet sekund nebo **00:30** pro třicet sekund. Minuty mohou být i vyšší než 59, například **90:00**. Sekundy musí být v rozsahu **00–59** a vyplněná doba nejméně **00:01**. Prázdné pole znamená **nenastaveno**, nikoli nulovou dobu.
+
+Hodnoty se ukládají samostatně pro každého zákazníka a jejich změny se zaznamenávají do jeho historie. Zatím slouží pouze jako nastavení pro budoucí výpočty: celková doba kontroly se z nich nepočítá a nemění se měření, uvolnění bedny ani tisk KKK.
+
 ## 5. Předpisy, pletiva a typy hlav
 
 ### Založení předpisu

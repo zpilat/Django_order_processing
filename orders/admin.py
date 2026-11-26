@@ -76,6 +76,7 @@ from .filters import (
     DuvodZaznamuNeshodyFilter, DatumZaznamuNeshodyFilter,
 )
 from .forms import (
+    ZakaznikAdminForm,
     MereniHodnotaInput,
     BednaAdminForm,
     BednaChangeListForm,
@@ -1004,6 +1005,8 @@ class ZakaznikAdmin(HistoryViewOnlyAdmin):
     """
     Správa zákazníků v administraci.
     """
+    form = ZakaznikAdminForm
+
     # Parametry pro zobrazení detailu v administraci
     fieldsets = [
         ('Název a adresa', {
@@ -1028,6 +1031,12 @@ class ZakaznikAdmin(HistoryViewOnlyAdmin):
                 'nazev_protokolu',
                 'vyplnene_kkk_po_zakazkach',
             )
+        }),
+        ('Doby trvání zkoušek', {
+            'fields': (
+                'doba_prohyb', 'doba_krut', 'doba_ohyb',
+                'doba_tvrdost_jadra', 'doba_tvrdost_povrchu', 'doba_vrstva',
+            ),
         }),
     ]
     readonly_fields = ('zkratka',)

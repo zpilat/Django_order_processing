@@ -4,6 +4,8 @@ Internal application for receiving, heat treating, inspecting and shipping order
 
 ## Features
 
+- Customer-specific durations for six tests in `mm:ss`: deflection, torsion and bending for the entire crate sample; core hardness, surface hardness and case depth per measurement on one screw. Currently stored with change history for future calculations. See the [Czech settings manual](docs/manual_ciselniky.md#doby-trvání-zkoušek).
+
 - Shared OMEGA export with a preview and validation: SPX heat treatment per crate; EUR heat treatment per order and sandblasting summaries grouped by EUR/kg rate. Enabled zinc billing blocks export for all customers. Verify the EUR extension in a test copy of OMEGA first. See the [Czech export manual](docs/manual_export_omega.md).
 - XLSX delivery note import with preview, validation and atomic saving; article numbers remain strings.
 - Crate states, warehouse positions, priorities, paused items and change history.

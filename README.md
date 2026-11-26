@@ -4,6 +4,8 @@ Interní aplikace pro správu zakázek od příjmu přes tepelné zpracování a
 
 ## Funkce
 
+- Zákaznické doby šesti zkoušek ve formátu `mm:ss`: prohyb, krut a ohyb pro celý vzorek bedny; tvrdost jádra, tvrdost povrchu a vrstva pro jedno měření na jednom vrutu. Zatím pouze nastavení s historií pro budoucí výpočty. Viz [manuál číselníků](docs/manual_ciselniky.md#doby-trvání-zkoušek).
+
 - Společný export podkladů pro OMEGU s náhledem a kontrolami: SPX má kalení po bednách, EUR kalení po zakázkách a souhrny tryskání podle sazeb EUR/kg. Zapnuté účtování zinkování export blokuje u všech zákazníků. Rozšíření EUR nejprve ověřte v testovací kopii OMEGY. Viz [manuál exportu](docs/manual_export_omega.md).
 - Import dodacích listů z XLSX s náhledem, validací a atomickým uložením; artikly zůstávají textem.
 - Evidence beden, technologických stavů, pozic, priorit, pozastavení a historie změn.

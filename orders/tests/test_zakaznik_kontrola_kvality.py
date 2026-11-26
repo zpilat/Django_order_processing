@@ -1,10 +1,36 @@
+from datetime import timedelta
+
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
 
-from orders.models import Zakaznik
+from orders.forms import MinutySekundyField
+from orders.models import DOBA_ZKOUSKY_FIELDS, Zakaznik
+
+
+class MinutySekundyFieldTests(SimpleTestCase):
+    def test_minutes_are_not_interpreted_as_hours_and_round_trip_above_one_hour(self):
+        field = MinutySekundyField(required=False)
+        for submitted, expected, displayed in (
+            ('00:01', timedelta(seconds=1), '00:01'),
+            ('2:30', timedelta(seconds=150), '02:30'),
+            (' 02:30 ', timedelta(seconds=150), '02:30'),
+            ('90:05', timedelta(minutes=90, seconds=5), '90:05'),
+            ('1500:00', timedelta(minutes=1500), '1500:00'),
+            ('', None, None),
+        ):
+            with self.subTest(value=submitted):
+                parsed = field.clean(submitted)
+                self.assertEqual(parsed, expected)
+                self.assertEqual(field.prepare_value(parsed), displayed)
+
+    def test_rejects_ambiguous_formats_invalid_seconds_and_overflow(self):
+        field = MinutySekundyField()
+        for submitted in ('30', '02:60', '02:99', '02:3', '1:02:30', '2.5', '-01:30', 'abc', '9' * 30 + ':00'):
+            with self.subTest(value=submitted), self.assertRaises(ValidationError):
+                field.clean(submitted)
 
 
 class ZakaznikKontrolaKvalityTests(TestCase):
@@ -65,6 +91,67 @@ class ZakaznikKontrolaKvalityTests(TestCase):
                 self.customer.refresh_from_db()
                 self.assertEqual(self.customer.vyplnene_kkk_po_zakazkach, expected)
                 self.assertEqual(self.customer.history.first().vyplnene_kkk_po_zakazkach, expected)
+
+    def test_admin_saves_displays_and_clears_test_durations_with_history(self):
+        times = ('02:30', '03:15', '90:05', '00:30', '00:45', '01:20')
+        expected_times = (150, 195, 5405, 30, 45, 80)
+        self.assertTrue(all(getattr(self.customer, field) is None for field in DOBA_ZKOUSKY_FIELDS))
+        original_history = self.customer.history.first()
+        response = self.client.post(self.url, {
+            **self.payload(''), **dict(zip(DOBA_ZKOUSKY_FIELDS, times)),
+        })
+        self.assertEqual(response.status_code, 302)
+        self.customer.refresh_from_db()
+        history = self.customer.history.first()
+        for field, seconds in zip(DOBA_ZKOUSKY_FIELDS, expected_times):
+            with self.subTest(field=field):
+                self.assertEqual(getattr(self.customer, field), timedelta(seconds=seconds))
+                self.assertEqual(getattr(history, field), timedelta(seconds=seconds))
+                self.assertIsNone(getattr(original_history, field))
+        self.assertEqual(history.history_user, self.user)
+
+        response = self.client.get(self.url)
+        self.assertContains(response, 'Doby trvání zkoušek')
+        self.assertContains(response, 'Čas pro všechny vzorky z jedné bedny.')
+        self.assertContains(response, 'Čas jednoho měření na jednom vrutu.')
+        fieldsets = dict(response.context['adminform'].fieldsets)
+        for field, displayed in zip(DOBA_ZKOUSKY_FIELDS, times):
+            self.assertIn(field, fieldsets['Doby trvání zkoušek']['fields'])
+            self.assertEqual(response.context['adminform'].form[field].value(), displayed)
+            self.assertContains(response, f'value="{displayed}"')
+
+        response = self.client.post(self.url, {
+            **self.payload(''), **dict.fromkeys(DOBA_ZKOUSKY_FIELDS, ''),
+        })
+        self.assertEqual(response.status_code, 302)
+        self.customer.refresh_from_db()
+        for field in DOBA_ZKOUSKY_FIELDS:
+            self.assertIsNone(getattr(self.customer, field))
+            self.assertIsNone(getattr(self.customer.history.first(), field))
+
+    def test_admin_rejects_invalid_durations_without_saving_or_creating_history(self):
+        for value in ('00:00', '02:60', '1:02:30', '-01:00'):
+            with self.subTest(value=value):
+                response = self.client.post(self.url, {
+                    **self.payload(''), **dict.fromkeys(DOBA_ZKOUSKY_FIELDS, value),
+                })
+                self.assertEqual(response.status_code, 200)
+                self.assertTrue(set(DOBA_ZKOUSKY_FIELDS).issubset(response.context['adminform'].form.errors))
+                self.customer.refresh_from_db()
+                self.assertTrue(all(getattr(self.customer, field) is None for field in DOBA_ZKOUSKY_FIELDS))
+                self.assertEqual(self.customer.history.count(), 1)
+
+    def test_duration_constraints_reject_nonpositive_values_in_model_and_database(self):
+        for field in DOBA_ZKOUSKY_FIELDS:
+            for value in (timedelta(), timedelta(seconds=-1)):
+                with self.subTest(field=field, value=value):
+                    setattr(self.customer, field, value)
+                    with self.assertRaises(ValidationError) as caught:
+                        self.customer.full_clean()
+                    self.assertIn(field, caught.exception.message_dict)
+                    with self.assertRaises(IntegrityError), transaction.atomic():
+                        Zakaznik.objects.filter(pk=self.customer.pk).update(**{field: value})
+            setattr(self.customer, field, None)
 
     def test_kkk_minimums_are_optional_positive_and_enforced_in_database(self):
         for field in ('min_hodnot_mechanicke', 'min_hodnot_prohyb', 'min_hodnot_tvrdost'):

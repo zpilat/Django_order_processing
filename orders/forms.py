@@ -9,12 +9,14 @@ from django.contrib.admin.widgets import AdminDateWidget
 from django.core.exceptions import ValidationError
 
 from decimal import Decimal, ROUND_HALF_UP
+from datetime import timedelta
+import re
 
 from orders.utils import parse_sarze_search_term
 from orders.services.mereni_bedny_service import omezeni_uvolneni_prohybem
 from orders.services.stav_bedny_service import duvody_neuplne_kontroly, vyhodnotit_stavy_pri_zkontrolovani
 
-from .models import Sarze, SarzeKrok, Zakaznik, Kamion, Zakazka, Bedna, Predpis, Odberatel, Pozice, Zarizeni, KontrolaBedny
+from .models import Sarze, SarzeKrok, Zakaznik, Kamion, Zakazka, Bedna, Predpis, Odberatel, Pozice, Zarizeni, KontrolaBedny, DOBA_ZKOUSKY_FIELDS
 from .choices import (
     StavBednyChoice,
     StavSarzeChoice,
@@ -59,6 +61,46 @@ def _validate_sarzekrok_end(cleaned_data):
 
     if errors:
         raise ValidationError(errors)
+
+
+class MinutySekundyField(forms.DurationField):
+    """Délka trvání v minutách a sekundách, včetně časů nad 59 minut."""
+
+    default_error_messages = {
+        'invalid': 'Zadejte dobu ve formátu mm:ss, např. 02:30. Sekundy musí být 00–59.',
+    }
+
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault('widget', forms.TextInput(attrs={
+            'placeholder': 'mm:ss', 'pattern': '[0-9]+:[0-5][0-9]', 'size': 8,
+        }))
+        super().__init__(*args, **kwargs)
+
+    def prepare_value(self, value):
+        if isinstance(value, timedelta):
+            minutes, seconds = divmod(value // timedelta(seconds=1), 60)
+            return f'{minutes:02d}:{seconds:02d}'
+        return value
+
+    def to_python(self, value):
+        if value in self.empty_values:
+            return None
+        if isinstance(value, timedelta):
+            return value
+        match = re.fullmatch(r'([0-9]+):([0-5][0-9])', str(value).strip())
+        if match:
+            try:
+                return timedelta(minutes=int(match[1]), seconds=int(match[2]))
+            except (OverflowError, ValueError):
+                pass
+        raise ValidationError(self.error_messages['invalid'], code='invalid')
+
+
+class ZakaznikAdminForm(forms.ModelForm):
+    class Meta:
+        model = Zakaznik
+        fields = '__all__'
+        field_classes = {field: MinutySekundyField for field in DOBA_ZKOUSKY_FIELDS}
 
 
 class ImportZakazekForm(forms.Form):

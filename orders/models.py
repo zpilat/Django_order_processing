@@ -43,6 +43,11 @@ from .choices import (
 import logging
 logger = logging.getLogger('orders')
 
+DOBA_ZKOUSKY_FIELDS = (
+    'doba_prohyb', 'doba_krut', 'doba_ohyb',
+    'doba_tvrdost_jadra', 'doba_tvrdost_povrchu', 'doba_vrstva',
+)
+
 class Zakaznik(models.Model):
     nazev = models.CharField(max_length=100, verbose_name='Název zákazníka', unique=True)
     zkraceny_nazev = models.CharField(max_length=15, verbose_name='Zkrácený název', unique=True,
@@ -97,6 +102,36 @@ class Zakaznik(models.Model):
         help_text='Minimální počet zapsaných hodnot zvlášť pro povrch a jádro u beden určených k měření tvrdosti. Prázdné pole znamená neuvedené minimum.',
         validators=[MinValueValidator(1)], blank=True, null=True,
     )
+    doba_prohyb = models.DurationField(
+        verbose_name='Doba zkoušky prohybu', blank=True, null=True,
+        validators=[MinValueValidator(timedelta(seconds=1))],
+        help_text='Čas pro všechny vzorky z jedné bedny. Formát mm:ss, např. 02:30. Prázdné pole znamená nenastaveno.',
+    )
+    doba_krut = models.DurationField(
+        verbose_name='Doba zkoušky krutu', blank=True, null=True,
+        validators=[MinValueValidator(timedelta(seconds=1))],
+        help_text='Čas pro všechny vzorky z jedné bedny. Formát mm:ss, např. 02:30. Prázdné pole znamená nenastaveno.',
+    )
+    doba_ohyb = models.DurationField(
+        verbose_name='Doba zkoušky ohybu', blank=True, null=True,
+        validators=[MinValueValidator(timedelta(seconds=1))],
+        help_text='Čas pro všechny vzorky z jedné bedny. Formát mm:ss, např. 02:30. Prázdné pole znamená nenastaveno.',
+    )
+    doba_tvrdost_jadra = models.DurationField(
+        verbose_name='Doba měření tvrdosti jádra', blank=True, null=True,
+        validators=[MinValueValidator(timedelta(seconds=1))],
+        help_text='Čas jednoho měření na jednom vrutu. Formát mm:ss, např. 00:30. Prázdné pole znamená nenastaveno.',
+    )
+    doba_tvrdost_povrchu = models.DurationField(
+        verbose_name='Doba měření tvrdosti povrchu', blank=True, null=True,
+        validators=[MinValueValidator(timedelta(seconds=1))],
+        help_text='Čas jednoho měření na jednom vrutu. Formát mm:ss, např. 00:30. Prázdné pole znamená nenastaveno.',
+    )
+    doba_vrstva = models.DurationField(
+        verbose_name='Doba měření vrstvy', blank=True, null=True,
+        validators=[MinValueValidator(timedelta(seconds=1))],
+        help_text='Čas jednoho měření na jednom vrutu. Formát mm:ss, např. 00:30. Prázdné pole znamená nenastaveno.',
+    )
     nazev_protokolu = models.TextField(
         verbose_name='Název protokolu', blank=True, default='',
         help_text='Označení v záhlaví vyplněné KKK. Více označení zadejte na samostatné řádky. Při nevyplnění se použije HPM - F XXX.',
@@ -119,6 +154,12 @@ class Zakaznik(models.Model):
                 name=f'{field}_gte_1',
             )
             for field in ('min_hodnot_mechanicke', 'min_hodnot_prohyb', 'min_hodnot_tvrdost')
+        ] + [
+            models.CheckConstraint(
+                condition=Q(**{f'{field}__isnull': True}) | Q(**{f'{field}__gte': timedelta(seconds=1)}),
+                name=f'zakaznik_{field}_gte_1s',
+            )
+            for field in DOBA_ZKOUSKY_FIELDS
         ]
 
     def __str__(self):
